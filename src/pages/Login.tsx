@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,15 +13,20 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('[KDOps] signInWithPassword response:', { data, error });
     if (error) {
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    // Navigate immediately on success — don't wait for onAuthStateChange
+    navigate('/dashboard', { replace: true });
   };
 
   return (
@@ -47,6 +53,14 @@ const Login = () => {
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign In
             </Button>
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <Link to="/forgot-password" className="text-primary hover:underline">
+                Forgot password?
+              </Link>
+              <Link to="/register" className="text-primary hover:underline font-medium">
+                Create account
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>

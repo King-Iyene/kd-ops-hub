@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/authStore";
 import { useAuth } from "@/hooks/useAuth";
 import AppLayout from "@/components/AppLayout";
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
 import Dashboard from "./pages/Dashboard";
 import Payments from "./pages/Payments";
 import NewPaymentBatch from "./pages/NewPaymentBatch";
@@ -37,8 +39,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { profile, loading } = useAuthStore();
-  if (loading) return (
+  const { profile, loading, profileLoading } = useAuthStore();
+  if (loading || profileLoading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
@@ -51,6 +53,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route
         element={
           <AuthGuard>
@@ -59,6 +63,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<AdminRoute><Dashboard /></AdminRoute>} />
+        <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
         <Route path="/payments" element={<AdminRoute><Payments /></AdminRoute>} />
         <Route path="/payments/new" element={<AdminRoute><NewPaymentBatch /></AdminRoute>} />
         <Route path="/payments/:id" element={<AdminRoute><BatchDetail /></AdminRoute>} />

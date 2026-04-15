@@ -27,7 +27,7 @@ export const useAuth = () => {
           setLoading(false);
           const currentPath = window.location.pathname;
           if (currentPath === '/login') {
-            navigate('/');
+            navigate('/dashboard');
           }
         });
       } else {

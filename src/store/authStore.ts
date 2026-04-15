@@ -13,6 +13,7 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   setLoading: (loading: boolean) => void;
@@ -24,6 +25,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   profile: null,
   loading: true,
+  profileLoading: false,
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   setLoading: (loading) => set({ loading }),
@@ -32,11 +34,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, profile: null });
   },
   fetchProfile: async (userId: string) => {
-    const { data } = await supabase
+    set({ profileLoading: true });
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
-    if (data) set({ profile: data as Profile });
+    if (error) {
+      console.error('[KDOps] fetchProfile error:', error.message, error);
+    }
+    if (data) {
+      set({ profile: data as Profile, profileLoading: false });
+    } else {
+      // No profile row found — still unblock the UI
+      set({ profileLoading: false });
+    }
   },
 }));
