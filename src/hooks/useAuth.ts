@@ -9,29 +9,36 @@ export const useAuth = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        await fetchProfile(session.user.id);
-        if (location.pathname === '/login') {
-          navigate('/');
-        }
-      } else {
-        setUser(null);
-        useAuthStore.getState().setProfile(null);
-        if (location.pathname !== '/login') {
-          navigate('/login');
-        }
-      }
-      setLoading(false);
-    });
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id).then(() => {
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+        fetchProfile(session.user.id).then(() => {
+          setLoading(false);
+          const currentPath = window.location.pathname;
+          if (currentPath === '/login') {
+            navigate('/');
+          }
+        });
+      } else {
+        setUser(null);
+        useAuthStore.getState().setProfile(null);
+        setLoading(false);
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          navigate('/login');
+        }
+      }
     });
 
     return () => subscription.unsubscribe();

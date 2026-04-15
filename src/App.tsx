@@ -16,7 +16,7 @@ import Expenses from "./pages/Expenses";
 import Contractors from "./pages/Contractors";
 import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import { Loader2 } from "lucide-react";
+import { Loader as Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -37,7 +37,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { profile } = useAuthStore();
+  const { profile, loading } = useAuthStore();
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
   if (profile?.role !== 'admin') return <Navigate to="/fleet" replace />;
   return <>{children}</>;
 }
