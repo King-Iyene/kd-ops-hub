@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          description: string
+          id: string
+          performed_by: string | null
+          performed_by_name: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          description: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          performed_by?: string | null
+          performed_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       batch_items: {
         Row: {
           account_number: string
@@ -160,7 +195,7 @@ export type Database = {
           reason: string | null
           station_name: string
           status: string
-          vehicle_id: string
+          vehicle_id: string | null
         }
         Insert: {
           admin_note?: string | null
@@ -173,7 +208,7 @@ export type Database = {
           reason?: string | null
           station_name?: string
           status?: string
-          vehicle_id: string
+          vehicle_id?: string | null
         }
         Update: {
           admin_note?: string | null
@@ -186,7 +221,7 @@ export type Database = {
           reason?: string | null
           station_name?: string
           status?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -309,21 +344,27 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          phone: string | null
           role: string
+          status: string
         }
         Insert: {
           created_at?: string
           email: string
           full_name?: string
           id: string
+          phone?: string | null
           role?: string
+          status?: string
         }
         Update: {
           created_at?: string
           email?: string
           full_name?: string
           id?: string
+          phone?: string | null
           role?: string
+          status?: string
         }
         Relationships: []
       }
@@ -342,7 +383,7 @@ export type Database = {
           odometer_start: number | null
           receipt_url: string | null
           start_location: string
-          vehicle_id: string
+          vehicle_id: string | null
         }
         Insert: {
           created_at?: string
@@ -358,7 +399,7 @@ export type Database = {
           odometer_start?: number | null
           receipt_url?: string | null
           start_location?: string
-          vehicle_id: string
+          vehicle_id?: string | null
         }
         Update: {
           created_at?: string
@@ -374,7 +415,7 @@ export type Database = {
           odometer_start?: number | null
           receipt_url?: string | null
           start_location?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {

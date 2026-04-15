@@ -1,5 +1,14 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, Truck, Receipt, Users, Settings, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  CreditCard,
+  Truck,
+  Receipt,
+  Users,
+  UserCog,
+  Settings,
+  LogOut,
+} from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import {
   Sidebar,
@@ -14,17 +23,23 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-const adminNav = [
-  { title: 'Dashboard', url: '/', icon: LayoutDashboard },
-  { title: 'Payments', url: '/payments', icon: CreditCard },
-  { title: 'Fleet', url: '/fleet', icon: Truck },
-  { title: 'Expenses', url: '/expenses', icon: Receipt },
-  { title: 'Contractors', url: '/contractors', icon: Users },
-  { title: 'Settings', url: '/settings', icon: Settings },
-];
+type Role = 'admin' | 'finance' | 'operations' | 'field_staff' | 'driver';
 
-const driverNav = [
-  { title: 'Fleet', url: '/fleet', icon: Truck },
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  roles: Role[];
+};
+
+const ALL_NAV: NavItem[] = [
+  { title: 'Dashboard',   url: '/',            icon: LayoutDashboard, roles: ['admin', 'finance', 'operations'] },
+  { title: 'Payments',    url: '/payments',    icon: CreditCard,      roles: ['admin', 'finance', 'operations'] },
+  { title: 'Fleet',       url: '/fleet',       icon: Truck,           roles: ['admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Expenses',    url: '/expenses',    icon: Receipt,         roles: ['admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Contractors', url: '/contractors', icon: Users,           roles: ['admin', 'finance', 'operations'] },
+  { title: 'Employees',   url: '/employees',   icon: UserCog,         roles: ['admin', 'finance', 'operations'] },
+  { title: 'Settings',    url: '/settings',    icon: Settings,        roles: ['admin'] },
 ];
 
 export function AppSidebar() {
@@ -33,7 +48,8 @@ export function AppSidebar() {
   const { profile, signOut } = useAuthStore();
   const location = useLocation();
 
-  const navItems = profile?.role === 'admin' ? adminNav : driverNav;
+  const role = (profile?.role || 'field_staff') as Role;
+  const navItems = ALL_NAV.filter((n) => n.roles.includes(role));
 
   return (
     <Sidebar collapsible="icon">
@@ -63,7 +79,10 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
-                    isActive={location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url))}
+                    isActive={
+                      location.pathname === item.url ||
+                      (item.url !== '/' && location.pathname.startsWith(item.url))
+                    }
                   >
                     <NavLink to={item.url}>
                       <item.icon className="h-4 w-4" />

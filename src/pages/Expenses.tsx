@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
+import { logAudit } from '@/lib/audit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,8 @@ const categories = ['fuel', 'transport', 'office_supplies', 'client_entertainmen
 const Expenses = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const isAdmin = profile?.role === 'admin';
+  const isApprover = profile?.role === 'admin' || profile?.role === 'finance';
+  const isAdmin = isApprover; // retained for existing references
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -47,12 +49,39 @@ const Expenses = () => {
       status: 'pending',
     });
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Expense submitted' }); setShowForm(false); setForm({ category: '', amount_ngn: '', date: '', description: '' }); fetchExpenses(); }
+    else {
+      await logAudit(
+        'expense_submitted',
+        `Expense submitted: ${form.category} — ${formatNaira(parseFloat(form.amount_ngn) || 0)}`,
+        profile,
+      );
+      toast({ title: 'Expense submitted' });
+      setShowForm(false);
+      setForm({ category: '', amount_ngn: '', date: '', description: '' });
+      fetchExpenses();
+    }
     setSubmitting(false);
   };
 
-  const handleAction = async (id: string, status: string) => {
-    await supabase.from('expenses').update({ status }).eq('id', id);
+  const handleAction = async (expense: any, status: 'approved' | 'rejected') => {
+    if (!isApprover) {
+      toast({
+        title: 'Not authorized',
+        description: 'Only Admin or Finance roles can approve or reject expenses.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { error } = await supabase.from('expenses').update({ status }).eq('id', expense.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      status === 'approved' ? 'expense_approved' : 'expense_rejected',
+      `Expense ${status}: ${expense.category} — ${formatNaira(expense.amount_ngn || 0)}`,
+      profile,
+    );
     toast({ title: `Expense ${status}` });
     fetchExpenses();
   };
@@ -109,8 +138,8 @@ const Expenses = () => {
                   {isAdmin && e.status === 'pending' && (
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" onClick={() => handleAction(e.id, 'approved')}><Check className="h-4 w-4 text-success" /></Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleAction(e.id, 'rejected')}><X className="h-4 w-4 text-destructive" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleAction(e, 'approved')}><Check className="h-4 w-4 text-success" /></Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleAction(e, 'rejected')}><X className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   )}
