@@ -15,8 +15,15 @@ export default function AppLayout() {
           <header className="h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <SidebarTrigger />
-              <span className="text-sm font-medium text-muted-foreground hidden sm:block">
-                {profile?.role === 'admin' ? 'Admin' : 'Driver'} Portal
+              <span className="text-sm font-medium text-muted-foreground hidden sm:block capitalize">
+                {(() => {
+                  const role = profile?.role;
+                  if (role === 'admin') return 'Admin Portal';
+                  if (role === 'finance') return 'Finance Portal';
+                  if (role === 'operations') return 'Operations Portal';
+                  if (role === 'field_staff') return 'Field Staff Portal';
+                  return 'Employee Portal';
+                })()}
               </span>
             </div>
             <div className="flex items-center gap-2">

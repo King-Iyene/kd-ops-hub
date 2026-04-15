@@ -16,15 +16,18 @@ import BatchDetail from "./pages/BatchDetail";
 import Fleet from "./pages/Fleet";
 import Expenses from "./pages/Expenses";
 import Contractors from "./pages/Contractors";
+import Employees from "./pages/Employees";
 import SettingsPage from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { Loader as Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+const MANAGER_ROLES = new Set(["admin", "finance", "operations"]);
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
-  const { user, profile } = useAuthStore();
+  const { user } = useAuthStore();
 
   if (loading) {
     return (
@@ -38,14 +41,30 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Admin-only route (Settings, etc.). Non-admins get bounced to /fleet. */
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { profile, loading, profileLoading } = useAuthStore();
-  if (loading || profileLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
-  if (profile?.role !== 'admin') return <Navigate to="/fleet" replace />;
+  if (loading || profileLoading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  if (profile?.role !== "admin") return <Navigate to="/fleet" replace />;
+  return <>{children}</>;
+}
+
+/** Admin / Finance / Operations route — used for Dashboard, Payments, Contractors, Employees. */
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  const { profile, loading, profileLoading } = useAuthStore();
+  if (loading || profileLoading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  if (!profile || !MANAGER_ROLES.has(profile.role))
+    return <Navigate to="/fleet" replace />;
   return <>{children}</>;
 }
 
@@ -62,14 +81,15 @@ function AppRoutes() {
           </AuthGuard>
         }
       >
-        <Route path="/" element={<AdminRoute><Dashboard /></AdminRoute>} />
-        <Route path="/dashboard" element={<AdminRoute><Dashboard /></AdminRoute>} />
-        <Route path="/payments" element={<AdminRoute><Payments /></AdminRoute>} />
-        <Route path="/payments/new" element={<AdminRoute><NewPaymentBatch /></AdminRoute>} />
-        <Route path="/payments/:id" element={<AdminRoute><BatchDetail /></AdminRoute>} />
+        <Route path="/" element={<ManagerRoute><Dashboard /></ManagerRoute>} />
+        <Route path="/dashboard" element={<ManagerRoute><Dashboard /></ManagerRoute>} />
+        <Route path="/payments" element={<ManagerRoute><Payments /></ManagerRoute>} />
+        <Route path="/payments/new" element={<ManagerRoute><NewPaymentBatch /></ManagerRoute>} />
+        <Route path="/payments/:id" element={<ManagerRoute><BatchDetail /></ManagerRoute>} />
         <Route path="/fleet" element={<Fleet />} />
         <Route path="/expenses" element={<Expenses />} />
-        <Route path="/contractors" element={<AdminRoute><Contractors /></AdminRoute>} />
+        <Route path="/contractors" element={<ManagerRoute><Contractors /></ManagerRoute>} />
+        <Route path="/employees" element={<ManagerRoute><Employees /></ManagerRoute>} />
         <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
       </Route>
       <Route path="*" element={<NotFound />} />

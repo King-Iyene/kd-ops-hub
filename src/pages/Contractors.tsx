@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
+import { logAudit } from '@/lib/audit';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Plus, Search, Upload, Pencil } from 'lucide-react';
 import Papa from 'papaparse';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 interface Contractor {
   id: string;
@@ -22,15 +25,28 @@ interface Contractor {
   status: string;
 }
 
+const emptyBank: BankAccountValue = {
+  bank_name: '',
+  account_number: '',
+  account_name: '',
+  verified: false,
+};
+
 const Contractors = () => {
   const { toast } = useToast();
+  const { profile } = useAuthStore();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contractor | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ full_name: '', bank_name: '', account_number: '', default_amount_ngn: '', linkedin_id: '' });
+  const [form, setForm] = useState({
+    full_name: '',
+    default_amount_ngn: '',
+    linkedin_id: '',
+  });
+  const [bank, setBank] = useState<BankAccountValue>(emptyBank);
 
   useEffect(() => { fetchContractors(); }, []);
 
@@ -40,40 +56,95 @@ const Contractors = () => {
     setLoading(false);
   };
 
+  const resetForm = () => {
+    setEditing(null);
+    setForm({ full_name: '', default_amount_ngn: '', linkedin_id: '' });
+    setBank(emptyBank);
+  };
+
   const handleSave = async () => {
+    if (!bank.verified) {
+      toast({
+        title: 'Verify the account first',
+        description: 'The bank account must be verified via Paystack before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     const payload = {
-      full_name: form.full_name,
-      bank_name: form.bank_name,
-      account_number: form.account_number,
+      full_name: form.full_name || bank.account_name,
+      bank_name: bank.bank_name,
+      account_number: bank.account_number,
       default_amount_ngn: parseFloat(form.default_amount_ngn) || 0,
       linkedin_id: form.linkedin_id,
       status: 'active',
     };
 
-    if (editing) {
-      await supabase.from('contractors').update(payload).eq('id', editing.id);
-      toast({ title: 'Contractor updated' });
-    } else {
-      await supabase.from('contractors').insert(payload);
-      toast({ title: 'Contractor added' });
+    try {
+      if (editing) {
+        const { error } = await supabase.from('contractors').update(payload).eq('id', editing.id);
+        if (error) throw error;
+        await logAudit(
+          'contractor_edited',
+          `Contractor "${payload.full_name}" updated`,
+          profile,
+        );
+        toast({ title: 'Contractor updated' });
+      } else {
+        const { error } = await supabase.from('contractors').insert(payload);
+        if (error) throw error;
+        await logAudit(
+          'contractor_added',
+          `Contractor "${payload.full_name}" added`,
+          profile,
+        );
+        toast({ title: 'Contractor added' });
+      }
+      setShowForm(false);
+      resetForm();
+      fetchContractors();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
-    setShowForm(false);
-    setEditing(null);
-    setForm({ full_name: '', bank_name: '', account_number: '', default_amount_ngn: '', linkedin_id: '' });
-    fetchContractors();
-    setSubmitting(false);
   };
 
   const openEdit = (c: Contractor) => {
     setEditing(c);
-    setForm({ full_name: c.full_name, bank_name: c.bank_name, account_number: c.account_number, default_amount_ngn: String(c.default_amount_ngn), linkedin_id: c.linkedin_id || '' });
+    setForm({
+      full_name: c.full_name,
+      default_amount_ngn: String(c.default_amount_ngn),
+      linkedin_id: c.linkedin_id || '',
+    });
+    // Pre-fill but mark unverified — force re-verify on save.
+    setBank({
+      bank_name: c.bank_name,
+      account_number: c.account_number,
+      account_name: c.full_name,
+      verified: false,
+    });
     setShowForm(true);
   };
 
   const toggleStatus = async (c: Contractor) => {
     const newStatus = c.status === 'active' ? 'inactive' : 'active';
     await supabase.from('contractors').update({ status: newStatus }).eq('id', c.id);
+    if (newStatus === 'inactive') {
+      await logAudit(
+        'contractor_deactivated',
+        `Contractor "${c.full_name}" deactivated`,
+        profile,
+      );
+    } else {
+      await logAudit(
+        'contractor_edited',
+        `Contractor "${c.full_name}" reactivated`,
+        profile,
+      );
+    }
     toast({ title: `Contractor ${newStatus}` });
     fetchContractors();
   };
@@ -93,7 +164,13 @@ const Contractors = () => {
           linkedin_id: row.linkedin_id || '',
           status: 'active',
         })).filter((r) => r.full_name);
+        if (rows.length === 0) return;
         await supabase.from('contractors').insert(rows);
+        await logAudit(
+          'contractor_added',
+          `Imported ${rows.length} contractors via CSV`,
+          profile,
+        );
         toast({ title: `${rows.length} contractors imported` });
         fetchContractors();
       },
@@ -116,7 +193,12 @@ const Contractors = () => {
             <input type="file" accept=".csv" className="hidden" onChange={handleCsvImport} />
             <Button variant="outline" asChild><span><Upload className="mr-2 h-4 w-4" /> Import CSV</span></Button>
           </label>
-          <Button onClick={() => { setEditing(null); setForm({ full_name: '', bank_name: '', account_number: '', default_amount_ngn: '', linkedin_id: '' }); setShowForm(true); }}>
+          <Button
+            onClick={() => {
+              resetForm();
+              setShowForm(true);
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" /> Add Contractor
           </Button>
         </div>
@@ -164,23 +246,34 @@ const Contractors = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) resetForm(); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>Full Name</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Bank Name</Label><Input value={form.bank_name} onChange={(e) => setForm({ ...form, bank_name: e.target.value })} /></div>
-              <div className="space-y-1"><Label>Account Number</Label><Input value={form.account_number} onChange={(e) => setForm({ ...form, account_number: e.target.value })} /></div>
+            <div className="space-y-1">
+              <Label>Full Name</Label>
+              <Input
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                placeholder={bank.account_name || 'Full name'}
+              />
+              {bank.verified && bank.account_name && form.full_name && form.full_name.trim().toLowerCase() !== bank.account_name.trim().toLowerCase() && (
+                <p className="text-xs text-warning">
+                  Heads up: entered name differs from verified bank name "{bank.account_name}".
+                </p>
+              )}
             </div>
+
+            <BankAccountField value={bank} onChange={setBank} />
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Default Amount (₦)</Label><Input type="number" value={form.default_amount_ngn} onChange={(e) => setForm({ ...form, default_amount_ngn: e.target.value })} /></div>
               <div className="space-y-1"><Label>LinkedIn ID</Label><Input value={form.linkedin_id} onChange={(e) => setForm({ ...form, linkedin_id: e.target.value })} /></div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={submitting || !form.full_name}>
+            <Button variant="outline" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={submitting || !form.full_name || !bank.verified}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editing ? 'Update' : 'Add'}
             </Button>
           </DialogFooter>

@@ -3,14 +3,16 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
+import { logAudit } from '@/lib/audit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Check, X, Loader2, Play, DollarSign } from 'lucide-react';
+import { ArrowLeft, Check, X, Loader2, Play, DollarSign, ShieldAlert } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -33,6 +35,8 @@ const statusLabels: Record<string, string> = {
   partially_processed: 'Partial',
   rejected: 'Rejected',
 };
+
+const APPROVER_ROLES = ['admin', 'finance'] as const;
 
 const BatchDetail = () => {
   const { id } = useParams();
@@ -60,34 +64,101 @@ const BatchDetail = () => {
     setLoading(false);
   };
 
+  const canApprove =
+    !!profile &&
+    APPROVER_ROLES.includes(profile.role as any) &&
+    batch?.created_by !== profile.id;
+
+  const cannotApproveReason = (() => {
+    if (!profile) return 'Not authenticated.';
+    if (!APPROVER_ROLES.includes(profile.role as any)) {
+      return 'Only Admin or Finance roles can approve payment batches.';
+    }
+    if (batch?.created_by === profile.id) {
+      return 'You cannot approve a batch you created. A second reviewer must approve it.';
+    }
+    return null;
+  })();
+
   const updateStatus = async (status: string, extra?: any) => {
     setActionLoading(true);
-    const update: any = { status, ...extra };
-    if (status === 'approved') update.approved_by = profile?.id;
-    const { error } = await supabase.from('payment_batches').update(update).eq('id', id);
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: `Batch ${statusLabels[status]?.toLowerCase() || status}` });
-      fetchBatch();
+    try {
+      // Hard guard for approve/reject: enforce role + separation of duties.
+      if ((status === 'approved' || status === 'rejected')) {
+        if (!profile) {
+          toast({ title: 'Not authenticated', variant: 'destructive' });
+          setActionLoading(false);
+          return;
+        }
+        if (!APPROVER_ROLES.includes(profile.role as any)) {
+          toast({
+            title: 'Not authorized',
+            description: 'Only Admin or Finance roles can approve or reject batches.',
+            variant: 'destructive',
+          });
+          setActionLoading(false);
+          return;
+        }
+        if (batch?.created_by === profile.id) {
+          toast({
+            title: 'Cannot approve own batch',
+            description: 'The approver must be different from the person who created the batch.',
+            variant: 'destructive',
+          });
+          setActionLoading(false);
+          return;
+        }
+      }
+
+      const update: any = { status, ...extra };
+      if (status === 'approved') update.approved_by = profile?.id;
+      const { error } = await supabase.from('payment_batches').update(update).eq('id', id);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else {
+        toast({ title: `Batch ${statusLabels[status]?.toLowerCase() || status}` });
+
+        const amountTxt = formatNaira(batch?.total_amount || 0);
+        if (status === 'approved') {
+          await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt})`, profile);
+        } else if (status === 'rejected') {
+          await logAudit('batch_rejected', `Batch "${batch?.name}" rejected: ${extra?.rejection_reason || ''}`, profile);
+        } else if (status === 'pending_approval') {
+          await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
+        } else if (status === 'funded') {
+          await logAudit('batch_funded', `Batch "${batch?.name}" marked funded`, profile);
+        }
+        fetchBatch();
+      }
+    } finally {
+      setActionLoading(false);
+      setShowReject(false);
     }
-    setActionLoading(false);
-    setShowReject(false);
   };
 
   const handleProcess = async () => {
     setActionLoading(true);
-    await supabase.from('payment_batches').update({ status: 'processing' }).eq('id', id);
-    // Simulate processing - mark all items as succeeded
-    await supabase.from('batch_items').update({ status: 'succeeded' }).eq('batch_id', id);
-    await supabase.from('payment_batches').update({ status: 'processed' }).eq('id', id);
-    toast({ title: 'Batch processed successfully' });
-    fetchBatch();
-    setActionLoading(false);
+    try {
+      await supabase.from('payment_batches').update({ status: 'processing' }).eq('id', id);
+      await supabase.from('batch_items').update({ status: 'succeeded' }).eq('batch_id', id);
+      await supabase.from('payment_batches').update({ status: 'processed' }).eq('id', id);
+      await logAudit(
+        'batch_processed',
+        `Batch "${batch?.name}" processed (${formatNaira(batch?.total_amount || 0)})`,
+        profile,
+      );
+      toast({ title: 'Batch processed successfully' });
+      fetchBatch();
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!batch) return <div className="text-center py-12">Batch not found</div>;
+
+  const isAdmin = profile?.role === 'admin';
+  const isFinance = profile?.role === 'finance';
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -119,15 +190,22 @@ const BatchDetail = () => {
         <Card className="border-destructive/30"><CardContent className="pt-4"><p className="text-xs text-destructive mb-1">Rejection Reason</p><p className="text-sm">{batch.rejection_reason}</p></CardContent></Card>
       )}
 
+      {batch.status === 'pending_approval' && cannotApproveReason && (
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>{cannotApproveReason}</AlertDescription>
+        </Alert>
+      )}
+
       {/* Action buttons */}
-      {profile?.role === 'admin' && (
+      {(isAdmin || isFinance) && (
         <div className="flex gap-2 flex-wrap">
-          {batch.status === 'draft' && (
+          {batch.status === 'draft' && batch.created_by === profile?.id && (
             <Button onClick={() => updateStatus('pending_approval')} disabled={actionLoading}>
               Submit for Approval
             </Button>
           )}
-          {batch.status === 'pending_approval' && (
+          {batch.status === 'pending_approval' && canApprove && (
             <>
               <Button onClick={() => updateStatus('approved')} disabled={actionLoading}>
                 <Check className="mr-2 h-4 w-4" /> Approve

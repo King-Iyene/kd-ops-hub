@@ -2,11 +2,15 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
-interface Profile {
+export type UserRole = 'admin' | 'finance' | 'operations' | 'field_staff' | 'driver';
+
+export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'driver';
+  role: UserRole;
+  phone?: string | null;
+  status?: string;
 }
 
 interface AuthState {

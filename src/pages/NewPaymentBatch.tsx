@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
+import { logAudit } from '@/lib/audit';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, Upload, ArrowLeft, ArrowRight, Check } from 'lucide-react';
-import Papa from 'papaparse';
+import { Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus } from 'lucide-react';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 interface BatchItem {
   full_name: string;
@@ -29,6 +32,13 @@ interface Contractor {
   account_number: string;
   default_amount_ngn: number;
 }
+
+const emptyBank: BankAccountValue = {
+  bank_name: '',
+  account_number: '',
+  account_name: '',
+  verified: false,
+};
 
 const NewPaymentBatch = () => {
   const navigate = useNavigate();
@@ -48,22 +58,64 @@ const NewPaymentBatch = () => {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Ad-hoc beneficiary dialog
+  const [showAdHoc, setShowAdHoc] = useState(false);
+  const [adHoc, setAdHoc] = useState({ full_name: '', amount_ngn: '', reference: '' });
+  const [adHocBank, setAdHocBank] = useState<BankAccountValue>(emptyBank);
+
   useEffect(() => {
-    supabase.from('contractors').select('*').eq('status', 'active').then(({ data }) => {
-      setContractors((data as Contractor[]) || []);
-    });
+    supabase
+      .from('contractors')
+      .select('*')
+      .eq('status', 'active')
+      .order('full_name')
+      .then(({ data }) => {
+        setContractors((data as Contractor[]) || []);
+      });
   }, []);
 
-  const addContractor = (c: Contractor) => {
-    if (items.find((i) => i.contractor_id === c.id)) return;
-    setItems([...items, {
-      full_name: c.full_name,
-      bank_name: c.bank_name,
-      account_number: c.account_number,
-      amount_ngn: c.default_amount_ngn || 0,
-      reference: '',
-      contractor_id: c.id,
-    }]);
+  const selectedIds = useMemo(
+    () => new Set(items.map((i) => i.contractor_id).filter(Boolean)),
+    [items]
+  );
+
+  const toggleContractor = (c: Contractor, checked: boolean) => {
+    if (checked) {
+      if (selectedIds.has(c.id)) return;
+      setItems((prev) => [
+        ...prev,
+        {
+          full_name: c.full_name,
+          bank_name: c.bank_name,
+          account_number: c.account_number,
+          amount_ngn: c.default_amount_ngn || 0,
+          reference: '',
+          contractor_id: c.id,
+        },
+      ]);
+    } else {
+      setItems((prev) => prev.filter((i) => i.contractor_id !== c.id));
+    }
+  };
+
+  const selectAllVisible = (visible: Contractor[]) => {
+    const toAdd = visible
+      .filter((c) => !selectedIds.has(c.id))
+      .map((c) => ({
+        full_name: c.full_name,
+        bank_name: c.bank_name,
+        account_number: c.account_number,
+        amount_ngn: c.default_amount_ngn || 0,
+        reference: '',
+        contractor_id: c.id,
+      }));
+    if (toAdd.length === 0) return;
+    setItems((prev) => [...prev, ...toAdd]);
+  };
+
+  const clearAllVisible = (visible: Contractor[]) => {
+    const visibleIds = new Set(visible.map((c) => c.id));
+    setItems((prev) => prev.filter((i) => !i.contractor_id || !visibleIds.has(i.contractor_id)));
   };
 
   const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index));
@@ -74,24 +126,28 @@ const NewPaymentBatch = () => {
     setItems(updated);
   };
 
-  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const csvItems: BatchItem[] = results.data.map((row: any) => ({
-          full_name: row.full_name || row.name || '',
-          bank_name: row.bank_name || row.bank || '',
-          account_number: row.account_number || row.account || '',
-          amount_ngn: parseFloat(row.amount_ngn || row.amount || '0'),
-          reference: row.reference || '',
-        }));
-        setItems([...items, ...csvItems.filter((i) => i.full_name)]);
-        toast({ title: 'CSV imported', description: `${csvItems.length} beneficiaries added` });
+  const addAdHoc = () => {
+    if (!adHocBank.verified) {
+      toast({
+        title: 'Verify the account first',
+        description: 'Beneficiary account must be verified before adding.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setItems((prev) => [
+      ...prev,
+      {
+        full_name: adHoc.full_name || adHocBank.account_name,
+        bank_name: adHocBank.bank_name,
+        account_number: adHocBank.account_number,
+        amount_ngn: parseFloat(adHoc.amount_ngn) || 0,
+        reference: adHoc.reference,
       },
-    });
+    ]);
+    setShowAdHoc(false);
+    setAdHoc({ full_name: '', amount_ngn: '', reference: '' });
+    setAdHocBank(emptyBank);
   };
 
   const totalAmount = items.reduce((sum, i) => sum + (i.amount_ngn || 0), 0);
@@ -126,6 +182,14 @@ const NewPaymentBatch = () => {
         await supabase.from('batch_items').insert(batchItems);
       }
 
+      await logAudit(
+        submit ? 'batch_submitted' : 'batch_created',
+        submit
+          ? `Batch "${batchName}" submitted for approval (${items.length} beneficiaries, ${formatNaira(totalAmount)})`
+          : `Batch "${batchName}" saved as draft`,
+        profile,
+      );
+
       toast({ title: submit ? 'Batch submitted for approval' : 'Batch saved as draft' });
       navigate('/payments');
     } catch (err: any) {
@@ -135,12 +199,19 @@ const NewPaymentBatch = () => {
     }
   };
 
-  const filteredContractors = contractors.filter((c) =>
-    c.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContractors = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return contractors;
+    return contractors.filter(
+      (c) =>
+        c.full_name.toLowerCase().includes(s) ||
+        c.bank_name.toLowerCase().includes(s) ||
+        c.account_number.includes(s)
+    );
+  }, [contractors, searchTerm]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/payments')}>
           <ArrowLeft className="h-4 w-4" />
@@ -189,82 +260,169 @@ const NewPaymentBatch = () => {
       )}
 
       {step === 2 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Add Beneficiaries</CardTitle>
-              <label className="cursor-pointer">
-                <input type="file" accept=".csv" className="hidden" onChange={handleCsvUpload} />
-                <Button variant="outline" size="sm" asChild><span><Upload className="mr-2 h-4 w-4" /> Import CSV</span></Button>
-              </label>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label className="text-sm text-muted-foreground">Search contractors to add</Label>
-              <Input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name..." className="mt-1" />
-              {searchTerm && (
-                <div className="border rounded-lg mt-2 max-h-48 overflow-y-auto">
-                  {filteredContractors.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between px-3 py-2 hover:bg-muted cursor-pointer" onClick={() => addContractor(c)}>
-                      <div>
-                        <p className="text-sm font-medium">{c.full_name}</p>
-                        <p className="text-xs text-muted-foreground">{c.bank_name} — {c.account_number}</p>
-                      </div>
-                      <span className="text-xs text-muted-foreground currency">{formatNaira(c.default_amount_ngn || 0)}</span>
-                    </div>
-                  ))}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Select Contractors</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowAdHoc(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Add One-off Beneficiary
+                  </Button>
                 </div>
-              )}
-            </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search contractors..."
+                  className="pl-9"
+                />
+              </div>
 
-            {items.length > 0 && (
-              <div className="overflow-x-auto">
+              <div className="flex items-center gap-2 text-xs">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => selectAllVisible(filteredContractors)}
+                  disabled={filteredContractors.length === 0}
+                >
+                  Select all {filteredContractors.length ? `(${filteredContractors.length})` : ''}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => clearAllVisible(filteredContractors)}
+                  disabled={filteredContractors.length === 0}
+                >
+                  Clear visible
+                </Button>
+                <span className="text-muted-foreground ml-auto">
+                  {items.length} selected
+                </span>
+              </div>
+
+              <div className="border rounded-lg max-h-80 overflow-y-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10"></TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Bank</TableHead>
                       <TableHead>Account</TableHead>
-                      <TableHead className="text-right">Amount (₦)</TableHead>
-                      <TableHead>Reference</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="text-right">Default Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium">{item.full_name}</TableCell>
-                        <TableCell>{item.bank_name}</TableCell>
-                        <TableCell>{item.account_number}</TableCell>
-                        <TableCell>
-                          <Input type="number" className="w-32 text-right" value={item.amount_ngn} onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)} />
-                        </TableCell>
-                        <TableCell>
-                          <Input className="w-32" value={item.reference} onChange={(e) => updateItem(i, 'reference', e.target.value)} />
-                        </TableCell>
-                        <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                    {filteredContractors.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
+                          No contractors match your search.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )}
+                    {filteredContractors.map((c) => {
+                      const checked = selectedIds.has(c.id);
+                      return (
+                        <TableRow
+                          key={c.id}
+                          className="cursor-pointer"
+                          onClick={() => toggleContractor(c, !checked)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{c.full_name}</TableCell>
+                          <TableCell>{c.bank_name}</TableCell>
+                          <TableCell>{c.account_number}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            <div className="flex items-center justify-between pt-4">
-              <Button variant="outline" onClick={() => setStep(1)}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-              </Button>
-              <Button onClick={() => setStep(3)} disabled={items.length === 0}>
-                Review <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Selected Beneficiaries ({items.length})</CardTitle>
+                <div className="text-sm">
+                  <span className="text-muted-foreground mr-2">Running total:</span>
+                  <span className="font-bold currency">{formatNaira(totalAmount)}</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No beneficiaries selected yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Bank</TableHead>
+                        <TableHead>Account</TableHead>
+                        <TableHead className="text-right">Amount (₦)</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((item, i) => (
+                        <TableRow key={i}>
+                          <TableCell className="font-medium">{item.full_name}</TableCell>
+                          <TableCell>{item.bank_name}</TableCell>
+                          <TableCell>{item.account_number}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              className="w-32 text-right"
+                              value={item.amount_ngn}
+                              onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              className="w-32"
+                              value={item.reference}
+                              onChange={(e) => updateItem(i, 'reference', e.target.value)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <Button variant="outline" onClick={() => setStep(1)}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <Button onClick={() => setStep(3)} disabled={items.length === 0}>
+              Review <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {step === 3 && (
@@ -320,6 +478,47 @@ const NewPaymentBatch = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Ad-hoc beneficiary dialog */}
+      <Dialog open={showAdHoc} onOpenChange={setShowAdHoc}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add One-off Beneficiary</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Full Name</Label>
+              <Input
+                value={adHoc.full_name}
+                onChange={(e) => setAdHoc({ ...adHoc, full_name: e.target.value })}
+                placeholder={adHocBank.account_name || 'Full name'}
+              />
+            </div>
+            <BankAccountField value={adHocBank} onChange={setAdHocBank} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Amount (₦)</Label>
+                <Input
+                  type="number"
+                  value={adHoc.amount_ngn}
+                  onChange={(e) => setAdHoc({ ...adHoc, amount_ngn: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Reference</Label>
+                <Input
+                  value={adHoc.reference}
+                  onChange={(e) => setAdHoc({ ...adHoc, reference: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdHoc(false)}>Cancel</Button>
+            <Button onClick={addAdHoc} disabled={!adHocBank.verified || !adHoc.amount_ngn}>
+              Add Beneficiary
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
