@@ -14,7 +14,426 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      batch_items: {
+        Row: {
+          account_number: string
+          amount_ngn: number
+          bank_name: string
+          batch_id: string
+          contractor_id: string | null
+          created_at: string
+          full_name: string
+          id: string
+          reference: string | null
+          status: string
+        }
+        Insert: {
+          account_number?: string
+          amount_ngn?: number
+          bank_name?: string
+          batch_id: string
+          contractor_id?: string | null
+          created_at?: string
+          full_name: string
+          id?: string
+          reference?: string | null
+          status?: string
+        }
+        Update: {
+          account_number?: string
+          amount_ngn?: number
+          bank_name?: string
+          batch_id?: string
+          contractor_id?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "payment_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batch_items_contractor_id_fkey"
+            columns: ["contractor_id"]
+            isOneToOne: false
+            referencedRelation: "contractors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contractors: {
+        Row: {
+          account_number: string
+          bank_name: string
+          created_at: string
+          default_amount_ngn: number
+          full_name: string
+          id: string
+          linkedin_id: string | null
+          status: string
+        }
+        Insert: {
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          default_amount_ngn?: number
+          full_name: string
+          id?: string
+          linkedin_id?: string | null
+          status?: string
+        }
+        Update: {
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          default_amount_ngn?: number
+          full_name?: string
+          id?: string
+          linkedin_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          admin_note: string | null
+          amount_ngn: number
+          category: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          receipt_url: string | null
+          status: string
+          submitted_by: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_ngn?: number
+          category: string
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+          status?: string
+          submitted_by: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_ngn?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          receipt_url?: string | null
+          status?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_requests: {
+        Row: {
+          admin_note: string | null
+          amount_ngn: number
+          created_at: string
+          driver_id: string
+          id: string
+          litres_est: number | null
+          odometer: number | null
+          reason: string | null
+          station_name: string
+          status: string
+          vehicle_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount_ngn?: number
+          created_at?: string
+          driver_id: string
+          id?: string
+          litres_est?: number | null
+          odometer?: number | null
+          reason?: string | null
+          station_name?: string
+          status?: string
+          vehicle_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount_ngn?: number
+          created_at?: string
+          driver_id?: string
+          id?: string
+          litres_est?: number | null
+          odometer?: number | null
+          reason?: string | null
+          station_name?: string
+          status?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_requests_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_requests_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_batches: {
+        Row: {
+          approved_by: string | null
+          beneficiary_count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          notes: string | null
+          payment_date: string
+          period: string | null
+          rejection_reason: string | null
+          status: string
+          total_amount: number
+        }
+        Insert: {
+          approved_by?: string | null
+          beneficiary_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          payment_date: string
+          period?: string | null
+          rejection_reason?: string | null
+          status?: string
+          total_amount?: number
+        }
+        Update: {
+          approved_by?: string | null
+          beneficiary_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          payment_date?: string
+          period?: string | null
+          rejection_reason?: string | null
+          status?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_batches_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string
+          id: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      trip_logs: {
+        Row: {
+          created_at: string
+          date: string
+          driver_id: string
+          end_location: string
+          fuel_amount_ngn: number | null
+          id: string
+          issues: string | null
+          km_driven: number | null
+          litres: number | null
+          odometer_end: number | null
+          odometer_start: number | null
+          receipt_url: string | null
+          start_location: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          driver_id: string
+          end_location?: string
+          fuel_amount_ngn?: number | null
+          id?: string
+          issues?: string | null
+          km_driven?: number | null
+          litres?: number | null
+          odometer_end?: number | null
+          odometer_start?: number | null
+          receipt_url?: string | null
+          start_location?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          driver_id?: string
+          end_location?: string
+          fuel_amount_ngn?: number | null
+          id?: string
+          issues?: string | null
+          km_driven?: number | null
+          litres?: number | null
+          odometer_end?: number | null
+          odometer_start?: number | null
+          receipt_url?: string | null
+          start_location?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_logs_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          assigned_driver_id: string | null
+          created_at: string
+          id: string
+          make_model: string | null
+          name: string
+          plate_number: string
+          status: string
+          weekly_budget_ngn: number
+        }
+        Insert: {
+          assigned_driver_id?: string | null
+          created_at?: string
+          id?: string
+          make_model?: string | null
+          name: string
+          plate_number: string
+          status?: string
+          weekly_budget_ngn?: number
+        }
+        Update: {
+          assigned_driver_id?: string | null
+          created_at?: string
+          id?: string
+          make_model?: string | null
+          name?: string
+          plate_number?: string
+          status?: string
+          weekly_budget_ngn?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_assigned_driver_id_fkey"
+            columns: ["assigned_driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
