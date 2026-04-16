@@ -14,6 +14,405 @@ export type Database = {
   }
   public: {
     Tables: {
+      company_settings: {
+        Row: {
+          id: string
+          company_name: string
+          rc_number: string | null
+          tin: string | null
+          address: string | null
+          logo_url: string | null
+          fiscal_year_start_month: number
+          currency_code: string
+          usd_rate: number | null
+          expense_limits: Record<string, number>
+          dual_approval_threshold_ngn: number
+          paystack_secret_configured: boolean
+          airtable_api_key_configured: boolean
+          audit_log_retention_days: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          company_name?: string
+          rc_number?: string | null
+          tin?: string | null
+          address?: string | null
+          logo_url?: string | null
+          fiscal_year_start_month?: number
+          currency_code?: string
+          usd_rate?: number | null
+          expense_limits?: Record<string, number>
+          dual_approval_threshold_ngn?: number
+          paystack_secret_configured?: boolean
+          airtable_api_key_configured?: boolean
+          audit_log_retention_days?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          company_name?: string
+          rc_number?: string | null
+          tin?: string | null
+          address?: string | null
+          logo_url?: string | null
+          fiscal_year_start_month?: number
+          currency_code?: string
+          usd_rate?: number | null
+          expense_limits?: Record<string, number>
+          dual_approval_threshold_ngn?: number
+          paystack_secret_configured?: boolean
+          airtable_api_key_configured?: boolean
+          audit_log_retention_days?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          body: string | null
+          tone: string
+          posted_by: string | null
+          expires_at: string | null
+          dismissed_by_ids: string[]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          body?: string | null
+          tone?: string
+          posted_by?: string | null
+          expires_at?: string | null
+          dismissed_by_ids?: string[]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          body?: string | null
+          tone?: string
+          posted_by?: string | null
+          expires_at?: string | null
+          dismissed_by_ids?: string[]
+          created_at?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          assignee_id: string | null
+          due_date: string | null
+          priority: string
+          status: string
+          created_by: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          assignee_id?: string | null
+          due_date?: string | null
+          priority?: string
+          status?: string
+          created_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          assignee_id?: string | null
+          due_date?: string | null
+          priority?: string
+          status?: string
+          created_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      task_comments: {
+        Row: {
+          id: string
+          task_id: string
+          author_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          author_id: string
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      compliance_filings: {
+        Row: {
+          id: string
+          kind: string
+          period: string
+          due_date: string
+          filed_at: string | null
+          filed_by: string | null
+          amount_ngn: number | null
+          reference: string | null
+          notes: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          period: string
+          due_date: string
+          filed_at?: string | null
+          filed_by?: string | null
+          amount_ngn?: number | null
+          reference?: string | null
+          notes?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          period?: string
+          due_date?: string
+          filed_at?: string | null
+          filed_by?: string | null
+          amount_ngn?: number | null
+          reference?: string | null
+          notes?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      approval_comments: {
+        Row: {
+          id: string
+          entity_type: string
+          entity_id: string
+          author_id: string | null
+          author_name: string | null
+          action: string
+          body: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          entity_type: string
+          entity_id: string
+          author_id?: string | null
+          author_name?: string | null
+          action: string
+          body?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          entity_type?: string
+          entity_id?: string
+          author_id?: string | null
+          author_name?: string | null
+          action?: string
+          body?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      payroll_runs: {
+        Row: {
+          id: string
+          period: string
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          paye_ngn: number
+          pension_ngn: number
+          nhf_ngn: number
+          total_burn_ngn: number
+          status: string
+          created_by: string | null
+          approved_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          period: string
+          total_contractor_ngn?: number
+          total_employee_ngn?: number
+          total_expenses_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          total_burn_ngn?: number
+          status?: string
+          created_by?: string | null
+          approved_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          period?: string
+          total_contractor_ngn?: number
+          total_employee_ngn?: number
+          total_expenses_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          total_burn_ngn?: number
+          status?: string
+          created_by?: string | null
+          approved_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payroll_run_items: {
+        Row: {
+          id: string
+          payroll_run_id: string
+          employee_id: string | null
+          employee_name: string
+          gross_ngn: number
+          paye_ngn: number
+          pension_ngn: number
+          nhf_ngn: number
+          net_ngn: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          payroll_run_id: string
+          employee_id?: string | null
+          employee_name: string
+          gross_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          net_ngn?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          payroll_run_id?: string
+          employee_id?: string | null
+          employee_name?: string
+          gross_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          net_ngn?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      pending_invites: {
+        Row: {
+          id: string
+          email: string
+          full_name: string | null
+          role: string
+          phone: string | null
+          invited_by: string | null
+          accepted_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          full_name?: string | null
+          role: string
+          phone?: string | null
+          invited_by?: string | null
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          full_name?: string | null
+          role?: string
+          phone?: string | null
+          invited_by?: string | null
+          accepted_at?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      vehicle_maintenance: {
+        Row: {
+          id: string
+          vehicle_id: string
+          service_date: string
+          service_type: string
+          odometer: number | null
+          cost_ngn: number
+          next_service_due: string | null
+          notes: string | null
+          logged_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          vehicle_id: string
+          service_date: string
+          service_type: string
+          odometer?: number | null
+          cost_ngn?: number
+          next_service_due?: string | null
+          notes?: string | null
+          logged_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          vehicle_id?: string
+          service_date?: string
+          service_type?: string
+          odometer?: number | null
+          cost_ngn?: number
+          next_service_due?: string | null
+          notes?: string | null
+          logged_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           id: string

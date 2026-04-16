@@ -113,6 +113,8 @@ const Expenses = () => {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
+  // Per-category maximum ₦ amount — pulled from company_settings.expense_limits.
+  const [limits, setLimits] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,16 +147,31 @@ const Expenses = () => {
         .select('*')
         .order('created_at', { ascending: false });
       if (!isApprover) query = query.eq('submitted_by', profile?.id || '');
-      const [expensesRes, budgetsRes, itemsRes] = await Promise.all([
+      const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
         query,
         supabase
           .from('budgets')
           .select('id, name, period_start, period_end, status, locked, total_amount_ngn')
           .eq('status', 'approved'),
         supabase.from('budget_items').select('budget_id, category'),
+        supabase
+          .from('company_settings')
+          .select('expense_limits')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle(),
       ]);
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
+
+      const rawLimits =
+        (settingsRes.data as any)?.expense_limits || ({} as Record<string, number>);
+      // Coerce any string values from the JSON column into numbers.
+      const cleaned: Record<string, number> = {};
+      for (const [k, v] of Object.entries(rawLimits)) {
+        const n = typeof v === 'number' ? v : parseFloat(String(v));
+        if (Number.isFinite(n) && n > 0) cleaned[k] = n;
+      }
+      setLimits(cleaned);
 
       const itemsByBudget = new Map<string, string[]>();
       for (const it of (itemsRes.data || []) as any[]) {
@@ -236,6 +253,17 @@ const Expenses = () => {
       toast({
         title: 'Budget locked',
         description: `Submissions in "${form.category}" are blocked by budget "${blocker.name}".`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Company-level expense policy: block if over the per-category cap.
+    const policyLimit = limits[form.category];
+    if (policyLimit && amount > policyLimit) {
+      toast({
+        title: 'Above expense policy limit',
+        description: `The ${form.category.replace(/_/g, ' ')} category is capped at ${formatNaira(policyLimit)}. Ask Finance to raise the limit or split this expense.`,
         variant: 'destructive',
       });
       return;
@@ -836,6 +864,19 @@ const Expenses = () => {
                 <span>
                   Submission blocked: budget "{lockingBudget.name}" is locked for
                   this category.
+                </span>
+              </div>
+            )}
+
+            {limits[form.category] && (
+              <div className="flex items-start gap-2 rounded-md border border-accent/40 bg-accent/5 p-2 text-xs text-muted-foreground">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-accent" />
+                <span>
+                  Policy cap on {form.category.replace(/_/g, ' ')}:{' '}
+                  <span className="font-semibold">
+                    {formatNaira(limits[form.category])}
+                  </span>
+                  . Anything above is blocked automatically.
                 </span>
               </div>
             )}

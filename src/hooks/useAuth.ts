@@ -1,47 +1,83 @@
-import { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
+/**
+ * Auth bootstrap.
+ *
+ * This version guarantees:
+ *   • One login → one redirect. We wait for the profile row to be fetched
+ *     before flipping `loading: false` and triggering navigation, so the UI
+ *     never flashes twice between login and dashboard.
+ *   • Deactivated accounts are signed out server-side before any UI renders.
+ *   • Sign-out clears state and routes the user to /login exactly once.
+ */
 export const useAuth = () => {
-  const { user, profile, loading, setUser, setLoading, fetchProfile } = useAuthStore();
+  const { user, profile, loading, setUser, setLoading, fetchProfile } =
+    useAuthStore();
   const navigate = useNavigate();
-  const location = useLocation();
+  const didInit = useRef(false);
 
   useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+
+    const finish = async (userId: string, redirectIfLogin: boolean) => {
+      await fetchProfile(userId);
+      // Enforce "deactivated employees blocked from login" at the client layer.
+      const fetched = useAuthStore.getState().profile;
+      if (fetched && fetched.status === 'inactive') {
+        await supabase.auth.signOut();
+        useAuthStore.getState().setUser(null);
+        useAuthStore.getState().setProfile(null);
+        setLoading(false);
+        if (window.location.pathname !== '/login') {
+          navigate('/login', {
+            replace: true,
+            state: { inactive: true },
+          });
+        }
+        return;
+      }
+      setLoading(false);
+      if (redirectIfLogin && window.location.pathname === '/login') {
+        navigate('/dashboard', { replace: true });
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id).then(() => {
-          setLoading(false);
-        });
+        finish(session.user.id, false);
       } else {
         setLoading(false);
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        // Covered by getSession above.
+        return;
+      }
       if (session?.user) {
         setUser(session.user);
-        fetchProfile(session.user.id).then(() => {
-          setLoading(false);
-          const currentPath = window.location.pathname;
-          if (currentPath === '/login') {
-            navigate('/dashboard');
-          }
-        });
+        // Wait for the profile row before releasing the UI.
+        finish(session.user.id, true);
       } else {
         setUser(null);
         useAuthStore.getState().setProfile(null);
         setLoading(false);
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login') {
-          navigate('/login');
+        if (window.location.pathname !== '/login') {
+          navigate('/login', { replace: true });
         }
       }
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { user, profile, loading };

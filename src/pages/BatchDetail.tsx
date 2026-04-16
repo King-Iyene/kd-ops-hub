@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import {
   ArrowLeft,
   Check,
@@ -633,6 +634,8 @@ const BatchDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>

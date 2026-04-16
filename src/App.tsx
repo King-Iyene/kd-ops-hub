@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { RoleGuard } from '@/components/RoleGuard';
-import { ALL_AUTH_ROLES, MANAGER_ROLES } from '@/lib/roles';
+import { ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES } from '@/lib/roles';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -17,6 +17,9 @@ import Payments from './pages/Payments';
 import NewPaymentBatch from './pages/NewPaymentBatch';
 import BatchDetail from './pages/BatchDetail';
 import Subscriptions from './pages/Subscriptions';
+import Compliance from './pages/Compliance';
+import Tasks from './pages/Tasks';
+import Payroll from './pages/Payroll';
 import Budgets from './pages/Budgets';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
@@ -63,11 +66,11 @@ function AppRoutes() {
           </AuthGuard>
         }
       >
-        {/* Default landing routes to Dashboard for managers, Fleet for others. */}
+        {/* Dashboard — every authenticated role. */}
         <Route
           path="/"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <Dashboard />
             </RoleGuard>
           }
@@ -75,7 +78,7 @@ function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <Dashboard />
             </RoleGuard>
           }
@@ -203,11 +206,41 @@ function AppRoutes() {
           }
         />
 
-        {/* Settings — admin and super admin. */}
+        {/* Compliance Centre — Finance + Admin + Super Admin. */}
+        <Route
+          path="/compliance"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Compliance />
+            </RoleGuard>
+          }
+        />
+
+        {/* Payroll Intelligence — Finance + Admin + Super Admin. */}
+        <Route
+          path="/payroll"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Payroll />
+            </RoleGuard>
+          }
+        />
+
+        {/* Tasks — Admin / Finance / Operations / Super Admin. */}
+        <Route
+          path="/tasks"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Tasks />
+            </RoleGuard>
+          }
+        />
+
+        {/* Settings — Super Admin only per spec. */}
         <Route
           path="/settings"
           element={
-            <RoleGuard roles={['super_admin', 'admin']}>
+            <RoleGuard roles={['super_admin']}>
               <SettingsPage />
             </RoleGuard>
           }

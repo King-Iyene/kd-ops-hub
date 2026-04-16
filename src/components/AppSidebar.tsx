@@ -15,6 +15,9 @@ import {
   FileText,
   BarChart3,
   CalendarDays,
+  ShieldCheck,
+  Banknote,
+  ListTodo,
 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -42,19 +45,22 @@ type NavItem = {
 };
 
 const ALL_NAV: NavItem[] = [
-  { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance', 'operations'], badge: 'approvals' },
-  { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Compliance',    url: '/compliance',    icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'] },
   { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin', 'operations'] },
   { title: 'Leave',         url: '/leave',         icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin', 'admin'] },
+  { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin'] },
 ];
 
 export function AppSidebar() {

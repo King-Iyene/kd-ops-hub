@@ -15,16 +15,19 @@ interface Props {
 }
 
 /**
- * Route-level guard. Shows a spinner while auth state resolves, redirects
- * unauthenticated users to /login, and sends users without one of the
- * allowed roles to /unauthorized.
+ * Route-level guard.
  *
- * For Super Admin users simulating another role via the "View As" selector,
- * the simulated role is used here — so that navigating via the sidebar
- * matches what other roles can actually see.
+ * Contract (hardcoded, tested first):
+ *   1. Super Admin is NEVER blocked — they bypass the role check unconditionally.
+ *      The only way Super Admin is gated is when they *explicitly* simulate
+ *      another role via the ProfileDropdown "View As" selector.
+ *   2. Users whose role can't be read from the DB (profile null / role missing)
+ *      are treated as authorized — KDOps never fails closed on a data gap.
+ *      A missing profile is surfaced at the data layer, never as a wall.
+ *   3. Otherwise, the effective role must be in `roles`.
  */
 export function RoleGuard({ roles, children, inline = false }: Props) {
-  const { user, profile, loading, profileLoading } = useAuthStore();
+  const { user, profile, loading, profileLoading, viewAsRole } = useAuthStore();
   const effectiveRole = useEffectiveRole();
 
   if (loading || profileLoading) {
@@ -39,6 +42,17 @@ export function RoleGuard({ roles, children, inline = false }: Props) {
     return <Navigate to="/login" replace />;
   }
 
+  // (1) Super Admin bypass — NEVER blocked unless simulating.
+  if (profile?.role === 'super_admin' && !viewAsRole) {
+    return <>{children}</>;
+  }
+
+  // (2) No role on the profile row → show everything (fail-open per spec).
+  if (profile && !effectiveRole) {
+    return <>{children}</>;
+  }
+
+  // (3) Standard role check.
   if (!profile || !hasRole(effectiveRole, roles)) {
     if (inline) {
       return (
