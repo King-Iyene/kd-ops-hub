@@ -1,51 +1,14 @@
-import type { UserRole } from '@/store/authStore';
-
 /**
- * Centralised role permissions. Every route and feature checks against
- * these role sets instead of inlining string comparisons.
+ * Helpers for pretty-printing a profile role in the UI.
+ *
+ * Role-based access control was removed from KDOps — every signed-in user
+ * can see every page and perform every action. The role column remains in
+ * the profiles table purely as an informational label, which is surfaced
+ * on the My Profile page.
  */
-export const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  ADMIN: 'admin',
-  FINANCE: 'finance',
-  OPERATIONS: 'operations',
-  FIELD_STAFF: 'field_staff',
-  DRIVER: 'driver',
-} as const;
-
-export type Role = UserRole;
-
-/**
- * Super Admin acts like Admin everywhere — it's a human-only role with a
- * few extra UI privileges (role simulation) rather than new data access.
- */
-export const APPROVER_ROLES: Role[] = ['super_admin', 'admin', 'finance'];
-export const MANAGER_ROLES: Role[] = [
-  'super_admin',
-  'admin',
-  'finance',
-  'operations',
-];
-export const ALL_AUTH_ROLES: Role[] = [
-  'super_admin',
-  'admin',
-  'finance',
-  'operations',
-  'field_staff',
-  'driver',
-];
-
-/** Roles that can be chosen from the "View As" simulator (Super Admin only). */
-export const SIMULATABLE_ROLES: Role[] = [
-  'super_admin',
-  'admin',
-  'finance',
-  'operations',
-  'field_staff',
-];
 
 /** A compact role label for UI display. */
-export const roleLabel = (role: string): string => {
+export const roleLabel = (role: string | null | undefined): string => {
   switch (role) {
     case 'super_admin':
       return 'Super Admin';
@@ -64,14 +27,10 @@ export const roleLabel = (role: string): string => {
   }
 };
 
-/**
- * Tailwind classes for a role badge. Uses the KD brand palette for Super
- * Admin (gold) and sensible hue buckets for the rest.
- */
-export const roleBadgeClass = (role: string): string => {
+/** Tailwind classes for a role badge (used on the Profile page only). */
+export const roleBadgeClass = (role: string | null | undefined): string => {
   switch (role) {
     case 'super_admin':
-      // Gold — KD brand accent #D6AC50.
       return 'bg-accent/15 text-accent-foreground border border-accent/40';
     case 'admin':
       return 'bg-info/10 text-info border border-info/30';
@@ -85,6 +44,3 @@ export const roleBadgeClass = (role: string): string => {
       return 'bg-muted text-muted-foreground border border-border';
   }
 };
-
-export const hasRole = (role: string | undefined, allowed: Role[]): boolean =>
-  !!role && (allowed as string[]).includes(role);

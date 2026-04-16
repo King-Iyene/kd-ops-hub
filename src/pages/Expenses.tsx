@@ -106,10 +106,8 @@ const mileageAmount = (km: number, rate: number) =>
 const Expenses = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const isApprover =
-    profile?.role === 'admin' ||
-    profile?.role === 'finance' ||
-    profile?.role === 'super_admin';
+  // Role-based access control removed — every authenticated user can approve.
+  const isApprover = true;
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
