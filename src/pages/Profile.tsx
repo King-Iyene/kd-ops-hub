@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Loader2, Save, KeyRound, Mail, Phone, CalendarDays } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Loader2, Save, KeyRound, Mail, Phone, CalendarDays, Download, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatNaira } from '@/lib/format';
+import { openPayslipPrintWindow } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,9 +26,75 @@ const initialsOf = (name?: string | null, email?: string | null): string => {
   return (first + last).toUpperCase() || 'U';
 };
 
+interface Payslip {
+  id: string;
+  period: string;
+  gross_ngn: number;
+  paye_ngn: number;
+  pension_ngn: number;
+  nhf_ngn: number;
+  net_ngn: number;
+  storage_path: string | null;
+  created_at: string;
+}
+
+const monthLabel = (period: string) => {
+  const [y, m] = period.split('-');
+  return new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1).toLocaleString(
+    'en-GB',
+    { month: 'long', year: 'numeric' },
+  );
+};
+
 const ProfilePage = () => {
   const { toast } = useToast();
   const profile = useAuthStore((s) => s.profile);
+
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+  const [loadingPayslips, setLoadingPayslips] = useState(true);
+
+  const loadPayslips = useCallback(async () => {
+    if (!profile?.id) return;
+    setLoadingPayslips(true);
+    const { data } = await supabase
+      .from('payslips')
+      .select('*')
+      .eq('employee_id', profile.id)
+      .order('period', { ascending: false });
+    setPayslips((data as Payslip[]) || []);
+    setLoadingPayslips(false);
+  }, [profile?.id]);
+
+  useEffect(() => {
+    loadPayslips();
+  }, [loadPayslips]);
+
+  const downloadPayslip = async (p: Payslip) => {
+    // Prefer the stored HTML in Supabase Storage; fall back to regenerating.
+    if (p.storage_path) {
+      const { data, error } = await supabase.storage
+        .from('payslips')
+        .createSignedUrl(p.storage_path, 60);
+      if (!error && data?.signedUrl) {
+        window.open(data.signedUrl, '_blank', 'noopener');
+        return;
+      }
+    }
+    openPayslipPrintWindow({
+      company_name: 'KD Squares Ltd',
+      employee_name: profile?.full_name || profile?.email || '',
+      employee_email: profile?.email,
+      employee_role: profile?.role,
+      period: p.period,
+      gross_ngn: p.gross_ngn,
+      paye_ngn: p.paye_ngn,
+      pension_ngn: p.pension_ngn,
+      nhf_ngn: p.nhf_ngn,
+      net_ngn: p.net_ngn,
+      generated_by: profile?.full_name || profile?.email,
+    });
+  };
+
   const setProfile = useAuthStore((s) => s.setProfile);
 
   const [fullName, setFullName] = useState(profile?.full_name || '');
@@ -227,6 +294,62 @@ const ProfilePage = () => {
               Save Changes
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" /> My Payslips
+          </CardTitle>
+          {payslips.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {payslips.length} payslip{payslips.length === 1 ? '' : 's'} on file
+            </span>
+          )}
+        </CardHeader>
+        <CardContent className="pt-2">
+          {loadingPayslips ? (
+            <div className="py-4 flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : payslips.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No payslips generated yet. Finance will produce them at the end of
+              each month.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {payslips.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between border rounded-lg p-3 kd-transition hover:bg-muted/40"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{monthLabel(p.period)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Gross {formatNaira(p.gross_ngn)} · PAYE {formatNaira(p.paye_ngn)} · Pension {formatNaira(p.pension_ngn)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Net pay</p>
+                      <p className="font-semibold currency">
+                        {formatNaira(p.net_ngn)}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => downloadPayslip(p)}
+                    >
+                      <Download className="mr-2 h-4 w-4" /> Download
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

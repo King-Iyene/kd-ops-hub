@@ -73,7 +73,19 @@ export type AuditActionType =
   | 'goal_completed'
   | 'employee_invite_resent'
   | 'notification_prefs_updated'
-  | 'audit_log_exported';
+  | 'audit_log_exported'
+  | 'paystack_recipient_created'
+  | 'paystack_transfer_initiated'
+  | 'paystack_transfer_succeeded'
+  | 'paystack_transfer_failed'
+  | 'paystack_transfer_retried'
+  | 'payslip_generated'
+  | 'payslip_downloaded'
+  | 'bank_statement_uploaded'
+  | 'bank_reconciliation_matched'
+  | 'resubmission_created'
+  | 'company_settings_saved'
+  | 'report_exported';
 
 export interface AuditActor {
   id?: string | null;

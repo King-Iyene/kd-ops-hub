@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { formatNaira, formatDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -252,10 +253,12 @@ const Fleet = () => {
     setSubmitting(false);
   };
 
+  const [rejectingFuel, setRejectingFuel] = useState<FuelRequest | null>(null);
+  const [fuelRejectReason, setFuelRejectReason] = useState('');
+
   const handleFuelAction = async (
     request: FuelRequest,
     status: 'approved' | 'rejected',
-    note?: string,
   ) => {
     if (!isAdmin) {
       toast({
@@ -265,22 +268,84 @@ const Fleet = () => {
       });
       return;
     }
+    if (status === 'rejected') {
+      setRejectingFuel(request);
+      setFuelRejectReason('');
+      return;
+    }
     const { error } = await supabase
       .from('fuel_requests')
-      .update({ status, admin_note: note ?? null })
+      .update({ status: 'approved' })
       .eq('id', request.id);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
     await logAudit(
-      status === 'approved' ? 'fuel_request_approved' : 'fuel_request_rejected',
-      `Fuel request for ${request.employee_name} ${status} (${formatNaira(
-        request.amount_ngn || 0,
-      )})`,
+      'fuel_request_approved',
+      `Fuel request for ${request.employee_name} approved (${formatNaira(request.amount_ngn || 0)})`,
       profile,
     );
-    toast({ title: `Fuel request ${status}` });
+    toast({ title: 'Fuel request approved' });
+    fetchData();
+  };
+
+  const confirmFuelReject = async () => {
+    if (!rejectingFuel) return;
+    if (!isValidRejectionReason(fuelRejectReason)) {
+      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      return;
+    }
+    const r = rejectingFuel;
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({
+        status: 'rejected',
+        rejection_reason: fuelRejectReason.trim(),
+        admin_note: fuelRejectReason.trim(),
+      })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await writeRejectionNotification({
+      entity: 'fuel',
+      entityLabel: 'fuel request',
+      amount: r.amount_ngn,
+      reason: fuelRejectReason.trim(),
+      submitterId: (r as any).driver_id || r.employee_id || null,
+      actor: profile,
+      auditType: 'fuel_request_rejected',
+      auditDescription: `Fuel request for ${r.employee_name} rejected (${formatNaira(r.amount_ngn || 0)}): ${fuelRejectReason.trim()}`,
+    });
+    toast({ title: 'Fuel request rejected' });
+    setRejectingFuel(null);
+    setFuelRejectReason('');
+    fetchData();
+  };
+
+  const resubmitFuel = async (r: FuelRequest) => {
+    const { error } = await supabase.from('fuel_requests').insert({
+      driver_id: profile?.id,
+      station_name: r.station_name,
+      amount_ngn: r.amount_ngn,
+      litres_est: r.litres_est,
+      odometer: r.odometer,
+      reason: r.reason,
+      status: 'pending',
+      resubmitted_from_id: r.id,
+    } as any);
+    if (error) {
+      toast({ title: 'Resubmit failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'resubmission_created',
+      `Fuel request re-edited and resubmitted (${formatNaira(r.amount_ngn || 0)})`,
+      profile,
+    );
+    toast({ title: 'Resubmitted for approval' });
     fetchData();
   };
 
@@ -410,6 +475,14 @@ const Fleet = () => {
                                 <X className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
+                          ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => resubmitFuel(r)}
+                            >
+                              Re-edit & Resubmit
+                            </Button>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
@@ -711,6 +784,43 @@ const Fleet = () => {
               }
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!rejectingFuel}
+        onOpenChange={(v) => {
+          if (!v) {
+            setRejectingFuel(null);
+            setFuelRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject fuel request</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Reason is required. The driver is notified with this note.
+          </p>
+          <Textarea
+            value={fuelRejectReason}
+            onChange={(e) => setFuelRejectReason(e.target.value)}
+            placeholder="e.g. Exceeds weekly fuel budget — split across two weeks."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingFuel(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmFuelReject}
+              disabled={!isValidRejectionReason(fuelRejectReason)}
+            >
+              Reject with reason
             </Button>
           </DialogFooter>
         </DialogContent>

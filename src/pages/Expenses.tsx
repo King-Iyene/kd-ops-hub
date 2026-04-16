@@ -23,6 +23,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -306,6 +307,9 @@ const Expenses = () => {
 
   // -- Approve / reject -----------------------------------------------------
 
+  const [rejectingExpense, setRejectingExpense] = useState<Expense | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
   const handleAction = async (
     expense: Expense,
     status: 'approved' | 'rejected',
@@ -318,6 +322,12 @@ const Expenses = () => {
       });
       return;
     }
+    if (status === 'rejected') {
+      // Open a reason dialog; the confirm handler calls doReject.
+      setRejectingExpense(expense);
+      setRejectReason('');
+      return;
+    }
     const { error } = await supabase
       .from('expenses')
       .update({ status })
@@ -327,11 +337,72 @@ const Expenses = () => {
       return;
     }
     await logAudit(
-      status === 'approved' ? 'expense_approved' : 'expense_rejected',
-      `Expense ${status}: ${expense.category} — ${formatNaira(expense.amount_ngn || 0)}`,
+      'expense_approved',
+      `Expense approved: ${expense.category} — ${formatNaira(expense.amount_ngn || 0)}`,
       profile,
     );
-    toast({ title: `Expense ${status}` });
+    toast({ title: 'Expense approved' });
+    fetchData();
+  };
+
+  const doReject = async () => {
+    if (!rejectingExpense) return;
+    if (!isValidRejectionReason(rejectReason)) {
+      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      return;
+    }
+    const e = rejectingExpense;
+    const { error } = await supabase
+      .from('expenses')
+      .update({ status: 'rejected', rejection_reason: rejectReason.trim() })
+      .eq('id', e.id);
+    if (error) {
+      toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await writeRejectionNotification({
+      entity: 'expense',
+      entityLabel: 'expense',
+      amount: e.amount_ngn,
+      reason: rejectReason.trim(),
+      submitterId: e.submitted_by || null,
+      actor: profile,
+      auditType: 'expense_rejected',
+      auditDescription: `Expense rejected: ${e.category} — ${formatNaira(e.amount_ngn || 0)} — ${rejectReason.trim()}`,
+    });
+    toast({ title: 'Expense rejected' });
+    setRejectingExpense(null);
+    setRejectReason('');
+    fetchData();
+  };
+
+  /**
+   * Clone a rejected expense as a new pending row so the submitter can tweak
+   * and resubmit. The old row is preserved for audit.
+   */
+  const resubmitExpense = async (e: Expense) => {
+    const { error } = await supabase.from('expenses').insert({
+      submitted_by: profile?.id || '',
+      category: e.category,
+      budget_category: e.budget_category || e.category,
+      amount_ngn: e.amount_ngn,
+      mileage_km: e.mileage_km,
+      rate_per_km_ngn: e.rate_per_km_ngn,
+      date: e.date,
+      description: e.description,
+      status: 'pending',
+      resubmitted_from_id: e.id,
+    });
+    if (error) {
+      toast({ title: 'Resubmit failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'resubmission_created',
+      `Expense re-edited and resubmitted: ${e.category} — ${formatNaira(e.amount_ngn || 0)}`,
+      profile,
+    );
+    toast({ title: 'Resubmitted for approval' });
     fetchData();
   };
 
@@ -741,6 +812,15 @@ const Expenses = () => {
                               </Button>
                             </div>
                           )}
+                          {e.status === 'rejected' && e.submitted_by === profile?.id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => resubmitExpense(e)}
+                            >
+                              Re-edit & Resubmit
+                            </Button>
+                          )}
                         </TableCell>
                       )}
                     </TableRow>
@@ -891,6 +971,44 @@ const Expenses = () => {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!rejectingExpense}
+        onOpenChange={(v) => {
+          if (!v) {
+            setRejectingExpense(null);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject expense</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The submitter will be notified with this reason. They'll see a
+            "Re-edit & Resubmit" button on the row.
+          </p>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason for rejection (required)"
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingExpense(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={doReject}
+              disabled={!isValidRejectionReason(rejectReason)}
+            >
+              Reject with reason
             </Button>
           </DialogFooter>
         </DialogContent>

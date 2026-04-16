@@ -38,6 +38,7 @@ import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
 import { FinancialHealthCard } from '@/components/FinancialHealthCard';
 import { CashBurnCard } from '@/components/CashBurnCard';
 import { MyTasksWidget } from '@/pages/Tasks';
+import { MyGoalsWidget } from '@/pages/Goals';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -288,11 +289,12 @@ const Dashboard = () => {
 
       <AnnouncementsBanner />
 
-      {/* Command-centre row: health score, 30-day burn, my tasks. */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Command-centre row: health score, 30-day burn, my tasks, my goals. */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <FinancialHealthCard />
         <CashBurnCard />
         <MyTasksWidget />
+        <MyGoalsWidget />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -313,9 +315,14 @@ const Dashboard = () => {
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Recent Activity</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/approvals')}>
-              View approvals <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/audit')}>
+                Full audit log <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/approvals')}>
+                Approvals <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

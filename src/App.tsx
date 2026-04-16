@@ -23,6 +23,7 @@ import Payroll from './pages/Payroll';
 import Knowledge from './pages/Knowledge';
 import VirtualCards from './pages/VirtualCards';
 import AuditLog from './pages/AuditLog';
+import Goals from './pages/Goals';
 import Budgets from './pages/Budgets';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
@@ -267,6 +268,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin', 'admin']}>
               <AuditLog />
+            </RoleGuard>
+          }
+        />
+
+        {/* Goals — every signed-in employee. */}
+        <Route
+          path="/goals"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Goals />
             </RoleGuard>
           }
         />
