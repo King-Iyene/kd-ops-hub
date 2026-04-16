@@ -40,7 +40,31 @@ interface Contractor {
   default_amount_ngn: number;
   linkedin_id: string;
   status: string;
+  agreement_signed?: boolean | null;
+  kyc_document_uploaded?: boolean | null;
+  onboarding_complete?: boolean | null;
+  tags?: string[] | null;
 }
+
+// Compute a 0–5 onboarding score from the boolean flags + bank format +
+// default amount being set. Returned as a {done, total} tuple so callers
+// can also render a progress bar.
+const onboardingScore = (c: Contractor): { done: number; total: number } => {
+  let done = 0;
+  const total = 5;
+  // 1. Full name set.
+  if (c.full_name && c.full_name.trim().length > 0) done++;
+  // 2. Bank account looks verified (10-digit number + bank name).
+  if (/^\d{10}$/.test(c.account_number || '') && (c.bank_name || '').length > 0)
+    done++;
+  // 3. LinkedIn ID set.
+  if (c.linkedin_id && c.linkedin_id.trim().length > 0) done++;
+  // 4. Default amount set.
+  if ((c.default_amount_ngn || 0) > 0) done++;
+  // 5. Either agreement signed OR KYC document uploaded.
+  if (c.agreement_signed || c.kyc_document_uploaded) done++;
+  return { done, total };
+};
 
 interface ParsedRow {
   rowNumber: number; // 1-based as shown to the user (excluding header)
@@ -430,21 +454,49 @@ const Contractors = () => {
                 <TableHead>Bank</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead className="text-right">Default Amount</TableHead>
-                <TableHead>LinkedIn ID</TableHead>
+                <TableHead>Onboarding</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((c) => (
+              {filtered.map((c) => {
+                const { done, total } = onboardingScore(c);
+                const pct = Math.round((done / total) * 100);
+                const tone =
+                  pct === 100
+                    ? 'bg-success'
+                    : pct >= 60
+                    ? 'bg-accent'
+                    : 'bg-destructive';
+                return (
                 <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.full_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>{c.full_name}</div>
+                    {c.linkedin_id && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.linkedin_id}
+                      </div>
+                    )}
+                  </TableCell>
                   <TableCell>{c.bank_name}</TableCell>
                   <TableCell>{c.account_number}</TableCell>
                   <TableCell className="text-right currency">
                     {formatNaira(c.default_amount_ngn || 0)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{c.linkedin_id || '—'}</TableCell>
+                  <TableCell>
+                    <div className="space-y-1 min-w-[120px]">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={`h-full kd-transition ${tone}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {done}/{total} steps · {pct}%
+                      </p>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge
                       variant="secondary"
@@ -464,7 +516,8 @@ const Contractors = () => {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>

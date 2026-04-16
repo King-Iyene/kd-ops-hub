@@ -18,8 +18,11 @@ import {
   ShieldCheck,
   Banknote,
   ListTodo,
+  BookOpen,
+  ScrollText,
 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -34,7 +37,6 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
-import type { Role } from '@/lib/roles';
 
 type NavItem = {
   title: string;
@@ -44,22 +46,35 @@ type NavItem = {
   badge?: 'approvals';
 };
 
+// Role matrix — spec v2:
+//   Super Admin  all
+//   Admin        all except Settings
+//   Finance      Payments, Contractors, Expenses, Budgets, Subscriptions,
+//                Approvals, Reports, Documents, Payroll, Compliance, Dashboard,
+//                Tasks, Leave, Audit Log, Knowledge, Cards. NOT HR/Fleet.
+//   Operations   Dashboard, Contractors, Employees, Fleet, Leave, Expenses,
+//                Tasks, Knowledge. NOT financial.
+//   Field Staff  Dashboard, Fleet (submit), Expenses (submit), Leave (own),
+//                Knowledge.
 const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance', 'operations'], badge: 'approvals' },
+  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals' },
   { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Cards',         url: '/cards',         icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',    url: '/compliance',    icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'] },
   { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin', 'operations'] },
+  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',         url: '/leave',         icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Knowledge',     url: '/knowledge',     icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Audit Log',     url: '/audit',         icon: ScrollText,      roles: ['super_admin', 'admin'] },
   { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin'] },
 ];
 
@@ -78,8 +93,14 @@ export function AppSidebar() {
     refreshApprovals();
   }, [refreshApprovals, location.pathname]);
 
-  const role = (effectiveRole || 'field_staff') as Role;
-  const navItems = ALL_NAV.filter((n) => n.roles.includes(role));
+  // If role can't be read from the profile row (data gap), fail OPEN per
+  // spec — render every nav item so the user is never greyed out of work.
+  // Default is intentionally NOT field_staff.
+  const role = effectiveRole as Role | undefined;
+  const navItems = role
+    ? ALL_NAV.filter((n) => n.roles.includes(role))
+    : ALL_NAV;
+  void ALL_AUTH_ROLES; // imported for future nav-side assertions
 
   return (
     <Sidebar collapsible="icon">

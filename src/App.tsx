@@ -20,6 +20,9 @@ import Subscriptions from './pages/Subscriptions';
 import Compliance from './pages/Compliance';
 import Tasks from './pages/Tasks';
 import Payroll from './pages/Payroll';
+import Knowledge from './pages/Knowledge';
+import VirtualCards from './pages/VirtualCards';
+import AuditLog from './pages/AuditLog';
 import Budgets from './pages/Budgets';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
@@ -84,21 +87,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Approvals */}
-        <Route
-          path="/approvals"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Approvals />
-            </RoleGuard>
-          }
-        />
-
-        {/* Payments */}
+        {/* Payments — Finance + Admin + Super Admin. */}
         <Route
           path="/payments"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <Payments />
             </RoleGuard>
           }
@@ -106,7 +99,7 @@ function AppRoutes() {
         <Route
           path="/payments/new"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <NewPaymentBatch />
             </RoleGuard>
           }
@@ -114,47 +107,57 @@ function AppRoutes() {
         <Route
           path="/payments/:id"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <BatchDetail />
             </RoleGuard>
           }
         />
 
-        {/* Subscriptions */}
+        {/* Approvals — Finance + Admin + Super Admin. */}
+        <Route
+          path="/approvals"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Approvals />
+            </RoleGuard>
+          }
+        />
+
+        {/* Subscriptions — Finance + Admin + Super Admin. */}
         <Route
           path="/subscriptions"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <Subscriptions />
             </RoleGuard>
           }
         />
 
-        {/* Budgets */}
+        {/* Budgets — Finance + Admin + Super Admin. */}
         <Route
           path="/budgets"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <Budgets />
             </RoleGuard>
           }
         />
 
-        {/* Documents — all authenticated roles (fine-grained via visible_to_roles). */}
+        {/* Documents — Finance + Admin + Super Admin. */}
         <Route
           path="/documents"
           element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <Documents />
             </RoleGuard>
           }
         />
 
-        {/* Reports */}
+        {/* Reports — Finance + Admin + Super Admin. */}
         <Route
           path="/reports"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES}>
               <Reports />
             </RoleGuard>
           }
@@ -178,7 +181,7 @@ function AppRoutes() {
           }
         />
 
-        {/* Contractors / Employees — managers. */}
+        {/* Contractors — all managers. */}
         <Route
           path="/contractors"
           element={
@@ -187,10 +190,12 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
+
+        {/* Employees — Super Admin + Admin only (per spec). */}
         <Route
           path="/employees"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={['super_admin', 'admin']}>
               <Employees />
             </RoleGuard>
           }
@@ -226,12 +231,42 @@ function AppRoutes() {
           }
         />
 
-        {/* Tasks — Admin / Finance / Operations / Super Admin. */}
+        {/* Tasks — every signed-in employee. */}
         <Route
           path="/tasks"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={ALL_AUTH_ROLES}>
               <Tasks />
+            </RoleGuard>
+          }
+        />
+
+        {/* Knowledge base — every signed-in employee (access is per-article). */}
+        <Route
+          path="/knowledge"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Knowledge />
+            </RoleGuard>
+          }
+        />
+
+        {/* Virtual cards — Finance + Admin + Super Admin. */}
+        <Route
+          path="/cards"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <VirtualCards />
+            </RoleGuard>
+          }
+        />
+
+        {/* Audit log — Admin + Super Admin. */}
+        <Route
+          path="/audit"
+          element={
+            <RoleGuard roles={['super_admin', 'admin']}>
+              <AuditLog />
             </RoleGuard>
           }
         />
