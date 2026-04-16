@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Check, X, Loader2, Play, DollarSign, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Check, X, Loader2, Play, DollarSign, ShieldAlert, Download } from 'lucide-react';
 
 const statusColors: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
@@ -37,6 +37,14 @@ const statusLabels: Record<string, string> = {
 };
 
 const APPROVER_ROLES = ['admin', 'finance'] as const;
+
+// CSV escape: wrap field in quotes if it contains a comma, quote, or newline.
+// Double any embedded quotes.
+const csvEscape = (v: any): string => {
+  const s = v === null || v === undefined ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
 
 const BatchDetail = () => {
   const { id } = useParams();
@@ -65,17 +73,12 @@ const BatchDetail = () => {
   };
 
   const canApprove =
-    !!profile &&
-    APPROVER_ROLES.includes(profile.role as any) &&
-    batch?.created_by !== profile.id;
+    !!profile && APPROVER_ROLES.includes(profile.role as any);
 
   const cannotApproveReason = (() => {
     if (!profile) return 'Not authenticated.';
     if (!APPROVER_ROLES.includes(profile.role as any)) {
       return 'Only Admin or Finance roles can approve payment batches.';
-    }
-    if (batch?.created_by === profile.id) {
-      return 'You cannot approve a batch you created. A second reviewer must approve it.';
     }
     return null;
   })();
@@ -83,8 +86,10 @@ const BatchDetail = () => {
   const updateStatus = async (status: string, extra?: any) => {
     setActionLoading(true);
     try {
-      // Hard guard for approve/reject: enforce role + separation of duties.
-      if ((status === 'approved' || status === 'rejected')) {
+      // Role guard for approve/reject. Self-approval is intentionally allowed
+      // for now — KD Squares is a small team and the CFO both creates and
+      // approves batches.
+      if (status === 'approved' || status === 'rejected') {
         if (!profile) {
           toast({ title: 'Not authenticated', variant: 'destructive' });
           setActionLoading(false);
@@ -94,15 +99,6 @@ const BatchDetail = () => {
           toast({
             title: 'Not authorized',
             description: 'Only Admin or Finance roles can approve or reject batches.',
-            variant: 'destructive',
-          });
-          setActionLoading(false);
-          return;
-        }
-        if (batch?.created_by === profile.id) {
-          toast({
-            title: 'Cannot approve own batch',
-            description: 'The approver must be different from the person who created the batch.',
             variant: 'destructive',
           });
           setActionLoading(false);
@@ -120,7 +116,7 @@ const BatchDetail = () => {
 
         const amountTxt = formatNaira(batch?.total_amount || 0);
         if (status === 'approved') {
-          await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt})`, profile);
+          await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`, profile);
         } else if (status === 'rejected') {
           await logAudit('batch_rejected', `Batch "${batch?.name}" rejected: ${extra?.rejection_reason || ''}`, profile);
         } else if (status === 'pending_approval') {
@@ -154,11 +150,50 @@ const BatchDetail = () => {
     }
   };
 
+  // Export batch items as a CSV compatible with PaidHR bulk upload.
+  // Columns: full_name, bank_name, account_number, amount_ngn, reference, status
+  const exportCsv = () => {
+    const header = [
+      'full_name',
+      'bank_name',
+      'account_number',
+      'amount_ngn',
+      'reference',
+      'status',
+    ];
+    const rows = items.map((i) => [
+      i.full_name ?? '',
+      i.bank_name ?? '',
+      i.account_number ?? '',
+      i.amount_ngn ?? 0,
+      i.reference ?? '',
+      i.status ?? '',
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map(csvEscape).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const safeName = (batch?.name || 'batch').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: 'CSV exported', description: `${items.length} beneficiaries exported.` });
+  };
+
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!batch) return <div className="text-center py-12">Batch not found</div>;
 
   const isAdmin = profile?.role === 'admin';
   const isFinance = profile?.role === 'finance';
+  // CSV export available once the batch exists and has line items, which
+  // mirrors the "created or approved" requirement — draft batches that
+  // haven't been saved yet don't have a detail page.
+  const canExport = items.length > 0;
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -170,6 +205,11 @@ const BatchDetail = () => {
           <h1 className="text-2xl font-bold">{batch.name}</h1>
           <p className="text-muted-foreground text-sm">{batch.period}</p>
         </div>
+        {canExport && (
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+        )}
         <Badge variant="secondary" className={statusColors[batch.status]}>
           {statusLabels[batch.status] || batch.status}
         </Badge>
@@ -207,8 +247,9 @@ const BatchDetail = () => {
           )}
           {batch.status === 'pending_approval' && canApprove && (
             <>
-              <Button onClick={() => updateStatus('approved')} disabled={actionLoading}>
-                <Check className="mr-2 h-4 w-4" /> Approve
+              <Button onClick={() => updateStatus('approved')} disabled={actionLoading} size="lg">
+                {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                Approve Batch
               </Button>
               <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
                 <X className="mr-2 h-4 w-4" /> Reject
