@@ -61,7 +61,19 @@ export type AuditActionType =
   | 'invite_sent'
   | 'invite_revoked'
   | 'company_settings_updated'
-  | 'role_changed';
+  | 'role_changed'
+  | 'knowledge_article_created'
+  | 'knowledge_article_updated'
+  | 'knowledge_article_deleted'
+  | 'virtual_card_created'
+  | 'virtual_card_updated'
+  | 'virtual_card_deactivated'
+  | 'goal_created'
+  | 'goal_updated'
+  | 'goal_completed'
+  | 'employee_invite_resent'
+  | 'notification_prefs_updated'
+  | 'audit_log_exported';
 
 export interface AuditActor {
   id?: string | null;

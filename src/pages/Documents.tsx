@@ -16,7 +16,6 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { MANAGER_ROLES, hasRole, roleLabel, ALL_AUTH_ROLES } from '@/lib/roles';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -98,7 +96,11 @@ const MAX_BYTES = MAX_MB * 1024 * 1024;
 const Documents = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const canManage = hasRole(profile?.role, MANAGER_ROLES);
+  // Only Super Admin and Admin can upload / edit / delete documents. Finance
+  // sees the module but the UI is read-only for them. Route-level RoleGuard
+  // keeps every other role off the page entirely.
+  const canManage =
+    profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +118,6 @@ const Documents = () => {
     description: '',
     expires_at: '',
     tags: '',
-    visible_to_roles: ['admin', 'finance', 'operations'] as string[],
   });
 
   const fetchDocs = useCallback(async () => {
@@ -186,7 +187,6 @@ const Documents = () => {
       description: '',
       expires_at: '',
       tags: '',
-      visible_to_roles: ['admin', 'finance', 'operations'],
     });
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -217,14 +217,6 @@ const Documents = () => {
       toast({ title: 'Title is required', variant: 'destructive' });
       return;
     }
-    if (form.visible_to_roles.length === 0) {
-      toast({
-        title: 'Pick at least one role',
-        description: 'At least one role must be allowed to read this document.',
-        variant: 'destructive',
-      });
-      return;
-    }
 
     setUploading(true);
     try {
@@ -252,7 +244,9 @@ const Documents = () => {
         description: form.description || null,
         tags,
         uploaded_by: profile?.id || null,
-        visible_to_roles: form.visible_to_roles,
+        // Full role set — route-level guard keeps Ops / Field Staff / Driver
+        // out of the Documents page entirely.
+        visible_to_roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'],
       });
       if (insertError) {
         // best-effort cleanup of the just-uploaded file
@@ -335,14 +329,8 @@ const Documents = () => {
     );
   };
 
-  const toggleRole = (role: string, checked: boolean) => {
-    setForm((prev) => ({
-      ...prev,
-      visible_to_roles: checked
-        ? Array.from(new Set([...prev.visible_to_roles, role]))
-        : prev.visible_to_roles.filter((r) => r !== role),
-    }));
-  };
+  // toggleRole removed — Documents access is governed by RoleGuard + RLS, not
+  // per-document role selection any more.
 
   return (
     <div className="space-y-6">
@@ -431,10 +419,7 @@ const Documents = () => {
                 <TableBody>
                   {pagination.slice.map((r) => {
                     const Icon = pickIcon(r.mime_type);
-                    const canDelete =
-                      profile?.role === 'admin' ||
-                      profile?.role === 'super_admin' ||
-                      r.uploaded_by === profile?.id;
+                    const canDelete = canManage || r.uploaded_by === profile?.id;
                     return (
                       <TableRow key={r.id} className="kd-transition">
                         <TableCell>
@@ -589,30 +574,13 @@ const Documents = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Visible to roles</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {ALL_AUTH_ROLES.map((role) => (
-                  <label
-                    key={role}
-                    className="flex items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={form.visible_to_roles.includes(role)}
-                      onCheckedChange={(v) => toggleRole(role, Boolean(v))}
-                    />
-                    {roleLabel(role)}
-                  </label>
-                ))}
-              </div>
-              {!form.visible_to_roles.includes('admin') && (
-                <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <AlertTriangle className="h-3 w-3 mt-0.5" />
-                  <span>
-                    Admins always retain access regardless of this selection.
-                  </span>
-                </div>
-              )}
+            <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+              <span>
+                Access is governed centrally: Super Admin and Admin can upload
+                and delete. Finance can download. Operations, Field Staff and
+                Drivers have no access.
+              </span>
             </div>
           </div>
 

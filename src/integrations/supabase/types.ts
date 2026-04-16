@@ -14,6 +14,216 @@ export type Database = {
   }
   public: {
     Tables: {
+      virtual_cards: {
+        Row: {
+          id: string
+          card_name: string
+          last_four: string | null
+          vendor: string | null
+          subscription_id: string | null
+          monthly_limit_ngn: number
+          current_spend_ngn: number
+          status: string
+          notes: string | null
+          assigned_to: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          card_name: string
+          last_four?: string | null
+          vendor?: string | null
+          subscription_id?: string | null
+          monthly_limit_ngn?: number
+          current_spend_ngn?: number
+          status?: string
+          notes?: string | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          card_name?: string
+          last_four?: string | null
+          vendor?: string | null
+          subscription_id?: string | null
+          monthly_limit_ngn?: number
+          current_spend_ngn?: number
+          status?: string
+          notes?: string | null
+          assigned_to?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      knowledge_articles: {
+        Row: {
+          id: string
+          title: string
+          slug: string | null
+          category: string
+          body: string
+          visible_to_roles: string[]
+          version: number
+          author_id: string | null
+          updated_by: string | null
+          published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          slug?: string | null
+          category?: string
+          body?: string
+          visible_to_roles?: string[]
+          version?: number
+          author_id?: string | null
+          updated_by?: string | null
+          published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          slug?: string | null
+          category?: string
+          body?: string
+          visible_to_roles?: string[]
+          version?: number
+          author_id?: string | null
+          updated_by?: string | null
+          published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      knowledge_article_versions: {
+        Row: {
+          id: string
+          article_id: string
+          version: number
+          title: string
+          body: string
+          saved_by: string | null
+          saved_at: string
+        }
+        Insert: {
+          id?: string
+          article_id: string
+          version: number
+          title: string
+          body: string
+          saved_by?: string | null
+          saved_at?: string
+        }
+        Update: {
+          id?: string
+          article_id?: string
+          version?: number
+          title?: string
+          body?: string
+          saved_by?: string | null
+          saved_at?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          scope: string
+          owner_id: string | null
+          department_id: string | null
+          quarter: string
+          status: string
+          progress_pct: number
+          created_by: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          scope?: string
+          owner_id?: string | null
+          department_id?: string | null
+          quarter: string
+          status?: string
+          progress_pct?: number
+          created_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          scope?: string
+          owner_id?: string | null
+          department_id?: string | null
+          quarter?: string
+          status?: string
+          progress_pct?: number
+          created_by?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      notification_preferences: {
+        Row: {
+          user_id: string
+          email_approvals: boolean
+          email_payments: boolean
+          email_compliance: boolean
+          email_expenses: boolean
+          email_fleet: boolean
+          email_leave: boolean
+          in_app_sound: boolean
+          digest_frequency: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          email_approvals?: boolean
+          email_payments?: boolean
+          email_compliance?: boolean
+          email_expenses?: boolean
+          email_fleet?: boolean
+          email_leave?: boolean
+          in_app_sound?: boolean
+          digest_frequency?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          email_approvals?: boolean
+          email_payments?: boolean
+          email_compliance?: boolean
+          email_expenses?: boolean
+          email_fleet?: boolean
+          email_leave?: boolean
+          in_app_sound?: boolean
+          digest_frequency?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           id: string
@@ -793,33 +1003,48 @@ export type Database = {
       contractors: {
         Row: {
           account_number: string
+          agreement_signed: boolean | null
           bank_name: string
           created_at: string
           default_amount_ngn: number
           full_name: string
           id: string
+          kyc_document_uploaded: boolean | null
           linkedin_id: string | null
+          onboarded_at: string | null
+          onboarding_complete: boolean | null
           status: string
+          tags: string[] | null
         }
         Insert: {
           account_number?: string
+          agreement_signed?: boolean | null
           bank_name?: string
           created_at?: string
           default_amount_ngn?: number
           full_name: string
           id?: string
+          kyc_document_uploaded?: boolean | null
           linkedin_id?: string | null
+          onboarded_at?: string | null
+          onboarding_complete?: boolean | null
           status?: string
+          tags?: string[] | null
         }
         Update: {
           account_number?: string
+          agreement_signed?: boolean | null
           bank_name?: string
           created_at?: string
           default_amount_ngn?: number
           full_name?: string
           id?: string
+          kyc_document_uploaded?: boolean | null
           linkedin_id?: string | null
+          onboarded_at?: string | null
+          onboarding_complete?: boolean | null
           status?: string
+          tags?: string[] | null
         }
         Relationships: []
       }
