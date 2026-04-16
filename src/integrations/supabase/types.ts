@@ -14,6 +14,207 @@ export type Database = {
   }
   public: {
     Tables: {
+      departments: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          name: string
+          vendor: string | null
+          category: string
+          amount_ngn: number
+          billing_cycle: string
+          next_renewal_date: string
+          last_renewed_at: string | null
+          owner_id: string | null
+          department_id: string | null
+          status: string
+          notes: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          vendor?: string | null
+          category?: string
+          amount_ngn?: number
+          billing_cycle?: string
+          next_renewal_date: string
+          last_renewed_at?: string | null
+          owner_id?: string | null
+          department_id?: string | null
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          vendor?: string | null
+          category?: string
+          amount_ngn?: number
+          billing_cycle?: string
+          next_renewal_date?: string
+          last_renewed_at?: string | null
+          owner_id?: string | null
+          department_id?: string | null
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budgets: {
+        Row: {
+          id: string
+          name: string
+          period_start: string
+          period_end: string
+          department_id: string | null
+          total_amount_ngn: number
+          status: string
+          notes: string | null
+          created_by: string | null
+          approved_by: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          period_start: string
+          period_end: string
+          department_id?: string | null
+          total_amount_ngn?: number
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          approved_by?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          period_start?: string
+          period_end?: string
+          department_id?: string | null
+          total_amount_ngn?: number
+          status?: string
+          notes?: string | null
+          created_by?: string | null
+          approved_by?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budget_items: {
+        Row: {
+          id: string
+          budget_id: string
+          category: string
+          description: string | null
+          planned_amount_ngn: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          budget_id: string
+          category: string
+          description?: string | null
+          planned_amount_ngn?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          budget_id?: string
+          category?: string
+          description?: string | null
+          planned_amount_ngn?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          id: string
+          title: string
+          category: string
+          storage_path: string
+          mime_type: string | null
+          file_size_bytes: number | null
+          expires_at: string | null
+          description: string | null
+          tags: string[] | null
+          department_id: string | null
+          uploaded_by: string | null
+          visible_to_roles: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          category?: string
+          storage_path: string
+          mime_type?: string | null
+          file_size_bytes?: number | null
+          expires_at?: string | null
+          description?: string | null
+          tags?: string[] | null
+          department_id?: string | null
+          uploaded_by?: string | null
+          visible_to_roles?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          category?: string
+          storage_path?: string
+          mime_type?: string | null
+          file_size_bytes?: number | null
+          expires_at?: string | null
+          description?: string | null
+          tags?: string[] | null
+          department_id?: string | null
+          uploaded_by?: string | null
+          visible_to_roles?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_type: string
