@@ -15,7 +15,7 @@ import {
   FileText,
   BarChart3,
 } from 'lucide-react';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -41,24 +41,25 @@ type NavItem = {
 };
 
 const ALL_NAV: NavItem[] = [
-  { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['admin', 'finance', 'operations'] },
-  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['admin', 'finance', 'operations'], badge: 'approvals' },
-  { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['admin', 'finance', 'operations'] },
-  { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['admin', 'finance', 'operations'] },
-  { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['admin', 'finance', 'operations'] },
-  { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['admin', 'finance', 'operations'] },
-  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['admin', 'finance', 'operations'] },
-  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['admin', 'finance', 'operations'] },
-  { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['admin'] },
+  { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance', 'operations'], badge: 'approvals' },
+  { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin', 'admin'] },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { profile, signOut } = useAuthStore();
+  const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
@@ -69,7 +70,7 @@ export function AppSidebar() {
     refreshApprovals();
   }, [refreshApprovals, location.pathname]);
 
-  const role = (profile?.role || 'field_staff') as Role;
+  const role = (effectiveRole || 'field_staff') as Role;
   const navItems = ALL_NAV.filter((n) => n.roles.includes(role));
 
   return (

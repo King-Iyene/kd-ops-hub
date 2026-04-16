@@ -25,6 +25,7 @@ import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Employees from './pages/Employees';
 import SettingsPage from './pages/Settings';
+import ProfilePage from './pages/Profile';
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 import { Loader as Loader2 } from 'lucide-react';
@@ -191,12 +192,22 @@ function AppRoutes() {
           }
         />
 
-        {/* Settings — admin only. */}
+        {/* Settings — admin and super admin. */}
         <Route
           path="/settings"
           element={
-            <RoleGuard roles={['admin']}>
+            <RoleGuard roles={['super_admin', 'admin']}>
               <SettingsPage />
+            </RoleGuard>
+          }
+        />
+
+        {/* Profile — any signed-in user. */}
+        <Route
+          path="/profile"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <ProfilePage />
             </RoleGuard>
           }
         />

@@ -432,7 +432,9 @@ const Documents = () => {
                   {pagination.slice.map((r) => {
                     const Icon = pickIcon(r.mime_type);
                     const canDelete =
-                      profile?.role === 'admin' || r.uploaded_by === profile?.id;
+                      profile?.role === 'admin' ||
+                      profile?.role === 'super_admin' ||
+                      r.uploaded_by === profile?.id;
                     return (
                       <TableRow key={r.id} className="kd-transition">
                         <TableCell>

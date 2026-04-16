@@ -5,6 +5,7 @@ import type { UserRole } from '@/store/authStore';
  * these role sets instead of inlining string comparisons.
  */
 export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   FINANCE: 'finance',
   OPERATIONS: 'operations',
@@ -14,9 +15,19 @@ export const ROLES = {
 
 export type Role = UserRole;
 
-export const APPROVER_ROLES: Role[] = ['admin', 'finance'];
-export const MANAGER_ROLES: Role[] = ['admin', 'finance', 'operations'];
+/**
+ * Super Admin acts like Admin everywhere — it's a human-only role with a
+ * few extra UI privileges (role simulation) rather than new data access.
+ */
+export const APPROVER_ROLES: Role[] = ['super_admin', 'admin', 'finance'];
+export const MANAGER_ROLES: Role[] = [
+  'super_admin',
+  'admin',
+  'finance',
+  'operations',
+];
 export const ALL_AUTH_ROLES: Role[] = [
+  'super_admin',
   'admin',
   'finance',
   'operations',
@@ -24,9 +35,20 @@ export const ALL_AUTH_ROLES: Role[] = [
   'driver',
 ];
 
+/** Roles that can be chosen from the "View As" simulator (Super Admin only). */
+export const SIMULATABLE_ROLES: Role[] = [
+  'super_admin',
+  'admin',
+  'finance',
+  'operations',
+  'field_staff',
+];
+
 /** A compact role label for UI display. */
 export const roleLabel = (role: string): string => {
   switch (role) {
+    case 'super_admin':
+      return 'Super Admin';
     case 'admin':
       return 'Admin';
     case 'finance':
@@ -39,6 +61,28 @@ export const roleLabel = (role: string): string => {
       return 'Driver';
     default:
       return role || 'Unknown';
+  }
+};
+
+/**
+ * Tailwind classes for a role badge. Uses the KD brand palette for Super
+ * Admin (gold) and sensible hue buckets for the rest.
+ */
+export const roleBadgeClass = (role: string): string => {
+  switch (role) {
+    case 'super_admin':
+      // Gold — KD brand accent #D6AC50.
+      return 'bg-accent/15 text-accent-foreground border border-accent/40';
+    case 'admin':
+      return 'bg-info/10 text-info border border-info/30';
+    case 'finance':
+      return 'bg-success/10 text-success border border-success/30';
+    case 'operations':
+      return 'bg-purple-100 text-purple-700 border border-purple-200';
+    case 'field_staff':
+      return 'bg-muted text-muted-foreground border border-border';
+    default:
+      return 'bg-muted text-muted-foreground border border-border';
   }
 };
 

@@ -32,7 +32,10 @@ export type AuditActionType =
   | 'document_uploaded'
   | 'document_deleted'
   | 'document_edited'
-  | 'bulk_approved';
+  | 'bulk_approved'
+  | 'profile_updated'
+  | 'profile_password_changed'
+  | 'profile_viewed_as';
 
 export interface AuditActor {
   id?: string | null;

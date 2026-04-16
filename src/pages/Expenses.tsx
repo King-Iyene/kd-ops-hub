@@ -20,7 +20,10 @@ const categories = ['fuel', 'transport', 'office_supplies', 'client_entertainmen
 const Expenses = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const isApprover = profile?.role === 'admin' || profile?.role === 'finance';
+  const isApprover =
+    profile?.role === 'admin' ||
+    profile?.role === 'finance' ||
+    profile?.role === 'super_admin';
   const isAdmin = isApprover; // retained for existing references
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
