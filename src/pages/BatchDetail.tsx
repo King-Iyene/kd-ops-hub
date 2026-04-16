@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import {
   ArrowLeft,
   Check,
@@ -49,7 +50,7 @@ const statusLabels: Record<string, string> = {
   rejected: 'Rejected',
 };
 
-// Role-based access control removed — every signed-in user can approve.
+const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
 
 const csvEscape = (v: any): string => {
   const s = v === null || v === undefined ? '' : String(v);
@@ -94,16 +95,35 @@ const BatchDetail = () => {
     setLoading(false);
   };
 
-  const canApprove = !!profile;
-  const cannotApproveReason: string | null = profile ? null : 'Not authenticated.';
+  const canApprove =
+    !!profile && APPROVER_ROLES.includes(profile.role as any);
+
+  const cannotApproveReason = (() => {
+    if (!profile) return 'Not authenticated.';
+    if (!APPROVER_ROLES.includes(profile.role as any)) {
+      return 'Only Admin or Finance roles can approve payment batches.';
+    }
+    return null;
+  })();
 
   const updateStatus = async (status: string, extra?: any) => {
     setActionLoading(true);
     try {
-      if ((status === 'approved' || status === 'rejected') && !profile) {
-        toast({ title: 'Not authenticated', variant: 'destructive' });
-        setActionLoading(false);
-        return;
+      if (status === 'approved' || status === 'rejected') {
+        if (!profile) {
+          toast({ title: 'Not authenticated', variant: 'destructive' });
+          setActionLoading(false);
+          return;
+        }
+        if (!APPROVER_ROLES.includes(profile.role as any)) {
+          toast({
+            title: 'Not authorized',
+            description: 'Only Admin or Finance roles can approve or reject batches.',
+            variant: 'destructive',
+          });
+          setActionLoading(false);
+          return;
+        }
       }
 
       const update: any = { status, ...extra };
@@ -185,8 +205,12 @@ const BatchDetail = () => {
   };
 
   const retryItem = async (item: any) => {
-    if (!profile) {
-      toast({ title: 'Not authenticated', variant: 'destructive' });
+    if (!APPROVER_ROLES.includes(profile?.role as any)) {
+      toast({
+        title: 'Not authorized',
+        description: 'Only Admin or Finance roles can retry payments.',
+        variant: 'destructive',
+      });
       return;
     }
     setRetryingId(item.id);
@@ -412,7 +436,8 @@ const BatchDetail = () => {
     );
   if (!batch) return <div className="text-center py-12">Batch not found</div>;
 
-  // Role-based access control removed — action buttons are available to any user.
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isFinance = profile?.role === 'finance';
   const canExport = items.length > 0;
   const failedItems = items.filter((i) => i.status === 'failed');
 
@@ -487,7 +512,8 @@ const BatchDetail = () => {
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 flex-wrap">
+      {(isAdmin || isFinance) && (
+        <div className="flex gap-2 flex-wrap">
           {batch.status === 'draft' && batch.created_by === profile?.id && (
             <Button onClick={() => updateStatus('pending_approval')} disabled={actionLoading}>
               Submit for Approval
@@ -529,6 +555,7 @@ const BatchDetail = () => {
             </Button>
           )}
         </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -607,6 +634,8 @@ const BatchDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>

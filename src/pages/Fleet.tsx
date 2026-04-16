@@ -74,8 +74,10 @@ interface TripLog {
 const Fleet = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  // Role-based access control removed — every authenticated user sees and acts on all fleet data.
-  const isAdmin = true;
+  const isAdmin =
+    profile?.role === 'admin' ||
+    profile?.role === 'finance' ||
+    profile?.role === 'super_admin';
 
   const [tab, setTab] = useState<'fuel' | 'trips'>('fuel');
 

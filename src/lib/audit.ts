@@ -44,7 +44,24 @@ export type AuditActionType =
   | 'leave_requested'
   | 'leave_approved'
   | 'leave_rejected'
-  | 'leave_cancelled';
+  | 'leave_cancelled'
+  | 'task_created'
+  | 'task_updated'
+  | 'task_completed'
+  | 'task_commented'
+  | 'compliance_filed'
+  | 'compliance_marked_overdue'
+  | 'payroll_created'
+  | 'payroll_submitted'
+  | 'payroll_approved'
+  | 'payroll_paid'
+  | 'announcement_posted'
+  | 'announcement_removed'
+  | 'approval_comment'
+  | 'invite_sent'
+  | 'invite_revoked'
+  | 'company_settings_updated'
+  | 'role_changed';
 
 export interface AuditActor {
   id?: string | null;

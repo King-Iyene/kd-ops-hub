@@ -34,6 +34,10 @@ import { supabase } from '@/lib/supabase';
 import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
+import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
+import { FinancialHealthCard } from '@/components/FinancialHealthCard';
+import { CashBurnCard } from '@/components/CashBurnCard';
+import { MyTasksWidget } from '@/pages/Tasks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -280,6 +284,15 @@ const Dashboard = () => {
         <p className="text-muted-foreground text-sm">
           Overview of KD Squares operations
         </p>
+      </div>
+
+      <AnnouncementsBanner />
+
+      {/* Command-centre row: health score, 30-day burn, my tasks. */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <FinancialHealthCard />
+        <CashBurnCard />
+        <MyTasksWidget />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

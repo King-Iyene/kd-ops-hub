@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { logAudit, type AuditActionType } from '@/lib/audit';
+import { APPROVER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -99,8 +100,7 @@ const Approvals = () => {
   const refreshCounts = useApprovalStore((s) => s.refresh);
   const counts = useApprovalStore((s) => s.counts);
 
-  // Role-based access control removed — every signed-in user can approve.
-  const canApprove = true;
+  const canApprove = hasRole(profile?.role, APPROVER_ROLES);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

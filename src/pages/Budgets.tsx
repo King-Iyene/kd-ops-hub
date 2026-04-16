@@ -13,7 +13,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-// Role-based access control removed — every authenticated user manages budgets.
+import { APPROVER_ROLES, MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira, toIsoDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -119,7 +119,7 @@ const CATEGORY_SUGGESTIONS = [
 const Budgets = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const canManage = true;
+  const canManage = hasRole(profile?.role, APPROVER_ROLES);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -624,7 +624,7 @@ const Budgets = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => submitForApproval(r)}
-                                disabled={false}
+                                disabled={!hasRole(profile?.role, MANAGER_ROLES)}
                               >
                                 Submit
                               </Button>

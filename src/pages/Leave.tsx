@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { useApprovalStore } from '@/store/approvalStore';
-// Role-based access control removed — every authenticated user manages leave.
+import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,7 +120,7 @@ const Leave = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const refreshApprovals = useApprovalStore((s) => s.refresh);
-  const isManager = true;
+  const isManager = hasRole(profile?.role, MANAGER_ROLES);
 
   const [tab, setTab] = useState<'mine' | 'team'>('mine');
   const [loading, setLoading] = useState(true);

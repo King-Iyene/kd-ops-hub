@@ -11,10 +11,12 @@ import {
   FileText as FileWord,
   Loader2,
   Plus,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { MANAGER_ROLES, hasRole, roleLabel, ALL_AUTH_ROLES } from '@/lib/roles';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,11 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-
-// Role-based access control removed — every authenticated user can upload,
-// download, and delete any document. We still persist visible_to_roles as a
-// full role set so the DB-level RLS policy lets everyone read uploads.
-const ALL_AUTH_ROLES = ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'];
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -100,7 +98,7 @@ const MAX_BYTES = MAX_MB * 1024 * 1024;
 const Documents = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const canManage = true;
+  const canManage = hasRole(profile?.role, MANAGER_ROLES);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,6 +217,14 @@ const Documents = () => {
       toast({ title: 'Title is required', variant: 'destructive' });
       return;
     }
+    if (form.visible_to_roles.length === 0) {
+      toast({
+        title: 'Pick at least one role',
+        description: 'At least one role must be allowed to read this document.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setUploading(true);
     try {
@@ -246,8 +252,7 @@ const Documents = () => {
         description: form.description || null,
         tags,
         uploaded_by: profile?.id || null,
-        // Insert the full role set so every signed-in user can read the document.
-        visible_to_roles: ALL_AUTH_ROLES,
+        visible_to_roles: form.visible_to_roles,
       });
       if (insertError) {
         // best-effort cleanup of the just-uploaded file
@@ -328,6 +333,15 @@ const Documents = () => {
         {formatDate(r.expires_at)}
       </Badge>
     );
+  };
+
+  const toggleRole = (role: string, checked: boolean) => {
+    setForm((prev) => ({
+      ...prev,
+      visible_to_roles: checked
+        ? Array.from(new Set([...prev.visible_to_roles, role]))
+        : prev.visible_to_roles.filter((r) => r !== role),
+    }));
   };
 
   return (
@@ -417,7 +431,10 @@ const Documents = () => {
                 <TableBody>
                   {pagination.slice.map((r) => {
                     const Icon = pickIcon(r.mime_type);
-                    const canDelete = true;
+                    const canDelete =
+                      profile?.role === 'admin' ||
+                      profile?.role === 'super_admin' ||
+                      r.uploaded_by === profile?.id;
                     return (
                       <TableRow key={r.id} className="kd-transition">
                         <TableCell>
@@ -572,6 +589,31 @@ const Documents = () => {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Visible to roles</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {ALL_AUTH_ROLES.map((role) => (
+                  <label
+                    key={role}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={form.visible_to_roles.includes(role)}
+                      onCheckedChange={(v) => toggleRole(role, Boolean(v))}
+                    />
+                    {roleLabel(role)}
+                  </label>
+                ))}
+              </div>
+              {!form.visible_to_roles.includes('admin') && (
+                <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <AlertTriangle className="h-3 w-3 mt-0.5" />
+                  <span>
+                    Admins always retain access regardless of this selection.
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
           <DialogFooter>
