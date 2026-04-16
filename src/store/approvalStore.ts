@@ -6,6 +6,7 @@ interface ApprovalCounts {
   expenses: number;
   fuel: number;
   budgets: number;
+  leave: number;
   total: number;
 }
 
@@ -20,6 +21,7 @@ const ZERO: ApprovalCounts = {
   expenses: 0,
   fuel: 0,
   budgets: 0,
+  leave: 0,
   total: 0,
 };
 
@@ -29,29 +31,35 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
   refresh: async () => {
     set({ loading: true });
     try {
-      const [batchRes, expenseRes, fuelRes, budgetRes] = await Promise.all([
-        supabase
-          .from('payment_batches')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending_approval'),
-        supabase
-          .from('expenses')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending'),
-        supabase
-          .from('fuel_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending'),
-        supabase
-          .from('budgets')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending_approval'),
-      ]);
+      const [batchRes, expenseRes, fuelRes, budgetRes, leaveRes] =
+        await Promise.all([
+          supabase
+            .from('payment_batches')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending_approval'),
+          supabase
+            .from('expenses')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending'),
+          supabase
+            .from('fuel_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending'),
+          supabase
+            .from('budgets')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending_approval'),
+          supabase
+            .from('leave_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'pending'),
+        ]);
 
       const batches = batchRes.count || 0;
       const expenses = expenseRes.count || 0;
       const fuel = fuelRes.count || 0;
       const budgets = budgetRes.count || 0;
+      const leave = leaveRes.count || 0;
 
       set({
         counts: {
@@ -59,7 +67,8 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
           expenses,
           fuel,
           budgets,
-          total: batches + expenses + fuel + budgets,
+          leave,
+          total: batches + expenses + fuel + budgets + leave,
         },
         loading: false,
       });

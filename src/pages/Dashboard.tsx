@@ -18,6 +18,9 @@ import {
   Inbox,
   PiggyBank,
   ArrowRight,
+  CalendarDays,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import {
   PieChart,
@@ -30,6 +33,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import ComplianceCard from '@/components/ComplianceCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +98,15 @@ const ICONS: Record<string, typeof FileText> = {
   budget_rejected: XCircle,
   document_uploaded: FileText,
   document_deleted: XCircle,
+  leave_requested: CalendarDays,
+  leave_approved: CheckCircle,
+  leave_rejected: XCircle,
+  leave_cancelled: XCircle,
+  budget_locked: Lock,
+  budget_unlocked: Unlock,
+  batch_scheduled: CalendarClock,
+  batch_item_retried: Play,
+  batch_receipt_downloaded: FileText,
 };
 
 const prettyType = (t: string) => t.replace(/_/g, ' ');
@@ -386,6 +399,7 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ComplianceCard />
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base">Upcoming Subscriptions</CardTitle>

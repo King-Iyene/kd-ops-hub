@@ -14,6 +14,7 @@ import {
   PiggyBank,
   FileText,
   BarChart3,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -50,6 +51,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Leave',         url: '/leave',         icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin', 'admin'] },

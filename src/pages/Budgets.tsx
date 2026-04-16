@@ -7,6 +7,8 @@ import {
   Trash2,
   Pencil,
   CheckCircle2,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -59,6 +61,7 @@ interface BudgetRow {
   total_amount_ngn: number;
   status: string;
   notes: string | null;
+  locked: boolean;
   created_by: string | null;
   approved_by: string | null;
   rejection_reason: string | null;
@@ -393,6 +396,31 @@ const Budgets = () => {
     load();
   };
 
+  const toggleLock = async (r: BudgetRow) => {
+    if (!canManage) return;
+    const next = !r.locked;
+    const { error } = await supabase
+      .from('budgets')
+      .update({ locked: next })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Could not toggle lock', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      next ? 'budget_locked' : 'budget_unlocked',
+      `Budget "${r.name}" ${next ? 'locked' : 'unlocked'}`,
+      profile,
+    );
+    toast({
+      title: next ? 'Budget locked' : 'Budget unlocked',
+      description: next
+        ? 'New expenses against its categories will be blocked.'
+        : 'Submissions are allowed again.',
+    });
+    load();
+  };
+
   const approve = async (r: BudgetRow) => {
     if (!canManage) return;
     const { error } = await supabase
@@ -535,12 +563,19 @@ const Budgets = () => {
                     return (
                       <TableRow key={r.id} className="kd-transition">
                         <TableCell>
-                          <button
-                            className="font-medium hover:underline text-left"
-                            onClick={() => openEdit(r)}
-                          >
-                            {r.name}
-                          </button>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              className="font-medium hover:underline text-left"
+                              onClick={() => openEdit(r)}
+                            >
+                              {r.name}
+                            </button>
+                            {r.locked && (
+                              <Badge className="bg-destructive/10 text-destructive gap-1">
+                                <Lock className="h-3 w-3" /> Locked
+                              </Badge>
+                            )}
+                          </div>
                           {r.notes && (
                             <p className="text-xs text-muted-foreground truncate max-w-xs">
                               {r.notes}
@@ -601,6 +636,20 @@ const Budgets = () => {
                                 onClick={() => approve(r)}
                               >
                                 <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
+                              </Button>
+                            )}
+                            {canManage && r.status === 'approved' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleLock(r)}
+                                title={r.locked ? 'Unlock budget' : 'Lock budget'}
+                              >
+                                {r.locked ? (
+                                  <Unlock className="h-4 w-4" />
+                                ) : (
+                                  <Lock className="h-4 w-4" />
+                                )}
                               </Button>
                             )}
                             {canManage && (

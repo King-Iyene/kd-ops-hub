@@ -102,6 +102,7 @@ export type Database = {
           created_by: string | null
           approved_by: string | null
           rejection_reason: string | null
+          locked: boolean
           created_at: string
           updated_at: string
         }
@@ -117,6 +118,7 @@ export type Database = {
           created_by?: string | null
           approved_by?: string | null
           rejection_reason?: string | null
+          locked?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -132,6 +134,7 @@ export type Database = {
           created_by?: string | null
           approved_by?: string | null
           rejection_reason?: string | null
+          locked?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -215,6 +218,87 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_requests: {
+        Row: {
+          id: string
+          employee_id: string
+          leave_type: string
+          start_date: string
+          end_date: string
+          days_requested: number
+          reason: string | null
+          status: string
+          reviewed_by: string | null
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          leave_type: string
+          start_date: string
+          end_date: string
+          days_requested: number
+          reason?: string | null
+          status?: string
+          reviewed_by?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          leave_type?: string
+          start_date?: string
+          end_date?: string
+          days_requested?: number
+          reason?: string | null
+          status?: string
+          reviewed_by?: string | null
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leave_balances: {
+        Row: {
+          id: string
+          employee_id: string
+          year: number
+          annual_quota: number
+          annual_used: number
+          sick_used: number
+          unpaid_used: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          employee_id: string
+          year: number
+          annual_quota?: number
+          annual_used?: number
+          sick_used?: number
+          unpaid_used?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          employee_id?: string
+          year?: number
+          annual_quota?: number
+          annual_used?: number
+          sick_used?: number
+          unpaid_used?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_type: string
@@ -258,6 +342,7 @@ export type Database = {
           batch_id: string
           contractor_id: string | null
           created_at: string
+          failure_reason: string | null
           full_name: string
           id: string
           reference: string | null
@@ -270,6 +355,7 @@ export type Database = {
           batch_id: string
           contractor_id?: string | null
           created_at?: string
+          failure_reason?: string | null
           full_name: string
           id?: string
           reference?: string | null
@@ -282,6 +368,7 @@ export type Database = {
           batch_id?: string
           contractor_id?: string | null
           created_at?: string
+          failure_reason?: string | null
           full_name?: string
           id?: string
           reference?: string | null
@@ -341,11 +428,14 @@ export type Database = {
         Row: {
           admin_note: string | null
           amount_ngn: number
+          budget_category: string | null
           category: string
           created_at: string
           date: string
           description: string | null
           id: string
+          mileage_km: number | null
+          rate_per_km_ngn: number | null
           receipt_url: string | null
           status: string
           submitted_by: string
@@ -353,11 +443,14 @@ export type Database = {
         Insert: {
           admin_note?: string | null
           amount_ngn?: number
+          budget_category?: string | null
           category: string
           created_at?: string
           date: string
           description?: string | null
           id?: string
+          mileage_km?: number | null
+          rate_per_km_ngn?: number | null
           receipt_url?: string | null
           status?: string
           submitted_by: string
@@ -365,11 +458,14 @@ export type Database = {
         Update: {
           admin_note?: string | null
           amount_ngn?: number
+          budget_category?: string | null
           category?: string
           created_at?: string
           date?: string
           description?: string | null
           id?: string
+          mileage_km?: number | null
+          rate_per_km_ngn?: number | null
           receipt_url?: string | null
           status?: string
           submitted_by?: string
@@ -491,6 +587,7 @@ export type Database = {
           payment_date: string
           period: string | null
           rejection_reason: string | null
+          scheduled_date: string | null
           status: string
           total_amount: number
         }
@@ -505,6 +602,7 @@ export type Database = {
           payment_date: string
           period?: string | null
           rejection_reason?: string | null
+          scheduled_date?: string | null
           status?: string
           total_amount?: number
         }
@@ -519,6 +617,7 @@ export type Database = {
           payment_date?: string
           period?: string | null
           rejection_reason?: string | null
+          scheduled_date?: string | null
           status?: string
           total_amount?: number
         }

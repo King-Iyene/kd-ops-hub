@@ -50,6 +50,7 @@ const NewPaymentBatch = () => {
   // Step 1
   const [batchName, setBatchName] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
   const [period, setPeriod] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -158,6 +159,7 @@ const NewPaymentBatch = () => {
       const { data: batch, error } = await supabase.from('payment_batches').insert({
         name: batchName,
         payment_date: paymentDate,
+        scheduled_date: scheduledDate ? new Date(scheduledDate).toISOString() : null,
         period,
         notes,
         total_amount: totalAmount,
@@ -244,6 +246,18 @@ const NewPaymentBatch = () => {
               <div className="space-y-2">
                 <Label>Payment Period</Label>
                 <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="e.g. March 2026" />
+              </div>
+              <div className="space-y-2">
+                <Label>Scheduled Execution (optional)</Label>
+                <Input
+                  type="datetime-local"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to process immediately after approval. Set a future
+                  date/time to schedule the batch for execution.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
