@@ -14,7 +14,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { APPROVER_ROLES, hasRole } from '@/lib/roles';
+// Role-based access control removed — every authenticated user manages subscriptions.
 import { daysUntil, formatDate, formatNaira, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
@@ -122,7 +122,7 @@ const emptyForm: FormState = {
 const Subscriptions = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const canManage = hasRole(profile?.role, APPROVER_ROLES);
+  const canManage = true;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

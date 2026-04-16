@@ -6,8 +6,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
-import { RoleGuard } from '@/components/RoleGuard';
-import { ALL_AUTH_ROLES, MANAGER_ROLES } from '@/lib/roles';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -27,12 +25,15 @@ import Employees from './pages/Employees';
 import Leave from './pages/Leave';
 import SettingsPage from './pages/Settings';
 import ProfilePage from './pages/Profile';
-import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 import { Loader as Loader2 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
+/**
+ * Only guard in KDOps is "are you signed in?". Role-based access control was
+ * removed — every authenticated user can reach every page.
+ */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { loading } = useAuth();
   const { user } = useAuthStore();
@@ -63,167 +64,23 @@ function AppRoutes() {
           </AuthGuard>
         }
       >
-        {/* Default landing routes to Dashboard for managers, Fleet for others. */}
-        <Route
-          path="/"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Dashboard />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Dashboard />
-            </RoleGuard>
-          }
-        />
-
-        {/* Approvals */}
-        <Route
-          path="/approvals"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Approvals />
-            </RoleGuard>
-          }
-        />
-
-        {/* Payments */}
-        <Route
-          path="/payments"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Payments />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/payments/new"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <NewPaymentBatch />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/payments/:id"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <BatchDetail />
-            </RoleGuard>
-          }
-        />
-
-        {/* Subscriptions */}
-        <Route
-          path="/subscriptions"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Subscriptions />
-            </RoleGuard>
-          }
-        />
-
-        {/* Budgets */}
-        <Route
-          path="/budgets"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Budgets />
-            </RoleGuard>
-          }
-        />
-
-        {/* Documents — all authenticated roles (fine-grained via visible_to_roles). */}
-        <Route
-          path="/documents"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <Documents />
-            </RoleGuard>
-          }
-        />
-
-        {/* Reports */}
-        <Route
-          path="/reports"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Reports />
-            </RoleGuard>
-          }
-        />
-
-        {/* Fleet / Expenses — all authenticated roles. */}
-        <Route
-          path="/fleet"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <Fleet />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/expenses"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <Expenses />
-            </RoleGuard>
-          }
-        />
-
-        {/* Contractors / Employees — managers. */}
-        <Route
-          path="/contractors"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Contractors />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="/employees"
-          element={
-            <RoleGuard roles={MANAGER_ROLES}>
-              <Employees />
-            </RoleGuard>
-          }
-        />
-
-        {/* Leave — every signed-in employee. */}
-        <Route
-          path="/leave"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <Leave />
-            </RoleGuard>
-          }
-        />
-
-        {/* Settings — admin and super admin. */}
-        <Route
-          path="/settings"
-          element={
-            <RoleGuard roles={['super_admin', 'admin']}>
-              <SettingsPage />
-            </RoleGuard>
-          }
-        />
-
-        {/* Profile — any signed-in user. */}
-        <Route
-          path="/profile"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <ProfilePage />
-            </RoleGuard>
-          }
-        />
-
-        <Route path="/unauthorized" element={<Unauthorized />} />
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/approvals" element={<Approvals />} />
+        <Route path="/payments" element={<Payments />} />
+        <Route path="/payments/new" element={<NewPaymentBatch />} />
+        <Route path="/payments/:id" element={<BatchDetail />} />
+        <Route path="/subscriptions" element={<Subscriptions />} />
+        <Route path="/budgets" element={<Budgets />} />
+        <Route path="/documents" element={<Documents />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/fleet" element={<Fleet />} />
+        <Route path="/expenses" element={<Expenses />} />
+        <Route path="/contractors" element={<Contractors />} />
+        <Route path="/employees" element={<Employees />} />
+        <Route path="/leave" element={<Leave />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
