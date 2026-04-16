@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
@@ -9,11 +9,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, Search, Upload, Pencil } from 'lucide-react';
+import {
+  Loader2,
+  Plus,
+  Search,
+  Upload,
+  Pencil,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { NIGERIAN_BANKS } from '@/lib/paystack';
 
 interface Contractor {
   id: string;
@@ -25,11 +42,73 @@ interface Contractor {
   status: string;
 }
 
+interface ParsedRow {
+  rowNumber: number; // 1-based as shown to the user (excluding header)
+  raw: Record<string, string>;
+  full_name: string;
+  bank_name: string;
+  account_number: string;
+  default_amount_ngn: number;
+  linkedin_id: string;
+  valid: boolean;
+  errors: string[];
+}
+
 const emptyBank: BankAccountValue = {
   bank_name: '',
   account_number: '',
   account_name: '',
   verified: false,
+};
+
+// CSV escape: wrap field in quotes if it contains a comma, quote, or newline.
+const csvEscape = (v: any): string => {
+  const s = v === null || v === undefined ? '' : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+};
+
+// Build the sample CSV with three example rows.
+const SAMPLE_CSV = (() => {
+  const header = [
+    'full_name',
+    'bank_name',
+    'account_number',
+    'default_amount_ngn',
+    'linkedin_id',
+  ];
+  const rows = [
+    ['Chinwe Okafor', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123'],
+    ['Adewale Ogunleye', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye'],
+    ['Ifeoma Nwachukwu', 'Zenith Bank', '0345678901', '175000', ''],
+  ];
+  return [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
+})();
+
+// Case-insensitive bank name matcher; returns the canonical name if found.
+const BANK_NAME_LOOKUP: Map<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const b of NIGERIAN_BANKS) {
+    m.set(b.name.toLowerCase(), b.name);
+    // also accept short forms without suffix like "Bank"
+    const short = b.name.replace(/\s*bank\s*$/i, '').trim().toLowerCase();
+    if (short) m.set(short, b.name);
+  }
+  // common aliases
+  m.set('gt bank', 'GTBank');
+  m.set('gtb', 'GTBank');
+  m.set('first bank of nigeria', 'First Bank');
+  m.set('stanbic ibtc bank', 'Stanbic IBTC');
+  m.set('stanbic', 'Stanbic IBTC');
+  m.set('fidelity', 'Fidelity Bank');
+  m.set('united bank for africa', 'UBA');
+  return m;
+})();
+
+const normalizeBankName = (raw: string): string | null => {
+  const key = (raw || '').trim().toLowerCase();
+  if (!key) return null;
+  return BANK_NAME_LOOKUP.get(key) ?? null;
 };
 
 const Contractors = () => {
@@ -48,7 +127,21 @@ const Contractors = () => {
   });
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
 
-  useEffect(() => { fetchContractors(); }, []);
+  // CSV import state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importDialog, setImportDialog] = useState(false);
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
+  const [importFileName, setImportFileName] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<{
+    imported: number;
+    failed: number;
+    failures: { row: number; name: string; reason: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    fetchContractors();
+  }, []);
 
   const fetchContractors = async () => {
     const { data } = await supabase.from('contractors').select('*').order('full_name');
@@ -86,20 +179,12 @@ const Contractors = () => {
       if (editing) {
         const { error } = await supabase.from('contractors').update(payload).eq('id', editing.id);
         if (error) throw error;
-        await logAudit(
-          'contractor_edited',
-          `Contractor "${payload.full_name}" updated`,
-          profile,
-        );
+        await logAudit('contractor_edited', `Contractor "${payload.full_name}" updated`, profile);
         toast({ title: 'Contractor updated' });
       } else {
         const { error } = await supabase.from('contractors').insert(payload);
         if (error) throw error;
-        await logAudit(
-          'contractor_added',
-          `Contractor "${payload.full_name}" added`,
-          profile,
-        );
+        await logAudit('contractor_added', `Contractor "${payload.full_name}" added`, profile);
         toast({ title: 'Contractor added' });
       }
       setShowForm(false);
@@ -119,7 +204,6 @@ const Contractors = () => {
       default_amount_ngn: String(c.default_amount_ngn),
       linkedin_id: c.linkedin_id || '',
     });
-    // Pre-fill but mark unverified — force re-verify on save.
     setBank({
       bank_name: c.bank_name,
       account_number: c.account_number,
@@ -133,66 +217,189 @@ const Contractors = () => {
     const newStatus = c.status === 'active' ? 'inactive' : 'active';
     await supabase.from('contractors').update({ status: newStatus }).eq('id', c.id);
     if (newStatus === 'inactive') {
-      await logAudit(
-        'contractor_deactivated',
-        `Contractor "${c.full_name}" deactivated`,
-        profile,
-      );
+      await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
     } else {
-      await logAudit(
-        'contractor_edited',
-        `Contractor "${c.full_name}" reactivated`,
-        profile,
-      );
+      await logAudit('contractor_edited', `Contractor "${c.full_name}" reactivated`, profile);
     }
     toast({ title: `Contractor ${newStatus}` });
     fetchContractors();
   };
 
-  const handleCsvImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- CSV import flow ---------------------------------------------------
+
+  const downloadSample = () => {
+    const blob = new Blob([SAMPLE_CSV], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kdops-contractors-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const validateRow = (raw: Record<string, string>, rowNumber: number): ParsedRow => {
+    const full_name = (raw.full_name || raw.name || '').trim();
+    const bank_raw = (raw.bank_name || raw.bank || '').trim();
+    const account_number = (raw.account_number || raw.account || '').trim();
+    const amount_raw = raw.default_amount_ngn ?? raw.amount ?? '0';
+    const default_amount_ngn = parseFloat(String(amount_raw).replace(/,/g, '')) || 0;
+    const linkedin_id = (raw.linkedin_id || '').trim();
+
+    const errors: string[] = [];
+    if (!full_name) errors.push('Full name is required');
+
+    const canonicalBank = normalizeBankName(bank_raw);
+    if (!bank_raw) {
+      errors.push('Bank name is required');
+    } else if (!canonicalBank) {
+      errors.push(`Unknown bank "${bank_raw}"`);
+    }
+
+    if (!/^\d{10}$/.test(account_number)) {
+      errors.push('Account number must be exactly 10 digits');
+    }
+
+    return {
+      rowNumber,
+      raw,
+      full_name,
+      bank_name: canonicalBank ?? bank_raw,
+      account_number,
+      default_amount_ngn,
+      linkedin_id,
+      valid: errors.length === 0,
+      errors,
+    };
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    Papa.parse(file, {
+    setImportFileName(file.name);
+    setImportSummary(null);
+    Papa.parse<Record<string, string>>(file, {
       header: true,
       skipEmptyLines: true,
-      complete: async (results) => {
-        const rows = results.data.map((row: any) => ({
-          full_name: row.full_name || row.name || '',
-          bank_name: row.bank_name || row.bank || '',
-          account_number: row.account_number || row.account || '',
-          default_amount_ngn: parseFloat(row.default_amount_ngn || row.amount || '0'),
-          linkedin_id: row.linkedin_id || '',
-          status: 'active',
-        })).filter((r) => r.full_name);
-        if (rows.length === 0) return;
-        await supabase.from('contractors').insert(rows);
-        await logAudit(
-          'contractor_added',
-          `Imported ${rows.length} contractors via CSV`,
-          profile,
-        );
-        toast({ title: `${rows.length} contractors imported` });
-        fetchContractors();
+      transformHeader: (h) => h.trim().toLowerCase(),
+      complete: (results) => {
+        const rows = (results.data || []).map((row, idx) => validateRow(row, idx + 1));
+        setParsedRows(rows);
+        setImportDialog(true);
+        // Reset the input so the same file can be re-picked later.
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      },
+      error: (err) => {
+        toast({
+          title: 'Could not parse CSV',
+          description: err.message,
+          variant: 'destructive',
+        });
       },
     });
   };
 
-  const filtered = contractors.filter((c) => c.full_name.toLowerCase().includes(search.toLowerCase()));
+  const confirmImport = async () => {
+    const valid = parsedRows.filter((r) => r.valid);
+    const invalid = parsedRows.filter((r) => !r.valid);
 
-  if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    if (valid.length === 0) {
+      toast({
+        title: 'Nothing to import',
+        description: 'All rows have validation errors. Fix them and try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const payload = valid.map((r) => ({
+        full_name: r.full_name,
+        bank_name: r.bank_name,
+        account_number: r.account_number,
+        default_amount_ngn: r.default_amount_ngn,
+        linkedin_id: r.linkedin_id || null,
+        status: 'active',
+      }));
+
+      const { error } = await supabase.from('contractors').insert(payload);
+      if (error) {
+        toast({
+          title: 'Import failed',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setImporting(false);
+        return;
+      }
+
+      await logAudit(
+        'contractor_added',
+        `Imported ${payload.length} contractors via CSV${
+          invalid.length ? ` (${invalid.length} row(s) skipped)` : ''
+        }`,
+        profile,
+      );
+
+      setImportSummary({
+        imported: valid.length,
+        failed: invalid.length,
+        failures: invalid.map((r) => ({
+          row: r.rowNumber,
+          name: r.full_name || '(no name)',
+          reason: r.errors.join(', '),
+        })),
+      });
+      fetchContractors();
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const closeImportDialog = () => {
+    setImportDialog(false);
+    setParsedRows([]);
+    setImportFileName('');
+    setImportSummary(null);
+  };
+
+  const filtered = contractors.filter((c) =>
+    c.full_name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-6 w-6 animate-spin" />
+      </div>
+    );
+
+  const validCount = parsedRows.filter((r) => r.valid).length;
+  const invalidCount = parsedRows.length - validCount;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold">Contractors</h1>
           <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
         </div>
-        <div className="flex gap-2">
-          <label className="cursor-pointer">
-            <input type="file" accept=".csv" className="hidden" onChange={handleCsvImport} />
-            <Button variant="outline" asChild><span><Upload className="mr-2 h-4 w-4" /> Import CSV</span></Button>
-          </label>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={downloadSample}>
+            <Download className="mr-2 h-4 w-4" /> Sample CSV
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={handleFilePick}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="mr-2 h-4 w-4" /> Import CSV
+          </Button>
           <Button
             onClick={() => {
               resetForm();
@@ -206,7 +413,12 @@ const Contractors = () => {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search contractors..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <Input
+          placeholder="Search contractors..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       <Card>
@@ -229,15 +441,27 @@ const Contractors = () => {
                   <TableCell className="font-medium">{c.full_name}</TableCell>
                   <TableCell>{c.bank_name}</TableCell>
                   <TableCell>{c.account_number}</TableCell>
-                  <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
+                  <TableCell className="text-right currency">
+                    {formatNaira(c.default_amount_ngn || 0)}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{c.linkedin_id || '—'}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={c.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'} onClick={() => toggleStatus(c)}>
+                    <Badge
+                      variant="secondary"
+                      className={
+                        c.status === 'active'
+                          ? 'bg-success/10 text-success cursor-pointer'
+                          : 'bg-muted text-muted-foreground cursor-pointer'
+                      }
+                      onClick={() => toggleStatus(c)}
+                    >
                       {c.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -246,9 +470,18 @@ const Contractors = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) resetForm(); }}>
+      {/* Add / edit contractor dialog */}
+      <Dialog
+        open={showForm}
+        onOpenChange={(v) => {
+          setShowForm(v);
+          if (!v) resetForm();
+        }}
+      >
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Full Name</Label>
@@ -257,25 +490,190 @@ const Contractors = () => {
                 onChange={(e) => setForm({ ...form, full_name: e.target.value })}
                 placeholder={bank.account_name || 'Full name'}
               />
-              {bank.verified && bank.account_name && form.full_name && form.full_name.trim().toLowerCase() !== bank.account_name.trim().toLowerCase() && (
-                <p className="text-xs text-warning">
-                  Heads up: entered name differs from verified bank name "{bank.account_name}".
-                </p>
-              )}
+              {bank.verified &&
+                bank.account_name &&
+                form.full_name &&
+                form.full_name.trim().toLowerCase() !==
+                  bank.account_name.trim().toLowerCase() && (
+                  <p className="text-xs text-warning">
+                    Heads up: entered name differs from verified bank name "{bank.account_name}".
+                  </p>
+                )}
             </div>
 
             <BankAccountField value={bank} onChange={setBank} />
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1"><Label>Default Amount (₦)</Label><Input type="number" value={form.default_amount_ngn} onChange={(e) => setForm({ ...form, default_amount_ngn: e.target.value })} /></div>
-              <div className="space-y-1"><Label>LinkedIn ID</Label><Input value={form.linkedin_id} onChange={(e) => setForm({ ...form, linkedin_id: e.target.value })} /></div>
+              <div className="space-y-1">
+                <Label>Default Amount (₦)</Label>
+                <Input
+                  type="number"
+                  value={form.default_amount_ngn}
+                  onChange={(e) =>
+                    setForm({ ...form, default_amount_ngn: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>LinkedIn ID</Label>
+                <Input
+                  value={form.linkedin_id}
+                  onChange={(e) => setForm({ ...form, linkedin_id: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={submitting || !form.full_name || !bank.verified}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} {editing ? 'Update' : 'Add'}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowForm(false);
+                resetForm();
+              }}
+            >
+              Cancel
             </Button>
+            <Button
+              onClick={handleSave}
+              disabled={submitting || !form.full_name || !bank.verified}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CSV import preview dialog */}
+      <Dialog
+        open={importDialog}
+        onOpenChange={(v) => {
+          if (!v) closeImportDialog();
+        }}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>
+              {importSummary ? 'Import complete' : 'Review CSV import'}
+            </DialogTitle>
+            <DialogDescription>
+              {importSummary
+                ? `${importSummary.imported} contractor(s) imported${
+                    importSummary.failed
+                      ? `, ${importSummary.failed} row(s) skipped.`
+                      : '.'
+                  }`
+                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${validCount} valid, ${invalidCount} with errors.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!importSummary && (
+            <>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="inline-flex items-center gap-1 text-success">
+                  <CheckCircle2 className="h-4 w-4" /> {validCount} valid
+                </span>
+                <span className="inline-flex items-center gap-1 text-destructive">
+                  <AlertCircle className="h-4 w-4" /> {invalidCount} invalid
+                </span>
+              </div>
+
+              <div className="border rounded-lg max-h-[360px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Bank</TableHead>
+                      <TableHead>Account</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>LinkedIn</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {parsedRows.map((r) => (
+                      <TableRow
+                        key={r.rowNumber}
+                        className={
+                          r.valid ? '' : 'bg-destructive/5'
+                        }
+                      >
+                        <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
+                        <TableCell className="font-medium">{r.full_name || '—'}</TableCell>
+                        <TableCell>{r.bank_name || '—'}</TableCell>
+                        <TableCell>{r.account_number || '—'}</TableCell>
+                        <TableCell className="text-right currency">
+                          {formatNaira(r.default_amount_ngn || 0)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {r.linkedin_id || '—'}
+                        </TableCell>
+                        <TableCell>
+                          {r.valid ? (
+                            <Badge
+                              variant="secondary"
+                              className="bg-success/10 text-success"
+                            >
+                              OK
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-destructive">
+                              {r.errors.join(', ')}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+
+          {importSummary && importSummary.failures.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Skipped rows</p>
+              <div className="border rounded-lg max-h-[240px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Row</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importSummary.failures.map((f, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-muted-foreground">{f.row}</TableCell>
+                        <TableCell className="font-medium">{f.name}</TableCell>
+                        <TableCell className="text-destructive">{f.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {!importSummary ? (
+              <>
+                <Button variant="outline" onClick={closeImportDialog} disabled={importing}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmImport}
+                  disabled={importing || validCount === 0}
+                >
+                  {importing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Import {validCount} valid row{validCount === 1 ? '' : 's'}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={closeImportDialog}>Close</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
