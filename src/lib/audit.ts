@@ -19,7 +19,23 @@ export type AuditActionType =
   | 'expense_rejected'
   | 'employee_added'
   | 'employee_edited'
-  | 'employee_deactivated';
+  | 'employee_deactivated'
+  | 'subscription_added'
+  | 'subscription_edited'
+  | 'subscription_cancelled'
+  | 'subscription_renewed'
+  | 'budget_created'
+  | 'budget_submitted'
+  | 'budget_approved'
+  | 'budget_rejected'
+  | 'budget_edited'
+  | 'document_uploaded'
+  | 'document_deleted'
+  | 'document_edited'
+  | 'bulk_approved'
+  | 'profile_updated'
+  | 'profile_password_changed'
+  | 'profile_viewed_as';
 
 export interface AuditActor {
   id?: string | null;

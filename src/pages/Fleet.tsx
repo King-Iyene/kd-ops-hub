@@ -74,7 +74,10 @@ interface TripLog {
 const Fleet = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'finance';
+  const isAdmin =
+    profile?.role === 'admin' ||
+    profile?.role === 'finance' ||
+    profile?.role === 'super_admin';
 
   const [tab, setTab] = useState<'fuel' | 'trips'>('fuel');
 

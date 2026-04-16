@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,51 +6,60 @@
 
 @layer base {
   :root {
-    --background: 140 5% 97%;
-    --foreground: 153 31% 15%;
+    /* Brand: Primary #006994 (deep teal-blue), Cyan #00ECFF, Gold #D6AC50 */
+
+    --background: 210 20% 98%;
+    --foreground: 201 100% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 153 31% 15%;
+    --card-foreground: 201 100% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 153 31% 15%;
+    --popover-foreground: 201 100% 12%;
 
-    --primary: 153 41% 18%;
+    /* Primary — #006994 */
+    --primary: 200 100% 29%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 152 43% 50%;
-    --secondary-foreground: 0 0% 100%;
+    /* Cyan — #00ECFF */
+    --secondary: 186 100% 50%;
+    --secondary-foreground: 201 100% 12%;
 
-    --muted: 140 10% 94%;
-    --muted-foreground: 150 10% 45%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 10% 40%;
 
-    --accent: 152 43% 50%;
-    --accent-foreground: 0 0% 100%;
+    /* Gold — #D6AC50 */
+    --accent: 41 62% 58%;
+    --accent-foreground: 201 100% 12%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 140 10% 90%;
-    --input: 140 10% 90%;
-    --ring: 153 41% 18%;
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 200 100% 29%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    --sidebar-background: 153 41% 18%;
-    --sidebar-foreground: 152 20% 85%;
+    --sidebar-background: 201 100% 12%;
+    --sidebar-foreground: 200 30% 88%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 153 41% 18%;
-    --sidebar-accent: 153 35% 24%;
+    --sidebar-primary-foreground: 200 100% 29%;
+    --sidebar-accent: 200 100% 22%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 153 35% 24%;
-    --sidebar-ring: 152 43% 50%;
+    --sidebar-border: 200 80% 20%;
+    --sidebar-ring: 186 100% 50%;
 
-    --success: 152 43% 50%;
+    --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --info: 210 80% 50%;
+    --info: 200 100% 40%;
     --info-foreground: 0 0% 100%;
+
+    /* KD brand custom */
+    --kd-gold: 41 62% 58%;
+    --kd-cyan: 186 100% 50%;
   }
 }
 
@@ -61,12 +70,24 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Cabin', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cabin', system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer utilities {
   .currency {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Smooth transitions used across interactive elements */
+  .kd-transition {
+    transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 }

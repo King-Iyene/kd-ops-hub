@@ -188,7 +188,7 @@ const BatchDetail = () => {
   if (loading) return <div className="flex items-center justify-center py-24"><Loader2 className="h-6 w-6 animate-spin" /></div>;
   if (!batch) return <div className="text-center py-12">Batch not found</div>;
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isFinance = profile?.role === 'finance';
   // CSV export available once the batch exists and has line items, which
   // mirrors the "created or approved" requirement — draft batches that
