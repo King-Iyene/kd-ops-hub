@@ -35,7 +35,16 @@ export type AuditActionType =
   | 'bulk_approved'
   | 'profile_updated'
   | 'profile_password_changed'
-  | 'profile_viewed_as';
+  | 'profile_viewed_as'
+  | 'batch_scheduled'
+  | 'batch_item_retried'
+  | 'batch_receipt_downloaded'
+  | 'budget_locked'
+  | 'budget_unlocked'
+  | 'leave_requested'
+  | 'leave_approved'
+  | 'leave_rejected'
+  | 'leave_cancelled';
 
 export interface AuditActor {
   id?: string | null;

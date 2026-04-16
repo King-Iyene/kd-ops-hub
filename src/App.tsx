@@ -24,6 +24,7 @@ import Fleet from './pages/Fleet';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Employees from './pages/Employees';
+import Leave from './pages/Leave';
 import SettingsPage from './pages/Settings';
 import ProfilePage from './pages/Profile';
 import Unauthorized from './pages/Unauthorized';
@@ -188,6 +189,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Employees />
+            </RoleGuard>
+          }
+        />
+
+        {/* Leave — every signed-in employee. */}
+        <Route
+          path="/leave"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Leave />
             </RoleGuard>
           }
         />
