@@ -20,6 +20,7 @@ import {
   ListTodo,
   BookOpen,
   ScrollText,
+  Target,
 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import type { Role } from '@/lib/roles';
@@ -71,6 +72,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',         url: '/leave',         icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Goals',         url: '/goals',         icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Knowledge',     url: '/knowledge',     icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },

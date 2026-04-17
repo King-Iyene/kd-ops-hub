@@ -79,3 +79,110 @@ export async function resolveAccount(
     account_number: body?.data?.account_number ?? accountNumber,
   };
 }
+
+// -----------------------------------------------------------------------------
+// Bulk transfers
+//
+// Production deployments should route these calls through a Supabase Edge
+// Function so the secret key never touches the browser. For the sandbox /
+// test-mode flow below we read VITE_PAYSTACK_SECRET_KEY from `.env` — the
+// same pattern used by resolveAccount().
+// -----------------------------------------------------------------------------
+
+const paystackSecret = () => {
+  const secret = import.meta.env.VITE_PAYSTACK_SECRET_KEY as string | undefined;
+  if (!secret) throw new Error('Paystack secret key not configured');
+  return secret;
+};
+
+const paystack = async <T = any>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> => {
+  const res = await fetch(`https://api.paystack.co${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${paystackSecret()}`,
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || body?.status === false) {
+    throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
+  }
+  return body as T;
+};
+
+export interface PaystackRecipient {
+  recipient_code: string;
+  id: number;
+  type: string;
+}
+
+/** Create a one-off transfer recipient for an account. */
+export async function createTransferRecipient(params: {
+  name: string;
+  account_number: string;
+  bank_code: string;
+}): Promise<PaystackRecipient> {
+  const body = await paystack<{ data: PaystackRecipient }>('/transferrecipient', {
+    method: 'POST',
+    body: JSON.stringify({
+      type: 'nuban',
+      name: params.name,
+      account_number: params.account_number,
+      bank_code: params.bank_code,
+      currency: 'NGN',
+    }),
+  });
+  return body.data;
+}
+
+export interface PaystackTransfer {
+  transfer_code: string;
+  reference: string;
+  status: string;
+  id: number;
+}
+
+/** Initiate a transfer to a recipient_code. amount is in the minor unit (kobo). */
+export async function initiateTransfer(params: {
+  recipient_code: string;
+  amount_ngn: number;
+  reference: string;
+  reason?: string;
+}): Promise<PaystackTransfer> {
+  const body = await paystack<{ data: PaystackTransfer }>('/transfer', {
+    method: 'POST',
+    body: JSON.stringify({
+      source: 'balance',
+      reason: params.reason || 'KDOps disbursement',
+      amount: Math.round(params.amount_ngn * 100),
+      recipient: params.recipient_code,
+      reference: params.reference,
+    }),
+  });
+  return body.data;
+}
+
+/**
+ * Fetch the current status of a transfer by its reference.
+ * Returns status: success | pending | failed | reversed | otp | abandoned.
+ */
+export async function verifyTransfer(reference: string): Promise<{
+  status: string;
+  transfer_code: string;
+  reason?: string;
+  raw: any;
+}> {
+  const body = await paystack<{ data: any }>(
+    `/transfer/verify/${encodeURIComponent(reference)}`,
+  );
+  return {
+    status: body.data?.status,
+    transfer_code: body.data?.transfer_code,
+    reason: body.data?.failures?.[0]?.reason || body.data?.reason,
+    raw: body.data,
+  };
+}

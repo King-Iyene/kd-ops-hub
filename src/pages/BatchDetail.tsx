@@ -4,6 +4,16 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
+import {
+  writeRejectionNotification,
+  isValidRejectionReason,
+} from '@/lib/rejections';
+import {
+  createTransferRecipient,
+  initiateTransfer,
+  verifyTransfer,
+  getBankCode,
+} from '@/lib/paystack';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -138,7 +148,16 @@ const BatchDetail = () => {
         if (status === 'approved') {
           await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`, profile);
         } else if (status === 'rejected') {
-          await logAudit('batch_rejected', `Batch "${batch?.name}" rejected: ${extra?.rejection_reason || ''}`, profile);
+          await writeRejectionNotification({
+            entity: 'batch',
+            entityLabel: 'payment batch',
+            amount: batch?.total_amount,
+            reason: extra?.rejection_reason || '',
+            submitterId: batch?.created_by || null,
+            actor: profile,
+            auditType: 'batch_rejected',
+            auditDescription: `Batch "${batch?.name}" rejected: ${extra?.rejection_reason || ''}`,
+          });
         } else if (status === 'pending_approval') {
           await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
         } else if (status === 'funded') {
@@ -152,50 +171,116 @@ const BatchDetail = () => {
     }
   };
 
+  /**
+   * Kick one batch_item through Paystack:
+   *   1. Create a transferrecipient if we don't have one yet.
+   *   2. Initiate the transfer with a deterministic reference.
+   *   3. Store transfer_code + reference so the poller can verify status.
+   */
+  const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
+    try {
+      const bankCode = getBankCode(it.bank_name);
+      if (!bankCode) {
+        return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
+      }
+      let recipientCode: string | null = it.paystack_recipient_code || null;
+      if (!recipientCode) {
+        const recipient = await createTransferRecipient({
+          name: it.full_name,
+          account_number: it.account_number,
+          bank_code: bankCode,
+        });
+        recipientCode = recipient.recipient_code;
+        await logAudit(
+          'paystack_recipient_created',
+          `Recipient created for ${it.full_name} (${it.bank_name})`,
+          profile,
+        );
+      }
+      const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
+      const transfer = await initiateTransfer({
+        recipient_code: recipientCode!,
+        amount_ngn: Number(it.amount_ngn || 0),
+        reference: ref,
+        reason: `KDOps · ${batch?.name || 'batch'}`,
+      });
+      await supabase
+        .from('batch_items')
+        .update({
+          status: 'pending',
+          paystack_recipient_code: recipientCode,
+          paystack_transfer_code: transfer.transfer_code,
+          paystack_reference: transfer.reference,
+          failure_reason: null,
+        })
+        .eq('id', it.id);
+      await logAudit(
+        'paystack_transfer_initiated',
+        `Transfer initiated for ${it.full_name} (${formatNaira(Number(it.amount_ngn || 0))}) ref ${transfer.reference}`,
+        profile,
+      );
+      return { ok: true };
+    } catch (err: any) {
+      const msg = err?.message || 'Transfer failed';
+      await supabase
+        .from('batch_items')
+        .update({ status: 'failed', failure_reason: msg })
+        .eq('id', it.id);
+      await logAudit(
+        'paystack_transfer_failed',
+        `Transfer failed for ${it.full_name}: ${msg}`,
+        profile,
+      );
+      return { ok: false, reason: msg };
+    }
+  };
+
   const handleProcess = async () => {
     setActionLoading(true);
     try {
-      await supabase.from('payment_batches').update({ status: 'processing' }).eq('id', id);
-      // Simulate processing — random small failure rate so the retry UX has
-      // realistic state to operate on. In production this is replaced with
-      // the real disbursement integration.
-      const updates = items.map((it) => {
-        const failed = Math.random() < 0.08;
-        return supabase
-          .from('batch_items')
-          .update(
-            failed
-              ? {
-                  status: 'failed',
-                  failure_reason:
-                    'Simulated rail failure — retry to attempt again.',
-                }
-              : { status: 'succeeded', failure_reason: null },
-          )
-          .eq('id', it.id);
-      });
-      await Promise.all(updates);
-      const refreshed = await supabase
+      await supabase
+        .from('payment_batches')
+        .update({ status: 'processing' })
+        .eq('id', id);
+
+      // Kick all line items serially (Paystack rate limits burst traffic).
+      for (const it of items) {
+        if (it.status === 'succeeded') continue;
+        await processOneItem(it);
+      }
+
+      // Let the poller decide the final status once transfers settle — for
+      // now, reflect the current in-flight state.
+      const { data: refreshed } = await supabase
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed.data || []).some(
-        (r) => (r as any).status === 'failed',
-      );
-      const finalStatus = anyFailed ? 'partially_processed' : 'processed';
+      const anyFailed = (refreshed || []).some((r: any) => r.status === 'failed');
+      const anyPending = (refreshed || []).some((r: any) => r.status === 'pending');
+      const finalStatus = anyFailed
+        ? 'partially_processed'
+        : anyPending
+        ? 'processing'
+        : 'processed';
       await supabase
         .from('payment_batches')
         .update({ status: finalStatus })
         .eq('id', id);
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" ${finalStatus.replace('_', ' ')} (${formatNaira(batch?.total_amount || 0)})`,
+        `Batch "${batch?.name}" dispatched via Paystack — ${finalStatus.replace('_', ' ')}`,
         profile,
       );
       toast({
-        title: anyFailed ? 'Batch partially processed' : 'Batch processed successfully',
+        title: anyFailed
+          ? 'Batch dispatched with failures'
+          : anyPending
+          ? 'Batch dispatched — polling Paystack'
+          : 'Batch processed successfully',
         description: anyFailed
-          ? 'Some beneficiaries failed — retry from the table below.'
+          ? 'Some transfers could not be initiated — retry from the row.'
+          : anyPending
+          ? 'KDOps will poll Paystack every 30s until every transfer settles.'
           : undefined,
       });
       fetchBatch();
@@ -203,6 +288,72 @@ const BatchDetail = () => {
       setActionLoading(false);
     }
   };
+
+  // Poll pending Paystack transfers every 30s while the batch is processing.
+  useEffect(() => {
+    if (!batch) return;
+    if (batch.status !== 'processing' && batch.status !== 'partially_processed')
+      return;
+    const pending = items.filter(
+      (it) => it.status === 'pending' && it.paystack_reference,
+    );
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      let changed = false;
+      for (const it of pending) {
+        try {
+          const res = await verifyTransfer(it.paystack_reference);
+          if (cancelled) return;
+          if (res.status === 'success') {
+            await supabase
+              .from('batch_items')
+              .update({
+                status: 'succeeded',
+                failure_reason: null,
+                processed_at: new Date().toISOString(),
+                paystack_raw: res.raw,
+              })
+              .eq('id', it.id);
+            await logAudit(
+              'paystack_transfer_succeeded',
+              `Transfer succeeded for ${it.full_name} (ref ${it.paystack_reference})`,
+              profile,
+            );
+            changed = true;
+          } else if (['failed', 'reversed'].includes(res.status)) {
+            await supabase
+              .from('batch_items')
+              .update({
+                status: 'failed',
+                failure_reason: res.reason || `Paystack ${res.status}`,
+                processed_at: new Date().toISOString(),
+                paystack_raw: res.raw,
+              })
+              .eq('id', it.id);
+            await logAudit(
+              'paystack_transfer_failed',
+              `Transfer ${res.status} for ${it.full_name}: ${res.reason || '—'}`,
+              profile,
+            );
+            changed = true;
+          }
+        } catch {
+          // Transient Paystack error — keep polling.
+        }
+      }
+      if (changed) fetchBatch();
+    };
+
+    tick();
+    const iv = window.setInterval(tick, 30_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batch?.status, items.length]);
 
   const retryItem = async (item: any) => {
     if (!APPROVER_ROLES.includes(profile?.role as any)) {
@@ -215,27 +366,17 @@ const BatchDetail = () => {
     }
     setRetryingId(item.id);
     try {
-      // Mark the item as retried then re-attempt — same simulation logic.
+      // Mark as retrying, then run the real Paystack flow again. A brand new
+      // reference is minted so Paystack accepts the retry even if the previous
+      // one is still on file.
       await supabase
         .from('batch_items')
-        .update({ status: 'retry', failure_reason: null })
+        .update({ status: 'retry', failure_reason: null, paystack_reference: null })
         .eq('id', item.id);
-      await new Promise((r) => setTimeout(r, 350));
-      const ok = Math.random() < 0.85;
-      await supabase
-        .from('batch_items')
-        .update(
-          ok
-            ? { status: 'succeeded', failure_reason: null }
-            : {
-                status: 'failed',
-                failure_reason: 'Retry failed — escalate to bank ops.',
-              },
-        )
-        .eq('id', item.id);
+      const result = await processOneItem(item);
       await logAudit(
-        'batch_item_retried',
-        `Beneficiary "${item.full_name}" retried — ${ok ? 'succeeded' : 'failed again'}`,
+        result.ok ? 'paystack_transfer_retried' : 'paystack_transfer_failed',
+        `Beneficiary "${item.full_name}" retry ${result.ok ? 'initiated' : `failed: ${result.reason}`}`,
         profile,
       );
       // If everything is now succeeded, flip the batch to processed.
@@ -261,8 +402,11 @@ const BatchDetail = () => {
           .eq('id', id);
       }
       toast({
-        title: ok ? 'Retry succeeded' : 'Retry failed',
-        variant: ok ? 'default' : 'destructive',
+        title: result.ok ? 'Retry initiated' : 'Retry failed',
+        description: result.ok
+          ? 'KDOps will poll Paystack for the final status.'
+          : result.reason,
+        variant: result.ok ? 'default' : 'destructive',
       });
       fetchBatch();
     } finally {
@@ -491,7 +635,37 @@ const BatchDetail = () => {
       )}
 
       {batch.rejection_reason && (
-        <Card className="border-destructive/30"><CardContent className="pt-4"><p className="text-xs text-destructive mb-1">Rejection Reason</p><p className="text-sm">{batch.rejection_reason}</p></CardContent></Card>
+        <Card className="border-destructive/30">
+          <CardContent className="pt-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="min-w-0">
+                <p className="text-xs text-destructive mb-1">Rejection Reason</p>
+                <p className="text-sm">{batch.rejection_reason}</p>
+              </div>
+              {batch.status === 'rejected' && batch.created_by === profile?.id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await supabase
+                      .from('payment_batches')
+                      .update({ status: 'pending_approval', rejection_reason: null })
+                      .eq('id', id);
+                    await logAudit(
+                      'resubmission_created',
+                      `Batch "${batch.name}" re-edited and resubmitted`,
+                      profile,
+                    );
+                    toast({ title: 'Resubmitted for approval' });
+                    fetchBatch();
+                  }}
+                >
+                  Re-edit & Resubmit
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {batch.status === 'pending_approval' && cannotApproveReason && (
@@ -643,7 +817,7 @@ const BatchDetail = () => {
           <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason })} disabled={!rejectReason}>
+            <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason.trim() })} disabled={!isValidRejectionReason(rejectReason)}>
               Reject Batch
             </Button>
           </DialogFooter>

@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { logAudit, type AuditActionType } from '@/lib/audit';
+import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { APPROVER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +32,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -322,7 +332,11 @@ const Approvals = () => {
     }
   };
 
-  const rejectOne = async (it: PendingItem) => {
+  // Rejection now funnels through a reason dialog — mandatory everywhere.
+  const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const rejectOne = (it: PendingItem) => {
     if (!canApprove) {
       toast({
         title: 'Not authorized',
@@ -331,15 +345,53 @@ const Approvals = () => {
       });
       return;
     }
+    setRejectTarget(it);
+    setRejectReason('');
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    if (!isValidRejectionReason(rejectReason)) {
+      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      return;
+    }
+    const it = rejectTarget;
     setActioning(it.id);
     try {
+      const patch: any = { status: PENDING_STATUS[it.kind].reject };
+      // Every rejectable entity has rejection_reason after phase 6.
+      patch.rejection_reason = rejectReason.trim();
       const { error } = await supabase
         .from(TABLES[it.kind])
-        .update({ status: PENDING_STATUS[it.kind].reject })
+        .update(patch)
         .eq('id', rawId(it.id));
       if (error) throw error;
-      await logAudit(AUDIT_REJECT[it.kind], describeReject(it), profile);
-      toast({ title: 'Rejected' });
+
+      // Figure out submitter for notification.
+      const submitterId =
+        it.kind === 'batch'
+          ? it.raw?.created_by
+          : it.kind === 'expense'
+          ? it.raw?.submitted_by
+          : it.kind === 'fuel'
+          ? it.raw?.driver_id
+          : it.kind === 'budget'
+          ? it.raw?.created_by
+          : it.raw?.employee_id;
+
+      await writeRejectionNotification({
+        entity: it.kind,
+        entityLabel: it.kind === 'batch' ? 'payment batch' : it.kind,
+        amount: it.amount,
+        reason: rejectReason.trim(),
+        submitterId: submitterId || null,
+        actor: profile,
+        auditType: AUDIT_REJECT[it.kind],
+        auditDescription: `${describeReject(it)} — ${rejectReason.trim()}`,
+      });
+      toast({ title: 'Rejected with reason' });
+      setRejectTarget(null);
+      setRejectReason('');
       await fetchAll();
       refreshCounts();
       setSelected((prev) => {
@@ -634,6 +686,46 @@ const Approvals = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(v) => {
+          if (!v) {
+            setRejectTarget(null);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Reject {rejectTarget?.kind === 'batch' ? 'batch' : rejectTarget?.kind || 'item'}
+            </DialogTitle>
+            <DialogDescription>
+              Reason is required. The submitter is notified with this note so
+              they can re-edit and resubmit.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="e.g. Bank details don't match invoice — please re-verify."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmReject}
+              disabled={!isValidRejectionReason(rejectReason)}
+            >
+              Reject with reason
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -14,6 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
+      payslips: {
+        Row: {
+          id: string
+          payroll_run_id: string
+          employee_id: string | null
+          employee_name: string
+          employee_email: string | null
+          period: string
+          gross_ngn: number
+          paye_ngn: number
+          pension_ngn: number
+          nhf_ngn: number
+          net_ngn: number
+          storage_path: string | null
+          generated_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          payroll_run_id: string
+          employee_id?: string | null
+          employee_name: string
+          employee_email?: string | null
+          period: string
+          gross_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          net_ngn?: number
+          storage_path?: string | null
+          generated_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          payroll_run_id?: string
+          employee_id?: string | null
+          employee_name?: string
+          employee_email?: string | null
+          period?: string
+          gross_ngn?: number
+          paye_ngn?: number
+          pension_ngn?: number
+          nhf_ngn?: number
+          net_ngn?: number
+          storage_path?: string | null
+          generated_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      bank_statements: {
+        Row: {
+          id: string
+          bank_name: string
+          account_number: string | null
+          period_start: string | null
+          period_end: string | null
+          storage_path: string | null
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          bank_name: string
+          account_number?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          bank_name?: string
+          account_number?: string | null
+          period_start?: string | null
+          period_end?: string | null
+          storage_path?: string | null
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      statement_entries: {
+        Row: {
+          id: string
+          statement_id: string
+          entry_date: string
+          description: string | null
+          amount_ngn: number
+          reference: string | null
+          direction: string
+          matched_type: string | null
+          matched_id: string | null
+          matched_at: string | null
+          matched_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          statement_id: string
+          entry_date: string
+          description?: string | null
+          amount_ngn: number
+          reference?: string | null
+          direction: string
+          matched_type?: string | null
+          matched_id?: string | null
+          matched_at?: string | null
+          matched_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          statement_id?: string
+          entry_date?: string
+          description?: string | null
+          amount_ngn?: number
+          reference?: string | null
+          direction?: string
+          matched_type?: string | null
+          matched_id?: string | null
+          matched_at?: string | null
+          matched_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       virtual_cards: {
         Row: {
           id: string

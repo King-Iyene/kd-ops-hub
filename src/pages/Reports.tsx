@@ -6,6 +6,10 @@ import {
   Users,
   PiggyBank,
   Download,
+  TrendingUp,
+  Wallet,
+  AlertTriangle,
+  Library,
 } from 'lucide-react';
 import {
   BarChart,
@@ -86,13 +90,26 @@ const Reports = () => {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="pnl"><TrendingUp className="mr-2 h-4 w-4" /> P&amp;L</TabsTrigger>
+          <TabsTrigger value="cashflow"><Wallet className="mr-2 h-4 w-4" /> Cash flow</TabsTrigger>
+          <TabsTrigger value="concentration"><AlertTriangle className="mr-2 h-4 w-4" /> Concentration</TabsTrigger>
           <TabsTrigger value="payments"><CreditCard className="mr-2 h-4 w-4" /> Payments</TabsTrigger>
           <TabsTrigger value="expenses"><Receipt className="mr-2 h-4 w-4" /> Expenses</TabsTrigger>
           <TabsTrigger value="fleet"><Truck className="mr-2 h-4 w-4" /> Fleet</TabsTrigger>
           <TabsTrigger value="contractors"><Users className="mr-2 h-4 w-4" /> Contractors</TabsTrigger>
           <TabsTrigger value="budgets"><PiggyBank className="mr-2 h-4 w-4" /> Budgets</TabsTrigger>
+          <TabsTrigger value="reconciliation"><Library className="mr-2 h-4 w-4" /> Reconciliation</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="pnl" className="mt-4">
+          <PnLReport range={range} />
+        </TabsContent>
+        <TabsContent value="cashflow" className="mt-4">
+          <CashFlowReport range={range} />
+        </TabsContent>
+        <TabsContent value="concentration" className="mt-4">
+          <ConcentrationRiskReport range={range} />
+        </TabsContent>
         <TabsContent value="payments" className="mt-4">
           <PaymentReport range={range} />
         </TabsContent>
@@ -107,6 +124,9 @@ const Reports = () => {
         </TabsContent>
         <TabsContent value="budgets" className="mt-4">
           <BudgetReport range={range} />
+        </TabsContent>
+        <TabsContent value="reconciliation" className="mt-4">
+          <ReconciliationReport />
         </TabsContent>
       </Tabs>
     </div>
@@ -632,6 +652,601 @@ function BudgetReport({ range }: { range: DateRange }) {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// P&L report
+// -----------------------------------------------------------------------------
+
+function PnLReport({ range }: { range: DateRange }) {
+  const { data, loading, error, reload } = useLoader(async () => {
+    const [batchesRes, expensesRes, contractorPaymentsRes] = await Promise.all([
+      supabase
+        .from('payment_batches')
+        .select('total_amount, payment_date, status, name')
+        .in('status', ['processed', 'funded'])
+        .gte('payment_date', range.start)
+        .lte('payment_date', range.end),
+      supabase
+        .from('expenses')
+        .select('amount_ngn, date, status, category')
+        .eq('status', 'approved')
+        .gte('date', range.start)
+        .lte('date', range.end),
+      supabase
+        .from('payment_batches')
+        .select('total_amount, payment_date, status')
+        .gte('payment_date', range.start)
+        .lte('payment_date', range.end),
+    ]);
+    if (batchesRes.error) throw batchesRes.error;
+    if (expensesRes.error) throw expensesRes.error;
+    return {
+      batches: batchesRes.data || [],
+      expenses: expensesRes.data || [],
+      allBatches: contractorPaymentsRes.data || [],
+    };
+  }, [range.start, range.end]);
+
+  const monthly = useMemo(() => {
+    if (!data) return [] as { month: string; revenue: number; costs: number; net: number }[];
+    const acc: Record<string, { revenue: number; costs: number }> = {};
+    // KDOps doesn't record revenue natively; we treat 'received' batches as
+    // revenue and 'processed' batches + approved expenses as costs. If you
+    // invert that to match your business later, update the mapping here.
+    for (const b of data.batches as any[]) {
+      const k = monthKey(new Date(b.payment_date));
+      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k].costs += Number(b.total_amount || 0);
+    }
+    for (const e of data.expenses as any[]) {
+      const k = monthKey(new Date(e.date));
+      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k].costs += Number(e.amount_ngn || 0);
+    }
+    // Revenue heuristic: sum all batches irrespective of status — with no
+    // explicit revenue table this is a conservative placeholder.
+    for (const b of data.allBatches as any[]) {
+      if (b.status === 'processed' || b.status === 'funded') continue;
+      const k = monthKey(new Date(b.payment_date));
+      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k].revenue += Number(b.total_amount || 0);
+    }
+    return Object.keys(acc)
+      .sort()
+      .map((k) => ({
+        month: k,
+        revenue: acc[k].revenue,
+        costs: acc[k].costs,
+        net: acc[k].revenue - acc[k].costs,
+      }));
+  }, [data]);
+
+  const totalRevenue = monthly.reduce((s, r) => s + r.revenue, 0);
+  const totalCosts = monthly.reduce((s, r) => s + r.costs, 0);
+  const net = totalRevenue - totalCosts;
+
+  const exportCsv = () => {
+    const header = ['month', 'revenue', 'costs', 'net'];
+    const rows = monthly.map((m) => [m.month, m.revenue, m.costs, m.net]);
+    downloadCsv(`kdops-pnl-${range.start}_to_${range.end}.csv`, toCsv(header, rows));
+  };
+
+  if (loading) return <TableSkeleton rows={4} cols={3} />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Revenue (proxy)" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
+        <StatCard title="Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" />
+        <StatCard
+          title="Net"
+          value={formatNaira(net)}
+          icon={TrendingUp}
+          tone={net >= 0 ? 'success' : 'danger'}
+        />
+      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base">Revenue vs Costs — per month</CardTitle>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={monthly}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
+              <Tooltip formatter={(v: number) => formatNaira(v)} />
+              <Legend />
+              <Bar dataKey="revenue" fill="#22c55e" name="Revenue" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
+              <Line type="monotone" dataKey="net" stroke="#006994" strokeWidth={2} dot name="Net" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Cash Flow Forecast report
+// -----------------------------------------------------------------------------
+
+function CashFlowReport({ range: _range }: { range: DateRange }) {
+  const { data, loading, error, reload } = useLoader(async () => {
+    const today = new Date();
+    const future = new Date();
+    future.setDate(future.getDate() + 90);
+    const [batchRes, subRes, settingsRes] = await Promise.all([
+      supabase
+        .from('payment_batches')
+        .select('total_amount, payment_date, scheduled_date, status, name')
+        .in('status', ['approved', 'funded', 'pending_approval'])
+        .gte('payment_date', toIsoDate(today))
+        .lte('payment_date', toIsoDate(future)),
+      supabase
+        .from('subscriptions')
+        .select('name, amount_ngn, next_renewal_date, billing_cycle, status')
+        .eq('status', 'active')
+        .gte('next_renewal_date', toIsoDate(today))
+        .lte('next_renewal_date', toIsoDate(future)),
+      supabase
+        .from('company_settings')
+        .select('cash_on_hand_ngn')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle(),
+    ]);
+    if (batchRes.error) throw batchRes.error;
+    if (subRes.error) throw subRes.error;
+    return {
+      batches: batchRes.data || [],
+      subs: subRes.data || [],
+      cashOnHand: Number((settingsRes.data as any)?.cash_on_hand_ngn || 0),
+    };
+  }, []);
+
+  const buckets = useMemo(() => {
+    if (!data) return { b30: 0, b60: 0, b90: 0 };
+    const today = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    let b30 = 0;
+    let b60 = 0;
+    let b90 = 0;
+    for (const b of data.batches as any[]) {
+      const t = new Date(b.payment_date).getTime();
+      const days = Math.ceil((t - today) / day);
+      const amt = Number(b.total_amount || 0);
+      if (days <= 30) b30 += amt;
+      else if (days <= 60) b60 += amt;
+      else if (days <= 90) b90 += amt;
+    }
+    for (const s of data.subs as any[]) {
+      const t = new Date(s.next_renewal_date).getTime();
+      const days = Math.ceil((t - today) / day);
+      const amt = Number(s.amount_ngn || 0);
+      if (days <= 30) b30 += amt;
+      else if (days <= 60) b60 += amt;
+      else if (days <= 90) b90 += amt;
+    }
+    return { b30, b60, b90 };
+  }, [data]);
+
+  const totalOutflow = buckets.b30 + buckets.b60 + buckets.b90;
+  const runway =
+    data && totalOutflow > 0
+      ? (data.cashOnHand / (totalOutflow / 3)).toFixed(1)
+      : '—';
+
+  if (loading) return <TableSkeleton rows={4} cols={3} />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <StatCard title="Next 30 days" value={formatNaira(buckets.b30)} icon={Wallet} tone="primary" />
+        <StatCard title="31–60 days" value={formatNaira(buckets.b60)} icon={Wallet} tone="warning" />
+        <StatCard title="61–90 days" value={formatNaira(buckets.b90)} icon={Wallet} tone="warning" />
+        <StatCard
+          title="Runway (months)"
+          value={runway}
+          subtitle={`Cash on hand: ${formatNaira((data as any)?.cashOnHand || 0)}`}
+          icon={TrendingUp}
+          tone={runway !== '—' && Number(runway) < 3 ? 'danger' : 'success'}
+        />
+      </div>
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Projected outflows</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart
+              data={[
+                { bucket: 'Next 30 days', amount: buckets.b30 },
+                { bucket: '31-60 days', amount: buckets.b60 },
+                { bucket: '61-90 days', amount: buckets.b90 },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="bucket" />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
+              <Tooltip formatter={(v: number) => formatNaira(v)} />
+              <Bar dataKey="amount" fill="#006994" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <p className="text-xs text-muted-foreground">
+        Runway uses the average of the three months as a steady-state assumption.
+        Update Cash on Hand in <strong>Settings → Company</strong> for an
+        accurate view.
+      </p>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Contractor concentration risk
+// -----------------------------------------------------------------------------
+
+function ConcentrationRiskReport({ range }: { range: DateRange }) {
+  const { data, loading, error, reload } = useLoader(async () => {
+    const [batchesRes, itemsRes] = await Promise.all([
+      supabase
+        .from('payment_batches')
+        .select('id, payment_date, status')
+        .in('status', ['processed', 'funded'])
+        .gte('payment_date', range.start)
+        .lte('payment_date', range.end),
+      supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id'),
+    ]);
+    if (batchesRes.error) throw batchesRes.error;
+    if (itemsRes.error) throw itemsRes.error;
+    return { batches: batchesRes.data || [], items: itemsRes.data || [] };
+  }, [range.start, range.end]);
+
+  const rows = useMemo(() => {
+    if (!data) return [] as { name: string; total: number; share: number }[];
+    const batchIds = new Set((data.batches as any[]).map((b) => b.id));
+    const acc: Record<string, { name: string; total: number }> = {};
+    let overall = 0;
+    for (const it of data.items as any[]) {
+      if (!batchIds.has(it.batch_id)) continue;
+      const key = it.contractor_id || it.full_name;
+      if (!acc[key]) acc[key] = { name: it.full_name || 'Unknown', total: 0 };
+      const amt = Number(it.amount_ngn || 0);
+      acc[key].total += amt;
+      overall += amt;
+    }
+    return Object.values(acc)
+      .map((r) => ({ ...r, share: overall > 0 ? r.total / overall : 0 }))
+      .sort((a, b) => b.total - a.total);
+  }, [data]);
+
+  const flagged = rows.filter((r) => r.share >= 0.2);
+
+  if (loading) return <TableSkeleton rows={4} cols={3} />;
+  if (error) return <ErrorState message={error} onRetry={reload} />;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Contractors paid" value={rows.length} icon={Users} tone="primary" />
+        <StatCard title="Concentration flags" value={flagged.length} icon={AlertTriangle} tone={flagged.length > 0 ? 'danger' : 'success'} subtitle=">20% of monthly payments" />
+        <StatCard title="Top contractor share" value={rows[0] ? `${(rows[0].share * 100).toFixed(1)}%` : '—'} icon={TrendingUp} />
+      </div>
+
+      {flagged.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4" /> Concentration risk detected
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {flagged.map((r) => (
+              <p key={r.name} className="text-sm">
+                <span className="font-semibold">{r.name}</span> — {(r.share * 100).toFixed(1)}% of total ({formatNaira(r.total)})
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Top contractor distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={rows.slice(0, 8)}
+                dataKey="total"
+                nameKey="name"
+                innerRadius={60}
+                outerRadius={110}
+              >
+                {rows.slice(0, 8).map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatNaira(v)} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Bank reconciliation helper
+// -----------------------------------------------------------------------------
+
+function ReconciliationReport() {
+  const [loading, setLoading] = useState(false);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [bankName, setBankName] = useState('Access Bank');
+  const [statementId, setStatementId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!statementId) return;
+    setLoading(true);
+    const { data } = await supabase
+      .from('statement_entries')
+      .select('*')
+      .eq('statement_id', statementId)
+      .order('entry_date', { ascending: false });
+    setEntries(data || []);
+    setLoading(false);
+  }, [statementId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const text = await file.text();
+      // Very simple CSV parse — expect the common Nigerian bank export format:
+      // date,description,amount,reference[,dr_cr]
+      const lines = text.split(/\r?\n/).filter(Boolean);
+      const headers = lines
+        .shift()!
+        .split(',')
+        .map((h) => h.trim().toLowerCase());
+      const idx = (key: string) => headers.findIndex((h) => h.includes(key));
+      const dateIdx = idx('date');
+      const descIdx = idx('description') >= 0 ? idx('description') : idx('narration');
+      const amtIdx = idx('amount');
+      const refIdx = idx('reference') >= 0 ? idx('reference') : idx('ref');
+      const crIdx = idx('credit');
+      const drIdx = idx('debit');
+
+      // Create the statement row + upload the original file.
+      const path = `${Date.now()}-${file.name.replace(/[^a-z0-9.]+/gi, '_')}`;
+      await supabase.storage.from('bank-statements').upload(path, file, {
+        upsert: false,
+        contentType: 'text/csv',
+      });
+      const { data: stmt, error: stmtErr } = await supabase
+        .from('bank_statements')
+        .insert({
+          bank_name: bankName,
+          storage_path: path,
+        })
+        .select()
+        .single();
+      if (stmtErr) throw stmtErr;
+      setStatementId((stmt as any).id);
+
+      // Auto-match against processed payment batches and approved expenses
+      // by rounded amount + narration reference if present.
+      const [{ data: batchItems }, { data: expenses }] = await Promise.all([
+        supabase
+          .from('batch_items')
+          .select('id, full_name, amount_ngn, paystack_reference'),
+        supabase
+          .from('expenses')
+          .select('id, description, amount_ngn, date, status')
+          .eq('status', 'approved'),
+      ]);
+      const byAmount = new Map<number, { type: string; id: string }>();
+      for (const it of batchItems || []) {
+        byAmount.set(Number((it as any).amount_ngn || 0), {
+          type: 'batch',
+          id: (it as any).id,
+        });
+      }
+      for (const ex of expenses || []) {
+        const amt = Number((ex as any).amount_ngn || 0);
+        if (!byAmount.has(amt))
+          byAmount.set(amt, { type: 'expense', id: (ex as any).id });
+      }
+
+      const entryRows = lines.map((line) => {
+        const cols = line.split(',');
+        const date = cols[dateIdx]?.trim() || '';
+        const description = descIdx >= 0 ? cols[descIdx]?.trim() : '';
+        const rawAmt = amtIdx >= 0 ? cols[amtIdx] : crIdx >= 0 ? cols[crIdx] : '';
+        const amount = parseFloat((rawAmt || '0').replace(/[,₦\s]/g, '')) || 0;
+        const reference = refIdx >= 0 ? cols[refIdx]?.trim() : null;
+        const direction =
+          crIdx >= 0 && parseFloat(cols[crIdx] || '0') > 0
+            ? 'credit'
+            : drIdx >= 0 && parseFloat(cols[drIdx] || '0') > 0
+            ? 'debit'
+            : amount < 0
+            ? 'debit'
+            : 'credit';
+        const m = byAmount.get(Math.abs(amount));
+        return {
+          statement_id: (stmt as any).id,
+          entry_date: date,
+          description,
+          amount_ngn: Math.abs(amount),
+          reference,
+          direction,
+          matched_type: m?.type || null,
+          matched_id: m?.id || null,
+          matched_at: m ? new Date().toISOString() : null,
+        };
+      });
+      if (entryRows.length > 0) {
+        await supabase.from('statement_entries').insert(entryRows);
+      }
+      load();
+    } catch (err: any) {
+      setError(err?.message || 'Could not parse statement');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const exportReconciled = () => {
+    const header = ['date', 'description', 'amount_ngn', 'direction', 'matched_type', 'matched_id', 'reference'];
+    const rows = entries.map((e) => [
+      e.entry_date,
+      e.description,
+      e.amount_ngn,
+      e.direction,
+      e.matched_type || 'unmatched',
+      e.matched_id || '',
+      e.reference || '',
+    ]);
+    downloadCsv(`kdops-reconciliation-${toIsoDate(new Date())}.csv`, toCsv(header, rows));
+  };
+
+  const matched = entries.filter((e) => e.matched_type);
+  const unmatched = entries.filter((e) => !e.matched_type);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Upload bank statement</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="space-y-1">
+              <Label className="text-xs">Bank</Label>
+              <Input
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                className="w-[180px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">CSV file</Label>
+              <Input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={onUpload}
+                disabled={uploading}
+              />
+            </div>
+            {entries.length > 0 && (
+              <Button variant="outline" onClick={exportReconciled}>
+                <Download className="mr-2 h-4 w-4" /> Export reconciled CSV
+              </Button>
+            )}
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <p className="text-xs text-muted-foreground">
+            Expected headers: <code>date, description, amount, reference</code> —
+            compatible with standard Access Bank / GTBank exports. KDOps
+            auto-matches each entry to a payment batch item or approved expense
+            by amount.
+          </p>
+        </CardContent>
+      </Card>
+
+      {entries.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-success">
+                Matched ({matched.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="max-h-[400px] overflow-auto">
+                {matched.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">
+                    Nothing matched yet — review unmatched entries on the right.
+                  </p>
+                ) : (
+                  <ul className="divide-y">
+                    {matched.map((e) => (
+                      <li key={e.id} className="p-3 text-sm">
+                        <div className="flex justify-between">
+                          <span>{e.description || '—'}</span>
+                          <span className="currency font-medium">
+                            {formatNaira(e.amount_ngn)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {e.entry_date} · matched to {e.matched_type}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={unmatched.length > 0 ? 'border-warning/40' : ''}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-warning">
+                Needs review ({unmatched.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="max-h-[400px] overflow-auto">
+                {unmatched.length === 0 ? (
+                  <p className="p-4 text-sm text-muted-foreground">
+                    Nothing to review. 🎉
+                  </p>
+                ) : (
+                  <ul className="divide-y">
+                    {unmatched.map((e) => (
+                      <li key={e.id} className="p-3 text-sm">
+                        <div className="flex justify-between">
+                          <span>{e.description || '—'}</span>
+                          <span className="currency font-medium">
+                            {formatNaira(e.amount_ngn)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {e.entry_date} · no automatic match
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {loading && <TableSkeleton rows={4} cols={3} />}
     </div>
   );
 }

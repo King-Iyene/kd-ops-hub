@@ -13,6 +13,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { useApprovalStore } from '@/store/approvalStore';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, toIsoDate } from '@/lib/format';
@@ -316,6 +317,10 @@ const Leave = () => {
   const reject = async () => {
     if (!showReject) return;
     if (!isManager) return;
+    if (!isValidRejectionReason(rejectReason)) {
+      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      return;
+    }
     setActioning(showReject.id);
     try {
       const { error } = await supabase
@@ -323,15 +328,19 @@ const Leave = () => {
         .update({
           status: 'rejected',
           reviewed_by: profile?.id,
-          rejection_reason: rejectReason || null,
+          rejection_reason: rejectReason.trim(),
         })
         .eq('id', showReject.id);
       if (error) throw error;
-      await logAudit(
-        'leave_rejected',
-        `Leave rejected for ${profiles.get(showReject.employee_id)?.full_name || showReject.employee_id}: ${rejectReason || 'no reason given'}`,
-        profile,
-      );
+      await writeRejectionNotification({
+        entity: 'leave',
+        entityLabel: 'leave request',
+        reason: rejectReason.trim(),
+        submitterId: showReject.employee_id,
+        actor: profile,
+        auditType: 'leave_rejected',
+        auditDescription: `Leave rejected for ${profiles.get(showReject.employee_id)?.full_name || showReject.employee_id}: ${rejectReason.trim()}`,
+      });
       toast({ title: 'Leave rejected' });
       setShowReject(null);
       setRejectReason('');
@@ -719,7 +728,7 @@ const Leave = () => {
             <Button
               variant="destructive"
               onClick={reject}
-              disabled={!rejectReason || actioning === showReject?.id}
+              disabled={!isValidRejectionReason(rejectReason) || actioning === showReject?.id}
             >
               Reject
             </Button>
