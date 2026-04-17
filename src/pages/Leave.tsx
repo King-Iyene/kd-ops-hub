@@ -318,7 +318,7 @@ const Leave = () => {
     if (!showReject) return;
     if (!isManager) return;
     if (!isValidRejectionReason(rejectReason)) {
-      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
       return;
     }
     setActioning(showReject.id);

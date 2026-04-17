@@ -102,7 +102,6 @@ export function AppSidebar() {
   const navItems = role
     ? ALL_NAV.filter((n) => n.roles.includes(role))
     : ALL_NAV;
-  void ALL_AUTH_ROLES; // imported for future nav-side assertions
 
   return (
     <Sidebar collapsible="icon">

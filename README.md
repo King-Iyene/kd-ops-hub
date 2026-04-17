@@ -1,3 +1,4 @@
-# Welcome to your Lovable project
+# KDOps — KD Squares Operations Platform
 
-TODO: Document your project here
+Internal finance and operations platform for KD Squares Ltd, Nigeria.
+React + TypeScript + Tailwind CSS + Supabase.

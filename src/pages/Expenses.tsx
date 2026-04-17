@@ -348,7 +348,7 @@ const Expenses = () => {
   const doReject = async () => {
     if (!rejectingExpense) return;
     if (!isValidRejectionReason(rejectReason)) {
-      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
       return;
     }
     const e = rejectingExpense;

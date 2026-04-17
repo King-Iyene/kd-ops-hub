@@ -352,7 +352,7 @@ const Approvals = () => {
   const confirmReject = async () => {
     if (!rejectTarget) return;
     if (!isValidRejectionReason(rejectReason)) {
-      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
       return;
     }
     const it = rejectTarget;
