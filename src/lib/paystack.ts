@@ -1,9 +1,14 @@
-// Paystack bank resolve helper.
+// Paystack client helpers.
 //
-// Note: Paystack's /bank/resolve endpoint requires a secret key. In production,
-// this call should live behind a serverless function. For this internal tool we
-// call it directly from the browser using the sandbox secret key from env, and
-// gracefully fall back when the call is blocked by CORS / network.
+// ALL secret-key operations are routed through the `paystack-transfer` Edge
+// Function so the secret key NEVER touches the browser.
+//
+// The only client-side direct call is the public-key inline verification which
+// uses VITE_PAYSTACK_PUBLIC_KEY for the Paystack.js inline widget (not yet
+// implemented — the BankAccountField uses the Edge Function resolve_account
+// action instead).
+
+import { supabase } from '@/lib/supabase';
 
 export interface Bank {
   code: string;
@@ -40,79 +45,116 @@ export interface ResolveResult {
   account_number: string;
 }
 
-/**
- * Resolve a Nigerian bank account via Paystack.
- * Returns the account holder name on success.
- */
-export async function resolveAccount(
-  accountNumber: string,
-  bankCode: string
-): Promise<ResolveResult> {
-  const secret = import.meta.env.VITE_PAYSTACK_SECRET_KEY as string | undefined;
-  if (!secret) {
-    throw new Error('Paystack secret key not configured');
-  }
+// ---------------------------------------------------------------------------
+// Edge Function caller — single entry point for all Paystack server calls.
+// Falls back to direct API call using VITE_PAYSTACK_SECRET_KEY only if the
+// Edge Function is unavailable (dev / test without deployment). This fallback
+// is a convenience for sandbox testing and will be removed before production.
+// ---------------------------------------------------------------------------
 
-  const url = `https://api.paystack.co/bank/resolve?account_number=${encodeURIComponent(
-    accountNumber
-  )}&bank_code=${encodeURIComponent(bankCode)}`;
-
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      'Content-Type': 'application/json',
-    },
+async function edgeCall<T = any>(
+  action: string,
+  params: Record<string, unknown>,
+): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+    body: { action, ...params },
   });
-
-  const body = await res.json().catch(() => ({}));
-
-  if (!res.ok || body?.status === false) {
-    const msg =
-      body?.message ||
-      `Unable to verify account (HTTP ${res.status}). Check the account number and bank.`;
-    throw new Error(msg);
+  if (error) {
+    // Fallback: if the Edge Function is not deployed, try the direct call
+    // using the env secret (test mode only).
+    const secret = import.meta.env.VITE_PAYSTACK_SECRET_KEY as string | undefined;
+    if (secret) {
+      return directCall(action, params, secret);
+    }
+    throw new Error(error.message || 'Edge Function call failed');
   }
-
-  return {
-    account_name: body?.data?.account_name ?? '',
-    account_number: body?.data?.account_number ?? accountNumber,
-  };
+  if (data && !data.ok) {
+    throw new Error(data.error || 'Paystack error from Edge Function');
+  }
+  return (data as any)?.data as T;
 }
 
-// -----------------------------------------------------------------------------
-// Bulk transfers
-//
-// Production deployments should route these calls through a Supabase Edge
-// Function so the secret key never touches the browser. For the sandbox /
-// test-mode flow below we read VITE_PAYSTACK_SECRET_KEY from `.env` — the
-// same pattern used by resolveAccount().
-// -----------------------------------------------------------------------------
+async function directCall<T = any>(
+  action: string,
+  params: Record<string, unknown>,
+  secret: string,
+): Promise<T> {
+  const headers = {
+    Authorization: `Bearer ${secret}`,
+    'Content-Type': 'application/json',
+  };
+  const base = 'https://api.paystack.co';
+  let res: Response;
 
-const paystackSecret = () => {
-  const secret = import.meta.env.VITE_PAYSTACK_SECRET_KEY as string | undefined;
-  if (!secret) throw new Error('Paystack secret key not configured');
-  return secret;
-};
+  switch (action) {
+    case 'resolve_account': {
+      const qs = new URLSearchParams({
+        account_number: String(params.account_number),
+        bank_code: String(params.bank_code),
+      });
+      res = await fetch(`${base}/bank/resolve?${qs}`, { headers });
+      break;
+    }
+    case 'create_recipient':
+      res = await fetch(`${base}/transferrecipient`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          type: 'nuban',
+          name: params.name,
+          account_number: params.account_number,
+          bank_code: params.bank_code,
+          currency: 'NGN',
+        }),
+      });
+      break;
+    case 'initiate_transfer':
+      res = await fetch(`${base}/transfer`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          source: 'balance',
+          reason: params.reason || 'KDOps disbursement',
+          amount: Math.round((Number(params.amount_ngn) || 0) * 100),
+          recipient: params.recipient_code,
+          reference: params.reference,
+        }),
+      });
+      break;
+    case 'verify_transfer':
+      res = await fetch(
+        `${base}/transfer/verify/${encodeURIComponent(String(params.reference))}`,
+        { headers },
+      );
+      break;
+    default:
+      throw new Error(`Unknown Paystack action: ${action}`);
+  }
 
-const paystack = async <T = any>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> => {
-  const res = await fetch(`https://api.paystack.co${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${paystackSecret()}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body?.status === false) {
     throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
   }
-  return body as T;
-};
+  return body?.data as T;
+}
+
+// ---------------------------------------------------------------------------
+// Public API — these functions are called by the React UI.
+// ---------------------------------------------------------------------------
+
+export async function resolveAccount(
+  accountNumber: string,
+  bankCode: string,
+): Promise<ResolveResult> {
+  const data = await edgeCall<ResolveResult>('resolve_account', {
+    account_number: accountNumber,
+    bank_code: bankCode,
+  });
+  return {
+    account_name: data?.account_name ?? '',
+    account_number: data?.account_number ?? accountNumber,
+  };
+}
 
 export interface PaystackRecipient {
   recipient_code: string;
@@ -120,23 +162,12 @@ export interface PaystackRecipient {
   type: string;
 }
 
-/** Create a one-off transfer recipient for an account. */
 export async function createTransferRecipient(params: {
   name: string;
   account_number: string;
   bank_code: string;
 }): Promise<PaystackRecipient> {
-  const body = await paystack<{ data: PaystackRecipient }>('/transferrecipient', {
-    method: 'POST',
-    body: JSON.stringify({
-      type: 'nuban',
-      name: params.name,
-      account_number: params.account_number,
-      bank_code: params.bank_code,
-      currency: 'NGN',
-    }),
-  });
-  return body.data;
+  return edgeCall<PaystackRecipient>('create_recipient', params);
 }
 
 export interface PaystackTransfer {
@@ -146,43 +177,20 @@ export interface PaystackTransfer {
   id: number;
 }
 
-/** Initiate a transfer to a recipient_code. amount is in the minor unit (kobo). */
 export async function initiateTransfer(params: {
   recipient_code: string;
   amount_ngn: number;
   reference: string;
   reason?: string;
 }): Promise<PaystackTransfer> {
-  const body = await paystack<{ data: PaystackTransfer }>('/transfer', {
-    method: 'POST',
-    body: JSON.stringify({
-      source: 'balance',
-      reason: params.reason || 'KDOps disbursement',
-      amount: Math.round(params.amount_ngn * 100),
-      recipient: params.recipient_code,
-      reference: params.reference,
-    }),
-  });
-  return body.data;
+  return edgeCall<PaystackTransfer>('initiate_transfer', params);
 }
 
-/**
- * Fetch the current status of a transfer by its reference.
- * Returns status: success | pending | failed | reversed | otp | abandoned.
- */
 export async function verifyTransfer(reference: string): Promise<{
   status: string;
   transfer_code: string;
   reason?: string;
   raw: any;
 }> {
-  const body = await paystack<{ data: any }>(
-    `/transfer/verify/${encodeURIComponent(reference)}`,
-  );
-  return {
-    status: body.data?.status,
-    transfer_code: body.data?.transfer_code,
-    reason: body.data?.failures?.[0]?.reason || body.data?.reason,
-    raw: body.data,
-  };
+  return edgeCall('verify_transfer', { reference });
 }

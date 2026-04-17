@@ -492,6 +492,89 @@ const SettingsPage = () => {
               </p>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Resend (email delivery)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>From address</Label>
+                  <Input
+                    value={(settings as any).resend_from_address || ''}
+                    onChange={(e) => patch({ resend_from_address: e.target.value } as any)}
+                    placeholder="ops@kdsquares.com"
+                  />
+                </div>
+                <div className="space-y-1 flex items-end">
+                  <label className="flex items-center gap-3">
+                    <Switch
+                      checked={!!(settings as any).resend_api_key_configured}
+                      onCheckedChange={(v) => patch({ resend_api_key_configured: v } as any)}
+                    />
+                    <span className="text-sm">API key configured</span>
+                  </label>
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                Set <code>RESEND_API_KEY</code> in Supabase secrets. KDOps sends
+                branded HTML emails for batch approvals, payslip delivery,
+                compliance reminders and rejection notices.
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Termii (WhatsApp &amp; SMS)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Sender ID</Label>
+                  <Input
+                    value={(settings as any).termii_sender_id || ''}
+                    onChange={(e) => patch({ termii_sender_id: e.target.value } as any)}
+                    placeholder="KDOps"
+                  />
+                </div>
+                <div className="space-y-1 flex items-end">
+                  <label className="flex items-center gap-3">
+                    <Switch
+                      checked={!!(settings as any).termii_api_key_configured}
+                      onCheckedChange={(v) => patch({ termii_api_key_configured: v } as any)}
+                    />
+                    <span className="text-sm">API key configured</span>
+                  </label>
+                </div>
+                <div className="space-y-1 flex items-end">
+                  <label className="flex items-center gap-3">
+                    <Switch
+                      checked={!!(settings as any).whatsapp_enabled}
+                      onCheckedChange={(v) => patch({ whatsapp_enabled: v } as any)}
+                    />
+                    <span className="text-sm">WhatsApp notifications</span>
+                  </label>
+                </div>
+                <div className="space-y-1 flex items-end">
+                  <label className="flex items-center gap-3">
+                    <Switch
+                      checked={!!(settings as any).sms_enabled}
+                      onCheckedChange={(v) => patch({ sms_enabled: v } as any)}
+                    />
+                    <span className="text-sm">SMS notifications</span>
+                  </label>
+                </div>
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                Set <code>TERMII_API_KEY</code> in Supabase secrets. KDOps sends
+                WhatsApp batch-approved alerts to Finance, SMS payment
+                confirmations, and compliance deadline reminders. Nigeria's
+                98% WhatsApp open rate makes this the primary notification
+                channel.
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* POLICY -------------------------------------------------------- */}

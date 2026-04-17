@@ -3,6 +3,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
+import { MobileNav } from '@/components/MobileNav';
 import { Outlet } from 'react-router-dom';
 import { useEffectiveRole } from '@/store/authStore';
 
@@ -50,6 +51,9 @@ export default function AppLayout() {
           </main>
         </div>
       </SidebarProvider>
+      <MobileNav />
+      {/* Bottom padding so mobile content isn't hidden behind the nav bar. */}
+      <div className="h-14 md:hidden" />
     </div>
   );
 }

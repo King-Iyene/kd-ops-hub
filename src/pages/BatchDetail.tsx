@@ -728,6 +728,34 @@ const BatchDetail = () => {
               {failedItems.length})
             </Button>
           )}
+          {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                const { error } = await supabase.from('recurring_schedules').insert({
+                  source_batch_id: id,
+                  frequency: 'monthly',
+                  day_of_month: new Date(batch.payment_date).getDate() || 1,
+                  next_run_date: nextMonth.toISOString().slice(0, 10),
+                  created_by: profile?.id,
+                });
+                if (error) {
+                  toast({ title: 'Could not create schedule', description: error.message, variant: 'destructive' });
+                  return;
+                }
+                await logAudit(
+                  'batch_scheduled',
+                  `Batch "${batch.name}" set to recur monthly`,
+                  profile,
+                );
+                toast({ title: 'Recurring schedule created', description: 'A new draft batch will be created automatically each month.' });
+              }}
+            >
+              <CalendarClock className="mr-2 h-4 w-4" /> Make recurring
+            </Button>
+          )}
         </div>
       )}
 

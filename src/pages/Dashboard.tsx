@@ -35,6 +35,7 @@ import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
+import { OnboardingChecklist } from '@/components/OnboardingChecklist';
 import { FinancialHealthCard } from '@/components/FinancialHealthCard';
 import { CashBurnCard } from '@/components/CashBurnCard';
 import { MyTasksWidget } from '@/pages/Tasks';
@@ -287,6 +288,7 @@ const Dashboard = () => {
         </p>
       </div>
 
+      <OnboardingChecklist />
       <AnnouncementsBanner />
 
       {/* Command-centre row: health score, 30-day burn, my tasks, my goals. */}
