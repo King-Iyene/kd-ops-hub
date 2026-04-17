@@ -257,7 +257,7 @@ const Payroll = () => {
   const generatePayslips = async (run: PayrollRun) => {
     const { data: employees, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, status')
+      .select('id, full_name, email, role, status, salary_ngn')
       .neq('status', 'inactive');
     if (error) {
       toast({ title: 'Could not load employees', description: error.message, variant: 'destructive' });
@@ -274,14 +274,10 @@ const Payroll = () => {
       });
       return;
     }
-    const gross = list.length > 0
-      ? (Number(run.total_employee_ngn) + Number(run.total_contractor_ngn)) /
-        list.length
+    // Use each employee's salary_ngn if set; fall back to pro-rata split.
+    const fallbackGross = list.length > 0
+      ? (Number(run.total_employee_ngn) + Number(run.total_contractor_ngn)) / list.length
       : 0;
-    const paye = gross * 0.075;
-    const pension = gross * 0.08;
-    const nhf = gross * 0.025;
-    const net = Math.max(0, gross - paye - pension - nhf);
 
     const { data: settings } = await supabase
       .from('company_settings')
@@ -294,17 +290,22 @@ const Payroll = () => {
     let failed = 0;
     for (const e of list as any[]) {
       try {
+        const empGross = Number(e.salary_ngn) > 0 ? Number(e.salary_ngn) : fallbackGross;
+        const empPaye = empGross * 0.075;
+        const empPension = empGross * 0.08;
+        const empNhf = empGross * 0.025;
+        const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);
         const html = renderPayslipHtml({
           company_name: companyName,
           employee_name: e.full_name || e.email,
           employee_email: e.email,
           employee_role: e.role,
           period: run.period,
-          gross_ngn: gross,
-          paye_ngn: paye,
-          pension_ngn: pension,
-          nhf_ngn: nhf,
-          net_ngn: net,
+          gross_ngn: empGross,
+          paye_ngn: empPaye,
+          pension_ngn: empPension,
+          nhf_ngn: empNhf,
+          net_ngn: empNet,
           generated_by: profile?.full_name || profile?.email,
         });
         const path = `${e.id}/${run.period}.html`;
@@ -322,11 +323,11 @@ const Payroll = () => {
             employee_name: e.full_name || e.email,
             employee_email: e.email,
             period: run.period,
-            gross_ngn: gross,
-            paye_ngn: paye,
-            pension_ngn: pension,
-            nhf_ngn: nhf,
-            net_ngn: net,
+            gross_ngn: empGross,
+            paye_ngn: empPaye,
+            pension_ngn: empPension,
+            nhf_ngn: empNhf,
+            net_ngn: empNet,
             storage_path: storagePath,
             generated_by: profile?.id || null,
           },

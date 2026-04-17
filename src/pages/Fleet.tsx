@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
+import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -191,6 +192,13 @@ const Fleet = () => {
         )} at ${fuelForm.station_name})`,
         profile,
       );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'fuel_request_submitted',
+        module: 'fleet',
+        title: 'Fuel request submitted',
+        body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}`,
+      });
       toast({ title: 'Fuel request submitted' });
       setShowFuelForm(false);
       setFuelForm({
@@ -286,6 +294,15 @@ const Fleet = () => {
       `Fuel request for ${request.employee_name} approved (${formatNaira(request.amount_ngn || 0)})`,
       profile,
     );
+    if ((request as any).driver_id || request.employee_id) {
+      await notifyUser({
+        userId: (request as any).driver_id || request.employee_id,
+        type: 'fuel_request_approved',
+        module: 'fleet',
+        title: 'Your fuel request was approved',
+        body: `${formatNaira(request.amount_ngn || 0)} at ${request.station_name}`,
+      });
+    }
     toast({ title: 'Fuel request approved' });
     fetchData();
   };

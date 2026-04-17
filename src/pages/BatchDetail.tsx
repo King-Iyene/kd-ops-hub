@@ -8,6 +8,7 @@ import {
   writeRejectionNotification,
   isValidRejectionReason,
 } from '@/lib/rejections';
+import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   createTransferRecipient,
   initiateTransfer,
@@ -21,6 +22,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import {
@@ -90,6 +100,10 @@ const BatchDetail = () => {
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [showRecurring, setShowRecurring] = useState(false);
+  const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
+  const [recurDay, setRecurDay] = useState<number>(1);
+  const [recurCustomDays, setRecurCustomDays] = useState(30);
 
   useEffect(() => {
     fetchBatch();
@@ -147,6 +161,15 @@ const BatchDetail = () => {
         const amountTxt = formatNaira(batch?.total_amount || 0);
         if (status === 'approved') {
           await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`, profile);
+          if (batch?.created_by) {
+            await notifyUser({
+              userId: batch.created_by,
+              type: 'batch_approved',
+              module: 'payments',
+              title: 'Your batch was approved',
+              body: `"${batch?.name}" — ${amountTxt}`,
+            });
+          }
         } else if (status === 'rejected') {
           await writeRejectionNotification({
             entity: 'batch',
@@ -160,6 +183,14 @@ const BatchDetail = () => {
           });
         } else if (status === 'pending_approval') {
           await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
+          await notifyRoles({
+            roles: ['super_admin', 'admin', 'finance'],
+            type: 'batch_submitted',
+            module: 'payments',
+            priority: 'high',
+            title: `Batch submitted for approval`,
+            body: `"${batch?.name}" — ${amountTxt}, ${items.length} beneficiaries`,
+          });
         } else if (status === 'funded') {
           await logAudit('batch_funded', `Batch "${batch?.name}" marked funded`, profile);
         }
@@ -731,27 +762,7 @@ const BatchDetail = () => {
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
             <Button
               variant="outline"
-              onClick={async () => {
-                const nextMonth = new Date();
-                nextMonth.setMonth(nextMonth.getMonth() + 1);
-                const { error } = await supabase.from('recurring_schedules').insert({
-                  source_batch_id: id,
-                  frequency: 'monthly',
-                  day_of_month: new Date(batch.payment_date).getDate() || 1,
-                  next_run_date: nextMonth.toISOString().slice(0, 10),
-                  created_by: profile?.id,
-                });
-                if (error) {
-                  toast({ title: 'Could not create schedule', description: error.message, variant: 'destructive' });
-                  return;
-                }
-                await logAudit(
-                  'batch_scheduled',
-                  `Batch "${batch.name}" set to recur monthly`,
-                  profile,
-                );
-                toast({ title: 'Recurring schedule created', description: 'A new draft batch will be created automatically each month.' });
-              }}
+              onClick={() => setShowRecurring(true)}
             >
               <CalendarClock className="mr-2 h-4 w-4" /> Make recurring
             </Button>
@@ -847,6 +858,116 @@ const BatchDetail = () => {
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
             <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason.trim() })} disabled={!isValidRejectionReason(rejectReason)}>
               Reject Batch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showRecurring} onOpenChange={setShowRecurring}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Make this batch recurring</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Frequency</Label>
+              <Select
+                value={recurFrequency}
+                onValueChange={(v) => setRecurFrequency(v as any)}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="custom">Custom interval</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {recurFrequency === 'weekly' && (
+              <div className="space-y-1">
+                <Label>Day of week</Label>
+                <Select
+                  value={String(recurDay)}
+                  onValueChange={(v) => setRecurDay(Number(v))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => (
+                      <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {recurFrequency === 'monthly' && (
+              <div className="space-y-1">
+                <Label>Day of month</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={recurDay || new Date(batch?.payment_date || '').getDate() || 1}
+                  onChange={(e) => setRecurDay(Number(e.target.value))}
+                />
+              </div>
+            )}
+            {recurFrequency === 'custom' && (
+              <div className="space-y-1">
+                <Label>Every N days</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={recurCustomDays}
+                  onChange={(e) => setRecurCustomDays(Number(e.target.value) || 7)}
+                />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              KDOps will auto-create a new draft batch on schedule and submit it
+              for approval. You can cancel the schedule at any time.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRecurring(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              const today = new Date();
+              let nextDate: Date;
+              if (recurFrequency === 'weekly') {
+                nextDate = new Date(today);
+                nextDate.setDate(today.getDate() + ((recurDay - today.getDay() + 7) % 7 || 7));
+              } else if (recurFrequency === 'biweekly') {
+                nextDate = new Date(today);
+                nextDate.setDate(today.getDate() + 14);
+              } else if (recurFrequency === 'monthly') {
+                nextDate = new Date(today.getFullYear(), today.getMonth() + 1, recurDay || 1);
+              } else {
+                nextDate = new Date(today);
+                nextDate.setDate(today.getDate() + recurCustomDays);
+              }
+              const { error } = await supabase.from('recurring_schedules').insert({
+                source_batch_id: id,
+                frequency: recurFrequency,
+                day_of_week: recurFrequency === 'weekly' ? recurDay : null,
+                day_of_month: recurFrequency === 'monthly' ? recurDay : null,
+                custom_interval_days: recurFrequency === 'custom' ? recurCustomDays : null,
+                next_run_date: nextDate.toISOString().slice(0, 10),
+                created_by: profile?.id,
+              });
+              if (error) {
+                toast({ title: 'Could not create schedule', description: error.message, variant: 'destructive' });
+                return;
+              }
+              await logAudit(
+                'batch_scheduled',
+                `Batch "${batch?.name}" set to recur ${recurFrequency}`,
+                profile,
+              );
+              toast({
+                title: 'Recurring schedule created',
+                description: `Next run: ${nextDate.toLocaleDateString('en-GB')}`,
+              });
+              setShowRecurring(false);
+            }}>
+              Create schedule
             </Button>
           </DialogFooter>
         </DialogContent>

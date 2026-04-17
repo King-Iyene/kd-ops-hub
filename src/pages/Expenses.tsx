@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
+import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -290,6 +291,13 @@ const Expenses = () => {
         `Expense submitted: ${form.category} — ${formatNaira(amount)}${mileageKm ? ` (${mileageKm} km × ${formatNaira(ratePerKm || 0)}/km)` : ''}`,
         profile,
       );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'expense_submitted',
+        module: 'expenses',
+        title: 'Expense submitted for approval',
+        body: `${form.category.replace(/_/g, ' ')} — ${formatNaira(amount)}`,
+      });
       toast({ title: 'Expense submitted' });
       setShowForm(false);
       setForm({
@@ -341,6 +349,15 @@ const Expenses = () => {
       `Expense approved: ${expense.category} — ${formatNaira(expense.amount_ngn || 0)}`,
       profile,
     );
+    if (expense.submitted_by) {
+      await notifyUser({
+        userId: expense.submitted_by,
+        type: 'expense_approved',
+        module: 'expenses',
+        title: 'Your expense was approved',
+        body: `${expense.category.replace(/_/g, ' ')} — ${formatNaira(expense.amount_ngn || 0)}`,
+      });
+    }
     toast({ title: 'Expense approved' });
     fetchData();
   };
