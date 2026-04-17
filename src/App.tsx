@@ -30,6 +30,9 @@ import Reports from './pages/Reports';
 import Fleet from './pages/Fleet';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
+import Contacts from './pages/Contacts';
+import Referrals from './pages/Referrals';
+import JoinForm from './pages/JoinForm';
 import Employees from './pages/Employees';
 import Leave from './pages/Leave';
 import SettingsPage from './pages/Settings';
@@ -61,6 +64,9 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      {/* Public routes — no auth required. */}
+      <Route path="/join" element={<JoinForm />} />
+      <Route path="/ref/:code" element={<JoinForm />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
 
       <Route
@@ -278,6 +284,26 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Goals />
+            </RoleGuard>
+          }
+        />
+
+        {/* Contacts CRM — managers. */}
+        <Route
+          path="/contacts"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Contacts />
+            </RoleGuard>
+          }
+        />
+
+        {/* Referrals — every signed-in user. */}
+        <Route
+          path="/referrals"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Referrals />
             </RoleGuard>
           }
         />
