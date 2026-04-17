@@ -46,7 +46,20 @@ export const useAuth = () => {
       }
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
+      // Bug 2 fix — expired or invalid refresh token.
+      if (sessionError) {
+        console.warn('[KDOps] session error:', sessionError.message);
+        supabase.auth.signOut().then(() => {
+          setUser(null);
+          useAuthStore.getState().setProfile(null);
+          setLoading(false);
+          if (window.location.pathname !== '/login') {
+            navigate('/login', { replace: true });
+          }
+        });
+        return;
+      }
       if (session?.user) {
         setUser(session.user);
         finish(session.user.id, false);
@@ -59,7 +72,17 @@ export const useAuth = () => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') {
-        // Covered by getSession above.
+        return;
+      }
+      // Bug 2 — token refresh failure, sign out cleanly.
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        supabase.auth.signOut();
+        setUser(null);
+        useAuthStore.getState().setProfile(null);
+        setLoading(false);
+        if (window.location.pathname !== '/login') {
+          navigate('/login', { replace: true });
+        }
         return;
       }
       if (session?.user) {

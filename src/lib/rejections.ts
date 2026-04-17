@@ -41,6 +41,6 @@ export async function writeRejectionNotification(opts: {
   await logAudit(opts.auditType, opts.auditDescription, opts.actor);
 }
 
-/** Basic guard — trims and enforces a non-empty, meaningful reason. */
+/** Basic guard — trims and enforces a non-empty, meaningful reason (min 10 chars). */
 export const isValidRejectionReason = (s: string): boolean =>
-  s.trim().length >= 3;
+  s.trim().length >= 10;

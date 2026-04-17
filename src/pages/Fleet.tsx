@@ -293,7 +293,7 @@ const Fleet = () => {
   const confirmFuelReject = async () => {
     if (!rejectingFuel) return;
     if (!isValidRejectionReason(fuelRejectReason)) {
-      toast({ title: 'Reason is required (min 3 chars)', variant: 'destructive' });
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
       return;
     }
     const r = rejectingFuel;
