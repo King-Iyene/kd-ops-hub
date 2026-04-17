@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
+import { notifyUser, notifyRoles } from '@/lib/notify';
 import { useApprovalStore } from '@/store/approvalStore';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, toIsoDate } from '@/lib/format';
@@ -236,6 +237,13 @@ const Leave = () => {
         `Leave requested: ${form.leave_type} ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`,
         profile,
       );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'operations'],
+        type: 'leave_requested',
+        module: 'leave',
+        title: 'Leave request submitted',
+        body: `${form.leave_type} · ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`,
+      });
       toast({ title: 'Leave request submitted' });
       setShowForm(false);
       setForm({
@@ -304,6 +312,13 @@ const Leave = () => {
         `Leave approved for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} days)`,
         profile,
       );
+      await notifyUser({
+        userId: req.employee_id,
+        type: 'leave_approved',
+        module: 'leave',
+        title: 'Your leave request was approved',
+        body: `${req.leave_type} · ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}`,
+      });
       toast({ title: 'Leave approved' });
       fetchAll();
       refreshApprovals();

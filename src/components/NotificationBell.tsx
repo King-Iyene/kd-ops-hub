@@ -1,12 +1,32 @@
+import { useEffect } from 'react';
 import { Bell, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useNotificationStore } from '@/store/notificationStore';
+import { useAuthStore } from '@/store/authStore';
 import { formatDateTime } from '@/lib/format';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function NotificationBell() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotificationStore();
+  const profile = useAuthStore((s) => s.profile);
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    fetchNotifications,
+    subscribeRealtime,
+    unsubscribeRealtime,
+  } = useNotificationStore();
+
+  // Fetch on mount + subscribe to Realtime for live updates.
+  useEffect(() => {
+    if (!profile?.id) return;
+    fetchNotifications(profile.id);
+    subscribeRealtime(profile.id);
+    return () => unsubscribeRealtime();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
 
   return (
     <Popover>
@@ -36,7 +56,7 @@ export function NotificationBell() {
             notifications.slice(0, 20).map((n) => (
               <div
                 key={n.id}
-                className={`px-4 py-3 border-b last:border-0 cursor-pointer hover:bg-muted/50 ${!n.read ? 'bg-accent/5' : ''}`}
+                className={`px-4 py-3 border-b last:border-0 cursor-pointer hover:bg-muted/50 kd-transition ${!n.read ? 'bg-accent/5' : ''}`}
                 onClick={() => !n.read && markAsRead(n.id)}
               >
                 <p className="text-sm font-medium">{n.title}</p>
