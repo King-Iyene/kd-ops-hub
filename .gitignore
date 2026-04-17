@@ -23,3 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .venv
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+tests/.auth/
