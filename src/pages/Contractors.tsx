@@ -444,6 +444,7 @@ const Contractors = () => {
           <TabsTrigger value="contractors">Contractors</TabsTrigger>
           <TabsTrigger value="applications">
             <FileText className="mr-2 h-4 w-4" /> Applications
+            <ApplicationsBadge />
           </TabsTrigger>
         </TabsList>
 
@@ -754,6 +755,27 @@ const Contractors = () => {
 };
 
 export default Contractors;
+
+// ---------------------------------------------------------------------------
+// Pending applications count badge
+// ---------------------------------------------------------------------------
+
+function ApplicationsBadge() {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    supabase
+      .from('contractor_applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_review')
+      .then(({ count: c }) => setCount(c || 0));
+  }, []);
+  if (count === 0) return null;
+  return (
+    <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-[10px] font-semibold">
+      {count}
+    </Badge>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Applications tab — shows contractor_applications from /join form

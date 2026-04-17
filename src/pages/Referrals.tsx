@@ -73,31 +73,36 @@ const Referrals = () => {
 
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
+  const [contractors, setContractors] = useState<{ id: string; full_name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const [dialog, setDialog] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    referrer_name: '',
+    contractor_id: '',
+    referred_by: '',
     referred_email: '',
     is_affiliate: false,
     commission_pct: '0',
+    notes: '',
   });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [refRes, profRes] = await Promise.all([
+    const [refRes, profRes, contractorRes] = await Promise.all([
       supabase
         .from('referrals')
         .select('*')
         .order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, full_name, email'),
+      supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name'),
     ]);
     setReferrals((refRes.data as Referral[]) || []);
     const m = new Map<string, ProfileRow>();
     for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
     setProfiles(m);
+    setContractors((contractorRes.data as any[]) || []);
     setLoading(false);
   }, []);
 
@@ -106,28 +111,35 @@ const Referrals = () => {
   }, [load]);
 
   const addReferral = async () => {
-    if (!form.referred_email.trim()) {
-      toast({ title: 'Email is required', variant: 'destructive' });
+    if (!form.contractor_id && !form.referred_email.trim()) {
+      toast({ title: 'Select a contractor or enter an email', variant: 'destructive' });
+      return;
+    }
+    if (!form.referred_by.trim()) {
+      toast({ title: 'Enter who referred this person', variant: 'destructive' });
       return;
     }
     setSaving(true);
     try {
+      const contractorName = form.contractor_id
+        ? contractors.find((c) => c.id === form.contractor_id)?.full_name || ''
+        : form.referred_email;
       const { error } = await supabase.from('referrals').insert({
         referrer_id: profile?.id || null,
-        referred_email: form.referred_email.trim().toLowerCase(),
+        referred_email: form.referred_email.trim().toLowerCase() || contractorName,
         is_affiliate: form.is_affiliate,
         commission_pct: parseFloat(form.commission_pct) || 0,
-        status: 'pending',
+        status: 'active',
       });
       if (error) throw error;
       await logAudit(
         'contractor_added',
-        `Referral added: ${form.referred_email} (referred by ${form.referrer_name || profile?.full_name || '—'})`,
+        `Referral added: ${contractorName} (referred by ${form.referred_by})`,
         profile,
       );
       toast({ title: 'Referral added' });
       setDialog(false);
-      setForm({ referrer_name: '', referred_email: '', is_affiliate: false, commission_pct: '0' });
+      setForm({ contractor_id: '', referred_by: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
       load();
     } catch (err: any) {
       toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
@@ -344,20 +356,45 @@ const Referrals = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Referred person's email</Label>
+              <Label>Contractor (select from list)</Label>
+              <Select
+                value={form.contractor_id || 'none'}
+                onValueChange={(v) => setForm({ ...form, contractor_id: v === 'none' ? '' : v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select contractor" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— or enter email below —</SelectItem>
+                  {contractors.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {!form.contractor_id && (
+              <div className="space-y-1">
+                <Label>Or enter email manually</Label>
+                <Input
+                  type="email"
+                  value={form.referred_email}
+                  onChange={(e) => setForm({ ...form, referred_email: e.target.value })}
+                  placeholder="person@example.com"
+                />
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label>Who referred them? *</Label>
               <Input
-                type="email"
-                value={form.referred_email}
-                onChange={(e) => setForm({ ...form, referred_email: e.target.value })}
-                placeholder="contractor@example.com"
+                value={form.referred_by}
+                onChange={(e) => setForm({ ...form, referred_by: e.target.value })}
+                placeholder="Name of the person who made the referral"
               />
             </div>
             <div className="space-y-1">
-              <Label>Referrer name (for record)</Label>
+              <Label>Notes</Label>
               <Input
-                value={form.referrer_name}
-                onChange={(e) => setForm({ ...form, referrer_name: e.target.value })}
-                placeholder="Who referred this person?"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Optional — context about this referral"
               />
             </div>
             <div className="flex items-center gap-3">
