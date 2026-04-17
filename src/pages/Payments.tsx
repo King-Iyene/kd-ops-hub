@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Plus, Search, Loader2 } from 'lucide-react';
+import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 
 interface PaymentBatch {
@@ -90,9 +91,12 @@ const Payments = () => {
           <h1 className="text-2xl font-bold">Payment Batches</h1>
           <p className="text-muted-foreground text-sm">Manage partner and contractor payments</p>
         </div>
-        <Button onClick={() => navigate('/payments/new')}>
-          <Plus className="mr-2 h-4 w-4" /> New Batch
-        </Button>
+        <div className="flex gap-2">
+          <QuickPayDialog />
+          <Button onClick={() => navigate('/payments/new')}>
+            <Plus className="mr-2 h-4 w-4" /> New Batch
+          </Button>
+        </div>
       </div>
 
       <Card>

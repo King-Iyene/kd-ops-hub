@@ -504,7 +504,18 @@ const Approvals = () => {
         description={`${counts.total} item${counts.total === 1 ? '' : 's'} waiting across all modules`}
         actions={
           selectedCount > 0 && canApprove ? (
-            <Button onClick={bulkApprove} disabled={bulkLoading}>
+            <Button
+              onClick={() => {
+                const totalAmt = items
+                  .filter((i) => selected.has(i.id))
+                  .reduce((s, i) => s + i.amount, 0);
+                const yes = window.confirm(
+                  `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
+                );
+                if (yes) bulkApprove();
+              }}
+              disabled={bulkLoading}
+            >
               {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
             </Button>
