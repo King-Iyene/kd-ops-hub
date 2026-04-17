@@ -38,6 +38,7 @@ const JoinForm = () => {
     bank_name: '',
     account_name: '',
     account_number: '',
+    referred_by: '',
   });
 
   const isValidNuban = /^\d{10}$/.test(form.account_number);
@@ -72,7 +73,7 @@ const JoinForm = () => {
         bank_name: form.bank_name,
         account_name: form.account_name || null,
         account_number: form.account_number,
-        referral_code: refCode || null,
+        referral_code: form.referred_by.trim() || refCode || null,
       });
       if (error) throw error;
       setSubmitted(true);
@@ -114,10 +115,11 @@ const JoinForm = () => {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
             <span className="text-2xl font-bold text-primary-foreground">KD</span>
           </div>
-          <h1 className="text-2xl font-bold">Join KD Squares</h1>
+          <h1 className="text-2xl font-bold">KD Squares — LinkedIn Partner Onboarding</h1>
           <p className="text-muted-foreground text-sm">
-            Apply to become a contractor. Fill in your details below — our team
-            will review and activate your account.
+            Apply to join our LinkedIn Outreach Partner network. Fill in your
+            details below — our team will review and activate your account
+            within 48 hours.
           </p>
         </CardHeader>
         <CardContent>
@@ -249,6 +251,21 @@ const JoinForm = () => {
                     placeholder="Name as it appears on the account"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Program info */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Program info
+              </h3>
+              <div className="space-y-1">
+                <Label>Referred by (optional)</Label>
+                <Input
+                  value={form.referred_by}
+                  onChange={(e) => setForm({ ...form, referred_by: e.target.value })}
+                  placeholder="Who referred you to this program?"
+                />
               </div>
             </div>
 

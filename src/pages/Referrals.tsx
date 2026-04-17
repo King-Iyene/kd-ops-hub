@@ -1,22 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Copy,
-  Share2,
+  Plus,
+  Search,
   Users,
-  UserPlus,
-  Gift,
-  CheckCircle2,
-  Clock,
   Loader2,
-  ExternalLink,
+  Download,
+  Pencil,
+  Star,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { logAudit } from '@/lib/audit';
 import { formatDate } from '@/lib/format';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -25,222 +34,362 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { Pagination } from '@/components/ui-kit/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface Referral {
   id: string;
+  referrer_id: string | null;
   referred_email: string;
   status: string;
   is_affiliate: boolean;
   commission_pct: number;
   commission_earned_ngn: number;
   created_at: string;
-  converted_at: string | null;
 }
 
-const STATUS_BADGE: Record<string, string> = {
-  pending: 'bg-warning/10 text-warning',
-  signed_up: 'bg-info/10 text-info',
-  active: 'bg-success/10 text-success',
-  expired: 'bg-muted text-muted-foreground',
-};
+interface ProfileRow {
+  id: string;
+  full_name: string;
+  email: string;
+}
 
 const Referrals = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const isAdmin =
+    profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
   const [loading, setLoading] = useState(true);
-  const [code, setCode] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  const referralLink = code ? `${origin}/ref/${code}` : '';
+  const [dialog, setDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    referrer_name: '',
+    referred_email: '',
+    is_affiliate: false,
+    commission_pct: '0',
+  });
 
   const load = useCallback(async () => {
-    if (!profile?.id) return;
     setLoading(true);
-
-    // Fetch or generate referral code.
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('referral_code')
-      .eq('id', profile.id)
-      .single();
-
-    let rc = (profileData as any)?.referral_code;
-    if (!rc) {
-      // Generate one.
-      rc = profile.id.replace(/-/g, '').slice(0, 8);
-      await supabase
-        .from('profiles')
-        .update({ referral_code: rc })
-        .eq('id', profile.id);
-    }
-    setCode(rc);
-
-    const { data } = await supabase
-      .from('referrals')
-      .select('*')
-      .eq('referrer_id', profile.id)
-      .order('created_at', { ascending: false });
-    setReferrals((data as Referral[]) || []);
+    const [refRes, profRes] = await Promise.all([
+      supabase
+        .from('referrals')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, full_name, email'),
+    ]);
+    setReferrals((refRes.data as Referral[]) || []);
+    const m = new Map<string, ProfileRow>();
+    for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
+    setProfiles(m);
     setLoading(false);
-  }, [profile?.id]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const copyLink = async () => {
-    if (!referralLink) return;
+  const addReferral = async () => {
+    if (!form.referred_email.trim()) {
+      toast({ title: 'Email is required', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
     try {
-      await navigator.clipboard.writeText(referralLink);
-      toast({ title: 'Link copied to clipboard' });
-    } catch {
-      toast({ title: 'Could not copy — use the link below', variant: 'destructive' });
+      const { error } = await supabase.from('referrals').insert({
+        referrer_id: profile?.id || null,
+        referred_email: form.referred_email.trim().toLowerCase(),
+        is_affiliate: form.is_affiliate,
+        commission_pct: parseFloat(form.commission_pct) || 0,
+        status: 'pending',
+      });
+      if (error) throw error;
+      await logAudit(
+        'contractor_added',
+        `Referral added: ${form.referred_email} (referred by ${form.referrer_name || profile?.full_name || '—'})`,
+        profile,
+      );
+      toast({ title: 'Referral added' });
+      setDialog(false);
+      setForm({ referrer_name: '', referred_email: '', is_affiliate: false, commission_pct: '0' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const shareWhatsApp = () => {
-    const text = encodeURIComponent(
-      `Join KD Squares via KDOps — the most advanced finance and operations platform for African businesses.\n\n${referralLink}`,
-    );
-    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
+  const toggleAffiliate = async (r: Referral) => {
+    const next = !r.is_affiliate;
+    await supabase
+      .from('referrals')
+      .update({ is_affiliate: next })
+      .eq('id', r.id);
+    toast({ title: next ? 'Marked as affiliate' : 'Removed affiliate status' });
+    load();
   };
 
-  const stats = useMemo(() => {
-    const total = referrals.length;
-    const active = referrals.filter((r) => r.status === 'active').length;
-    const pending = referrals.filter((r) => r.status === 'pending').length;
-    const totalCommission = referrals.reduce(
-      (s, r) => s + Number(r.commission_earned_ngn || 0),
-      0,
+  const exportCsv = () => {
+    const header = ['referrer', 'referred_email', 'status', 'affiliate', 'commission_pct', 'created_at'];
+    const rows = referrals.map((r) => {
+      const referrer = r.referrer_id ? profiles.get(r.referrer_id) : null;
+      return [
+        referrer?.full_name || '—',
+        r.referred_email,
+        r.status,
+        r.is_affiliate ? 'Yes' : 'No',
+        r.commission_pct,
+        r.created_at,
+      ];
+    });
+    downloadCsv('kdops-referrals.csv', toCsv(header, rows));
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return referrals;
+    return referrals.filter(
+      (r) =>
+        r.referred_email.toLowerCase().includes(q) ||
+        (r.referrer_id && profiles.get(r.referrer_id)?.full_name.toLowerCase().includes(q)),
     );
-    return { total, active, pending, totalCommission };
-  }, [referrals]);
+  }, [referrals, search, profiles]);
+
+  const pagination = usePagination(filtered, 20);
+
+  const affiliateCount = referrals.filter((r) => r.is_affiliate).length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Referrals"
-        description="Invite others to KDOps. Track who you referred and earn affiliate commissions."
+        description="Track who referred whom. Manage affiliates and commissions."
+        actions={
+          <>
+            {isAdmin && (
+              <Button variant="outline" onClick={exportCsv} disabled={referrals.length === 0}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+            )}
+            {isAdmin && (
+              <Button onClick={() => setDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Add referral
+              </Button>
+            )}
+          </>
+        }
       />
 
-      <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="pt-6 space-y-4">
-          <div>
-            <p className="text-sm font-semibold mb-1">Your referral link</p>
-            <div className="flex items-center gap-2">
-              <Input
-                value={referralLink}
-                readOnly
-                className="font-mono text-xs bg-background"
-              />
-              <Button size="sm" variant="outline" onClick={copyLink}>
-                <Copy className="mr-2 h-4 w-4" /> Copy
-              </Button>
-              <Button size="sm" onClick={shareWhatsApp} className="bg-[#25D366] hover:bg-[#1da851] text-white">
-                <Share2 className="mr-2 h-4 w-4" /> WhatsApp
-              </Button>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Share this link with contractors, partners and businesses. When they
-            sign up or apply via <code>/join</code>, KDOps tracks the referral
-            automatically.
-          </p>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard
-          title="Total referrals"
-          value={stats.total}
-          icon={Users}
-          tone="primary"
-        />
-        <StatCard
-          title="Active"
-          value={stats.active}
-          icon={CheckCircle2}
-          tone="success"
-        />
-        <StatCard
-          title="Pending"
-          value={stats.pending}
-          icon={Clock}
-          tone="warning"
-        />
-        <StatCard
-          title="Commission earned"
-          value={`₦${stats.totalCommission.toLocaleString()}`}
-          icon={Gift}
-          tone="primary"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Total referrals</p>
+            <p className="text-2xl font-bold mt-1">{referrals.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Affiliates</p>
+            <p className="text-2xl font-bold mt-1">{affiliateCount}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">Pending</p>
+            <p className="text-2xl font-bold mt-1">
+              {referrals.filter((r) => r.status === 'pending').length}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your referrals</CardTitle>
-        </CardHeader>
+        <div className="p-4 border-b">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Search by name or email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                pagination.reset();
+              }}
+            />
+          </div>
+        </div>
         <CardContent className="p-0">
           {loading ? (
-            <TableSkeleton rows={4} cols={4} />
-          ) : referrals.length === 0 ? (
+            <TableSkeleton rows={5} cols={5} />
+          ) : filtered.length === 0 ? (
             <EmptyState
-              icon={UserPlus}
+              icon={Users}
               title="No referrals yet"
-              description="Share your link to start tracking referrals. When someone signs up or applies via your link, they'll appear here."
+              description="Add referrals manually to track who brought whom to KD Squares."
               action={
-                <Button onClick={copyLink}>
-                  <Copy className="mr-2 h-4 w-4" /> Copy referral link
-                </Button>
+                isAdmin ? (
+                  <Button onClick={() => setDialog(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Add referral
+                  </Button>
+                ) : undefined
               }
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Referred</TableHead>
-                  <TableHead>Converted</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {referrals.map((r) => (
-                  <TableRow key={r.id} className="kd-transition">
-                    <TableCell className="font-medium">{r.referred_email}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={STATUS_BADGE[r.status] || STATUS_BADGE.pending}
-                      >
-                        {r.status}
-                      </Badge>
-                      {r.is_affiliate && (
-                        <Badge className="ml-2 bg-accent/15 text-accent-foreground border border-accent/40">
-                          Affiliate
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(r.created_at)}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {r.converted_at ? formatDate(r.converted_at) : '—'}
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Referrer</TableHead>
+                    <TableHead>Referred</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Affiliate</TableHead>
+                    <TableHead>Commission %</TableHead>
+                    <TableHead>Date</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {pagination.slice.map((r) => {
+                    const referrer = r.referrer_id
+                      ? profiles.get(r.referrer_id)
+                      : null;
+                    return (
+                      <TableRow key={r.id} className="kd-transition">
+                        <TableCell className="font-medium">
+                          {referrer?.full_name || '—'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {r.referred_email}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              r.status === 'active'
+                                ? 'bg-success/10 text-success'
+                                : 'bg-warning/10 text-warning'
+                            }
+                          >
+                            {r.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {r.is_affiliate ? (
+                            <Badge className="bg-accent/15 text-accent-foreground border border-accent/40">
+                              <Star className="h-3 w-3 mr-1" /> Affiliate
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {r.commission_pct > 0 ? `${r.commission_pct}%` : '—'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(r.created_at)}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => toggleAffiliate(r)}
+                              title={r.is_affiliate ? 'Remove affiliate' : 'Make affiliate'}
+                            >
+                              <Star className={`h-4 w-4 ${r.is_affiliate ? 'text-accent fill-accent' : ''}`} />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              <Pagination
+                page={pagination.page}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                pageSize={pagination.pageSize}
+                onPrev={pagination.prev}
+                onNext={pagination.next}
+                hasPrev={pagination.hasPrev}
+                hasNext={pagination.hasNext}
+              />
+            </>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialog} onOpenChange={setDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add referral</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Referred person's email</Label>
+              <Input
+                type="email"
+                value={form.referred_email}
+                onChange={(e) => setForm({ ...form, referred_email: e.target.value })}
+                placeholder="contractor@example.com"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Referrer name (for record)</Label>
+              <Input
+                value={form.referrer_name}
+                onChange={(e) => setForm({ ...form, referrer_name: e.target.value })}
+                placeholder="Who referred this person?"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={form.is_affiliate}
+                onCheckedChange={(v) => setForm({ ...form, is_affiliate: v })}
+              />
+              <Label>Mark as affiliate</Label>
+            </div>
+            {form.is_affiliate && (
+              <div className="space-y-1">
+                <Label>Commission percentage</Label>
+                <Input
+                  type="number"
+                  value={form.commission_pct}
+                  onChange={(e) => setForm({ ...form, commission_pct: e.target.value })}
+                  placeholder="e.g. 5"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={addReferral} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add referral
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

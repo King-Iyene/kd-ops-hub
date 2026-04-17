@@ -555,7 +555,6 @@ const Employees = () => {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  disabled={!!editing}
                   placeholder="teammate@kdsquares.com"
                 />
               </div>

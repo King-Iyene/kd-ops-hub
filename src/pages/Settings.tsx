@@ -390,10 +390,36 @@ const SettingsPage = () => {
                   />
                 </div>
               </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-                Secret and public keys are loaded from <code>VITE_PAYSTACK_*</code>
-                environment variables — not stored in the database. Rotate them
-                in your deployment, not here.
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Public key</Label>
+                  <Input
+                    value={(settings as any).paystack_public_key || ''}
+                    onChange={(e) => patch({ paystack_public_key: e.target.value } as any)}
+                    placeholder="pk_test_..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Secret key</Label>
+                  <Input
+                    type="password"
+                    value={(settings as any).paystack_secret_key_enc || ''}
+                    onChange={(e) => patch({ paystack_secret_key_enc: e.target.value } as any)}
+                    placeholder={
+                      (settings as any).paystack_secret_key_enc
+                        ? '••••••••' + ((settings as any).paystack_secret_key_enc || '').slice(-4)
+                        : 'sk_test_...'
+                    }
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Stored encrypted. Never displayed after save.
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-md border bg-primary/5 p-3 text-xs text-muted-foreground">
+                After saving, the Edge Function reads the secret key from this
+                table. Toggle to <strong>Live</strong> when ready for real
+                payments.
               </div>
             </CardContent>
           </Card>

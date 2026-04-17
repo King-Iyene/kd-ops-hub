@@ -25,8 +25,34 @@ export const useAuth = () => {
 
     const finish = async (userId: string, redirectIfLogin: boolean) => {
       await fetchProfile(userId);
-      // Enforce "deactivated employees blocked from login" at the client layer.
-      const fetched = useAuthStore.getState().profile;
+      let fetched = useAuthStore.getState().profile;
+
+      // Fix 2 — organic signup without invite: profile row may not exist yet
+      // (the auth trigger only creates one if pending_invites has a match).
+      // Auto-create a field_staff profile so the user never sees Unauthorized.
+      if (!fetched) {
+        const user = useAuthStore.getState().user;
+        const email = user?.email || '';
+        const fullName =
+          user?.user_metadata?.full_name ||
+          user?.user_metadata?.name ||
+          '';
+        const { error: insertErr } = await supabase.from('profiles').upsert(
+          {
+            id: userId,
+            email,
+            full_name: fullName,
+            role: 'field_staff',
+            status: 'active',
+          },
+          { onConflict: 'id' },
+        );
+        if (!insertErr) {
+          await fetchProfile(userId);
+          fetched = useAuthStore.getState().profile;
+        }
+      }
+
       if (fetched && fetched.status === 'inactive') {
         await supabase.auth.signOut();
         useAuthStore.getState().setUser(null);
