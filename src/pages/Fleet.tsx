@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -35,7 +35,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Fuel, MapPin, Plus } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2 } from 'lucide-react';
 
 interface FieldStaff {
   id: string;
@@ -81,7 +81,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'fuel' | 'trips'>('fuel');
+  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles'>('fuel');
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
   const [fuelRequests, setFuelRequests] = useState<FuelRequest[]>([]);
@@ -392,7 +392,7 @@ const Fleet = () => {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'fuel' | 'trips')}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'fuel' | 'trips' | 'vehicles')}>
         <TabsList>
           <TabsTrigger value="fuel">
             <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
@@ -400,6 +400,11 @@ const Fleet = () => {
           <TabsTrigger value="trips">
             <MapPin className="mr-2 h-4 w-4" /> Trip Logs
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="vehicles">
+              <Car className="mr-2 h-4 w-4" /> Vehicles
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* FUEL */}
@@ -573,6 +578,13 @@ const Fleet = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* VEHICLES */}
+        {isAdmin && (
+          <TabsContent value="vehicles" className="mt-4">
+            <VehiclesTab staff={staff} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
@@ -847,3 +859,380 @@ const Fleet = () => {
 };
 
 export default Fleet;
+
+// ---------------------------------------------------------------------------
+// Vehicles management tab
+// ---------------------------------------------------------------------------
+
+interface Vehicle {
+  id: string;
+  name: string;
+  plate_number: string;
+  make_model: string | null;
+  year: number | null;
+  color: string | null;
+  vin: string | null;
+  assigned_driver_id: string | null;
+  weekly_budget_ngn: number;
+  insurance_expiry: string | null;
+  road_worthiness_expiry: string | null;
+  last_service_date: string | null;
+  next_service_date: string | null;
+  notes: string | null;
+  status: string;
+  created_at: string;
+}
+
+const emptyVehicleForm = {
+  name: '',
+  plate_number: '',
+  make_model: '',
+  year: '',
+  color: '',
+  vin: '',
+  assigned_driver_id: '',
+  weekly_budget_ngn: '',
+  insurance_expiry: '',
+  road_worthiness_expiry: '',
+  last_service_date: '',
+  next_service_date: '',
+  notes: '',
+};
+
+function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Vehicle | null>(null);
+  const [form, setForm] = useState(emptyVehicleForm);
+  const [submitting, setSubmitting] = useState(false);
+  const [allDrivers, setAllDrivers] = useState<FieldStaff[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [vRes, dRes] = await Promise.all([
+      supabase.from('vehicles').select('*').order('name'),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('role', ['field_staff', 'driver', 'operations'])
+        .eq('status', 'active')
+        .order('full_name'),
+    ]);
+    setVehicles((vRes.data as Vehicle[]) || []);
+    setAllDrivers((dRes.data as FieldStaff[]) || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const reset = () => {
+    setEditing(null);
+    setForm(emptyVehicleForm);
+  };
+
+  const openEdit = (v: Vehicle) => {
+    setEditing(v);
+    setForm({
+      name: v.name,
+      plate_number: v.plate_number,
+      make_model: v.make_model || '',
+      year: v.year ? String(v.year) : '',
+      color: v.color || '',
+      vin: v.vin || '',
+      assigned_driver_id: v.assigned_driver_id || '',
+      weekly_budget_ngn: String(v.weekly_budget_ngn || 0),
+      insurance_expiry: v.insurance_expiry || '',
+      road_worthiness_expiry: v.road_worthiness_expiry || '',
+      last_service_date: v.last_service_date || '',
+      next_service_date: v.next_service_date || '',
+      notes: v.notes || '',
+    });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.plate_number.trim()) {
+      toast({ title: 'Name and plate number are required', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    const payload = {
+      name: form.name.trim(),
+      plate_number: form.plate_number.trim().toUpperCase(),
+      make_model: form.make_model.trim() || null,
+      year: parseInt(form.year) || null,
+      color: form.color.trim() || null,
+      vin: form.vin.trim() || null,
+      assigned_driver_id: form.assigned_driver_id || null,
+      weekly_budget_ngn: parseFloat(form.weekly_budget_ngn) || 0,
+      insurance_expiry: form.insurance_expiry || null,
+      road_worthiness_expiry: form.road_worthiness_expiry || null,
+      last_service_date: form.last_service_date || null,
+      next_service_date: form.next_service_date || null,
+      notes: form.notes.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      if (editing) {
+        const { error } = await supabase.from('vehicles').update(payload).eq('id', editing.id);
+        if (error) throw error;
+        await logAudit('fleet_vehicle_updated', `Vehicle "${payload.name}" (${payload.plate_number}) updated`, profile);
+        toast({ title: 'Vehicle updated' });
+      } else {
+        const { error } = await supabase.from('vehicles').insert({ ...payload, status: 'active' });
+        if (error) throw error;
+        await logAudit('fleet_vehicle_added', `Vehicle "${payload.name}" (${payload.plate_number}) added`, profile);
+        toast({ title: 'Vehicle added' });
+      }
+      setShowForm(false);
+      reset();
+      load();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleStatus = async (v: Vehicle) => {
+    const next = v.status === 'active' ? 'inactive' : 'active';
+    await supabase.from('vehicles').update({ status: next }).eq('id', v.id);
+    await logAudit(
+      next === 'inactive' ? 'fleet_vehicle_deactivated' : 'fleet_vehicle_updated',
+      `Vehicle "${v.name}" ${next === 'inactive' ? 'deactivated' : 'reactivated'}`,
+      profile,
+    );
+    toast({ title: `Vehicle ${next}` });
+    load();
+  };
+
+  const driverName = (id: string | null) => {
+    if (!id) return '—';
+    const d = allDrivers.find((s) => s.id === id) || staff.find((s) => s.id === id);
+    return d?.full_name || '(unassigned)';
+  };
+
+  const isExpiringSoon = (date: string | null) => {
+    if (!date) return false;
+    const d = new Date(date);
+    const diff = (d.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return diff >= 0 && diff <= 30;
+  };
+
+  const isExpired = (date: string | null) => {
+    if (!date) return false;
+    return new Date(date) < new Date();
+  };
+
+  if (loading) {
+    return (
+      <div className="py-8 flex justify-center">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground">
+            {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} registered
+          </p>
+          <Button onClick={() => { reset(); setShowForm(true); }}>
+            <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+          </Button>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Plate</TableHead>
+                  <TableHead>Assigned Driver</TableHead>
+                  <TableHead className="text-right">Weekly Budget</TableHead>
+                  <TableHead>Insurance</TableHead>
+                  <TableHead>Road Worthiness</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vehicles.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-8">
+                      No vehicles registered yet. Add your first vehicle to start tracking.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {vehicles.map((v) => (
+                  <TableRow key={v.id} className="kd-transition">
+                    <TableCell>
+                      <div className="font-medium">{v.name}</div>
+                      {v.make_model && (
+                        <div className="text-xs text-muted-foreground">
+                          {v.make_model}{v.year ? ` (${v.year})` : ''}{v.color ? ` · ${v.color}` : ''}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono">{v.plate_number}</TableCell>
+                    <TableCell className="text-sm">{driverName(v.assigned_driver_id)}</TableCell>
+                    <TableCell className="text-right currency">{formatNaira(v.weekly_budget_ngn)}</TableCell>
+                    <TableCell>
+                      {v.insurance_expiry ? (
+                        <Badge
+                          variant="secondary"
+                          className={
+                            isExpired(v.insurance_expiry)
+                              ? 'bg-destructive/10 text-destructive'
+                              : isExpiringSoon(v.insurance_expiry)
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-success/10 text-success'
+                          }
+                        >
+                          {formatDate(v.insurance_expiry)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {v.road_worthiness_expiry ? (
+                        <Badge
+                          variant="secondary"
+                          className={
+                            isExpired(v.road_worthiness_expiry)
+                              ? 'bg-destructive/10 text-destructive'
+                              : isExpiringSoon(v.road_worthiness_expiry)
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-success/10 text-success'
+                          }
+                        >
+                          {formatDate(v.road_worthiness_expiry)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={
+                          v.status === 'active'
+                            ? 'bg-success/10 text-success cursor-pointer'
+                            : 'bg-muted text-muted-foreground cursor-pointer'
+                        }
+                        onClick={() => toggleStatus(v)}
+                      >
+                        {v.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Dialog open={showForm} onOpenChange={(v) => { if (!v) { setShowForm(false); reset(); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Add'} Vehicle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Name *</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Office Hilux" />
+              </div>
+              <div className="space-y-1">
+                <Label>Plate number *</Label>
+                <Input value={form.plate_number} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="e.g. LAG-123-AB" />
+              </div>
+              <div className="space-y-1">
+                <Label>Make / model</Label>
+                <Input value={form.make_model} onChange={(e) => setForm({ ...form, make_model: e.target.value })} placeholder="e.g. Toyota Hilux" />
+              </div>
+              <div className="space-y-1">
+                <Label>Year</Label>
+                <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="e.g. 2022" />
+              </div>
+              <div className="space-y-1">
+                <Label>Color</Label>
+                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="e.g. White" />
+              </div>
+              <div className="space-y-1">
+                <Label>VIN</Label>
+                <Input value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Assigned driver</Label>
+                <Select value={form.assigned_driver_id} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Unassigned</SelectItem>
+                    {allDrivers.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Weekly fuel budget (₦)</Label>
+                <Input type="number" value={form.weekly_budget_ngn} onChange={(e) => setForm({ ...form, weekly_budget_ngn: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Insurance expiry</Label>
+                <Input type="date" value={form.insurance_expiry} onChange={(e) => setForm({ ...form, insurance_expiry: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Road worthiness expiry</Label>
+                <Input type="date" value={form.road_worthiness_expiry} onChange={(e) => setForm({ ...form, road_worthiness_expiry: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Last service date</Label>
+                <Input type="date" value={form.last_service_date} onChange={(e) => setForm({ ...form, last_service_date: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Next service date</Label>
+                <Input type="date" value={form.next_service_date} onChange={(e) => setForm({ ...form, next_service_date: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Internal notes about this vehicle..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={submitting || !form.name.trim() || !form.plate_number.trim()}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

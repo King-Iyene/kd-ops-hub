@@ -230,7 +230,7 @@ const EmployeeProfile = () => {
                   <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} placeholder="e.g. Head of Operations" />
                 </div>
                 <div className="space-y-1">
-                  <Label>Annual leave days</Label>
+                  <Label>Annual leave days <InfoTip text="Total annual leave entitlement. Defaults to 20 days per Nigerian Labour Act." /></Label>
                   <Input type="number" value={form.annual_leave_days || 20} onChange={(e) => patch({ annual_leave_days: Number(e.target.value) || 20 })} />
                 </div>
               </div>
@@ -275,7 +275,7 @@ const EmployeeProfile = () => {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Pension PIN</Label>
+                <Label>Pension PIN <InfoTip text="PenCom Registration Number — the employee's unique Retirement Savings Account identifier." /></Label>
                 <Input value={form.pension_pin || ''} onChange={(e) => patch({ pension_pin: e.target.value })} />
               </div>
             </CardContent>
@@ -294,7 +294,7 @@ const EmployeeProfile = () => {
             <CardHeader><CardTitle className="text-base">Salary</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
-                <Label>Monthly gross salary (₦)</Label>
+                <Label>Monthly gross salary (₦) <InfoTip text="Used for payroll calculations. Deductions are applied automatically: PAYE 7.5%, Pension 8%, NHF 2.5%." /></Label>
                 <Input
                   type="number"
                   value={form.salary_ngn || 0}
