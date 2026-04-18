@@ -4,13 +4,15 @@ import {
   Loader2,
   CheckCircle2,
   UserPlus,
+  BadgeCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { NIGERIAN_BANKS } from '@/lib/nigerian-banks';
+import { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -20,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
+const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
+
 const JoinForm = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -28,29 +32,81 @@ const JoinForm = () => {
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
-    linkedin_full_name: '',
-    linkedin_email: '',
-    linkedin_profile_url: '',
+    linkedin_url: '',
     bank_name: '',
-    account_name: '',
     account_number: '',
-    referred_by: '',
+    additional_info: '',
   });
 
+  // Bank verification state
+  const [verifying, setVerifying] = useState(false);
+  const [accountName, setAccountName] = useState('');
+  const [verifyError, setVerifyError] = useState('');
+
   const isValidNuban = /^\d{10}$/.test(form.account_number);
-  const isValidLinkedIn =
-    !form.linkedin_profile_url.trim() ||
-    /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/.test(form.linkedin_profile_url.trim());
+  const isValidLinkedIn = LINKEDIN_RE.test(form.linkedin_url.trim());
+  const bankReady = isValidNuban && !!form.bank_name;
+  const bankVerified = !!accountName;
+
+  const verifyAccount = async () => {
+    if (!bankReady) return;
+    setVerifying(true);
+    setVerifyError('');
+    setAccountName('');
+    try {
+      const bankCode = getBankCode(form.bank_name);
+      if (!bankCode) throw new Error('Unknown bank — cannot verify');
+      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+        body: { action: 'resolve_account', account_number: form.account_number, bank_code: bankCode },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.ok) throw new Error(data?.error || 'Verification failed');
+      setAccountName(data.data?.account_name ?? '');
+    } catch (err: any) {
+      setVerifyError(err?.message || 'Could not verify account');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // Re-run verification automatically when bank or number changes (clear old result)
+  const handleBankChange = (v: string) => {
+    setForm((f) => ({ ...f, bank_name: v }));
+    setAccountName('');
+    setVerifyError('');
+  };
+  const handleAccountNumberChange = (v: string) => {
+    setForm((f) => ({ ...f, account_number: v.replace(/\D/g, '').slice(0, 10) }));
+    setAccountName('');
+    setVerifyError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) {
-      toast({ title: 'First name, last name, and email are required', variant: 'destructive' });
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      toast({ title: 'First and last name are required', variant: 'destructive' });
+      return;
+    }
+    if (!form.email.trim()) {
+      toast({ title: 'Email is required', variant: 'destructive' });
+      return;
+    }
+    if (!form.phone.trim()) {
+      toast({ title: 'Phone / WhatsApp number is required', variant: 'destructive' });
+      return;
+    }
+    if (!isValidLinkedIn) {
+      toast({
+        title: 'LinkedIn profile URL required',
+        description: 'Must start with https://linkedin.com/in/...',
+        variant: 'destructive',
+      });
       return;
     }
     if (!form.bank_name) {
@@ -58,16 +114,13 @@ const JoinForm = () => {
       return;
     }
     if (!isValidNuban) {
-      toast({
-        title: 'Account number must be exactly 10 digits (NUBAN)',
-        variant: 'destructive',
-      });
+      toast({ title: 'Account number must be exactly 10 digits (NUBAN)', variant: 'destructive' });
       return;
     }
-    if (!isValidLinkedIn) {
+    if (!bankVerified) {
       toast({
-        title: 'Please enter a valid LinkedIn profile URL',
-        description: 'Must start with https://linkedin.com/in/ or https://www.linkedin.com/in/',
+        title: 'Please verify your bank account first',
+        description: 'Click "Verify" next to your account number.',
         variant: 'destructive',
       });
       return;
@@ -76,18 +129,19 @@ const JoinForm = () => {
     setSubmitting(true);
     try {
       const { error } = await supabase.from('contractor_applications').insert({
-        full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
+        full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         email: form.email.trim().toLowerCase(),
-        phone: form.phone || null,
-        linkedin_full_name: form.linkedin_full_name || null,
-        linkedin_email: form.linkedin_email || null,
-        linkedin_profile_url: form.linkedin_profile_url || null,
+        phone: form.phone.trim(),
+        linkedin_url: form.linkedin_url.trim(),
+        linkedin_profile_url: form.linkedin_url.trim(),
         bank_name: form.bank_name,
-        account_name: form.account_name || null,
         account_number: form.account_number,
-        referral_code: form.referred_by.trim() || refCode || null,
+        account_name: accountName,
+        additional_info: form.additional_info.trim() || null,
+        referral_code: refCode || null,
+        status: 'pending_review',
       });
       if (error) throw error;
       setSubmitted(true);
@@ -138,14 +192,15 @@ const JoinForm = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Personal info */}
+
+            {/* Personal information */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
                 Personal information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>First Name *</Label>
+                  <Label>First name *</Label>
                   <Input
                     value={form.first_name}
                     onChange={(e) => setForm({ ...form, first_name: e.target.value })}
@@ -154,7 +209,7 @@ const JoinForm = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Last Name *</Label>
+                  <Label>Last name *</Label>
                   <Input
                     value={form.last_name}
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
@@ -172,12 +227,13 @@ const JoinForm = () => {
                     required
                   />
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label>Phone / WhatsApp</Label>
+                <div className="space-y-1">
+                  <Label>Phone / WhatsApp *</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="+234..."
+                    placeholder="+234 800 000 0000"
+                    required
                   />
                 </div>
               </div>
@@ -186,43 +242,26 @@ const JoinForm = () => {
             {/* LinkedIn */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                LinkedIn details
+                LinkedIn profile
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>LinkedIn full name</Label>
-                  <Input
-                    value={form.linkedin_full_name}
-                    onChange={(e) =>
-                      setForm({ ...form, linkedin_full_name: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>LinkedIn email</Label>
-                  <Input
-                    type="email"
-                    value={form.linkedin_email}
-                    onChange={(e) =>
-                      setForm({ ...form, linkedin_email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label>LinkedIn profile URL</Label>
-                  <Input
-                    value={form.linkedin_profile_url}
-                    onChange={(e) =>
-                      setForm({ ...form, linkedin_profile_url: e.target.value })
-                    }
-                    placeholder="https://linkedin.com/in/..."
-                  />
-                  {form.linkedin_profile_url.trim() && !isValidLinkedIn && (
-                    <p className="text-xs text-destructive">
-                      Must be a valid LinkedIn URL (https://linkedin.com/in/...)
-                    </p>
-                  )}
-                </div>
+              <div className="space-y-1">
+                <Label>LinkedIn profile URL *</Label>
+                <Input
+                  value={form.linkedin_url}
+                  onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+                  placeholder="https://linkedin.com/in/your-profile"
+                  required
+                />
+                {form.linkedin_url.trim() && !isValidLinkedIn && (
+                  <p className="text-xs text-destructive">
+                    Must be a valid LinkedIn URL (https://linkedin.com/in/...)
+                  </p>
+                )}
+                {isValidLinkedIn && (
+                  <p className="text-xs text-success flex items-center gap-1">
+                    <BadgeCheck className="h-3.5 w-3.5" /> Valid LinkedIn URL
+                  </p>
+                )}
               </div>
             </div>
 
@@ -234,65 +273,75 @@ const JoinForm = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Bank *</Label>
-                  <Select
-                    value={form.bank_name}
-                    onValueChange={(v) => setForm({ ...form, bank_name: v })}
-                  >
+                  <Select value={form.bank_name} onValueChange={handleBankChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select bank" />
                     </SelectTrigger>
                     <SelectContent>
                       {NIGERIAN_BANKS.map((b) => (
-                        <SelectItem key={b.code} value={b.name}>
-                          {b.name}
-                        </SelectItem>
+                        <SelectItem key={b.code} value={b.name}>{b.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
                   <Label>Account number (10 digits) *</Label>
-                  <Input
-                    value={form.account_number}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        account_number: e.target.value.replace(/\D/g, '').slice(0, 10),
-                      })
-                    }
-                    inputMode="numeric"
-                    maxLength={10}
-                    placeholder="0123456789"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.account_number}
+                      onChange={(e) => handleAccountNumberChange(e.target.value)}
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="0123456789"
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={!bankReady || verifying}
+                      onClick={verifyAccount}
+                    >
+                      {verifying ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                    </Button>
+                  </div>
                   {form.account_number.length > 0 && !isValidNuban && (
                     <p className="text-xs text-destructive">Must be exactly 10 digits</p>
                   )}
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label>Account name</Label>
-                  <Input
-                    value={form.account_name}
-                    onChange={(e) =>
-                      setForm({ ...form, account_name: e.target.value })
-                    }
-                    placeholder="Name as it appears on the account"
-                  />
-                </div>
               </div>
+
+              {/* Verification result */}
+              {bankVerified && (
+                <div className="flex items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                  <span className="font-medium text-success">{accountName}</span>
+                  <span className="text-muted-foreground text-xs">— verified account holder</span>
+                </div>
+              )}
+              {verifyError && (
+                <p className="text-xs text-destructive">{verifyError}</p>
+              )}
+              {!bankVerified && bankReady && !verifying && !verifyError && (
+                <p className="text-xs text-muted-foreground">
+                  Click <strong>Verify</strong> to confirm your account details.
+                </p>
+              )}
             </div>
 
-            {/* Program info */}
+            {/* Additional information */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Program info
+                Additional information
               </h3>
               <div className="space-y-1">
-                <Label>Referred by (optional)</Label>
-                <Input
-                  value={form.referred_by}
-                  onChange={(e) => setForm({ ...form, referred_by: e.target.value })}
-                  placeholder="Who referred you to this program?"
+                <Label>Tell us about yourself (optional)</Label>
+                <Textarea
+                  value={form.additional_info}
+                  onChange={(e) => setForm({ ...form, additional_info: e.target.value })}
+                  placeholder="Your experience with LinkedIn outreach, previous campaigns, availability, etc."
+                  rows={4}
                 />
               </div>
             </div>
@@ -300,7 +349,17 @@ const JoinForm = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting || !form.first_name || !form.last_name || !form.email || !isValidNuban || !form.bank_name}
+              disabled={
+                submitting ||
+                !form.first_name.trim() ||
+                !form.last_name.trim() ||
+                !form.email.trim() ||
+                !form.phone.trim() ||
+                !isValidLinkedIn ||
+                !isValidNuban ||
+                !form.bank_name ||
+                !bankVerified
+              }
             >
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -311,11 +370,10 @@ const JoinForm = () => {
             </Button>
 
             <p className="text-xs text-muted-foreground text-center">
-              By submitting, you agree to KD Squares' terms of service and
-              privacy policy.
+              By submitting, you agree to KD Squares' terms of service and privacy policy.
               {refCode && (
                 <span className="block mt-1">
-                  Referred by code: <code className="font-mono">{refCode}</code>
+                  Referred by: <code className="font-mono">{refCode}</code>
                 </span>
               )}
             </p>

@@ -7,13 +7,15 @@
 // Set secret: supabase secrets set PAYSTACK_SECRET_KEY=sk_live_...
 //
 // Auth:
-//   Every call requires a valid Supabase JWT (enforced in-code, not at gateway,
-//   because the same project deploys paystack-webhook which must be public).
+//   resolve_account is open to unauthenticated callers (used by the public
+//   /join form for bank account verification — account name lookup is not
+//   sensitive; the secret key never leaves this function).
+//   All other actions require a valid Supabase JWT.
 //   Dangerous actions (create_recipient, initiate_transfer, verify_transfer)
 //   also require an admin/finance role from the profiles table.
 //
 // Supported actions (passed via JSON body { action, ... }):
-//   resolve_account   — verify a bank account number (any authenticated user)
+//   resolve_account   — verify a bank account number (unauthenticated OK)
 //   create_recipient  — create a transfer recipient (admin/finance only)
 //   initiate_transfer — initiate a transfer (admin/finance only)
 //   verify_transfer   — check transfer status (admin/finance only)
@@ -65,7 +67,29 @@ serve(async (req) => {
     const { action, ...params } = await req.json();
 
     // ---------------------------------------------------------------
-    // Auth: verify Supabase JWT — every call requires a logged-in user.
+    // resolve_account: open to unauthenticated callers (public /join form).
+    // Account-name lookup is not sensitive — secret key stays server-side.
+    // ---------------------------------------------------------------
+    if (action === "resolve_account") {
+      const qs = new URLSearchParams({
+        account_number: params.account_number,
+        bank_code: params.bank_code,
+      });
+      const body = await paystackFetch(`/bank/resolve?${qs}`);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            account_name: body.data?.account_name,
+            account_number: body.data?.account_number,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // All other actions require a logged-in user.
     // ---------------------------------------------------------------
     const authHeader = req.headers.get("Authorization") ?? "";
     const supabase = createClient(
@@ -111,24 +135,11 @@ serve(async (req) => {
     }
 
     // ---------------------------------------------------------------
-    // Dispatch to Paystack.
+    // Dispatch remaining actions to Paystack.
     // ---------------------------------------------------------------
     let result: unknown;
 
     switch (action) {
-      case "resolve_account": {
-        const qs = new URLSearchParams({
-          account_number: params.account_number,
-          bank_code: params.bank_code,
-        });
-        const body = await paystackFetch(`/bank/resolve?${qs}`);
-        result = {
-          account_name: body.data?.account_name,
-          account_number: body.data?.account_number,
-        };
-        break;
-      }
-
       case "create_recipient": {
         const body = await paystackFetch("/transferrecipient", {
           method: "POST",
