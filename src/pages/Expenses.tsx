@@ -177,6 +177,12 @@ const Expenses = () => {
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
       ]);
+      console.log('[KDOps] expenses fetch:', {
+        count: expensesRes.data?.length,
+        error: expensesRes.error?.message,
+        isApprover,
+        userId: profile?.id,
+      });
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
 
@@ -424,7 +430,7 @@ const Expenses = () => {
     }
 
     setSubmitting(true);
-    const { error } = await supabase.from('expenses').insert({
+    const { data: inserted, error } = await supabase.from('expenses').insert({
       submitted_by: profile?.id || '',
       category: form.category,
       budget_category: form.category,
@@ -441,7 +447,8 @@ const Expenses = () => {
             account_name: bankDetails.account_name,
           }
         : {}),
-    });
+    }).select();
+    console.log('[KDOps] expense insert:', { inserted, error, userId: profile?.id });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
