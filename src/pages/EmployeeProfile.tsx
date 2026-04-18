@@ -16,6 +16,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
+import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ import { cn } from '@/lib/utils';
 interface EmployeeData {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
   phone: string | null;
   role: string;
@@ -45,12 +48,8 @@ interface EmployeeData {
   pension_pin: string | null;
   annual_leave_days: number;
   department_id: string | null;
+  permissions: Record<string, boolean> | null;
 }
-
-const initialsOf = (name: string) => {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase() || 'U';
-};
 
 const EmployeeProfile = () => {
   const { id } = useParams<{ id: string }>();
@@ -82,7 +81,6 @@ const EmployeeProfile = () => {
     setEmployee(emp);
     setForm(emp);
 
-    // Load related data.
     const [expRes, payRes] = await Promise.all([
       supabase
         .from('expenses')
@@ -108,10 +106,13 @@ const EmployeeProfile = () => {
   const save = async () => {
     if (!id || !form) return;
     setSaving(true);
+    const fullName = displayName(form.first_name, form.last_name, form.full_name);
     const { error } = await supabase
       .from('profiles')
       .update({
-        full_name: form.full_name,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        full_name: fullName,
         phone: form.phone,
         job_title: form.job_title,
         salary_ngn: form.salary_ngn,
@@ -128,7 +129,7 @@ const EmployeeProfile = () => {
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
     } else {
-      await logAudit('employee_edited', `Employee profile "${form.full_name}" updated`, currentUser);
+      await logAudit('employee_edited', `Employee profile "${fullName}" updated`, currentUser);
       toast({ title: 'Employee profile saved' });
       load();
     }
@@ -144,6 +145,7 @@ const EmployeeProfile = () => {
   }
 
   const patch = (p: Partial<EmployeeData>) => setForm((prev) => ({ ...prev, ...p }));
+  const empName = displayName(employee.first_name, employee.last_name, employee.full_name);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -152,7 +154,7 @@ const EmployeeProfile = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{employee.full_name}</h1>
+          <h1 className="text-2xl font-bold">{empName}</h1>
           <p className="text-muted-foreground text-sm">
             {employee.job_title || roleLabel(employee.role)} · {employee.email}
           </p>
@@ -174,7 +176,7 @@ const EmployeeProfile = () => {
           <div className="flex items-start gap-5 flex-wrap">
             <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center shrink-0 ring-4 ring-primary/10">
               <span className="text-2xl font-bold text-primary-foreground">
-                {initialsOf(employee.full_name)}
+                {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
               </span>
             </div>
             <div className="flex-1 min-w-0 space-y-1">
@@ -212,8 +214,12 @@ const EmployeeProfile = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Full name</Label>
-                  <Input value={form.full_name || ''} onChange={(e) => patch({ full_name: e.target.value })} />
+                  <Label>First name</Label>
+                  <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Last name</Label>
+                  <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
                   <Label>Phone</Label>

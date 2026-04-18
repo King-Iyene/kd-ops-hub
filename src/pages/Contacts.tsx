@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate } from '@/lib/format';
+import { displayName } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +57,8 @@ type ContactStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
 interface Contact {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone: string | null;
   contact_type: ContactType;
@@ -95,7 +98,8 @@ const Contacts = () => {
   const [editing, setEditing] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     contact_type: 'lead' as ContactType,
@@ -124,7 +128,8 @@ const Contacts = () => {
   const reset = () => {
     setEditing(null);
     setForm({
-      full_name: '',
+      first_name: '',
+      last_name: '',
       email: '',
       phone: '',
       contact_type: 'lead',
@@ -137,7 +142,8 @@ const Contacts = () => {
   const openEdit = (c: Contact) => {
     setEditing(c);
     setForm({
-      full_name: c.full_name,
+      first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
+      last_name: c.last_name || (c.full_name || '').split(' ').slice(1).join(' ') || '',
       email: c.email || '',
       phone: c.phone || '',
       contact_type: c.contact_type,
@@ -149,8 +155,8 @@ const Contacts = () => {
   };
 
   const save = async () => {
-    if (!form.full_name.trim()) {
-      toast({ title: 'Name is required', variant: 'destructive' });
+    if (!form.first_name.trim()) {
+      toast({ title: 'First name is required', variant: 'destructive' });
       return;
     }
     // Duplicate check by email (skip if editing same contact or no email).
@@ -173,7 +179,9 @@ const Contacts = () => {
     setSaving(true);
     try {
       const payload = {
-        full_name: form.full_name.trim(),
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        full_name: `${form.first_name.trim()} ${form.last_name.trim()}`.trim(),
         email: form.email || null,
         phone: form.phone || null,
         contact_type: form.contact_type,
@@ -229,12 +237,15 @@ const Contacts = () => {
   };
 
   const convertToContractor = async (c: Contact) => {
-    if (!c.full_name) return;
+    const cName = displayName(c.first_name, c.last_name, c.full_name);
+    if (!cName || cName === '—') return;
     try {
       const { data, error } = await supabase
         .from('contractors')
         .insert({
-          full_name: c.full_name,
+          full_name: cName,
+          first_name: c.first_name,
+          last_name: c.last_name,
           bank_name: '',
           account_number: '',
           default_amount_ngn: 0,
@@ -252,10 +263,10 @@ const Contacts = () => {
         .eq('id', c.id);
       await logAudit(
         'contractor_added',
-        `Contact "${c.full_name}" converted to contractor`,
+        `Contact "${cName}" converted to contractor`,
         profile,
       );
-      toast({ title: `${c.full_name} converted to contractor` });
+      toast({ title: `${cName} converted to contractor` });
       load();
     } catch (err: any) {
       toast({ title: 'Conversion failed', description: err?.message, variant: 'destructive' });
@@ -265,7 +276,7 @@ const Contacts = () => {
   const exportCsv = () => {
     const header = ['name', 'email', 'phone', 'type', 'source', 'status', 'tags', 'created_at'];
     const rows = contacts.map((c) => [
-      c.full_name,
+      displayName(c.first_name, c.last_name, c.full_name),
       c.email || '',
       c.phone || '',
       c.contact_type,
@@ -283,7 +294,7 @@ const Contacts = () => {
       if (typeFilter !== 'all' && c.contact_type !== typeFilter) return false;
       if (!q) return true;
       return (
-        c.full_name.toLowerCase().includes(q) ||
+        displayName(c.first_name, c.last_name, c.full_name).toLowerCase().includes(q) ||
         (c.email || '').toLowerCase().includes(q) ||
         (c.phone || '').toLowerCase().includes(q) ||
         (c.tags || []).join(' ').toLowerCase().includes(q)
@@ -378,7 +389,7 @@ const Contacts = () => {
                 <TableBody>
                   {pagination.slice.map((c) => (
                     <TableRow key={c.id} className="kd-transition">
-                      <TableCell className="font-medium">{c.full_name}</TableCell>
+                      <TableCell className="font-medium">{displayName(c.first_name, c.last_name, c.full_name)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {c.email || '—'}
                       </TableCell>
@@ -458,10 +469,17 @@ const Contacts = () => {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1 col-span-2 sm:col-span-1">
-                <Label>Full name *</Label>
+                <Label>First name *</Label>
                 <Input
-                  value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  value={form.first_name}
+                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <Label>Last name</Label>
+                <Input
+                  value={form.last_name}
+                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
                 />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">
@@ -525,7 +543,7 @@ const Contacts = () => {
       <Dialog open={!!noteDialog} onOpenChange={(v) => { if (!v) { setNoteDialog(null); setNoteText(''); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add note — {noteDialog?.full_name}</DialogTitle>
+            <DialogTitle>Add note — {displayName(noteDialog?.first_name, noteDialog?.last_name, noteDialog?.full_name)}</DialogTitle>
           </DialogHeader>
           {noteDialog?.notes && (
             <div className="rounded-md border bg-muted/20 p-3 text-xs whitespace-pre-wrap max-h-40 overflow-auto">

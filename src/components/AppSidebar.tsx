@@ -23,6 +23,7 @@ import {
   Target,
   Gift,
   Contact2,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import type { Role } from '@/lib/roles';
@@ -63,6 +64,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals' },
   { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Transactions',  url: '/transactions',  icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
