@@ -1,0 +1,365 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  CalendarDays,
+  Save,
+  Loader2,
+  Building2,
+  User as UserIcon,
+  Briefcase,
+} from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
+import { logAudit } from '@/lib/audit';
+import { roleBadgeClass, roleLabel } from '@/lib/roles';
+import { formatDate, formatNaira } from '@/lib/format';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+interface EmployeeData {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  status: string;
+  job_title: string | null;
+  salary_ngn: number;
+  created_at: string;
+  next_of_kin_name: string | null;
+  next_of_kin_phone: string | null;
+  next_of_kin_relationship: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  pension_pin: string | null;
+  annual_leave_days: number;
+  department_id: string | null;
+}
+
+const initialsOf = (name: string) => {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase() || 'U';
+};
+
+const EmployeeProfile = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { profile: currentUser } = useAuthStore();
+
+  const [employee, setEmployee] = useState<EmployeeData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Partial<EmployeeData>>({});
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [payslips, setPayslips] = useState<any[]>([]);
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error || !data) {
+      toast({ title: 'Employee not found', variant: 'destructive' });
+      navigate('/employees');
+      return;
+    }
+    const emp = data as EmployeeData;
+    setEmployee(emp);
+    setForm(emp);
+
+    // Load related data.
+    const [expRes, payRes] = await Promise.all([
+      supabase
+        .from('expenses')
+        .select('*')
+        .eq('submitted_by', id)
+        .order('created_at', { ascending: false })
+        .limit(20),
+      supabase
+        .from('payslips')
+        .select('*')
+        .eq('employee_id', id)
+        .order('period', { ascending: false }),
+    ]);
+    setExpenses(expRes.data || []);
+    setPayslips(payRes.data || []);
+    setLoading(false);
+  }, [id, navigate, toast]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const save = async () => {
+    if (!id || !form) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: form.full_name,
+        phone: form.phone,
+        job_title: form.job_title,
+        salary_ngn: form.salary_ngn,
+        next_of_kin_name: form.next_of_kin_name,
+        next_of_kin_phone: form.next_of_kin_phone,
+        next_of_kin_relationship: form.next_of_kin_relationship,
+        bank_name: form.bank_name,
+        bank_account_number: form.bank_account_number,
+        bank_account_name: form.bank_account_name,
+        pension_pin: form.pension_pin,
+        annual_leave_days: form.annual_leave_days,
+      })
+      .eq('id', id);
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('employee_edited', `Employee profile "${form.full_name}" updated`, currentUser);
+      toast({ title: 'Employee profile saved' });
+      load();
+    }
+    setSaving(false);
+  };
+
+  if (loading || !employee) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const patch = (p: Partial<EmployeeData>) => setForm((prev) => ({ ...prev, ...p }));
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/employees')}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">{employee.full_name}</h1>
+          <p className="text-muted-foreground text-sm">
+            {employee.job_title || roleLabel(employee.role)} · {employee.email}
+          </p>
+        </div>
+        <Badge variant="outline" className={cn('font-medium', roleBadgeClass(employee.role))}>
+          {roleLabel(employee.role)}
+        </Badge>
+        <Badge
+          variant="secondary"
+          className={employee.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}
+        >
+          {employee.status}
+        </Badge>
+      </div>
+
+      {/* Hero card */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-5 flex-wrap">
+            <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center shrink-0 ring-4 ring-primary/10">
+              <span className="text-2xl font-bold text-primary-foreground">
+                {initialsOf(employee.full_name)}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="text-sm flex items-center gap-2 text-muted-foreground">
+                <Mail className="h-3.5 w-3.5" /> {employee.email}
+              </p>
+              {employee.phone && (
+                <p className="text-sm flex items-center gap-2 text-muted-foreground">
+                  <Phone className="h-3.5 w-3.5" /> {employee.phone}
+                </p>
+              )}
+              <p className="text-sm flex items-center gap-2 text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" /> Joined {formatDate(employee.created_at)}
+              </p>
+              {employee.job_title && (
+                <p className="text-sm flex items-center gap-2 text-muted-foreground">
+                  <Briefcase className="h-3.5 w-3.5" /> {employee.job_title}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="payroll">Payroll</TabsTrigger>
+          <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Personal details</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Full name</Label>
+                  <Input value={form.full_name || ''} onChange={(e) => patch({ full_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Phone</Label>
+                  <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Job title</Label>
+                  <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} placeholder="e.g. Head of Operations" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Annual leave days</Label>
+                  <Input type="number" value={form.annual_leave_days || 20} onChange={(e) => patch({ annual_leave_days: Number(e.target.value) || 20 })} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Next of kin</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Name</Label>
+                  <Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Phone</Label>
+                  <Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Relationship</Label>
+                  <Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} placeholder="e.g. Spouse, Parent" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Bank details</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Bank</Label>
+                  <Input value={form.bank_name || ''} onChange={(e) => patch({ bank_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Account number</Label>
+                  <Input value={form.bank_account_number || ''} onChange={(e) => patch({ bank_account_number: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Account name</Label>
+                  <Input value={form.bank_account_name || ''} onChange={(e) => patch({ bank_account_name: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Pension PIN</Label>
+                <Input value={form.pension_pin || ''} onChange={(e) => patch({ pension_pin: e.target.value })} />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button onClick={save} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save changes
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payroll" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Salary</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <Label>Monthly gross salary (₦)</Label>
+                <Input
+                  type="number"
+                  value={form.salary_ngn || 0}
+                  onChange={(e) => patch({ salary_ngn: Number(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for payroll calculations. PAYE: 7.5%, Pension: 8%, NHF: 2.5%.
+                </p>
+              </div>
+              <Button onClick={save} disabled={saving} size="sm">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save salary
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Payslips</CardTitle></CardHeader>
+            <CardContent>
+              {payslips.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No payslips generated yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {payslips.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between border rounded-lg p-3">
+                      <div>
+                        <p className="font-medium">{p.period}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Gross {formatNaira(p.gross_ngn)} · Net {formatNaira(p.net_ngn)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="expenses" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Recent expenses</CardTitle></CardHeader>
+            <CardContent>
+              {expenses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No expenses submitted.</p>
+              ) : (
+                <div className="space-y-2">
+                  {expenses.map((e: any) => (
+                    <div key={e.id} className="flex items-center justify-between border rounded-lg p-3">
+                      <div>
+                        <p className="font-medium capitalize">{e.category?.replace(/_/g, ' ')}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(e.date)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium currency">{formatNaira(e.amount_ngn)}</p>
+                        <Badge variant="secondary" className={
+                          e.status === 'approved' ? 'bg-success/10 text-success' :
+                          e.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
+                          'bg-warning/10 text-warning'
+                        }>{e.status}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default EmployeeProfile;

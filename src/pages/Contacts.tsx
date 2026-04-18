@@ -153,6 +153,23 @@ const Contacts = () => {
       toast({ title: 'Name is required', variant: 'destructive' });
       return;
     }
+    // Duplicate check by email (skip if editing same contact or no email).
+    if (form.email && (!editing || editing.email !== form.email)) {
+      const { data: existing } = await supabase
+        .from('contacts')
+        .select('id')
+        .eq('email', form.email.trim().toLowerCase())
+        .maybeSingle();
+      if (existing) {
+        toast({
+          title: 'A contact with this email already exists',
+          description: 'Check the contact list or use a different email.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const payload = {
