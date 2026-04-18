@@ -1327,3 +1327,197 @@ function TagsManager() {
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Global Tags CRUD
+// ---------------------------------------------------------------------------
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  module: string;
+  created_at: string;
+}
+
+const TAG_MODULES = ['all', 'contacts', 'contractors', 'employees', 'tasks', 'documents'] as const;
+const TAG_COLORS = [
+  '#6b7280', '#ef4444', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#D6AC50',
+] as const;
+
+function TagsManager() {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Tag | null>(null);
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#6b7280');
+  const [module, setModule] = useState<string>('all');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('global_tags')
+      .select('*')
+      .order('name');
+    setTags((data as Tag[]) || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const reset = () => { setEditing(null); setName(''); setColor('#6b7280'); setModule('all'); };
+
+  const openAdd = () => { reset(); setShowForm(true); };
+  const openEdit = (t: Tag) => {
+    setEditing(t);
+    setName(t.name);
+    setColor(t.color);
+    setModule(t.module);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Tag name is required', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    const payload = { name: name.trim(), color, module };
+    try {
+      if (editing) {
+        const { error } = await supabase.from('global_tags').update(payload).eq('id', editing.id);
+        if (error) throw error;
+        await logAudit('company_settings_saved', `Tag "${payload.name}" updated`, profile);
+        toast({ title: 'Tag updated' });
+      } else {
+        const { error } = await supabase.from('global_tags').insert(payload);
+        if (error) throw error;
+        await logAudit('company_settings_saved', `Tag "${payload.name}" created`, profile);
+        toast({ title: 'Tag created' });
+      }
+      setShowForm(false);
+      reset();
+      load();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (t: Tag) => {
+    const { error } = await supabase.from('global_tags').delete().eq('id', t.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('company_settings_saved', `Tag "${t.name}" deleted`, profile);
+      toast({ title: 'Tag deleted' });
+      load();
+    }
+  };
+
+  if (loading) {
+    return <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>;
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Global Tags</CardTitle>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> Add tag
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {tags.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No tags yet. Tags can be used across Contacts, Contractors, Tasks, and Documents.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {tags.map((t) => (
+                <div
+                  key={t.id}
+                  className="group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/50 kd-transition"
+                  onClick={() => openEdit(t)}
+                >
+                  <span
+                    className="h-3 w-3 rounded-full shrink-0"
+                    style={{ backgroundColor: t.color }}
+                  />
+                  <span className="font-medium">{t.name}</span>
+                  {t.module !== 'all' && (
+                    <span className="text-[10px] text-muted-foreground capitalize">({t.module})</span>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(t); }}
+                    className="opacity-0 group-hover:opacity-100 kd-transition ml-1"
+                  >
+                    <Trash2 className="h-3 w-3 text-destructive" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showForm} onOpenChange={(v) => { if (!v) { setShowForm(false); reset(); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Add'} tag</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. VIP, Priority, Lagos" />
+            </div>
+            <div className="space-y-1">
+              <Label>Color</Label>
+              <div className="flex gap-2 flex-wrap">
+                {TAG_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`h-7 w-7 rounded-full border-2 kd-transition ${color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setColor(c)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Module</Label>
+              <Select value={module} onValueChange={setModule}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TAG_MODULES.map((m) => (
+                    <SelectItem key={m} value={m} className="capitalize">
+                      {m === 'all' ? 'All modules' : m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Restrict this tag to a specific module or make it available everywhere.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={submitting || !name.trim()}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
