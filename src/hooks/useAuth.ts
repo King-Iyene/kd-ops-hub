@@ -3,16 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
-/**
- * Auth bootstrap.
- *
- * This version guarantees:
- *   • One login → one redirect. We wait for the profile row to be fetched
- *     before flipping `loading: false` and triggering navigation, so the UI
- *     never flashes twice between login and dashboard.
- *   • Deactivated accounts are signed out server-side before any UI renders.
- *   • Sign-out clears state and routes the user to /login exactly once.
- */
 export const useAuth = () => {
   const { user, profile, loading, setUser, setLoading, fetchProfile } =
     useAuthStore();
@@ -25,47 +15,16 @@ export const useAuth = () => {
 
     const finish = async (userId: string, redirectIfLogin: boolean) => {
       await fetchProfile(userId);
-      let fetched = useAuthStore.getState().profile;
+      const fetched = useAuthStore.getState().profile;
 
-      // Fix 2 — organic signup without invite: profile row may not exist yet
-      // (the auth trigger only creates one if pending_invites has a match).
-      // Auto-create a field_staff profile so the user never sees Unauthorized.
-      if (!fetched) {
-        const user = useAuthStore.getState().user;
-        const email = user?.email || '';
-        const fullName =
-          user?.user_metadata?.full_name ||
-          user?.user_metadata?.name ||
-          '';
-        const { error: insertErr } = await supabase.from('profiles').upsert(
-          {
-            id: userId,
-            email,
-            full_name: fullName,
-            role: 'field_staff',
-            status: 'active',
-          },
-          { onConflict: 'id' },
-        );
-        if (!insertErr) {
-          await fetchProfile(userId);
-          fetched = useAuthStore.getState().profile;
-        }
-      }
-
-      if (fetched && fetched.status === 'inactive') {
-        await supabase.auth.signOut();
-        useAuthStore.getState().setUser(null);
-        useAuthStore.getState().setProfile(null);
+      if (!fetched || fetched.status !== 'active') {
         setLoading(false);
-        if (window.location.pathname !== '/login') {
-          navigate('/login', {
-            replace: true,
-            state: { inactive: true },
-          });
+        if (window.location.pathname !== '/unauthorized') {
+          navigate('/unauthorized', { replace: true });
         }
         return;
       }
+
       setLoading(false);
       if (redirectIfLogin && window.location.pathname === '/login') {
         navigate('/dashboard', { replace: true });

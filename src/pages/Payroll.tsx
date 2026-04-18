@@ -30,6 +30,7 @@ import {
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { renderPayslipHtml } from '@/lib/payslip';
+import { calculatePAYE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,11 +72,7 @@ interface PayrollRun {
   approved_by: string | null;
 }
 
-// PAYE / Pension / NHF simplified percentages applied to the employee cost
-// base for the "one-click draft" — the Finance team can override before
-// submitting for approval.
-const PAYE_RATE = 0.08;     // 8% placeholder — to be replaced with PIT tables
-const PENSION_RATE = 0.08;  // 8% employee, 10% employer (employer side not here)
+const PENSION_RATE = 0.08;  // 8% employee contribution (employer side not here)
 const NHF_RATE = 0.025;     // 2.5%
 
 const monthLabel = (period: string) => {
@@ -165,7 +162,7 @@ const Payroll = () => {
       // use the contractor total as a proxy for "people costs" and
       // derive statutory deductions from that.
       const totalEmployee = 0;
-      const paye = (totalContractor + totalEmployee) * PAYE_RATE;
+      const paye = calculatePAYE(totalContractor + totalEmployee);
       const pension = (totalContractor + totalEmployee) * PENSION_RATE;
       const nhf = (totalContractor + totalEmployee) * NHF_RATE;
       const burn = totalContractor + totalEmployee + totalExpenses + paye + pension + nhf;
@@ -291,7 +288,7 @@ const Payroll = () => {
     for (const e of list as any[]) {
       try {
         const empGross = Number(e.salary_ngn) > 0 ? Number(e.salary_ngn) : fallbackGross;
-        const empPaye = empGross * 0.075;
+        const empPaye = calculatePAYE(empGross);
         const empPension = empGross * 0.08;
         const empNhf = empGross * 0.025;
         const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);

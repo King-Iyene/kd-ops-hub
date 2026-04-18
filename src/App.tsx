@@ -75,6 +75,16 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
+      {/* Unauthorized — auth-checked but no app chrome (pending users). */}
+      <Route
+        path="/unauthorized"
+        element={
+          <AuthGuard>
+            <Unauthorized />
+          </AuthGuard>
+        }
+      />
+
       <Route
         element={
           <AuthGuard>
@@ -368,7 +378,6 @@ function AppRoutes() {
           }
         />
 
-        <Route path="/unauthorized" element={<Unauthorized />} />
       </Route>
 
       <Route path="*" element={<NotFound />} />
