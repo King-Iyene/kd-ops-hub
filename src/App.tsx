@@ -14,6 +14,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import Approvals from './pages/Approvals';
 import Payments from './pages/Payments';
+import Transactions from './pages/Transactions';
 import NewPaymentBatch from './pages/NewPaymentBatch';
 import BatchDetail from './pages/BatchDetail';
 import Subscriptions from './pages/Subscriptions';
@@ -120,6 +121,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <BatchDetail />
+            </RoleGuard>
+          }
+        />
+
+        {/* Transactions — Finance + Admin + Super Admin. */}
+        <Route
+          path="/transactions"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Transactions />
             </RoleGuard>
           }
         />
