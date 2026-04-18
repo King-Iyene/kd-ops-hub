@@ -114,8 +114,23 @@ const BatchDetail = () => {
       supabase.from('payment_batches').select('*').eq('id', id).single(),
       supabase.from('batch_items').select('*').eq('batch_id', id).order('created_at'),
     ]);
-    setBatch(batchRes.data);
-    setItems(itemsRes.data || []);
+    const b = batchRes.data;
+    const allItems = itemsRes.data || [];
+
+    // Sync parent status if items have settled but batch hasn't caught up
+    // (e.g. webhook updated items but batch status is stale).
+    if (b && (b.status === 'processing' || b.status === 'partially_processed') && allItems.length > 0) {
+      const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
+      const anyFailed = allItems.some((r: any) => r.status === 'failed');
+      const correctStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+      if (correctStatus !== b.status) {
+        await supabase.from('payment_batches').update({ status: correctStatus }).eq('id', id);
+        b.status = correctStatus;
+      }
+    }
+
+    setBatch(b);
+    setItems(allItems);
     setLoading(false);
   };
 
@@ -374,7 +389,23 @@ const BatchDetail = () => {
           // Transient Paystack error — keep polling.
         }
       }
-      if (changed) fetchBatch();
+      if (changed) {
+        // Recalculate parent batch status from all items.
+        const { data: allItems } = await supabase
+          .from('batch_items')
+          .select('status')
+          .eq('batch_id', id);
+        if (allItems) {
+          const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
+          const anyFailed = allItems.some((r: any) => r.status === 'failed');
+          const newStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+          await supabase
+            .from('payment_batches')
+            .update({ status: newStatus })
+            .eq('id', id);
+        }
+        fetchBatch();
+      }
     };
 
     tick();
@@ -410,26 +441,22 @@ const BatchDetail = () => {
         `Beneficiary "${item.full_name}" retry ${result.ok ? 'initiated' : `failed: ${result.reason}`}`,
         profile,
       );
-      // If everything is now succeeded, flip the batch to processed.
+      // Recalculate parent batch status from all items.
       const refreshed = await supabase
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed.data || []).some(
-        (r) => (r as any).status === 'failed',
-      );
-      const allOk = (refreshed.data || []).every(
-        (r) => (r as any).status === 'succeeded',
-      );
-      if (allOk) {
+      if (refreshed.data) {
+        const anyPending = refreshed.data.some(
+          (r: any) => r.status === 'pending' || r.status === 'retry',
+        );
+        const anyFailed = refreshed.data.some(
+          (r: any) => r.status === 'failed',
+        );
+        const newStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
         await supabase
           .from('payment_batches')
-          .update({ status: 'processed' })
-          .eq('id', id);
-      } else if (!anyFailed) {
-        await supabase
-          .from('payment_batches')
-          .update({ status: 'processing' })
+          .update({ status: newStatus })
           .eq('id', id);
       }
       toast({

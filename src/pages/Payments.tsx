@@ -74,7 +74,29 @@ const Payments = () => {
 
     const { data, error } = await query;
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    setBatches((data as PaymentBatch[]) || []);
+    const fetched = (data as PaymentBatch[]) || [];
+
+    // Sync stale batch statuses: if a batch is processing/partially_processed
+    // but all its items have settled, update the parent status.
+    const stale = fetched.filter(
+      (b) => b.status === 'processing' || b.status === 'partially_processed',
+    );
+    for (const b of stale) {
+      const { data: items } = await supabase
+        .from('batch_items')
+        .select('status')
+        .eq('batch_id', b.id);
+      if (!items || items.length === 0) continue;
+      const anyPending = items.some((r: any) => r.status === 'pending' || r.status === 'retry');
+      const anyFailed = items.some((r: any) => r.status === 'failed');
+      const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+      if (correct !== b.status) {
+        await supabase.from('payment_batches').update({ status: correct }).eq('id', b.id);
+        b.status = correct;
+      }
+    }
+
+    setBatches(fetched);
     setLoading(false);
   };
 

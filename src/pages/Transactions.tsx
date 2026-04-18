@@ -190,12 +190,12 @@ const Transactions = () => {
         category: 'contractor_payment',
         amount_ngn: bi.amount_ngn || 0,
         status:
-          bi.transfer_status === 'success'
+          bi.status === 'succeeded'
             ? 'processed'
-            : bi.transfer_status === 'failed'
+            : bi.status === 'failed'
             ? 'failed'
-            : bi.transfer_status === 'reversed'
-            ? 'reversed'
+            : bi.status === 'retry'
+            ? 'processing'
             : 'pending',
         reference: bi.paystack_reference || bi.reference || bi.id,
         created_by: null,
