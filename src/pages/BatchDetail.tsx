@@ -117,8 +117,6 @@ const BatchDetail = () => {
     const b = batchRes.data;
     const allItems = itemsRes.data || [];
 
-    // Sync parent status if items have settled but batch hasn't caught up
-    // (e.g. webhook updated items but batch status is stale).
     if (b && (b.status === 'processing' || b.status === 'partially_processed') && allItems.length > 0) {
       const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
       const anyFailed = allItems.some((r: any) => r.status === 'failed');
@@ -389,23 +387,7 @@ const BatchDetail = () => {
           // Transient Paystack error — keep polling.
         }
       }
-      if (changed) {
-        // Recalculate parent batch status from all items.
-        const { data: allItems } = await supabase
-          .from('batch_items')
-          .select('status')
-          .eq('batch_id', id);
-        if (allItems) {
-          const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
-          const anyFailed = allItems.some((r: any) => r.status === 'failed');
-          const newStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
-          await supabase
-            .from('payment_batches')
-            .update({ status: newStatus })
-            .eq('id', id);
-        }
-        fetchBatch();
-      }
+      if (changed) fetchBatch();
     };
 
     tick();
@@ -441,22 +423,26 @@ const BatchDetail = () => {
         `Beneficiary "${item.full_name}" retry ${result.ok ? 'initiated' : `failed: ${result.reason}`}`,
         profile,
       );
-      // Recalculate parent batch status from all items.
+      // If everything is now succeeded, flip the batch to processed.
       const refreshed = await supabase
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      if (refreshed.data) {
-        const anyPending = refreshed.data.some(
-          (r: any) => r.status === 'pending' || r.status === 'retry',
-        );
-        const anyFailed = refreshed.data.some(
-          (r: any) => r.status === 'failed',
-        );
-        const newStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+      const anyFailed = (refreshed.data || []).some(
+        (r) => (r as any).status === 'failed',
+      );
+      const allOk = (refreshed.data || []).every(
+        (r) => (r as any).status === 'succeeded',
+      );
+      if (allOk) {
         await supabase
           .from('payment_batches')
-          .update({ status: newStatus })
+          .update({ status: 'processed' })
+          .eq('id', id);
+      } else if (!anyFailed) {
+        await supabase
+          .from('payment_batches')
+          .update({ status: 'processing' })
           .eq('id', id);
       }
       toast({
@@ -784,6 +770,11 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" /> Retry all failed (
               {failedItems.length})
+            </Button>
+          )}
+          {(batch.status === 'processing' || batch.status === 'partially_processed') && (
+            <Button variant="outline" onClick={fetchBatch} disabled={loading}>
+              <RotateCw className="mr-2 h-4 w-4" /> Refresh Status
             </Button>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (

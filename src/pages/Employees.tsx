@@ -179,7 +179,8 @@ const Employees = () => {
   //
   // No service-role key, no self-registration.
   const inviteEmployee = async () => {
-    if (!`${form.first_name} ${form.last_name}`.trim() || !form.email.trim()) {
+    const fullName = `${form.first_name} ${form.last_name}`.trim();
+    if (!fullName || !form.email.trim()) {
       toast({ title: 'Name and email are required', variant: 'destructive' });
       return;
     }
@@ -193,7 +194,7 @@ const Employees = () => {
       const { error: inviteErr } = await supabase.from('pending_invites').upsert(
         {
           email: form.email.trim().toLowerCase(),
-          full_name: `${form.first_name} ${form.last_name}`.trim(),
+          full_name: fullName,
           role: form.role,
           phone: form.phone || null,
           invited_by: profile?.id || null,
@@ -206,7 +207,7 @@ const Employees = () => {
       // status='invited' before accepting.
       await supabase.rpc('seed_invited_profile', {
         p_email: form.email.trim().toLowerCase(),
-        p_full_name: `${form.first_name} ${form.last_name}`.trim(),
+        p_full_name: fullName,
         p_phone: form.phone || null,
         p_role: form.role,
       });
@@ -220,7 +221,7 @@ const Employees = () => {
           shouldCreateUser: true,
           emailRedirectTo: redirect,
           data: {
-            full_name: `${form.first_name} ${form.last_name}`.trim(),
+            full_name: fullName,
           },
         },
       });
@@ -242,7 +243,7 @@ const Employees = () => {
 
       await logAudit(
         'employee_added',
-        `Invited ${form.first_name} ${form.last_name} (${form.email}) as ${roleLabel(form.role)}`,
+        `Invited ${fullName} (${form.email}) as ${roleLabel(form.role)}`,
         profile,
       );
       setShowForm(false);
@@ -287,7 +288,8 @@ const Employees = () => {
 
   const saveEdit = async () => {
     if (!editing) return;
-    if (!`${form.first_name} ${form.last_name}`.trim()) return;
+    const editFullName = `${form.first_name} ${form.last_name}`.trim();
+    if (!editFullName) return;
     setSubmitting(true);
     try {
       const roleChanged = form.role !== editing.role;
@@ -296,7 +298,7 @@ const Employees = () => {
         .update({
           first_name: form.first_name,
           last_name: form.last_name,
-          full_name: `${form.first_name} ${form.last_name}`.trim(),
+          full_name: editFullName,
           phone: form.phone || null,
           role: form.role,
         })
@@ -311,7 +313,7 @@ const Employees = () => {
       } else {
         await logAudit(
           'employee_edited',
-          `Employee "${form.first_name} ${form.last_name}" updated`,
+          `Employee "${editFullName}" updated`,
           profile,
         );
       }
@@ -678,7 +680,7 @@ const Employees = () => {
             {editing ? (
               <Button
                 onClick={saveEdit}
-                disabled={submitting || !`${form.first_name} ${form.last_name}`.trim()}
+                disabled={submitting || !form.first_name.trim()}
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save changes
@@ -688,7 +690,7 @@ const Employees = () => {
                 onClick={inviteEmployee}
                 disabled={
                   submitting ||
-                  !`${form.first_name} ${form.last_name}`.trim() ||
+                  !form.first_name.trim() ||
                   !form.email.trim() ||
                   !isSuperAdmin
                 }

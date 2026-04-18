@@ -7,9 +7,6 @@ export const displayName = (first?: string | null, last?: string | null, fallbac
   return fallback || '—';
 };
 
-export const sortName = (first?: string | null, last?: string | null): string =>
-  `${(last || '').trim()} ${(first || '').trim()}`.trim().toLowerCase();
-
 export const initialsOf = (first?: string | null, last?: string | null, fallback?: string | null): string => {
   const f = (first || '').trim();
   const l = (last || '').trim();
