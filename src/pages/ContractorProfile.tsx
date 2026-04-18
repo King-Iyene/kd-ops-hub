@@ -12,11 +12,13 @@ import {
   Landmark,
   CheckCircle2,
   XCircle,
+  FileText,
+  Shield,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatNaira } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +67,8 @@ const ContractorProfile = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<ContractorData>>({});
   const [payments, setPayments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -83,13 +87,22 @@ const ContractorProfile = () => {
     setContractor(c);
     setForm(c);
 
-    const { data: payData } = await supabase
-      .from('batch_items')
-      .select('*, payment_batches!inner(description, status, created_at)')
-      .eq('contractor_id', id)
-      .order('created_at', { ascending: false })
-      .limit(30);
-    setPayments(payData || []);
+    const [payRes, docRes, auditRes] = await Promise.all([
+      supabase
+        .from('batch_items')
+        .select('*, payment_batches!inner(description, status, created_at)')
+        .eq('contractor_id', id)
+        .order('created_at', { ascending: false })
+        .limit(30),
+      supabase.from('documents').select('*').eq('entity_id', id)
+        .order('created_at', { ascending: false }).limit(30),
+      supabase.from('audit_logs').select('*')
+        .or(`actor_id.eq.${id},description.ilike.%${id.slice(0, 8)}%`)
+        .order('created_at', { ascending: false }).limit(50),
+    ]);
+    setPayments(payRes.data || []);
+    setDocuments(docRes.data || []);
+    setAuditLogs(auditRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -191,6 +204,8 @@ const ContractorProfile = () => {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
           <TabsTrigger value="onboarding">Onboarding ({doneCnt}/{checks.length})</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -318,6 +333,68 @@ const ContractorProfile = () => {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Documents</CardTitle></CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((d: any) => (
+                    <div key={d.id} className="flex items-center justify-between border rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="font-medium">{d.name || d.file_name || 'Untitled'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {d.document_type?.replace(/_/g, ' ') || 'Document'} · {formatDate(d.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      {d.file_url && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={d.file_url} target="_blank" rel="noopener noreferrer">View</a>
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Activity log</CardTitle></CardHeader>
+            <CardContent>
+              {auditLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No activity recorded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {auditLogs.map((log: any) => (
+                    <div key={log.id} className="flex items-start gap-3 border rounded-lg p-3">
+                      <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">{log.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDateTime(log.created_at)}
+                          {log.action_type && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">
+                              {log.action_type.replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

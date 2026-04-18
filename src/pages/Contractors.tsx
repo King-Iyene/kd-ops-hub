@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -541,7 +542,7 @@ const Contractors = () => {
         </TabsContent>
 
         <TabsContent value="applications" className="mt-4">
-          <ApplicationsTab />
+          <ContractorApplications />
         </TabsContent>
       </Tabs>
 
@@ -759,7 +760,7 @@ const Contractors = () => {
 export default Contractors;
 
 // ---------------------------------------------------------------------------
-// Pending applications count badge
+// Pending applications count badge (shown in the tab trigger)
 // ---------------------------------------------------------------------------
 
 function ApplicationsBadge() {
@@ -768,7 +769,7 @@ function ApplicationsBadge() {
     supabase
       .from('contractor_applications')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'pending_review')
+      .in('status', ['pending', 'pending_review'])
       .then(({ count: c }) => setCount(c || 0));
   }, []);
   if (count === 0) return null;
@@ -776,180 +777,5 @@ function ApplicationsBadge() {
     <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-[10px] font-semibold">
       {count}
     </Badge>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Applications tab — shows contractor_applications from /join form
-// ---------------------------------------------------------------------------
-
-interface Application {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string | null;
-  linkedin_full_name: string | null;
-  linkedin_profile_url: string | null;
-  bank_name: string;
-  account_name: string | null;
-  account_number: string;
-  referral_code: string | null;
-  status: 'pending_review' | 'approved' | 'rejected';
-  rejection_reason: string | null;
-  created_at: string;
-}
-
-function ApplicationsTab() {
-  const { toast } = useToast();
-  const { profile } = useAuthStore();
-  const [apps, setApps] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('contractor_applications')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setApps((data as Application[]) || []);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const approve = async (app: Application) => {
-    try {
-      // Create the contractor record.
-      const { data: contractor, error: cErr } = await supabase
-        .from('contractors')
-        .insert({
-          full_name: app.full_name,
-          bank_name: app.bank_name,
-          account_number: app.account_number,
-          default_amount_ngn: 0,
-          linkedin_id: app.linkedin_profile_url || app.linkedin_full_name || '',
-          status: 'active',
-        })
-        .select('id')
-        .single();
-      if (cErr) throw cErr;
-
-      await supabase
-        .from('contractor_applications')
-        .update({
-          status: 'approved',
-          approved_by: profile?.id,
-          contractor_id: (contractor as any).id,
-        })
-        .eq('id', app.id);
-
-      await logAudit(
-        'contractor_added',
-        `Application from ${app.full_name} (${app.email}) approved — contractor created`,
-        profile,
-      );
-      toast({ title: `${app.full_name} approved and added as contractor` });
-      load();
-    } catch (err: any) {
-      toast({ title: 'Approval failed', description: err?.message, variant: 'destructive' });
-    }
-  };
-
-  const reject = async (app: Application) => {
-    const reason = window.prompt('Rejection reason (required):');
-    if (!reason || reason.trim().length < 10) {
-      toast({ title: 'Reason must be at least 10 characters', variant: 'destructive' });
-      return;
-    }
-    await supabase
-      .from('contractor_applications')
-      .update({ status: 'rejected', rejection_reason: reason.trim() })
-      .eq('id', app.id);
-    await logAudit(
-      'contractor_deactivated',
-      `Application from ${app.full_name} rejected: ${reason.trim()}`,
-      profile,
-    );
-    toast({ title: 'Application rejected' });
-    load();
-  };
-
-  const STATUS_CLS: Record<string, string> = {
-    pending_review: 'bg-warning/10 text-warning',
-    approved: 'bg-success/10 text-success',
-    rejected: 'bg-destructive/10 text-destructive',
-  };
-
-  if (loading) return <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>;
-
-  if (apps.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground text-sm">
-          No applications yet. Share the <code>/join</code> link to start receiving contractor applications.
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Bank</TableHead>
-              <TableHead>Account</TableHead>
-              <TableHead>LinkedIn</TableHead>
-              <TableHead>Referred by</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Applied</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {apps.map((a) => (
-              <TableRow key={a.id} className="kd-transition">
-                <TableCell className="font-medium">{a.full_name}</TableCell>
-                <TableCell className="text-muted-foreground">{a.email}</TableCell>
-                <TableCell>{a.bank_name}</TableCell>
-                <TableCell className="font-mono">{a.account_number}</TableCell>
-                <TableCell className="text-muted-foreground truncate max-w-[150px]">
-                  {a.linkedin_profile_url || a.linkedin_full_name || '—'}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {a.referral_code || '—'}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={STATUS_CLS[a.status]}>
-                    {a.status.replace('_', ' ')}
-                  </Badge>
-                  {a.rejection_reason && (
-                    <p className="text-xs text-destructive mt-1">{a.rejection_reason}</p>
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {formatDate(a.created_at)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {a.status === 'pending_review' && (
-                    <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => approve(a)} title="Approve">
-                        <Check className="h-4 w-4 text-success" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => reject(a)} title="Reject">
-                        <X className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
   );
 }

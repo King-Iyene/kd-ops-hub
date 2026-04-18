@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
+  FileText, Shield,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
-import { formatDate, formatNaira } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,8 @@ const EmployeeProfile = () => {
   const [payslips, setPayslips] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -74,7 +77,7 @@ const EmployeeProfile = () => {
     setEmployee(emp);
     setForm(emp);
 
-    const [expRes, payRes, leaveRes, taskRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('payslips').select('*').eq('employee_id', id)
@@ -83,11 +86,17 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('tasks').select('*').eq('assigned_to', id)
         .order('created_at', { ascending: false }).limit(20),
+      supabase.from('documents').select('*').eq('uploaded_by', id)
+        .order('created_at', { ascending: false }).limit(30),
+      supabase.from('audit_logs').select('*').eq('actor_id', id)
+        .order('created_at', { ascending: false }).limit(50),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
     setLeaves(leaveRes.data || []);
     setTasks(taskRes.data || []);
+    setDocuments(docRes.data || []);
+    setAuditLogs(auditRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -180,6 +189,8 @@ const EmployeeProfile = () => {
           <TabsTrigger value="leave">Leave ({leaves.length})</TabsTrigger>
           <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
           <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -305,6 +316,68 @@ const EmployeeProfile = () => {
                     <Badge variant="secondary" className={t.status === 'completed' ? 'bg-success/10 text-success' : t.status === 'blocked' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}>{t.status}</Badge>
                   </div>
                 ))}</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Documents</CardTitle></CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No documents uploaded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((d: any) => (
+                    <div key={d.id} className="flex items-center justify-between border rounded-lg p-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="font-medium">{d.name || d.file_name || 'Untitled'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {d.document_type?.replace(/_/g, ' ') || 'Document'} · {formatDate(d.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                      {d.file_url && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={d.file_url} target="_blank" rel="noopener noreferrer">View</a>
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity" className="mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">Activity log</CardTitle></CardHeader>
+            <CardContent>
+              {auditLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No activity recorded.</p>
+              ) : (
+                <div className="space-y-2">
+                  {auditLogs.map((log: any) => (
+                    <div key={log.id} className="flex items-start gap-3 border rounded-lg p-3">
+                      <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm">{log.description}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatDateTime(log.created_at)}
+                          {log.action_type && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">
+                              {log.action_type.replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>

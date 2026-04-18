@@ -6,11 +6,19 @@
 // Deploy: supabase functions deploy paystack-transfer --no-verify-jwt
 // Set secret: supabase secrets set PAYSTACK_SECRET_KEY=sk_live_...
 //
+// Auth:
+//   resolve_account is open to unauthenticated callers (used by the public
+//   /join form for bank account verification — account name lookup is not
+//   sensitive; the secret key never leaves this function).
+//   All other actions require a valid Supabase JWT.
+//   Dangerous actions (create_recipient, initiate_transfer, verify_transfer)
+//   also require an admin/finance role from the profiles table.
+//
 // Supported actions (passed via JSON body { action, ... }):
-//   create_recipient  — create a transfer recipient (NUBAN)
-//   initiate_transfer — initiate a transfer to a recipient
-//   verify_transfer   — check the status of a transfer by reference
-//   resolve_account   — verify a bank account number (used by Quick Pay)
+//   resolve_account   — verify a bank account number (unauthenticated OK)
+//   create_recipient  — create a transfer recipient (admin/finance only)
+//   initiate_transfer — initiate a transfer (admin/finance only)
+//   verify_transfer   — check transfer status (admin/finance only)
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -22,6 +30,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const PRIVILEGED_ACTIONS = new Set([
+  "create_recipient",
+  "initiate_transfer",
+  "verify_transfer",
+]);
+
+const PRIVILEGED_ROLES = new Set(["super_admin", "admin", "finance"]);
 
 async function paystackFetch(path: string, init: RequestInit = {}) {
   const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
@@ -43,7 +59,6 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
 }
 
 serve(async (req) => {
-  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -51,16 +66,41 @@ serve(async (req) => {
   try {
     const { action, ...params } = await req.json();
 
-    // Optionally verify the caller is authenticated via Supabase JWT.
+    // ---------------------------------------------------------------
+    // resolve_account: open to unauthenticated callers (public /join form).
+    // Account-name lookup is not sensitive — secret key stays server-side.
+    // ---------------------------------------------------------------
+    if (action === "resolve_account") {
+      const qs = new URLSearchParams({
+        account_number: params.account_number,
+        bank_code: params.bank_code,
+      });
+      const body = await paystackFetch(`/bank/resolve?${qs}`);
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: {
+            account_name: body.data?.account_name,
+            account_number: body.data?.account_number,
+          },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // All other actions require a logged-in user.
+    // ---------------------------------------------------------------
     const authHeader = req.headers.get("Authorization") ?? "";
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
     if (!user) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
         status: 401,
@@ -68,6 +108,35 @@ serve(async (req) => {
       });
     }
 
+    // ---------------------------------------------------------------
+    // Role gate: privileged actions need admin/finance profile.
+    // Uses service-role client to bypass RLS on profiles.
+    // ---------------------------------------------------------------
+    if (PRIVILEGED_ACTIONS.has(action)) {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
+        return new Response(
+          JSON.stringify({ error: "Insufficient permissions" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Dispatch remaining actions to Paystack.
+    // ---------------------------------------------------------------
     let result: unknown;
 
     switch (action) {
@@ -92,7 +161,7 @@ serve(async (req) => {
           body: JSON.stringify({
             source: "balance",
             reason: params.reason || "KDOps disbursement",
-            amount: Math.round((params.amount_ngn ?? 0) * 100), // kobo
+            amount: Math.round((params.amount_ngn ?? 0) * 100),
             recipient: params.recipient_code,
             reference: params.reference,
           }),
@@ -103,7 +172,7 @@ serve(async (req) => {
 
       case "verify_transfer": {
         const body = await paystackFetch(
-          `/transfer/verify/${encodeURIComponent(params.reference)}`
+          `/transfer/verify/${encodeURIComponent(params.reference)}`,
         );
         result = {
           status: body.data?.status,
@@ -114,26 +183,13 @@ serve(async (req) => {
         break;
       }
 
-      case "resolve_account": {
-        const qs = new URLSearchParams({
-          account_number: params.account_number,
-          bank_code: params.bank_code,
-        });
-        const body = await paystackFetch(`/bank/resolve?${qs}`);
-        result = {
-          account_name: body.data?.account_name,
-          account_number: body.data?.account_number,
-        };
-        break;
-      }
-
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
           {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          },
         );
     }
 

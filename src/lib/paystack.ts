@@ -2,16 +2,9 @@
 //
 // ALL secret-key operations are routed through the `paystack-transfer` Edge
 // Function so the secret key NEVER touches the browser.
-//
-// The only client-side direct call is the public-key inline verification which
-// uses VITE_PAYSTACK_PUBLIC_KEY for the Paystack.js inline widget (not yet
-// implemented — the BankAccountField uses the Edge Function resolve_account
-// action instead).
 
 import { supabase } from '@/lib/supabase';
 
-// Re-export the canonical 34-bank list. Every component that needs banks
-// should import from here or from '@/lib/nigerian-banks' directly.
 export { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
 export type { NigerianBank as Bank } from '@/lib/nigerian-banks';
 
@@ -22,9 +15,8 @@ export interface ResolveResult {
 
 // ---------------------------------------------------------------------------
 // Edge Function caller — single entry point for all Paystack server calls.
-// Falls back to direct API call using VITE_PAYSTACK_SECRET_KEY only if the
-// Edge Function is unavailable (dev / test without deployment). This fallback
-// is a convenience for sandbox testing and will be removed before production.
+// The Supabase client automatically sends the user's JWT in the Authorization
+// header, and the Edge Function verifies it before touching Paystack.
 // ---------------------------------------------------------------------------
 
 async function edgeCall<T = any>(
@@ -35,82 +27,12 @@ async function edgeCall<T = any>(
     body: { action, ...params },
   });
   if (error) {
-    // Fallback: if the Edge Function is not deployed, try the direct call
-    // using the env secret (test mode only).
-    const secret = import.meta.env.VITE_PAYSTACK_SECRET_KEY as string | undefined;
-    if (secret) {
-      return directCall(action, params, secret);
-    }
     throw new Error(error.message || 'Edge Function call failed');
   }
   if (data && !data.ok) {
     throw new Error(data.error || 'Paystack error from Edge Function');
   }
   return (data as any)?.data as T;
-}
-
-async function directCall<T = any>(
-  action: string,
-  params: Record<string, unknown>,
-  secret: string,
-): Promise<T> {
-  const headers = {
-    Authorization: `Bearer ${secret}`,
-    'Content-Type': 'application/json',
-  };
-  const base = 'https://api.paystack.co';
-  let res: Response;
-
-  switch (action) {
-    case 'resolve_account': {
-      const qs = new URLSearchParams({
-        account_number: String(params.account_number),
-        bank_code: String(params.bank_code),
-      });
-      res = await fetch(`${base}/bank/resolve?${qs}`, { headers });
-      break;
-    }
-    case 'create_recipient':
-      res = await fetch(`${base}/transferrecipient`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          type: 'nuban',
-          name: params.name,
-          account_number: params.account_number,
-          bank_code: params.bank_code,
-          currency: 'NGN',
-        }),
-      });
-      break;
-    case 'initiate_transfer':
-      res = await fetch(`${base}/transfer`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          source: 'balance',
-          reason: params.reason || 'KDOps disbursement',
-          amount: Math.round((Number(params.amount_ngn) || 0) * 100),
-          recipient: params.recipient_code,
-          reference: params.reference,
-        }),
-      });
-      break;
-    case 'verify_transfer':
-      res = await fetch(
-        `${base}/transfer/verify/${encodeURIComponent(String(params.reference))}`,
-        { headers },
-      );
-      break;
-    default:
-      throw new Error(`Unknown Paystack action: ${action}`);
-  }
-
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.status === false) {
-    throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
-  }
-  return body?.data as T;
 }
 
 // ---------------------------------------------------------------------------

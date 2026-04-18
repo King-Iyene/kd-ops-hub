@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   Download,
@@ -8,6 +8,11 @@ import {
   Zap,
   ArrowRightLeft,
   X,
+  Copy,
+  Check,
+  Printer,
+  FileDown,
+  Landmark,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -66,6 +71,10 @@ interface Transaction {
   approved_by: string | null;
   rejection_reason: string | null;
   notes: string | null;
+  bank_name: string | null;
+  account_number: string | null;
+  account_name: string | null;
+  receipt_url: string | null;
 }
 
 const TXN_TYPES = [
@@ -107,6 +116,7 @@ const STATUS_COLOR: Record<string, string> = {
   draft: 'bg-muted text-muted-foreground',
   pending: 'bg-warning/10 text-warning',
   pending_approval: 'bg-warning/10 text-warning',
+  pending_second_approval: 'bg-orange-100 text-orange-700',
   approved: 'bg-success/10 text-success',
   funded: 'bg-info/10 text-info',
   processing: 'bg-info/10 text-info',
@@ -178,6 +188,10 @@ const Transactions = () => {
         approved_by: pb.approved_by,
         rejection_reason: pb.rejection_reason,
         notes: pb.notes,
+        bank_name: null,
+        account_number: null,
+        account_name: null,
+        receipt_url: null,
       });
     }
 
@@ -207,6 +221,10 @@ const Transactions = () => {
         approved_by: null,
         rejection_reason: bi.failure_reason,
         notes: null,
+        bank_name: bi.bank_name || null,
+        account_number: bi.account_number || null,
+        account_name: bi.full_name || null,
+        receipt_url: null,
       });
     }
 
@@ -229,6 +247,10 @@ const Transactions = () => {
         approved_by: null,
         rejection_reason: e.rejection_reason,
         notes: e.admin_note,
+        bank_name: null,
+        account_number: null,
+        account_name: null,
+        receipt_url: e.receipt_url || null,
       });
     }
 
@@ -262,7 +284,9 @@ const Transactions = () => {
         r.reference.toLowerCase().includes(q) ||
         (r.description || '').toLowerCase().includes(q) ||
         r.category.toLowerCase().includes(q) ||
-        typeLabel(r.txn_type).toLowerCase().includes(q)
+        typeLabel(r.txn_type).toLowerCase().includes(q) ||
+        (r.bank_name || '').toLowerCase().includes(q) ||
+        (r.account_name || '').toLowerCase().includes(q)
       );
     });
   }, [rows, search, typeFilter, categoryFilter, statusFilter, from, to]);
@@ -283,6 +307,10 @@ const Transactions = () => {
       'amount_ngn',
       'status',
       'reference',
+      'bank_name',
+      'account_number',
+      'account_name',
+      'receipt_url',
     ];
     const data = filtered.map((r) => [
       r.created_at || '',
@@ -292,6 +320,10 @@ const Transactions = () => {
       r.amount_ngn,
       statusLabel(r.status),
       r.reference,
+      r.bank_name || '',
+      r.account_number || '',
+      r.account_name || '',
+      r.receipt_url || '',
     ]);
     downloadCsv(
       `kdops-transactions-${toIsoDate(new Date())}.csv`,
@@ -303,6 +335,10 @@ const Transactions = () => {
       profile,
     );
     toast({ title: 'Transactions exported' });
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   const clearFilters = () => {
@@ -324,18 +360,23 @@ const Transactions = () => {
         title="Transactions"
         description={`All financial activity across KDOps — ${rows.length.toLocaleString()} transactions`}
         actions={
-          <Button
-            variant="outline"
-            onClick={exportCsv}
-            disabled={filtered.length === 0}
-          >
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" /> Print
+            </Button>
+            <Button
+              variant="outline"
+              onClick={exportCsv}
+              disabled={filtered.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
         }
       />
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
         {TXN_TYPES.map((t) => {
           const count = rows.filter((r) => r.txn_type === t.value).length;
           const Icon = TYPE_ICON[t.value];
@@ -365,12 +406,12 @@ const Transactions = () => {
 
       {/* Filters */}
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
+        <div className="p-4 border-b flex items-center gap-2 flex-wrap print:hidden">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Search reference, description..."
+              placeholder="Search reference, description, bank..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -472,7 +513,7 @@ const Transactions = () => {
 
         <CardContent className="p-0">
           {loading ? (
-            <TableSkeleton rows={10} cols={7} />
+            <TableSkeleton rows={10} cols={8} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ArrowUpDown}
@@ -494,6 +535,7 @@ const Transactions = () => {
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Receipt</TableHead>
                     <TableHead>Reference</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -541,10 +583,23 @@ const Transactions = () => {
                             {statusLabel(r.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs max-w-[140px] truncate">
-                          {r.reference.length > 12
-                            ? `${r.reference.slice(0, 8)}...`
-                            : r.reference}
+                        <TableCell>
+                          {r.receipt_url ? (
+                            <a
+                              href={r.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <FileDown className="h-3.5 w-3.5" /> View
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <CopyableRef value={r.reference} />
                         </TableCell>
                       </TableRow>
                     );
@@ -575,6 +630,41 @@ const Transactions = () => {
 export default Transactions;
 
 // ---------------------------------------------------------------------------
+// Copyable reference
+// ---------------------------------------------------------------------------
+
+function CopyableRef({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const copy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(value);
+    setCopied(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
+  };
+
+  const display = value.length > 12 ? `${value.slice(0, 8)}...` : value;
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex items-center gap-1 text-muted-foreground font-mono text-xs hover:text-foreground transition-colors max-w-[140px]"
+      title={`Click to copy: ${value}`}
+    >
+      <span className="truncate">{display}</span>
+      {copied ? (
+        <Check className="h-3 w-3 text-success shrink-0" />
+      ) : (
+        <Copy className="h-3 w-3 shrink-0 opacity-50" />
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Detail dialog
 // ---------------------------------------------------------------------------
 
@@ -585,9 +675,21 @@ function TransactionDetail({
   txn: Transaction | null;
   onClose: () => void;
 }) {
+  const [refCopied, setRefCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+
   if (!txn) return null;
 
+  const copyRef = () => {
+    navigator.clipboard.writeText(txn.reference);
+    setRefCopied(true);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setRefCopied(false), 1500);
+  };
+
   const Icon = TYPE_ICON[txn.txn_type] || ArrowUpDown;
+
+  const hasBankDetails = txn.bank_name || txn.account_number;
 
   const fields: { label: string; value: string | null }[] = [
     { label: 'Date', value: formatDateTime(txn.created_at) },
@@ -596,7 +698,6 @@ function TransactionDetail({
     { label: 'Category', value: txn.category.replace(/_/g, ' ') },
     { label: 'Amount', value: formatNaira(txn.amount_ngn) },
     { label: 'Status', value: statusLabel(txn.status) },
-    { label: 'Reference', value: txn.reference },
     ...(txn.batch_name ? [{ label: 'Batch name', value: txn.batch_name }] : []),
     ...(txn.beneficiary_count
       ? [{ label: 'Beneficiaries', value: String(txn.beneficiary_count) }]
@@ -640,6 +741,7 @@ function TransactionDetail({
           </span>
         </div>
         <Separator />
+
         <div className="space-y-3 pt-2">
           {fields.map((f) => (
             <div key={f.label} className="grid grid-cols-3 gap-2">
@@ -647,7 +749,82 @@ function TransactionDetail({
               <span className="text-sm col-span-2 break-all">{f.value || '—'}</span>
             </div>
           ))}
+
+          {/* Reference — copyable */}
+          <div className="grid grid-cols-3 gap-2">
+            <span className="text-sm text-muted-foreground">Reference</span>
+            <span className="text-sm col-span-2 break-all flex items-center gap-2">
+              <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
+                {txn.reference}
+              </code>
+              <button
+                type="button"
+                onClick={copyRef}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+                title="Copy reference"
+              >
+                {refCopied ? (
+                  <Check className="h-3.5 w-3.5 text-success" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </span>
+          </div>
         </div>
+
+        {/* Recipient bank details */}
+        {hasBankDetails && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Landmark className="h-4 w-4 text-muted-foreground" />
+                Recipient bank details
+              </div>
+              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                {txn.account_name && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-xs text-muted-foreground">Account name</span>
+                    <span className="text-sm col-span-2 font-medium">{txn.account_name}</span>
+                  </div>
+                )}
+                {txn.bank_name && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-xs text-muted-foreground">Bank</span>
+                    <span className="text-sm col-span-2">{txn.bank_name}</span>
+                  </div>
+                )}
+                {txn.account_number && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <span className="text-xs text-muted-foreground">Account number</span>
+                    <span className="text-sm col-span-2 font-mono">{txn.account_number}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Receipt */}
+        {txn.receipt_url && (
+          <>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Receipt</span>
+              <a
+                href={txn.receipt_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5"
+              >
+                <Button size="sm" variant="outline">
+                  <FileDown className="mr-1.5 h-3.5 w-3.5" /> Download receipt
+                </Button>
+              </a>
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

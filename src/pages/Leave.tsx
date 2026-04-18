@@ -127,7 +127,8 @@ const Leave = () => {
   const [tab, setTab] = useState<'mine' | 'team'>('mine');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [requests, setRequests] = useState<LeaveRequest[]>([]);
+  const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
+  const [teamRequests, setTeamRequests] = useState<LeaveRequest[]>([]);
   const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
@@ -151,11 +152,20 @@ const Leave = () => {
     setLoading(true);
     setError(null);
     try {
-      const [reqRes, profilesRes, balanceRes] = await Promise.all([
+      // My Leave — scoped to this user; works for every role regardless of RLS.
+      // Team Leave — fetches all rows; RLS gate allows this only for managers.
+      const [myRes, teamRes, profilesRes, balanceRes] = await Promise.all([
         supabase
           .from('leave_requests')
           .select('*')
+          .eq('employee_id', profile?.id || '')
           .order('created_at', { ascending: false }),
+        isManager
+          ? supabase
+              .from('leave_requests')
+              .select('*')
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [] as LeaveRequest[], error: null }),
         supabase.from('profiles').select('id, full_name, email'),
         supabase
           .from('leave_balances')
@@ -164,9 +174,11 @@ const Leave = () => {
           .eq('year', new Date().getFullYear())
           .maybeSingle(),
       ]);
-      if (reqRes.error) throw reqRes.error;
+      if (myRes.error) throw myRes.error;
+      if (teamRes.error) throw teamRes.error;
 
-      setRequests((reqRes.data as LeaveRequest[]) || []);
+      setMyRequests((myRes.data as LeaveRequest[]) || []);
+      setTeamRequests((teamRes.data as LeaveRequest[]) || []);
       const map = new Map<string, ProfileRow>();
       for (const p of (profilesRes.data || []) as ProfileRow[]) {
         map.set(p.id, p);
@@ -391,10 +403,7 @@ const Leave = () => {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const scope =
-      tab === 'mine'
-        ? requests.filter((r) => r.employee_id === profile?.id)
-        : requests;
+    const scope = tab === 'mine' ? myRequests : teamRequests;
     return scope.filter((r) => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
       if (!q) return true;
@@ -405,7 +414,7 @@ const Leave = () => {
         r.leave_type.toLowerCase().includes(q)
       );
     });
-  }, [requests, search, statusFilter, profile?.id, tab, profiles]);
+  }, [myRequests, teamRequests, search, statusFilter, tab, profiles]);
 
   const pagination = usePagination(visible, 20);
 
@@ -451,8 +460,8 @@ const Leave = () => {
         />
         <StatCard
           title="Pending Requests"
-          value={requests.filter((r) => r.status === 'pending').length}
-          subtitle="Across team"
+          value={(isManager ? teamRequests : myRequests).filter((r) => r.status === 'pending').length}
+          subtitle={isManager ? 'Across team' : 'My requests'}
           icon={CalendarDays}
         />
       </div>
