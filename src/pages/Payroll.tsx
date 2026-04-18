@@ -53,6 +53,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { displayName } from '@/lib/name';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -99,6 +101,7 @@ const Payroll = () => {
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [dialog, setDialog] = useState(false);
   const [working, setWorking] = useState(false);
+  const [salaryErrors, setSalaryErrors] = useState<string[]>([]);
   const [form, setForm] = useState({
     period: monthPeriod(
       new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
@@ -254,7 +257,7 @@ const Payroll = () => {
   const generatePayslips = async (run: PayrollRun) => {
     const { data: employees, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, status, salary_ngn')
+      .select('id, full_name, first_name, last_name, email, role, status, salary_ngn')
       .neq('status', 'inactive');
     if (error) {
       toast({ title: 'Could not load employees', description: error.message, variant: 'destructive' });
@@ -271,10 +274,24 @@ const Payroll = () => {
       });
       return;
     }
-    // Use each employee's salary_ngn if set; fall back to pro-rata split.
-    const fallbackGross = list.length > 0
-      ? (Number(run.total_employee_ngn) + Number(run.total_contractor_ngn)) / list.length
-      : 0;
+
+    const missingSalary = list.filter(
+      (e: any) => !e.salary_ngn || Number(e.salary_ngn) <= 0,
+    );
+    if (missingSalary.length > 0) {
+      setSalaryErrors(
+        missingSalary.map((e: any) =>
+          `${displayName(e.first_name, e.last_name, e.full_name || e.email)} — no salary configured`,
+        ),
+      );
+      toast({
+        title: 'Cannot generate payroll',
+        description: `${missingSalary.length} employee${missingSalary.length === 1 ? '' : 's'} missing salary configuration.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSalaryErrors([]);
 
     const { data: settings } = await supabase
       .from('company_settings')
@@ -287,7 +304,7 @@ const Payroll = () => {
     let failed = 0;
     for (const e of list as any[]) {
       try {
-        const empGross = Number(e.salary_ngn) > 0 ? Number(e.salary_ngn) : fallbackGross;
+        const empGross = Number(e.salary_ngn);
         const empPaye = calculatePAYE(empGross);
         const empPension = empGross * 0.08;
         const empNhf = empGross * 0.025;
@@ -491,6 +508,22 @@ const Payroll = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+      )}
+
+      {salaryErrors.length > 0 && (
+        <Alert variant="destructive">
+          <AlertTitle>Salary Configuration Required</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc pl-4 mt-2 space-y-0.5">
+              {salaryErrors.map((err, i) => (
+                <li key={i} className="text-sm">{err}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-sm">
+              Configure salaries in <span className="font-medium">Employee Management</span> before generating payroll.
+            </p>
+          </AlertDescription>
+        </Alert>
       )}
 
       <Card>
