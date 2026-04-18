@@ -7,6 +7,7 @@ import {
   Loader2,
   FileCheck2,
   Download,
+  Pencil,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -140,6 +141,7 @@ const Compliance = () => {
   });
 
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [editingFiling, setEditingFiling] = useState<ComplianceFiling | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -207,21 +209,38 @@ const Compliance = () => {
       return;
     }
     const due = form.due_date || dueDateFor(form.kind, form.period);
-    const { error } = await supabase.from('compliance_filings').upsert(
-      {
-        kind: form.kind,
-        period: form.period,
-        due_date: due,
-        amount_ngn: parseFloat(form.amount_ngn) || null,
-      },
-      { onConflict: 'kind,period' },
-    );
-    if (error) {
-      toast({ title: 'Could not add', description: error.message, variant: 'destructive' });
-      return;
+    if (editingFiling) {
+      // Update existing filing.
+      const { error } = await supabase
+        .from('compliance_filings')
+        .update({
+          due_date: due,
+          amount_ngn: parseFloat(form.amount_ngn) || null,
+        })
+        .eq('id', editingFiling.id);
+      if (error) {
+        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Filing updated' });
+    } else {
+      const { error } = await supabase.from('compliance_filings').upsert(
+        {
+          kind: form.kind,
+          period: form.period,
+          due_date: due,
+          amount_ngn: parseFloat(form.amount_ngn) || null,
+        },
+        { onConflict: 'kind,period' },
+      );
+      if (error) {
+        toast({ title: 'Could not add', description: error.message, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Filing added' });
     }
-    toast({ title: 'Filing added' });
     setDialog(false);
+    setEditingFiling(null);
     setForm({
       kind: 'paye',
       period: new Date().toISOString().slice(0, 7),
@@ -397,25 +416,45 @@ const Compliance = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {r.status !== 'filed' ? (
+                        <div className="flex justify-end gap-1">
+                          {r.status !== 'filed' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={markingId === r.id}
+                              onClick={() => markFiled(r)}
+                            >
+                              {markingId === r.id ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileCheck2 className="mr-2 h-4 w-4" />
+                              )}
+                              Mark filed
+                            </Button>
+                          )}
+                          {r.status === 'filed' && (
+                            <span className="text-xs text-muted-foreground mr-2 self-center">
+                              Filed {r.filed_at ? formatDate(r.filed_at) : '—'}
+                            </span>
+                          )}
                           <Button
                             size="sm"
-                            variant="outline"
-                            disabled={markingId === r.id}
-                            onClick={() => markFiled(r)}
+                            variant="ghost"
+                            onClick={() => {
+                              setForm({
+                                kind: r.kind as any,
+                                period: r.period,
+                                due_date: r.due_date,
+                                amount_ngn: r.amount_ngn != null ? String(r.amount_ngn) : '',
+                              });
+                              setEditingFiling(r);
+                              setDialog(true);
+                            }}
+                            title="Edit"
                           >
-                            {markingId === r.id ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileCheck2 className="mr-2 h-4 w-4" />
-                            )}
-                            Mark filed
+                            <Pencil className="h-4 w-4" />
                           </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            Filed {r.filed_at ? formatDate(r.filed_at) : '—'}
-                          </span>
-                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

@@ -42,6 +42,9 @@ const JoinForm = () => {
   });
 
   const isValidNuban = /^\d{10}$/.test(form.account_number);
+  const isValidLinkedIn =
+    !form.linkedin_profile_url.trim() ||
+    /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/.test(form.linkedin_profile_url.trim());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +59,14 @@ const JoinForm = () => {
     if (!isValidNuban) {
       toast({
         title: 'Account number must be exactly 10 digits (NUBAN)',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!isValidLinkedIn) {
+      toast({
+        title: 'Please enter a valid LinkedIn profile URL',
+        description: 'Must start with https://linkedin.com/in/ or https://www.linkedin.com/in/',
         variant: 'destructive',
       });
       return;
@@ -194,6 +205,11 @@ const JoinForm = () => {
                     }
                     placeholder="https://linkedin.com/in/..."
                   />
+                  {form.linkedin_profile_url.trim() && !isValidLinkedIn && (
+                    <p className="text-xs text-destructive">
+                      Must be a valid LinkedIn URL (https://linkedin.com/in/...)
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

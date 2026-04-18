@@ -10,6 +10,8 @@ import {
   Trash2,
   CreditCard,
   Upload,
+  Network,
+  Pencil,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -30,6 +32,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 
@@ -136,6 +146,30 @@ const SettingsPage = () => {
 
   const save = async () => {
     if (!settings) return;
+
+    // Validate Paystack mode matches key prefixes.
+    const mode = settings.paystack_mode;
+    const pub = (settings as any).paystack_public_key || '';
+    const sec = (settings as any).paystack_secret_key_enc || '';
+    if (mode === 'live') {
+      if (pub && !pub.startsWith('pk_live_')) {
+        toast({
+          title: 'Live mode requires live public key',
+          description: 'Public key must start with pk_live_. Switch to Test mode or enter a live key.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (sec && !sec.startsWith('sk_live_')) {
+        toast({
+          title: 'Live mode requires live secret key',
+          description: 'Secret key must start with sk_live_. Switch to Test mode or enter a live key.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     setSaving(true);
     const { error } = await supabase
       .from('company_settings')
@@ -246,6 +280,7 @@ const SettingsPage = () => {
           <TabsTrigger value="policy"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+          <TabsTrigger value="departments"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
         </TabsList>
 
         {/* COMPANY ------------------------------------------------------- */}
@@ -847,9 +882,210 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* DEPARTMENTS -------------------------------------------------- */}
+        <TabsContent value="departments" className="mt-4 space-y-4">
+          <DepartmentsManager />
+        </TabsContent>
       </Tabs>
     </div>
   );
 };
 
 export default SettingsPage;
+
+// ---------------------------------------------------------------------------
+// Departments CRUD
+// ---------------------------------------------------------------------------
+
+interface Dept {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+}
+
+function DepartmentsManager() {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const [depts, setDepts] = useState<Dept[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Dept | null>(null);
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('departments')
+      .select('*')
+      .order('name');
+    setDepts((data as Dept[]) || []);
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('department_id')
+      .not('department_id', 'is', null);
+    const counts: Record<string, number> = {};
+    (profiles || []).forEach((p: any) => {
+      counts[p.department_id] = (counts[p.department_id] || 0) + 1;
+    });
+    setMemberCounts(counts);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const reset = () => {
+    setEditing(null);
+    setName('');
+    setDesc('');
+  };
+
+  const openAdd = () => { reset(); setShowForm(true); };
+  const openEdit = (d: Dept) => {
+    setEditing(d);
+    setName(d.name);
+    setDesc(d.description || '');
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast({ title: 'Name is required', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    if (editing) {
+      const { error } = await supabase
+        .from('departments')
+        .update({ name: name.trim(), description: desc.trim() || null })
+        .eq('id', editing.id);
+      if (error) {
+        toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      } else {
+        await logAudit('company_settings_saved', `Department "${name.trim()}" updated`, profile);
+        toast({ title: 'Department updated' });
+      }
+    } else {
+      const { error } = await supabase
+        .from('departments')
+        .insert({ name: name.trim(), description: desc.trim() || null });
+      if (error) {
+        toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
+      } else {
+        await logAudit('company_settings_saved', `Department "${name.trim()}" created`, profile);
+        toast({ title: 'Department created' });
+      }
+    }
+    setSubmitting(false);
+    setShowForm(false);
+    reset();
+    load();
+  };
+
+  const handleDelete = async (d: Dept) => {
+    if (memberCounts[d.id]) {
+      toast({
+        title: 'Cannot delete',
+        description: `${memberCounts[d.id]} employee(s) are assigned to this department. Reassign them first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { error } = await supabase.from('departments').delete().eq('id', d.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('company_settings_saved', `Department "${d.name}" deleted`, profile);
+      toast({ title: 'Department deleted' });
+      load();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="py-8 flex justify-center">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Departments</CardTitle>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="mr-2 h-4 w-4" /> Add department
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {depts.length === 0 ? (
+            <p className="text-sm text-muted-foreground p-6 text-center">
+              No departments yet. Add one to organize your team.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Members</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {depts.map((d) => (
+                  <TableRow key={d.id}>
+                    <TableCell className="font-medium">{d.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{d.description || '—'}</TableCell>
+                    <TableCell className="text-right">{memberCounts[d.id] || 0}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(d)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDelete(d)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showForm} onOpenChange={(v) => { if (!v) { setShowForm(false); reset(); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit' : 'Add'} department</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Operations" />
+            </div>
+            <div className="space-y-1">
+              <Label>Description</Label>
+              <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={submitting || !name.trim()}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

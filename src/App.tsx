@@ -33,7 +33,10 @@ import Contractors from './pages/Contractors';
 import Contacts from './pages/Contacts';
 import Referrals from './pages/Referrals';
 import JoinForm from './pages/JoinForm';
+import ResetPassword from './pages/ResetPassword';
 import Employees from './pages/Employees';
+import EmployeeProfile from './pages/EmployeeProfile';
+import ContractorProfile from './pages/ContractorProfile';
 import Leave from './pages/Leave';
 import SettingsPage from './pages/Settings';
 import ProfilePage from './pages/Profile';
@@ -68,6 +71,7 @@ function AppRoutes() {
       <Route path="/join" element={<JoinForm />} />
       <Route path="/ref/:code" element={<JoinForm />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       <Route
         element={
@@ -197,6 +201,14 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
+        <Route
+          path="/contractors/:id"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <ContractorProfile />
+            </RoleGuard>
+          }
+        />
 
         {/* Employees — Super Admin + Admin only (per spec). */}
         <Route
@@ -204,6 +216,14 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin', 'admin']}>
               <Employees />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/employees/:id"
+          element={
+            <RoleGuard roles={['super_admin', 'admin']}>
+              <EmployeeProfile />
             </RoleGuard>
           }
         />
