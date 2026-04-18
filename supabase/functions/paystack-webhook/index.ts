@@ -170,5 +170,44 @@ serve(async (req) => {
       .eq("id", item.batch_id);
   }
 
+  // Sync payment_status on any expense linked to this batch.
+  const { data: linkedExpense } = await supabase
+    .from("expenses")
+    .select("id, submitted_by, amount_ngn")
+    .eq("payment_reference", item.batch_id)
+    .maybeSingle();
+
+  if (linkedExpense) {
+    if (event === "transfer.success") {
+      await supabase
+        .from("expenses")
+        .update({ payment_status: "processed", processed_at: now })
+        .eq("id", linkedExpense.id);
+
+      await supabase.from("notifications").insert({
+        user_id: linkedExpense.submitted_by,
+        type: "expense_paid",
+        module: "expenses",
+        priority: "normal",
+        title: "Expense Reimbursement Processed",
+        body: `Your expense of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} has been paid.`,
+      });
+    } else if (event === "transfer.failed" || event === "transfer.reversed") {
+      await supabase
+        .from("expenses")
+        .update({ payment_status: "failed" })
+        .eq("id", linkedExpense.id);
+
+      await supabase.from("notifications").insert({
+        user_id: linkedExpense.submitted_by,
+        type: "expense_payment_failed",
+        module: "expenses",
+        priority: "high",
+        title: "Expense Payment Failed",
+        body: `Payment of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} could not be processed. Please contact Finance.`,
+      });
+    }
+  }
+
   return new Response("ok", { status: 200, headers: corsHeaders });
 });

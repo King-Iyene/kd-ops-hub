@@ -19,6 +19,7 @@ import {
   Receipt,
   CarFront,
   AlertTriangle,
+  CreditCard,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -63,6 +64,8 @@ import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
 
 const CATEGORIES = [
   'fuel',
@@ -85,6 +88,12 @@ interface Expense {
   mileage_km: number | null;
   rate_per_km_ngn: number | null;
   created_at: string;
+  // Payment fields
+  payment_status: 'pending' | 'processing' | 'processed' | 'failed' | null;
+  payment_reference: string | null;
+  account_number: string | null;
+  bank_name: string | null;
+  account_name: string | null;
 }
 
 interface BudgetSummary {
@@ -139,6 +148,12 @@ const Expenses = () => {
     mileage_km: '',
     rate_per_km_ngn: String(DEFAULT_MILEAGE_RATE),
   });
+
+  const EMPTY_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
+  const [bankDetails, setBankDetails] = useState<BankAccountValue>(EMPTY_BANK);
+  const [showBankSection, setShowBankSection] = useState(false);
+  const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -199,6 +214,143 @@ const Expenses = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // -- Payment helpers -------------------------------------------------------
+
+  const canProcessPayment = (e: Expense) =>
+    isApprover &&
+    e.status === 'approved' &&
+    (e.payment_status === 'pending' || e.payment_status == null) &&
+    !!e.account_number &&
+    !!e.bank_name &&
+    !!e.account_name;
+
+  const canRetryPayment = (e: Expense) =>
+    isApprover &&
+    e.status === 'approved' &&
+    e.payment_status === 'failed' &&
+    !!e.account_number &&
+    !!e.bank_name &&
+    !!e.account_name;
+
+  const paymentBadge = (status: Expense['payment_status']) => {
+    if (!status || status === 'pending')
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending Payment</Badge>;
+    if (status === 'processing')
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Processing</Badge>;
+    if (status === 'processed')
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Paid</Badge>;
+    if (status === 'failed')
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>;
+    return null;
+  };
+
+  const processExpensePayment = async (expense: Expense) => {
+    setProcessingPayment(true);
+    let batchId: string | null = null;
+    let itemId: string | null = null;
+    try {
+      const { data: batch, error: batchErr } = await supabase
+        .from('payment_batches')
+        .insert({
+          name: `Expense Reimbursement — ${expense.account_name}`,
+          payment_description: `Expense: ${expense.description || expense.category}`,
+          payment_category: 'expense_reimbursement',
+          is_quick_pay: true,
+          total_amount: expense.amount_ngn,
+          beneficiary_count: 1,
+          status: 'approved',
+          created_by: profile?.id,
+        })
+        .select('id')
+        .single();
+      if (batchErr) throw new Error(batchErr.message);
+      batchId = batch.id;
+
+      const { data: batchItem, error: itemErr } = await supabase
+        .from('batch_items')
+        .insert({
+          batch_id: batchId,
+          full_name: expense.account_name,
+          bank_name: expense.bank_name,
+          account_number: expense.account_number,
+          amount_ngn: expense.amount_ngn,
+          status: 'pending',
+        })
+        .select('id')
+        .single();
+      if (itemErr) throw new Error(itemErr.message);
+      itemId = batchItem.id;
+
+      await supabase
+        .from('expenses')
+        .update({ payment_reference: batchId, payment_status: 'processing' })
+        .eq('id', expense.id);
+
+      const bankCode = getBankCode(expense.bank_name!);
+      if (!bankCode) throw new Error(`Unrecognised bank: ${expense.bank_name}`);
+
+      const recipient = await createTransferRecipient({
+        name: expense.account_name!,
+        account_number: expense.account_number!,
+        bank_code: bankCode,
+      });
+
+      const ref = `kdops_${itemId.replace(/-/g, '').slice(0, 20)}`;
+      const transfer = await initiateTransfer({
+        recipient_code: recipient.recipient_code,
+        amount_ngn: Number(expense.amount_ngn),
+        reference: ref,
+        reason: 'KDOps Expense Reimbursement',
+      });
+
+      await supabase
+        .from('batch_items')
+        .update({
+          paystack_recipient_code: recipient.recipient_code,
+          paystack_transfer_code: transfer.transfer_code,
+          paystack_reference: transfer.reference,
+        })
+        .eq('id', itemId);
+
+      await supabase
+        .from('payment_batches')
+        .update({ status: 'processing' })
+        .eq('id', batchId);
+
+      await logAudit(
+        'expense_payment_initiated',
+        `Expense payment initiated — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))} (ref ${transfer.reference})`,
+        profile,
+      );
+      toast({
+        title: 'Payment initiated',
+        description: `${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}`,
+      });
+    } catch (err: any) {
+      if (batchId) {
+        await supabase
+          .from('expenses')
+          .update({ payment_status: 'failed' })
+          .eq('id', expense.id);
+      }
+      if (itemId) {
+        await supabase
+          .from('batch_items')
+          .update({ status: 'failed', failure_reason: err?.message })
+          .eq('id', itemId);
+      }
+      toast({
+        title: 'Payment failed to initiate',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setProcessingPayment(false);
+      setConfirmPayment(null);
+      fetchData();
+    }
+  };
 
   // -- Lock enforcement -----------------------------------------------------
 
@@ -282,6 +434,13 @@ const Expenses = () => {
       date: form.date,
       description: form.description || null,
       status: 'pending',
+      ...(bankDetails.verified
+        ? {
+            bank_name: bankDetails.bank_name,
+            account_number: bankDetails.account_number,
+            account_name: bankDetails.account_name,
+          }
+        : {}),
     });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -308,6 +467,8 @@ const Expenses = () => {
         mileage_km: '',
         rate_per_km_ngn: String(DEFAULT_MILEAGE_RATE),
       });
+      setShowBankSection(false);
+      setBankDetails(EMPTY_BANK);
       fetchData();
     }
     setSubmitting(false);
@@ -756,6 +917,7 @@ const Expenses = () => {
                     <TableHead>Date</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
                     {isApprover && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -809,35 +971,64 @@ const Expenses = () => {
                           {e.status}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {e.status === 'approved' && paymentBadge(e.payment_status)}
+                      </TableCell>
                       {isApprover && (
                         <TableCell className="text-right">
-                          {e.status === 'pending' && (
-                            <div className="flex justify-end gap-1">
+                          <div className="flex justify-end gap-1 items-center">
+                            {e.status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleAction(e, 'approved')}
+                                >
+                                  <Check className="h-4 w-4 text-success" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleAction(e, 'rejected')}
+                                >
+                                  <X className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                            {e.status === 'rejected' && e.submitted_by === profile?.id && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                onClick={() => handleAction(e, 'approved')}
+                                variant="outline"
+                                onClick={() => resubmitExpense(e)}
                               >
-                                <Check className="h-4 w-4 text-success" />
+                                Re-edit & Resubmit
                               </Button>
+                            )}
+                            {canProcessPayment(e) && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                onClick={() => handleAction(e, 'rejected')}
+                                variant="outline"
+                                className="text-success border-success/40 hover:bg-success/5"
+                                onClick={() => setConfirmPayment(e)}
                               >
-                                <X className="h-4 w-4 text-destructive" />
+                                <CreditCard className="mr-1.5 h-3.5 w-3.5" /> Pay
                               </Button>
-                            </div>
-                          )}
-                          {e.status === 'rejected' && e.submitted_by === profile?.id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => resubmitExpense(e)}
-                            >
-                              Re-edit & Resubmit
-                            </Button>
-                          )}
+                            )}
+                            {canRetryPayment(e) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setConfirmPayment(e)}
+                              >
+                                <CreditCard className="mr-1.5 h-3.5 w-3.5" /> Retry
+                              </Button>
+                            )}
+                            {e.status === 'approved' && e.payment_status === 'processing' && (
+                              <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" /> Processing
+                              </span>
+                            )}
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -977,6 +1168,36 @@ const Expenses = () => {
                 </span>
               </div>
             )}
+
+            <div className="pt-2 border-t">
+              {!showBankSection ? (
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+                  onClick={() => setShowBankSection(true)}
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Add bank account for reimbursement (optional)
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      Bank account for reimbursement{' '}
+                      <span className="text-muted-foreground font-normal">(optional)</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => { setShowBankSection(false); setBankDetails(EMPTY_BANK); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <BankAccountField value={bankDetails} onChange={setBankDetails} />
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)}>
@@ -988,6 +1209,49 @@ const Expenses = () => {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!confirmPayment}
+        onOpenChange={(v) => { if (!v) setConfirmPayment(null); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Payment</DialogTitle>
+          </DialogHeader>
+          {confirmPayment && (
+            <div className="space-y-3 text-sm">
+              <p className="text-muted-foreground">
+                Process reimbursement of{' '}
+                <span className="font-semibold text-foreground">
+                  {formatNaira(confirmPayment.amount_ngn)}
+                </span>{' '}
+                to{' '}
+                <span className="font-semibold text-foreground">
+                  {confirmPayment.account_name}
+                </span>
+                ?
+              </p>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1">
+                <div><span className="text-muted-foreground">Bank: </span>{confirmPayment.bank_name}</div>
+                <div><span className="text-muted-foreground">Account: </span>{confirmPayment.account_number}</div>
+                <div><span className="text-muted-foreground">Category: </span>{confirmPayment.category}</div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPayment(null)} disabled={processingPayment}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirmPayment && processExpensePayment(confirmPayment)}
+              disabled={processingPayment}
+            >
+              {processingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Process Payment
             </Button>
           </DialogFooter>
         </DialogContent>
