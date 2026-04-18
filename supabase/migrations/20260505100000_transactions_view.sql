@@ -39,9 +39,9 @@ SELECT
   'contractor_payment' AS category,
   bi.amount_ngn,
   CASE
-    WHEN bi.transfer_status = 'success' THEN 'processed'
-    WHEN bi.transfer_status = 'failed' THEN 'failed'
-    WHEN bi.transfer_status = 'reversed' THEN 'reversed'
+    WHEN bi.status = 'succeeded' THEN 'processed'
+    WHEN bi.status = 'failed' THEN 'failed'
+    WHEN bi.status = 'retry' THEN 'processing'
     ELSE 'pending'
   END AS status,
   COALESCE(bi.paystack_reference, bi.reference, bi.id::text) AS reference,
