@@ -910,7 +910,14 @@ interface Dept {
   id: string;
   name: string;
   description: string | null;
+  head_id: string | null;
+  head: { id: string; full_name: string } | null;
   created_at: string;
+}
+
+interface ProfileOption {
+  id: string;
+  full_name: string;
 }
 
 function DepartmentsManager() {
@@ -922,23 +929,22 @@ function DepartmentsManager() {
   const [editing, setEditing] = useState<Dept | null>(null);
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
+  const [headId, setHeadId] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('departments')
-      .select('*')
-      .order('name');
+    const [{ data }, { data: profilesData }, { data: memberData }] = await Promise.all([
+      supabase.from('departments').select('*, head:profiles!head_id(id, full_name)').order('name'),
+      supabase.from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('profiles').select('department_id').not('department_id', 'is', null),
+    ]);
     setDepts((data as Dept[]) || []);
-
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('department_id')
-      .not('department_id', 'is', null);
+    setProfileOptions((profilesData as ProfileOption[]) || []);
     const counts: Record<string, number> = {};
-    (profiles || []).forEach((p: any) => {
+    (memberData || []).forEach((p: any) => {
       counts[p.department_id] = (counts[p.department_id] || 0) + 1;
     });
     setMemberCounts(counts);
@@ -951,6 +957,7 @@ function DepartmentsManager() {
     setEditing(null);
     setName('');
     setDesc('');
+    setHeadId('');
   };
 
   const openAdd = () => { reset(); setShowForm(true); };
@@ -958,6 +965,7 @@ function DepartmentsManager() {
     setEditing(d);
     setName(d.name);
     setDesc(d.description || '');
+    setHeadId(d.head_id || '');
     setShowForm(true);
   };
 
@@ -967,11 +975,13 @@ function DepartmentsManager() {
       return;
     }
     setSubmitting(true);
+    const payload = {
+      name: name.trim(),
+      description: desc.trim() || null,
+      head_id: headId || null,
+    };
     if (editing) {
-      const { error } = await supabase
-        .from('departments')
-        .update({ name: name.trim(), description: desc.trim() || null })
-        .eq('id', editing.id);
+      const { error } = await supabase.from('departments').update(payload).eq('id', editing.id);
       if (error) {
         toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
       } else {
@@ -979,9 +989,7 @@ function DepartmentsManager() {
         toast({ title: 'Department updated' });
       }
     } else {
-      const { error } = await supabase
-        .from('departments')
-        .insert({ name: name.trim(), description: desc.trim() || null });
+      const { error } = await supabase.from('departments').insert(payload);
       if (error) {
         toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
       } else {
@@ -1000,6 +1008,18 @@ function DepartmentsManager() {
       toast({
         title: 'Cannot delete',
         description: `${memberCounts[d.id]} employee(s) are assigned to this department. Reassign them first.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+    const { count } = await supabase
+      .from('budgets')
+      .select('*', { count: 'exact', head: true })
+      .eq('department_id', d.id);
+    if (count && count > 0) {
+      toast({
+        title: 'Cannot delete',
+        description: `${count} budget(s) reference this department. Reassign them first.`,
         variant: 'destructive',
       });
       return;
@@ -1042,6 +1062,7 @@ function DepartmentsManager() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Head</TableHead>
                   <TableHead className="text-right">Members</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
@@ -1051,6 +1072,7 @@ function DepartmentsManager() {
                   <TableRow key={d.id}>
                     <TableCell className="font-medium">{d.name}</TableCell>
                     <TableCell className="text-muted-foreground">{d.description || '—'}</TableCell>
+                    <TableCell className="text-sm">{d.head?.full_name || '—'}</TableCell>
                     <TableCell className="text-right">{memberCounts[d.id] || 0}</TableCell>
                     <TableCell>
                       <div className="flex gap-1">
@@ -1083,6 +1105,20 @@ function DepartmentsManager() {
             <div className="space-y-1">
               <Label>Description</Label>
               <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description" />
+            </div>
+            <div className="space-y-1">
+              <Label>Head of department</Label>
+              <Select value={headId || '__none__'} onValueChange={(v) => setHeadId(v === '__none__' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a head (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— None —</SelectItem>
+                  {profileOptions.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
