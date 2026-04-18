@@ -84,10 +84,15 @@ interface Expense {
   amount_ngn: number;
   date: string;
   description: string | null;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'pending_second_approval' | 'approved' | 'rejected';
   mileage_km: number | null;
   rate_per_km_ngn: number | null;
   created_at: string;
+  // Approval tracking
+  approved_by: string | null;
+  approved_at: string | null;
+  approved_by_secondary: string | null;
+  approved_by_secondary_at: string | null;
   // Payment fields
   payment_status: 'pending' | 'processing' | 'processed' | 'failed' | null;
   payment_reference: string | null;
@@ -126,6 +131,7 @@ const Expenses = () => {
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
   // Per-category maximum ₦ amount — pulled from company_settings.expense_limits.
   const [limits, setLimits] = useState<Record<string, number>>({});
+  const [dualThreshold, setDualThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -173,7 +179,7 @@ const Expenses = () => {
         supabase.from('budget_items').select('budget_id, category'),
         supabase
           .from('company_settings')
-          .select('expense_limits')
+          .select('expense_limits, dual_approval_threshold_ngn')
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
       ]);
@@ -185,6 +191,9 @@ const Expenses = () => {
       });
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
+
+      const rawThreshold = Number((settingsRes.data as any)?.dual_approval_threshold_ngn ?? 0);
+      setDualThreshold(Number.isFinite(rawThreshold) && rawThreshold > 0 ? rawThreshold : 0);
 
       const rawLimits =
         (settingsRes.data as any)?.expense_limits || ({} as Record<string, number>);
@@ -499,35 +508,120 @@ const Expenses = () => {
       return;
     }
     if (status === 'rejected') {
-      // Open a reason dialog; the confirm handler calls doReject.
       setRejectingExpense(expense);
       setRejectReason('');
       return;
     }
-    const { error } = await supabase
-      .from('expenses')
-      .update({ status })
-      .eq('id', expense.id);
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+
+    const now = new Date().toISOString();
+    const amountNgn = Number(expense.amount_ngn || 0);
+    const cat = expense.category.replace(/_/g, ' ');
+    const amtStr = formatNaira(amountNgn);
+
+    // --- Second approval (expense is already pending_second_approval) ---
+    if (expense.status === 'pending_second_approval') {
+      if (expense.approved_by === profile?.id) {
+        toast({
+          title: 'Second approval must come from a different approver',
+          description: 'You recorded the first approval on this expense.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          status: 'approved',
+          approved_by_secondary: profile?.id,
+          approved_by_secondary_at: now,
+        })
+        .eq('id', expense.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      await logAudit(
+        'expense_approved',
+        `Expense fully approved (2nd approval): ${cat} — ${amtStr}`,
+        profile,
+      );
+      if (expense.submitted_by) {
+        await notifyUser({
+          userId: expense.submitted_by,
+          type: 'expense_approved',
+          module: 'expenses',
+          title: 'Your expense was approved',
+          body: `${cat} — ${amtStr}`,
+        });
+      }
+      toast({ title: 'Expense fully approved' });
+      fetchData();
       return;
     }
-    await logAudit(
-      'expense_approved',
-      `Expense approved: ${expense.category} — ${formatNaira(expense.amount_ngn || 0)}`,
-      profile,
-    );
-    if (expense.submitted_by) {
-      await notifyUser({
-        userId: expense.submitted_by,
-        type: 'expense_approved',
+
+    // --- First / only approval (expense is pending) ---
+    const needsDual = dualThreshold > 0 && amountNgn >= dualThreshold;
+
+    if (needsDual) {
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          status: 'pending_second_approval',
+          approved_by: profile?.id,
+          approved_at: now,
+        })
+        .eq('id', expense.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      await logAudit(
+        'expense_first_approval',
+        `First approval for high-value expense: ${cat} — ${amtStr} (threshold: ${formatNaira(dualThreshold)})`,
+        profile,
+      );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'expense_needs_second_approval',
         module: 'expenses',
-        title: 'Your expense was approved',
-        body: `${expense.category.replace(/_/g, ' ')} — ${formatNaira(expense.amount_ngn || 0)}`,
+        title: 'High-value expense awaiting second approval',
+        body: `${cat} — ${amtStr}`,
       });
+      toast({
+        title: 'First approval recorded',
+        description: 'A second approver must confirm this high-value expense.',
+      });
+      fetchData();
+    } else {
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          status: 'approved',
+          approved_by: profile?.id,
+          approved_at: now,
+        })
+        .eq('id', expense.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        return;
+      }
+      await logAudit(
+        'expense_approved',
+        `Expense approved: ${cat} — ${amtStr}`,
+        profile,
+      );
+      if (expense.submitted_by) {
+        await notifyUser({
+          userId: expense.submitted_by,
+          type: 'expense_approved',
+          module: 'expenses',
+          title: 'Your expense was approved',
+          body: `${cat} — ${amtStr}`,
+        });
+      }
+      toast({ title: 'Expense approved' });
+      fetchData();
     }
-    toast({ title: 'Expense approved' });
-    fetchData();
   };
 
   const doReject = async () => {
@@ -859,6 +953,7 @@ const Expenses = () => {
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="pending_second_approval">Pending 2nd Approval</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
@@ -965,18 +1060,34 @@ const Expenses = () => {
                         {e.description || '—'}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={
-                            e.status === 'approved'
-                              ? 'bg-success/10 text-success'
-                              : e.status === 'rejected'
-                              ? 'bg-destructive/10 text-destructive'
-                              : 'bg-warning/10 text-warning'
-                          }
-                        >
-                          {e.status}
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge
+                            variant="secondary"
+                            className={
+                              e.status === 'approved'
+                                ? 'bg-success/10 text-success'
+                                : e.status === 'rejected'
+                                ? 'bg-destructive/10 text-destructive'
+                                : e.status === 'pending_second_approval'
+                                ? 'bg-orange-100 text-orange-700'
+                                : 'bg-warning/10 text-warning'
+                            }
+                          >
+                            {e.status === 'pending_second_approval'
+                              ? 'Pending 2nd Approval'
+                              : e.status}
+                          </Badge>
+                          {e.status === 'pending_second_approval' && (
+                            <span className="text-[10px] text-muted-foreground">
+                              1 of 2 approvals
+                            </span>
+                          )}
+                          {e.status === 'approved' && e.approved_by_secondary && (
+                            <span className="text-[10px] text-muted-foreground">
+                              Dual approved
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {e.status === 'approved' && paymentBadge(e.payment_status)}
@@ -1001,6 +1112,31 @@ const Expenses = () => {
                                   <X className="h-4 w-4 text-destructive" />
                                 </Button>
                               </>
+                            )}
+                            {e.status === 'pending_second_approval' && (
+                              e.approved_by === profile?.id ? (
+                                <span className="text-xs text-muted-foreground">
+                                  You approved · awaiting 2nd
+                                </span>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    title="Give second approval"
+                                    onClick={() => handleAction(e, 'approved')}
+                                  >
+                                    <Check className="h-4 w-4 text-success" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleAction(e, 'rejected')}
+                                  >
+                                    <X className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )
                             )}
                             {e.status === 'rejected' && e.submitted_by === profile?.id && (
                               <Button
