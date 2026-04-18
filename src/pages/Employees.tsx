@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { displayName } from '@/lib/name';
 import {
   Loader2,
   Plus,
@@ -56,6 +58,8 @@ type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 interface Employee {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
   phone: string | null;
   role: string;
@@ -97,6 +101,7 @@ const STATUS_BADGE: Record<string, string> = {
 const Employees = () => {
   const { toast } = useToast();
   const { profile } = useAuthStore();
+  const navigate = useNavigate();
 
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +112,8 @@ const Employees = () => {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     role: 'field_staff' as Role,
@@ -138,7 +144,8 @@ const Employees = () => {
 
   const resetForm = () =>
     setForm({
-      full_name: '',
+      first_name: '',
+      last_name: '',
       email: '',
       phone: '',
       role: 'field_staff',
@@ -150,7 +157,8 @@ const Employees = () => {
   const openEdit = (e: Employee) => {
     setEditing(e);
     setForm({
-      full_name: e.full_name || '',
+      first_name: e.first_name || (e.full_name || '').split(' ')[0] || '',
+      last_name: e.last_name || (e.full_name || '').split(' ').slice(1).join(' ') || '',
       email: e.email,
       phone: e.phone || '',
       role: (e.role as Role) || 'field_staff',
@@ -171,7 +179,7 @@ const Employees = () => {
   //
   // No service-role key, no self-registration.
   const inviteEmployee = async () => {
-    if (!form.full_name.trim() || !form.email.trim()) {
+    if (!`${form.first_name} ${form.last_name}`.trim() || !form.email.trim()) {
       toast({ title: 'Name and email are required', variant: 'destructive' });
       return;
     }
@@ -185,7 +193,7 @@ const Employees = () => {
       const { error: inviteErr } = await supabase.from('pending_invites').upsert(
         {
           email: form.email.trim().toLowerCase(),
-          full_name: form.full_name.trim(),
+          full_name: `${form.first_name} ${form.last_name}`.trim(),
           role: form.role,
           phone: form.phone || null,
           invited_by: profile?.id || null,
@@ -198,7 +206,7 @@ const Employees = () => {
       // status='invited' before accepting.
       await supabase.rpc('seed_invited_profile', {
         p_email: form.email.trim().toLowerCase(),
-        p_full_name: form.full_name.trim(),
+        p_full_name: `${form.first_name} ${form.last_name}`.trim(),
         p_phone: form.phone || null,
         p_role: form.role,
       });
@@ -212,7 +220,7 @@ const Employees = () => {
           shouldCreateUser: true,
           emailRedirectTo: redirect,
           data: {
-            full_name: form.full_name.trim(),
+            full_name: `${form.first_name} ${form.last_name}`.trim(),
           },
         },
       });
@@ -234,7 +242,7 @@ const Employees = () => {
 
       await logAudit(
         'employee_added',
-        `Invited ${form.full_name} (${form.email}) as ${roleLabel(form.role)}`,
+        `Invited ${form.first_name} ${form.last_name} (${form.email}) as ${roleLabel(form.role)}`,
         profile,
       );
       setShowForm(false);
@@ -279,14 +287,16 @@ const Employees = () => {
 
   const saveEdit = async () => {
     if (!editing) return;
-    if (!form.full_name.trim()) return;
+    if (!`${form.first_name} ${form.last_name}`.trim()) return;
     setSubmitting(true);
     try {
       const roleChanged = form.role !== editing.role;
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: form.full_name,
+          first_name: form.first_name,
+          last_name: form.last_name,
+          full_name: `${form.first_name} ${form.last_name}`.trim(),
           phone: form.phone || null,
           role: form.role,
         })
@@ -301,7 +311,7 @@ const Employees = () => {
       } else {
         await logAudit(
           'employee_edited',
-          `Employee "${form.full_name}" updated`,
+          `Employee "${form.first_name} ${form.last_name}" updated`,
           profile,
         );
       }
@@ -342,7 +352,7 @@ const Employees = () => {
     if (roleFilter !== 'all' && e.role !== roleFilter) return false;
     if (!q) return true;
     return (
-      (e.full_name || '').toLowerCase().includes(q) ||
+      displayName(e.first_name, e.last_name, e.full_name).toLowerCase().includes(q) ||
       e.email.toLowerCase().includes(q) ||
       (e.phone || '').toLowerCase().includes(q) ||
       roleLabel(e.role).toLowerCase().includes(q)
@@ -439,9 +449,9 @@ const Employees = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((e) => (
-                    <TableRow key={e.id} className="kd-transition">
+                    <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}>
                       <TableCell className="font-medium">
-                        {e.full_name || '—'}
+                        {displayName(e.first_name, e.last_name, e.full_name)}
                       </TableCell>
                       <TableCell className="capitalize">{roleLabel(e.role)}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -541,12 +551,20 @@ const Employees = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1 col-span-2 sm:col-span-1">
-                <Label>Full Name</Label>
+              <div className="space-y-1">
+                <Label>First Name</Label>
                 <Input
-                  value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                  placeholder="e.g. Ada Okonkwo"
+                  value={form.first_name}
+                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  placeholder="e.g. Ada"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Last Name</Label>
+                <Input
+                  value={form.last_name}
+                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                  placeholder="e.g. Okonkwo"
                 />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">
@@ -660,7 +678,7 @@ const Employees = () => {
             {editing ? (
               <Button
                 onClick={saveEdit}
-                disabled={submitting || !form.full_name.trim()}
+                disabled={submitting || !`${form.first_name} ${form.last_name}`.trim()}
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Save changes
@@ -670,7 +688,7 @@ const Employees = () => {
                 onClick={inviteEmployee}
                 disabled={
                   submitting ||
-                  !form.full_name.trim() ||
+                  !`${form.first_name} ${form.last_name}`.trim() ||
                   !form.email.trim() ||
                   !isSuperAdmin
                 }

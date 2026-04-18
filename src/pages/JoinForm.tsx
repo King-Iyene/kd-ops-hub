@@ -29,7 +29,8 @@ const JoinForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     linkedin_full_name: '',
@@ -48,8 +49,8 @@ const JoinForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.full_name.trim() || !form.email.trim()) {
-      toast({ title: 'Name and email are required', variant: 'destructive' });
+    if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) {
+      toast({ title: 'First name, last name, and email are required', variant: 'destructive' });
       return;
     }
     if (!form.bank_name) {
@@ -75,7 +76,9 @@ const JoinForm = () => {
     setSubmitting(true);
     try {
       const { error } = await supabase.from('contractor_applications').insert({
-        full_name: form.full_name.trim(),
+        full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
         email: form.email.trim().toLowerCase(),
         phone: form.phone || null,
         linkedin_full_name: form.linkedin_full_name || null,
@@ -142,11 +145,20 @@ const JoinForm = () => {
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Full Name *</Label>
+                  <Label>First Name *</Label>
                   <Input
-                    value={form.full_name}
-                    onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                    placeholder="Ada Okonkwo"
+                    value={form.first_name}
+                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                    placeholder="Ada"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Last Name *</Label>
+                  <Input
+                    value={form.last_name}
+                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                    placeholder="Okonkwo"
                     required
                   />
                 </div>
@@ -288,7 +300,7 @@ const JoinForm = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={submitting || !form.full_name || !form.email || !isValidNuban || !form.bank_name}
+              disabled={submitting || !form.first_name || !form.last_name || !form.email || !isValidNuban || !form.bank_name}
             >
               {submitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
