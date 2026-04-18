@@ -47,6 +47,7 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   roles: Role[];
   badge?: 'approvals';
+  section?: string;
 };
 
 // Role matrix — spec v2:
@@ -61,26 +62,26 @@ type NavItem = {
 //                Knowledge.
 const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals' },
+  { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', section: 'Finance' },
   { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Cards',         url: '/cards',         icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',    url: '/compliance',    icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'], section: 'Operations' },
   { title: 'Fleet',         url: '/fleet',         icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'] },
-  { title: 'Expenses',      url: '/expenses',      icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Contractors',   url: '/contractors',   icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Employees',     url: '/employees',     icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',         url: '/leave',         icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Tasks',         url: '/tasks',         icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'], section: 'Workspace' },
   { title: 'Goals',         url: '/goals',         icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Knowledge',     url: '/knowledge',     icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Documents',     url: '/documents',     icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',       url: '/reports',       icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Contacts',      url: '/contacts',      icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
+  { title: 'Contacts',      url: '/contacts',      icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'], section: 'CRM' },
   { title: 'Referrals',     url: '/referrals',     icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Audit Log',     url: '/audit',         icon: ScrollText,      roles: ['super_admin', 'admin'] },
+  { title: 'Audit Log',     url: '/audit',         icon: ScrollText,      roles: ['super_admin', 'admin'], section: 'Admin' },
   { title: 'Settings',      url: '/settings',      icon: Settings,        roles: ['super_admin'] },
 ];
 
@@ -131,13 +132,21 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {navItems.map((item, idx) => {
                 const active =
                   location.pathname === item.url ||
                   (item.url !== '/' && location.pathname.startsWith(item.url));
                 const showBadge = item.badge === 'approvals' && approvalTotal > 0;
+                const showSection = !collapsed && item.section && idx > 0;
                 return (
                   <SidebarMenuItem key={item.title}>
+                    {showSection && (
+                      <div className="px-3 pt-4 pb-1">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+                          {item.section}
+                        </span>
+                      </div>
+                    )}
                     <SidebarMenuButton
                       asChild
                       isActive={active}
