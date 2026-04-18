@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatNaira } from '@/lib/format';
@@ -142,6 +143,7 @@ const normalizeBankName = (raw: string): string | null => {
 const Contractors = () => {
   const { toast } = useToast();
   const { profile } = useAuthStore();
+  const navigate = useNavigate();
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -484,7 +486,7 @@ const Contractors = () => {
                     ? 'bg-accent'
                     : 'bg-destructive';
                 return (
-                <TableRow key={c.id}>
+                <TableRow key={c.id} className="cursor-pointer kd-transition" onClick={() => navigate(`/contractors/${c.id}`)}>
                   <TableCell className="font-medium">
                     <div>{c.full_name}</div>
                     {c.linkedin_id && (

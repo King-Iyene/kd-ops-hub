@@ -32,6 +32,7 @@ import Fleet from './pages/Fleet';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Contacts from './pages/Contacts';
+import ContactProfile from './pages/ContactProfile';
 import Referrals from './pages/Referrals';
 import JoinForm from './pages/JoinForm';
 import ResetPassword from './pages/ResetPassword';
@@ -325,6 +326,14 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Contacts />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/contacts/:id"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <ContactProfile />
             </RoleGuard>
           }
         />

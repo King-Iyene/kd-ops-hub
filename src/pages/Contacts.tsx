@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { displayName } from '@/lib/name';
 import {
   Plus,
   Search,
@@ -59,6 +61,8 @@ type ContactStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
 interface Contact {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone: string | null;
   contact_type: ContactType;
@@ -88,6 +92,7 @@ const STATUS_BADGE: Record<ContactStatus, string> = {
 const Contacts = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
@@ -387,8 +392,8 @@ const Contacts = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((c) => (
-                    <TableRow key={c.id} className="kd-transition">
-                      <TableCell className="font-medium">{c.full_name}</TableCell>
+                    <TableRow key={c.id} className="kd-transition cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                      <TableCell className="font-medium">{displayName(c.first_name, c.last_name, c.full_name)}</TableCell>
                       <TableCell className="text-muted-foreground">
                         {c.email || '—'}
                       </TableCell>

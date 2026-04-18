@@ -114,8 +114,21 @@ const BatchDetail = () => {
       supabase.from('payment_batches').select('*').eq('id', id).single(),
       supabase.from('batch_items').select('*').eq('batch_id', id).order('created_at'),
     ]);
-    setBatch(batchRes.data);
-    setItems(itemsRes.data || []);
+    const b = batchRes.data;
+    const allItems = itemsRes.data || [];
+
+    if (b && (b.status === 'processing' || b.status === 'partially_processed') && allItems.length > 0) {
+      const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
+      const anyFailed = allItems.some((r: any) => r.status === 'failed');
+      const correctStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+      if (correctStatus !== b.status) {
+        await supabase.from('payment_batches').update({ status: correctStatus }).eq('id', id);
+        b.status = correctStatus;
+      }
+    }
+
+    setBatch(b);
+    setItems(allItems);
     setLoading(false);
   };
 
@@ -757,6 +770,11 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" /> Retry all failed (
               {failedItems.length})
+            </Button>
+          )}
+          {(batch.status === 'processing' || batch.status === 'partially_processed') && (
+            <Button variant="outline" onClick={fetchBatch} disabled={loading}>
+              <RotateCw className="mr-2 h-4 w-4" /> Refresh Status
             </Button>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
