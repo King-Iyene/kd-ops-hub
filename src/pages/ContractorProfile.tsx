@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatNaira } from '@/lib/format';
+import { displayName, initialsOf } from '@/lib/name';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ import { useToast } from '@/hooks/use-toast';
 interface ContractorData {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
@@ -43,13 +46,8 @@ interface ContractorData {
   created_at: string;
 }
 
-const initialsOf = (name: string) => {
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] || '') + (parts[parts.length - 1]?.[0] || '')).toUpperCase() || 'C';
-};
-
 const onboardingChecks = (c: ContractorData) => [
-  { label: 'Full name', ok: !!(c.full_name && c.full_name.trim()) },
+  { label: 'Name', ok: !!(c.first_name || c.full_name) },
   { label: 'Bank verified', ok: /^\d{10}$/.test(c.account_number || '') && !!(c.bank_name) },
   { label: 'LinkedIn ID', ok: !!(c.linkedin_id && c.linkedin_id.trim()) },
   { label: 'Default amount', ok: (c.default_amount_ngn || 0) > 0 },
@@ -102,10 +100,13 @@ const ContractorProfile = () => {
   const save = async () => {
     if (!id || !form) return;
     setSaving(true);
+    const cName = displayName(form.first_name, form.last_name, form.full_name);
     const { error } = await supabase
       .from('contractors')
       .update({
-        full_name: form.full_name,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        full_name: cName,
         default_amount_ngn: form.default_amount_ngn,
         linkedin_id: form.linkedin_id,
         linkedin_url: form.linkedin_url,
@@ -115,7 +116,7 @@ const ContractorProfile = () => {
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
     } else {
-      await logAudit('contractor_edited', `Contractor profile "${form.full_name}" updated`, currentUser);
+      await logAudit('contractor_edited', `Contractor profile "${cName}" updated`, currentUser);
       toast({ title: 'Contractor profile saved' });
       load();
     }
@@ -134,6 +135,7 @@ const ContractorProfile = () => {
   const checks = onboardingChecks(contractor);
   const doneCnt = checks.filter((c) => c.ok).length;
   const pct = Math.round((doneCnt / checks.length) * 100);
+  const ctrName = displayName(contractor.first_name, contractor.last_name, contractor.full_name);
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -142,7 +144,7 @@ const ContractorProfile = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{contractor.full_name}</h1>
+          <h1 className="text-2xl font-bold">{ctrName}</h1>
           <p className="text-muted-foreground text-sm">
             {contractor.bank_name} · {contractor.account_number}
           </p>
@@ -161,7 +163,7 @@ const ContractorProfile = () => {
           <div className="flex items-start gap-5 flex-wrap">
             <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center shrink-0 ring-4 ring-primary/10">
               <span className="text-2xl font-bold text-primary-foreground">
-                {initialsOf(contractor.full_name)}
+                {initialsOf(contractor.first_name, contractor.last_name, contractor.full_name)}
               </span>
             </div>
             <div className="flex-1 min-w-0 space-y-1">
@@ -197,8 +199,12 @@ const ContractorProfile = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Full name</Label>
-                  <Input value={form.full_name || ''} onChange={(e) => patch({ full_name: e.target.value })} />
+                  <Label>First name</Label>
+                  <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Last name</Label>
+                  <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
                 </div>
                 <div className="space-y-1">
                   <Label>Default amount (₦)</Label>
@@ -267,7 +273,7 @@ const ContractorProfile = () => {
                   {payments.map((p: any) => (
                     <div key={p.id} className="flex items-center justify-between border rounded-lg p-3">
                       <div>
-                        <p className="font-medium">{p.recipient_name || contractor.full_name}</p>
+                        <p className="font-medium">{p.recipient_name || ctrName}</p>
                         <p className="text-xs text-muted-foreground">
                           {formatDate(p.created_at)} · {p.payment_batches?.description || 'Batch payment'}
                         </p>
