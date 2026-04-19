@@ -3,45 +3,48 @@ import { test, expect } from '@playwright/test';
 test.describe('Dashboard', () => {
   test('loads without errors and shows KPI cards', async ({ page }) => {
     await page.goto('/dashboard');
-    await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible();
+    // h1 is unambiguous — the sidebar nav link is not an h1.
+    await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 10_000 });
 
-    // At least 4 stat cards should render (Partners Paid, Disbursed,
-    // Pending Approvals, Fuel Spend).
+    // At least one stat card should render.
     const cards = page.locator('[class*="CardContent"]');
     await expect(cards.first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('recent activity feed loads', async ({ page }) => {
     await page.goto('/dashboard');
-    await expect(
-      page.locator('text=Recent Activity').first(),
-    ).toBeVisible({ timeout: 10_000 });
+    // Use first() — "Recent Activity" could appear in a heading and a card title.
+    await expect(page.locator('text=Recent Activity').first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test('quick actions section has working buttons', async ({ page }) => {
+  test('quick actions — Create Payment Batch navigates to wizard', async ({ page }) => {
     await page.goto('/dashboard');
-    const createBatch = page.locator('text=Create Payment Batch');
+    // The quick-action is a link or button. Use first() to avoid ambiguity with
+    // any duplicate labels that may appear elsewhere on the page.
+    const createBatch = page.locator(
+      'a:has-text("Create Payment Batch"), button:has-text("Create Payment Batch")',
+    ).first();
     await expect(createBatch).toBeVisible({ timeout: 10_000 });
     await createBatch.click();
     await page.waitForURL('**/payments/new');
     await expect(page).toHaveURL(/\/payments\/new/);
   });
 
-  test('audit log link works', async ({ page }) => {
+  test('full audit log link navigates to /audit', async ({ page }) => {
     await page.goto('/dashboard');
-    const link = page.locator('text=Full audit log');
+    const link = page.locator('a:has-text("Full audit log"), text=Full audit log').first();
     if (await link.isVisible()) {
       await link.click();
-      await page.waitForURL('**/audit');
+      await page.waitForURL('**/audit', { timeout: 10_000 });
       await expect(page).toHaveURL(/\/audit/);
     }
   });
 
-  test('notification bell is visible', async ({ page }) => {
+  test('header is visible and contains icon buttons', async ({ page }) => {
     await page.goto('/dashboard');
-    const bell = page.locator('button[aria-label*="notification"], button:has(svg.lucide-bell)').first();
-    // The bell may be rendered as an icon button without explicit aria-label;
-    // fall back to checking the header area has at least one button.
-    await expect(page.locator('header')).toBeVisible();
+    const header = page.locator('header');
+    await expect(header).toBeVisible({ timeout: 10_000 });
+    // There must be at least one icon button (notification bell or profile).
+    await expect(header.locator('button').first()).toBeVisible();
   });
 });
