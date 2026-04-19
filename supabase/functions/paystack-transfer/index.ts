@@ -73,6 +73,7 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
   });
   const body = await res.json();
   if (!res.ok || body?.status === false) {
+    console.error("[paystack] API error:", res.status, JSON.stringify(body));
     throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
   }
   return body;
@@ -96,6 +97,7 @@ serve(async (req) => {
     // Account-name lookup is not sensitive — secret key stays server-side.
     // ---------------------------------------------------------------
     if (action === "resolve_account") {
+      console.log("[paystack] resolve_account request:", { account_number: params.account_number, bank_code: params.bank_code });
       const qs = new URLSearchParams({
         account_number: params.account_number,
         bank_code: params.bank_code,
@@ -166,45 +168,63 @@ serve(async (req) => {
 
     switch (action) {
       case "create_recipient": {
-        const body = await paystackFetch("/transferrecipient", {
-          method: "POST",
-          body: JSON.stringify({
-            type: "nuban",
-            name: params.name,
-            account_number: params.account_number,
-            bank_code: params.bank_code,
-            currency: "NGN",
-          }),
-        });
-        result = body.data;
+        console.log("[paystack] create_recipient request:", { name: params.name, account_number: params.account_number, bank_code: params.bank_code });
+        try {
+          const body = await paystackFetch("/transferrecipient", {
+            method: "POST",
+            body: JSON.stringify({
+              type: "nuban",
+              name: params.name,
+              account_number: params.account_number,
+              bank_code: params.bank_code,
+              currency: "NGN",
+            }),
+          });
+          result = body.data;
+        } catch (e) {
+          console.error("[paystack] create_recipient failed:", e instanceof Error ? e.message : e);
+          throw e;
+        }
         break;
       }
 
       case "initiate_transfer": {
-        const body = await paystackFetch("/transfer", {
-          method: "POST",
-          body: JSON.stringify({
-            source: "balance",
-            reason: params.reason || "KDOps disbursement",
-            amount: Math.round((params.amount_ngn ?? 0) * 100),
-            recipient: params.recipient_code,
-            reference: params.reference,
-          }),
-        });
-        result = body.data;
+        console.log("[paystack] initiate_transfer request:", { amount_ngn: params.amount_ngn, recipient_code: params.recipient_code, reference: params.reference });
+        try {
+          const body = await paystackFetch("/transfer", {
+            method: "POST",
+            body: JSON.stringify({
+              source: "balance",
+              reason: params.reason || "KDOps disbursement",
+              amount: Math.round((params.amount_ngn ?? 0) * 100),
+              recipient: params.recipient_code,
+              reference: params.reference,
+            }),
+          });
+          result = body.data;
+        } catch (e) {
+          console.error("[paystack] initiate_transfer failed:", e instanceof Error ? e.message : e);
+          throw e;
+        }
         break;
       }
 
       case "verify_transfer": {
-        const body = await paystackFetch(
-          `/transfer/verify/${encodeURIComponent(params.reference)}`,
-        );
-        result = {
-          status: body.data?.status,
-          transfer_code: body.data?.transfer_code,
-          reason: body.data?.failures?.[0]?.reason || body.data?.reason,
-          raw: body.data,
-        };
+        console.log("[paystack] verify_transfer request:", { reference: params.reference });
+        try {
+          const body = await paystackFetch(
+            `/transfer/verify/${encodeURIComponent(params.reference)}`,
+          );
+          result = {
+            status: body.data?.status,
+            transfer_code: body.data?.transfer_code,
+            reason: body.data?.failures?.[0]?.reason || body.data?.reason,
+            raw: body.data,
+          };
+        } catch (e) {
+          console.error("[paystack] verify_transfer failed:", e instanceof Error ? e.message : e);
+          throw e;
+        }
         break;
       }
 
