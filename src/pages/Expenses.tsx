@@ -689,6 +689,11 @@ const Expenses = () => {
     if (!isApprover) return;
     const pending = expenses.filter((e) => e.status === 'pending');
     if (pending.length === 0) return;
+    const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+    const ok = window.confirm(
+      `You are about to approve ${pending.length} expense claims totalling ${formatNaira(total)}. This cannot be undone. Proceed?`,
+    );
+    if (!ok) return;
     setBulkLoading(true);
     try {
       const ids = pending.map((p) => p.id);
