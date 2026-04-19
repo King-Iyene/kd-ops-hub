@@ -303,6 +303,7 @@ const BatchDetail = () => {
       return { ok: true };
     } catch (err: any) {
       const msg = err?.message || 'Transfer failed';
+      console.error('[BatchDetail] processOneItem failed for', it.full_name, ':', err);
       await supabase
         .from('batch_items')
         .update({ status: 'failed', failure_reason: msg })
@@ -312,6 +313,11 @@ const BatchDetail = () => {
         `Transfer failed for ${it.full_name}: ${msg}`,
         profile,
       );
+      toast({
+        title: `Transfer failed: ${it.full_name}`,
+        description: msg,
+        variant: 'destructive',
+      });
       return { ok: false, reason: msg };
     }
   };
@@ -325,24 +331,30 @@ const BatchDetail = () => {
         .eq('id', id);
 
       // Kick all line items serially (Paystack rate limits burst traffic).
+      let initiatedCount = 0;
       for (const it of items) {
         if (it.status === 'succeeded') continue;
-        await processOneItem(it);
+        const result = await processOneItem(it);
+        if (result.ok) initiatedCount++;
       }
 
-      // Let the poller decide the final status once transfers settle — for
-      // now, reflect the current in-flight state.
       const { data: refreshed } = await supabase
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed || []).some((r: any) => r.status === 'failed');
-      const anyPending = (refreshed || []).some((r: any) => r.status === 'pending');
-      const finalStatus = anyFailed
+      const allStatuses = (refreshed || []).map((r: any) => r.status);
+      const anyFailed = allStatuses.includes('failed');
+      const anyPending = allStatuses.includes('pending');
+      const anySucceeded = allStatuses.includes('succeeded') || initiatedCount > 0;
+      const finalStatus = anyFailed && !anyPending && !anySucceeded
+        ? 'partially_processed'
+        : anyFailed
         ? 'partially_processed'
         : anyPending
         ? 'processing'
-        : 'processed';
+        : anySucceeded
+        ? 'processed'
+        : 'partially_processed';
       await supabase
         .from('payment_batches')
         .update({ status: finalStatus })
