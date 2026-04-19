@@ -63,6 +63,11 @@ async function getPaystackSecret(): Promise<string> {
 
 async function paystackFetch(path: string, init: RequestInit = {}) {
   const secret = await getPaystackSecret();
+  // Step 3: log key prefix (never the full key)
+  console.log("[secret-check] key prefix:", secret.substring(0, 10));
+  console.log("[secret-check] key length:", secret.length);
+
+  console.log("[paystackFetch] path:", path, "method:", init.method || "GET");
 
   const res = await fetch(`${PAYSTACK_BASE}${path}`, {
     ...init,
@@ -72,7 +77,11 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
       ...(init.headers || {}),
     },
   });
+  // Step 2: log full response status + body for every call
   const body = await res.json();
+  console.log("[paystackFetch] response status:", res.status);
+  console.log("[paystackFetch] response body:", JSON.stringify(body));
+
   if (!res.ok || body?.status === false) {
     console.error("[paystack] API error:", res.status, JSON.stringify(body));
     throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
@@ -170,16 +179,19 @@ serve(async (req) => {
     switch (action) {
       case "create_recipient": {
         console.log("[paystack] create_recipient request:", { name: params.name, account_number: params.account_number, bank_code: params.bank_code });
+        const recipientPayload = {
+          type: "nuban",
+          name: params.name,
+          account_number: params.account_number,
+          bank_code: params.bank_code,
+          currency: "NGN",
+        };
+        // Step 4: log exact request body
+        console.log("[create-recipient-request]", JSON.stringify(recipientPayload));
         try {
           const body = await paystackFetch("/transferrecipient", {
             method: "POST",
-            body: JSON.stringify({
-              type: "nuban",
-              name: params.name,
-              account_number: params.account_number,
-              bank_code: params.bank_code,
-              currency: "NGN",
-            }),
+            body: JSON.stringify(recipientPayload),
           });
           result = body.data;
         } catch (e) {
@@ -191,16 +203,18 @@ serve(async (req) => {
 
       case "initiate_transfer": {
         console.log("[paystack] initiate_transfer request:", { amount_ngn: params.amount_ngn, recipient_code: params.recipient_code, reference: params.reference });
+        const transferPayload = {
+          source: "balance",
+          reason: params.reason || "KDOps disbursement",
+          amount: Math.round((params.amount_ngn ?? 0) * 100),
+          recipient: params.recipient_code,
+          reference: params.reference,
+        };
+        console.log("[initiate-transfer-request]", JSON.stringify(transferPayload));
         try {
           const body = await paystackFetch("/transfer", {
             method: "POST",
-            body: JSON.stringify({
-              source: "balance",
-              reason: params.reason || "KDOps disbursement",
-              amount: Math.round((params.amount_ngn ?? 0) * 100),
-              recipient: params.recipient_code,
-              reference: params.reference,
-            }),
+            body: JSON.stringify(transferPayload),
           });
           result = body.data;
         } catch (e) {
