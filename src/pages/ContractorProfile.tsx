@@ -14,6 +14,7 @@ import {
   XCircle,
   FileText,
   Shield,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -27,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
 interface ContractorData {
@@ -65,6 +67,7 @@ const ContractorProfile = () => {
   const [contractor, setContractor] = useState<ContractorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState<Partial<ContractorData>>({});
   const [payments, setPayments] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -136,6 +139,17 @@ const ContractorProfile = () => {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    if (!id || !contractor) return;
+    const { error } = await supabase.from('contractors').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('contractor_deleted', `Contractor "${contractor.full_name}" deleted`, currentUser);
+    navigate('/contractors', { replace: true });
+  };
+
   if (loading || !contractor) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -168,7 +182,25 @@ const ContractorProfile = () => {
         >
           {contractor.status}
         </Badge>
+        {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
+          <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+        )}
       </div>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {ctrName}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">This cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Hero card */}
       <Card>
