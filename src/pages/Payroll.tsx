@@ -8,6 +8,8 @@ import {
   FileText,
   TrendingUp,
   Users,
+  Send,
+  AlertCircle,
 } from 'lucide-react';
 import {
   BarChart,
@@ -52,6 +54,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { displayName } from '@/lib/name';
@@ -102,6 +105,9 @@ const Payroll = () => {
   const [dialog, setDialog] = useState(false);
   const [working, setWorking] = useState(false);
   const [salaryErrors, setSalaryErrors] = useState<string[]>([]);
+  const [disburseTarget, setDisburseTarget] = useState<{ run: PayrollRun; payslips: any[] } | null>(null);
+  const [disbursing, setDisbursing] = useState(false);
+  const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
   const [form, setForm] = useState({
     period: monthPeriod(
       new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
@@ -371,6 +377,172 @@ const Payroll = () => {
     }
   };
 
+  const canDisburse = ['super_admin', 'admin', 'finance'].includes(profile?.role || '');
+
+  const openDisburse = async (run: PayrollRun) => {
+    setWorking(true);
+    try {
+      const { data: slips, error } = await supabase
+        .from('payslips')
+        .select('id, employee_id, employee_name, net_ngn')
+        .eq('payroll_run_id', run.id);
+      if (error) throw error;
+      if (!slips || slips.length === 0) {
+        toast({
+          title: 'No payslips found',
+          description: 'Generate payslips for this run before disbursing.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setDisburseErrors([]);
+      setDisburseTarget({ run, payslips: slips });
+    } catch (err: any) {
+      toast({ title: 'Failed to load payslips', description: err?.message, variant: 'destructive' });
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const doDisburse = async () => {
+    if (!disburseTarget) return;
+    const { run, payslips } = disburseTarget;
+    setDisbursing(true);
+    const errors: string[] = [];
+    let succeeded = 0;
+
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const totalNet = payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0);
+
+      const { data: batch, error: batchErr } = await supabase
+        .from('payment_batches')
+        .insert({
+          name: `Salary ${monthLabel(run.period)}`,
+          status: 'approved',
+          payment_date: today,
+          total_amount: totalNet,
+          beneficiary_count: payslips.length,
+        })
+        .select()
+        .single();
+      if (batchErr) throw batchErr;
+
+      for (const slip of payslips) {
+        try {
+          const { data: emp, error: empErr } = await supabase
+            .from('profiles')
+            .select('bank_name, bank_account_number, full_name, first_name, last_name')
+            .eq('id', slip.employee_id)
+            .single();
+          if (empErr || !emp) {
+            errors.push(`${slip.employee_name}: could not load profile`);
+            continue;
+          }
+          const bankCode = getBankCode((emp as any).bank_name);
+          if (!bankCode) {
+            errors.push(`${slip.employee_name}: unknown bank "${(emp as any).bank_name}"`);
+            continue;
+          }
+          if (!(emp as any).bank_account_number) {
+            errors.push(`${slip.employee_name}: no bank account number on file`);
+            continue;
+          }
+
+          const empName = displayName(
+            (emp as any).first_name,
+            (emp as any).last_name,
+            (emp as any).full_name || slip.employee_name,
+          );
+
+          const { data: item, error: itemErr } = await supabase
+            .from('batch_items')
+            .insert({
+              batch_id: (batch as any).id,
+              full_name: empName,
+              bank_name: (emp as any).bank_name || '',
+              account_number: (emp as any).bank_account_number,
+              amount_ngn: Number(slip.net_ngn || 0),
+              status: 'pending',
+            })
+            .select()
+            .single();
+          if (itemErr || !item) {
+            errors.push(`${empName}: failed to create payment record`);
+            continue;
+          }
+
+          const recipient = await createTransferRecipient({
+            name: empName,
+            account_number: (emp as any).bank_account_number,
+            bank_code: bankCode,
+          });
+          const ref = `salary_${(item as any).id.replace(/-/g, '').slice(0, 18)}`;
+          const transfer = await initiateTransfer({
+            recipient_code: recipient.recipient_code,
+            amount_ngn: Number(slip.net_ngn || 0),
+            reference: ref,
+            reason: `KDOps · Salary ${monthLabel(run.period)}`,
+          });
+
+          await supabase
+            .from('batch_items')
+            .update({
+              status: 'pending',
+              paystack_recipient_code: recipient.recipient_code,
+              paystack_transfer_code: transfer.transfer_code,
+              paystack_reference: transfer.reference,
+              failure_reason: null,
+            } as any)
+            .eq('id', (item as any).id);
+
+          await logAudit(
+            'paystack_transfer_initiated',
+            `Salary transfer initiated for ${empName} (${formatNaira(Number(slip.net_ngn || 0))}) ref ${transfer.reference}`,
+            profile,
+          );
+          succeeded++;
+        } catch (empErr: any) {
+          errors.push(`${slip.employee_name}: ${empErr?.message || 'transfer failed'}`);
+        }
+      }
+
+      if (succeeded > 0) {
+        await supabase.from('payroll_runs').update({ status: 'paid' }).eq('id', run.id);
+        await logAudit(
+          'salary_disbursed',
+          `Salary disbursed for ${monthLabel(run.period)}: ${succeeded}/${payslips.length} transfers initiated${errors.length ? ` (${errors.length} failed)` : ''}`,
+          profile,
+        );
+      }
+
+      setDisburseErrors(errors);
+      if (errors.length === 0) {
+        toast({
+          title: `${succeeded} salary transfer${succeeded === 1 ? '' : 's'} initiated`,
+          description: `Payroll ${monthLabel(run.period)} sent via Paystack. Status updates arrive via webhook.`,
+        });
+        setDisburseTarget(null);
+        load();
+      } else {
+        toast({
+          title: `${succeeded} of ${payslips.length} transfers initiated`,
+          description: `${errors.length} employee${errors.length === 1 ? '' : 's'} could not be processed — see dialog for details.`,
+          variant: 'destructive',
+        });
+        if (succeeded > 0) load();
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Disbursement failed',
+        description: err?.message || 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDisbursing(false);
+    }
+  };
+
   const markPaid = async (run: PayrollRun) => {
     const { error } = await supabase
       .from('payroll_runs')
@@ -612,6 +784,19 @@ const Payroll = () => {
                               {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                               Generate payslips
                             </Button>
+                            {canDisburse && (
+                              <Button
+                                size="sm"
+                                onClick={() => openDisburse(r)}
+                                disabled={working}
+                                title="Disburse net salaries via Paystack"
+                              >
+                                {working
+                                  ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                                  : <Send className="mr-2 h-3.5 w-3.5" />}
+                                Disburse salaries
+                              </Button>
+                            )}
                             <Button size="sm" variant="outline" onClick={() => markPaid(r)}>
                               Mark paid
                             </Button>
@@ -660,6 +845,68 @@ const Payroll = () => {
             <Button onClick={draftRun} disabled={working}>
               {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!disburseTarget}
+        onOpenChange={(open) => { if (!open && !disbursing) { setDisburseTarget(null); setDisburseErrors([]); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm salary disbursement</DialogTitle>
+          </DialogHeader>
+          {disburseTarget && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Period</span>
+                  <span className="font-medium">{monthLabel(disburseTarget.run.period)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Employees</span>
+                  <span className="font-medium">{disburseTarget.payslips.length}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Total disbursement</span>
+                  <span className="currency text-success">
+                    {formatNaira(disburseTarget.payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0))}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                KDOps will create a Paystack transfer for each employee's net salary using the
+                bank details on their profile. Status updates arrive via the Paystack webhook.
+              </p>
+              {disburseErrors.length > 0 && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-1">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1">
+                    <AlertCircle className="h-3.5 w-3.5" /> {disburseErrors.length} employee{disburseErrors.length === 1 ? '' : 's'} could not be processed
+                  </p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {disburseErrors.map((e, i) => (
+                      <li key={i} className="text-xs text-destructive">{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); }}
+              disabled={disbursing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={doDisburse} disabled={disbursing}>
+              {disbursing
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Send className="mr-2 h-4 w-4" />}
+              Disburse
             </Button>
           </DialogFooter>
         </DialogContent>
