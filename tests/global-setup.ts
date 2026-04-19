@@ -1,4 +1,5 @@
 import { test as setup, expect } from '@playwright/test';
+import fs from 'fs';
 
 /**
  * Authenticates once via the KDOps login page and saves the browser
@@ -18,17 +19,24 @@ setup('authenticate', async ({ page }) => {
     );
   }
 
+  // Ensure storage state directory exists before Playwright tries to write to it.
+  fs.mkdirSync('tests/.auth', { recursive: true });
+
   await page.goto('/login');
-  await expect(page.locator('text=KDOps')).toBeVisible();
+  // Use .first() — "KDOps" may appear in the document title and the page body.
+  await expect(page.locator('text=KDOps').first()).toBeVisible({ timeout: 10_000 });
 
   await page.fill('input[type="email"]', email);
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
 
-  // Wait for the dashboard to render — this confirms auth succeeded and
+  // Wait for the dashboard to render — this confirms auth succeeded and the
   // profile loaded without a double-redirect.
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-  await expect(page.locator('text=Dashboard')).toBeVisible({ timeout: 10_000 });
+  await page.waitForURL('**/dashboard', { timeout: 20_000 });
+
+  // Scope to h1 — "Dashboard" also appears as a sidebar nav link, so a bare
+  // text= locator resolves to 2 elements and throws in strict mode.
+  await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15_000 });
 
   // Persist the authenticated session so other tests skip login.
   await page.context().storageState({ path: 'tests/.auth/user.json' });
