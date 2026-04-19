@@ -135,7 +135,7 @@ const Payroll = () => {
 
     setWorking(true);
     try {
-      const [contractorRes, expensesRes] = await Promise.all([
+      const [contractorRes, expensesRes, employeeRes] = await Promise.all([
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
@@ -148,6 +148,11 @@ const Payroll = () => {
           .eq('status', 'approved')
           .gte('date', start.toISOString())
           .lte('date', end.toISOString()),
+        supabase
+          .from('profiles')
+          .select('salary_ngn')
+          .eq('status', 'active')
+          .neq('role', 'driver'),
       ]);
 
       const totalContractor =
@@ -160,11 +165,11 @@ const Payroll = () => {
           (s, r: any) => s + Number(r.amount_ngn || 0),
           0,
         ) || 0;
-
-      // Simple employee cost model — until a real payroll list exists we
-      // use the contractor total as a proxy for "people costs" and
-      // derive statutory deductions from that.
-      const totalEmployee = 0;
+      const totalEmployee =
+        (employeeRes.data || []).reduce(
+          (s, r: any) => s + Number(r.salary_ngn || 0),
+          0,
+        ) || 0;
       const paye = calculatePAYE(totalContractor + totalEmployee);
       const pension = (totalContractor + totalEmployee) * PENSION_RATE;
       const nhf = (totalContractor + totalEmployee) * NHF_RATE;
