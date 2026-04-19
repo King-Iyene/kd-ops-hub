@@ -909,6 +909,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [form, setForm] = useState(emptyVehicleForm);
   const [submitting, setSubmitting] = useState(false);
   const [allDrivers, setAllDrivers] = useState<FieldStaff[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1008,6 +1009,17 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       profile,
     );
     toast({ title: `Vehicle ${next}` });
+    load();
+  };
+
+  const handleDelete = async (v: Vehicle) => {
+    const { error } = await supabase.from('vehicles').delete().eq('id', v.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('fleet_vehicle_deleted', `Vehicle "${v.name}" (${v.plate_number}) deleted`, profile);
+    toast({ title: 'Vehicle deleted' });
     load();
   };
 
@@ -1139,6 +1151,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                         <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -1229,6 +1244,31 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <Button onClick={handleSave} disabled={submitting || !form.name.trim() || !form.plate_number.trim()}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete vehicle</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{confirmDelete?.name}</strong> ({confirmDelete?.plate_number})? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await handleDelete(confirmDelete);
+                  setConfirmDelete(null);
+                }
+              }}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
