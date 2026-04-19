@@ -63,11 +63,6 @@ async function getPaystackSecret(): Promise<string> {
 
 async function paystackFetch(path: string, init: RequestInit = {}) {
   const secret = await getPaystackSecret();
-  // Step 3: log key prefix (never the full key)
-  console.log("[secret-check] key prefix:", secret.substring(0, 10));
-  console.log("[secret-check] key length:", secret.length);
-
-  console.log("[paystackFetch] path:", path, "method:", init.method || "GET");
 
   const res = await fetch(`${PAYSTACK_BASE}${path}`, {
     ...init,
@@ -77,11 +72,7 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
       ...(init.headers || {}),
     },
   });
-  // Step 2: log full response status + body for every call
   const body = await res.json();
-  console.log("[paystackFetch] response status:", res.status);
-  console.log("[paystackFetch] response body:", JSON.stringify(body));
-
   if (!res.ok || body?.status === false) {
     console.error("[paystack] API error:", res.status, JSON.stringify(body));
     throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
@@ -100,7 +91,6 @@ serve(async (req) => {
     console.log("[paystack-transfer] env_secret_present:", hasEnvSecret, "| auth_header_present:", hasAuth);
 
     const { action, ...params } = await req.json();
-    console.log("[debug-1] action parsed:", action);
     console.log("[paystack-transfer] action:", action);
 
     // ---------------------------------------------------------------
@@ -130,71 +120,46 @@ serve(async (req) => {
     // All other actions require a logged-in user.
     // ---------------------------------------------------------------
     const authHeader = req.headers.get("Authorization") ?? "";
-    console.log("[debug-auth] authHeader present:", !!authHeader, "length:", authHeader.length);
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
     );
     const jwt = authHeader.replace("Bearer ", "");
-    let user;
-    try {
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(jwt);
-      console.log("[debug-auth-v2] user:", authUser?.id, "error:", authError?.message);
-      user = authUser;
-    } catch (authErr: any) {
-      console.error("[debug-auth-crash]", authErr);
-      return new Response(
-        JSON.stringify({ error: "Auth check failed: " + authErr.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    if (!user) {
-      console.log("[debug-auth] no user found, returning 401");
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(jwt);
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: authError?.message || "Not authenticated" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log("[debug-2] user authenticated:", user.id);
 
     // ---------------------------------------------------------------
     // Role gate: privileged actions need admin/finance profile.
     // Uses service-role client to bypass RLS on profiles.
     // ---------------------------------------------------------------
-    console.log("[debug-2] checking if privileged:", PRIVILEGED_ACTIONS.has(action));
     if (PRIVILEGED_ACTIONS.has(action)) {
-      try {
-        console.log("[debug-3] creating service client");
-        const serviceUrl = Deno.env.get("SUPABASE_URL");
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        console.log("[debug-3a] service env present:", {
-          url: !!serviceUrl,
-          key: !!serviceKey,
-          keyLen: serviceKey?.length ?? 0,
-        });
-        const serviceClient = createClient(serviceUrl!, serviceKey!);
-        console.log("[debug-3b] service client created, querying profiles for user:", user.id);
-        const { data: profile, error: profileErr } = await serviceClient
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        console.log("[debug-4] profile query result:", JSON.stringify(profile), "err:", profileErr?.message);
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: profile } = await serviceClient
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-        if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
-          console.log("[debug-4a] role check failed — role:", profile?.role);
-          return new Response(
-            JSON.stringify({ error: "Insufficient permissions" }),
-            {
-              status: 403,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
-        }
-        console.log("[debug-4b] role check passed — role:", profile.role);
-      } catch (err) {
-        console.error("[debug-role-check-error]", err instanceof Error ? err.message : err, err instanceof Error ? err.stack : "");
-        throw err;
+      if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
+        return new Response(
+          JSON.stringify({ error: "Insufficient permissions" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
     }
 
@@ -205,68 +170,45 @@ serve(async (req) => {
 
     switch (action) {
       case "create_recipient": {
-        console.log("[paystack] create_recipient request:", { name: params.name, account_number: params.account_number, bank_code: params.bank_code });
-        const recipientPayload = {
-          type: "nuban",
-          name: params.name,
-          account_number: params.account_number,
-          bank_code: params.bank_code,
-          currency: "NGN",
-        };
-        // Step 4: log exact request body
-        console.log("[create-recipient-request]", JSON.stringify(recipientPayload));
-        try {
-          const body = await paystackFetch("/transferrecipient", {
-            method: "POST",
-            body: JSON.stringify(recipientPayload),
-          });
-          result = body.data;
-        } catch (e) {
-          console.error("[paystack] create_recipient failed:", e instanceof Error ? e.message : e);
-          throw e;
-        }
+        const body = await paystackFetch("/transferrecipient", {
+          method: "POST",
+          body: JSON.stringify({
+            type: "nuban",
+            name: params.name,
+            account_number: params.account_number,
+            bank_code: params.bank_code,
+            currency: "NGN",
+          }),
+        });
+        result = body.data;
         break;
       }
 
       case "initiate_transfer": {
-        console.log("[paystack] initiate_transfer request:", { amount_ngn: params.amount_ngn, recipient_code: params.recipient_code, reference: params.reference });
-        const transferPayload = {
-          source: "balance",
-          reason: params.reason || "KDOps disbursement",
-          amount: Math.round((params.amount_ngn ?? 0) * 100),
-          recipient: params.recipient_code,
-          reference: params.reference,
-        };
-        console.log("[initiate-transfer-request]", JSON.stringify(transferPayload));
-        try {
-          const body = await paystackFetch("/transfer", {
-            method: "POST",
-            body: JSON.stringify(transferPayload),
-          });
-          result = body.data;
-        } catch (e) {
-          console.error("[paystack] initiate_transfer failed:", e instanceof Error ? e.message : e);
-          throw e;
-        }
+        const body = await paystackFetch("/transfer", {
+          method: "POST",
+          body: JSON.stringify({
+            source: "balance",
+            reason: params.reason || "KDOps disbursement",
+            amount: Math.round((params.amount_ngn ?? 0) * 100),
+            recipient: params.recipient_code,
+            reference: params.reference,
+          }),
+        });
+        result = body.data;
         break;
       }
 
       case "verify_transfer": {
-        console.log("[paystack] verify_transfer request:", { reference: params.reference });
-        try {
-          const body = await paystackFetch(
-            `/transfer/verify/${encodeURIComponent(params.reference)}`,
-          );
-          result = {
-            status: body.data?.status,
-            transfer_code: body.data?.transfer_code,
-            reason: body.data?.failures?.[0]?.reason || body.data?.reason,
-            raw: body.data,
-          };
-        } catch (e) {
-          console.error("[paystack] verify_transfer failed:", e instanceof Error ? e.message : e);
-          throw e;
-        }
+        const body = await paystackFetch(
+          `/transfer/verify/${encodeURIComponent(params.reference)}`,
+        );
+        result = {
+          status: body.data?.status,
+          transfer_code: body.data?.transfer_code,
+          reason: body.data?.failures?.[0]?.reason || body.data?.reason,
+          raw: body.data,
+        };
         break;
       }
 
@@ -291,4 +233,3 @@ serve(async (req) => {
     });
   }
 });
-
