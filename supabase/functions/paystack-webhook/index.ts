@@ -36,9 +36,32 @@ type Supabase = ReturnType<typeof createClient>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function verifySignature(body: string, signature: string): boolean {
-  const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!secret) return false;
+async function getPaystackSecret(): Promise<string | null> {
+  const envSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (envSecret) return envSecret;
+
+  try {
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data } = await serviceClient
+      .from("company_settings")
+      .select("paystack_secret_key_enc")
+      .eq("id", "00000000-0000-0000-0000-000000000001")
+      .maybeSingle();
+    return (data as any)?.paystack_secret_key_enc || null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifySignature(body: string, signature: string): Promise<boolean> {
+  const secret = await getPaystackSecret();
+  if (!secret) {
+    console.error("[webhook] No PAYSTACK_SECRET_KEY in env or company_settings");
+    return false;
+  }
   const hash = createHmac("sha512", secret).update(body).digest("hex");
   return hash === signature;
 }
@@ -143,7 +166,7 @@ serve(async (req) => {
   const rawBody = await req.text();
   const signature = req.headers.get("x-paystack-signature") ?? "";
 
-  if (!verifySignature(rawBody, signature)) {
+  if (!(await verifySignature(rawBody, signature))) {
     console.warn("[webhook] Invalid HMAC signature");
     return new Response("Invalid signature", { status: 401 });
   }

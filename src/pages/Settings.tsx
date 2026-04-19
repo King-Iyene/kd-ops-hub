@@ -190,6 +190,8 @@ const SettingsPage = () => {
         dual_approval_threshold_ngn: settings.dual_approval_threshold_ngn,
         paystack_mode: settings.paystack_mode,
         paystack_webhook_url: settings.paystack_webhook_url,
+        paystack_public_key: (settings as any).paystack_public_key || null,
+        paystack_secret_key_enc: (settings as any).paystack_secret_key_enc || null,
         airtable_base_id: settings.airtable_base_id,
         airtable_income_table_id: settings.airtable_income_table_id,
         airtable_expenses_table_id: settings.airtable_expenses_table_id,
