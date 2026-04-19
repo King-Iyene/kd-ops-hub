@@ -122,11 +122,9 @@ const Leave = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const refreshApprovals = useApprovalStore((s) => s.refresh);
-  const isManager = hasRole(profile?.role, MANAGER_ROLES) ||
+  const isManager =
     profile?.role === 'super_admin' ||
-    profile?.role === 'admin' ||
-    profile?.role === 'finance' ||
-    profile?.role === 'operations';
+    profile?.role === 'admin';
 
   const [tab, setTab] = useState<'mine' | 'team'>(isManager ? 'team' : 'mine');
   const [loading, setLoading] = useState(true);
@@ -161,9 +159,7 @@ const Leave = () => {
       const currentId = currentProfile?.id || '';
       const privileged =
         currentProfile?.role === 'super_admin' ||
-        currentProfile?.role === 'admin' ||
-        currentProfile?.role === 'finance' ||
-        currentProfile?.role === 'operations';
+        currentProfile?.role === 'admin';
 
       // My Leave — always scoped to this user.
       const myQuery = supabase
