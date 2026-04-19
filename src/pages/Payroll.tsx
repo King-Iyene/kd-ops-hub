@@ -246,128 +246,129 @@ const Payroll = () => {
     load();
   };
 
-  /**
-   * Payslip generation.
-   *
-   * Strategy for v1:
-   *   1. Pull every active employee.
-   *   2. Distribute the run's contractor + employee total pro-rata across the
-   *      employee headcount for a sensible gross per person (Finance can
-   *      override later by editing individual payslip rows).
-   *   3. Apply the same PAYE / Pension / NHF rates used on the run.
-   *   4. Upsert a payslips row per employee and upload a branded HTML
-   *      "PDF" to the `payslips` Storage bucket under the employee id /
-   *      period path.
-   */
   const generatePayslips = async (run: PayrollRun) => {
-    const { data: employees, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, first_name, last_name, email, role, status, salary_ngn')
-      .neq('status', 'inactive');
-    if (error) {
-      toast({ title: 'Could not load employees', description: error.message, variant: 'destructive' });
-      return;
-    }
-    const list = (employees || []).filter(
-      (e: any) => e.role && e.role !== 'driver',
-    );
-    if (list.length === 0) {
-      toast({
-        title: 'No active employees',
-        description: 'Invite or reactivate employees before generating payslips.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const missingSalary = list.filter(
-      (e: any) => !e.salary_ngn || Number(e.salary_ngn) <= 0,
-    );
-    if (missingSalary.length > 0) {
-      setSalaryErrors(
-        missingSalary.map((e: any) =>
-          `${displayName(e.first_name, e.last_name, e.full_name || e.email)} — no salary configured`,
-        ),
-      );
-      toast({
-        title: 'Cannot generate payroll',
-        description: `${missingSalary.length} employee${missingSalary.length === 1 ? '' : 's'} missing salary configuration.`,
-        variant: 'destructive',
-      });
-      return;
-    }
+    setWorking(true);
     setSalaryErrors([]);
+    try {
+      const { data: employees, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('id, full_name, first_name, last_name, email, role, salary_ngn')
+        .eq('status', 'active')
+        .neq('role', 'driver')
+        .gt('salary_ngn', 0);
+      if (fetchErr) throw fetchErr;
 
-    const { data: settings } = await supabase
-      .from('company_settings')
-      .select('company_name')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
-      .maybeSingle();
-    const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
-
-    let succeeded = 0;
-    let failed = 0;
-    for (const e of list as any[]) {
-      try {
-        const empGross = Number(e.salary_ngn);
-        const empPaye = calculatePAYE(empGross);
-        const empPension = empGross * 0.08;
-        const empNhf = empGross * 0.025;
-        const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);
-        const html = renderPayslipHtml({
-          company_name: companyName,
-          employee_name: e.full_name || e.email,
-          employee_email: e.email,
-          employee_role: e.role,
-          period: run.period,
-          gross_ngn: empGross,
-          paye_ngn: empPaye,
-          pension_ngn: empPension,
-          nhf_ngn: empNhf,
-          net_ngn: empNet,
-          generated_by: profile?.full_name || profile?.email,
+      const list = (employees || []) as any[];
+      if (list.length === 0) {
+        toast({
+          title: 'No active employees with salaries configured',
+          description: 'Add salary amounts in employee profiles first.',
+          variant: 'destructive',
         });
-        const path = `${e.id}/${run.period}.html`;
-        const up = await supabase.storage
-          .from('payslips')
-          .upload(path, new Blob([html], { type: 'text/html' }), {
-            upsert: true,
-            contentType: 'text/html',
-          });
-        const storagePath = up.data?.path || path;
-        const { error: insErr } = await supabase.from('payslips').upsert(
-          {
-            payroll_run_id: run.id,
-            employee_id: e.id,
-            employee_name: e.full_name || e.email,
+        return;
+      }
+
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('company_name')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
+
+      let succeeded = 0;
+      let failed = 0;
+      for (const e of list) {
+        toast({
+          title: `Generating payslip ${succeeded + failed + 1} of ${list.length}…`,
+          description: displayName(e.first_name, e.last_name, e.full_name || e.email),
+        });
+        try {
+          const empGross = Number(e.salary_ngn);
+          const empPaye = calculatePAYE(empGross);
+          const empPension = empGross * PENSION_RATE;
+          const empNhf = empGross * NHF_RATE;
+          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);
+          const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
+
+          const html = renderPayslipHtml({
+            company_name: companyName,
+            employee_name: empName,
             employee_email: e.email,
+            employee_role: e.role,
             period: run.period,
             gross_ngn: empGross,
             paye_ngn: empPaye,
             pension_ngn: empPension,
             nhf_ngn: empNhf,
             net_ngn: empNet,
-            storage_path: storagePath,
-            generated_by: profile?.id || null,
-          },
-          { onConflict: 'payroll_run_id,employee_id' } as any,
-        );
-        if (insErr) throw insErr;
-        succeeded++;
-      } catch (err: any) {
-        console.warn('[KDOps] payslip generation failed for', e.email, err);
-        failed++;
+            generated_by: profile?.full_name || profile?.email,
+          }, { autoPrint: false });
+
+          const path = `${e.id}/${run.period}.html`;
+          const { error: uploadErr } = await supabase.storage
+            .from('payslips')
+            .upload(path, new Blob([html], { type: 'text/html' }), {
+              upsert: true,
+              contentType: 'text/html',
+            });
+          if (uploadErr) throw uploadErr;
+
+          const { data: urlData } = supabase.storage.from('payslips').getPublicUrl(path);
+
+          const { error: upsertErr } = await supabase.from('payslips').upsert(
+            {
+              payroll_run_id: run.id,
+              employee_id: e.id,
+              employee_name: empName,
+              employee_email: e.email,
+              period: run.period,
+              gross_ngn: empGross,
+              paye_ngn: empPaye,
+              pension_ngn: empPension,
+              nhf_ngn: empNhf,
+              net_ngn: empNet,
+              file_url: urlData.publicUrl,
+              storage_path: path,
+              generated_by: profile?.id || null,
+            },
+            { onConflict: 'payroll_run_id,employee_id' } as any,
+          );
+          if (upsertErr) throw upsertErr;
+
+          succeeded++;
+        } catch (empErr: any) {
+          console.warn('[KDOps] payslip generation failed for', e.email, empErr);
+          failed++;
+        }
       }
+
+      await logAudit(
+        'payslip_generated',
+        `Generated ${succeeded} payslip(s) for ${monthLabel(run.period)}${failed ? ` (${failed} failed)` : ''}`,
+        profile,
+      );
+
+      if (failed > 0) {
+        toast({
+          title: `${succeeded} of ${list.length} payslips generated`,
+          description: `${failed} failed — check employee data and try again.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: `${succeeded} payslip${succeeded === 1 ? '' : 's'} generated`,
+          description: `All payslips for ${monthLabel(run.period)} saved successfully.`,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Payslip generation failed',
+        description: err?.message || 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setWorking(false);
     }
-    await logAudit(
-      'payslip_generated',
-      `Generated ${succeeded} payslip(s) for ${monthLabel(run.period)}${failed ? ` (${failed} failed)` : ''}`,
-      profile,
-    );
-    toast({
-      title: `${succeeded} payslip${succeeded === 1 ? '' : 's'} generated`,
-      description: failed ? `${failed} failed — check console for details.` : undefined,
-    });
   };
 
   const markPaid = async (run: PayrollRun) => {
@@ -605,8 +606,10 @@ const Payroll = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => generatePayslips(r)}
+                              disabled={working}
                               title="Generate payslips for every active employee"
                             >
+                              {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                               Generate payslips
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => markPaid(r)}>
