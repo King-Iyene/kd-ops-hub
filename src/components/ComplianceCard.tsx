@@ -135,7 +135,7 @@ const ComplianceCard = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/documents')}
+          onClick={() => navigate('/compliance')}
         >
           Documents <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
