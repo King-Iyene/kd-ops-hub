@@ -165,11 +165,20 @@ const Expenses = () => {
     setLoading(true);
     setError(null);
     try {
+      // Read role fresh from the store on every call so we never use a stale
+      // closure value (avoids the edge case where profile loads after the
+      // callback was first created, leaving isApprover incorrectly false).
+      const currentProfile = useAuthStore.getState().profile;
+      const privileged =
+        currentProfile?.role === 'super_admin' ||
+        currentProfile?.role === 'admin' ||
+        currentProfile?.role === 'finance';
+
       let query = supabase
         .from('expenses')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!isApprover) query = query.eq('submitted_by', profile?.id || '');
+      if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
       const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
         query,
         supabase
@@ -186,8 +195,8 @@ const Expenses = () => {
       console.log('[KDOps] expenses fetch:', {
         count: expensesRes.data?.length,
         error: expensesRes.error?.message,
-        isApprover,
-        userId: profile?.id,
+        privileged,
+        userId: currentProfile?.id,
       });
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
@@ -224,7 +233,8 @@ const Expenses = () => {
     } finally {
       setLoading(false);
     }
-  }, [isApprover, profile?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -485,7 +495,7 @@ const Expenses = () => {
       });
       setShowBankSection(false);
       setBankDetails(EMPTY_BANK);
-      fetchData();
+      await fetchData();
     }
     setSubmitting(false);
   };
@@ -689,6 +699,11 @@ const Expenses = () => {
     if (!isApprover) return;
     const pending = expenses.filter((e) => e.status === 'pending');
     if (pending.length === 0) return;
+    const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+    const ok = window.confirm(
+      `You are about to approve ${pending.length} expense claims totalling ${formatNaira(total)}. This cannot be undone. Proceed?`,
+    );
+    if (!ok) return;
     setBulkLoading(true);
     try {
       const ids = pending.map((p) => p.id);

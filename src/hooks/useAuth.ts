@@ -17,7 +17,18 @@ export const useAuth = () => {
       await fetchProfile(userId);
       const fetched = useAuthStore.getState().profile;
 
-      if (!fetched || fetched.status !== 'active') {
+      // No profile row or no role assigned → self-registered user, not invited.
+      // Sign them out immediately and redirect with an explanatory message.
+      if (!fetched || !fetched.role) {
+        await supabase.auth.signOut();
+        setUser(null);
+        useAuthStore.getState().setProfile(null);
+        setLoading(false);
+        navigate('/login?message=invite-only', { replace: true });
+        return;
+      }
+
+      if (fetched.status !== 'active') {
         setLoading(false);
         if (window.location.pathname !== '/unauthorized') {
           navigate('/unauthorized', { replace: true });

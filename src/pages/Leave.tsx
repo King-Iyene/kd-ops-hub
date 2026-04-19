@@ -122,9 +122,13 @@ const Leave = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const refreshApprovals = useApprovalStore((s) => s.refresh);
-  const isManager = hasRole(profile?.role, MANAGER_ROLES);
+  const isManager = hasRole(profile?.role, MANAGER_ROLES) ||
+    profile?.role === 'super_admin' ||
+    profile?.role === 'admin' ||
+    profile?.role === 'finance' ||
+    profile?.role === 'operations';
 
-  const [tab, setTab] = useState<'mine' | 'team'>('mine');
+  const [tab, setTab] = useState<'mine' | 'team'>(isManager ? 'team' : 'mine');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
@@ -152,25 +156,38 @@ const Leave = () => {
     setLoading(true);
     setError(null);
     try {
-      // My Leave — scoped to this user; works for every role regardless of RLS.
-      // Team Leave — fetches all rows; RLS gate allows this only for managers.
+      // Read role fresh from the store so we never use a stale closure value.
+      const currentProfile = useAuthStore.getState().profile;
+      const currentId = currentProfile?.id || '';
+      const privileged =
+        currentProfile?.role === 'super_admin' ||
+        currentProfile?.role === 'admin' ||
+        currentProfile?.role === 'finance' ||
+        currentProfile?.role === 'operations';
+
+      // My Leave — always scoped to this user.
+      const myQuery = supabase
+        .from('leave_requests')
+        .select('*')
+        .eq('employee_id', currentId)
+        .order('created_at', { ascending: false });
+
+      // Team Leave — all rows for privileged roles; empty for everyone else.
+      const teamQuery = privileged
+        ? supabase
+            .from('leave_requests')
+            .select('*')
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] as LeaveRequest[], error: null });
+
       const [myRes, teamRes, profilesRes, balanceRes] = await Promise.all([
-        supabase
-          .from('leave_requests')
-          .select('*')
-          .eq('employee_id', profile?.id || '')
-          .order('created_at', { ascending: false }),
-        isManager
-          ? supabase
-              .from('leave_requests')
-              .select('*')
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [] as LeaveRequest[], error: null }),
+        myQuery,
+        teamQuery,
         supabase.from('profiles').select('id, full_name, email'),
         supabase
           .from('leave_balances')
           .select('*')
-          .eq('employee_id', profile?.id || '')
+          .eq('employee_id', currentId)
           .eq('year', new Date().getFullYear())
           .maybeSingle(),
       ]);
@@ -190,7 +207,8 @@ const Leave = () => {
     } finally {
       setLoading(false);
     }
-  }, [profile?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (profile?.id) fetchAll();
