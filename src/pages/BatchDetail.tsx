@@ -224,11 +224,13 @@ const BatchDetail = () => {
   const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
     try {
       const bankCode = getBankCode(it.bank_name);
+      console.log('[KD-PAY-1] Starting transfer for:', it.full_name, it.account_number, bankCode);
       if (!bankCode) {
         return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
       }
       let recipientCode: string | null = it.paystack_recipient_code || null;
 
+      console.log('[KD-PAY-2] Checking existing recipient in DB...');
       if (!recipientCode) {
         // Check all batch_items for a saved recipient_code for this account before
         // creating a new one — Paystack rejects duplicates across the integration.
@@ -242,9 +244,11 @@ const BatchDetail = () => {
           recipientCode = (existing[0] as any).paystack_recipient_code;
         }
       }
+      console.log('[KD-PAY-3] DB lookup result:', recipientCode);
 
       if (!recipientCode) {
         try {
+          console.log('[KD-PAY-4] Calling createTransferRecipient...');
           const recipient = await createTransferRecipient({
             name: it.full_name,
             account_number: it.account_number,
@@ -258,6 +262,7 @@ const BatchDetail = () => {
           );
         } catch (recipientErr: any) {
           const msg: string = recipientErr?.message || '';
+          console.error('[KD-PAY-ERROR] createTransferRecipient:', msg, JSON.stringify(recipientErr));
           if (msg.toLowerCase().includes('duplicate')) {
             // Paystack already holds a recipient for this account number.
             // Try the batch_items lookup once more (another item may have just
@@ -278,13 +283,17 @@ const BatchDetail = () => {
           }
         }
       }
+      console.log('[KD-PAY-5] Recipient code received:', recipientCode);
       const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
+      const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
+      console.log('[KD-PAY-6] Calling initiateTransfer with amount:', amountKobo);
       const transfer = await initiateTransfer({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
         reason: `KDOps · ${batch?.name || 'batch'}`,
       });
+      console.log('[KD-PAY-7] Transfer response:', transfer);
       await supabase
         .from('batch_items')
         .update({
@@ -303,6 +312,7 @@ const BatchDetail = () => {
       return { ok: true };
     } catch (err: any) {
       const msg = err?.message || 'Transfer failed';
+      console.error('[KD-PAY-ERROR]', msg, JSON.stringify(err));
       console.error('[BatchDetail] processOneItem failed for', it.full_name, ':', err);
       await supabase
         .from('batch_items')

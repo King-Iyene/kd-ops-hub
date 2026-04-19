@@ -29,7 +29,21 @@ async function edgeCall<T = any>(
     headers: { 'Authorization': `Bearer ${session?.access_token}` },
   });
   if (error) {
-    throw new Error(error.message || 'Edge Function call failed');
+    let detail = error.message || 'Edge Function call failed';
+    // supabase.functions.invoke returns a generic "non-2xx" message.
+    // The real Paystack error is in the response body (JSON { error: "..." }).
+    try {
+      if (error.context?.response) {
+        const body = await error.context.response.json();
+        console.error('[paystack edgeCall] raw error body:', body);
+        if (body?.error) detail = body.error;
+      } else if (data && typeof data === 'object' && data.error) {
+        detail = data.error;
+      }
+    } catch {
+      // response already consumed or not JSON — keep original message
+    }
+    throw new Error(detail);
   }
   if (data && !data.ok) {
     throw new Error(data.error || 'Paystack error from Edge Function');
