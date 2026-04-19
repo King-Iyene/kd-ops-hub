@@ -228,18 +228,55 @@ const BatchDetail = () => {
         return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
       }
       let recipientCode: string | null = it.paystack_recipient_code || null;
+
       if (!recipientCode) {
-        const recipient = await createTransferRecipient({
-          name: it.full_name,
-          account_number: it.account_number,
-          bank_code: bankCode,
-        });
-        recipientCode = recipient.recipient_code;
-        await logAudit(
-          'paystack_recipient_created',
-          `Recipient created for ${it.full_name} (${it.bank_name})`,
-          profile,
-        );
+        // Check all batch_items for a saved recipient_code for this account before
+        // creating a new one — Paystack rejects duplicates across the integration.
+        const { data: existing } = await supabase
+          .from('batch_items')
+          .select('paystack_recipient_code')
+          .eq('account_number', it.account_number)
+          .not('paystack_recipient_code', 'is', null)
+          .limit(1);
+        if (existing && existing.length > 0) {
+          recipientCode = (existing[0] as any).paystack_recipient_code;
+        }
+      }
+
+      if (!recipientCode) {
+        try {
+          const recipient = await createTransferRecipient({
+            name: it.full_name,
+            account_number: it.account_number,
+            bank_code: bankCode,
+          });
+          recipientCode = recipient.recipient_code;
+          await logAudit(
+            'paystack_recipient_created',
+            `Recipient created for ${it.full_name} (${it.bank_name})`,
+            profile,
+          );
+        } catch (recipientErr: any) {
+          const msg: string = recipientErr?.message || '';
+          if (msg.toLowerCase().includes('duplicate')) {
+            // Paystack already holds a recipient for this account number.
+            // Try the batch_items lookup once more (another item may have just
+            // saved the code) before giving up.
+            const { data: fallback } = await supabase
+              .from('batch_items')
+              .select('paystack_recipient_code')
+              .eq('account_number', it.account_number)
+              .not('paystack_recipient_code', 'is', null)
+              .limit(1);
+            if (fallback && fallback.length > 0) {
+              recipientCode = (fallback[0] as any).paystack_recipient_code;
+            } else {
+              throw recipientErr;
+            }
+          } else {
+            throw recipientErr;
+          }
+        }
       }
       const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
       const transfer = await initiateTransfer({
