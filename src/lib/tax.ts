@@ -1,8 +1,8 @@
 /**
- * Nigerian Personal Income Tax Act — progressive PAYE bands.
- * Bands are applied to monthly gross income directly.
+ * Nigerian Personal Income Tax Act — progressive annual PIT bands.
+ * Income is annualised, bands applied, result divided by 12 for monthly PAYE.
  *
- * Band structure (Finance Act 2020 / 2026 PIT schedule):
+ * Annual band structure (Finance Act / PITA schedule):
  *   First  ₦300,000  →  7%
  *   Next   ₦300,000  → 11%
  *   Next   ₦500,000  → 15%
@@ -21,24 +21,26 @@ const PAYE_BANDS: ReadonlyArray<{ limit: number; rate: number }> = [
 
 /**
  * Calculate monthly PAYE for a given monthly gross salary (NGN).
+ * Annualises the salary, applies progressive annual PIT bands, returns 1/12.
  *
- * @param grossMonthly - Monthly gross salary in Naira. Negative values → ₦0.
- * @returns PAYE deduction in Naira (rounded to nearest Naira).
+ * @param monthlySalaryNgn - Monthly gross salary in Naira. Negative values → ₦0.
+ * @returns Monthly PAYE deduction in Naira (rounded to nearest Naira).
  */
-export function calculatePAYE(grossMonthly: number): number {
-  if (grossMonthly <= 0) return 0;
+export function calculatePAYE(monthlySalaryNgn: number): number {
+  if (monthlySalaryNgn <= 0) return 0;
 
-  let remaining = grossMonthly;
-  let tax = 0;
+  const annual = monthlySalaryNgn * 12;
+  let remaining = annual;
+  let annualTax = 0;
 
   for (const { limit, rate } of PAYE_BANDS) {
     if (remaining <= 0) break;
     const taxable = Math.min(remaining, limit);
-    tax += taxable * rate;
+    annualTax += taxable * rate;
     remaining -= taxable;
   }
 
-  return Math.round(tax);
+  return Math.round(annualTax / 12);
 }
 
 /** Effective PAYE rate as a percentage string, useful for UI display. */
