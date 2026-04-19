@@ -137,7 +137,7 @@ const ComplianceCard = () => {
           size="sm"
           onClick={() => navigate('/compliance')}
         >
-          Compliance <ArrowRight className="ml-2 h-4 w-4" />
+          View All Compliance <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent className="space-y-2">
