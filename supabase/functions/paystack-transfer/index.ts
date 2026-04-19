@@ -100,6 +100,7 @@ serve(async (req) => {
     console.log("[paystack-transfer] env_secret_present:", hasEnvSecret, "| auth_header_present:", hasAuth);
 
     const { action, ...params } = await req.json();
+    console.log("[debug-1] action parsed:", action);
     console.log("[paystack-transfer] action:", action);
 
     // ---------------------------------------------------------------
@@ -149,25 +150,40 @@ serve(async (req) => {
     // Role gate: privileged actions need admin/finance profile.
     // Uses service-role client to bypass RLS on profiles.
     // ---------------------------------------------------------------
+    console.log("[debug-2] checking if privileged:", PRIVILEGED_ACTIONS.has(action));
     if (PRIVILEGED_ACTIONS.has(action)) {
-      const serviceClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-      const { data: profile } = await serviceClient
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      try {
+        console.log("[debug-3] creating service client");
+        const serviceUrl = Deno.env.get("SUPABASE_URL");
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        console.log("[debug-3a] service env present:", {
+          url: !!serviceUrl,
+          key: !!serviceKey,
+          keyLen: serviceKey?.length ?? 0,
+        });
+        const serviceClient = createClient(serviceUrl!, serviceKey!);
+        console.log("[debug-3b] service client created, querying profiles for user:", user.id);
+        const { data: profile, error: profileErr } = await serviceClient
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+        console.log("[debug-4] profile query result:", JSON.stringify(profile), "err:", profileErr?.message);
 
-      if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
-        return new Response(
-          JSON.stringify({ error: "Insufficient permissions" }),
-          {
-            status: 403,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          },
-        );
+        if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
+          console.log("[debug-4a] role check failed — role:", profile?.role);
+          return new Response(
+            JSON.stringify({ error: "Insufficient permissions" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        console.log("[debug-4b] role check passed — role:", profile.role);
+      } catch (err) {
+        console.error("[debug-role-check-error]", err instanceof Error ? err.message : err, err instanceof Error ? err.stack : "");
+        throw err;
       }
     }
 
