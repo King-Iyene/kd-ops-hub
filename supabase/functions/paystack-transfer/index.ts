@@ -134,13 +134,13 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
     );
+    const jwt = authHeader.replace("Bearer ", "");
     let user;
     try {
-      const { data, error } = await supabase.auth.getUser();
-      console.log("[debug-auth] getUser result:", data?.user?.id, "error:", error?.message);
-      user = data?.user;
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(jwt);
+      console.log("[debug-auth-v2] user:", authUser?.id, "error:", authError?.message);
+      user = authUser;
     } catch (authErr: any) {
       console.error("[debug-auth-crash]", authErr);
       return new Response(
