@@ -103,7 +103,8 @@ const Contacts = () => {
   const [editing, setEditing] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     email: '',
     phone: '',
     contact_type: 'lead' as ContactType,
@@ -132,7 +133,8 @@ const Contacts = () => {
   const reset = () => {
     setEditing(null);
     setForm({
-      full_name: '',
+      first_name: '',
+      last_name: '',
       email: '',
       phone: '',
       contact_type: 'lead',
@@ -145,7 +147,8 @@ const Contacts = () => {
   const openEdit = (c: Contact) => {
     setEditing(c);
     setForm({
-      full_name: c.full_name,
+      first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
+      last_name: c.last_name || (c.full_name || '').split(' ').slice(1).join(' ') || '',
       email: c.email || '',
       phone: c.phone || '',
       contact_type: c.contact_type,
@@ -157,8 +160,8 @@ const Contacts = () => {
   };
 
   const save = async () => {
-    if (!form.full_name.trim()) {
-      toast({ title: 'Name is required', variant: 'destructive' });
+    if (!form.first_name.trim()) {
+      toast({ title: 'First name is required', variant: 'destructive' });
       return;
     }
     // Duplicate check by email (skip if editing same contact or no email).
@@ -181,7 +184,9 @@ const Contacts = () => {
     setSaving(true);
     try {
       const payload = {
-        full_name: form.full_name.trim(),
+        first_name: form.first_name.trim() || null,
+        last_name: form.last_name.trim() || null,
+        full_name: `${form.first_name.trim()} ${form.last_name.trim()}`.trim(),
         email: form.email || null,
         phone: form.phone || null,
         contact_type: form.contact_type,
@@ -478,11 +483,20 @@ const Contacts = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1 col-span-2 sm:col-span-1">
-                <Label>Full name *</Label>
+              <div className="space-y-1">
+                <Label>First name *</Label>
                 <Input
-                  value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                  value={form.first_name}
+                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  placeholder="Ada"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Last name *</Label>
+                <Input
+                  value={form.last_name}
+                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                  placeholder="Okonkwo"
                 />
               </div>
               <div className="space-y-1 col-span-2 sm:col-span-1">

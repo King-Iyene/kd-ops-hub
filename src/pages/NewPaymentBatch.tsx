@@ -61,7 +61,7 @@ const NewPaymentBatch = () => {
 
   // Ad-hoc beneficiary dialog
   const [showAdHoc, setShowAdHoc] = useState(false);
-  const [adHoc, setAdHoc] = useState({ full_name: '', amount_ngn: '', reference: '' });
+  const [adHoc, setAdHoc] = useState({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
   const [adHocBank, setAdHocBank] = useState<BankAccountValue>(emptyBank);
 
   useEffect(() => {
@@ -136,10 +136,11 @@ const NewPaymentBatch = () => {
       });
       return;
     }
+    const adHocFullName = `${adHoc.first_name.trim()} ${adHoc.last_name.trim()}`.trim() || adHocBank.account_name;
     setItems((prev) => [
       ...prev,
       {
-        full_name: adHoc.full_name || adHocBank.account_name,
+        full_name: adHocFullName,
         bank_name: adHocBank.bank_name,
         account_number: adHocBank.account_number,
         amount_ngn: parseFloat(adHoc.amount_ngn) || 0,
@@ -147,7 +148,7 @@ const NewPaymentBatch = () => {
       },
     ]);
     setShowAdHoc(false);
-    setAdHoc({ full_name: '', amount_ngn: '', reference: '' });
+    setAdHoc({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
     setAdHocBank(emptyBank);
   };
 
@@ -498,13 +499,23 @@ const NewPaymentBatch = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Add One-off Beneficiary</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Full Name</Label>
-              <Input
-                value={adHoc.full_name}
-                onChange={(e) => setAdHoc({ ...adHoc, full_name: e.target.value })}
-                placeholder={adHocBank.account_name || 'Full name'}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>First name *</Label>
+                <Input
+                  value={adHoc.first_name}
+                  onChange={(e) => setAdHoc({ ...adHoc, first_name: e.target.value })}
+                  placeholder={adHocBank.account_name ? adHocBank.account_name.split(' ')[0] : 'Ada'}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Last name *</Label>
+                <Input
+                  value={adHoc.last_name}
+                  onChange={(e) => setAdHoc({ ...adHoc, last_name: e.target.value })}
+                  placeholder="Okonkwo"
+                />
+              </div>
             </div>
             <BankAccountField value={adHocBank} onChange={setAdHocBank} />
             <div className="grid grid-cols-2 gap-3">
