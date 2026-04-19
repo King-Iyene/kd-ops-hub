@@ -282,7 +282,9 @@ const SettingsPage = () => {
           <TabsTrigger value="policy"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
-          <TabsTrigger value="departments"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
+          {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+            <TabsTrigger value="departments"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
+          )}
           <TabsTrigger value="tags"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
         </TabsList>
 
@@ -933,6 +935,7 @@ function DepartmentsManager() {
   const [submitting, setSubmitting] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState<Dept | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1079,7 +1082,7 @@ function DepartmentsManager() {
                         <Button size="sm" variant="ghost" onClick={() => openEdit(d)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleDelete(d)}>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(d)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -1126,6 +1129,31 @@ function DepartmentsManager() {
             <Button onClick={handleSave} disabled={submitting || !name.trim()}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete department</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure you want to delete <strong>{confirmDelete?.name}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (confirmDelete) {
+                  await handleDelete(confirmDelete);
+                  setConfirmDelete(null);
+                }
+              }}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
