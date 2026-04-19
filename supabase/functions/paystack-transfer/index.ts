@@ -130,21 +130,32 @@ serve(async (req) => {
     // All other actions require a logged-in user.
     // ---------------------------------------------------------------
     const authHeader = req.headers.get("Authorization") ?? "";
+    console.log("[debug-auth] authHeader present:", !!authHeader, "length:", authHeader.length);
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } },
     );
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    let user;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      console.log("[debug-auth] getUser result:", data?.user?.id, "error:", error?.message);
+      user = data?.user;
+    } catch (authErr: any) {
+      console.error("[debug-auth-crash]", authErr);
+      return new Response(
+        JSON.stringify({ error: "Auth check failed: " + authErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     if (!user) {
+      console.log("[debug-auth] no user found, returning 401");
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("[debug-2] user authenticated:", user.id);
 
     // ---------------------------------------------------------------
     // Role gate: privileged actions need admin/finance profile.
