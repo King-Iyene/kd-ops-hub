@@ -10,6 +10,8 @@ import {
   Wallet,
   AlertTriangle,
   Library,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 import {
   BarChart,
@@ -34,6 +36,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/use-toast';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -661,8 +666,15 @@ function BudgetReport({ range }: { range: DateRange }) {
 // -----------------------------------------------------------------------------
 
 function PnLReport({ range }: { range: DateRange }) {
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const canEditRevenue = ['super_admin', 'admin', 'finance'].includes(profile?.role || '');
+
+  const [form, setForm] = useState({ amount: '', category: 'direct_income', month: '' });
+  const [saving, setSaving] = useState(false);
+
   const { data, loading, error, reload } = useLoader(async () => {
-    const [batchesRes, expensesRes, contractorPaymentsRes] = await Promise.all([
+    const [batchesRes, expensesRes, revenueRes] = await Promise.all([
       supabase
         .from('payment_batches')
         .select('total_amount, payment_date, status, name')
@@ -676,26 +688,24 @@ function PnLReport({ range }: { range: DateRange }) {
         .gte('date', range.start)
         .lte('date', range.end),
       supabase
-        .from('payment_batches')
-        .select('total_amount, payment_date, status')
-        .gte('payment_date', range.start)
-        .lte('payment_date', range.end),
+        .from('revenue_entries')
+        .select('*')
+        .gte('month', range.start.slice(0, 7))
+        .lte('month', range.end.slice(0, 7))
+        .order('month', { ascending: true }),
     ]);
     if (batchesRes.error) throw batchesRes.error;
     if (expensesRes.error) throw expensesRes.error;
     return {
       batches: batchesRes.data || [],
       expenses: expensesRes.data || [],
-      allBatches: contractorPaymentsRes.data || [],
+      revenue: revenueRes.data || [],
     };
   }, [range.start, range.end]);
 
   const monthly = useMemo(() => {
     if (!data) return [] as { month: string; revenue: number; costs: number; net: number }[];
     const acc: Record<string, { revenue: number; costs: number }> = {};
-    // KDOps doesn't record revenue natively; we treat 'received' batches as
-    // revenue and 'processed' batches + approved expenses as costs. If you
-    // invert that to match your business later, update the mapping here.
     for (const b of data.batches as any[]) {
       const k = monthKey(new Date(b.payment_date));
       acc[k] = acc[k] || { revenue: 0, costs: 0 };
@@ -706,13 +716,10 @@ function PnLReport({ range }: { range: DateRange }) {
       acc[k] = acc[k] || { revenue: 0, costs: 0 };
       acc[k].costs += Number(e.amount_ngn || 0);
     }
-    // Revenue heuristic: sum all batches irrespective of status — with no
-    // explicit revenue table this is a conservative placeholder.
-    for (const b of data.allBatches as any[]) {
-      if (b.status === 'processed' || b.status === 'funded') continue;
-      const k = monthKey(new Date(b.payment_date));
+    for (const r of (data.revenue as any[])) {
+      const k = r.month as string;
       acc[k] = acc[k] || { revenue: 0, costs: 0 };
-      acc[k].revenue += Number(b.total_amount || 0);
+      acc[k].revenue += Number(r.amount_ngn || 0);
     }
     return Object.keys(acc)
       .sort()
@@ -726,11 +733,38 @@ function PnLReport({ range }: { range: DateRange }) {
 
   const totalRevenue = monthly.reduce((s, r) => s + r.revenue, 0);
   const totalCosts = monthly.reduce((s, r) => s + r.costs, 0);
-  const net = totalRevenue - totalCosts;
+  const grossProfit = totalRevenue - totalCosts;
+  const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+  const addEntry = async () => {
+    const amt = parseFloat(form.amount);
+    if (!form.month || isNaN(amt) || amt <= 0) {
+      toast({ title: 'Please fill in all fields', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const { error: insertErr } = await supabase
+      .from('revenue_entries')
+      .insert({ amount_ngn: amt, category: form.category, month: form.month });
+    if (insertErr) {
+      toast({ title: 'Save failed', description: insertErr.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Revenue entry added' });
+      setForm((f) => ({ ...f, amount: '' }));
+      reload();
+    }
+    setSaving(false);
+  };
 
   const exportCsv = () => {
-    const header = ['month', 'revenue', 'costs', 'net'];
-    const rows = monthly.map((m) => [m.month, m.revenue, m.costs, m.net]);
+    const header = ['month', 'revenue', 'costs', 'gross_profit', 'gross_margin_pct'];
+    const rows = monthly.map((m) => [
+      m.month,
+      m.revenue,
+      m.costs,
+      m.net,
+      m.revenue > 0 ? ((m.net / m.revenue) * 100).toFixed(1) : '0.0',
+    ]);
     downloadCsv(`kdops-pnl-${range.start}_to_${range.end}.csv`, toCsv(header, rows));
   };
 
@@ -739,16 +773,106 @@ function PnLReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Revenue (proxy)" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
-        <StatCard title="Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard title="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
+        <StatCard title="Total Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" />
         <StatCard
-          title="Net"
-          value={formatNaira(net)}
+          title="Gross Profit"
+          value={formatNaira(grossProfit)}
           icon={TrendingUp}
-          tone={net >= 0 ? 'success' : 'danger'}
+          tone={grossProfit >= 0 ? 'success' : 'danger'}
+        />
+        <StatCard
+          title="Gross Margin"
+          value={totalRevenue > 0 ? `${grossMargin.toFixed(1)}%` : '—'}
+          tone={grossMargin >= 0 ? 'success' : 'danger'}
         />
       </div>
+
+      {canEditRevenue && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Add revenue entry</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="space-y-1">
+                <Label className="text-xs">Month</Label>
+                <Input
+                  type="month"
+                  value={form.month}
+                  onChange={(e) => setForm({ ...form, month: e.target.value })}
+                  className="w-[160px]"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Category</Label>
+                <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contractor_billings">Contractor billings</SelectItem>
+                    <SelectItem value="direct_income">Direct income</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Amount (NGN)</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  placeholder="0.00"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  className="w-[180px]"
+                />
+              </div>
+              <Button
+                onClick={addEntry}
+                disabled={saving || !form.month || !form.amount}
+              >
+                {saving
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Plus className="mr-2 h-4 w-4" />}
+                Add entry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {(data?.revenue as any[])?.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Revenue entries</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40">
+                    <th className="text-left p-3 font-medium">Month</th>
+                    <th className="text-left p-3 font-medium">Category</th>
+                    <th className="text-right p-3 font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.revenue as any[]).map((r) => (
+                    <tr key={r.id} className="border-b last:border-0">
+                      <td className="p-3">{r.month}</td>
+                      <td className="p-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
+                      <td className="p-3 text-right currency">{formatNaira(r.amount_ngn)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base">Revenue vs Costs — per month</CardTitle>
@@ -766,7 +890,6 @@ function PnLReport({ range }: { range: DateRange }) {
               <Legend />
               <Bar dataKey="revenue" fill="#22c55e" name="Revenue" radius={[4, 4, 0, 0]} />
               <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="net" stroke="#006994" strokeWidth={2} dot name="Net" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
