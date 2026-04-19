@@ -20,6 +20,8 @@ import {
   CarFront,
   AlertTriangle,
   CreditCard,
+  ExternalLink,
+  Paperclip,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -99,6 +101,7 @@ interface Expense {
   account_number: string | null;
   bank_name: string | null;
   account_name: string | null;
+  receipt_url: string | null;
 }
 
 interface BudgetSummary {
@@ -158,6 +161,7 @@ const Expenses = () => {
   const EMPTY_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
   const [bankDetails, setBankDetails] = useState<BankAccountValue>(EMPTY_BANK);
   const [showBankSection, setShowBankSection] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
 
@@ -427,6 +431,11 @@ const Expenses = () => {
       return;
     }
 
+    if (!form.description.trim()) {
+      toast({ title: 'Description is required', variant: 'destructive' });
+      return;
+    }
+
     const blocker = findLockingBudget(form.category, form.date);
     if (blocker) {
       toast({
@@ -449,6 +458,23 @@ const Expenses = () => {
     }
 
     setSubmitting(true);
+
+    // Upload receipt if one was selected.
+    let receiptUrl: string | null = null;
+    if (receiptFile) {
+      const filename = `${crypto.randomUUID()}-${receiptFile.name}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('receipts')
+        .upload(filename, receiptFile, { contentType: receiptFile.type || undefined });
+      if (uploadErr) {
+        toast({ title: 'Receipt upload failed', description: uploadErr.message, variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(filename);
+      receiptUrl = urlData.publicUrl;
+    }
+
     const { data: inserted, error } = await supabase.from('expenses').insert({
       submitted_by: profile?.id || '',
       category: form.category,
@@ -457,8 +483,9 @@ const Expenses = () => {
       mileage_km: mileageKm,
       rate_per_km_ngn: ratePerKm,
       date: form.date,
-      description: form.description || null,
+      description: form.description.trim(),
       status: 'pending',
+      receipt_url: receiptUrl,
       ...(bankDetails.verified
         ? {
             bank_name: bankDetails.bank_name,
@@ -495,6 +522,7 @@ const Expenses = () => {
       });
       setShowBankSection(false);
       setBankDetails(EMPTY_BANK);
+      setReceiptFile(null);
       await fetchData();
     }
     setSubmitting(false);
@@ -1071,8 +1099,18 @@ const Expenses = () => {
                         {formatNaira(e.amount_ngn)}
                       </TableCell>
                       <TableCell>{formatDate(e.date)}</TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {e.description || '—'}
+                      <TableCell className="max-w-xs">
+                        <div className="truncate">{e.description || '—'}</div>
+                        {e.receipt_url && (
+                          <a
+                            href={e.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
+                          >
+                            <ExternalLink className="h-3 w-3" /> View Receipt
+                          </a>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
@@ -1208,7 +1246,7 @@ const Expenses = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setReceiptFile(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Expense Claim</DialogTitle>
@@ -1294,7 +1332,7 @@ const Expenses = () => {
               </div>
             )}
             <div className="space-y-1">
-              <Label>Description</Label>
+              <Label>Description <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.description}
                 onChange={(e) =>
@@ -1302,6 +1340,31 @@ const Expenses = () => {
                 }
                 placeholder="What was the expense for?"
               />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Receipt (Optional)</Label>
+              <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50 kd-transition w-full">
+                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="flex-1 truncate text-muted-foreground">
+                  {receiptFile ? receiptFile.name : 'Attach image or PDF…'}
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,application/pdf"
+                  className="hidden"
+                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {receiptFile && (
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-destructive"
+                  onClick={() => setReceiptFile(null)}
+                >
+                  Remove
+                </button>
+              )}
             </div>
 
             {lockingBudget && (

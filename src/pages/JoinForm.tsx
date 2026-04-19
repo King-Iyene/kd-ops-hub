@@ -7,6 +7,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { resolveAccount } from '@/lib/paystack';
 import { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,12 +63,9 @@ const JoinForm = () => {
     try {
       const bankCode = getBankCode(form.bank_name);
       if (!bankCode) throw new Error('Unknown bank — cannot verify');
-      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
-        body: { action: 'resolve_account', account_number: form.account_number, bank_code: bankCode },
-      });
-      if (error) throw new Error(error.message);
-      if (!data?.ok) throw new Error(data?.error || 'Verification failed');
-      setAccountName(data.data?.account_name ?? '');
+      const result = await resolveAccount(form.account_number, bankCode);
+      if (!result.account_name) throw new Error('No account name returned');
+      setAccountName(result.account_name);
     } catch (err: any) {
       setVerifyError(err?.message || 'Could not verify account');
     } finally {

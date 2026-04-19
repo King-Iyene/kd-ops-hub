@@ -3,6 +3,7 @@ import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { displayName } from '@/lib/name';
 import { formatDate, formatNaira } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import { Card, CardContent } from '@/components/ui/card';
@@ -41,6 +42,8 @@ import { NIGERIAN_BANKS } from '@/lib/paystack';
 interface Contractor {
   id: string;
   full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
@@ -152,7 +155,8 @@ const Contractors = () => {
   const [editing, setEditing] = useState<Contractor | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
-    full_name: '',
+    first_name: '',
+    last_name: '',
     default_amount_ngn: '',
     linkedin_id: '',
   });
@@ -182,7 +186,7 @@ const Contractors = () => {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ full_name: '', default_amount_ngn: '', linkedin_id: '' });
+    setForm({ first_name: '', last_name: '', default_amount_ngn: '', linkedin_id: '' });
     setBank(emptyBank);
   };
 
@@ -197,8 +201,11 @@ const Contractors = () => {
     }
 
     setSubmitting(true);
+    const computedFullName = `${form.first_name.trim()} ${form.last_name.trim()}`.trim() || bank.account_name;
     const payload = {
-      full_name: form.full_name || bank.account_name,
+      first_name: form.first_name.trim() || null,
+      last_name: form.last_name.trim() || null,
+      full_name: computedFullName,
       bank_name: bank.bank_name,
       account_number: bank.account_number,
       default_amount_ngn: parseFloat(form.default_amount_ngn) || 0,
@@ -231,7 +238,8 @@ const Contractors = () => {
   const openEdit = (c: Contractor) => {
     setEditing(c);
     setForm({
-      full_name: c.full_name,
+      first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
+      last_name: c.last_name || (c.full_name || '').split(' ').slice(1).join(' ') || '',
       default_amount_ngn: String(c.default_amount_ngn),
       linkedin_id: c.linkedin_id || '',
     });
@@ -489,7 +497,7 @@ const Contractors = () => {
                 return (
                 <TableRow key={c.id} className="cursor-pointer kd-transition" onClick={() => navigate(`/contractors/${c.id}`)}>
                   <TableCell className="font-medium">
-                    <div>{c.full_name}</div>
+                    <div>{displayName(c.first_name, c.last_name, c.full_name)}</div>
                     {c.linkedin_id && (
                       <div className="text-[11px] text-muted-foreground">
                         {c.linkedin_id}
@@ -559,23 +567,33 @@ const Contractors = () => {
             <DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Full Name</Label>
-              <Input
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                placeholder={bank.account_name || 'Full name'}
-              />
-              {bank.verified &&
-                bank.account_name &&
-                form.full_name &&
-                form.full_name.trim().toLowerCase() !==
-                  bank.account_name.trim().toLowerCase() && (
-                  <p className="text-xs text-warning">
-                    Heads up: entered name differs from verified bank name "{bank.account_name}".
-                  </p>
-                )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>First name *</Label>
+                <Input
+                  value={form.first_name}
+                  onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                  placeholder="Ada"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Last name *</Label>
+                <Input
+                  value={form.last_name}
+                  onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                  placeholder="Okonkwo"
+                />
+              </div>
             </div>
+            {bank.verified &&
+              bank.account_name &&
+              (form.first_name.trim() || form.last_name.trim()) &&
+              `${form.first_name.trim()} ${form.last_name.trim()}`.trim().toLowerCase() !==
+                bank.account_name.trim().toLowerCase() && (
+                <p className="text-xs text-warning">
+                  Heads up: entered name differs from verified bank name "{bank.account_name}".
+                </p>
+              )}
 
             <BankAccountField value={bank} onChange={setBank} />
 
@@ -611,7 +629,7 @@ const Contractors = () => {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={submitting || !form.full_name || !bank.verified}
+              disabled={submitting || !form.first_name.trim() || !bank.verified}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Update' : 'Add'}

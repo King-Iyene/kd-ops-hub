@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
-  FileText, Shield,
+  FileText, Shield, Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ const EmployeeProfile = () => {
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState<Partial<EmployeeData>>({});
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
@@ -132,6 +134,17 @@ const EmployeeProfile = () => {
     setSaving(false);
   };
 
+  const handleDelete = async () => {
+    if (!id || !employee) return;
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('employee_deleted', `Employee "${employee.full_name}" deleted`, currentUser);
+    navigate('/employees', { replace: true });
+  };
+
   if (loading || !employee) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
@@ -162,7 +175,25 @@ const EmployeeProfile = () => {
         <Badge variant="secondary" className={employee.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>
           {employee.status}
         </Badge>
+        {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
+          <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+        )}
       </div>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {empName}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">This cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6">
