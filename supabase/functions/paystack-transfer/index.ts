@@ -39,9 +39,29 @@ const PRIVILEGED_ACTIONS = new Set([
 
 const PRIVILEGED_ROLES = new Set(["super_admin", "admin", "finance"]);
 
+async function getPaystackSecret(): Promise<string> {
+  const envSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
+  if (envSecret) return envSecret;
+
+  const serviceClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const { data } = await serviceClient
+    .from("company_settings")
+    .select("paystack_secret_key_enc")
+    .eq("id", "00000000-0000-0000-0000-000000000001")
+    .maybeSingle();
+  const dbSecret = (data as any)?.paystack_secret_key_enc;
+  if (dbSecret) return dbSecret;
+
+  throw new Error(
+    "PAYSTACK_SECRET_KEY not found. Set it via Supabase secrets or in Settings → Integrations.",
+  );
+}
+
 async function paystackFetch(path: string, init: RequestInit = {}) {
-  const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (!secret) throw new Error("PAYSTACK_SECRET_KEY not set in Supabase secrets");
+  const secret = await getPaystackSecret();
 
   const res = await fetch(`${PAYSTACK_BASE}${path}`, {
     ...init,
@@ -64,7 +84,12 @@ serve(async (req) => {
   }
 
   try {
+    const hasEnvSecret = !!Deno.env.get("PAYSTACK_SECRET_KEY");
+    const hasAuth = !!req.headers.get("Authorization");
+    console.log("[paystack-transfer] env_secret_present:", hasEnvSecret, "| auth_header_present:", hasAuth);
+
     const { action, ...params } = await req.json();
+    console.log("[paystack-transfer] action:", action);
 
     // ---------------------------------------------------------------
     // resolve_account: open to unauthenticated callers (public /join form).

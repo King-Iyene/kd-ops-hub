@@ -190,10 +190,18 @@ const SettingsPage = () => {
         dual_approval_threshold_ngn: settings.dual_approval_threshold_ngn,
         paystack_mode: settings.paystack_mode,
         paystack_webhook_url: settings.paystack_webhook_url,
+        paystack_public_key: (settings as any).paystack_public_key || null,
+        paystack_secret_key_enc: (settings as any).paystack_secret_key_enc || null,
         airtable_base_id: settings.airtable_base_id,
         airtable_income_table_id: settings.airtable_income_table_id,
         airtable_expenses_table_id: settings.airtable_expenses_table_id,
         airtable_sync_enabled: settings.airtable_sync_enabled,
+        resend_from_address: (settings as any).resend_from_address || null,
+        resend_api_key_configured: !!(settings as any).resend_api_key_configured,
+        termii_sender_id: (settings as any).termii_sender_id || null,
+        termii_api_key_configured: !!(settings as any).termii_api_key_configured,
+        whatsapp_enabled: !!(settings as any).whatsapp_enabled,
+        sms_enabled: !!(settings as any).sms_enabled,
         smtp_host: settings.smtp_host,
         smtp_port: settings.smtp_port,
         smtp_username: settings.smtp_username,
@@ -1161,6 +1169,7 @@ function DepartmentsManager() {
     </>
   );
 }
+
 
 
 // ---------------------------------------------------------------------------

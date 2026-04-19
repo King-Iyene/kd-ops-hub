@@ -23,8 +23,10 @@ async function edgeCall<T = any>(
   action: string,
   params: Record<string, unknown>,
 ): Promise<T> {
+  const { data: { session } } = await supabase.auth.getSession();
   const { data, error } = await supabase.functions.invoke('paystack-transfer', {
     body: { action, ...params },
+    headers: { 'Authorization': `Bearer ${session?.access_token}` },
   });
   if (error) {
     throw new Error(error.message || 'Edge Function call failed');

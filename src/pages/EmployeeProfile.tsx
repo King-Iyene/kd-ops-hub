@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
 
 interface EmployeeData {
   id: string;
@@ -61,6 +62,8 @@ const EmployeeProfile = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [permissions, setPermissions] = useState<PermissionsMap>({});
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -78,6 +81,7 @@ const EmployeeProfile = () => {
     const emp = data as EmployeeData;
     setEmployee(emp);
     setForm(emp);
+    setPermissions((data as any).permissions || {});
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
@@ -143,6 +147,22 @@ const EmployeeProfile = () => {
     }
     await logAudit('employee_deleted', `Employee "${employee.full_name}" deleted`, currentUser);
     navigate('/employees', { replace: true });
+  };
+
+  const savePermissions = async () => {
+    if (!id) return;
+    setSavingPermissions(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ permissions })
+      .eq('id', id);
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('permissions_updated', `Permissions updated for "${employee?.full_name || id}"`, currentUser);
+      toast({ title: 'Permissions saved' });
+    }
+    setSavingPermissions(false);
   };
 
   if (loading || !employee) {
@@ -222,6 +242,9 @@ const EmployeeProfile = () => {
           <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          {currentUser?.role === 'super_admin' && (
+            <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -413,6 +436,25 @@ const EmployeeProfile = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {currentUser?.role === 'super_admin' && (
+          <TabsContent value="permissions" className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Override what {empName} can access. Permissions that are toggled off
+              will be denied even if the user's role would normally allow them.
+            </p>
+            <PermissionsEditor
+              value={permissions}
+              onChange={setPermissions}
+            />
+            <div className="flex justify-end">
+              <Button onClick={savePermissions} disabled={savingPermissions}>
+                {savingPermissions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save permissions
+              </Button>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
