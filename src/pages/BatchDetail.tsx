@@ -318,17 +318,23 @@ const BatchDetail = () => {
       );
       return { ok: true };
     } catch (err: any) {
-      const msg = err?.message || 'Transfer failed';
+      let errorMessage = 'Transfer failed';
+      try {
+        const body = await err?.context?.response?.json();
+        errorMessage = body?.error || body?.message || err.message;
+      } catch {
+        errorMessage = err?.message || 'Transfer failed';
+      }
       await supabase
         .from('batch_items')
-        .update({ status: 'failed', failure_reason: msg })
+        .update({ status: 'failed', failure_reason: errorMessage })
         .eq('id', it.id);
       await logAudit(
         'paystack_transfer_failed',
-        `Transfer failed for ${it.full_name}: ${msg}`,
+        `Transfer failed for ${it.full_name}: ${errorMessage}`,
         profile,
       );
-      return { ok: false, reason: msg };
+      return { ok: false, reason: errorMessage };
     }
   };
 
@@ -359,21 +365,22 @@ const BatchDetail = () => {
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed || []).some((r: any) => r.status === 'failed');
-      const anyPending = (refreshed || []).some((r: any) => r.status === 'pending');
-      setProcessResults({
-        succeeded: (refreshed || []).filter((r: any) => r.status === 'succeeded').length,
-        failed: (refreshed || []).filter((r: any) => r.status === 'failed').length,
-        pending: (refreshed || []).filter((r: any) => r.status === 'pending').length,
-      });
+      const all = refreshed || [];
+      const succeededCount = all.filter((r: any) => r.status === 'succeeded').length;
+      const failedCount = all.filter((r: any) => r.status === 'failed').length;
+      const pendingCount = all.filter((r: any) => r.status === 'pending').length;
+      setProcessResults({ succeeded: succeededCount, failed: failedCount, pending: pendingCount });
       setProcessingIdx(0);
       setProcessingTotal(0);
       setProcessingName('');
-      const finalStatus = anyFailed
-        ? 'partially_processed'
-        : anyPending
-        ? 'processing'
-        : 'processed';
+      const finalStatus =
+        pendingCount > 0
+          ? 'processing'
+          : succeededCount > 0 && failedCount > 0
+          ? 'partially_processed'
+          : failedCount > 0 && succeededCount === 0
+          ? 'failed'
+          : 'processed';
       await supabase
         .from('payment_batches')
         .update({ status: finalStatus })
