@@ -506,7 +506,7 @@ const Employees = () => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => resendInvite(e)}
+                              onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
                               title="Resend invite"
                             >
                               <Mail className="h-4 w-4" />
@@ -516,7 +516,7 @@ const Employees = () => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => openEdit(e)}
+                              onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -525,7 +525,7 @@ const Employees = () => {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => toggleStatus(e)}
+                              onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
                               title={e.status === 'active' ? 'Deactivate' : 'Reactivate'}
                             >
                               {e.status === 'active' ? (
