@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
-  FileText, Shield, Trash2,
+  FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -17,6 +17,22 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
@@ -64,6 +80,14 @@ const EmployeeProfile = () => {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [permissions, setPermissions] = useState<PermissionsMap>({});
   const [savingPermissions, setSavingPermissions] = useState(false);
+  const [increments, setIncrements] = useState<any[]>([]);
+  const [showIncrementDialog, setShowIncrementDialog] = useState(false);
+  const [savingIncrement, setSavingIncrement] = useState(false);
+  const [incrementForm, setIncrementForm] = useState({
+    new_salary: 0,
+    reason: '',
+    effective_date: new Date().toISOString().slice(0, 10),
+  });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -83,7 +107,7 @@ const EmployeeProfile = () => {
     setForm(emp);
     setPermissions((data as any).permissions || {});
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('payslips').select('*').eq('employee_id', id)
@@ -96,6 +120,8 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('audit_logs').select('*').eq('actor_id', id)
         .order('created_at', { ascending: false }).limit(50),
+      supabase.from('salary_increments').select('*').eq('employee_id', id)
+        .order('effective_date', { ascending: false }),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -103,6 +129,7 @@ const EmployeeProfile = () => {
     setTasks(taskRes.data || []);
     setDocuments(docRes.data || []);
     setAuditLogs(auditRes.data || []);
+    setIncrements(incrRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -164,6 +191,53 @@ const EmployeeProfile = () => {
     }
     setSavingPermissions(false);
   };
+
+  const recordIncrement = async () => {
+    if (!id || !employee) return;
+    if (incrementForm.new_salary <= 0) {
+      toast({ title: 'New salary must be greater than zero', variant: 'destructive' });
+      return;
+    }
+    setSavingIncrement(true);
+    try {
+      const { error: incrErr } = await supabase.from('salary_increments').insert({
+        employee_id: id,
+        old_salary_ngn: employee.salary_ngn,
+        new_salary_ngn: incrementForm.new_salary,
+        effective_date: incrementForm.effective_date,
+        reason: incrementForm.reason || null,
+        approved_by: currentUser?.id || null,
+      });
+      if (incrErr) throw incrErr;
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ salary_ngn: incrementForm.new_salary })
+        .eq('id', id);
+      if (profileErr) throw profileErr;
+      await logAudit(
+        'salary_increment',
+        `Salary updated for "${employee.full_name}": ${formatNaira(employee.salary_ngn)} → ${formatNaira(incrementForm.new_salary)}`,
+        currentUser,
+      );
+      toast({ title: 'Salary increment recorded' });
+      setShowIncrementDialog(false);
+      setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to record increment', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingIncrement(false);
+    }
+  };
+
+  const yoyGrowth = useMemo(() => {
+    if (increments.length === 0 || !employee?.salary_ngn) return null;
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const past = increments.find((i) => new Date(i.effective_date) <= oneYearAgo);
+    if (!past) return null;
+    return ((employee.salary_ngn - past.new_salary_ngn) / past.new_salary_ngn) * 100;
+  }, [increments, employee]);
 
   if (loading || !employee) {
     return (
@@ -241,6 +315,7 @@ const EmployeeProfile = () => {
           <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
           <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+          <TabsTrigger value="increments">Increments ({increments.length})</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           {currentUser?.role === 'super_admin' && (
             <TabsTrigger value="permissions">Permissions</TabsTrigger>
@@ -405,6 +480,123 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="increments" className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Salary increment history</p>
+              {yoyGrowth !== null && (
+                <p className={`text-xs flex items-center gap-1 mt-0.5 ${yoyGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {yoyGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {Math.abs(yoyGrowth).toFixed(1)}% year-over-year salary growth
+                </p>
+              )}
+            </div>
+            {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'finance') && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setIncrementForm({ new_salary: employee?.salary_ngn || 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+                  setShowIncrementDialog(true);
+                }}
+              >
+                <Plus className="mr-2 h-3.5 w-3.5" /> Record increment
+              </Button>
+            )}
+          </div>
+          <Card>
+            <CardContent className="p-0">
+              {increments.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-4">No salary increments recorded yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Effective date</TableHead>
+                      <TableHead className="text-right">Previous salary</TableHead>
+                      <TableHead className="text-right">New salary</TableHead>
+                      <TableHead className="text-right">Increase</TableHead>
+                      <TableHead>Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {increments.map((inc: any) => {
+                      const pct = inc.old_salary_ngn > 0
+                        ? ((inc.new_salary_ngn - inc.old_salary_ngn) / inc.old_salary_ngn) * 100
+                        : null;
+                      return (
+                        <TableRow key={inc.id}>
+                          <TableCell>{formatDate(inc.effective_date)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn)}</TableCell>
+                          <TableCell className="text-right currency font-medium">{formatNaira(inc.new_salary_ngn)}</TableCell>
+                          <TableCell className="text-right">
+                            {pct !== null && (
+                              <span className={`text-xs font-medium ${pct >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{inc.reason || '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Dialog open={showIncrementDialog} onOpenChange={setShowIncrementDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Record salary increment</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>Current salary</Label>
+                  <p className="text-sm font-medium currency">{formatNaira(employee?.salary_ngn || 0)}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label>New monthly gross salary (₦)</Label>
+                  <Input
+                    type="number"
+                    value={incrementForm.new_salary || ''}
+                    onChange={(e) => setIncrementForm({ ...incrementForm, new_salary: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Effective date</Label>
+                  <Input
+                    type="date"
+                    value={incrementForm.effective_date}
+                    onChange={(e) => setIncrementForm({ ...incrementForm, effective_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Reason</Label>
+                  <Textarea
+                    placeholder="e.g. Annual review, promotion, market adjustment…"
+                    value={incrementForm.reason}
+                    onChange={(e) => setIncrementForm({ ...incrementForm, reason: e.target.value })}
+                  />
+                </div>
+                {incrementForm.new_salary > 0 && employee?.salary_ngn && (
+                  <p className="text-xs text-muted-foreground">
+                    Change: {formatNaira(employee.salary_ngn)} → {formatNaira(incrementForm.new_salary)}
+                    {' '}({((incrementForm.new_salary - employee.salary_ngn) / employee.salary_ngn * 100).toFixed(1)}%)
+                  </p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowIncrementDialog(false)}>Cancel</Button>
+                <Button onClick={recordIncrement} disabled={savingIncrement}>
+                  {savingIncrement && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save increment
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="activity" className="mt-4">
