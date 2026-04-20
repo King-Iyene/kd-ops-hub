@@ -215,10 +215,12 @@ serve(async (req) => {
 
       case "get_balance": {
         const body = await paystackFetch('/balance');
+        const ngnBalance = Array.isArray(body.data)
+          ? body.data.find((b: any) => b.currency === 'NGN')
+          : body.data;
         result = {
-          available: (body.data?.balance ?? 0) / 100,
-          pending: (body.data?.pending_balance ?? 0) / 100,
-          currency: body.data?.currency ?? 'NGN'
+          available: (ngnBalance?.balance ?? 0) / 100,
+          currency: 'NGN',
         };
         break;
       }
