@@ -136,6 +136,15 @@ const NewPaymentBatch = () => {
       });
       return;
     }
+    const amount = parseFloat(adHoc.amount_ngn);
+    if (!adHoc.amount_ngn || amount <= 0) {
+      toast({
+        title: 'Amount required',
+        description: 'Amount must be greater than ₦0.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const adHocFullName = `${adHoc.first_name.trim()} ${adHoc.last_name.trim()}`.trim() || adHocBank.account_name;
     setItems((prev) => [
       ...prev,
@@ -143,7 +152,7 @@ const NewPaymentBatch = () => {
         full_name: adHocFullName,
         bank_name: adHocBank.bank_name,
         account_number: adHocBank.account_number,
-        amount_ngn: parseFloat(adHoc.amount_ngn) || 0,
+        amount_ngn: amount,
         reference: adHoc.reference,
       },
     ]);
@@ -155,6 +164,15 @@ const NewPaymentBatch = () => {
   const totalAmount = items.reduce((sum, i) => sum + (i.amount_ngn || 0), 0);
 
   const handleSave = async (submit: boolean) => {
+    const zeroItems = items.filter((i) => !i.amount_ngn || Number(i.amount_ngn) <= 0);
+    if (zeroItems.length > 0) {
+      toast({
+        title: `${zeroItems.length} beneficiar${zeroItems.length === 1 ? 'y has' : 'ies have'} ₦0 amount`,
+        description: 'Set amounts for all beneficiaries before saving.',
+        variant: 'destructive',
+      });
+      return;
+    }
     setSaving(true);
     try {
       const { data: batch, error } = await supabase.from('payment_batches').insert({
