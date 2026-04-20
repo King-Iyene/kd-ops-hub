@@ -8,6 +8,7 @@ import {
   FileCheck2,
   Download,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -26,6 +27,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Table,
   TableBody,
@@ -142,6 +153,10 @@ const Compliance = () => {
 
   const [markingId, setMarkingId] = useState<string | null>(null);
   const [editingFiling, setEditingFiling] = useState<ComplianceFiling | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ComplianceFiling | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -277,6 +292,30 @@ const Compliance = () => {
       });
     } finally {
       setMarkingId(null);
+    }
+  };
+
+  const deleteItem = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('compliance_filings')
+        .delete()
+        .eq('id', deleteTarget.id);
+      if (error) throw error;
+      await logAudit(
+        'compliance_deleted',
+        `${KIND_LABELS[deleteTarget.kind]} (${deleteTarget.period}) deleted`,
+        profile,
+      );
+      toast({ title: 'Filing deleted' });
+      setDeleteTarget(null);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -454,6 +493,17 @@ const Compliance = () => {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => setDeleteTarget(r)}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -526,6 +576,27 @@ const Compliance = () => {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this compliance item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+              onClick={deleteItem}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
