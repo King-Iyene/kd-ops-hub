@@ -166,6 +166,7 @@ const Expenses = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -725,16 +726,19 @@ const Expenses = () => {
     fetchData();
   };
 
-  const bulkApproveAll = async () => {
+  const bulkApproveAll = () => {
     if (!isApprover) return;
     const pending = expenses.filter((e) => e.status === 'pending');
     if (pending.length === 0) return;
     const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
-    const ok = window.confirm(
-      `You are about to approve ${pending.length} expense claims totalling ${formatNaira(total)}. This cannot be undone. Proceed?`,
-    );
-    if (!ok) return;
+    setBulkApproveConfirm({ count: pending.length, total });
+  };
+
+  const doBulkApprove = async () => {
+    if (!bulkApproveConfirm) return;
+    setBulkApproveConfirm(null);
     setBulkLoading(true);
+    const pending = expenses.filter((e) => e.status === 'pending');
     try {
       const ids = pending.map((p) => p.id);
       const { error } = await supabase
@@ -1524,6 +1528,23 @@ const Expenses = () => {
             >
               Reject with reason
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!bulkApproveConfirm} onOpenChange={(open) => { if (!open) setBulkApproveConfirm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve all pending expenses?</DialogTitle>
+          </DialogHeader>
+          {bulkApproveConfirm && (
+            <p className="text-sm text-muted-foreground">
+              Approve {bulkApproveConfirm.count} expense claim{bulkApproveConfirm.count === 1 ? '' : 's'} totalling {formatNaira(bulkApproveConfirm.total)}? This cannot be undone.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
+            <Button onClick={doBulkApprove}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
