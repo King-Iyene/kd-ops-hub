@@ -255,6 +255,10 @@ const BatchDetail = () => {
    */
   const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
     try {
+      const amount = Number(it.amount_ngn || 0);
+      if (amount > 10_000_000) {
+        return { ok: false, reason: 'Amount exceeds maximum single transfer limit of ₦10,000,000.' };
+      }
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) {
         return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
@@ -613,6 +617,7 @@ const BatchDetail = () => {
         <th class="right">Amount</th>
         <th>Reference</th>
         <th>Status</th>
+        <th>Reason</th>
       </tr>
     </thead>
     <tbody>
@@ -624,8 +629,9 @@ const BatchDetail = () => {
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(it.account_number)}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
-            <td>${escapeHtml(it.reference || '')}</td>
+            <td>${escapeHtml(it.paystack_reference || '—')}</td>
             <td><span class="pill ${it.status === 'succeeded' ? 'success' : it.status === 'failed' ? 'failed' : 'pending'}">${escapeHtml(it.status)}</span></td>
+            <td>${it.status === 'failed' ? escapeHtml(it.failure_reason || 'Transfer rejected by bank') : '—'}</td>
           </tr>
         `)
         .join('')}
