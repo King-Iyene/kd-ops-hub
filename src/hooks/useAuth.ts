@@ -17,10 +17,10 @@ export const useAuth = () => {
       await fetchProfile(userId);
       const fetched = useAuthStore.getState().profile;
 
-      // No profile row or no role assigned → self-registered user, not invited.
-      // Sign them out immediately and redirect with an explanatory message.
-      // Exception: invite/signup flows and freshly-created profiles are allowed through.
-      if (!fetched || !fetched.role) {
+      // No profile row at all → self-registered user, not invited.
+      // Users with a profile row but no role yet (freshly invited) are allowed through.
+      // Exception: invite/signup flows and recently-created profiles are allowed through.
+      if (!fetched) {
         const url = window.location.href;
         const isInviteFlow =
           url.includes('type=invite') ||
@@ -29,7 +29,7 @@ export const useAuth = () => {
         const createdAt = fetched?.created_at
           ? new Date(fetched.created_at).getTime()
           : 0;
-        const isNewProfile = createdAt > 0 && Date.now() - createdAt < 60_000;
+        const isNewProfile = createdAt > 0 && Date.now() - createdAt < 86_400_000;
 
         if (isInviteFlow || isNewProfile) {
           setLoading(false);
