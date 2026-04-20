@@ -305,7 +305,7 @@ const BatchDetail = () => {
       let recipientCode: string | null = it.paystack_recipient_code || null;
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
-          name: it.full_name,
+          name: it.full_name || 'Unknown Recipient',
           account_number: it.account_number,
           bank_code: bankCode,
         });
@@ -692,7 +692,7 @@ const BatchDetail = () => {
         .map((it, i) => `
           <tr${it.status === 'failed' ? ' style="background:#fff8f8"' : ''}>
             <td>${i + 1}</td>
-            <td>${escapeHtml(it.full_name)}</td>
+            <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(it.account_number)}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
@@ -727,7 +727,7 @@ const BatchDetail = () => {
       <tbody>
         ${failedRows.map((it) => `
           <tr>
-            <td>${escapeHtml(it.full_name)}</td>
+            <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(it.account_number)}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
@@ -987,7 +987,7 @@ const BatchDetail = () => {
                     key={item.id}
                     className={item.status === 'failed' ? 'border-l-4 border-l-destructive kd-transition' : 'kd-transition'}
                   >
-                    <TableCell className="font-medium">{item.full_name}</TableCell>
+                    <TableCell className="font-medium">{item.full_name || 'Unknown Recipient'}</TableCell>
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{item.account_number}</TableCell>
                     <TableCell className="text-right">

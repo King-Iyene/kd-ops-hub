@@ -86,7 +86,7 @@ const NewPaymentBatch = () => {
       setItems((prev) => [
         ...prev,
         {
-          full_name: c.full_name,
+          full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
           bank_name: c.bank_name,
           account_number: c.account_number,
           amount_ngn: c.default_amount_ngn || 0,
@@ -103,7 +103,7 @@ const NewPaymentBatch = () => {
     const toAdd = visible
       .filter((c) => !selectedIds.has(c.id))
       .map((c) => ({
-        full_name: c.full_name,
+        full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
         bank_name: c.bank_name,
         account_number: c.account_number,
         amount_ngn: c.default_amount_ngn || 0,
@@ -225,7 +225,7 @@ const NewPaymentBatch = () => {
     if (!s) return contractors;
     return contractors.filter(
       (c) =>
-        c.full_name.toLowerCase().includes(s) ||
+        (c.full_name || '').toLowerCase().includes(s) ||
         c.bank_name.toLowerCase().includes(s) ||
         c.account_number.includes(s)
     );
@@ -371,7 +371,7 @@ const NewPaymentBatch = () => {
                               onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{c.full_name}</TableCell>
+                          <TableCell className="font-medium">{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'}</TableCell>
                           <TableCell>{c.bank_name}</TableCell>
                           <TableCell>{c.account_number}</TableCell>
                           <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
@@ -415,7 +415,7 @@ const NewPaymentBatch = () => {
                     <TableBody>
                       {items.map((item, i) => (
                         <TableRow key={i}>
-                          <TableCell className="font-medium">{item.full_name}</TableCell>
+                          <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
                           <TableCell>{item.bank_name}</TableCell>
                           <TableCell>{item.account_number}</TableCell>
                           <TableCell>
@@ -483,7 +483,7 @@ const NewPaymentBatch = () => {
                 <TableBody>
                   {items.map((item, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-medium">{item.full_name}</TableCell>
+                      <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
                       <TableCell>{item.bank_name}</TableCell>
                       <TableCell>{item.account_number}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(item.amount_ngn)}</TableCell>
