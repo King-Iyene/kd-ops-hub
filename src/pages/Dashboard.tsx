@@ -32,6 +32,7 @@ import {
   Legend,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
@@ -73,6 +74,13 @@ interface BudgetUtil {
   name: string;
   planned: number;
   actual: number;
+}
+
+interface PersonalKPIs {
+  pendingExpenses: number;
+  leaveDaysRemaining: number;
+  assignedTasks: number;
+  pendingFuel: number;
 }
 
 const ICONS: Record<string, typeof FileText> = {
@@ -123,6 +131,9 @@ const COLORS = ['#006994', '#00ECFF', '#D6AC50', '#22c55e', '#ef4444'];
 const Dashboard = () => {
   usePageTitle('Dashboard');
   const navigate = useNavigate();
+  const { profile } = useAuthStore();
+  const effectiveRole = useEffectiveRole();
+  const isPersonal = effectiveRole === 'field_staff' || effectiveRole === 'driver';
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
@@ -135,12 +146,40 @@ const Dashboard = () => {
   const [upcoming, setUpcoming] = useState<UpcomingSub[]>([]);
   const [budgetUtil, setBudgetUtil] = useState<BudgetUtil[]>([]);
   const [loading, setLoading] = useState(true);
+  const [personalKPIs, setPersonalKPIs] = useState<PersonalKPIs>({
+    pendingExpenses: 0,
+    leaveDaysRemaining: 0,
+    assignedTasks: 0,
+    pendingFuel: 0,
+  });
+  const [personalLoading, setPersonalLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
     refreshApprovals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!profile?.id || !isPersonal) return;
+    setPersonalLoading(true);
+    Promise.all([
+      supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('employee_id', profile.id).eq('status', 'pending'),
+      supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', profile.id).maybeSingle(),
+      supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
+      supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
+    ]).then(([expRes, leaveRes, taskRes, fuelRes]) => {
+      const quota = (leaveRes.data as any)?.annual_quota ?? 21;
+      const used = (leaveRes.data as any)?.annual_used ?? 0;
+      setPersonalKPIs({
+        pendingExpenses: expRes.count ?? 0,
+        leaveDaysRemaining: Math.max(0, quota - used),
+        assignedTasks: taskRes.count ?? 0,
+        pendingFuel: fuelRes.count ?? 0,
+      });
+    }).catch((err) => console.error('[KDOps] personal KPI load failed:', err))
+      .finally(() => setPersonalLoading(false));
+  }, [profile?.id, isPersonal]);
 
   const fetchDashboard = async () => {
     try {
@@ -280,6 +319,65 @@ const Dashboard = () => {
       tone: 'primary' as const,
     },
   ];
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
+
+  if (isPersonal) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {firstName}</h1>
+          <p className="text-muted-foreground text-sm">Here's your personal overview for today.</p>
+        </div>
+
+        <AnnouncementsBanner />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard
+            title="Pending Expenses"
+            value={personalLoading ? '—' : personalKPIs.pendingExpenses}
+            icon={Receipt}
+            subtitle="Awaiting approval"
+            tone="warning"
+            onClick={() => navigate('/expenses')}
+          />
+          <StatCard
+            title="Leave Days Remaining"
+            value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining}
+            icon={CalendarDays}
+            subtitle="Annual leave balance"
+            tone="primary"
+            onClick={() => navigate('/leave')}
+          />
+          <StatCard
+            title="Assigned Tasks"
+            value={personalLoading ? '—' : personalKPIs.assignedTasks}
+            icon={CheckCircle}
+            subtitle="Open tasks"
+            tone="primary"
+            onClick={() => navigate('/tasks')}
+          />
+          {effectiveRole === 'driver' && (
+            <StatCard
+              title="Pending Fuel Requests"
+              value={personalLoading ? '—' : personalKPIs.pendingFuel}
+              icon={Fuel}
+              subtitle="Awaiting approval"
+              tone="warning"
+              onClick={() => navigate('/fleet')}
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MyTasksWidget />
+          <MyGoalsWidget />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
