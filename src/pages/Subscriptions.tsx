@@ -10,7 +10,9 @@ import {
   DollarSign,
   AlertTriangle,
   Loader2,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -432,22 +434,32 @@ const Subscriptions = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Subscriptions"
-        description="Track recurring software and service subscriptions with renewal alerts."
-        actions={
-          <>
-            <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Subscriptions</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Track recurring software and service subscriptions, renewal dates, monthly costs and status. Renewal alerts help you avoid unexpected charges.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Track recurring software and service subscriptions with renewal alerts.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+          {canManage && (
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> New Subscription
             </Button>
-            {canManage && (
-              <Button onClick={openCreate}>
-                <Plus className="mr-2 h-4 w-4" /> New Subscription
-              </Button>
-            )}
-          </>
-        }
-      />
+          )}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard

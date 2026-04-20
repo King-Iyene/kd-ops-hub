@@ -9,7 +9,9 @@ import {
   Download,
   Pencil,
   Trash2,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -354,20 +356,30 @@ const Compliance = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Compliance Centre"
-        description="Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF."
-        actions={
-          <>
-            <Button variant="outline" onClick={exportCalendar}>
-              <Download className="mr-2 h-4 w-4" /> Export calendar
-            </Button>
-            <Button onClick={() => setDialog(true)}>
-              <CalendarDays className="mr-2 h-4 w-4" /> New filing
-            </Button>
-          </>
-        }
-      />
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Compliance Centre</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Track every Nigerian statutory filing deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF. Export a compliance calendar.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportCalendar}>
+            <Download className="mr-2 h-4 w-4" /> Export calendar
+          </Button>
+          <Button onClick={() => setDialog(true)}>
+            <CalendarDays className="mr-2 h-4 w-4" /> New filing
+          </Button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard

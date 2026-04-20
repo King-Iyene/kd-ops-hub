@@ -12,7 +12,9 @@ import {
   Send,
   AlertCircle,
   X,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
   Bar,
@@ -745,15 +747,27 @@ const Payroll = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Payroll Intelligence"
-        description="Monthly payroll summary across contractor payments, employees and statutory deductions."
-        actions={
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Payroll Intelligence</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Process monthly payroll runs for all employees. Calculates gross pay, PAYE, employee &amp; employer pension, NHF, allowances and net pay. Supports bulk payslip export.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Monthly payroll summary across contractor payments, employees and statutory deductions.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setDialog(true)}>
             <Plus className="mr-2 h-4 w-4" /> Draft payroll
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard

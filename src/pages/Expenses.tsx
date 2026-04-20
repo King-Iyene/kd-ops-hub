@@ -22,7 +22,9 @@ import {
   CreditCard,
   ExternalLink,
   Paperclip,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -915,37 +917,47 @@ const Expenses = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Expenses"
-        description="Track and manage expense claims."
-        actions={
-          <>
-            {isApprover && (
-              <Button
-                variant="outline"
-                onClick={exportCSV}
-                disabled={expenses.length === 0}
-              >
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-            )}
-            {isApprover && pendingCount > 0 && (
-              <Button
-                variant="outline"
-                onClick={bulkApproveAll}
-                disabled={bulkLoading}
-              >
-                {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Check className="mr-2 h-4 w-4" />
-                Approve all pending ({pendingCount})
-              </Button>
-            )}
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New Expense
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Expenses</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Submit, review and approve employee expense claims. Approvers can bulk-approve pending claims and export records for accounting.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Track and manage expense claims.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {isApprover && (
+            <Button
+              variant="outline"
+              onClick={exportCSV}
+              disabled={expenses.length === 0}
+            >
+              <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
-          </>
-        }
-      />
+          )}
+          {isApprover && pendingCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={bulkApproveAll}
+              disabled={bulkLoading}
+            >
+              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Check className="mr-2 h-4 w-4" />
+              Approve all pending ({pendingCount})
+            </Button>
+          )}
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New Expense
+          </Button>
+        </div>
+      </div>
 
       {/* Trend chart — managers only */}
       {isApprover && (

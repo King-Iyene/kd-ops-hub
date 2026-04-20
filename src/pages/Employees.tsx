@@ -11,8 +11,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   UserX,
-  // kept here for brevity — lucide exports only what's referenced above.
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -367,11 +368,23 @@ const Employees = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Employees"
-        description={`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}
-        actions={
-          isAdmin && (
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">{`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {isAdmin && (
             <Button
               onClick={() => {
                 resetForm();
@@ -381,9 +394,9 @@ const Employees = () => {
             >
               <Plus className="mr-2 h-4 w-4" /> Add Employee
             </Button>
-          )
-        }
-      />
+          )}
+        </div>
+      </div>
 
       <Card>
         <div className="p-4 border-b flex items-center gap-2 flex-wrap">

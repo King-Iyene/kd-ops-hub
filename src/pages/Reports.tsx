@@ -12,7 +12,9 @@ import {
   Library,
   Plus,
   Loader2,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
   Bar,
@@ -66,10 +68,22 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Reports"
-        description="Finance and operations analytics across modules."
-        actions={
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Cross-module analytics: P&amp;L, cash flow, spend concentration, payment reconciliation, fleet and contractor summaries. Filter by any date range.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Finance and operations analytics across modules.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <div className="flex items-end gap-2 flex-wrap">
             <div className="space-y-1">
               <Label className="text-xs">From</Label>
@@ -90,8 +104,8 @@ const Reports = () => {
               />
             </div>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">

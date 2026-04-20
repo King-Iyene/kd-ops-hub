@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2, Info } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface PaymentBatch {
   id: string;
@@ -90,7 +91,17 @@ const Payments = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Payment Batches</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Payment Batches</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Create and manage bulk payment batches to partners and contractors. Batches flow through draft → approval → funding → processing with a full audit trail.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground text-sm">Manage partner and contractor payments</p>
         </div>
         <div className="flex gap-2">
