@@ -1,14 +1,15 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2, Info } from 'lucide-react';
+import { Plus, Search, Loader2, Info, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
@@ -26,6 +27,13 @@ interface PaymentBatch {
   notes: string;
 }
 
+interface BalanceData {
+  available: number;
+  pending: number;
+  currency: string;
+}
+
+const LOW_BALANCE_THRESHOLD = 10_000;
 
 const Payments = () => {
   const navigate = useNavigate();
@@ -36,6 +44,32 @@ const Payments = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [page, setPage] = useState(0);
+
+  const [balance, setBalance] = useState<BalanceData | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
+
+  const fetchBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+        body: { action: 'get_balance' },
+      });
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Failed to fetch balance');
+      setBalance(data.data as BalanceData);
+      setBalanceUpdatedAt(
+        new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }),
+      );
+    } catch {
+      // silently fail — balance is informational, not blocking
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
 
   useEffect(() => {
     fetchBatches();
@@ -87,9 +121,11 @@ const Payments = () => {
     return batches.filter((b) => b.name.toLowerCase().includes(s));
   }, [batches, search]);
 
+  const isLowBalance = balance !== null && balance.available < LOW_BALANCE_THRESHOLD;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Payment Batches</h1>
@@ -104,11 +140,78 @@ const Payments = () => {
           </div>
           <p className="text-muted-foreground text-sm">Manage partner and contractor payments</p>
         </div>
-        <div className="flex gap-2">
-          <QuickPayDialog />
-          <Button onClick={() => navigate('/payments/new')}>
-            <Plus className="mr-2 h-4 w-4" /> New Batch
-          </Button>
+
+        <div className="flex items-start gap-3 flex-wrap justify-end">
+          {/* Paystack Balance Card */}
+          <div
+            className={cn(
+              'rounded-lg border bg-card px-4 py-2.5 text-sm min-w-[220px] shadow-sm',
+              isLowBalance && 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className={cn('font-medium text-xs uppercase tracking-wide', isLowBalance ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
+                Paystack Balance
+              </span>
+              <button
+                onClick={fetchBalance}
+                disabled={balanceLoading}
+                className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                aria-label="Refresh balance"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', balanceLoading && 'animate-spin')} />
+              </button>
+            </div>
+
+            {balanceLoading && balance === null ? (
+              <div className="space-y-1.5 py-0.5">
+                <div className="h-7 w-36 bg-muted animate-pulse rounded" />
+                <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+              </div>
+            ) : (
+              <>
+                <p className={cn('text-xl font-bold tracking-tight', isLowBalance && 'text-amber-700 dark:text-amber-400')}>
+                  {balance ? formatNaira(balance.available) : '—'}
+                </p>
+                <p className="text-xs text-muted-foreground">Available for transfers</p>
+              </>
+            )}
+
+            {balanceUpdatedAt && (
+              <p className="text-xs text-muted-foreground/60 mt-0.5">Updated {balanceUpdatedAt}</p>
+            )}
+
+            {isLowBalance && (
+              <div className="flex items-start gap-1.5 mt-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
+                  Low balance — fund your Paystack account before processing payments
+                </p>
+              </div>
+            )}
+
+            <a
+              href="https://dashboard.paystack.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(
+                'mt-2 flex items-center justify-center gap-1.5 w-full rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                isLowBalance
+                  ? 'border-amber-400 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60'
+                  : 'border-border bg-background hover:bg-muted text-foreground',
+              )}
+            >
+              <ExternalLink className="h-3 w-3" /> Fund Account
+            </a>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <QuickPayDialog />
+            <Button onClick={() => navigate('/payments/new')}>
+              <Plus className="mr-2 h-4 w-4" /> New Batch
+            </Button>
+          </div>
         </div>
       </div>
 
