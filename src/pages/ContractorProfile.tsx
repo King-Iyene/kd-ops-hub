@@ -166,6 +166,11 @@ const ContractorProfile = () => {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <button onClick={() => navigate('/contractors')} className="hover:text-foreground transition-colors">Contractors</button>
+        <span>/</span>
+        <span className="text-foreground">{ctrName}</span>
+      </nav>
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/contractors')}>
           <ArrowLeft className="h-4 w-4" />

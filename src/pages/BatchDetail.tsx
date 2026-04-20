@@ -781,6 +781,11 @@ const BatchDetail = () => {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <button onClick={() => navigate('/payments')} className="hover:text-foreground transition-colors">Payments</button>
+        <span>/</span>
+        <span className="text-foreground">{batch.name}</span>
+      </nav>
       <div className="flex items-center gap-4 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate('/payments')}>
           <ArrowLeft className="h-4 w-4" />
