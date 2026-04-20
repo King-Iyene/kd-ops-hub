@@ -106,6 +106,11 @@ interface Expense {
   bank_name: string | null;
   account_name: string | null;
   receipt_url: string | null;
+  profiles?: {
+    full_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
 }
 
 interface BudgetSummary {
@@ -186,7 +191,7 @@ const Expenses = () => {
 
       let query = supabase
         .from('expenses')
-        .select('*')
+        .select('*, profiles:submitted_by(full_name, first_name, last_name)')
         .order('created_at', { ascending: false });
       if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
       const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
@@ -535,6 +540,8 @@ const Expenses = () => {
   };
 
   // -- Approve / reject -----------------------------------------------------
+
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
 
   const [rejectingExpense, setRejectingExpense] = useState<Expense | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -922,6 +929,11 @@ const Expenses = () => {
 
   const lockingBudget = findLockingBudget(form.category, form.date);
 
+  const submitterName = (e: Expense) =>
+    e.profiles?.first_name
+      ? `${e.profiles.first_name} ${e.profiles.last_name || ''}`.trim()
+      : e.profiles?.full_name || '—';
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1080,6 +1092,7 @@ const Expenses = () => {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Description</TableHead>
+                    {isApprover && <TableHead>Submitted by</TableHead>}
                     <TableHead>Status</TableHead>
                     <TableHead>Payment</TableHead>
                     {isApprover && <TableHead className="text-right">Actions</TableHead>}
@@ -1087,7 +1100,11 @@ const Expenses = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((e) => (
-                    <TableRow key={e.id} className="kd-transition">
+                    <TableRow
+                      key={e.id}
+                      className="kd-transition cursor-pointer"
+                      onClick={() => setDetailExpense(e)}
+                    >
                       {isApprover && (
                         <TableCell>
                           {e.status === 'pending' && (
@@ -1126,11 +1143,17 @@ const Expenses = () => {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
+                            onClick={(evt) => evt.stopPropagation()}
                           >
                             <ExternalLink className="h-3 w-3" /> View Receipt
                           </a>
                         )}
                       </TableCell>
+                      {isApprover && (
+                        <TableCell>
+                          {submitterName(e)}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <StatusBadge status={e.status} />
@@ -1150,7 +1173,7 @@ const Expenses = () => {
                         {e.status === 'approved' && paymentBadge(e.payment_status)}
                       </TableCell>
                       {isApprover && (
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(evt) => evt.stopPropagation()}>
                           <div className="flex justify-end gap-1 items-center">
                             {e.status === 'pending' && (
                               <>
@@ -1516,6 +1539,94 @@ const Expenses = () => {
             >
               Reject with reason
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detailExpense} onOpenChange={(v) => { if (!v) setDetailExpense(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" /> Expense Detail
+            </DialogTitle>
+          </DialogHeader>
+          {detailExpense && (
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                {isApprover && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Submitted by</p>
+                    <p className="font-medium">{submitterName(detailExpense)}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-muted-foreground">Submitted on</p>
+                  <p className="font-medium">{formatDate(detailExpense.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Category</p>
+                  <p className="font-medium capitalize">{detailExpense.category?.replace(/_/g, ' ')}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Expense date</p>
+                  <p className="font-medium">{formatDate(detailExpense.date)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Amount</p>
+                  <p className="font-semibold currency">{formatNaira(detailExpense.amount_ngn)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <StatusBadge status={detailExpense.status} />
+                </div>
+              </div>
+              {detailExpense.mileage_km && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Mileage</p>
+                  <p>{detailExpense.mileage_km} km × {formatNaira(detailExpense.rate_per_km_ngn || 0)}/km</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Description</p>
+                <p className="whitespace-pre-wrap">{detailExpense.description || '—'}</p>
+              </div>
+              {detailExpense.receipt_url && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Receipt</p>
+                  <a
+                    href={detailExpense.receipt_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> View Receipt
+                  </a>
+                </div>
+              )}
+              {detailExpense.status === 'approved' && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Payment status</p>
+                  {paymentBadge(detailExpense.payment_status)}
+                </div>
+              )}
+              {(detailExpense.bank_name || detailExpense.account_number) && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-1 text-xs">
+                  <p className="font-medium">Bank Account</p>
+                  {detailExpense.bank_name && (
+                    <p><span className="text-muted-foreground">Bank: </span>{detailExpense.bank_name}</p>
+                  )}
+                  {detailExpense.account_number && (
+                    <p><span className="text-muted-foreground">Account: </span>{detailExpense.account_number}</p>
+                  )}
+                  {detailExpense.account_name && (
+                    <p><span className="text-muted-foreground">Name: </span>{detailExpense.account_name}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
