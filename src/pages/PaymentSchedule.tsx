@@ -268,8 +268,11 @@ export default function PaymentSchedule() {
       )
       .reduce((s, r) => s + (r.estimated_amount_ngn || 0), 0);
     const payrollSum = payrollRuns.reduce((s, p) => s + (p.total_burn_ngn || 0), 0);
-    return batchSum + recurringSum + payrollSum;
-  }, [batches, recurringSchedules, payrollRuns, today, in7days]);
+    const subscriptionSum = subscriptions
+      .filter((s) => s.next_renewal_date <= in7days)
+      .reduce((s, sub) => s + (sub.amount_ngn || 0), 0);
+    return batchSum + recurringSum + payrollSum + subscriptionSum;
+  }, [batches, recurringSchedules, payrollRuns, subscriptions, today, in7days]);
 
   const obligations30 = useMemo(() => {
     const batchSum = batches
@@ -285,8 +288,11 @@ export default function PaymentSchedule() {
       )
       .reduce((s, r) => s + (r.estimated_amount_ngn || 0), 0);
     const payrollSum = payrollRuns.reduce((s, p) => s + (p.total_burn_ngn || 0), 0);
-    return batchSum + recurringSum + payrollSum;
-  }, [batches, recurringSchedules, payrollRuns, today, in30days]);
+    const subscriptionSum = subscriptions
+      .filter((s) => s.next_renewal_date <= in30days)
+      .reduce((s, sub) => s + (sub.amount_ngn || 0), 0);
+    return batchSum + recurringSum + payrollSum + subscriptionSum;
+  }, [batches, recurringSchedules, payrollRuns, subscriptions, today, in30days]);
 
   const overdueTotal = useMemo(
     () => overdueBatches.reduce((s, b) => s + (b.total_amount || 0), 0),
