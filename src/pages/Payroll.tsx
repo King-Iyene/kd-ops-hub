@@ -77,8 +77,9 @@ interface PayrollRun {
   approved_by: string | null;
 }
 
-const PENSION_RATE = 0.08;  // 8% employee contribution (employer side not here)
-const NHF_RATE = 0.025;     // 2.5%
+const PENSION_RATE = 0.08;           // 8% employee contribution
+const EMPLOYER_PENSION_RATE = 0.10;  // 10% employer contribution
+const NHF_RATE = 0.025;              // 2.5%
 
 const monthLabel = (period: string) => {
   const [y, m] = period.split('-');
@@ -179,7 +180,8 @@ const Payroll = () => {
       const paye = calculatePAYE(totalContractor + totalEmployee);
       const pension = (totalContractor + totalEmployee) * PENSION_RATE;
       const nhf = (totalContractor + totalEmployee) * NHF_RATE;
-      const burn = totalContractor + totalEmployee + totalExpenses + paye + pension + nhf;
+      const employerPension = totalEmployee * EMPLOYER_PENSION_RATE;
+      const burn = totalContractor + totalEmployee + totalExpenses + paye + pension + nhf + employerPension;
 
       const { error } = await supabase.from('payroll_runs').upsert(
         {
@@ -568,7 +570,8 @@ const Payroll = () => {
       ['Employee salaries', run.total_employee_ngn],
       ['Reimbursable expenses', run.total_expenses_ngn],
       ['PAYE (est.)', run.paye_ngn],
-      ['Pension (est.)', run.pension_ngn],
+      ['Pension employee (est.)', run.pension_ngn],
+      ['Pension employer (est.)', run.total_employee_ngn * EMPLOYER_PENSION_RATE],
       ['NHF (est.)', run.nhf_ngn],
       ['Total burn', run.total_burn_ngn],
     ];
@@ -599,7 +602,8 @@ const Payroll = () => {
         <tr><td>Employee salaries</td><td class="right">${formatNaira(run.total_employee_ngn)}</td></tr>
         <tr><td>Reimbursable expenses</td><td class="right">${formatNaira(run.total_expenses_ngn)}</td></tr>
         <tr><td>PAYE (est.)</td><td class="right">${formatNaira(run.paye_ngn)}</td></tr>
-        <tr><td>Pension (est.)</td><td class="right">${formatNaira(run.pension_ngn)}</td></tr>
+        <tr><td>Pension — employee (est.)</td><td class="right">${formatNaira(run.pension_ngn)}</td></tr>
+        <tr><td>Pension — employer (est.)</td><td class="right">${formatNaira(run.total_employee_ngn * EMPLOYER_PENSION_RATE)}</td></tr>
         <tr><td>NHF (est.)</td><td class="right">${formatNaira(run.nhf_ngn)}</td></tr>
         <tr class="total"><td>Total burn</td><td class="right">${formatNaira(run.total_burn_ngn)}</td></tr>
       </tbody>
@@ -730,7 +734,8 @@ const Payroll = () => {
                   <TableHead className="text-right">Contractor</TableHead>
                   <TableHead className="text-right">Expenses</TableHead>
                   <TableHead className="text-right">PAYE</TableHead>
-                  <TableHead className="text-right">Pension</TableHead>
+                  <TableHead className="text-right">Pension (emp)</TableHead>
+                  <TableHead className="text-right">Pension (er)</TableHead>
                   <TableHead className="text-right">Total burn</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -751,6 +756,9 @@ const Payroll = () => {
                     </TableCell>
                     <TableCell className="text-right currency">
                       {formatNaira(r.pension_ngn)}
+                    </TableCell>
+                    <TableCell className="text-right currency">
+                      {formatNaira(r.total_employee_ngn * EMPLOYER_PENSION_RATE)}
                     </TableCell>
                     <TableCell className="text-right currency font-semibold">
                       {formatNaira(r.total_burn_ngn)}
