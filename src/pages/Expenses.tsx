@@ -47,6 +47,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Table,
   TableBody,
   TableCell,
@@ -149,8 +154,8 @@ const Expenses = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | Expense['status']>(
-    'all',
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>(
+    isApprover ? 'all' : 'pending',
   );
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
 
@@ -816,7 +821,11 @@ const Expenses = () => {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return expenses.filter((e) => {
-      if (statusFilter !== 'all' && e.status !== statusFilter) return false;
+      if (statusFilter === 'pending') {
+        if (e.status !== 'pending' && e.status !== 'pending_second_approval') return false;
+      } else if (statusFilter !== 'all' && e.status !== statusFilter) {
+        return false;
+      }
       if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
       if (!q) return true;
       return (
@@ -1017,21 +1026,14 @@ const Expenses = () => {
               }}
             />
           </div>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => setStatusFilter(v as any)}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="pending_second_approval">Pending 2nd Approval</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+            </TabsList>
+          </Tabs>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue />

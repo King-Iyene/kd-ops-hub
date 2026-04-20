@@ -136,7 +136,7 @@ const Leave = () => {
   const [actioning, setActioning] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | LeaveStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | LeaveStatus>(isManager ? 'all' : 'pending');
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -517,20 +517,14 @@ const Leave = () => {
                   }}
                 />
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v as any)}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
+              <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
+                <TabsList>
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="pending">Pending</TabsTrigger>
+                  <TabsTrigger value="approved">Approved</TabsTrigger>
+                  <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <CardContent className="p-0">
