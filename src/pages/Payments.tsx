@@ -32,7 +32,7 @@ interface BalanceData {
   currency: string;
 }
 
-const LOW_BALANCE_THRESHOLD = 10_000;
+const LOW_BALANCE_THRESHOLD = 50_000;
 
 const Payments = () => {
   const navigate = useNavigate();
