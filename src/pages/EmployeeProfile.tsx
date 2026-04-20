@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
-  FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus,
+  FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -92,6 +92,20 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
+
+  const downloadPayslip = async (fileUrl: string) => {
+    const { data, error } = await supabase.storage
+      .from('payslips')
+      .download(fileUrl);
+    if (data) {
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payslip-${fileUrl.split('/').pop()}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -410,6 +424,11 @@ const EmployeeProfile = () => {
                 <div className="space-y-2">{payslips.map((p: any) => (
                   <div key={p.id} className="flex items-center justify-between border rounded-lg p-3">
                     <div><p className="font-medium">{p.period}</p><p className="text-xs text-muted-foreground">Gross {formatNaira(p.gross_ngn)} · Net {formatNaira(p.net_ngn)}</p></div>
+                    {p.file_url && (
+                      <Button size="sm" variant="outline" onClick={() => downloadPayslip(p.file_url)}>
+                        <Download className="h-4 w-4 mr-1" /> Download
+                      </Button>
+                    )}
                   </div>
                 ))}</div>
               )}
