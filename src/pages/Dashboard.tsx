@@ -126,6 +126,13 @@ const ICONS: Record<string, typeof FileText> = {
 
 const prettyType = (t: string) => t.replace(/_/g, ' ');
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Good morning';
+  if (h >= 12 && h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
 const COLORS = ['#006994', '#00ECFF', '#D6AC50', '#22c55e', '#ef4444'];
 
 const Dashboard = () => {
@@ -320,8 +327,7 @@ const Dashboard = () => {
     },
   ];
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const greeting = getGreeting();
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
 
   if (isPersonal) {
@@ -382,7 +388,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-semibold">{greeting}, {firstName}.</h1>
         <p className="text-muted-foreground text-sm">
           Overview of KD Squares operations
         </p>
