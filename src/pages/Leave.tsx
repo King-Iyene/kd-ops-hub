@@ -237,6 +237,10 @@ const Leave = () => {
       toast({ title: 'End date must be on/after start date', variant: 'destructive' });
       return;
     }
+    if (!form.reason.trim()) {
+      toast({ title: 'Reason is required', description: 'Please enter a reason for your leave request.', variant: 'destructive' });
+      return;
+    }
     if (
       form.leave_type === 'annual' &&
       balance &&
@@ -720,7 +724,7 @@ const Leave = () => {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Reason (optional)</Label>
+              <Label>Reason <span className="text-destructive">*</span></Label>
               <Textarea
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
