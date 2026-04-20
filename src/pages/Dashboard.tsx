@@ -148,7 +148,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
   const effectiveRole = useEffectiveRole();
-  const isPersonal = ['field_staff', 'driver'].includes(profile?.role || '');
+  const isPersonal = profile?.role === 'field_staff';
   const isFinanceRole = ['admin', 'finance', 'super_admin'].includes(profile?.role || '');
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
@@ -388,16 +388,6 @@ const Dashboard = () => {
             tone="primary"
             onClick={() => navigate('/tasks')}
           />
-          {effectiveRole === 'driver' && (
-            <StatCard
-              title="Pending Fuel Requests"
-              value={personalLoading ? '—' : personalKPIs.pendingFuel}
-              icon={Fuel}
-              subtitle="Awaiting approval"
-              tone="warning"
-              onClick={() => navigate('/fleet')}
-            />
-          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

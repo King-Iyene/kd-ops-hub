@@ -54,7 +54,7 @@ import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
-type Role = 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff' | 'driver';
+type Role = 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
 type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 
 interface Employee {
@@ -75,7 +75,6 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'finance', label: 'Finance' },
   { value: 'operations', label: 'Operations' },
   { value: 'field_staff', label: 'Field Staff' },
-  { value: 'driver', label: 'Driver' },
 ];
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
