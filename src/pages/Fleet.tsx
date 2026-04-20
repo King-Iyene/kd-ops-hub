@@ -39,7 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User } from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -91,7 +91,8 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles'>('fuel');
+  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity'>('fuel');
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
   const [fuelRequests, setFuelRequests] = useState<FuelRequest[]>([]);
@@ -151,14 +152,13 @@ const Fleet = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [staffRes, profilesRes, fuelRes, tripRes] = await Promise.all([
+    const [staffRes, profilesRes, fuelRes, tripRes, activityRes] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, full_name, email')
         .eq('role', 'field_staff')
         .eq('status', 'active')
         .order('full_name'),
-      // fetch all profiles for name lookup (audit / display)
       supabase.from('profiles').select('id, full_name, email'),
       supabase
         .from('fuel_requests')
@@ -170,6 +170,12 @@ const Fleet = () => {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(100),
+      supabase
+        .from('audit_logs')
+        .select('*')
+        .or('action.ilike.%fuel%,action.ilike.%trip%,action.ilike.%fleet%,action.ilike.%vehicle%')
+        .order('created_at', { ascending: false })
+        .limit(50),
     ]);
 
     const fieldStaff = (staffRes.data as FieldStaff[]) || [];
@@ -178,6 +184,7 @@ const Fleet = () => {
     const lookup = ((profilesRes.data as FieldStaff[]) || []).concat(fieldStaff);
     setFuelRequests(enrich(fuelRes.data || [], lookup));
     setTripLogs(enrich(tripRes.data || [], lookup));
+    setActivityLogs(activityRes.data || []);
     setLoading(false);
   };
 
@@ -438,6 +445,18 @@ const Fleet = () => {
   const visibleFuel = isAdmin ? fuelRequests : myFuelRequests;
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;
 
+  const fleetAvgEfficiency = (() => {
+    let totalKm = 0;
+    let totalLitres = 0;
+    for (const t of visibleTrips) {
+      if (t.km_driven && t.litres && t.km_driven > 0 && t.litres > 0) {
+        totalKm += t.km_driven;
+        totalLitres += t.litres;
+      }
+    }
+    return totalLitres > 0 ? (totalKm / totalLitres).toFixed(1) : null;
+  })();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -461,10 +480,13 @@ const Fleet = () => {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'fuel' | 'trips' | 'vehicles')}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="fuel">
             <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
+          </TabsTrigger>
+          <TabsTrigger value="my_requests">
+            <User className="mr-2 h-4 w-4" /> My Requests
           </TabsTrigger>
           <TabsTrigger value="trips">
             <MapPin className="mr-2 h-4 w-4" /> Trip Logs
@@ -474,6 +496,9 @@ const Fleet = () => {
               <Car className="mr-2 h-4 w-4" /> Vehicles
             </TabsTrigger>
           )}
+          <TabsTrigger value="activity">
+            <History className="mr-2 h-4 w-4" /> Activity
+          </TabsTrigger>
         </TabsList>
 
         {/* FUEL */}
@@ -608,6 +633,7 @@ const Fleet = () => {
                     <TableHead className="text-right">KM</TableHead>
                     <TableHead className="text-right">Fuel (₦)</TableHead>
                     <TableHead className="text-right">Litres</TableHead>
+                    <TableHead className="text-right">km/L</TableHead>
                     <TableHead>Issues</TableHead>
                     {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
@@ -616,7 +642,7 @@ const Fleet = () => {
                   {visibleTrips.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={isAdmin ? 8 : 7}
+                        colSpan={isAdmin ? 9 : 8}
                         className="text-center text-muted-foreground text-sm py-8"
                       >
                         No trip logs yet.
@@ -635,6 +661,11 @@ const Fleet = () => {
                         {formatNaira(t.fuel_amount_ngn || 0)}
                       </TableCell>
                       <TableCell className="text-right">{t.litres ?? '—'}</TableCell>
+                      <TableCell className="text-right">
+                        {t.km_driven && t.litres && t.km_driven > 0 && t.litres > 0
+                          ? (t.km_driven / t.litres).toFixed(1)
+                          : '—'}
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {t.issues || '—'}
                       </TableCell>
@@ -650,6 +681,106 @@ const Fleet = () => {
                           </Button>
                         </TableCell>
                       )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {fleetAvgEfficiency && visibleTrips.length > 0 && (
+                <div className="px-4 py-2 border-t text-sm text-muted-foreground flex justify-end gap-2">
+                  <span>Fleet average fuel efficiency:</span>
+                  <span className="font-semibold text-foreground">{fleetAvgEfficiency} km/L</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* MY REQUESTS */}
+        <TabsContent value="my_requests" className="mt-4 space-y-4">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowFuelForm(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New Fuel Request
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">My Fuel Requests</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Station</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Litres</TableHead>
+                    <TableHead>Purpose</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {myFuelRequests.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-8">
+                        You have no fuel requests yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {myFuelRequests.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.station_name}</TableCell>
+                      <TableCell className="text-right currency">{formatNaira(r.amount_ngn || 0)}</TableCell>
+                      <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
+                      <TableCell><StatusBadge status={r.status} /></TableCell>
+                      <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ACTIVITY */}
+        <TabsContent value="activity" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Fleet Activity Log</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>By</TableHead>
+                    <TableHead>When</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activityLogs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-8">
+                        No fleet activity recorded yet.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {activityLogs.map((log: any) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium capitalize">
+                        {(log.action || '').replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-sm truncate">
+                        {log.description || '—'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {log.actor_name || log.actor_id?.slice(0, 8) || '—'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {log.created_at ? formatDate(log.created_at) : '—'}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
