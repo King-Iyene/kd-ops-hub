@@ -19,7 +19,23 @@ export const useAuth = () => {
 
       // No profile row or no role assigned → self-registered user, not invited.
       // Sign them out immediately and redirect with an explanatory message.
+      // Exception: invite/signup flows and freshly-created profiles are allowed through.
       if (!fetched || !fetched.role) {
+        const url = window.location.href;
+        const isInviteFlow =
+          url.includes('type=invite') ||
+          url.includes('type=signup') ||
+          url.includes('access_token');
+        const createdAt = fetched?.created_at
+          ? new Date(fetched.created_at).getTime()
+          : 0;
+        const isNewProfile = createdAt > 0 && Date.now() - createdAt < 60_000;
+
+        if (isInviteFlow || isNewProfile) {
+          setLoading(false);
+          return;
+        }
+
         await supabase.auth.signOut();
         setUser(null);
         useAuthStore.getState().setProfile(null);
