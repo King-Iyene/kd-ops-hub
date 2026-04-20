@@ -133,17 +133,16 @@ async function notifyFinance(
     .select("id")
     .in("role", ["super_admin", "admin", "finance"]);
 
-  if (!staff) return;
-  for (const u of staff as any[]) {
-    await supabase.from("notifications").insert({
-      user_id: u.id,
-      type,
-      module: "payments",
-      priority,
-      title,
-      body,
-    });
-  }
+  if (!staff || staff.length === 0) return;
+  const rows = (staff as any[]).map((u) => ({
+    user_id: u.id,
+    type,
+    module: "payments",
+    priority,
+    title,
+    body,
+  }));
+  await supabase.from("notifications").insert(rows);
 }
 
 async function audit(
