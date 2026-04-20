@@ -23,6 +23,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,7 +64,10 @@ async function verifySignature(body: string, signature: string): Promise<boolean
     return false;
   }
   const hash = createHmac("sha512", secret).update(body).digest("hex");
-  return hash === signature;
+  const enc = new TextEncoder();
+  const isValid = timingSafeEqual(enc.encode(hash), enc.encode(signature));
+  if (!isValid) return false;
+  return true;
 }
 
 /**
