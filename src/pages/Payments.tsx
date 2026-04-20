@@ -14,6 +14,7 @@ import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface PaymentBatch {
@@ -251,9 +252,7 @@ const Payments = () => {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton rows={5} />
           ) : filtered.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">No batches found</div>
           ) : (

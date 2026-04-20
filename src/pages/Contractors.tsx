@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { NIGERIAN_BANKS } from '@/lib/paystack';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 interface Contractor {
   id: string;
@@ -412,12 +413,7 @@ const Contractors = () => {
     c.full_name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
+  if (loading) return <TableSkeleton rows={5} />;
 
   const validCount = parsedRows.filter((r) => r.valid).length;
   const invalidCount = parsedRows.length - validCount;

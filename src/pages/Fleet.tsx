@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -370,12 +371,7 @@ const Fleet = () => {
     fetchData();
   };
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
+  if (loading) return <TableSkeleton rows={5} />;
 
   const myFuelRequests = fuelRequests.filter((r) => r.employee_id === profile?.id);
   const myTripLogs = tripLogs.filter((r) => r.employee_id === profile?.id);
@@ -1044,13 +1040,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     return new Date(date) < new Date();
   };
 
-  if (loading) {
-    return (
-      <div className="py-8 flex justify-center">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <TableSkeleton rows={5} />;
 
   return (
     <>

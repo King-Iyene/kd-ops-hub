@@ -706,9 +706,7 @@ export function WhatsAppGroupsTab() {
     load();
   };
 
-  if (loading) {
-    return <div className="py-8 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>;
-  }
+  if (loading) return <TableSkeleton rows={5} />;
 
   return (
     <>
