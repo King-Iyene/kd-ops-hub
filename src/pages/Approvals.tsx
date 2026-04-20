@@ -10,6 +10,7 @@ import {
   PiggyBank,
   Inbox,
   Loader2,
+  Calendar,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -49,14 +50,14 @@ import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
-type Kind = 'batch' | 'expense' | 'fuel' | 'budget';
+type Kind = 'batch' | 'expense' | 'fuel' | 'budget' | 'leave';
 
 interface PendingItem {
   id: string;
   kind: Kind;
   title: string;
   subtitle?: string;
-  amount: number;
+  amount: number | null;
   submittedBy?: string;
   createdAt: string;
   raw: any;
@@ -67,6 +68,7 @@ const KIND_LABELS: Record<Kind, string> = {
   expense: 'Expenses',
   fuel: 'Fuel Requests',
   budget: 'Budgets',
+  leave: 'Leave Requests',
 };
 
 const KIND_ICONS: Record<Kind, typeof CreditCard> = {
@@ -74,6 +76,7 @@ const KIND_ICONS: Record<Kind, typeof CreditCard> = {
   expense: Receipt,
   fuel: Fuel,
   budget: PiggyBank,
+  leave: Calendar,
 };
 
 const AUDIT_APPROVE: Record<Kind, AuditActionType> = {
@@ -81,19 +84,22 @@ const AUDIT_APPROVE: Record<Kind, AuditActionType> = {
   expense: 'expense_approved',
   fuel: 'fuel_request_approved',
   budget: 'budget_approved',
+  leave: 'leave_approved',
 };
 const AUDIT_REJECT: Record<Kind, AuditActionType> = {
   batch: 'batch_rejected',
   expense: 'expense_rejected',
   fuel: 'fuel_request_rejected',
   budget: 'budget_rejected',
+  leave: 'leave_rejected',
 };
 
-const TABLES: Record<Kind, 'payment_batches' | 'expenses' | 'fuel_requests' | 'budgets'> = {
+const TABLES: Record<Kind, 'payment_batches' | 'expenses' | 'fuel_requests' | 'budgets' | 'leave_requests'> = {
   batch: 'payment_batches',
   expense: 'expenses',
   fuel: 'fuel_requests',
   budget: 'budgets',
+  leave: 'leave_requests',
 };
 
 const PENDING_STATUS: Record<Kind, { approve: string; reject: string; pending: string }> = {
@@ -101,6 +107,7 @@ const PENDING_STATUS: Record<Kind, { approve: string; reject: string; pending: s
   expense: { approve: 'approved', reject: 'rejected', pending: 'pending' },
   fuel: { approve: 'approved', reject: 'rejected', pending: 'pending' },
   budget: { approve: 'approved', reject: 'rejected', pending: 'pending_approval' },
+  leave: { approve: 'approved', reject: 'rejected', pending: 'pending' },
 };
 
 const Approvals = () => {
@@ -126,7 +133,7 @@ const Approvals = () => {
     setLoading(true);
     setError(null);
     try {
-      const [batchRes, expenseRes, fuelRes, budgetRes, profilesRes] =
+      const [batchRes, expenseRes, fuelRes, budgetRes, profilesRes, leaveRes] =
         await Promise.all([
           supabase
             .from('payment_batches')
@@ -149,6 +156,11 @@ const Approvals = () => {
             .eq('status', 'pending_approval')
             .order('created_at', { ascending: false }),
           supabase.from('profiles').select('id, full_name, email'),
+          supabase
+            .from('leave_requests')
+            .select('id, employee_id, start_date, end_date, leave_type, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name)')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false }),
         ]);
 
       const profilesById = new Map<string, { full_name: string; email: string }>();
@@ -213,6 +225,24 @@ const Approvals = () => {
           raw: b,
         });
       }
+      for (const l of leaveRes.data || []) {
+        const prof = (l as any).profiles as { full_name?: string; first_name?: string; last_name?: string } | null;
+        const employeeName = prof?.full_name ||
+          `${prof?.first_name || ''} ${prof?.last_name || ''}`.trim() ||
+          nameFor((l as any).employee_id) ||
+          'Unknown';
+        const leaveType = ((l as any).leave_type as string || 'Leave');
+        merged.push({
+          id: `leave:${(l as any).id}`,
+          kind: 'leave',
+          title: `${leaveType} Leave — ${employeeName}`,
+          subtitle: `${formatDate((l as any).start_date)} to ${formatDate((l as any).end_date)}${(l as any).reason ? `: ${(l as any).reason}` : ''}`,
+          amount: null,
+          submittedBy: employeeName,
+          createdAt: (l as any).created_at,
+          raw: l,
+        });
+      }
 
       merged.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       setItems(merged);
@@ -267,13 +297,15 @@ const Approvals = () => {
   const describeApprove = (it: PendingItem) => {
     switch (it.kind) {
       case 'batch':
-        return `Batch "${it.title}" approved (${formatNaira(it.amount)})`;
+        return `Batch "${it.title}" approved (${formatNaira(it.amount ?? 0)})`;
       case 'expense':
-        return `Expense approved: ${it.title} — ${formatNaira(it.amount)}`;
+        return `Expense approved: ${it.title} — ${formatNaira(it.amount ?? 0)}`;
       case 'fuel':
-        return `Fuel request approved: ${it.title} — ${formatNaira(it.amount)}`;
+        return `Fuel request approved: ${it.title} — ${formatNaira(it.amount ?? 0)}`;
       case 'budget':
-        return `Budget "${it.title}" approved (${formatNaira(it.amount)})`;
+        return `Budget "${it.title}" approved (${formatNaira(it.amount ?? 0)})`;
+      case 'leave':
+        return `Leave request approved: ${it.title}`;
     }
   };
 
@@ -287,6 +319,8 @@ const Approvals = () => {
         return `Fuel request rejected: ${it.title}`;
       case 'budget':
         return `Budget "${it.title}" rejected`;
+      case 'leave':
+        return `Leave request rejected: ${it.title}`;
     }
   };
 
@@ -432,6 +466,7 @@ const Approvals = () => {
         expense: [],
         fuel: [],
         budget: [],
+        leave: [],
       };
       for (const r of rows) groups[r.kind].push(r);
 
@@ -508,7 +543,7 @@ const Approvals = () => {
               onClick={() => {
                 const totalAmt = items
                   .filter((i) => selected.has(i.id))
-                  .reduce((s, i) => s + i.amount, 0);
+                  .reduce((s, i) => s + (i.amount ?? 0), 0);
                 const yes = window.confirm(
                   `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
                 );
@@ -540,7 +575,9 @@ const Approvals = () => {
                 ? counts.expenses
                 : k === 'fuel'
                 ? counts.fuel
-                : counts.budgets;
+                : k === 'budget'
+                ? counts.budgets
+                : counts.leave;
             return (
               <TabsTrigger key={k} value={k}>
                 <Icon className="mr-2 h-4 w-4" />
@@ -648,7 +685,7 @@ const Approvals = () => {
                               {formatDate(it.createdAt)}
                             </TableCell>
                             <TableCell className="text-right currency font-medium">
-                              {formatNaira(it.amount)}
+                              {it.amount != null ? formatNaira(it.amount) : '—'}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
