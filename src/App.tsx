@@ -40,6 +40,7 @@ import Employees from './pages/Employees';
 import EmployeeProfile from './pages/EmployeeProfile';
 import ContractorProfile from './pages/ContractorProfile';
 import Leave from './pages/Leave';
+import PaymentSchedule from './pages/PaymentSchedule';
 import SettingsPage from './pages/Settings';
 import ProfilePage from './pages/Profile';
 import Unauthorized from './pages/Unauthorized';
@@ -116,6 +117,14 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Payments />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/payments/schedule"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <PaymentSchedule />
             </RoleGuard>
           }
         />

@@ -609,7 +609,7 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">Upcoming Payments (Next 7 Days)</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/payments')}>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/payments/schedule')}>
                 View all <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardHeader>

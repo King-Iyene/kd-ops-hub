@@ -66,7 +66,8 @@ type NavItem = {
 const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', section: 'Finance' },
-  { title: 'Payments',      url: '/payments',      icon: Layers,          roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Payments',          url: '/payments',           icon: Layers,          roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Payment Schedule',  url: '/payments/schedule',  icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Transactions',  url: '/transactions',  icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
@@ -160,9 +161,15 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {navItems.map((item, idx) => {
-                const active =
-                  location.pathname === item.url ||
-                  (item.url !== '/' && location.pathname.startsWith(item.url));
+                // If the current path exactly matches a nav item's URL, only that
+                // item is active — prevents parent segments (e.g. /payments) from
+                // lighting up when a child page (e.g. /payments/schedule) has its
+                // own nav entry.
+                const hasExactNavMatch = navItems.some((n) => n.url === location.pathname);
+                const active = hasExactNavMatch
+                  ? location.pathname === item.url
+                  : location.pathname === item.url ||
+                    (item.url !== '/' && location.pathname.startsWith(item.url));
                 const showBadge = item.badge === 'approvals' && approvalTotal > 0;
                 const showSection = !collapsed && item.section && idx > 0;
                 return (
