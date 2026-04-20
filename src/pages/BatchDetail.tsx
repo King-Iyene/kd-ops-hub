@@ -224,13 +224,11 @@ const BatchDetail = () => {
   const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
     try {
       const bankCode = getBankCode(it.bank_name);
-      console.log('[KD-PAY-1] Starting transfer for:', it.full_name, it.account_number, bankCode);
       if (!bankCode) {
         return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
       }
       let recipientCode: string | null = it.paystack_recipient_code || null;
       if (!recipientCode) {
-        console.log('[KD-PAY-4] Calling createTransferRecipient...');
         const recipient = await createTransferRecipient({
           name: it.full_name,
           account_number: it.account_number,
@@ -243,17 +241,14 @@ const BatchDetail = () => {
           profile,
         );
       }
-      console.log('[KD-PAY-5] Recipient code received:', recipientCode);
       const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
       const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
-      console.log('[KD-PAY-6] Calling initiateTransfer with amount:', amountKobo);
       const transfer = await initiateTransfer({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
         reason: `KDOps · ${batch?.name || 'batch'}`,
       });
-      console.log('[KD-PAY-7] Transfer response:', transfer);
       await supabase
         .from('batch_items')
         .update({
