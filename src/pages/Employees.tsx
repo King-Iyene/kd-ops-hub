@@ -54,7 +54,7 @@ import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
-type Role = 'admin' | 'finance' | 'operations' | 'field_staff';
+type Role = 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff' | 'driver';
 type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 
 interface Employee {
@@ -70,10 +70,12 @@ interface Employee {
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
+  { value: 'super_admin', label: 'Super Admin' },
   { value: 'admin', label: 'Admin' },
   { value: 'finance', label: 'Finance' },
   { value: 'operations', label: 'Operations' },
   { value: 'field_staff', label: 'Field Staff' },
+  { value: 'driver', label: 'Driver' },
 ];
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
@@ -126,7 +128,13 @@ const Employees = () => {
   });
 
   const isSuperAdmin = profile?.role === 'super_admin';
-  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const isAdmin = profile?.role === 'admin' || isSuperAdmin;
+  const canEditRole = isAdmin;
+
+  const assignableRoles = ROLE_OPTIONS.filter((r) => {
+    if (r.value === 'super_admin') return isSuperAdmin;
+    return true;
+  });
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -187,8 +195,8 @@ const Employees = () => {
       toast({ title: 'Name and email are required', variant: 'destructive' });
       return;
     }
-    if (form.role === ('super_admin' as any)) {
-      toast({ title: 'Super Admin role cannot be assigned here', variant: 'destructive' });
+    if (form.role === 'super_admin' && !isSuperAdmin) {
+      toast({ title: 'Only a Super Admin can assign the Super Admin role', variant: 'destructive' });
       return;
     }
     setSubmitting(true);
@@ -293,6 +301,10 @@ const Employees = () => {
     if (!editing) return;
     const editFullName = `${form.first_name} ${form.last_name}`.trim();
     if (!editFullName) return;
+    if (form.role === 'super_admin' && !isSuperAdmin) {
+      toast({ title: 'Only a Super Admin can assign the Super Admin role', variant: 'destructive' });
+      return;
+    }
     setSubmitting(true);
     try {
       const roleChanged = form.role !== editing.role;
@@ -608,18 +620,22 @@ const Employees = () => {
                 <Select
                   value={form.role}
                   onValueChange={(v) => setForm({ ...form, role: v as Role })}
+                  disabled={!canEditRole}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROLE_OPTIONS.map((r) => (
+                    {assignableRoles.map((r) => (
                       <SelectItem key={r.value} value={r.value}>
                         {r.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!canEditRole && (
+                  <p className="text-xs text-muted-foreground">Only admins can change roles.</p>
+                )}
               </div>
               {!editing && (
                 <>
