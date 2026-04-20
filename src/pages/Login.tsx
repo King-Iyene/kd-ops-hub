@@ -21,7 +21,6 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    console.log('[KDOps] signInWithPassword response:', { data, error });
     if (error) {
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
       setLoading(false);
