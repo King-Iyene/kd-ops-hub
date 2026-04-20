@@ -1,3 +1,4 @@
+// v2
 // supabase/functions/paystack-transfer/index.ts
 //
 // Edge Function that handles ALL Paystack server-to-server API calls.
@@ -73,6 +74,7 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
   });
   const body = await res.json();
   if (!res.ok || body?.status === false) {
+    console.error("[paystack] API error:", res.status, JSON.stringify(body));
     throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
   }
   return body;
@@ -96,6 +98,7 @@ serve(async (req) => {
     // Account-name lookup is not sensitive — secret key stays server-side.
     // ---------------------------------------------------------------
     if (action === "resolve_account") {
+      console.log("[paystack] resolve_account request:", { account_number: params.account_number, bank_code: params.bank_code });
       const qs = new URLSearchParams({
         account_number: params.account_number,
         bank_code: params.bank_code,
@@ -120,14 +123,15 @@ serve(async (req) => {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
     );
+    const jwt = authHeader.replace("Bearer ", "");
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+      error: authError,
+    } = await supabase.auth.getUser(jwt);
 
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: authError?.message || "Not authenticated" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
