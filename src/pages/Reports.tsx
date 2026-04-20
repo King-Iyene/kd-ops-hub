@@ -805,6 +805,19 @@ function PnLReport({ range }: { range: DateRange }) {
         />
       </div>
 
+      {(data?.revenue as any[])?.length === 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">Revenue data not connected</p>
+            <p className="text-muted-foreground">
+              No revenue entries exist for this period. Add monthly revenue figures manually using the
+              form below{canEditRevenue ? '' : ', or ask your Finance team to add entries'}.
+            </p>
+          </div>
+        </div>
+      )}
+
       {canEditRevenue && (
         <Card>
           <CardHeader className="pb-2">
