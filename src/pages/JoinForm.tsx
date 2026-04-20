@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
 import {
   Loader2,
@@ -6,6 +6,11 @@ import {
   UserPlus,
   BadgeCheck,
   Info,
+  Globe,
+  Linkedin,
+  Instagram,
+  Facebook,
+  Twitter,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
@@ -48,6 +53,23 @@ const JoinForm = () => {
     account_number: '',
     additional_info: '',
   });
+
+  const [socialLinks, setSocialLinks] = useState<{
+    website_url: string | null;
+    linkedin_url: string | null;
+    instagram_url: string | null;
+    facebook_url: string | null;
+    twitter_url: string | null;
+  }>({ website_url: null, linkedin_url: null, instagram_url: null, facebook_url: null, twitter_url: null });
+
+  useEffect(() => {
+    supabase
+      .from('company_settings')
+      .select('website_url, linkedin_url, instagram_url, facebook_url, twitter_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .maybeSingle()
+      .then(({ data }) => { if (data) setSocialLinks(data as any); });
+  }, []);
 
   // Bank verification state
   const [verifying, setVerifying] = useState(false);
@@ -423,6 +445,69 @@ const JoinForm = () => {
               )}
             </p>
           </form>
+
+          {(socialLinks.website_url || socialLinks.linkedin_url || socialLinks.instagram_url || socialLinks.facebook_url || socialLinks.twitter_url) && (
+            <div className="mt-6 pt-5 border-t text-center space-y-3">
+              <p className="text-sm text-muted-foreground">Stay connected with KD Squares:</p>
+              <div className="flex justify-center gap-5">
+                {socialLinks.website_url && (
+                  <a
+                    href={socialLinks.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Website"
+                    className="text-muted-foreground hover:text-foreground kd-transition"
+                  >
+                    <Globe className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.linkedin_url && (
+                  <a
+                    href={socialLinks.linkedin_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="LinkedIn"
+                    className="text-muted-foreground hover:text-foreground kd-transition"
+                  >
+                    <Linkedin className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.instagram_url && (
+                  <a
+                    href={socialLinks.instagram_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Instagram"
+                    className="text-muted-foreground hover:text-foreground kd-transition"
+                  >
+                    <Instagram className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.facebook_url && (
+                  <a
+                    href={socialLinks.facebook_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Facebook"
+                    className="text-muted-foreground hover:text-foreground kd-transition"
+                  >
+                    <Facebook className="h-5 w-5" />
+                  </a>
+                )}
+                {socialLinks.twitter_url && (
+                  <a
+                    href={socialLinks.twitter_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Twitter / X"
+                    className="text-muted-foreground hover:text-foreground kd-transition"
+                  >
+                    <Twitter className="h-5 w-5" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

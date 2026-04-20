@@ -80,6 +80,11 @@ interface CompanySettings {
   session_timeout_minutes: number;
   audit_log_retention_days: number;
   fuel_weekly_budgets: Record<string, number>;
+  website_url: string | null;
+  linkedin_url: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  twitter_url: string | null;
 }
 
 const EXPENSE_CATEGORIES = [
@@ -217,6 +222,11 @@ const SettingsPage = () => {
         session_timeout_minutes: settings.session_timeout_minutes,
         audit_log_retention_days: settings.audit_log_retention_days,
         fuel_weekly_budgets: settings.fuel_weekly_budgets,
+        website_url: settings.website_url || null,
+        linkedin_url: settings.linkedin_url || null,
+        instagram_url: settings.instagram_url || null,
+        facebook_url: settings.facebook_url || null,
+        twitter_url: settings.twitter_url || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', SINGLETON_ID);
@@ -410,6 +420,59 @@ const SettingsPage = () => {
                   Used on branded exports (payslips, receipts, PDFs).
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Social media</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Website URL</Label>
+                  <Input
+                    value={settings.website_url || ''}
+                    onChange={(e) => patch({ website_url: e.target.value })}
+                    placeholder="https://kdsquares.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>LinkedIn URL</Label>
+                  <Input
+                    value={settings.linkedin_url || ''}
+                    onChange={(e) => patch({ linkedin_url: e.target.value })}
+                    placeholder="https://linkedin.com/company/..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Instagram URL</Label>
+                  <Input
+                    value={settings.instagram_url || ''}
+                    onChange={(e) => patch({ instagram_url: e.target.value })}
+                    placeholder="https://instagram.com/..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Facebook URL</Label>
+                  <Input
+                    value={settings.facebook_url || ''}
+                    onChange={(e) => patch({ facebook_url: e.target.value })}
+                    placeholder="https://facebook.com/..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Twitter / X URL</Label>
+                  <Input
+                    value={settings.twitter_url || ''}
+                    onChange={(e) => patch({ twitter_url: e.target.value })}
+                    placeholder="https://x.com/..."
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                These URLs appear on the contractor application form so applicants can follow your company.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
