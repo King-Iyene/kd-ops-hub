@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Paperclip,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -62,6 +63,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -180,6 +182,7 @@ const Expenses = () => {
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
   const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
+  const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<Expense | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -741,6 +744,18 @@ const Expenses = () => {
     fetchData();
   };
 
+  const deleteExpense = async (e: Expense) => {
+    const { error } = await supabase.from('expenses').delete().eq('id', e.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('expense_deleted', `Expense deleted: ${e.category} — ${formatNaira(e.amount_ngn || 0)}`, profile);
+    toast({ title: 'Expense deleted' });
+    setConfirmDeleteExpense(null);
+    fetchData();
+  };
+
   const bulkApproveAll = () => {
     if (!isApprover) return;
     const pending = expenses.filter((e) => e.status === 'pending');
@@ -1229,6 +1244,16 @@ const Expenses = () => {
                                 Re-edit & Resubmit
                               </Button>
                             )}
+                            {e.status === 'rejected' && isApprover && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setConfirmDeleteExpense(e)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                             {canProcessPayment(e) && (
                               <Button
                                 size="sm"
@@ -1646,6 +1671,23 @@ const Expenses = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
             <Button onClick={doBulkApprove}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteExpense} onOpenChange={(v) => { if (!v) setConfirmDeleteExpense(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete expense</DialogTitle>
+            <DialogDescription>
+              Delete this {confirmDeleteExpense?.category?.replace(/_/g, ' ')} expense ({formatNaira(confirmDeleteExpense?.amount_ngn || 0)})? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteExpense(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDeleteExpense && deleteExpense(confirmDeleteExpense)}>
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

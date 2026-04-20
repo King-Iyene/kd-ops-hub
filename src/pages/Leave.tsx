@@ -10,6 +10,7 @@ import {
   Stethoscope,
   Clock,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -50,6 +51,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -149,6 +151,7 @@ const Leave = () => {
 
   const [showReject, setShowReject] = useState<LeaveRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [confirmDeleteLeave, setConfirmDeleteLeave] = useState<LeaveRequest | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -417,6 +420,20 @@ const Leave = () => {
     }
   };
 
+  const deleteLeaveRequest = async (req: LeaveRequest) => {
+    const { error } = await supabase.from('leave_requests').delete().eq('id', req.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const empName = profiles.get(req.employee_id)?.full_name || req.employee_id;
+    await logAudit('leave_deleted', `Leave request for ${empName} deleted (${req.days_requested} days)`, profile);
+    toast({ title: 'Leave request deleted' });
+    setConfirmDeleteLeave(null);
+    fetchAll();
+    refreshApprovals();
+  };
+
   // -- Filter / paginate ----------------------------------------------------
 
   const visible = useMemo(() => {
@@ -639,7 +656,17 @@ const Leave = () => {
                                     Cancel
                                   </Button>
                                 )}
-                                {!canManageRow && !canCancelOwn && (
+                                {isManager && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setConfirmDeleteLeave(r)}
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                )}
+                                {!canManageRow && !canCancelOwn && !isManager && (
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </div>
@@ -777,6 +804,23 @@ const Leave = () => {
               disabled={!isValidRejectionReason(rejectReason) || actioning === showReject?.id}
             >
               Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteLeave} onOpenChange={(v) => { if (!v) setConfirmDeleteLeave(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete leave request</DialogTitle>
+            <DialogDescription>
+              Delete this leave request ({confirmDeleteLeave?.days_requested} day{confirmDeleteLeave?.days_requested === 1 ? '' : 's'})? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteLeave(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDeleteLeave && deleteLeaveRequest(confirmDeleteLeave)}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

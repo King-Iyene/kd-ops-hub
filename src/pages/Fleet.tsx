@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -283,6 +284,8 @@ const Fleet = () => {
 
   const [rejectingFuel, setRejectingFuel] = useState<FuelRequest | null>(null);
   const [fuelRejectReason, setFuelRejectReason] = useState('');
+  const [confirmDeleteFuel, setConfirmDeleteFuel] = useState<FuelRequest | null>(null);
+  const [confirmDeleteTrip, setConfirmDeleteTrip] = useState<TripLog | null>(null);
 
   const handleFuelAction = async (
     request: FuelRequest,
@@ -400,6 +403,30 @@ const Fleet = () => {
       profile,
     );
     toast({ title: 'Resubmitted for approval' });
+    fetchData();
+  };
+
+  const deleteFuelRequest = async (r: FuelRequest) => {
+    const { error } = await supabase.from('fuel_requests').delete().eq('id', r.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('fuel_request_deleted', `Fuel request for ${r.employee_name} deleted (${formatNaira(r.amount_ngn || 0)})`, profile);
+    toast({ title: 'Fuel request deleted' });
+    setConfirmDeleteFuel(null);
+    fetchData();
+  };
+
+  const deleteTripLog = async (t: TripLog) => {
+    const { error } = await supabase.from('trip_logs').delete().eq('id', t.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('trip_log_deleted', `Trip log deleted: ${t.start_location} → ${t.end_location}`, profile);
+    toast({ title: 'Trip log deleted' });
+    setConfirmDeleteTrip(null);
     fetchData();
   };
 
@@ -527,6 +554,14 @@ const Fleet = () => {
                               >
                                 <X className="h-4 w-4 text-destructive" />
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setConfirmDeleteFuel(r)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
                             </div>
                           ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
                             <Button
@@ -574,13 +609,14 @@ const Fleet = () => {
                     <TableHead className="text-right">Fuel (₦)</TableHead>
                     <TableHead className="text-right">Litres</TableHead>
                     <TableHead>Issues</TableHead>
+                    {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {visibleTrips.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={7}
+                        colSpan={isAdmin ? 8 : 7}
                         className="text-center text-muted-foreground text-sm py-8"
                       >
                         No trip logs yet.
@@ -602,6 +638,18 @@ const Fleet = () => {
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {t.issues || '—'}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setConfirmDeleteTrip(t)}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -910,6 +958,40 @@ const Fleet = () => {
               disabled={!isValidRejectionReason(fuelRejectReason)}
             >
               Reject with reason
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteFuel} onOpenChange={(v) => { if (!v) setConfirmDeleteFuel(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete fuel request</DialogTitle>
+            <DialogDescription>
+              Delete this fuel request from {confirmDeleteFuel?.employee_name}? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteFuel(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDeleteFuel && deleteFuelRequest(confirmDeleteFuel)}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteTrip} onOpenChange={(v) => { if (!v) setConfirmDeleteTrip(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete trip log</DialogTitle>
+            <DialogDescription>
+              Delete this trip log ({confirmDeleteTrip?.start_location} → {confirmDeleteTrip?.end_location})? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteTrip(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDeleteTrip && deleteTripLog(confirmDeleteTrip)}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
