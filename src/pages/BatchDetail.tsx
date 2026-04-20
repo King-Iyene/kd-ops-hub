@@ -148,6 +148,10 @@ const BatchDetail = () => {
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [processingIdx, setProcessingIdx] = useState(0);
+  const [processingTotal, setProcessingTotal] = useState(0);
+  const [processingName, setProcessingName] = useState('');
+  const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [recurDay, setRecurDay] = useState<number>(1);
@@ -315,7 +319,6 @@ const BatchDetail = () => {
       return { ok: true };
     } catch (err: any) {
       const msg = err?.message || 'Transfer failed';
-      console.error('[KD-PAY-ERROR]', msg, JSON.stringify(err));
       await supabase
         .from('batch_items')
         .update({ status: 'failed', failure_reason: msg })
@@ -331,6 +334,11 @@ const BatchDetail = () => {
 
   const handleProcess = async () => {
     setActionLoading(true);
+    setProcessResults(null);
+    const toProcess = items.filter((it) => it.status !== 'succeeded');
+    setProcessingTotal(toProcess.length);
+    setProcessingIdx(0);
+    setProcessingName('');
     try {
       await supabase
         .from('payment_batches')
@@ -338,8 +346,10 @@ const BatchDetail = () => {
         .eq('id', id);
 
       // Kick all line items serially (Paystack rate limits burst traffic).
-      for (const it of items) {
-        if (it.status === 'succeeded') continue;
+      for (let i = 0; i < toProcess.length; i++) {
+        const it = toProcess[i];
+        setProcessingIdx(i + 1);
+        setProcessingName(it.full_name);
         await processOneItem(it);
       }
 
@@ -351,6 +361,14 @@ const BatchDetail = () => {
         .eq('batch_id', id);
       const anyFailed = (refreshed || []).some((r: any) => r.status === 'failed');
       const anyPending = (refreshed || []).some((r: any) => r.status === 'pending');
+      setProcessResults({
+        succeeded: (refreshed || []).filter((r: any) => r.status === 'succeeded').length,
+        failed: (refreshed || []).filter((r: any) => r.status === 'failed').length,
+        pending: (refreshed || []).filter((r: any) => r.status === 'pending').length,
+      });
+      setProcessingIdx(0);
+      setProcessingTotal(0);
+      setProcessingName('');
       const finalStatus = anyFailed
         ? 'partially_processed'
         : anyPending
@@ -838,6 +856,27 @@ const BatchDetail = () => {
         </div>
       )}
 
+      {actionLoading && processingTotal > 0 && (
+        <div className="px-1 py-2 text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          <span>
+            Processing payment <span className="font-semibold text-foreground">{processingIdx}</span> of{' '}
+            <span className="font-semibold text-foreground">{processingTotal}</span>
+            {processingName && (
+              <> — <span className="font-semibold text-foreground">{processingName}</span></>
+            )}
+          </span>
+        </div>
+      )}
+
+      {processResults && (
+        <div className="flex items-center gap-4 px-1 py-2 text-sm">
+          <span className="text-success font-medium">✓ {processResults.succeeded} completed</span>
+          <span className="text-destructive font-medium">✗ {processResults.failed} failed</span>
+          <span className="text-warning font-medium">◷ {processResults.pending} pending</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Beneficiaries ({items.length})</CardTitle>
@@ -859,12 +898,18 @@ const BatchDetail = () => {
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
-                  <TableRow key={item.id} className="kd-transition">
+                  <TableRow
+                    key={item.id}
+                    className={item.status === 'failed' ? 'border-l-4 border-l-destructive kd-transition' : 'kd-transition'}
+                  >
                     <TableCell className="font-medium">{item.full_name}</TableCell>
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{item.account_number}</TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(item.amount_ngn || 0)}
+                    <TableCell className="text-right">
+                      <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                      {item.failure_reason && (
+                        <p className="text-[11px] text-destructive mt-0.5 text-right">{item.failure_reason}</p>
+                      )}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
@@ -886,11 +931,6 @@ const BatchDetail = () => {
                         >
                           {item.status}
                         </Badge>
-                        {item.failure_reason && (
-                          <span className="text-[11px] text-destructive">
-                            {item.failure_reason}
-                          </span>
-                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
