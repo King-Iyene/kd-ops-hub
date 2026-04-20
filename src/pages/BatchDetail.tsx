@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
+import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import {
   ArrowLeft,
   Check,
@@ -48,27 +49,6 @@ import {
   CalendarClock,
 } from 'lucide-react';
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending_approval: 'bg-warning/10 text-warning',
-  approved: 'bg-info/10 text-info',
-  funded: 'bg-accent/10 text-accent',
-  processing: 'bg-info/10 text-info',
-  processed: 'bg-success/10 text-success',
-  partially_processed: 'bg-warning/10 text-warning',
-  rejected: 'bg-destructive/10 text-destructive',
-};
-
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  pending_approval: 'Pending Approval',
-  approved: 'Approved',
-  funded: 'Funded',
-  processing: 'Processing',
-  processed: 'Processed',
-  partially_processed: 'Partial',
-  rejected: 'Rejected',
-};
 
 const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
 
@@ -88,6 +68,90 @@ const escapeHtml = (v: any): string => {
     .replace(/'/g, '&#039;');
 };
 
+const printItemReceipt = (item: any, batch: any, generatedBy?: string) => {
+  const isFailed = item.status === 'failed';
+  const isSucceeded = item.status === 'succeeded';
+  const txnDateStr = item.created_at
+    ? new Date(item.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const generatedAt = new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const narration = batch?.description || batch?.notes || `KDOps · ${batch?.name || 'batch'}`;
+  const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCESSFUL' : (item.status?.toUpperCase() || 'PENDING');
+  const statusColor = isFailed ? '#b22222' : isSucceeded ? '#117a3d' : '#8c6700';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Payment Receipt — ${escapeHtml(item.full_name || '')}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: #fff; padding: 48px; position: relative; }
+    .header { border-bottom: 2px solid ${isFailed ? '#b22222' : '#006994'}; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .company { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .doc-title { font-size: 13px; color: #555; margin-top: 4px; }
+    .status-header { font-size: 14px; font-weight: 700; color: ${statusColor}; border: 2px solid ${statusColor}; padding: 4px 12px; border-radius: 4px; letter-spacing: 0.05em; }
+    .amount { font-size: 32px; font-weight: 700; margin: 24px 0; color: ${isFailed ? '#b22222' : '#111'}; }
+    ${isFailed ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 900; color: rgba(178,34,34,0.08); letter-spacing: 0.1em; pointer-events: none; z-index: 0; }` : ''}
+    .content { position: relative; z-index: 1; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+    td:first-child { color: #555; width: 40%; }
+    td:last-child { font-weight: 500; }
+    td.status-cell { color: ${statusColor}; font-weight: 700; }
+    .disclaimer { margin-top: 24px; padding: 12px 16px; background: #fde9e9; border: 1px solid #f5c0c0; border-radius: 6px; font-size: 12px; color: #8b0000; }
+    .disclaimer p + p { margin-top: 6px; }
+    .retry-note { margin-top: 12px; padding: 10px 14px; background: #fff5e0; border: 1px solid #f0d890; border-radius: 6px; font-size: 12px; color: #6f5a25; }
+    .footer { margin-top: 32px; font-size: 11px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 16px; }
+    @media print { body { padding: 32px; } }
+  </style>
+</head>
+<body>
+  ${isFailed ? '<div class="watermark">FAILED</div>' : ''}
+  <div class="content">
+    <div class="header">
+      <div>
+        <div class="company">KD Squares Ltd</div>
+        <div class="doc-title">Payment Receipt</div>
+      </div>
+      <div class="status-header">${statusText}</div>
+    </div>
+    <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
+    <table>
+      <tr><td>Recipient</td><td>${escapeHtml(item.full_name || '—')}</td></tr>
+      <tr><td>Bank</td><td>${escapeHtml(item.bank_name || '—')}</td></tr>
+      <tr><td>Account number</td><td>${escapeHtml(item.account_number || '—')}</td></tr>
+      <tr><td>Paystack reference</td><td>${escapeHtml(item.paystack_reference || '—')}</td></tr>
+      <tr><td>Transaction date</td><td>${escapeHtml(txnDateStr)}</td></tr>
+      <tr><td>Narration</td><td>${escapeHtml(narration)}</td></tr>
+      <tr><td>Batch</td><td>${escapeHtml(batch?.name || '—')}</td></tr>
+      <tr><td>Status</td><td class="status-cell">${statusText}</td></tr>
+      ${isFailed ? `<tr><td>Failure reason</td><td style="color:#b22222">${escapeHtml(item.failure_reason || 'Transfer rejected')}</td></tr>` : ''}
+    </table>
+    ${isFailed ? `
+    <div class="disclaimer">
+      <p><strong>No funds were debited.</strong> This payment did not complete.</p>
+      <p>Reason: ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</p>
+    </div>
+    <div class="retry-note">
+      To retry this payment, return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row, or contact your Finance/Admin team.
+    </div>` : ''}
+    <div class="footer">
+      Generated by KDOps &bull; ${escapeHtml(generatedBy || 'KDOps')} &bull; ${escapeHtml(generatedAt)}<br>
+      This is a system-generated receipt.
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=640,height=860');
+  if (!win) return;
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+};
+
 const BatchDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -100,6 +164,10 @@ const BatchDetail = () => {
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [processingIdx, setProcessingIdx] = useState(0);
+  const [processingTotal, setProcessingTotal] = useState(0);
+  const [processingName, setProcessingName] = useState('');
+  const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [recurDay, setRecurDay] = useState<number>(1);
@@ -169,7 +237,7 @@ const BatchDetail = () => {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: `Batch ${statusLabels[status]?.toLowerCase() || status}` });
+        toast({ title: `Batch ${statusLabel(status)?.toLowerCase() || status}` });
 
         const amountTxt = formatNaira(batch?.total_amount || 0);
         if (status === 'approved') {
@@ -223,14 +291,19 @@ const BatchDetail = () => {
    */
   const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
     try {
+      const amount = Number(it.amount_ngn || 0);
+      if (amount < 1) {
+        return { ok: false, reason: 'Minimum transfer amount is ₦1.' };
+      }
+      if (amount > 5_000_000) {
+        return { ok: false, reason: 'Single transfer limit is ₦5,000,000. For larger amounts contact your bank operations team.' };
+      }
       const bankCode = getBankCode(it.bank_name);
-      console.log('[KD-PAY-1] Starting transfer for:', it.full_name, it.account_number, bankCode);
       if (!bankCode) {
         return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
       }
       let recipientCode: string | null = it.paystack_recipient_code || null;
       if (!recipientCode) {
-        console.log('[KD-PAY-4] Calling createTransferRecipient...');
         const recipient = await createTransferRecipient({
           name: it.full_name,
           account_number: it.account_number,
@@ -243,17 +316,14 @@ const BatchDetail = () => {
           profile,
         );
       }
-      console.log('[KD-PAY-5] Recipient code received:', recipientCode);
       const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
       const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
-      console.log('[KD-PAY-6] Calling initiateTransfer with amount:', amountKobo);
       const transfer = await initiateTransfer({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
         reason: `KDOps · ${batch?.name || 'batch'}`,
       });
-      console.log('[KD-PAY-7] Transfer response:', transfer);
       await supabase
         .from('batch_items')
         .update({
@@ -271,23 +341,27 @@ const BatchDetail = () => {
       );
       return { ok: true };
     } catch (err: any) {
-      const msg = err?.message || 'Transfer failed';
-      console.error('[KD-PAY-ERROR]', msg, JSON.stringify(err));
+      const errorMessage = err?.message || 'Transfer failed';
       await supabase
         .from('batch_items')
-        .update({ status: 'failed', failure_reason: msg })
+        .update({ status: 'failed', failure_reason: errorMessage })
         .eq('id', it.id);
       await logAudit(
         'paystack_transfer_failed',
-        `Transfer failed for ${it.full_name}: ${msg}`,
+        `Transfer failed for ${it.full_name}: ${errorMessage}`,
         profile,
       );
-      return { ok: false, reason: msg };
+      return { ok: false, reason: errorMessage };
     }
   };
 
   const handleProcess = async () => {
     setActionLoading(true);
+    setProcessResults(null);
+    const toProcess = items.filter((it) => it.status !== 'succeeded');
+    setProcessingTotal(toProcess.length);
+    setProcessingIdx(0);
+    setProcessingName('');
     try {
       await supabase
         .from('payment_batches')
@@ -295,8 +369,10 @@ const BatchDetail = () => {
         .eq('id', id);
 
       // Kick all line items serially (Paystack rate limits burst traffic).
-      for (const it of items) {
-        if (it.status === 'succeeded') continue;
+      for (let i = 0; i < toProcess.length; i++) {
+        const it = toProcess[i];
+        setProcessingIdx(i + 1);
+        setProcessingName(it.full_name);
         await processOneItem(it);
       }
 
@@ -306,31 +382,38 @@ const BatchDetail = () => {
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed || []).some((r: any) => r.status === 'failed');
-      const anyPending = (refreshed || []).some((r: any) => r.status === 'pending');
-      const finalStatus = anyFailed
-        ? 'partially_processed'
-        : anyPending
-        ? 'processing'
-        : 'processed';
+      const all = refreshed || [];
+      const succeededCount = all.filter((r: any) => r.status === 'succeeded').length;
+      const failedCount = all.filter((r: any) => r.status === 'failed').length;
+      const pendingCount = all.filter((r: any) => r.status === 'pending' || r.status === 'processing').length;
+      setProcessResults({ succeeded: succeededCount, failed: failedCount, pending: pendingCount });
+      setProcessingIdx(0);
+      setProcessingTotal(0);
+      setProcessingName('');
+
+      let batchStatus = 'processing';
+      if (pendingCount === 0 && failedCount === 0) batchStatus = 'processed';
+      else if (pendingCount === 0 && succeededCount > 0) batchStatus = 'partially_processed';
+      else if (pendingCount === 0 && succeededCount === 0) batchStatus = 'failed';
+
       await supabase
         .from('payment_batches')
-        .update({ status: finalStatus })
+        .update({ status: batchStatus })
         .eq('id', id);
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" dispatched via Paystack — ${finalStatus.replace('_', ' ')}`,
+        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')}`,
         profile,
       );
       toast({
-        title: anyFailed
+        title: failedCount > 0
           ? 'Batch dispatched with failures'
-          : anyPending
+          : pendingCount > 0
           ? 'Batch dispatched — polling Paystack'
           : 'Batch processed successfully',
-        description: anyFailed
+        description: failedCount > 0
           ? 'Some transfers could not be initiated — retry from the row.'
-          : anyPending
+          : pendingCount > 0
           ? 'KDOps will poll Paystack every 30s until every transfer settles.'
           : undefined,
       });
@@ -509,6 +592,21 @@ const BatchDetail = () => {
     const totalFailed = items
       .filter((i) => i.status === 'failed')
       .reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
+    const computedTotal = items.reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
+    const amountDisplay = computedTotal > 100_000_000
+      ? 'Amount error — please contact support'
+      : escapeHtml(formatNaira(computedTotal));
+    const hasFailed = batch.status === 'failed' || batch.status === 'partially_processed';
+    const failedRows = items.filter((i) => i.status === 'failed');
+    const truncRef = (ref: string | null) => {
+      if (!ref) return '—';
+      return ref.length > 20 ? escapeHtml(ref.slice(0, 20)) + '…' : escapeHtml(ref);
+    };
+    const reasonCell = (it: any) => {
+      if (it.status === 'failed') return `<span style="color:#b22222">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</span>`;
+      if (it.status === 'succeeded') return '<span style="color:#117a3d">Successful</span>';
+      return '<span style="color:#8c6700">Pending</span>';
+    };
 
     const html = `<!doctype html>
 <html lang="en">
@@ -518,27 +616,33 @@ const BatchDetail = () => {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;600;700&display=swap');
     * { box-sizing: border-box; }
-    body { font-family: 'Cabin', system-ui, sans-serif; color: #0a2533; padding: 32px; max-width: 880px; margin: 0 auto; }
+    body { font-family: 'Cabin', system-ui, sans-serif; color: #0a2533; padding: 32px; max-width: 900px; margin: 0 auto; }
     .brand { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 3px solid #006994; margin-bottom: 24px; }
-    .brand .mark { width: 44px; height: 44px; border-radius: 8px; background: #006994; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    .brand .mark { width: 44px; height: 44px; border-radius: 8px; background: #006994; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
     h2 { font-size: 16px; margin: 24px 0 8px; color: #006994; }
+    .failed-banner { background: #fde9e9; border: 2px solid #f5c0c0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: #8b0000; font-size: 13px; }
+    .failed-banner strong { display: block; font-size: 15px; margin-bottom: 6px; }
     .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; font-size: 13px; }
     .meta div { padding: 6px 0; }
     .meta .l { color: #5b6b75; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     .meta .v { font-weight: 600; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e8edf0; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
+    th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid #e8edf0; }
     th { background: #f6f9fb; color: #5b6b75; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+    td.mono { font-family: monospace; font-size: 10px; }
     .right { text-align: right; }
     .totals { margin-top: 16px; padding: 12px 16px; background: #f6f9fb; border-radius: 8px; display: flex; justify-content: flex-end; gap: 24px; font-size: 13px; }
     .totals .v { font-weight: 700; }
     .stamp { margin-top: 32px; padding: 12px; border: 2px dashed #D6AC50; border-radius: 8px; color: #6f5a25; font-size: 12px; text-align: center; }
     .footer { margin-top: 28px; font-size: 11px; color: #8194a0; text-align: center; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+    .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
     .pill.success { background: #e6f7ec; color: #117a3d; }
     .pill.failed  { background: #fde9e9; color: #b22222; }
     .pill.pending { background: #fff5e0; color: #8c6700; }
+    .failed-section { margin-top: 28px; }
+    .failed-section h2 { color: #b22222; }
+    .bank-ops-note { margin-top: 12px; padding: 10px 14px; background: #fff5e0; border: 1px solid #f0d890; border-radius: 6px; font-size: 11px; color: #6f5a25; }
     @media print { body { padding: 16px; } .no-print { display: none; } }
   </style>
 </head>
@@ -551,13 +655,20 @@ const BatchDetail = () => {
     </div>
   </div>
 
+  ${hasFailed ? `
+  <div class="failed-banner">
+    <strong>⚠️ FAILED PAYMENT — No funds were transferred to failed recipients</strong>
+    ${failedRows.length} of ${items.length} transfer${failedRows.length !== 1 ? 's' : ''} failed.
+    Successful transfers are unaffected. Review the Failed Payments section below.
+  </div>` : ''}
+
   <div class="meta">
     <div><div class="l">Batch</div><div class="v">${escapeHtml(batch.name)}</div></div>
-    <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabels[batch.status] || batch.status)}</div></div>
-    <div><div class="l">Payment Date</div><div class="v">${escapeHtml(formatDate(batch.payment_date))}</div></div>
+    <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabel(batch.status) || batch.status)}</div></div>
+    <div><div class="l">Transaction Date</div><div class="v">${escapeHtml(formatDateTime(batch.created_at))}</div></div>
     <div><div class="l">Period</div><div class="v">${escapeHtml(batch.period || '—')}</div></div>
     <div><div class="l">Beneficiaries</div><div class="v">${items.length}</div></div>
-    <div><div class="l">Total Amount</div><div class="v">${escapeHtml(formatNaira(batch.total_amount || 0))}</div></div>
+    <div><div class="l">Total Amount</div><div class="v">${amountDisplay}</div></div>
     ${batch.scheduled_date ? `<div><div class="l">Scheduled</div><div class="v">${escapeHtml(formatDateTime(batch.scheduled_date))}</div></div>` : ''}
     <div><div class="l">Generated</div><div class="v">${escapeHtml(formatDateTime(new Date()))}</div></div>
   </div>
@@ -571,21 +682,23 @@ const BatchDetail = () => {
         <th>Bank</th>
         <th>Account</th>
         <th class="right">Amount</th>
-        <th>Reference</th>
+        <th>Paystack Ref</th>
         <th>Status</th>
+        <th>Reason</th>
       </tr>
     </thead>
     <tbody>
       ${items
         .map((it, i) => `
-          <tr>
+          <tr${it.status === 'failed' ? ' style="background:#fff8f8"' : ''}>
             <td>${i + 1}</td>
             <td>${escapeHtml(it.full_name)}</td>
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(it.account_number)}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
-            <td>${escapeHtml(it.reference || '')}</td>
+            <td class="mono">${truncRef(it.paystack_reference)}</td>
             <td><span class="pill ${it.status === 'succeeded' ? 'success' : it.status === 'failed' ? 'failed' : 'pending'}">${escapeHtml(it.status)}</span></td>
+            <td>${reasonCell(it)}</td>
           </tr>
         `)
         .join('')}
@@ -593,10 +706,40 @@ const BatchDetail = () => {
   </table>
 
   <div class="totals">
-    <div><span class="l">Succeeded:</span> <span class="v">${escapeHtml(formatNaira(totalSucceeded))}</span></div>
-    <div><span class="l">Failed:</span> <span class="v">${escapeHtml(formatNaira(totalFailed))}</span></div>
-    <div><span class="l">Total:</span> <span class="v">${escapeHtml(formatNaira(batch.total_amount || 0))}</span></div>
+    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Succeeded:</span> <span class="v">${escapeHtml(formatNaira(totalSucceeded))}</span></div>
+    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Failed:</span> <span class="v">${escapeHtml(formatNaira(totalFailed))}</span></div>
+    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Total:</span> <span class="v">${amountDisplay}</span></div>
   </div>
+
+  ${hasFailed && failedRows.length > 0 ? `
+  <div class="failed-section">
+    <h2>⚠️ Failed Payments (${failedRows.length})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Bank</th>
+          <th>Account</th>
+          <th class="right">Amount</th>
+          <th>Failure Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${failedRows.map((it) => `
+          <tr>
+            <td>${escapeHtml(it.full_name)}</td>
+            <td>${escapeHtml(it.bank_name)}</td>
+            <td>${escapeHtml(it.account_number)}</td>
+            <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
+            <td style="color:#b22222">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div class="bank-ops-note">
+      Contact your bank operations team if the failure reason is unclear. No funds were debited for the failed recipients listed above.
+    </div>
+  </div>` : ''}
 
   <div class="stamp">
     Receipt generated by KDOps · ${escapeHtml(profile?.full_name || profile?.email || 'unknown user')}
@@ -604,7 +747,7 @@ const BatchDetail = () => {
   </div>
 
   <div class="footer">
-    KD Squares Ltd · Operations Platform · This document is system-generated.
+    KD Squares Ltd · Operations Platform · This is a system-generated receipt.
   </div>
 
   <script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>
@@ -656,9 +799,7 @@ const BatchDetail = () => {
             </Button>
           </>
         )}
-        <Badge variant="secondary" className={statusColors[batch.status]}>
-          {statusLabels[batch.status] || batch.status}
-        </Badge>
+        <StatusBadge status={batch.status} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -795,6 +936,27 @@ const BatchDetail = () => {
         </div>
       )}
 
+      {actionLoading && processingTotal > 0 && (
+        <div className="px-1 py-2 text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+          <span>
+            Processing payment <span className="font-semibold text-foreground">{processingIdx}</span> of{' '}
+            <span className="font-semibold text-foreground">{processingTotal}</span>
+            {processingName && (
+              <> — <span className="font-semibold text-foreground">{processingName}</span></>
+            )}
+          </span>
+        </div>
+      )}
+
+      {processResults && (
+        <div className="flex items-center gap-4 px-1 py-2 text-sm">
+          <span className="text-success font-medium">✓ {processResults.succeeded} completed</span>
+          <span className="text-destructive font-medium">✗ {processResults.failed} failed</span>
+          <span className="text-warning font-medium">◷ {processResults.pending} pending</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Beneficiaries ({items.length})</CardTitle>
@@ -809,61 +971,65 @@ const BatchDetail = () => {
                   <TableHead>Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Reference</TableHead>
+                  <TableHead>Paystack Ref</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
-                  <TableRow key={item.id} className="kd-transition">
+                  <TableRow
+                    key={item.id}
+                    className={item.status === 'failed' ? 'border-l-4 border-l-destructive kd-transition' : 'kd-transition'}
+                  >
                     <TableCell className="font-medium">{item.full_name}</TableCell>
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{item.account_number}</TableCell>
-                    <TableCell className="text-right currency">
-                      {formatNaira(item.amount_ngn || 0)}
+                    <TableCell className="text-right">
+                      <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                      {item.failure_reason && (
+                        <p className="text-[11px] text-destructive mt-0.5 text-right">{item.failure_reason}</p>
+                      )}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {item.paystack_reference || '—'}
+                    </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <Badge
-                          variant="secondary"
-                          className={
-                            item.status === 'succeeded'
-                              ? 'bg-success/10 text-success'
-                              : item.status === 'failed'
-                              ? 'bg-destructive/10 text-destructive'
-                              : item.status === 'retry'
-                              ? 'bg-info/10 text-info'
-                              : ''
-                          }
-                        >
-                          {item.status}
-                        </Badge>
-                        {item.failure_reason && (
-                          <span className="text-[11px] text-destructive">
-                            {item.failure_reason}
-                          </span>
-                        )}
-                      </div>
+                      <StatusBadge status={item.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      {item.status === 'failed' && canApprove ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={retryingId === item.id}
-                          onClick={() => retryItem(item)}
-                        >
-                          {retryingId === item.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <RotateCw className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          Retry
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <div className="flex justify-end gap-1">
+                        {item.status === 'failed' && canApprove && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={retryingId === item.id}
+                            onClick={() => retryItem(item)}
+                          >
+                            {retryingId === item.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RotateCw className="h-3.5 w-3.5 mr-1" />
+                            )}
+                            Retry
+                          </Button>
+                        )}
+                        {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email)}
+                            title="Print receipt"
+                          >
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            Receipt
+                          </Button>
+                        )}
+                        {!item.paystack_reference && item.status !== 'failed' && item.status !== 'succeeded' && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

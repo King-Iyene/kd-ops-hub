@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Download,
@@ -6,7 +7,6 @@ import {
   CreditCard,
   Receipt,
   Zap,
-  ArrowRightLeft,
   X,
   Copy,
   Check,
@@ -52,19 +52,18 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay' | 'transfer' | 'expense';
+  txn_type: 'payment_batch' | 'quick_pay' | 'expense';
   description: string;
   category: string;
   amount_ngn: number;
   status: string;
   reference: string;
   created_by: string | null;
-  contractor_id: string | null;
-  employee_id: string | null;
   batch_name: string | null;
   beneficiary_count: number | null;
   payment_date: string | null;
@@ -77,12 +76,7 @@ interface Transaction {
   receipt_url: string | null;
 }
 
-const TXN_TYPES = [
-  { value: 'payment_batch', label: 'Payment Batch' },
-  { value: 'quick_pay', label: 'Quick Pay' },
-  { value: 'transfer', label: 'Transfer' },
-  { value: 'expense', label: 'Expense' },
-] as const;
+type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'expense';
 
 const STATUS_OPTIONS = [
   'draft',
@@ -101,161 +95,58 @@ const STATUS_OPTIONS = [
 const TYPE_ICON: Record<string, typeof CreditCard> = {
   payment_batch: CreditCard,
   quick_pay: Zap,
-  transfer: ArrowRightLeft,
   expense: Receipt,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   payment_batch: 'bg-primary/10 text-primary border border-primary/30',
-  quick_pay: 'bg-accent/15 text-accent-foreground border border-accent/40',
-  transfer: 'bg-info/10 text-info border border-info/30',
+  quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
   expense: 'bg-warning/10 text-warning border border-warning/30',
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending: 'bg-warning/10 text-warning',
-  pending_approval: 'bg-warning/10 text-warning',
-  pending_second_approval: 'bg-orange-100 text-orange-700',
-  approved: 'bg-success/10 text-success',
-  funded: 'bg-info/10 text-info',
-  processing: 'bg-info/10 text-info',
-  processed: 'bg-success/10 text-success',
-  partially_processed: 'bg-accent/15 text-accent-foreground',
-  rejected: 'bg-destructive/10 text-destructive',
-  failed: 'bg-destructive/10 text-destructive',
-  reversed: 'bg-destructive/10 text-destructive',
+
+const typeLabel = (t: string) => {
+  if (t === 'payment_batch') return 'Batch';
+  if (t === 'quick_pay') return 'Quick Pay';
+  if (t === 'expense') return 'Expense';
+  return t.replace(/_/g, ' ');
 };
 
-const typeLabel = (t: string) =>
-  TXN_TYPES.find((x) => x.value === t)?.label || t.replace(/_/g, ' ');
+import { statusLabel } from '@/components/ui-kit/StatusBadge';
 
-const statusLabel = (s: string) => s.replace(/_/g, ' ');
+const FILTER_TABS: { value: FilterTab; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'quick_pay', label: 'Quick Pay' },
+  { value: 'payment_batch', label: 'Batches' },
+  { value: 'expense', label: 'Expenses' },
+];
 
 const Transactions = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | string>('all');
+  const [typeFilter, setTypeFilter] = useState<FilterTab>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [selected, setSelected] = useState<Transaction | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-
-    const [batchRes, itemsRes, expenseRes] = await Promise.all([
-      supabase
-        .from('payment_batches')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000),
-      supabase
-        .from('batch_items')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(2000),
-      supabase
-        .from('expenses')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000),
-    ]);
-
-    const txns: Transaction[] = [];
-
-    for (const pb of (batchRes.data || []) as any[]) {
-      txns.push({
-        id: pb.id,
-        created_at: pb.created_at,
-        txn_type: pb.is_quick_pay ? 'quick_pay' : 'payment_batch',
-        description: pb.payment_description || pb.name || 'Payment batch',
-        category: pb.payment_category || 'contractor_payment',
-        amount_ngn: pb.total_amount || 0,
-        status: pb.status,
-        reference: pb.id,
-        created_by: pb.created_by,
-        contractor_id: null,
-        employee_id: null,
-        batch_name: pb.name,
-        beneficiary_count: pb.beneficiary_count,
-        payment_date: pb.payment_date,
-        approved_by: pb.approved_by,
-        rejection_reason: pb.rejection_reason,
-        notes: pb.notes,
-        bank_name: null,
-        account_number: null,
-        account_name: null,
-        receipt_url: null,
-      });
+    const { data, error } = await supabase
+      .from('transactions_view')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('[transactions] view error:', error.message);
+      setRows([]);
+    } else {
+      setRows((data as Transaction[]) || []);
     }
-
-    for (const bi of (itemsRes.data || []) as any[]) {
-      txns.push({
-        id: bi.id,
-        created_at: bi.created_at,
-        txn_type: 'transfer',
-        description: bi.full_name || 'Transfer',
-        category: 'contractor_payment',
-        amount_ngn: bi.amount_ngn || 0,
-        status:
-          bi.status === 'succeeded'
-            ? 'processed'
-            : bi.status === 'failed'
-            ? 'failed'
-            : bi.status === 'retry'
-            ? 'processing'
-            : 'pending',
-        reference: bi.paystack_reference || bi.reference || bi.id,
-        created_by: null,
-        contractor_id: bi.contractor_id,
-        employee_id: null,
-        batch_name: null,
-        beneficiary_count: null,
-        payment_date: null,
-        approved_by: null,
-        rejection_reason: bi.failure_reason,
-        notes: null,
-        bank_name: bi.bank_name || null,
-        account_number: bi.account_number || null,
-        account_name: bi.full_name || null,
-        receipt_url: null,
-      });
-    }
-
-    for (const e of (expenseRes.data || []) as any[]) {
-      txns.push({
-        id: e.id,
-        created_at: e.created_at,
-        txn_type: 'expense',
-        description: e.description || e.category,
-        category: e.category,
-        amount_ngn: e.amount_ngn || 0,
-        status: e.status,
-        reference: e.id,
-        created_by: e.submitted_by,
-        contractor_id: null,
-        employee_id: e.submitted_by,
-        batch_name: null,
-        beneficiary_count: null,
-        payment_date: e.date,
-        approved_by: null,
-        rejection_reason: e.rejection_reason,
-        notes: e.admin_note,
-        bank_name: null,
-        account_number: null,
-        account_name: null,
-        receipt_url: e.receipt_url || null,
-      });
-    }
-
-    txns.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    setRows(txns);
     setLoading(false);
   }, []);
 
@@ -281,12 +172,13 @@ const Transactions = () => {
       if (t < fromMs || t > toMs) return false;
       if (!q) return true;
       return (
-        r.reference.toLowerCase().includes(q) ||
+        (r.reference || '').toLowerCase().includes(q) ||
         (r.description || '').toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q) ||
+        (r.category || '').toLowerCase().includes(q) ||
         typeLabel(r.txn_type).toLowerCase().includes(q) ||
         (r.bank_name || '').toLowerCase().includes(q) ||
-        (r.account_name || '').toLowerCase().includes(q)
+        (r.account_name || '').toLowerCase().includes(q) ||
+        (r.batch_name || '').toLowerCase().includes(q)
       );
     });
   }, [rows, search, typeFilter, categoryFilter, statusFilter, from, to]);
@@ -316,7 +208,7 @@ const Transactions = () => {
       r.created_at || '',
       typeLabel(r.txn_type),
       r.description,
-      r.category.replace(/_/g, ' '),
+      (r.category || '').replace(/_/g, ' '),
       r.amount_ngn,
       statusLabel(r.status),
       r.reference,
@@ -354,6 +246,14 @@ const Transactions = () => {
   const hasActiveFilters =
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
+  const handleRowClick = (r: Transaction) => {
+    if (r.txn_type === 'expense') {
+      navigate('/expenses');
+    } else {
+      navigate(`/payments/${r.id}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -376,19 +276,20 @@ const Transactions = () => {
       />
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
-        {TXN_TYPES.map((t) => {
-          const count = rows.filter((r) => r.txn_type === t.value).length;
-          const Icon = TYPE_ICON[t.value];
+      <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 print:hidden">
+        {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
+          const count = rows.filter((r) => r.txn_type === type).length;
+          const Icon = TYPE_ICON[type];
+          const label = typeLabel(type);
           return (
             <Card
-              key={t.value}
+              key={type}
               className={cn(
                 'cursor-pointer kd-transition',
-                typeFilter === t.value && 'ring-2 ring-primary',
+                typeFilter === type && 'ring-2 ring-primary',
               )}
               onClick={() => {
-                setTypeFilter((prev) => (prev === t.value ? 'all' : t.value));
+                setTypeFilter((prev) => (prev === type ? 'all' : type));
                 pagination.reset();
               }}
             >
@@ -396,7 +297,7 @@ const Transactions = () => {
                 <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div>
                   <p className="text-lg font-bold">{count.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{t.label}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
                 </div>
               </CardContent>
             </Card>
@@ -404,8 +305,29 @@ const Transactions = () => {
         })}
       </div>
 
-      {/* Filters */}
       <Card>
+        {/* Filter bar */}
+        <div className="p-4 border-b flex items-center gap-1 flex-wrap print:hidden">
+          {FILTER_TABS.map((tab) => (
+            <Button
+              key={tab.value}
+              variant={typeFilter === tab.value ? 'secondary' : 'ghost'}
+              size="sm"
+              className={cn(
+                'rounded-full px-4',
+                typeFilter === tab.value && 'font-semibold',
+              )}
+              onClick={() => {
+                setTypeFilter(tab.value);
+                pagination.reset();
+              }}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Secondary filters */}
         <div className="p-4 border-b flex items-center gap-2 flex-wrap print:hidden">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -419,25 +341,6 @@ const Transactions = () => {
               }}
             />
           </div>
-          <Select
-            value={typeFilter}
-            onValueChange={(v) => {
-              setTypeFilter(v);
-              pagination.reset();
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              {TXN_TYPES.map((t) => (
-                <SelectItem key={t.value} value={t.value}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select
             value={categoryFilter}
             onValueChange={(v) => {
@@ -513,7 +416,7 @@ const Transactions = () => {
 
         <CardContent className="p-0">
           {loading ? (
-            <TableSkeleton rows={10} cols={8} />
+            <TableSkeleton rows={10} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ArrowUpDown}
@@ -532,7 +435,6 @@ const Transactions = () => {
                     <TableHead>Date</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Receipt</TableHead>
@@ -545,8 +447,8 @@ const Transactions = () => {
                     return (
                       <TableRow
                         key={`${r.txn_type}-${r.id}`}
-                        className="kd-transition cursor-pointer"
-                        onClick={() => setSelected(r)}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => handleRowClick(r)}
                       >
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                           {formatDate(r.created_at)}
@@ -563,25 +465,34 @@ const Transactions = () => {
                             {typeLabel(r.txn_type)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm max-w-[260px] truncate">
-                          {r.description}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm capitalize">
-                          {r.category.replace(/_/g, ' ')}
+                        <TableCell className="text-sm max-w-[280px]">
+                          {r.txn_type === 'payment_batch' && (
+                            <div>
+                              <p className="font-medium truncate">{r.batch_name || r.description}</p>
+                              {r.beneficiary_count != null && (
+                                <p className="text-xs text-muted-foreground">
+                                  {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {r.txn_type === 'quick_pay' && (
+                            <p className="truncate">{r.description}</p>
+                          )}
+                          {r.txn_type === 'expense' && (
+                            <div>
+                              <p className="font-medium capitalize truncate">
+                                {(r.category || '').replace(/_/g, ' ')}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="text-right font-medium currency whitespace-nowrap">
                           {formatNaira(r.amount_ngn)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              'capitalize text-[11px]',
-                              STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {statusLabel(r.status)}
-                          </Badge>
+                          <StatusBadge status={r.status} />
                         </TableCell>
                         <TableCell>
                           {r.receipt_url ? (
@@ -620,9 +531,6 @@ const Transactions = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Transaction detail dialog */}
-      <TransactionDetail txn={selected} onClose={() => setSelected(null)} />
     </div>
   );
 };
@@ -645,7 +553,7 @@ function CopyableRef({ value }: { value: string }) {
     timerRef.current = setTimeout(() => setCopied(false), 1500);
   };
 
-  const display = value.length > 12 ? `${value.slice(0, 8)}...` : value;
+  const display = value && value.length > 12 ? `${value.slice(0, 8)}...` : (value || '—');
 
   return (
     <button
@@ -661,171 +569,5 @@ function CopyableRef({ value }: { value: string }) {
         <Copy className="h-3 w-3 shrink-0 opacity-50" />
       )}
     </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Detail dialog
-// ---------------------------------------------------------------------------
-
-function TransactionDetail({
-  txn,
-  onClose,
-}: {
-  txn: Transaction | null;
-  onClose: () => void;
-}) {
-  const [refCopied, setRefCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  if (!txn) return null;
-
-  const copyRef = () => {
-    navigator.clipboard.writeText(txn.reference);
-    setRefCopied(true);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setRefCopied(false), 1500);
-  };
-
-  const Icon = TYPE_ICON[txn.txn_type] || ArrowUpDown;
-
-  const hasBankDetails = txn.bank_name || txn.account_number;
-
-  const fields: { label: string; value: string | null }[] = [
-    { label: 'Date', value: formatDateTime(txn.created_at) },
-    { label: 'Type', value: typeLabel(txn.txn_type) },
-    { label: 'Description', value: txn.description },
-    { label: 'Category', value: txn.category.replace(/_/g, ' ') },
-    { label: 'Amount', value: formatNaira(txn.amount_ngn) },
-    { label: 'Status', value: statusLabel(txn.status) },
-    ...(txn.batch_name ? [{ label: 'Batch name', value: txn.batch_name }] : []),
-    ...(txn.beneficiary_count
-      ? [{ label: 'Beneficiaries', value: String(txn.beneficiary_count) }]
-      : []),
-    ...(txn.payment_date
-      ? [{ label: 'Payment date', value: formatDate(txn.payment_date) }]
-      : []),
-    ...(txn.rejection_reason
-      ? [{ label: 'Rejection / failure reason', value: txn.rejection_reason }]
-      : []),
-    ...(txn.notes ? [{ label: 'Notes', value: txn.notes }] : []),
-  ];
-
-  return (
-    <Dialog open={!!txn} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Icon className="h-5 w-5" />
-            Transaction details
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center gap-3 mb-2">
-          <Badge
-            variant="secondary"
-            className={cn('font-medium', TYPE_COLOR[txn.txn_type])}
-          >
-            {typeLabel(txn.txn_type)}
-          </Badge>
-          <Badge
-            variant="secondary"
-            className={cn(
-              'capitalize',
-              STATUS_COLOR[txn.status] || 'bg-muted text-muted-foreground',
-            )}
-          >
-            {statusLabel(txn.status)}
-          </Badge>
-          <span className="ml-auto text-lg font-bold">
-            {formatNaira(txn.amount_ngn)}
-          </span>
-        </div>
-        <Separator />
-
-        <div className="space-y-3 pt-2">
-          {fields.map((f) => (
-            <div key={f.label} className="grid grid-cols-3 gap-2">
-              <span className="text-sm text-muted-foreground">{f.label}</span>
-              <span className="text-sm col-span-2 break-all">{f.value || '—'}</span>
-            </div>
-          ))}
-
-          {/* Reference — copyable */}
-          <div className="grid grid-cols-3 gap-2">
-            <span className="text-sm text-muted-foreground">Reference</span>
-            <span className="text-sm col-span-2 break-all flex items-center gap-2">
-              <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">
-                {txn.reference}
-              </code>
-              <button
-                type="button"
-                onClick={copyRef}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-                title="Copy reference"
-              >
-                {refCopied ? (
-                  <Check className="h-3.5 w-3.5 text-success" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
-              </button>
-            </span>
-          </div>
-        </div>
-
-        {/* Recipient bank details */}
-        {hasBankDetails && (
-          <>
-            <Separator />
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Landmark className="h-4 w-4 text-muted-foreground" />
-                Recipient bank details
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                {txn.account_name && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-xs text-muted-foreground">Account name</span>
-                    <span className="text-sm col-span-2 font-medium">{txn.account_name}</span>
-                  </div>
-                )}
-                {txn.bank_name && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-xs text-muted-foreground">Bank</span>
-                    <span className="text-sm col-span-2">{txn.bank_name}</span>
-                  </div>
-                )}
-                {txn.account_number && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <span className="text-xs text-muted-foreground">Account number</span>
-                    <span className="text-sm col-span-2 font-mono">{txn.account_number}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Receipt */}
-        {txn.receipt_url && (
-          <>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Receipt</span>
-              <a
-                href={txn.receipt_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5"
-              >
-                <Button size="sm" variant="outline">
-                  <FileDown className="mr-1.5 h-3.5 w-3.5" /> Download receipt
-                </Button>
-              </a>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

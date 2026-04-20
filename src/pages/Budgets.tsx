@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   Lock,
   Unlock,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -476,17 +478,29 @@ const Budgets = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Budgets"
-        description="Plan spend per category, track actuals, and control overruns."
-        actions={
-          canManage && (
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Define departmental budgets and track actual spend. Overspend is flagged automatically so you can control costs before they escalate.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Plan spend per category, track actuals, and control overruns.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {canManage && (
             <Button onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> New Budget
             </Button>
-          )
-        }
-      />
+          )}
+        </div>
+      </div>
 
       <Card>
         <div className="p-4 border-b flex items-center gap-2 flex-wrap">

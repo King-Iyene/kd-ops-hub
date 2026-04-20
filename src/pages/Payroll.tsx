@@ -7,10 +7,14 @@ import {
   Download,
   FileText,
   TrendingUp,
+  TrendingDown,
   Users,
   Send,
   AlertCircle,
+  X,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
   Bar,
@@ -53,6 +57,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -62,9 +73,23 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 
+interface BonusLine {
+  type: string;
+  amount: number;
+}
+
+interface AllowancesSnapshot {
+  housing_pct: number;
+  transport_per_emp: number;
+  meal_per_emp: number;
+  total: number;
+}
+
 interface PayrollRun {
   id: string;
   period: string;
+  period_type?: 'monthly' | 'quarterly' | 'annual';
+  employee_count?: number;
   total_contractor_ngn: number;
   total_employee_ngn: number;
   total_expenses_ngn: number;
@@ -72,17 +97,29 @@ interface PayrollRun {
   pension_ngn: number;
   nhf_ngn: number;
   total_burn_ngn: number;
+  bonuses_json?: BonusLine[] | null;
+  allowances_json?: AllowancesSnapshot | null;
   status: 'draft' | 'pending_approval' | 'approved' | 'paid';
   created_at: string;
   approved_by: string | null;
 }
 
-const PENSION_RATE = 0.08;  // 8% employee contribution (employer side not here)
-const NHF_RATE = 0.025;     // 2.5%
+const PENSION_RATE = 0.08;           // 8% employee contribution
+const EMPLOYER_PENSION_RATE = 0.10;  // 10% employer contribution
+const NHF_RATE = 0.025;              // 2.5%
 
-const monthLabel = (period: string) => {
+const monthLabel = (period: string, periodType?: string): string => {
   const [y, m] = period.split('-');
-  const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, 1);
+  const year = parseInt(y, 10);
+  if (periodType === 'annual') return `${year} Annual Payroll`;
+  if (periodType === 'quarterly') {
+    const q = Math.ceil(parseInt(m, 10) / 3);
+    return `Q${q} ${year} Payroll`;
+  }
+  const date = new Date(year, parseInt(m, 10) - 1, 1);
+  if (periodType === 'monthly') {
+    return `${date.toLocaleString('en-GB', { month: 'long', year: 'numeric' })} Payroll`;
+  }
   return date.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
 };
 
@@ -96,6 +133,15 @@ const STATUS_CLASS: Record<PayrollRun['status'], string> = {
   paid: 'bg-info/10 text-info',
 };
 
+const BONUS_TYPES = [
+  'Performance Bonus',
+  '13th Month',
+  'Christmas Bonus',
+  'Ramadan Bonus',
+  'Annual Leave Allowance',
+  'Other',
+] as const;
+
 const Payroll = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
@@ -108,10 +154,20 @@ const Payroll = () => {
   const [disburseTarget, setDisburseTarget] = useState<{ run: PayrollRun; payslips: any[] } | null>(null);
   const [disbursing, setDisbursing] = useState(false);
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
-  const [form, setForm] = useState({
-    period: monthPeriod(
-      new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1),
-    ),
+  const [form, setForm] = useState<{
+    period: string;
+    period_type: 'monthly' | 'quarterly' | 'annual';
+    bonuses: BonusLine[];
+    housing_allowance_pct: number;
+    transport_per_emp: number;
+    meal_per_emp: number;
+  }>({
+    period: monthPeriod(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
+    period_type: 'monthly',
+    bonuses: [],
+    housing_allowance_pct: 0,
+    transport_per_emp: 0,
+    meal_per_emp: 0,
   });
 
   const load = useCallback(async () => {
@@ -128,9 +184,26 @@ const Payroll = () => {
     load();
   }, [load]);
 
+  const addBonus = () =>
+    setForm((f) => ({ ...f, bonuses: [...f.bonuses, { type: 'Performance Bonus', amount: 0 }] }));
+  const removeBonus = (i: number) =>
+    setForm((f) => ({ ...f, bonuses: f.bonuses.filter((_, idx) => idx !== i) }));
+  const updateBonus = (i: number, field: 'type' | 'amount', val: any) =>
+    setForm((f) => ({
+      ...f,
+      bonuses: f.bonuses.map((b, idx) => (idx === i ? { ...b, [field]: val } : b)),
+    }));
+
   // Draft a payroll summary for a given yyyy-mm by pulling that month's
   // approved expenses, processed payment batches (contractor payouts), and
   // a simple employee cost model based on PAYE/Pension/NHF defaults.
+  // NOTE: Features 1/2/3/6 store extended columns in payroll_runs. Run this
+  // migration before using those features:
+  //   ALTER TABLE payroll_runs
+  //     ADD COLUMN IF NOT EXISTS employee_count integer,
+  //     ADD COLUMN IF NOT EXISTS period_type text DEFAULT 'monthly',
+  //     ADD COLUMN IF NOT EXISTS bonuses_json jsonb,
+  //     ADD COLUMN IF NOT EXISTS allowances_json jsonb;
   const draftRun = async () => {
     if (!form.period) return;
     const [y, m] = form.period.split('-');
@@ -176,11 +249,22 @@ const Payroll = () => {
           (s, r: any) => s + Number(r.salary_ngn || 0),
           0,
         ) || 0;
+      const empCount = (employeeRes.data || []).length;
       const paye = calculatePAYE(totalContractor + totalEmployee);
       const pension = (totalContractor + totalEmployee) * PENSION_RATE;
       const nhf = (totalContractor + totalEmployee) * NHF_RATE;
-      const burn = totalContractor + totalEmployee + totalExpenses + paye + pension + nhf;
+      const employerPension = totalEmployee * EMPLOYER_PENSION_RATE;
+      const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
+      const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
+      const transportAllowance = empCount * form.transport_per_emp;
+      const mealSubsidy = empCount * form.meal_per_emp;
+      const totalAllowances = housingAllowance + transportAllowance + mealSubsidy;
+      const burn =
+        totalContractor + totalEmployee + totalExpenses +
+        paye + pension + nhf + employerPension +
+        bonusTotal + totalAllowances;
 
+      // Core upsert — works with the existing schema.
       const { error } = await supabase.from('payroll_runs').upsert(
         {
           period: form.period,
@@ -196,6 +280,16 @@ const Payroll = () => {
         },
         { onConflict: 'period' },
       );
+
+      // Extended columns — best-effort; silently ignored if DB migration not run.
+      await supabase.from('payroll_runs').update({
+        period_type: form.period_type,
+        employee_count: empCount,
+        bonuses_json: form.bonuses.length > 0 ? form.bonuses : null,
+        allowances_json: totalAllowances > 0
+          ? { housing_pct: form.housing_allowance_pct, transport_per_emp: form.transport_per_emp, meal_per_emp: form.meal_per_emp, total: totalAllowances }
+          : null,
+      } as any).eq('period', form.period);
       if (error) throw error;
       await logAudit(
         'payroll_created',
@@ -563,20 +657,42 @@ const Payroll = () => {
 
   const exportRun = (run: PayrollRun) => {
     const header = ['metric', 'amount_ngn'];
-    const rows = [
+    const bonusTotal = (run.bonuses_json || []).reduce((s, b) => s + Number(b.amount || 0), 0);
+    const allowTotal = run.allowances_json?.total || 0;
+    const rows: [string, number][] = [
       ['Contractor payments', run.total_contractor_ngn],
       ['Employee salaries', run.total_employee_ngn],
       ['Reimbursable expenses', run.total_expenses_ngn],
       ['PAYE (est.)', run.paye_ngn],
-      ['Pension (est.)', run.pension_ngn],
+      ['Pension employee (est.)', run.pension_ngn],
+      ['Pension employer (est.)', run.total_employee_ngn * EMPLOYER_PENSION_RATE],
       ['NHF (est.)', run.nhf_ngn],
-      ['Total burn', run.total_burn_ngn],
     ];
+    if (bonusTotal > 0) {
+      rows.push(['Bonuses & Extras', bonusTotal]);
+      (run.bonuses_json || []).forEach((b) => rows.push([`  — ${b.type}`, Number(b.amount || 0)]));
+    }
+    if (allowTotal > 0) rows.push(['Total allowances', allowTotal]);
+    rows.push(['Total burn', run.total_burn_ngn]);
     downloadCsv(`kdops-payroll-${run.period}.csv`, toCsv(header, rows));
   };
 
   // Printable PDF-ready HTML — user prints from browser.
   const printRun = (run: PayrollRun) => {
+    const bonusTotal = (run.bonuses_json || []).reduce((s, b) => s + Number(b.amount || 0), 0);
+    const allowTotal = run.allowances_json?.total || 0;
+    const bonusRows = bonusTotal > 0
+      ? `<tr><td>Bonuses &amp; Extras</td><td class="right">${formatNaira(bonusTotal)}</td></tr>` +
+        (run.bonuses_json || []).map((b) =>
+          `<tr style="font-size:12px"><td>&nbsp;&nbsp;— ${b.type}</td><td class="right">${formatNaira(Number(b.amount || 0))}</td></tr>`,
+        ).join('')
+      : '';
+    const allowRow = allowTotal > 0
+      ? `<tr><td>Total allowances</td><td class="right">${formatNaira(allowTotal)}</td></tr>`
+      : '';
+    const empRow = run.employee_count != null
+      ? `<tr><td>Active employees</td><td class="right">${run.employee_count}</td></tr>`
+      : '';
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payroll ${run.period}</title>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;600;700&display=swap');
@@ -590,17 +706,21 @@ const Payroll = () => {
       .badge { display: inline-block; padding: 3px 10px; background: #D6AC50; color: #3a2e12; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
     </style></head><body>
     <h1>KDOps Payroll Report</h1>
-    <p><strong>Period:</strong> ${monthLabel(run.period)} · <span class="badge">${run.status.replace('_', ' ')}</span></p>
+    <p><strong>Period:</strong> ${monthLabel(run.period, run.period_type)} · <span class="badge">${run.status.replace('_', ' ')}</span></p>
     <p><strong>Generated:</strong> ${formatDateTime(new Date())}</p>
     <table>
       <thead><tr><th>Line item</th><th class="right">Amount (NGN)</th></tr></thead>
       <tbody>
+        ${empRow}
         <tr><td>Contractor payments</td><td class="right">${formatNaira(run.total_contractor_ngn)}</td></tr>
         <tr><td>Employee salaries</td><td class="right">${formatNaira(run.total_employee_ngn)}</td></tr>
         <tr><td>Reimbursable expenses</td><td class="right">${formatNaira(run.total_expenses_ngn)}</td></tr>
         <tr><td>PAYE (est.)</td><td class="right">${formatNaira(run.paye_ngn)}</td></tr>
-        <tr><td>Pension (est.)</td><td class="right">${formatNaira(run.pension_ngn)}</td></tr>
+        <tr><td>Pension — employee (est.)</td><td class="right">${formatNaira(run.pension_ngn)}</td></tr>
+        <tr><td>Pension — employer (est.)</td><td class="right">${formatNaira(run.total_employee_ngn * EMPLOYER_PENSION_RATE)}</td></tr>
         <tr><td>NHF (est.)</td><td class="right">${formatNaira(run.nhf_ngn)}</td></tr>
+        ${bonusRows}
+        ${allowRow}
         <tr class="total"><td>Total burn</td><td class="right">${formatNaira(run.total_burn_ngn)}</td></tr>
       </tbody>
     </table>
@@ -627,21 +747,33 @@ const Payroll = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Payroll Intelligence"
-        description="Monthly payroll summary across contractor payments, employees and statutory deductions."
-        actions={
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Payroll Intelligence</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Process monthly payroll runs for all employees. Calculates gross pay, PAYE, employee &amp; employer pension, NHF, allowances and net pay. Supports bulk payslip export.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Monthly payroll summary across contractor payments, employees and statutory deductions.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setDialog(true)}>
             <Plus className="mr-2 h-4 w-4" /> Draft payroll
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
           title="Latest total burn"
           value={latest ? formatNaira(latest.total_burn_ngn) : '—'}
-          subtitle={latest ? monthLabel(latest.period) : 'Draft your first run'}
+          subtitle={latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run'}
           icon={Banknote}
           tone="primary"
         />
@@ -653,9 +785,9 @@ const Payroll = () => {
           tone="warning"
         />
         <StatCard
-          title="Pension (est.)"
-          value={latest ? formatNaira(latest.pension_ngn) : '—'}
-          subtitle="Due 7th next month"
+          title="Active employees"
+          value={latest?.employee_count ?? '—'}
+          subtitle={latest ? `Pension: ${formatNaira(latest.pension_ngn)}` : 'No runs yet'}
           icon={Users}
           tone="success"
         />
@@ -727,19 +859,29 @@ const Payroll = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Period</TableHead>
+                  <TableHead className="text-right">Employees</TableHead>
                   <TableHead className="text-right">Contractor</TableHead>
                   <TableHead className="text-right">Expenses</TableHead>
                   <TableHead className="text-right">PAYE</TableHead>
-                  <TableHead className="text-right">Pension</TableHead>
+                  <TableHead className="text-right">Pension (emp)</TableHead>
+                  <TableHead className="text-right">Pension (er)</TableHead>
                   <TableHead className="text-right">Total burn</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {runs.map((r) => (
+                {runs.map((r, idx) => {
+                  const prev = runs[idx + 1];
+                  const momPct = prev && prev.total_burn_ngn > 0
+                    ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
+                    : null;
+                  return (
                   <TableRow key={r.id} className="kd-transition">
-                    <TableCell className="font-medium">{monthLabel(r.period)}</TableCell>
+                    <TableCell className="font-medium">{monthLabel(r.period, r.period_type)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {r.employee_count ?? '—'}
+                    </TableCell>
                     <TableCell className="text-right currency">
                       {formatNaira(r.total_contractor_ngn)}
                     </TableCell>
@@ -752,8 +894,21 @@ const Payroll = () => {
                     <TableCell className="text-right currency">
                       {formatNaira(r.pension_ngn)}
                     </TableCell>
+                    <TableCell className="text-right currency">
+                      {formatNaira(r.total_employee_ngn * EMPLOYER_PENSION_RATE)}
+                    </TableCell>
                     <TableCell className="text-right currency font-semibold">
-                      {formatNaira(r.total_burn_ngn)}
+                      <div className="flex items-center justify-end gap-1">
+                        {formatNaira(r.total_burn_ngn)}
+                        {momPct !== null && (
+                          <span className={`text-xs font-normal inline-flex items-center gap-0.5 ${momPct >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {momPct >= 0
+                              ? <TrendingUp className="h-3 w-3" />
+                              : <TrendingDown className="h-3 w-3" />}
+                            {Math.abs(momPct).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary" className={STATUS_CLASS[r.status]}>
@@ -811,7 +966,8 @@ const Payroll = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -823,20 +979,101 @@ const Payroll = () => {
           <DialogHeader>
             <DialogTitle>Draft payroll</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Period</Label>
-              <Input
-                type="month"
-                value={form.period}
-                onChange={(e) => setForm({ ...form, period: e.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                KDOps will pull approved expenses and processed payment batches
-                for this period and estimate PAYE / Pension / NHF using default
-                rates. You can tweak the numbers before submitting.
-              </p>
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Period</Label>
+                <Input
+                  type="month"
+                  value={form.period}
+                  onChange={(e) => setForm({ ...form, period: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Period type</Label>
+                <Select
+                  value={form.period_type}
+                  onValueChange={(v) => setForm({ ...form, period_type: v as any })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Bonuses &amp; Extras</Label>
+              {form.bonuses.map((b, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                  <Select value={b.type} onValueChange={(v) => updateBonus(i, 'type', v)}>
+                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BONUS_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    className="w-36"
+                    placeholder="₦ Amount"
+                    value={b.amount || ''}
+                    onChange={(e) => updateBonus(i, 'amount', Number(e.target.value) || 0)}
+                  />
+                  <Button size="icon" variant="ghost" onClick={() => removeBonus(i)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button size="sm" variant="outline" onClick={addBonus}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add bonus
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Allowances</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Housing (% of basic)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    placeholder="0"
+                    value={form.housing_allowance_pct || ''}
+                    onChange={(e) => setForm({ ...form, housing_allowance_pct: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Transport / employee (₦)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={form.transport_per_emp || ''}
+                    onChange={(e) => setForm({ ...form, transport_per_emp: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Meal subsidy / employee (₦)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    value={form.meal_per_emp || ''}
+                    onChange={(e) => setForm({ ...form, meal_per_emp: Number(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              KDOps will pull approved expenses and processed payment batches for
+              this period and estimate PAYE / Pension / NHF. Bonuses and allowances
+              are added on top and included in the total burn.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>

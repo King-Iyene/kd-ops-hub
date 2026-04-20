@@ -33,7 +33,9 @@ import {
   Check,
   X,
   FileText,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
@@ -422,7 +424,17 @@ const Contractors = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Contractors</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Contractors</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Manage independent contractors and freelancers. Store bank details, track engagement status and bulk-import via CSV for payment batches.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
         </div>
         <div className="flex gap-2 flex-wrap">

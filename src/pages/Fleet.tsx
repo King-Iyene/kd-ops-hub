@@ -35,7 +35,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface FieldStaff {
   id: string;
@@ -383,7 +384,17 @@ const Fleet = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-bold">Fleet</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Fleet</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Manage fuel requests and daily trip logs for company vehicles. Admins review and approve requests, and can add or manage vehicle records.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground text-sm">
             {isAdmin
               ? 'Review fuel requests and trip logs'

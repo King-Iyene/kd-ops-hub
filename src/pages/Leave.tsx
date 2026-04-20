@@ -9,7 +9,9 @@ import {
   Plane,
   Stethoscope,
   Clock,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -440,15 +442,27 @@ const Leave = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Leave"
-        description="Submit time off and review your team's leave requests."
-        actions={
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Leave</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Request and manage employee time off. Tracks annual, sick and other leave types with manager approval workflows and live balance calculations.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Submit time off and review your team's leave requests.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" /> Request Leave
           </Button>
-        }
-      />
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard

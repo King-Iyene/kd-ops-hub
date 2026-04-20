@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2 } from 'lucide-react';
+import { Plus, Search, Loader2, Info } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
+import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface PaymentBatch {
   id: string;
@@ -24,27 +26,6 @@ interface PaymentBatch {
   notes: string;
 }
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending_approval: 'bg-warning/10 text-warning',
-  approved: 'bg-info/10 text-info',
-  funded: 'bg-accent/10 text-accent',
-  processing: 'bg-info/10 text-info',
-  processed: 'bg-success/10 text-success',
-  partially_processed: 'bg-warning/10 text-warning',
-  rejected: 'bg-destructive/10 text-destructive',
-};
-
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  pending_approval: 'Pending Approval',
-  approved: 'Approved',
-  funded: 'Funded',
-  processing: 'Processing',
-  processed: 'Processed',
-  partially_processed: 'Partial',
-  rejected: 'Rejected',
-};
 
 const Payments = () => {
   const navigate = useNavigate();
@@ -110,7 +91,17 @@ const Payments = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Payment Batches</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Payment Batches</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Create and manage bulk payment batches to partners and contractors. Batches flow through draft → approval → funding → processing with a full audit trail.
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <p className="text-muted-foreground text-sm">Manage partner and contractor payments</p>
         </div>
         <div className="flex gap-2">
@@ -134,8 +125,8 @@ const Payments = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(statusLabels).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
+                {['draft', 'pending_approval', 'approved', 'funded', 'processing', 'processed', 'partially_processed', 'rejected'].map((k) => (
+                  <SelectItem key={k} value={k}>{statusLabel(k)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -169,9 +160,7 @@ const Payments = () => {
                       <TableCell className="text-right">{batch.beneficiary_count}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(batch.total_amount || 0)}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={statusColors[batch.status]}>
-                          {statusLabels[batch.status] || batch.status}
-                        </Badge>
+                        <StatusBadge status={batch.status} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(batch.created_at)}</TableCell>
                     </TableRow>

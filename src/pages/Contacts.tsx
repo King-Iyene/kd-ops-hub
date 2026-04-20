@@ -12,7 +12,9 @@ import {
   MessageSquare,
   Trash2,
   Link as LinkIcon,
+  Info,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -308,25 +310,35 @@ const Contacts = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Contacts"
-        description="Leads, students, partners — every person KD Squares talks to."
-        actions={
-          <>
-            <Button variant="outline" onClick={exportCsv} disabled={contacts.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-            <Button
-              onClick={() => {
-                reset();
-                setDialog(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add contact
-            </Button>
-          </>
-        }
-      />
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-muted-foreground text-sm mt-1">Leads, students, partners — every person KD Squares talks to.</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportCsv} disabled={contacts.length === 0}>
+            <Download className="mr-2 h-4 w-4" /> Export CSV
+          </Button>
+          <Button
+            onClick={() => {
+              reset();
+              setDialog(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add contact
+          </Button>
+        </div>
+      </div>
 
       <Tabs defaultValue="contacts">
         <TabsList>
