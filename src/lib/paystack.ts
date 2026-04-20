@@ -29,6 +29,11 @@ async function edgeCall<T = any>(
     headers: { 'Authorization': `Bearer ${session?.access_token}` },
   });
   if (error) {
+    console.log('[edgeCall] raw error:', error);
+    console.log('[edgeCall] error.message:', error?.message);
+    console.log('[edgeCall] error.context:', error?.context);
+    console.log('[edgeCall] error.name:', error?.name);
+    console.log('[edgeCall] data:', data);
     let message = error.message || 'Edge Function call failed';
     try {
       const raw = await error.context?.response?.text();
