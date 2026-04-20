@@ -9,6 +9,7 @@ import {
   MessageSquare,
   Trash2,
   Pencil,
+  Check,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -52,6 +53,13 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
 
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  module: string | null;
+}
+
 type Priority = 'critical' | 'high' | 'normal' | 'low';
 type Status = 'open' | 'in_progress' | 'blocked' | 'complete';
 
@@ -66,6 +74,7 @@ interface Task {
   created_by: string | null;
   completed_at: string | null;
   created_at: string;
+  tags?: string[] | null;
 }
 
 interface ProfileRow {
@@ -133,23 +142,27 @@ const Tasks = () => {
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [tasksRes, profilesRes] = await Promise.all([
+      const [tasksRes, profilesRes, tagsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('*')
           .order('due_date', { ascending: true, nullsFirst: false }),
         supabase.from('profiles').select('id, full_name, email').order('full_name'),
+        supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
       ]);
       if (tasksRes.error) throw tasksRes.error;
       setTasks((tasksRes.data as Task[]) || []);
       const m = new Map<string, ProfileRow>();
       for (const p of (profilesRes.data as ProfileRow[]) || []) m.set(p.id, p);
       setProfiles(m);
+      setAvailableTags((tagsRes.data as Tag[]) || []);
     } catch (err: any) {
       setError(err?.message || 'Failed to load tasks.');
     } finally {
@@ -179,6 +192,7 @@ const Tasks = () => {
 
   const reset = () => {
     setEditing(null);
+    setSelectedTagIds([]);
     setForm({
       title: '',
       description: '',
@@ -196,6 +210,7 @@ const Tasks = () => {
 
   const openEdit = (task: Task) => {
     setEditing(task);
+    setSelectedTagIds(task.tags || []);
     setForm({
       title: task.title,
       description: task.description || '',
@@ -222,6 +237,7 @@ const Tasks = () => {
         priority: form.priority,
         status: form.status,
         completed_at: form.status === 'complete' ? new Date().toISOString() : null,
+        tags: selectedTagIds,
       };
       if (editing) {
         const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id);
@@ -454,6 +470,23 @@ const Tasks = () => {
                               </p>
                             )}
                           </button>
+                          {t.tags && t.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {t.tags.map((tid) => {
+                                const tag = availableTags.find((tg) => tg.id === tid);
+                                if (!tag) return null;
+                                return (
+                                  <span
+                                    key={tid}
+                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                    style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           {assignee ? (
@@ -630,6 +663,45 @@ const Tasks = () => {
                 </Select>
               </div>
             </div>
+            {availableTags.length > 0 && (
+              <div className="space-y-1">
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableTags.map((tag) => {
+                    const selected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedTagIds((prev) =>
+                            selected ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
+                          )
+                        }
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border transition-all',
+                          selected ? 'opacity-100' : 'opacity-40 hover:opacity-75',
+                        )}
+                        style={
+                          tag.color
+                            ? {
+                                backgroundColor: `${tag.color}25`,
+                                color: tag.color,
+                                borderColor: `${tag.color}50`,
+                                outline: selected ? `2px solid ${tag.color}` : undefined,
+                                outlineOffset: '1px',
+                              }
+                            : undefined
+                        }
+                      >
+                        {selected && <Check className="mr-1 h-3 w-3" />}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>

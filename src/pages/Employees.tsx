@@ -13,6 +13,7 @@ import {
   UserX,
   Trash2,
   Info,
+  Check,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -54,6 +55,14 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { cn } from '@/lib/utils';
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  module: string | null;
+}
 
 type Role = 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
 type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
@@ -68,6 +77,7 @@ interface Employee {
   role: string;
   status: 'active' | 'inactive' | 'invited' | string;
   created_at?: string;
+  tags?: string[] | null;
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -128,6 +138,8 @@ const Employees = () => {
   });
 
   const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
@@ -140,14 +152,18 @@ const Employees = () => {
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone, role, status, created_at')
-      .order('created_at', { ascending: false });
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    const [employeesRes, tagsRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
+        .order('created_at', { ascending: false }),
+      supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
+    ]);
+    if (employeesRes.error) {
+      toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
     }
-    setEmployees((data as Employee[]) || []);
+    setEmployees((employeesRes.data as Employee[]) || []);
+    setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
   }, [toast]);
 
@@ -155,7 +171,8 @@ const Employees = () => {
     fetchEmployees();
   }, [fetchEmployees]);
 
-  const resetForm = () =>
+  const resetForm = () => {
+    setSelectedTagIds([]);
     setForm({
       first_name: '',
       last_name: '',
@@ -166,9 +183,11 @@ const Employees = () => {
       employment_type: 'full_time',
       start_date: new Date().toISOString().slice(0, 10),
     });
+  };
 
   const openEdit = (e: Employee) => {
     setEditing(e);
+    setSelectedTagIds(e.tags || []);
     setForm({
       first_name: e.first_name || (e.full_name || '').split(' ')[0] || '',
       last_name: e.last_name || (e.full_name || '').split(' ').slice(1).join(' ') || '',
@@ -318,6 +337,7 @@ const Employees = () => {
           full_name: editFullName,
           phone: form.phone || null,
           role: form.role,
+          tags: selectedTagIds,
         })
         .eq('id', editing.id);
       if (error) throw error;
@@ -495,7 +515,24 @@ const Employees = () => {
                   {pagination.slice.map((e) => (
                     <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}>
                       <TableCell className="font-medium">
-                        {displayName(e.first_name, e.last_name, e.full_name)}
+                        <div>{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                        {e.tags && e.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {e.tags.map((tid) => {
+                              const tag = availableTags.find((t) => t.id === tid);
+                              if (!tag) return null;
+                              return (
+                                <span
+                                  key={tid}
+                                  className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                  style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                                >
+                                  {tag.name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="capitalize">{roleLabel(e.role)}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -719,6 +756,45 @@ const Employees = () => {
                 <span>
                   Only Super Admin can invite employees. Admin can edit existing ones.
                 </span>
+              </div>
+            )}
+            {editing && availableTags.length > 0 && (
+              <div className="space-y-1">
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableTags.map((tag) => {
+                    const selected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedTagIds((prev) =>
+                            selected ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
+                          )
+                        }
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border transition-all',
+                          selected ? 'opacity-100' : 'opacity-40 hover:opacity-75',
+                        )}
+                        style={
+                          tag.color
+                            ? {
+                                backgroundColor: `${tag.color}25`,
+                                color: tag.color,
+                                borderColor: `${tag.color}50`,
+                                outline: selected ? `2px solid ${tag.color}` : undefined,
+                                outlineOffset: '1px',
+                              }
+                            : undefined
+                        }
+                      >
+                        {selected && <Check className="mr-1 h-3 w-3" />}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

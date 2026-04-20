@@ -42,6 +42,14 @@ import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { NIGERIAN_BANKS } from '@/lib/paystack';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { cn } from '@/lib/utils';
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  module: string | null;
+}
 
 interface Contractor {
   id: string;
@@ -150,6 +158,8 @@ const Contractors = () => {
     linkedin_id: '',
   });
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // CSV import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -168,8 +178,12 @@ const Contractors = () => {
   }, []);
 
   const fetchContractors = async () => {
-    const { data } = await supabase.from('contractors').select('*').order('full_name');
-    setContractors((data as Contractor[]) || []);
+    const [contractorsRes, tagsRes] = await Promise.all([
+      supabase.from('contractors').select('*').order('full_name'),
+      supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name'),
+    ]);
+    setContractors((contractorsRes.data as Contractor[]) || []);
+    setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
   };
 
@@ -177,6 +191,7 @@ const Contractors = () => {
     setEditing(null);
     setForm({ first_name: '', last_name: '', default_amount_ngn: '', linkedin_id: '' });
     setBank(emptyBank);
+    setSelectedTagIds([]);
   };
 
   const handleSave = async () => {
@@ -200,6 +215,7 @@ const Contractors = () => {
       default_amount_ngn: parseFloat(form.default_amount_ngn) || 0,
       linkedin_id: form.linkedin_id,
       status: 'active',
+      tags: selectedTagIds,
     };
 
     try {
@@ -238,6 +254,7 @@ const Contractors = () => {
       account_name: c.full_name,
       verified: false,
     });
+    setSelectedTagIds(c.tags || []);
     setShowForm(true);
   };
 
@@ -540,6 +557,23 @@ const Contractors = () => {
                         {c.linkedin_id}
                       </div>
                     )}
+                    {c.tags && c.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {c.tags.map((tid) => {
+                          const tag = availableTags.find((t) => t.id === tid);
+                          if (!tag) return null;
+                          return (
+                            <span
+                              key={tid}
+                              className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                              style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                            >
+                              {tag.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>{c.bank_name}</TableCell>
                   <TableCell>{c.account_number}</TableCell>
@@ -653,6 +687,45 @@ const Contractors = () => {
                 />
               </div>
             </div>
+            {availableTags.length > 0 && (
+              <div className="space-y-1">
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableTags.map((tag) => {
+                    const selected = selectedTagIds.includes(tag.id);
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedTagIds((prev) =>
+                            selected ? prev.filter((id) => id !== tag.id) : [...prev, tag.id],
+                          )
+                        }
+                        className={cn(
+                          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border transition-all',
+                          selected ? 'opacity-100' : 'opacity-40 hover:opacity-75',
+                        )}
+                        style={
+                          tag.color
+                            ? {
+                                backgroundColor: `${tag.color}25`,
+                                color: tag.color,
+                                borderColor: `${tag.color}50`,
+                                outline: selected ? `2px solid ${tag.color}` : undefined,
+                                outlineOffset: '1px',
+                              }
+                            : undefined
+                        }
+                      >
+                        {selected && <Check className="mr-1 h-3 w-3" />}
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
