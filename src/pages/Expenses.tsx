@@ -690,9 +690,15 @@ const Expenses = () => {
       return;
     }
     const e = rejectingExpense;
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('expenses')
-      .update({ status: 'rejected', rejection_reason: rejectReason.trim() })
+      .update({
+        status: 'rejected',
+        rejection_reason: rejectReason.trim(),
+        approved_by: profile?.id,
+        approved_at: now,
+      })
       .eq('id', e.id);
     if (error) {
       toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
