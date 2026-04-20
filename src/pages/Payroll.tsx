@@ -36,7 +36,6 @@ import {
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { renderPayslipHtml } from '@/lib/payslip';
-import { calculatePAYE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,6 +106,27 @@ interface PayrollRun {
 const PENSION_RATE = 0.08;           // 8% employee contribution
 const EMPLOYER_PENSION_RATE = 0.10;  // 10% employer contribution
 const NHF_RATE = 0.025;              // 2.5%
+
+function calculateNigerianPAYE(monthlySalaryNgn: number): number {
+  const annualGross = monthlySalaryNgn * 12;
+  const bands = [
+    { limit: 300_000,   rate: 0.07 },
+    { limit: 300_000,   rate: 0.11 },
+    { limit: 500_000,   rate: 0.15 },
+    { limit: 500_000,   rate: 0.19 },
+    { limit: 1_600_000, rate: 0.21 },
+    { limit: Infinity,  rate: 0.24 },
+  ];
+  let remaining = annualGross;
+  let annualTax = 0;
+  for (const band of bands) {
+    if (remaining <= 0) break;
+    const taxable = Math.min(remaining, band.limit);
+    annualTax += taxable * band.rate;
+    remaining -= taxable;
+  }
+  return annualTax / 12;
+}
 
 const monthLabel = (period: string, periodType?: string): string => {
   const [y, m] = period.split('-');
@@ -250,7 +270,7 @@ const Payroll = () => {
           0,
         ) || 0;
       const empCount = (employeeRes.data || []).length;
-      const paye = calculatePAYE(totalContractor + totalEmployee);
+      const paye = calculateNigerianPAYE(totalContractor + totalEmployee);
       const pension = (totalContractor + totalEmployee) * PENSION_RATE;
       const nhf = (totalContractor + totalEmployee) * NHF_RATE;
       const employerPension = totalEmployee * EMPLOYER_PENSION_RATE;
@@ -384,7 +404,7 @@ const Payroll = () => {
         });
         try {
           const empGross = Number(e.salary_ngn);
-          const empPaye = calculatePAYE(empGross);
+          const empPaye = calculateNigerianPAYE(empGross);
           const empPension = empGross * PENSION_RATE;
           const empNhf = empGross * NHF_RATE;
           const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);
