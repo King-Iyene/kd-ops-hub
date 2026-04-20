@@ -36,6 +36,7 @@ const PRIVILEGED_ACTIONS = new Set([
   "create_recipient",
   "initiate_transfer",
   "verify_transfer",
+  "get_balance",
 ]);
 
 const PRIVILEGED_ROLES = new Set(["super_admin", "admin", "finance"]);
@@ -208,6 +209,16 @@ serve(async (req) => {
           transfer_code: body.data?.transfer_code,
           reason: body.data?.failures?.[0]?.reason || body.data?.reason,
           raw: body.data,
+        };
+        break;
+      }
+
+      case "get_balance": {
+        const body = await paystackFetch('/balance');
+        result = {
+          available: (body.data?.balance ?? 0) / 100,
+          pending: (body.data?.pending_balance ?? 0) / 100,
+          currency: body.data?.currency ?? 'NGN'
         };
         break;
       }
