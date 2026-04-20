@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle, Wallet } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
@@ -144,14 +144,17 @@ const Payments = () => {
           {/* Paystack Balance Card */}
           <div
             className={cn(
-              'rounded-lg border bg-card px-4 py-2.5 text-sm min-w-[220px] shadow-sm',
+              'rounded-lg border bg-card px-4 py-3 text-sm min-w-[240px] shadow-sm',
               isLowBalance && 'border-amber-400 bg-amber-50 dark:bg-amber-950/30',
             )}
           >
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <span className={cn('font-medium text-xs uppercase tracking-wide', isLowBalance ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
-                Paystack Balance
-              </span>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Wallet className={cn('h-4 w-4', isLowBalance ? 'text-amber-600' : 'text-primary')} />
+                <span className={cn('font-semibold text-xs uppercase tracking-wide', isLowBalance ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground')}>
+                  Paystack Balance
+                </span>
+              </div>
               <button
                 onClick={fetchBalance}
                 disabled={balanceLoading}
@@ -163,25 +166,30 @@ const Payments = () => {
             </div>
 
             {balanceLoading && balance === null ? (
-              <div className="space-y-1.5 py-0.5">
-                <div className="h-7 w-36 bg-muted animate-pulse rounded" />
-                <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+              <div className="space-y-2 py-0.5">
+                <div className="h-8 w-40 bg-muted animate-pulse rounded" />
+                <div className="h-3 w-28 bg-muted animate-pulse rounded" />
               </div>
             ) : (
               <>
-                <p className={cn('text-xl font-bold tracking-tight', isLowBalance && 'text-amber-700 dark:text-amber-400')}>
+                <p className={cn('text-2xl font-extrabold tracking-tight', isLowBalance ? 'text-amber-700 dark:text-amber-400' : 'text-foreground')}>
                   {balance ? formatNaira(balance.available) : '—'}
                 </p>
-                <p className="text-xs text-muted-foreground">Available for transfers</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {!isLowBalance && balance && (
+                    <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                  )}
+                  <p className="text-xs text-muted-foreground">Available for transfers</p>
+                </div>
               </>
             )}
 
             {balanceUpdatedAt && (
-              <p className="text-xs text-muted-foreground/60 mt-0.5">Updated {balanceUpdatedAt}</p>
+              <p className="text-[11px] text-muted-foreground/50 mt-1">Last refreshed: {balanceUpdatedAt}</p>
             )}
 
             {isLowBalance && (
-              <div className="flex items-start gap-1.5 mt-1.5">
+              <div className="flex items-start gap-1.5 mt-2 rounded-md bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 dark:text-amber-400 leading-snug">
                   Low balance — fund your Paystack account before processing payments
@@ -189,17 +197,23 @@ const Payments = () => {
               </div>
             )}
 
-            <div className="mt-2 space-y-1">
+            <div className="mt-2.5 flex gap-2">
               <Button
                 variant="outline"
-                className="w-full h-7 text-xs"
-                onClick={() => window.open('https://dashboard.paystack.com/#/balances', '_blank')}
+                size="sm"
+                className="flex-1 h-7 text-xs"
+                onClick={() => window.open('https://dashboard.paystack.com/#/balance/', '_blank')}
               >
-                Fund Paystack Balance
+                Fund Paystack Wallet
               </Button>
-              <p className="text-[11px] text-muted-foreground/70 text-center leading-snug">
-                Opens Paystack dashboard to fund your transfer balance
-              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 h-7 text-xs"
+                onClick={() => window.open('https://dashboard.paystack.com/#/transfers', '_blank')}
+              >
+                View Transactions &rarr;
+              </Button>
             </div>
           </div>
 
