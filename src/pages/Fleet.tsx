@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
@@ -473,18 +474,7 @@ const Fleet = () => {
                         {r.reason || '—'}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className={
-                            r.status === 'approved'
-                              ? 'bg-success/10 text-success'
-                              : r.status === 'rejected'
-                              ? 'bg-destructive/10 text-destructive'
-                              : 'bg-warning/10 text-warning'
-                          }
-                        >
-                          {r.status}
-                        </Badge>
+                        <StatusBadge status={r.status} />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(r.created_at)}

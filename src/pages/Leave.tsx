@@ -61,6 +61,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { StatCard } from '@/components/ui-kit/StatCard';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
 
 type LeaveType = 'annual' | 'sick' | 'unpaid';
@@ -106,11 +107,6 @@ const TYPE_BADGE: Record<LeaveType, string> = {
   unpaid: 'bg-muted text-muted-foreground',
 };
 
-const STATUS_BADGE: Record<LeaveStatus, string> = {
-  pending: 'bg-warning/10 text-warning',
-  approved: 'bg-success/10 text-success',
-  rejected: 'bg-destructive/10 text-destructive',
-};
 
 const calcDays = (start: string, end: string): number => {
   const a = new Date(start);
@@ -601,9 +597,7 @@ const Leave = () => {
                               {r.reason || '—'}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary" className={STATUS_BADGE[r.status]}>
-                                {r.status}
-                              </Badge>
+                              <StatusBadge status={r.status} />
                               {r.status === 'rejected' && r.rejection_reason && (
                                 <p className="text-xs text-destructive mt-1">
                                   {r.rejection_reason}

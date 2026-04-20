@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
@@ -1130,22 +1131,7 @@ const Expenses = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
-                          <Badge
-                            variant="secondary"
-                            className={
-                              e.status === 'approved'
-                                ? 'bg-success/10 text-success'
-                                : e.status === 'rejected'
-                                ? 'bg-destructive/10 text-destructive'
-                                : e.status === 'pending_second_approval'
-                                ? 'bg-orange-100 text-orange-700'
-                                : 'bg-warning/10 text-warning'
-                            }
-                          >
-                            {e.status === 'pending_second_approval'
-                              ? 'Pending 2nd Approval'
-                              : e.status}
-                          </Badge>
+                          <StatusBadge status={e.status} />
                           {e.status === 'pending_second_approval' && (
                             <span className="text-[10px] text-muted-foreground">
                               1 of 2 approvals

@@ -40,7 +40,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -71,6 +70,7 @@ import { displayName } from '@/lib/name';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 
 interface BonusLine {
   type: string;
@@ -146,12 +146,6 @@ const monthLabel = (period: string, periodType?: string): string => {
 const monthPeriod = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-const STATUS_CLASS: Record<PayrollRun['status'], string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending_approval: 'bg-warning/10 text-warning',
-  approved: 'bg-success/10 text-success',
-  paid: 'bg-info/10 text-info',
-};
 
 const BONUS_TYPES = [
   'Performance Bonus',
@@ -957,9 +951,7 @@ const Payroll = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={STATUS_CLASS[r.status]}>
-                        {r.status.replace('_', ' ')}
-                      </Badge>
+                      <StatusBadge status={r.status} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
