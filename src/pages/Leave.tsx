@@ -401,7 +401,7 @@ const Leave = () => {
     try {
       const { error } = await supabase
         .from('leave_requests')
-        .delete()
+        .update({ status: 'cancelled' })
         .eq('id', req.id);
       if (error) throw error;
       await logAudit('leave_cancelled', `Leave request cancelled (${req.days_requested} days)`, profile);
