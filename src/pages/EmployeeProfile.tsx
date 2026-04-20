@@ -36,6 +36,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 interface EmployeeData {
   id: string;
@@ -72,6 +73,9 @@ const EmployeeProfile = () => {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [form, setForm] = useState<Partial<EmployeeData>>({});
+  const [bankDetails, setBankDetails] = useState<BankAccountValue>({
+    bank_name: '', account_number: '', account_name: '', verified: false,
+  });
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -105,6 +109,12 @@ const EmployeeProfile = () => {
     const emp = data as EmployeeData;
     setEmployee(emp);
     setForm(emp);
+    setBankDetails({
+      bank_name: emp.bank_name || '',
+      account_number: emp.bank_account_number || '',
+      account_name: emp.bank_account_name || '',
+      verified: !!(emp.bank_name && emp.bank_account_number && emp.bank_account_name),
+    });
     setPermissions((data as any).permissions || {});
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes] = await Promise.all([
@@ -353,16 +363,28 @@ const EmployeeProfile = () => {
           <Card>
             <CardHeader><CardTitle className="text-base">Bank details</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1"><Label>Bank</Label><Input value={form.bank_name || ''} onChange={(e) => patch({ bank_name: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Account number</Label><Input value={form.bank_account_number || ''} onChange={(e) => patch({ bank_account_number: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Account name</Label><Input value={form.bank_account_name || ''} onChange={(e) => patch({ bank_account_name: e.target.value })} /></div>
-              </div>
+              <BankAccountField
+                value={bankDetails}
+                onChange={(v) => {
+                  setBankDetails(v);
+                  patch({
+                    bank_name: v.bank_name,
+                    bank_account_number: v.account_number,
+                    bank_account_name: v.account_name,
+                  });
+                }}
+              />
               <div className="space-y-1"><Label>Pension PIN</Label><Input value={form.pension_pin || ''} onChange={(e) => patch({ pension_pin: e.target.value })} /></div>
             </CardContent>
           </Card>
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving}>
+          <div className="flex justify-end gap-2 items-center">
+            {bankDetails.account_number.length > 0 && !bankDetails.verified && (
+              <p className="text-xs text-destructive">Verify bank account before saving.</p>
+            )}
+            <Button
+              onClick={save}
+              disabled={saving || (bankDetails.account_number.length > 0 && !bankDetails.verified)}
+            >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               Save changes
             </Button>
