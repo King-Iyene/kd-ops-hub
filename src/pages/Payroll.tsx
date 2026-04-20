@@ -174,6 +174,7 @@ const Payroll = () => {
   const [disburseTarget, setDisburseTarget] = useState<{ run: PayrollRun; payslips: any[] } | null>(null);
   const [disbursing, setDisbursing] = useState(false);
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
+  const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
   const [form, setForm] = useState<{
     period: string;
     period_type: 'monthly' | 'quarterly' | 'annual';
@@ -657,7 +658,10 @@ const Payroll = () => {
     }
   };
 
-  const markPaid = async (run: PayrollRun) => {
+  const markPaid = async () => {
+    if (!confirmPaidRun) return;
+    const run = confirmPaidRun;
+    setConfirmPaidRun(null);
     const { error } = await supabase
       .from('payroll_runs')
       .update({ status: 'paid' })
@@ -972,8 +976,8 @@ const Payroll = () => {
                                 Disburse salaries
                               </Button>
                             )}
-                            <Button size="sm" variant="outline" onClick={() => markPaid(r)}>
-                              Mark paid
+                            <Button size="sm" variant="outline" onClick={() => setConfirmPaidRun(r)}>
+                              Record as Manually Paid
                             </Button>
                           </>
                         )}
@@ -1165,6 +1169,21 @@ const Payroll = () => {
                 : <Send className="mr-2 h-4 w-4" />}
               Disburse
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmPaidRun} onOpenChange={(open) => { if (!open) setConfirmPaidRun(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm manual payment record</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            ⚠️ This records that salaries were paid via your bank or another method. No automatic transfer will be made by KDOps. Only proceed if you have already transferred salaries manually.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPaidRun(null)}>Cancel</Button>
+            <Button onClick={markPaid}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
