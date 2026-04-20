@@ -175,6 +175,9 @@ const Payroll = () => {
   const [disbursing, setDisbursing] = useState(false);
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => localStorage.getItem('kdops_payroll_banner_dismissed') === 'true',
+  );
   const [form, setForm] = useState<{
     period: string;
     period_type: 'monthly' | 'quarterly' | 'annual';
@@ -792,6 +795,25 @@ const Payroll = () => {
           </Button>
         </div>
       </div>
+
+      {!bannerDismissed && (
+        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
+          <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
+          <p className="flex-1 leading-relaxed">
+            Payroll runs calculate monthly people costs: gross salaries, PAYE tax, pension contributions, and NHF deductions. Approve a run to generate payslips. Note: KDOps records payroll figures — salary transfers must be initiated separately via the Payments module.
+          </p>
+          <button
+            onClick={() => {
+              setBannerDismissed(true);
+              localStorage.setItem('kdops_payroll_banner_dismissed', 'true');
+            }}
+            className="shrink-0 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
