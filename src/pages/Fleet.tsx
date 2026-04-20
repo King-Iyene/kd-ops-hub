@@ -38,7 +38,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard } from 'lucide-react';
+import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface FieldStaff {
@@ -59,6 +60,9 @@ interface FuelRequest {
   status: string;
   admin_note: string | null;
   created_at: string;
+  bank_name: string | null;
+  account_number: string | null;
+  account_name: string | null;
 }
 
 interface TripLog {
@@ -104,6 +108,10 @@ const Fleet = () => {
     odometer: '',
     reason: '',
   });
+
+  const EMPTY_FUEL_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
+  const [fuelBankDetails, setFuelBankDetails] = useState<BankAccountValue>(EMPTY_FUEL_BANK);
+  const [showFuelBankSection, setShowFuelBankSection] = useState(false);
 
   // Trip log form
   const [showTripForm, setShowTripForm] = useState(false);
@@ -186,6 +194,11 @@ const Fleet = () => {
       odometer: parseFloat(fuelForm.odometer) || null,
       reason: fuelForm.reason,
       status: 'pending',
+      ...(fuelBankDetails.verified ? {
+        bank_name: fuelBankDetails.bank_name,
+        account_number: fuelBankDetails.account_number,
+        account_name: fuelBankDetails.account_name,
+      } : {}),
     });
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -214,6 +227,8 @@ const Fleet = () => {
         odometer: '',
         reason: '',
       });
+      setShowFuelBankSection(false);
+      setFuelBankDetails(EMPTY_FUEL_BANK);
       fetchData();
     }
     setSubmitting(false);
@@ -286,6 +301,7 @@ const Fleet = () => {
       setFuelRejectReason('');
       return;
     }
+    const now = new Date().toISOString();
     const { error } = await supabase
       .from('fuel_requests')
       .update({ status: 'approved' })
@@ -294,6 +310,22 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
+    await supabase.from('expenses').insert({
+      category: 'fuel',
+      budget_category: 'fuel',
+      amount_ngn: request.amount_ngn,
+      date: now.slice(0, 10),
+      description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
+      submitted_by: (request as any).driver_id || request.employee_id,
+      status: 'approved',
+      approved_by: profile?.id,
+      approved_at: now,
+      ...(request.bank_name ? {
+        bank_name: request.bank_name,
+        account_number: request.account_number,
+        account_name: request.account_name,
+      } : {}),
+    });
     await logAudit(
       'fuel_request_approved',
       `Fuel request for ${request.employee_name} approved (${formatNaira(request.amount_ngn || 0)})`,
@@ -587,7 +619,7 @@ const Fleet = () => {
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
-      <Dialog open={showFuelForm} onOpenChange={setShowFuelForm}>
+      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Fuel Request</DialogTitle>
@@ -655,6 +687,35 @@ const Fleet = () => {
                 value={fuelForm.reason}
                 onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })}
               />
+            </div>
+            <div className="pt-2 border-t">
+              {!showFuelBankSection ? (
+                <button
+                  type="button"
+                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+                  onClick={() => setShowFuelBankSection(true)}
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Add bank account for reimbursement (optional)
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">
+                      Bank account for reimbursement{' '}
+                      <span className="text-muted-foreground font-normal">(optional)</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
