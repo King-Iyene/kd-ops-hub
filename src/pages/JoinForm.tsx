@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   UserPlus,
   BadgeCheck,
+  Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
@@ -34,12 +35,15 @@ const JoinForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [applicationType, setApplicationType] = useState<'linkedin_partner' | 'general_contractor'>('linkedin_partner');
+
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
     linkedin_url: '',
+    heyreach_password: '',
     bank_name: '',
     account_number: '',
     additional_info: '',
@@ -50,6 +54,7 @@ const JoinForm = () => {
   const [accountName, setAccountName] = useState('');
   const [verifyError, setVerifyError] = useState('');
 
+  const isLinkedInPartner = applicationType === 'linkedin_partner';
   const isValidNuban = /^\d{10}$/.test(form.account_number);
   const isValidLinkedIn = LINKEDIN_RE.test(form.linkedin_url.trim());
   const bankReady = isValidNuban && !!form.bank_name;
@@ -99,12 +104,16 @@ const JoinForm = () => {
       toast({ title: 'Phone / WhatsApp number is required', variant: 'destructive' });
       return;
     }
-    if (!isValidLinkedIn) {
+    if (isLinkedInPartner && !isValidLinkedIn) {
       toast({
         title: 'LinkedIn profile URL required',
         description: 'Must start with https://linkedin.com/in/...',
         variant: 'destructive',
       });
+      return;
+    }
+    if (isLinkedInPartner && !form.heyreach_password.trim()) {
+      toast({ title: 'LinkedIn Password is required', variant: 'destructive' });
       return;
     }
     if (!form.bank_name) {
@@ -132,8 +141,10 @@ const JoinForm = () => {
         full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
-        linkedin_url: form.linkedin_url.trim(),
-        linkedin_profile_url: form.linkedin_url.trim(),
+        linkedin_url: isLinkedInPartner ? form.linkedin_url.trim() : null,
+        linkedin_profile_url: isLinkedInPartner ? form.linkedin_url.trim() : null,
+        heyreach_password: isLinkedInPartner ? form.heyreach_password.trim() : null,
+        application_type: applicationType,
         bank_name: form.bank_name,
         account_number: form.account_number,
         account_name: accountName,
@@ -190,6 +201,25 @@ const JoinForm = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Application type */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Application type
+              </h3>
+              <div className="space-y-1">
+                <Label>I am applying as *</Label>
+                <Select value={applicationType} onValueChange={(v) => setApplicationType(v as typeof applicationType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="linkedin_partner">LinkedIn Campaign Partner</SelectItem>
+                    <SelectItem value="general_contractor">General Contractor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {/* Personal information */}
             <div className="space-y-3">
@@ -261,6 +291,22 @@ const JoinForm = () => {
                   </p>
                 )}
               </div>
+              {isLinkedInPartner && (
+                <div className="space-y-1">
+                  <Label>LinkedIn Password *</Label>
+                  <Input
+                    type="text"
+                    value={form.heyreach_password}
+                    onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
+                    placeholder="Enter your LinkedIn login password"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                    We use this to manage your LinkedIn outreach campaigns on your behalf. Your credentials are stored securely and only used for campaign management on the HeyReach platform.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Bank details */}
@@ -353,7 +399,8 @@ const JoinForm = () => {
                 !form.last_name.trim() ||
                 !form.email.trim() ||
                 !form.phone.trim() ||
-                !isValidLinkedIn ||
+                (isLinkedInPartner && !isValidLinkedIn) ||
+                (isLinkedInPartner && !form.heyreach_password.trim()) ||
                 !isValidNuban ||
                 !form.bank_name ||
                 !bankVerified
