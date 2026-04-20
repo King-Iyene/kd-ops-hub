@@ -69,6 +69,9 @@ interface CompanySettings {
   airtable_income_table_id: string | null;
   airtable_expenses_table_id: string | null;
   airtable_sync_enabled: boolean;
+  paystack_funding_bank: string | null;
+  paystack_funding_account_name: string | null;
+  paystack_funding_account_number: string | null;
   smtp_host: string | null;
   smtp_port: number | null;
   smtp_username: string | null;
@@ -196,6 +199,9 @@ const SettingsPage = () => {
         airtable_income_table_id: settings.airtable_income_table_id,
         airtable_expenses_table_id: settings.airtable_expenses_table_id,
         airtable_sync_enabled: settings.airtable_sync_enabled,
+        paystack_funding_bank: settings.paystack_funding_bank,
+        paystack_funding_account_name: settings.paystack_funding_account_name,
+        paystack_funding_account_number: settings.paystack_funding_account_number,
         resend_from_address: (settings as any).resend_from_address || null,
         resend_api_key_configured: !!(settings as any).resend_api_key_configured,
         termii_sender_id: (settings as any).termii_sender_id || null,
@@ -462,6 +468,37 @@ const SettingsPage = () => {
                   <p className="text-[11px] text-muted-foreground">
                     Stored encrypted. Never displayed after save.
                   </p>
+                </div>
+              </div>
+              <Separator />
+              <p className="text-xs font-medium text-muted-foreground pt-1">Paystack funding details</p>
+              <p className="text-xs text-muted-foreground -mt-1">
+                Shown on the Payments page so your team can fund the Paystack balance via bank transfer.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label>Bank name</Label>
+                  <Input
+                    value={settings.paystack_funding_bank || ''}
+                    onChange={(e) => patch({ paystack_funding_bank: e.target.value })}
+                    placeholder="e.g. GTBank"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Account name</Label>
+                  <Input
+                    value={settings.paystack_funding_account_name || ''}
+                    onChange={(e) => patch({ paystack_funding_account_name: e.target.value })}
+                    placeholder="e.g. Paystack Payments"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Account number</Label>
+                  <Input
+                    value={settings.paystack_funding_account_number || ''}
+                    onChange={(e) => patch({ paystack_funding_account_number: e.target.value })}
+                    placeholder="e.g. 0123456789"
+                  />
                 </div>
               </div>
               <div className="rounded-md border bg-primary/5 p-3 text-xs text-muted-foreground">

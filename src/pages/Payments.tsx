@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2, Info, RefreshCw, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Loader2, Info, RefreshCw, ExternalLink, AlertTriangle, Copy, Check } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
@@ -33,6 +33,12 @@ interface BalanceData {
   currency: string;
 }
 
+interface FundingDetails {
+  bank: string;
+  account_name: string;
+  account_number: string;
+}
+
 const LOW_BALANCE_THRESHOLD = 10_000;
 
 const Payments = () => {
@@ -48,6 +54,30 @@ const Payments = () => {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
+  const [fundingDetails, setFundingDetails] = useState<FundingDetails | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const fetchFundingDetails = useCallback(async () => {
+    const { data } = await supabase
+      .from('company_settings')
+      .select('paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number')
+      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .maybeSingle();
+    if (data?.paystack_funding_account_number) {
+      setFundingDetails({
+        bank: data.paystack_funding_bank || '',
+        account_name: data.paystack_funding_account_name || '',
+        account_number: data.paystack_funding_account_number || '',
+      });
+    }
+  }, []);
+
+  const copyAccountNumber = () => {
+    if (!fundingDetails) return;
+    navigator.clipboard.writeText(fundingDetails.account_number);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
@@ -69,7 +99,8 @@ const Payments = () => {
 
   useEffect(() => {
     fetchBalance();
-  }, [fetchBalance]);
+    fetchFundingDetails();
+  }, [fetchBalance, fetchFundingDetails]);
 
   useEffect(() => {
     fetchBatches();
@@ -179,6 +210,30 @@ const Payments = () => {
 
             {balanceUpdatedAt && (
               <p className="text-xs text-muted-foreground/60 mt-0.5">Updated {balanceUpdatedAt}</p>
+            )}
+
+            {fundingDetails && (
+              <div className="mt-2 pt-2 border-t border-dashed space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">How to fund</p>
+                <div className="text-xs space-y-0.5">
+                  <p><span className="text-muted-foreground">Bank:</span> {fundingDetails.bank}</p>
+                  <p><span className="text-muted-foreground">Account:</span> {fundingDetails.account_name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground">Number:</span>
+                    <span className="font-mono font-medium">{fundingDetails.account_number}</span>
+                    <button
+                      onClick={copyAccountNumber}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Copy account number"
+                    >
+                      {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground/70 leading-snug">
+                  Transfer from any Nigerian bank. Funds reflect in your Paystack balance within minutes.
+                </p>
+              </div>
             )}
 
             {isLowBalance && (
