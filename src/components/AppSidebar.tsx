@@ -24,6 +24,7 @@ import {
   Gift,
   Contact2,
   ArrowUpDown,
+  Layers,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -65,7 +66,7 @@ type NavItem = {
 const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',     url: '/',              icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Approvals',     url: '/approvals',     icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', section: 'Finance' },
-  { title: 'Payments',      url: '/payments',      icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Payments',      url: '/payments',      icon: Layers,          roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Transactions',  url: '/transactions',  icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',       url: '/payroll',       icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
