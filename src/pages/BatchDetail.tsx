@@ -804,6 +804,7 @@ const BatchDetail = () => {
                   <TableHead>Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Reference</TableHead>
+                  <TableHead>Paystack Ref</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -818,6 +819,9 @@ const BatchDetail = () => {
                       {formatNaira(item.amount_ngn || 0)}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {item.paystack_reference || '—'}
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         <Badge
