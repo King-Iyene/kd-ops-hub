@@ -40,8 +40,6 @@ const JoinForm = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const [applicationType, setApplicationType] = useState<'linkedin_partner' | 'general_contractor'>('linkedin_partner');
-
   const [form, setForm] = useState({
     first_name: '',
     last_name: '',
@@ -51,7 +49,6 @@ const JoinForm = () => {
     heyreach_password: '',
     bank_name: '',
     account_number: '',
-    additional_info: '',
   });
 
   const [socialLinks, setSocialLinks] = useState<{
@@ -76,7 +73,6 @@ const JoinForm = () => {
   const [accountName, setAccountName] = useState('');
   const [verifyError, setVerifyError] = useState('');
 
-  const isLinkedInPartner = applicationType === 'linkedin_partner';
   const isValidNuban = /^\d{10}$/.test(form.account_number);
   const isValidLinkedIn = LINKEDIN_RE.test(form.linkedin_url.trim());
   const bankReady = isValidNuban && !!form.bank_name;
@@ -126,7 +122,7 @@ const JoinForm = () => {
       toast({ title: 'Phone / WhatsApp number is required', variant: 'destructive' });
       return;
     }
-    if (isLinkedInPartner && !isValidLinkedIn) {
+    if (!isValidLinkedIn) {
       toast({
         title: 'LinkedIn profile URL required',
         description: 'Must start with https://linkedin.com/in/...',
@@ -134,7 +130,7 @@ const JoinForm = () => {
       });
       return;
     }
-    if (isLinkedInPartner && !form.heyreach_password.trim()) {
+    if (!form.heyreach_password.trim()) {
       toast({ title: 'LinkedIn Password is required', variant: 'destructive' });
       return;
     }
@@ -163,14 +159,12 @@ const JoinForm = () => {
         full_name: `${form.first_name.trim()} ${form.last_name.trim()}`,
         email: form.email.trim().toLowerCase(),
         phone: form.phone.trim(),
-        linkedin_url: isLinkedInPartner ? form.linkedin_url.trim() : null,
-        linkedin_profile_url: isLinkedInPartner ? form.linkedin_url.trim() : null,
-        heyreach_password: isLinkedInPartner ? form.heyreach_password.trim() : null,
-        application_type: applicationType,
+        linkedin_url: form.linkedin_url.trim(),
+        linkedin_profile_url: form.linkedin_url.trim(),
+        heyreach_password: form.heyreach_password.trim(),
         bank_name: form.bank_name,
         account_number: form.account_number,
         account_name: accountName,
-        additional_info: form.additional_info.trim() || null,
         referral_code: refCode || null,
         status: 'pending_review',
       });
@@ -224,25 +218,6 @@ const JoinForm = () => {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Application type */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Application type
-              </h3>
-              <div className="space-y-1">
-                <Label>I am applying as *</Label>
-                <Select value={applicationType} onValueChange={(v) => setApplicationType(v as typeof applicationType)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="linkedin_partner">LinkedIn Campaign Partner</SelectItem>
-                    <SelectItem value="general_contractor">General Contractor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             {/* Personal information */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -267,6 +242,9 @@ const JoinForm = () => {
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground sm:col-span-2">
+                  Please this should be exactly the full name you have on your LinkedIn profile
+                </p>
                 <div className="space-y-1">
                   <Label>Email *</Label>
                   <Input
@@ -313,22 +291,20 @@ const JoinForm = () => {
                   </p>
                 )}
               </div>
-              {isLinkedInPartner && (
-                <div className="space-y-1">
-                  <Label>LinkedIn Password *</Label>
-                  <Input
-                    type="text"
-                    value={form.heyreach_password}
-                    onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
-                    placeholder="Enter your LinkedIn login password"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground flex items-start gap-1.5">
-                    <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                    We use this to manage your LinkedIn outreach campaigns on your behalf. Your credentials are stored securely and only used for campaign management on the HeyReach platform.
-                  </p>
-                </div>
-              )}
+              <div className="space-y-1">
+                <Label>LinkedIn Password *</Label>
+                <Input
+                  type="text"
+                  value={form.heyreach_password}
+                  onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
+                  placeholder="Enter your LinkedIn login password"
+                  required
+                />
+                <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                  <Info className="h-3 w-3 mt-0.5 shrink-0" />
+                  We use this to manage your LinkedIn outreach campaigns on your behalf. Your credentials are stored securely and only used for campaign management on the HeyReach platform.
+                </p>
+              </div>
             </div>
 
             {/* Bank details */}
@@ -396,22 +372,6 @@ const JoinForm = () => {
               )}
             </div>
 
-            {/* Additional information */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Additional information
-              </h3>
-              <div className="space-y-1">
-                <Label>Tell us about yourself (optional)</Label>
-                <Textarea
-                  value={form.additional_info}
-                  onChange={(e) => setForm({ ...form, additional_info: e.target.value })}
-                  placeholder="Your experience with LinkedIn outreach, previous campaigns, availability, etc."
-                  rows={4}
-                />
-              </div>
-            </div>
-
             <Button
               type="submit"
               className="w-full"
@@ -421,8 +381,8 @@ const JoinForm = () => {
                 !form.last_name.trim() ||
                 !form.email.trim() ||
                 !form.phone.trim() ||
-                (isLinkedInPartner && !isValidLinkedIn) ||
-                (isLinkedInPartner && !form.heyreach_password.trim()) ||
+                !isValidLinkedIn ||
+                !form.heyreach_password.trim() ||
                 !isValidNuban ||
                 !form.bank_name ||
                 !bankVerified
