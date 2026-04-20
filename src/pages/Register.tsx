@@ -33,7 +33,6 @@ const Register = () => {
       password,
       options: { data: { full_name: fullName } },
     });
-    console.log('[KDOps] signUp response:', { data, error });
     if (error) {
       toast({ title: 'Registration failed', description: error.message, variant: 'destructive' });
       setLoading(false);
