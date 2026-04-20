@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   UserX,
+  Trash2,
   Info,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -125,6 +126,8 @@ const Employees = () => {
     employment_type: 'full_time' as EmploymentType,
     start_date: new Date().toISOString().slice(0, 10),
   });
+
+  const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
@@ -363,6 +366,19 @@ const Employees = () => {
     fetchEmployees();
   };
 
+  const deleteEmployee = async (e: Employee) => {
+    try {
+      const { error } = await supabase.rpc('delete_user_completely', { user_id: e.id });
+      if (error) throw error;
+      await logAudit('employee_deleted', `Employee "${e.full_name}" permanently deleted`, profile);
+      toast({ title: 'Employee deleted' });
+      setConfirmDelete(null);
+      fetchEmployees();
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+    }
+  };
+
   const filtered = employees.filter((e) => {
     const q = search.trim().toLowerCase();
     if (roleFilter !== 'all' && e.role !== roleFilter) return false;
@@ -533,6 +549,16 @@ const Employees = () => {
                               ) : (
                                 <CheckCircle2 className="h-4 w-4 text-success" />
                               )}
+                            </Button>
+                          )}
+                          {isSuperAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmDelete(e); }}
+                              title="Delete permanently"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
                         </div>
@@ -729,6 +755,24 @@ const Employees = () => {
                 <Mail className="mr-2 h-4 w-4" /> Send invite
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete employee permanently</DialogTitle>
+            <DialogDescription>
+              This will permanently remove <strong>{confirmDelete?.full_name}</strong> from
+              both the platform and Supabase Auth. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && deleteEmployee(confirmDelete)}>
+              Delete permanently
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
