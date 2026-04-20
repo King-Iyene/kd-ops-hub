@@ -83,6 +83,14 @@ interface PersonalKPIs {
   pendingFuel: number;
 }
 
+interface UpcomingPayment {
+  id: string;
+  name: string;
+  total_amount: number;
+  scheduled_date: string;
+  status: string;
+}
+
 const ICONS: Record<string, typeof FileText> = {
   batch_created: Plus,
   batch_submitted: CheckCircle,
@@ -141,6 +149,7 @@ const Dashboard = () => {
   const { profile } = useAuthStore();
   const effectiveRole = useEffectiveRole();
   const isPersonal = ['field_staff', 'driver'].includes(profile?.role || '');
+  const isFinanceRole = ['admin', 'finance', 'super_admin'].includes(profile?.role || '');
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
@@ -153,6 +162,8 @@ const Dashboard = () => {
   const [upcoming, setUpcoming] = useState<UpcomingSub[]>([]);
   const [budgetUtil, setBudgetUtil] = useState<BudgetUtil[]>([]);
   const [loading, setLoading] = useState(true);
+  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
+
   const [personalKPIs, setPersonalKPIs] = useState<PersonalKPIs>({
     pendingExpenses: 0,
     leaveDaysRemaining: 0,
@@ -199,6 +210,8 @@ const Dashboard = () => {
       ).toISOString();
       const inThirtyDays = new Date();
       inThirtyDays.setDate(inThirtyDays.getDate() + 30);
+      const today = now.toISOString().slice(0, 10);
+      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
       const [
         batchesRes,
@@ -208,6 +221,7 @@ const Dashboard = () => {
         budgetsRes,
         expensesRes,
         processedBatchesRes,
+        upcomingPaymentsRes,
       ] = await Promise.all([
         supabase
           .from('payment_batches')
@@ -244,6 +258,14 @@ const Dashboard = () => {
           .from('payment_batches')
           .select('total_amount, payment_date, status')
           .in('status', ['processed', 'funded']),
+        supabase
+          .from('payment_batches')
+          .select('id, name, total_amount, scheduled_date, status')
+          .gte('scheduled_date', today)
+          .lte('scheduled_date', sevenDaysFromNow)
+          .eq('status', 'scheduled')
+          .order('scheduled_date', { ascending: true })
+          .limit(5),
       ]);
 
       const totalDisbursed =
@@ -259,6 +281,7 @@ const Dashboard = () => {
       setStats({ partnersPaid, totalDisbursed, fuelSpend });
       setActivity((activityRes.data as AuditLogRow[]) || []);
       setUpcoming((subsRes.data as UpcomingSub[]) || []);
+      setUpcomingPayments((upcomingPaymentsRes.data as UpcomingPayment[]) || []);
 
       // Compute planned vs actual for the approved budgets.
       const expenses = expensesRes.data || [];
@@ -591,6 +614,53 @@ const Dashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {isFinanceRole && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base">Upcoming Payments (Next 7 Days)</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/payments')}>
+                View all <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              ) : upcomingPayments.length === 0 ? (
+                <EmptyState
+                  icon={CalendarClock}
+                  title="No payments scheduled in the next 7 days"
+                  description="Scheduled payment batches will appear here."
+                />
+              ) : (
+                <div className="space-y-2">
+                  {upcomingPayments.map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between border rounded-lg p-3 kd-transition hover:bg-muted/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(p.scheduled_date)}</p>
+                      </div>
+                      <p className="font-semibold currency shrink-0 ml-3">{formatNaira(p.total_amount)}</p>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 border-t text-sm">
+                    <span className="text-muted-foreground">Total upcoming</span>
+                    <span className="font-bold currency">
+                      {formatNaira(upcomingPayments.reduce((s, p) => s + (p.total_amount || 0), 0))}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
