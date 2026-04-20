@@ -105,22 +105,6 @@ const csvEscape = (v: any): string => {
   return s;
 };
 
-// Build the sample CSV with three example rows.
-const SAMPLE_CSV = (() => {
-  const header = [
-    'full_name',
-    'bank_name',
-    'account_number',
-    'default_amount_ngn',
-    'linkedin_id',
-  ];
-  const rows = [
-    ['Chinwe Okafor', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123'],
-    ['Adewale Ogunleye', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye'],
-    ['Ifeoma Nwachukwu', 'Zenith Bank', '0345678901', '175000', ''],
-  ];
-  return [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
-})();
 
 // Case-insensitive bank name matcher; returns the canonical name if found.
 const BANK_NAME_LOOKUP: Map<string, string> = (() => {
@@ -269,10 +253,50 @@ const Contractors = () => {
     fetchContractors();
   };
 
+  // --- CSV export ---------------------------------------------------
+
+  const [exportingCsv, setExportingCsv] = useState(false);
+
+  const exportCsv = async () => {
+    setExportingCsv(true);
+    try {
+      const { data: rows, error } = await supabase
+        .from('contractors')
+        .select('first_name, last_name, email, phone, bank_name, account_number, account_name, status, created_at')
+        .order('full_name');
+      if (error) throw error;
+      const header = ['first_name', 'last_name', 'email', 'phone', 'bank_name', 'account_number', 'account_name', 'status', 'created_at'];
+      const csvRows = (rows as any[]).map((r) =>
+        header.map((col) => csvEscape(r[col])).join(','),
+      );
+      const csv = [header.join(','), ...csvRows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contractors-export.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setExportingCsv(false);
+    }
+  };
+
   // --- CSV import flow ---------------------------------------------------
 
   const downloadSample = () => {
-    const blob = new Blob([SAMPLE_CSV], { type: 'text/csv;charset=utf-8;' });
+    const header = ['full_name', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_id'];
+    const rows = [
+      ['Chinwe Okafor', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123'],
+      ['Adewale Ogunleye', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye'],
+      ['Ifeoma Nwachukwu', 'Zenith Bank', '0345678901', '175000', ''],
+    ];
+    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -436,8 +460,11 @@ const Contractors = () => {
           <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={downloadSample}>
-            <Download className="mr-2 h-4 w-4" /> Sample CSV
+          <Button variant="outline" onClick={exportCsv} disabled={exportingCsv}>
+            {exportingCsv
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <Download className="mr-2 h-4 w-4" />}
+            Export CSV
           </Button>
           <input
             ref={fileInputRef}
