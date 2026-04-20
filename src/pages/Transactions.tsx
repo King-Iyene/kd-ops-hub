@@ -52,6 +52,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 
 interface Transaction {
   id: string;
@@ -103,20 +104,6 @@ const TYPE_COLOR: Record<string, string> = {
   expense: 'bg-warning/10 text-warning border border-warning/30',
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending: 'bg-warning/10 text-warning',
-  pending_approval: 'bg-warning/10 text-warning',
-  pending_second_approval: 'bg-orange-100 text-orange-700',
-  approved: 'bg-success/10 text-success',
-  funded: 'bg-info/10 text-info',
-  processing: 'bg-info/10 text-info',
-  processed: 'bg-success/10 text-success',
-  partially_processed: 'bg-teal-500/10 text-teal-700',
-  rejected: 'bg-destructive/10 text-destructive',
-  failed: 'bg-destructive/10 text-destructive',
-  reversed: 'bg-destructive/10 text-destructive',
-};
 
 const typeLabel = (t: string) => {
   if (t === 'payment_batch') return 'Batch';
@@ -125,7 +112,7 @@ const typeLabel = (t: string) => {
   return t.replace(/_/g, ' ');
 };
 
-const statusLabel = (s: string) => s.replace(/_/g, ' ');
+import { statusLabel } from '@/components/ui-kit/StatusBadge';
 
 const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -505,15 +492,7 @@ const Transactions = () => {
                           {formatNaira(r.amount_ngn)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn(
-                              'capitalize text-[11px]',
-                              STATUS_COLOR[r.status] || 'bg-muted text-muted-foreground',
-                            )}
-                          >
-                            {statusLabel(r.status)}
-                          </Badge>
+                          <StatusBadge status={r.status} />
                         </TableCell>
                         <TableCell>
                           {r.receipt_url ? (

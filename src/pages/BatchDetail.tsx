@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
+import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import {
   ArrowLeft,
   Check,
@@ -49,27 +50,6 @@ import {
   Printer,
 } from 'lucide-react';
 
-const statusColors: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  pending_approval: 'bg-warning/10 text-warning',
-  approved: 'bg-info/10 text-info',
-  funded: 'bg-accent/10 text-accent',
-  processing: 'bg-info/10 text-info',
-  processed: 'bg-success/10 text-success',
-  partially_processed: 'bg-warning/10 text-warning',
-  rejected: 'bg-destructive/10 text-destructive',
-};
-
-const statusLabels: Record<string, string> = {
-  draft: 'Draft',
-  pending_approval: 'Pending Approval',
-  approved: 'Approved',
-  funded: 'Funded',
-  processing: 'Processing',
-  processed: 'Processed',
-  partially_processed: 'Partial',
-  rejected: 'Rejected',
-};
 
 const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
 
@@ -221,7 +201,7 @@ const BatchDetail = () => {
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
       } else {
-        toast({ title: `Batch ${statusLabels[status]?.toLowerCase() || status}` });
+        toast({ title: `Batch ${statusLabel(status)?.toLowerCase() || status}` });
 
         const amountTxt = formatNaira(batch?.total_amount || 0);
         if (status === 'approved') {
@@ -613,7 +593,7 @@ const BatchDetail = () => {
 
   <div class="meta">
     <div><div class="l">Batch</div><div class="v">${escapeHtml(batch.name)}</div></div>
-    <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabels[batch.status] || batch.status)}</div></div>
+    <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabel(batch.status) || batch.status)}</div></div>
     <div><div class="l">Payment Date</div><div class="v">${escapeHtml(formatDate(batch.payment_date))}</div></div>
     <div><div class="l">Period</div><div class="v">${escapeHtml(batch.period || '—')}</div></div>
     <div><div class="l">Beneficiaries</div><div class="v">${items.length}</div></div>
@@ -716,9 +696,7 @@ const BatchDetail = () => {
             </Button>
           </>
         )}
-        <Badge variant="secondary" className={statusColors[batch.status]}>
-          {statusLabels[batch.status] || batch.status}
-        </Badge>
+        <StatusBadge status={batch.status} />
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -915,22 +893,7 @@ const BatchDetail = () => {
                       {item.paystack_reference || '—'}
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <Badge
-                          variant="secondary"
-                          className={
-                            item.status === 'succeeded'
-                              ? 'bg-success/10 text-success'
-                              : item.status === 'failed'
-                              ? 'bg-destructive/10 text-destructive'
-                              : item.status === 'retry'
-                              ? 'bg-info/10 text-info'
-                              : ''
-                          }
-                        >
-                          {item.status}
-                        </Badge>
-                      </div>
+                      <StatusBadge status={item.status} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
