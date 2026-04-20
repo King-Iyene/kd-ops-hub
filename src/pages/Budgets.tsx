@@ -541,12 +541,12 @@ const Budgets = () => {
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={PiggyBank}
-              title="No budgets yet"
-              description="Create a budget with line items per category to start tracking planned vs actual spend."
+              title="No budgets created"
+              description="Set up departments in Settings, then create budgets to track spending by department."
               action={
                 canManage ? (
                   <Button onClick={openCreate}>
-                    <Plus className="mr-2 h-4 w-4" /> New Budget
+                    <Plus className="mr-2 h-4 w-4" /> Create Budget
                   </Button>
                 ) : undefined
               }

@@ -889,10 +889,10 @@ const Payroll = () => {
             <EmptyState
               icon={Banknote}
               title="No payroll runs yet"
-              description="Draft a payroll for last month to see statutory deduction estimates and total burn."
+              description="Create a payroll run to calculate monthly salary costs and generate payslips."
               action={
                 <Button onClick={() => setDialog(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Draft payroll
+                  <Plus className="mr-2 h-4 w-4" /> Create Payroll Run
                 </Button>
               }
             />

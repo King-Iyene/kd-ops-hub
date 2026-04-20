@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface PaymentBatch {
@@ -254,7 +255,15 @@ const Payments = () => {
           {loading ? (
             <TableSkeleton rows={5} />
           ) : filtered.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">No batches found</div>
+            <EmptyState
+              title="No payment batches yet"
+              description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
+              action={
+                <Button onClick={() => navigate('/payments/new')}>
+                  <Plus className="mr-2 h-4 w-4" /> Create Batch
+                </Button>
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
