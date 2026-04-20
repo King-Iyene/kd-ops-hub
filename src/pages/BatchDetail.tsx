@@ -318,13 +318,7 @@ const BatchDetail = () => {
       );
       return { ok: true };
     } catch (err: any) {
-      let errorMessage = 'Transfer failed';
-      try {
-        const body = await err?.context?.response?.json();
-        errorMessage = body?.error || body?.message || err.message;
-      } catch {
-        errorMessage = err?.message || 'Transfer failed';
-      }
+      const errorMessage = err?.message || 'Transfer failed';
       await supabase
         .from('batch_items')
         .update({ status: 'failed', failure_reason: errorMessage })
@@ -368,37 +362,35 @@ const BatchDetail = () => {
       const all = refreshed || [];
       const succeededCount = all.filter((r: any) => r.status === 'succeeded').length;
       const failedCount = all.filter((r: any) => r.status === 'failed').length;
-      const pendingCount = all.filter((r: any) => r.status === 'pending').length;
+      const pendingCount = all.filter((r: any) => r.status === 'pending' || r.status === 'processing').length;
       setProcessResults({ succeeded: succeededCount, failed: failedCount, pending: pendingCount });
       setProcessingIdx(0);
       setProcessingTotal(0);
       setProcessingName('');
-      const finalStatus =
-        pendingCount > 0
-          ? 'processing'
-          : succeededCount > 0 && failedCount > 0
-          ? 'partially_processed'
-          : failedCount > 0 && succeededCount === 0
-          ? 'failed'
-          : 'processed';
+
+      let batchStatus = 'processing';
+      if (pendingCount === 0 && failedCount === 0) batchStatus = 'processed';
+      else if (pendingCount === 0 && succeededCount > 0) batchStatus = 'partially_processed';
+      else if (pendingCount === 0 && succeededCount === 0) batchStatus = 'failed';
+
       await supabase
         .from('payment_batches')
-        .update({ status: finalStatus })
+        .update({ status: batchStatus })
         .eq('id', id);
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" dispatched via Paystack — ${finalStatus.replace('_', ' ')}`,
+        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')}`,
         profile,
       );
       toast({
-        title: anyFailed
+        title: failedCount > 0
           ? 'Batch dispatched with failures'
-          : anyPending
+          : pendingCount > 0
           ? 'Batch dispatched — polling Paystack'
           : 'Batch processed successfully',
-        description: anyFailed
+        description: failedCount > 0
           ? 'Some transfers could not be initiated — retry from the row.'
-          : anyPending
+          : pendingCount > 0
           ? 'KDOps will poll Paystack every 30s until every transfer settles.'
           : undefined,
       });

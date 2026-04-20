@@ -29,34 +29,16 @@ async function edgeCall<T = any>(
     headers: { 'Authorization': `Bearer ${session?.access_token}` },
   });
   if (error) {
-    let detail = error.message || 'Edge Function call failed';
-    console.error('[paystack edgeCall] invoke error object:', {
-      message: error.message,
-      name: error.name,
-      hasContext: !!error.context,
-      hasResponse: !!error.context?.response,
-      dataPresent: !!data,
-      dataType: typeof data,
-    });
-    // supabase.functions.invoke returns a generic "non-2xx" message.
-    // The real Paystack error is in the response body (JSON { error: "..." }).
+    let message = error.message || 'Edge Function call failed';
     try {
-      if (error.context?.response) {
-        const cloned = error.context.response.clone();
-        const body = await cloned.json();
-        console.error('[paystack edgeCall] raw error body:', JSON.stringify(body));
-        if (body?.error) detail = body.error;
-        else if (body?.message) detail = body.message;
-      }
-    } catch (parseErr) {
-      console.warn('[paystack edgeCall] could not parse error response:', parseErr);
+      const raw = await error.context?.response?.text();
+      const parsed = JSON.parse(raw || '{}');
+      message = parsed.error || parsed.message || message;
+    } catch {}
+    if (data && typeof data === 'object' && data.error && message === error.message) {
+      message = data.error;
     }
-    // invoke() sometimes puts the parsed body in `data` even on error
-    if (data && typeof data === 'object') {
-      console.error('[paystack edgeCall] data on error:', JSON.stringify(data));
-      if (data.error && detail === error.message) detail = data.error;
-    }
-    throw new Error(detail);
+    throw new Error(message);
   }
   if (data && !data.ok) {
     throw new Error(data.error || 'Paystack error from Edge Function');
