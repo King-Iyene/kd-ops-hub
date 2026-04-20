@@ -140,7 +140,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { profile } = useAuthStore();
   const effectiveRole = useEffectiveRole();
-  const isPersonal = effectiveRole === 'field_staff' || effectiveRole === 'driver';
+  const isPersonal = ['field_staff', 'driver'].includes(profile?.role || '');
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
