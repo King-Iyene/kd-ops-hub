@@ -69,46 +69,84 @@ const escapeHtml = (v: any): string => {
     .replace(/'/g, '&#039;');
 };
 
-const printItemReceipt = (item: any, batch: any) => {
+const printItemReceipt = (item: any, batch: any, generatedBy?: string) => {
+  const isFailed = item.status === 'failed';
+  const isSucceeded = item.status === 'succeeded';
+  const txnDate = item.updated_at || item.created_at;
+  const txnDateStr = txnDate
+    ? new Date(txnDate).toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })
+    : '—';
+  const generatedAt = new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' });
+  const narration = `KDOps · ${batch?.name || 'batch'}`;
+  const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCEEDED' : item.status?.toUpperCase() || 'PENDING';
+  const statusColor = isFailed ? '#b22222' : isSucceeded ? '#117a3d' : '#8c6700';
+
   const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Transfer Receipt</title>
+  <title>Transfer Receipt — ${escapeHtml(item.full_name || '')}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: #fff; padding: 48px; }
-    .header { border-bottom: 2px solid #111; padding-bottom: 16px; margin-bottom: 24px; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: #fff; padding: 48px; position: relative; }
+    .header { border-bottom: 2px solid ${isFailed ? '#b22222' : '#006994'}; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
     .company { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-    .title { font-size: 13px; color: #555; margin-top: 4px; }
-    .amount { font-size: 32px; font-weight: 700; margin: 24px 0; }
+    .doc-title { font-size: 13px; color: #555; margin-top: 4px; }
+    .status-header { font-size: 14px; font-weight: 700; color: ${statusColor}; border: 2px solid ${statusColor}; padding: 4px 12px; border-radius: 4px; letter-spacing: 0.05em; }
+    .amount { font-size: 32px; font-weight: 700; margin: 24px 0; color: ${isFailed ? '#b22222' : '#111'}; }
+    ${isFailed ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 900; color: rgba(178,34,34,0.08); letter-spacing: 0.1em; pointer-events: none; z-index: 0; }` : ''}
+    .content { position: relative; z-index: 1; }
     table { width: 100%; border-collapse: collapse; }
     td { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
     td:first-child { color: #555; width: 40%; }
     td:last-child { font-weight: 500; }
-    .footer { margin-top: 32px; font-size: 11px; color: #888; text-align: center; }
+    td.status-cell { color: ${statusColor}; font-weight: 700; }
+    .disclaimer { margin-top: 24px; padding: 12px 16px; background: #fde9e9; border: 1px solid #f5c0c0; border-radius: 6px; font-size: 12px; color: #8b0000; }
+    .disclaimer p + p { margin-top: 6px; }
+    .retry-note { margin-top: 12px; padding: 10px 14px; background: #fff5e0; border: 1px solid #f0d890; border-radius: 6px; font-size: 12px; color: #6f5a25; }
+    .footer { margin-top: 32px; font-size: 11px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 16px; }
     @media print { body { padding: 32px; } }
   </style>
 </head>
 <body>
-  <div class="header">
-    <div class="company">KD Squares Ltd</div>
-    <div class="title">Transfer Receipt</div>
+  ${isFailed ? '<div class="watermark">FAILED</div>' : ''}
+  <div class="content">
+    <div class="header">
+      <div>
+        <div class="company">KD Squares Ltd</div>
+        <div class="doc-title">Transfer Receipt</div>
+      </div>
+      <div class="status-header">${statusText}</div>
+    </div>
+    <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
+    <table>
+      <tr><td>Recipient</td><td>${escapeHtml(item.full_name || '—')}</td></tr>
+      <tr><td>Bank</td><td>${escapeHtml(item.bank_name || '—')}</td></tr>
+      <tr><td>Account number</td><td>${escapeHtml(item.account_number || '—')}</td></tr>
+      <tr><td>Paystack reference</td><td>${escapeHtml(item.paystack_reference || '—')}</td></tr>
+      <tr><td>Transaction date</td><td>${escapeHtml(txnDateStr)}</td></tr>
+      <tr><td>Narration</td><td>${escapeHtml(narration)}</td></tr>
+      <tr><td>Batch</td><td>${escapeHtml(batch?.name || '—')}</td></tr>
+      <tr><td>Status</td><td class="status-cell">${statusText}</td></tr>
+      ${isFailed ? `<tr><td>Failure reason</td><td style="color:#b22222">${escapeHtml(item.failure_reason || 'Transfer rejected')}</td></tr>` : ''}
+    </table>
+    ${isFailed ? `
+    <div class="disclaimer">
+      <p><strong>No funds were transferred.</strong> This payment did not complete and no debit was made to your account for this recipient.</p>
+      <p>Failure reason: ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</p>
+    </div>
+    <div class="retry-note">
+      To retry this payment, return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row, or contact your Finance/Admin team.
+    </div>` : ''}
+    <div class="footer">
+      Generated by KDOps &bull; KD Squares Ltd<br>
+      ${escapeHtml(generatedBy || '')}${generatedBy ? ' &bull; ' : ''}${escapeHtml(generatedAt)}
+    </div>
   </div>
-  <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
-  <table>
-    <tr><td>Recipient</td><td>${escapeHtml(item.full_name || '—')}</td></tr>
-    <tr><td>Bank</td><td>${escapeHtml(item.bank_name || '—')}</td></tr>
-    <tr><td>Account number</td><td>${escapeHtml(item.account_number || '—')}</td></tr>
-    <tr><td>Paystack reference</td><td>${escapeHtml(item.paystack_reference || '—')}</td></tr>
-    <tr><td>Transfer date</td><td>${escapeHtml(item.updated_at ? new Date(item.updated_at).toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' }) : new Date(item.created_at).toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' }))}</td></tr>
-    <tr><td>Batch</td><td>${escapeHtml(batch?.name || '—')}</td></tr>
-  </table>
-  <div class="footer">Generated by KDOps &bull; KD Squares Ltd</div>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=640,height=800');
+  const win = window.open('', '_blank', 'width=640,height=860');
   if (!win) return;
   win.document.write(html);
   win.document.close();
@@ -598,10 +636,10 @@ const BatchDetail = () => {
   <div class="meta">
     <div><div class="l">Batch</div><div class="v">${escapeHtml(batch.name)}</div></div>
     <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabel(batch.status) || batch.status)}</div></div>
-    <div><div class="l">Payment Date</div><div class="v">${escapeHtml(formatDate(batch.payment_date))}</div></div>
+    <div><div class="l">Transaction Date</div><div class="v">${escapeHtml(formatDateTime(batch.created_at))}</div></div>
     <div><div class="l">Period</div><div class="v">${escapeHtml(batch.period || '—')}</div></div>
     <div><div class="l">Beneficiaries</div><div class="v">${items.length}</div></div>
-    <div><div class="l">Total Amount</div><div class="v">${escapeHtml(formatNaira(batch.total_amount || 0))}</div></div>
+    <div><div class="l">Total Amount</div><div class="v">${escapeHtml(formatNaira(items.reduce((s, i) => s + Number(i.amount_ngn || 0), 0)))}</div></div>
     ${batch.scheduled_date ? `<div><div class="l">Scheduled</div><div class="v">${escapeHtml(formatDateTime(batch.scheduled_date))}</div></div>` : ''}
     <div><div class="l">Generated</div><div class="v">${escapeHtml(formatDateTime(new Date()))}</div></div>
   </div>
@@ -918,18 +956,18 @@ const BatchDetail = () => {
                             Retry
                           </Button>
                         )}
-                        {item.paystack_reference && (
+                        {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => printItemReceipt(item, batch)}
+                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email)}
                             title="Print receipt"
                           >
                             <Printer className="h-3.5 w-3.5 mr-1" />
                             Receipt
                           </Button>
                         )}
-                        {!item.paystack_reference && !(item.status === 'failed' && canApprove) && (
+                        {!item.paystack_reference && item.status !== 'failed' && item.status !== 'succeeded' && (
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </div>
