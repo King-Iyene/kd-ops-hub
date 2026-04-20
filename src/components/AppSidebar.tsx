@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -25,6 +25,7 @@ import {
   Contact2,
   ArrowUpDown,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -96,6 +97,21 @@ export function AppSidebar() {
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    supabase
+      .from('company_settings')
+      .select('logo_url')
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.logo_url) {
+          setLogoUrl(data.logo_url);
+          localStorage.setItem('kdops_logo_url', data.logo_url);
+        }
+      });
+  }, []);
+
   // Keep the badge live: refresh on mount and every time the route changes,
   // so that approving something inside any page decrements the count.
   useEffect(() => {
@@ -117,9 +133,13 @@ export function AppSidebar() {
           <SidebarGroupLabel className="px-4 py-6">
             {!collapsed && (
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-accent">
-                  <span className="text-sm font-bold text-sidebar-accent-foreground">KD</span>
-                </div>
+                {logoUrl ? (
+                  <img src={logoUrl} alt="KD Squares" className="h-9 w-9 rounded-lg object-contain" />
+                ) : (
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-accent">
+                    <span className="text-sm font-bold text-sidebar-accent-foreground">KD</span>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-semibold text-sidebar-primary">KDOps</p>
                   <p className="text-xs text-sidebar-foreground/60">Operations Platform</p>
@@ -127,9 +147,13 @@ export function AppSidebar() {
               </div>
             )}
             {collapsed && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-accent">
-                <span className="text-xs font-bold text-sidebar-accent-foreground">KD</span>
-              </div>
+              logoUrl ? (
+                <img src={logoUrl} alt="KD Squares" className="h-8 w-8 rounded-lg object-contain" />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-accent">
+                  <span className="text-xs font-bold text-sidebar-accent-foreground">KD</span>
+                </div>
+              )
             )}
           </SidebarGroupLabel>
           <SidebarGroupContent>
