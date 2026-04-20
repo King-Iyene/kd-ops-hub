@@ -41,6 +41,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -147,6 +148,7 @@ const Budgets = () => {
   const [itemsDraft, setItemsDraft] = useState<ItemDraft[]>([
     { category: 'payroll', description: '', planned_amount_ngn: '' },
   ]);
+  const [confirmDelete, setConfirmDelete] = useState<BudgetRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -444,6 +446,18 @@ const Budgets = () => {
     load();
   };
 
+  const deleteBudget = async (r: BudgetRow) => {
+    const { error } = await supabase.from('budgets').delete().eq('id', r.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('budget_deleted', `Budget "${r.name}" deleted`, profile);
+    toast({ title: 'Budget deleted' });
+    setConfirmDelete(null);
+    load();
+  };
+
   // Fire notifications when any budget crosses 80% / 100% utilisation.
   useEffect(() => {
     if (loading || !profile) return;
@@ -677,6 +691,16 @@ const Budgets = () => {
                                 <Pencil className="h-4 w-4" />
                               </Button>
                             )}
+                            {canManage && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setConfirmDelete(r)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -698,6 +722,23 @@ const Budgets = () => {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete budget</DialogTitle>
+            <DialogDescription>
+              Delete {confirmDelete?.name}? All budget line items will also be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && deleteBudget(confirmDelete)}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className="max-w-3xl">

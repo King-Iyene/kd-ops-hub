@@ -43,6 +43,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -119,6 +120,9 @@ const Contacts = () => {
 
   const [noteDialog, setNoteDialog] = useState<Contact | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState<Contact | null>(null);
+
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -277,6 +281,18 @@ const Contacts = () => {
     } catch (err: any) {
       toast({ title: 'Conversion failed', description: err?.message, variant: 'destructive' });
     }
+  };
+
+  const deleteContact = async (c: Contact) => {
+    const { error } = await supabase.from('contacts').delete().eq('id', c.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('contact_deleted', `Contact "${c.full_name}" deleted`, profile);
+    toast({ title: 'Contact deleted' });
+    setConfirmDelete(null);
+    load();
   };
 
   const exportCsv = () => {
@@ -463,6 +479,16 @@ const Contacts = () => {
                               <ArrowRightCircle className="h-4 w-4 text-success" />
                             </Button>
                           )}
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmDelete(c); }}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -591,6 +617,23 @@ const Contacts = () => {
             <Button variant="outline" onClick={() => setNoteDialog(null)}>Cancel</Button>
             <Button onClick={addNote} disabled={!noteText.trim()}>
               Add note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete contact</DialogTitle>
+            <DialogDescription>
+              Delete {confirmDelete?.full_name}? This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => confirmDelete && deleteContact(confirmDelete)}>
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
