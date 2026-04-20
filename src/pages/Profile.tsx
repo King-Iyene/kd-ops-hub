@@ -101,6 +101,9 @@ const ProfilePage = () => {
   const [phone, setPhone] = useState(profile?.phone || '');
   const [savingProfile, setSavingProfile] = useState(false);
 
+  const [newEmail, setNewEmail] = useState(profile?.email || '');
+  const [updatingEmail, setUpdatingEmail] = useState(false);
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
@@ -157,6 +160,28 @@ const ProfilePage = () => {
       });
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const updateEmail = async () => {
+    const trimmed = newEmail.trim();
+    if (!trimmed || trimmed === profile.email) return;
+    setUpdatingEmail(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ email: trimmed });
+      if (error) throw error;
+      toast({
+        title: 'Verification email sent',
+        description: `A confirmation link has been sent to ${trimmed}. Click it to confirm the change.`,
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Email update failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUpdatingEmail(false);
     }
   };
 
@@ -268,11 +293,35 @@ const ProfilePage = () => {
                 placeholder="+234..."
               />
             </div>
-            <div className="space-y-1">
-              <Label>Email</Label>
-              <Input value={profile.email} disabled />
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="newEmail">Email</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="newEmail"
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+                <Button
+                  variant="outline"
+                  onClick={updateEmail}
+                  disabled={
+                    updatingEmail ||
+                    !newEmail.trim() ||
+                    newEmail.trim() === profile.email
+                  }
+                >
+                  {updatingEmail ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-4 w-4" />
+                  )}
+                  Update Email
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Email can't be changed from here — contact an admin if it needs updating.
+                A confirmation link will be sent to the new address. The change only takes effect after you click it.
               </p>
             </div>
             <div className="space-y-1">
