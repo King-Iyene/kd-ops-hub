@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle, Wallet } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -35,6 +36,7 @@ interface BalanceData {
 const LOW_BALANCE_THRESHOLD = 50_000;
 
 const Payments = () => {
+  usePageTitle('Payments');
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();

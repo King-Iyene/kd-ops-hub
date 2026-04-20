@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
@@ -100,6 +101,7 @@ const NOTIF_EVENTS = [
 ] as const;
 
 const SettingsPage = () => {
+  usePageTitle('Settings');
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const [loading, setLoading] = useState(true);

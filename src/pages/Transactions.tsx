@@ -51,6 +51,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 
@@ -122,6 +123,7 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
 ];
 
 const Transactions = () => {
+  usePageTitle('Transactions');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();

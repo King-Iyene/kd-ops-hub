@@ -36,6 +36,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
@@ -76,6 +77,7 @@ interface TripLog {
 }
 
 const Fleet = () => {
+  usePageTitle('Fleet');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isAdmin =

@@ -52,6 +52,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 type Role = 'admin' | 'finance' | 'operations' | 'field_staff';
 type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
@@ -100,6 +101,7 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 const Employees = () => {
+  usePageTitle('Employees');
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const navigate = useNavigate();

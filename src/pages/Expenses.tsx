@@ -68,6 +68,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
@@ -126,6 +127,7 @@ const mileageAmount = (km: number, rate: number) =>
   Math.max(0, Math.round(km * rate * 100) / 100);
 
 const Expenses = () => {
+  usePageTitle('Expenses');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isApprover =

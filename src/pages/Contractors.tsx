@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   Loader2,
   Plus,
@@ -147,6 +148,7 @@ const normalizeBankName = (raw: string): string | null => {
 };
 
 const Contractors = () => {
+  usePageTitle('Contractors');
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const navigate = useNavigate();

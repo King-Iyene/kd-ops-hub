@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -119,6 +120,7 @@ const CATEGORY_SUGGESTIONS = [
 ];
 
 const Budgets = () => {
+  usePageTitle('Budgets');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const canManage = hasRole(profile?.role, APPROVER_ROLES);

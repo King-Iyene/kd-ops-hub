@@ -63,6 +63,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -157,6 +158,7 @@ const BONUS_TYPES = [
 ] as const;
 
 const Payroll = () => {
+  usePageTitle('Payroll');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

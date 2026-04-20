@@ -63,6 +63,7 @@ import { Pagination } from '@/components/ui-kit/Pagination';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
+import { usePageTitle } from '@/hooks/usePageTitle';
 
 type LeaveType = 'annual' | 'sick' | 'unpaid';
 type LeaveStatus = 'pending' | 'approved' | 'rejected';
@@ -117,6 +118,7 @@ const calcDays = (start: string, end: string): number => {
 };
 
 const Leave = () => {
+  usePageTitle('Leave');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const refreshApprovals = useApprovalStore((s) => s.refresh);

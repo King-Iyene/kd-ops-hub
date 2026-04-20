@@ -48,6 +48,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -133,6 +134,7 @@ const STATUS_CLASS: Record<ComplianceFiling['status'], string> = {
 };
 
 const Compliance = () => {
+  usePageTitle('Compliance');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 

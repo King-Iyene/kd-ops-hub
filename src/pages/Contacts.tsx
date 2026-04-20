@@ -54,6 +54,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Download } from 'lucide-react';
 
@@ -92,6 +93,7 @@ const STATUS_BADGE: Record<ContactStatus, string> = {
 };
 
 const Contacts = () => {
+  usePageTitle('Contacts');
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const navigate = useNavigate();

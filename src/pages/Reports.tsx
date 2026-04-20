@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -63,6 +64,7 @@ const thisYearRange = (): DateRange => {
 };
 
 const Reports = () => {
+  usePageTitle('Reports');
   const [range, setRange] = useState<DateRange>(thisYearRange);
   const [tab, setTab] = useState('payments');
 

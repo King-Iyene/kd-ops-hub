@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -120,6 +121,7 @@ const prettyType = (t: string) => t.replace(/_/g, ' ');
 const COLORS = ['#006994', '#00ECFF', '#D6AC50', '#22c55e', '#ef4444'];
 
 const Dashboard = () => {
+  usePageTitle('Dashboard');
   const navigate = useNavigate();
   const approvalCounts = useApprovalStore((s) => s.counts);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
