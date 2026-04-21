@@ -69,6 +69,7 @@ interface EmployeeData {
   department_id: string | null;
   tags: string[] | null;
   photo_url: string | null;
+  departments: { name: string } | null;
 }
 
 const EmployeeProfile = () => {
@@ -128,7 +129,7 @@ const EmployeeProfile = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, departments(name)')
       .eq('id', id)
       .single();
     if (error || !data) {
@@ -175,8 +176,8 @@ const EmployeeProfile = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const save = async () => {
-    if (!id || !form) return;
+  const save = async (): Promise<boolean> => {
+    if (!id || !form) return false;
     setSaving(true);
     const fullName = displayName(form.first_name, form.last_name, form.full_name);
     const { error } = await supabase.from('profiles').update({
@@ -197,12 +198,14 @@ const EmployeeProfile = () => {
     }).eq('id', id);
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-    } else {
-      await logAudit('employee_edited', `Employee profile "${fullName}" updated`, currentUser);
-      toast({ title: 'Employee profile saved' });
-      load();
+      setSaving(false);
+      return false;
     }
+    await logAudit('employee_edited', `Employee profile "${fullName}" updated`, currentUser);
+    toast({ title: 'Employee profile saved' });
+    load();
     setSaving(false);
+    return true;
   };
 
   const handleDeactivate = async () => {
@@ -505,57 +508,54 @@ const EmployeeProfile = () => {
                 <CardTitle className="text-base">Compensation Breakdown</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead className="pl-4">Title</TableHead>
-                      <TableHead className="text-right">Annually</TableHead>
-                      <TableHead className="text-right pr-4">Monthly</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {hasSalary ? (
-                      <>
-                        <TableRow className="font-medium">
-                          <TableCell className="pl-4">Gross Pay</TableCell>
-                          <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
-                        </TableRow>
-                        <TableRow className="text-muted-foreground">
-                          <TableCell className="pl-4">PAYE Tax</TableCell>
-                          <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
-                        </TableRow>
-                        <TableRow className="text-muted-foreground">
-                          <TableCell className="pl-4">Pension Employee 8%</TableCell>
-                          <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
-                        </TableRow>
-                        <TableRow className="text-muted-foreground">
-                          <TableCell className="pl-4">NHF 2.5%</TableCell>
-                          <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
-                        </TableRow>
-                        <TableRow className="text-muted-foreground border-t-2">
-                          <TableCell className="pl-4">Total Deductions</TableCell>
-                          <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
-                        </TableRow>
-                        <TableRow className="font-bold bg-muted/30">
-                          <TableCell className="pl-4 text-base">Net Pay</TableCell>
-                          <TableCell className="text-right text-base">{formatNaira(netMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4 text-base">{formatNaira(netMonthly)}</TableCell>
-                        </TableRow>
-                      </>
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={3} className="pl-4 py-4 text-sm text-muted-foreground">
-                          Not set
-                        </TableCell>
+                {!hasSalary ? (
+                  <div className="mx-4 my-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    No salary set — use Edit Profile to add salary
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="pl-4">Title</TableHead>
+                        <TableHead className="text-right">Annually</TableHead>
+                        <TableHead className="text-right pr-4">Monthly</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow className="font-medium">
+                        <TableCell className="pl-4">Gross Pay</TableCell>
+                        <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
+                        <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
+                      </TableRow>
+                      <TableRow className="text-muted-foreground">
+                        <TableCell className="pl-4">PAYE Tax</TableCell>
+                        <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
+                      </TableRow>
+                      <TableRow className="text-muted-foreground">
+                        <TableCell className="pl-4">Pension Employee 8%</TableCell>
+                        <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
+                      </TableRow>
+                      <TableRow className="text-muted-foreground">
+                        <TableCell className="pl-4">NHF 2.5%</TableCell>
+                        <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
+                      </TableRow>
+                      <TableRow className="text-muted-foreground border-t-2">
+                        <TableCell className="pl-4">Total Deductions</TableCell>
+                        <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
+                      </TableRow>
+                      <TableRow className="font-bold bg-muted/30">
+                        <TableCell className="pl-4 text-base">Net Pay</TableCell>
+                        <TableCell className="text-right text-base">{formatNaira(netMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4 text-base">{formatNaira(netMonthly)}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
 
@@ -567,11 +567,11 @@ const EmployeeProfile = () => {
               <CardContent>
                 <dl className="space-y-3">
                   {([
-                    ['Department',      '—'],
+                    ['Department',      employee.departments?.name ?? '—'],
                     ['Role',            roleLabel(employee.role)],
                     ['Start Date',      formatDate(employee.created_at)],
                     ['Employee Number', '—'],
-                  ] as const).map(([label, val]) => (
+                  ] as [string, string][]).map(([label, val]) => (
                     <div key={label} className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">{label}</dt>
                       <dd className="font-medium">{val}</dd>
@@ -591,7 +591,7 @@ const EmployeeProfile = () => {
                 <CardTitle className="text-base">Payment Method</CardTitle>
               </CardHeader>
               <CardContent>
-                {employee.bank_name ? (
+                {employee.bank_name && employee.bank_account_number ? (
                   <>
                     <dl className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -600,7 +600,7 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account number</dt>
-                        <dd className="font-medium font-mono">{employee.bank_account_number || '—'}</dd>
+                        <dd className="font-medium font-mono">{employee.bank_account_number}</dd>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account name</dt>
@@ -612,7 +612,10 @@ const EmployeeProfile = () => {
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No payment method on file.</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">No payment method on file.</p>
+                    <p className="text-xs text-muted-foreground">Update via Edit Profile</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1018,6 +1021,67 @@ const EmployeeProfile = () => {
           </Card>
         </div>
       )}
+      {/* ── Edit Profile dialog ── */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>First name</Label>
+                <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Last name</Label>
+                <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Job title</Label>
+              <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <Select value={form.role || ''} onValueChange={(v) => patch({ role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="field_staff">Field Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Monthly salary (₦)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.salary_ngn ?? ''}
+                onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={async () => { const ok = await save(); if (ok) setShowEditDialog(false); }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
