@@ -102,6 +102,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'>('job_pay');
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -309,7 +310,97 @@ const EmployeeProfile = () => {
   const leaveTaken = leaves.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + (l.days || 0), 0);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="max-w-5xl">
+      {/* ── Banner ── */}
+      <div className="relative h-32 rounded-t-xl bg-gradient-to-r from-slate-800 to-slate-900">
+        {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
+          <div className="absolute top-4 right-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-sm"
+                >
+                  Manage <ChevronDown className="ml-1.5 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>Edit Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
+                  {employee.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                </DropdownMenuItem>
+                {currentUser?.role === 'super_admin' && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onClick={() => { setAnonymiseInput(''); setConfirmAnonymise(true); }}
+                    >
+                      Delete &amp; Anonymise
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      {/* ── Profile identity strip ── */}
+      <div className="bg-card border-x border-b rounded-b-xl px-6 pb-4">
+        <div className="flex flex-wrap items-end gap-4 -mt-10">
+          <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-background shrink-0 shadow">
+            <span className="text-2xl font-bold text-primary-foreground">
+              {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pt-12 sm:pt-2 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold leading-tight">{empName}</h1>
+              <Badge
+                className={
+                  employee.status === 'active'
+                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
+                }
+              >
+                {employee.status === 'active' ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tab navigation ── */}
+      <div className="flex border-b mt-6">
+        {([
+          { key: 'job_pay',   label: 'Job & Pay'  },
+          { key: 'personal',  label: 'Personal'   },
+          { key: 'documents', label: 'Documents'  },
+          { key: 'tasks',     label: 'Tasks'      },
+          { key: 'logs',      label: 'Logs'       },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+              activeTab === key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab content ── */}
+      {activeTab === 'job_pay' && (<>
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <button onClick={() => navigate('/employees')} className="hover:text-foreground transition-colors">Employees</button>
         <span>/</span>
@@ -808,6 +899,11 @@ const EmployeeProfile = () => {
           </TabsContent>
         )}
       </Tabs>
+      </>)}
+      {activeTab === 'personal'  && <div className="p-6 text-muted-foreground">Personal tab coming soon</div>}
+      {activeTab === 'documents' && <div className="p-6 text-muted-foreground">Documents tab coming soon</div>}
+      {activeTab === 'tasks'     && <div className="p-6 text-muted-foreground">Tasks tab coming soon</div>}
+      {activeTab === 'logs'      && <div className="p-6 text-muted-foreground">Logs tab coming soon</div>}
     </div>
   );
 };
