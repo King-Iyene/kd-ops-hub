@@ -103,7 +103,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -386,19 +386,22 @@ const EmployeeProfile = () => {
       </div>
 
       {/* ── Tab navigation ── */}
-      <div className="flex border-b mt-6">
+      <div className="flex border-b mt-6 overflow-x-auto">
         {([
-          { key: 'job_pay',   label: 'Job & Pay'  },
-          { key: 'personal',  label: 'Personal'   },
-          { key: 'documents', label: 'Documents'  },
-          { key: 'tasks',     label: 'Tasks'      },
-          { key: 'logs',      label: 'Logs'       },
+          { key: 'job_pay',   label: 'Job & Pay'                        },
+          { key: 'personal',  label: 'Personal'                         },
+          { key: 'documents', label: 'Documents'                        },
+          { key: 'tasks',     label: 'Tasks'                            },
+          { key: 'logs',      label: 'Logs'                             },
+          { key: 'leave',     label: `Leave (${leaves.length})`         },
+          { key: 'expenses',  label: `Expenses (${expenses.length})`    },
+          { key: 'payroll',   label: 'Payroll'                          },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
               activeTab === key
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
@@ -407,6 +410,19 @@ const EmployeeProfile = () => {
             {label}
           </button>
         ))}
+        {increments.length > 0 && (
+          <button
+            onClick={() => setActiveTab('increments')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'increments'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {`Increments (${increments.length})`}
+          </button>
+        )}
       </div>
 
       {/* ── Tab content ── */}
@@ -752,6 +768,182 @@ const EmployeeProfile = () => {
                         </TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'leave' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Leave Requests</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {leaves.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No leave requests found.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Type</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead className="pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaves.map((leave: any) => (
+                      <TableRow key={leave.id}>
+                        <TableCell className="pl-4 font-medium">{leave.leave_type || leave.type || '—'}</TableCell>
+                        <TableCell>{leave.start_date ? formatDate(leave.start_date) : '—'}</TableCell>
+                        <TableCell>{leave.end_date ? formatDate(leave.end_date) : '—'}</TableCell>
+                        <TableCell>{leave.days ?? '—'}</TableCell>
+                        <TableCell className="pr-4">
+                          <Badge
+                            className={
+                              leave.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                : leave.status === 'rejected' || leave.status === 'denied'
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                  : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                            }
+                          >
+                            {leave.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'expenses' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Expenses</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {expenses.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No expenses found.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.map((expense: any) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="pl-4">{formatDate(expense.created_at)}</TableCell>
+                        <TableCell className="font-medium">{expense.description || '—'}</TableCell>
+                        <TableCell>{expense.category || '—'}</TableCell>
+                        <TableCell className="text-right">{formatNaira(expense.amount || 0)}</TableCell>
+                        <TableCell className="pr-4">
+                          <Badge
+                            className={
+                              expense.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                : expense.status === 'rejected' || expense.status === 'denied'
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                  : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                            }
+                          >
+                            {expense.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'payroll' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Payroll</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {payslips.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No payslips generated yet.</p>
+              ) : (
+                <div className="divide-y">
+                  {payslips.map((slip: any) => (
+                    <div key={slip.id} className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm font-medium">{slip.period || '—'}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => downloadPayslip(slip.file_url || slip.id)}
+                      >
+                        <Download className="h-4 w-4" /> Download
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'increments' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Salary Increments</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {increments.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No salary increments recorded.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Date</TableHead>
+                      <TableHead className="text-right">Previous Salary</TableHead>
+                      <TableHead className="text-right">New Salary</TableHead>
+                      <TableHead className="text-right">Change</TableHead>
+                      <TableHead className="pr-4">Reason</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {increments.map((inc: any) => {
+                      const diff = (inc.new_salary_ngn || 0) - (inc.old_salary_ngn || 0);
+                      return (
+                        <TableRow key={inc.id}>
+                          <TableCell className="pl-4">{formatDate(inc.effective_date)}</TableCell>
+                          <TableCell className="text-right">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right">
+                            <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                              {diff >= 0 ? '+' : ''}{formatNaira(diff)}
+                            </span>
+                          </TableCell>
+                          <TableCell className="pr-4 text-muted-foreground">{inc.reason || '—'}</TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
