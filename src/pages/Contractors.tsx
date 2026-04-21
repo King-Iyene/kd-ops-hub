@@ -20,6 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import {
@@ -29,6 +30,7 @@ import {
   Upload,
   Pencil,
   Download,
+  UserX,
   CheckCircle2,
   AlertCircle,
   Check,
@@ -161,6 +163,7 @@ const Contractors = () => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showInactive, setShowInactive] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
   // CSV import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -174,19 +177,27 @@ const Contractors = () => {
     failures: { row: number; name: string; reason: string }[];
   } | null>(null);
 
-  useEffect(() => {
-    fetchContractors();
-  }, []);
-
-  const fetchContractors = async () => {
+  const fetchContractors = useCallback(async () => {
+    let query = supabase
+      .from('contractors')
+      .select('*')
+      .neq('is_anonymised', true)
+      .order('full_name');
+    if (!showInactive) {
+      query = query.eq('status', 'active');
+    }
     const [contractorsRes, tagsRes] = await Promise.all([
-      supabase.from('contractors').select('*').neq('is_anonymised', true).order('full_name'),
+      query,
       supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name'),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  };
+  }, [showInactive]);
+
+  useEffect(() => {
+    fetchContractors();
+  }, [fetchContractors]);
 
   const resetForm = () => {
     setEditing(null);
@@ -260,14 +271,21 @@ const Contractors = () => {
   };
 
   const toggleStatus = async (c: Contractor) => {
-    const newStatus = c.status === 'active' ? 'inactive' : 'active';
-    await supabase.from('contractors').update({ status: newStatus }).eq('id', c.id);
-    if (newStatus === 'inactive') {
-      await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
-    } else {
-      await logAudit('contractor_edited', `Contractor "${c.full_name}" reactivated`, profile);
+    await supabase.from('contractors').update({ status: 'inactive' }).eq('id', c.id);
+    await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
+    toast({ title: 'Contractor deactivated' });
+    fetchContractors();
+  };
+
+  const reactivateContractor = async (c: Contractor) => {
+    const { error } = await supabase.from('contractors').update({ status: 'active' }).eq('id', c.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
     }
-    toast({ title: `Contractor ${newStatus}` });
+    await logAudit('contractor_edited', `Contractor "${c.full_name}" reactivated`, profile);
+    toast({ title: 'Contractor reactivated' });
+    setConfirmReactivate(null);
     fetchContractors();
   };
 
@@ -451,10 +469,9 @@ const Contractors = () => {
     setImportSummary(null);
   };
 
-  const filtered = contractors.filter((c) => {
-    if (!showInactive && c.status === 'inactive') return false;
-    return c.full_name.toLowerCase().includes(search.toLowerCase());
-  });
+  const filtered = contractors.filter((c) =>
+    c.full_name.toLowerCase().includes(search.toLowerCase()),
+  );
 
   if (loading) return <TableSkeleton rows={5} />;
 
@@ -526,13 +543,13 @@ const Contractors = () => {
             className="pl-9"
           />
         </div>
-        <Button
-          variant={showInactive ? 'secondary' : 'outline'}
-          size="sm"
-          onClick={() => setShowInactive((v) => !v)}
-        >
-          {showInactive ? 'Hide inactive' : 'Show inactive'}
-        </Button>
+        <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">
+          <Switch
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+          />
+          Show inactive
+        </label>
       </div>
 
       <Card>
@@ -609,18 +626,42 @@ const Contractors = () => {
                       variant="secondary"
                       className={
                         c.status === 'active'
-                          ? 'bg-success/10 text-success cursor-pointer'
-                          : 'bg-muted text-muted-foreground cursor-pointer'
+                          ? 'bg-success/10 text-success'
+                          : 'bg-muted text-muted-foreground'
                       }
-                      onClick={() => toggleStatus(c)}
                     >
                       {c.status}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(evt) => { evt.stopPropagation(); openEdit(c); }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      {c.status === 'active' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title="Deactivate"
+                          onClick={(evt) => { evt.stopPropagation(); toggleStatus(c); }}
+                        >
+                          <UserX className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                      {c.status === 'inactive' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(c); }}
+                        >
+                          Reactivate
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
                 );
@@ -754,6 +795,24 @@ const Contractors = () => {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Update' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reactivate confirmation dialog */}
+      <Dialog open={!!confirmReactivate} onOpenChange={(v) => { if (!v) setConfirmReactivate(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reactivate {confirmReactivate?.first_name || confirmReactivate?.full_name}?</DialogTitle>
+            <DialogDescription>
+              They will be marked active and eligible for payments again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReactivate(null)}>Cancel</Button>
+            <Button onClick={() => confirmReactivate && reactivateContractor(confirmReactivate)}>
+              Reactivate
             </Button>
           </DialogFooter>
         </DialogContent>
