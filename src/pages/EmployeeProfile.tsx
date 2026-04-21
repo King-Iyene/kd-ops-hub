@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
-  ChevronDown, AlertTriangle,
+  ChevronDown, AlertTriangle, ExternalLink,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -103,7 +103,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -154,7 +154,7 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('documents').select('*').eq('uploaded_by', id)
         .order('created_at', { ascending: false }).limit(30),
-      supabase.from('audit_logs').select('*').eq('actor_id', id)
+      supabase.from('audit_logs').select('*').eq('performed_by', id)
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('salary_increments').select('*').eq('employee_id', id)
         .order('effective_date', { ascending: false }),
@@ -225,7 +225,7 @@ const EmployeeProfile = () => {
   const handleAnonymise = async () => {
     if (!id || !employee) return;
     setActioning(true);
-    const { error } = await supabase.rpc('soft_delete_employee', { p_user_id: id });
+    const { error } = await supabase.rpc('soft_delete_employee', { user_id: id });
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       setActioning(false);
@@ -310,236 +310,97 @@ const EmployeeProfile = () => {
   const empName = displayName(employee.first_name, employee.last_name, employee.full_name);
   const leaveTaken = leaves.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + (l.days || 0), 0);
 
-  const salary             = employee.salary_ngn || 0;
-  const payeMonthly        = salary ? calculatePAYE(salary)          : 0;
-  const pensionMonthly     = Math.round(salary * 0.08);
-  const nhfMonthly         = Math.round(salary * 0.025);
+  // ── Compensation (derived from monthly gross) ────────────────────────────
+  const hasSalary = !!employee.salary_ngn;
+  const salary    = employee.salary_ngn || 0;
+  const payeMonthly     = hasSalary ? calculatePAYE(salary)               : 0;
+  const pensionMonthly  = hasSalary ? Math.round(salary * 0.08)           : 0;
+  const nhfMonthly      = hasSalary ? Math.round(salary * 0.025)          : 0;
   const totalDeductMonthly = payeMonthly + pensionMonthly + nhfMonthly;
-  const netMonthly         = salary - totalDeductMonthly;
+  const netMonthly      = hasSalary ? salary - totalDeductMonthly         : 0;
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <button onClick={() => navigate('/employees')} className="hover:text-foreground transition-colors">Employees</button>
-        <span>/</span>
-        <span className="text-foreground">{empName}</span>
-      </nav>
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/employees')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{empName}</h1>
-          <p className="text-muted-foreground text-sm">
-            {employee.job_title || roleLabel(employee.role)} · {employee.email}
-          </p>
+    <div className="max-w-5xl">
+      {/* ── Profile identity strip ── */}
+      <div className="bg-card border-x border-b rounded-b-xl px-6 pb-4">
+        <div className="flex flex-wrap items-end gap-4 -mt-10">
+          <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-background shrink-0 shadow">
+            <span className="text-2xl font-bold text-primary-foreground">
+              {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0 pt-12 sm:pt-2 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-semibold leading-tight">{empName}</h1>
+              <Badge
+                className={
+                  employee.status === 'active'
+                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
+                }
+              >
+                {employee.status === 'active' ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}
+            </p>
+          </div>
         </div>
-        <Badge variant="outline" className={cn('font-medium', roleBadgeClass(employee.role))}>
-          {roleLabel(employee.role)}
-        </Badge>
-        <Badge variant="secondary" className={employee.status === 'active' ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'}>
-          {employee.status}
-        </Badge>
-        {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                Manage <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>Edit Profile</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
-                {employee.status === 'active' ? 'Deactivate' : 'Reactivate'}
-              </DropdownMenuItem>
-              {currentUser?.role === 'super_admin' && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => { setAnonymiseInput(''); setConfirmAnonymise(true); }}
-                  >
-                    Delete &amp; Anonymise
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+      </div>
+
+      {/* ── Tab navigation ── */}
+      <div className="flex border-b mt-6 overflow-x-auto">
+        {([
+          { key: 'job_pay',   label: 'Job & Pay'                        },
+          { key: 'personal',  label: 'Personal'                         },
+          { key: 'documents', label: 'Documents'                        },
+          { key: 'tasks',     label: 'Tasks'                            },
+          { key: 'logs',      label: 'Logs'                             },
+          { key: 'leave',     label: `Leave (${leaves.length})`         },
+          { key: 'expenses',  label: `Expenses (${expenses.length})`    },
+          { key: 'payroll',   label: 'Payroll'                          },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === key
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {increments.length > 0 && (
+          <button
+            onClick={() => setActiveTab('increments')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'increments'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {`Increments (${increments.length})`}
+          </button>
         )}
       </div>
 
-      {/* Edit Profile dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Profile — {empName}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>First name</Label>
-                <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>Last name</Label>
-                <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Phone</Label>
-              <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label>Role</Label>
-              <Select value={form.role || employee.role} onValueChange={(v) => patch({ role: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                  <SelectItem value="field_staff">Field Staff</SelectItem>
-                  <SelectItem value="driver">Driver</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Monthly gross salary (₦)</Label>
-              <Input
-                type="number"
-                value={form.salary_ngn || ''}
-                onChange={(e) => patch({ salary_ngn: Number(e.target.value) || 0 })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button onClick={() => { save(); setShowEditDialog(false); }} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" /> Save changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ── Tab content ── */}
+      {activeTab === 'job_pay' && (
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-      {/* Deactivate / reactivate dialog */}
-      <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {employee.status === 'active' ? 'Deactivate' : 'Reactivate'} {empName}?
-            </DialogTitle>
-            <DialogDescription>
-              {employee.status === 'active'
-                ? `${empName} will lose platform access immediately. Their records remain visible and this can be reversed.`
-                : `${empName} will regain platform access. Their account will be restored.`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDeactivate(false)} disabled={actioning}>
-              Cancel
-            </Button>
-            <Button
-              variant={employee.status === 'active' ? 'destructive' : 'default'}
-              onClick={handleDeactivate}
-              disabled={actioning}
-            >
-              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {employee.status === 'active' ? 'Deactivate' : 'Reactivate'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          {/* ── LEFT column (60%) ─────────────────────────────────────────── */}
+          <div className="lg:col-span-3 space-y-4">
 
-      {/* Delete & anonymise dialog (super_admin only) */}
-      <Dialog open={confirmAnonymise} onOpenChange={(o) => { if (!o) { setConfirmAnonymise(false); setAnonymiseInput(''); } }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle className="h-5 w-5" /> Permanently delete {empName}?
-            </DialogTitle>
-            <DialogDescription asChild>
-              <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-none">
-                <li>• Their account will be permanently closed</li>
-                <li>• Their name and contact details will be erased</li>
-                <li>• Their payment records and task history will show as &ldquo;Former Employee&rdquo; to preserve reports</li>
-                <li className="font-semibold text-destructive">• This CANNOT be undone.</li>
-              </ul>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>Type <strong>DELETE</strong> to confirm</Label>
-            <Input
-              value={anonymiseInput}
-              onChange={(e) => setAnonymiseInput(e.target.value)}
-              placeholder="DELETE"
-              className={anonymiseInput === 'DELETE' ? 'border-destructive' : ''}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setConfirmAnonymise(false); setAnonymiseInput(''); }}
-              disabled={actioning}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleAnonymise}
-              disabled={anonymiseInput !== 'DELETE' || actioning}
-            >
-              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Trash2 className="mr-2 h-4 w-4" /> Delete permanently
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-5 flex-wrap">
-            <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center shrink-0 ring-4 ring-primary/10">
-              <span className="text-2xl font-bold text-primary-foreground">
-                {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0 space-y-1">
-              <p className="text-sm flex items-center gap-2 text-muted-foreground"><Mail className="h-3.5 w-3.5" /> {employee.email}</p>
-              {employee.phone && <p className="text-sm flex items-center gap-2 text-muted-foreground"><Phone className="h-3.5 w-3.5" /> {employee.phone}</p>}
-              <p className="text-sm flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-3.5 w-3.5" /> Joined {formatDate(employee.created_at)}</p>
-              {employee.job_title && <p className="text-sm flex items-center gap-2 text-muted-foreground"><Briefcase className="h-3.5 w-3.5" /> {employee.job_title}</p>}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="payroll">Payroll</TabsTrigger>
-          <TabsTrigger value="leave">Leave ({leaves.length})</TabsTrigger>
-          <TabsTrigger value="expenses">Expenses ({expenses.length})</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
-          <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-          <TabsTrigger value="increments">Increments ({increments.length})</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-          {currentUser?.role === 'super_admin' && (
-            <TabsTrigger value="permissions">Permissions</TabsTrigger>
-          )}
-        </TabsList>
-
-        <TabsContent value="overview" className="mt-4 space-y-4">
-          {!salary ? (
-            <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              Salary not set for this employee
-            </div>
-          ) : (
+            {/* Card 1 — Compensation Breakdown */}
             <Card>
-              <CardHeader><CardTitle className="text-base">Compensation Breakdown</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Compensation Breakdown</CardTitle>
+              </CardHeader>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -550,273 +411,500 @@ const EmployeeProfile = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell className="pl-4">Gross Pay</TableCell>
-                      <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
-                    </TableRow>
-                    <TableRow className="text-muted-foreground">
-                      <TableCell className="pl-4">PAYE Tax</TableCell>
-                      <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
-                    </TableRow>
-                    <TableRow className="text-muted-foreground">
-                      <TableCell className="pl-4">Pension (8%)</TableCell>
-                      <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
-                    </TableRow>
-                    <TableRow className="text-muted-foreground">
-                      <TableCell className="pl-4">NHF (2.5%)</TableCell>
-                      <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
-                    </TableRow>
-                    <TableRow className="text-muted-foreground border-t-2">
-                      <TableCell className="pl-4">Total Deductions</TableCell>
-                      <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
-                    </TableRow>
-                    <TableRow className="font-bold bg-muted/30">
-                      <TableCell className="pl-4">Net Pay</TableCell>
-                      <TableCell className="text-right">{formatNaira(netMonthly * 12)}</TableCell>
-                      <TableCell className="text-right pr-4">{formatNaira(netMonthly)}</TableCell>
-                    </TableRow>
+                    {hasSalary ? (
+                      <>
+                        <TableRow className="font-medium">
+                          <TableCell className="pl-4">Gross Pay</TableCell>
+                          <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
+                        </TableRow>
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">PAYE Tax</TableCell>
+                          <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
+                        </TableRow>
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">Pension Employee 8%</TableCell>
+                          <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
+                        </TableRow>
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">NHF 2.5%</TableCell>
+                          <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
+                        </TableRow>
+                        <TableRow className="text-muted-foreground border-t-2">
+                          <TableCell className="pl-4">Total Deductions</TableCell>
+                          <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
+                        </TableRow>
+                        <TableRow className="font-bold bg-muted/30">
+                          <TableCell className="pl-4 text-base">Net Pay</TableCell>
+                          <TableCell className="text-right text-base">{formatNaira(netMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 text-base">{formatNaira(netMonthly)}</TableCell>
+                        </TableRow>
+                      </>
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={3} className="pl-4 py-4 text-sm text-muted-foreground">
+                          Not set
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
-          )}
-          <Card>
-            <CardHeader><CardTitle className="text-base">Personal details</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1"><Label>First name</Label><Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Last name</Label><Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Phone</Label><Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Job title</Label><Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} placeholder="e.g. Head of Operations" /></div>
-                <div className="space-y-1"><Label>Annual leave days</Label><Input type="number" value={form.annual_leave_days || 20} onChange={(e) => patch({ annual_leave_days: Number(e.target.value) || 20 })} /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Next of kin</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1"><Label>Name</Label><Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Phone</Label><Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} /></div>
-                <div className="space-y-1"><Label>Relationship</Label><Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} placeholder="e.g. Spouse" /></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bank details</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <BankAccountField
-                value={bankDetails}
-                onChange={(v) => {
-                  setBankDetails(v);
-                  patch({
-                    bank_name: v.bank_name,
-                    bank_account_number: v.account_number,
-                    bank_account_name: v.account_name,
-                  });
-                }}
-              />
-              <div className="space-y-1"><Label>Pension PIN</Label><Input value={form.pension_pin || ''} onChange={(e) => patch({ pension_pin: e.target.value })} /></div>
-            </CardContent>
-          </Card>
-          <div className="flex justify-end gap-2 items-center">
-            {bankDetails.account_number.length > 0 && !bankDetails.verified && (
-              <p className="text-xs text-destructive">Verify bank account before saving.</p>
-            )}
-            <Button
-              onClick={save}
-              disabled={saving || (bankDetails.account_number.length > 0 && !bankDetails.verified)}
-            >
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save changes
-            </Button>
-          </div>
-        </TabsContent>
 
-        <TabsContent value="payroll" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Salary</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label>Monthly gross salary (₦)</Label>
-                <Input type="number" value={form.salary_ngn || 0} onChange={(e) => patch({ salary_ngn: Number(e.target.value) || 0 })} />
-                <p className="text-xs text-muted-foreground">PAYE: {formatNaira((form.salary_ngn || 0) * 0.075)} · Pension: {formatNaira((form.salary_ngn || 0) * 0.08)} · NHF: {formatNaira((form.salary_ngn || 0) * 0.025)}</p>
-              </div>
-              <Button onClick={save} disabled={saving} size="sm">{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save salary</Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Payslips</CardTitle></CardHeader>
-            <CardContent>
-              {payslips.length === 0 ? <p className="text-sm text-muted-foreground">No payslips generated yet.</p> : (
-                <div className="space-y-2">{payslips.map((p: any) => (
-                  <div key={p.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div><p className="font-medium">{p.period}</p><p className="text-xs text-muted-foreground">Gross {formatNaira(p.gross_ngn)} · Net {formatNaira(p.net_ngn)}</p></div>
-                    {p.file_url && (
-                      <Button size="sm" variant="outline" onClick={() => downloadPayslip(p.file_url)}>
-                        <Download className="h-4 w-4 mr-1" /> Download
-                      </Button>
-                    )}
-                  </div>
-                ))}</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="leave" className="mt-4 space-y-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Leave balance</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div><p className="text-2xl font-bold">{employee.annual_leave_days || 20}</p><p className="text-xs text-muted-foreground">Annual entitlement</p></div>
-                <div><p className="text-2xl font-bold">{leaveTaken}</p><p className="text-xs text-muted-foreground">Days taken</p></div>
-                <div><p className="text-2xl font-bold text-primary">{(employee.annual_leave_days || 20) - leaveTaken}</p><p className="text-xs text-muted-foreground">Remaining</p></div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Leave history</CardTitle></CardHeader>
-            <CardContent>
-              {leaves.length === 0 ? <p className="text-sm text-muted-foreground">No leave requests.</p> : (
-                <div className="space-y-2">{leaves.map((l: any) => (
-                  <div key={l.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div><p className="font-medium capitalize">{(l.leave_type || l.type || 'annual').replace(/_/g, ' ')}</p><p className="text-xs text-muted-foreground">{formatDate(l.start_date)} — {formatDate(l.end_date)} · {l.days || '—'} days</p></div>
-                    <Badge variant="secondary" className={l.status === 'approved' ? 'bg-success/10 text-success' : l.status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}>{l.status}</Badge>
-                  </div>
-                ))}</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="expenses" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Recent expenses</CardTitle></CardHeader>
-            <CardContent>
-              {expenses.length === 0 ? <p className="text-sm text-muted-foreground">No expenses submitted.</p> : (
-                <div className="space-y-2">{expenses.map((e: any) => (
-                  <div key={e.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div><p className="font-medium capitalize">{e.category?.replace(/_/g, ' ')}</p><p className="text-xs text-muted-foreground">{formatDate(e.date)}</p></div>
-                    <div className="text-right"><p className="font-medium currency">{formatNaira(e.amount_ngn)}</p>
-                      <Badge variant="secondary" className={e.status === 'approved' ? 'bg-success/10 text-success' : e.status === 'rejected' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}>{e.status}</Badge>
+            {/* Card 2 — Employment Details */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Employment Details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3">
+                  {([
+                    ['Department',      '—'],
+                    ['Role',            roleLabel(employee.role)],
+                    ['Start Date',      formatDate(employee.created_at)],
+                    ['Employee Number', '—'],
+                  ] as const).map(([label, val]) => (
+                    <div key={label} className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-medium">{val}</dd>
                     </div>
-                  </div>
-                ))}</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  ))}
+                </dl>
+              </CardContent>
+            </Card>
+          </div>
 
-        <TabsContent value="tasks" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Assigned tasks</CardTitle></CardHeader>
-            <CardContent>
-              {tasks.length === 0 ? <p className="text-sm text-muted-foreground">No tasks assigned.</p> : (
-                <div className="space-y-2">{tasks.map((t: any) => (
-                  <div key={t.id} className="flex items-center justify-between border rounded-lg p-3">
-                    <div><p className="font-medium">{t.title}</p><p className="text-xs text-muted-foreground">{formatDate(t.created_at)} · {t.priority || 'normal'}</p></div>
-                    <Badge variant="secondary" className={t.status === 'completed' ? 'bg-success/10 text-success' : t.status === 'blocked' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning'}>{t.status}</Badge>
-                  </div>
-                ))}</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+          {/* ── RIGHT column (40%) ────────────────────────────────────────── */}
+          <div className="lg:col-span-2 space-y-4">
 
-        <TabsContent value="documents" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Documents</CardTitle></CardHeader>
-            <CardContent>
-              {documents.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No documents uploaded.</p>
-              ) : (
-                <div className="space-y-2">
-                  {documents.map((d: any) => (
-                    <div key={d.id} className="flex items-center justify-between border rounded-lg p-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <div>
-                          <p className="font-medium">{d.name || d.file_name || 'Untitled'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {d.document_type?.replace(/_/g, ' ') || 'Document'} · {formatDate(d.created_at)}
-                          </p>
-                        </div>
+            {/* Card 3 — Payment Method */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Payment Method</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {employee.bank_name ? (
+                  <>
+                    <dl className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">Bank name</dt>
+                        <dd className="font-medium">{employee.bank_name}</dd>
                       </div>
-                      {d.file_url && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <a href={d.file_url} target="_blank" rel="noopener noreferrer">View</a>
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">Account number</dt>
+                        <dd className="font-medium font-mono">{employee.bank_account_number || '—'}</dd>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">Account name</dt>
+                        <dd className="font-medium">{employee.bank_account_name || '—'}</dd>
+                      </div>
+                    </dl>
+                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                      Payouts will be made to this account
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No payment method on file.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Card 4 — Employment Status */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Employment Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <dt className="text-muted-foreground">Employment type</dt>
+                    <dd className="font-medium">Full-time</dd>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <dt className="text-muted-foreground">Status</dt>
+                    <dd>
+                      <Badge
+                        className={
+                          employee.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
+                        }
+                      >
+                        {employee.status === 'active' ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </dd>
+                  </div>
+                </dl>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+      {activeTab === 'personal' && (
+        <div className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Basic Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                {[
+                  { label: 'Full name',      value: empName },
+                  { label: 'Date of birth',  value: '—' },
+                  { label: 'Gender',         value: '—' },
+                  { label: 'Email',          value: employee.email },
+                  { label: 'Phone',          value: employee.phone || '—' },
+                  { label: 'Marital status', value: '—' },
+                  { label: 'Start date',     value: formatDate(employee.created_at) },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="font-medium mt-0.5">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Next of Kin</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {employee.next_of_kin_name ? (
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
+                  {[
+                    { label: 'Name',         value: employee.next_of_kin_name },
+                    { label: 'Relationship', value: employee.next_of_kin_relationship || '—' },
+                    { label: 'Phone',        value: employee.next_of_kin_phone || '—' },
+                    { label: 'Email',        value: '—' },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="font-medium mt-0.5">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-sm text-muted-foreground">No next of kin on file.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Home Address</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">No address on file.</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Documents</CardTitle>
+              {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Upload
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {documents.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No documents uploaded yet.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">File name</TableHead>
+                      <TableHead>Upload date</TableHead>
+                      <TableHead className="pr-4">Uploaded by</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {documents.map((doc: any) => (
+                      <TableRow key={doc.id}>
+                        <TableCell className="pl-4 font-medium">
+                          {doc.name || doc.file_name || doc.title || '—'}
+                        </TableCell>
+                        <TableCell>{formatDate(doc.created_at)}</TableCell>
+                        <TableCell className="pr-4">{doc.uploaded_by_name || empName}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'tasks' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Assigned Tasks</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {tasks.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No tasks assigned to this employee.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Title</TableHead>
+                      <TableHead>Due date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="pr-4 w-10" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((task: any) => (
+                      <TableRow key={task.id}>
+                        <TableCell className="pl-4 font-medium">{task.title}</TableCell>
+                        <TableCell>{task.due_date ? formatDate(task.due_date) : '—'}</TableCell>
+                        <TableCell>
+                          <Badge
+                            className={
+                              task.status === 'completed' || task.status === 'done'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                : task.status === 'in_progress'
+                                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                  : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                            }
+                          >
+                            {task.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="pr-4">
+                          <button
+                            onClick={() => navigate('/tasks')}
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label="Go to tasks"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'logs' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Audit Logs</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {auditLogs.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No audit logs for this employee.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Description</TableHead>
+                      <TableHead>Action by</TableHead>
+                      <TableHead className="pr-4">Timestamp</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditLogs.map((log: any) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="pl-4">{log.description}</TableCell>
+                        <TableCell>{log.performed_by_name || '—'}</TableCell>
+                        <TableCell className="pr-4 text-muted-foreground text-xs whitespace-nowrap">
+                          {formatDateTime(log.created_at)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'leave' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Leave Requests</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {leaves.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No leave requests found.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Type</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>End Date</TableHead>
+                      <TableHead>Days</TableHead>
+                      <TableHead className="pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {leaves.map((leave: any) => (
+                      <TableRow key={leave.id}>
+                        <TableCell className="pl-4 font-medium">{leave.leave_type || leave.type || '—'}</TableCell>
+                        <TableCell>{leave.start_date ? formatDate(leave.start_date) : '—'}</TableCell>
+                        <TableCell>{leave.end_date ? formatDate(leave.end_date) : '—'}</TableCell>
+                        <TableCell>{leave.days ?? '—'}</TableCell>
+                        <TableCell className="pr-4">
+                          <Badge
+                            className={
+                              leave.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                : leave.status === 'rejected' || leave.status === 'denied'
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                  : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                            }
+                          >
+                            {leave.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'expenses' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Expenses</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {expenses.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No expenses found.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="pr-4">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {expenses.map((expense: any) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="pl-4">{formatDate(expense.created_at)}</TableCell>
+                        <TableCell className="font-medium">{expense.description || '—'}</TableCell>
+                        <TableCell>{expense.category || '—'}</TableCell>
+                        <TableCell className="text-right">{formatNaira(expense.amount || 0)}</TableCell>
+                        <TableCell className="pr-4">
+                          <Badge
+                            className={
+                              expense.status === 'approved'
+                                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                : expense.status === 'rejected' || expense.status === 'denied'
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                  : 'bg-amber-100 text-amber-700 hover:bg-amber-100'
+                            }
+                          >
+                            {expense.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'payroll' && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Payroll</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {payslips.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No payslips generated yet.</p>
+              ) : (
+                <div className="divide-y">
+                  {payslips.map((slip: any) => (
+                    <div key={slip.id} className="flex items-center justify-between px-4 py-3">
+                      <span className="text-sm font-medium">{slip.period || '—'}</span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        onClick={() => downloadPayslip(slip.file_url || slip.id)}
+                      >
+                        <Download className="h-4 w-4" /> Download
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="increments" className="mt-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Salary increment history</p>
-              {yoyGrowth !== null && (
-                <p className={`text-xs flex items-center gap-1 mt-0.5 ${yoyGrowth >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {yoyGrowth >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {Math.abs(yoyGrowth).toFixed(1)}% year-over-year salary growth
-                </p>
-              )}
-            </div>
-            {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'finance') && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setIncrementForm({ new_salary: employee?.salary_ngn || 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
-                  setShowIncrementDialog(true);
-                }}
-              >
-                <Plus className="mr-2 h-3.5 w-3.5" /> Record increment
-              </Button>
-            )}
-          </div>
+      {activeTab === 'increments' && (
+        <div className="mt-4">
           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Salary Increments</CardTitle>
+            </CardHeader>
             <CardContent className="p-0">
               {increments.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">No salary increments recorded yet.</p>
+                <p className="px-4 py-6 text-sm text-muted-foreground">No salary increments recorded.</p>
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Effective date</TableHead>
-                      <TableHead className="text-right">Previous salary</TableHead>
-                      <TableHead className="text-right">New salary</TableHead>
-                      <TableHead className="text-right">Increase</TableHead>
-                      <TableHead>Reason</TableHead>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Date</TableHead>
+                      <TableHead className="text-right">Previous Salary</TableHead>
+                      <TableHead className="text-right">New Salary</TableHead>
+                      <TableHead className="text-right">Change</TableHead>
+                      <TableHead className="pr-4">Reason</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {increments.map((inc: any) => {
-                      const pct = inc.old_salary_ngn > 0
-                        ? ((inc.new_salary_ngn - inc.old_salary_ngn) / inc.old_salary_ngn) * 100
-                        : null;
+                      const diff = (inc.new_salary_ngn || 0) - (inc.old_salary_ngn || 0);
                       return (
                         <TableRow key={inc.id}>
-                          <TableCell>{formatDate(inc.effective_date)}</TableCell>
-                          <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn)}</TableCell>
-                          <TableCell className="text-right currency font-medium">{formatNaira(inc.new_salary_ngn)}</TableCell>
+                          <TableCell className="pl-4">{formatDate(inc.effective_date)}</TableCell>
+                          <TableCell className="text-right">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
                           <TableCell className="text-right">
-                            {pct !== null && (
-                              <span className={`text-xs font-medium ${pct >= 0 ? 'text-success' : 'text-destructive'}`}>
-                                {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
-                              </span>
-                            )}
+                            <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                              {diff >= 0 ? '+' : ''}{formatNaira(diff)}
+                            </span>
                           </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{inc.reason || '—'}</TableCell>
+                          <TableCell className="pr-4 text-muted-foreground">{inc.reason || '—'}</TableCell>
                         </TableRow>
                       );
                     })}
@@ -825,108 +913,8 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
-
-          <Dialog open={showIncrementDialog} onOpenChange={setShowIncrementDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Record salary increment</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label>Current salary</Label>
-                  <p className="text-sm font-medium currency">{formatNaira(employee?.salary_ngn || 0)}</p>
-                </div>
-                <div className="space-y-1">
-                  <Label>New monthly gross salary (₦)</Label>
-                  <Input
-                    type="number"
-                    value={incrementForm.new_salary || ''}
-                    onChange={(e) => setIncrementForm({ ...incrementForm, new_salary: Number(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Effective date</Label>
-                  <Input
-                    type="date"
-                    value={incrementForm.effective_date}
-                    onChange={(e) => setIncrementForm({ ...incrementForm, effective_date: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Reason</Label>
-                  <Textarea
-                    placeholder="e.g. Annual review, promotion, market adjustment…"
-                    value={incrementForm.reason}
-                    onChange={(e) => setIncrementForm({ ...incrementForm, reason: e.target.value })}
-                  />
-                </div>
-                {incrementForm.new_salary > 0 && employee?.salary_ngn && (
-                  <p className="text-xs text-muted-foreground">
-                    Change: {formatNaira(employee.salary_ngn)} → {formatNaira(incrementForm.new_salary)}
-                    {' '}({((incrementForm.new_salary - employee.salary_ngn) / employee.salary_ngn * 100).toFixed(1)}%)
-                  </p>
-                )}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowIncrementDialog(false)}>Cancel</Button>
-                <Button onClick={recordIncrement} disabled={savingIncrement}>
-                  {savingIncrement && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save increment
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </TabsContent>
-
-        <TabsContent value="activity" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Activity log</CardTitle></CardHeader>
-            <CardContent>
-              {auditLogs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity recorded.</p>
-              ) : (
-                <div className="space-y-2">
-                  {auditLogs.map((log: any) => (
-                    <div key={log.id} className="flex items-start gap-3 border rounded-lg p-3">
-                      <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">{log.description}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {formatDateTime(log.created_at)}
-                          {log.action_type && (
-                            <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0">
-                              {log.action_type.replace(/_/g, ' ')}
-                            </Badge>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {currentUser?.role === 'super_admin' && (
-          <TabsContent value="permissions" className="mt-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Override what {empName} can access. Permissions that are toggled off
-              will be denied even if the user's role would normally allow them.
-            </p>
-            <PermissionsEditor
-              value={permissions}
-              onChange={setPermissions}
-            />
-            <div className="flex justify-end">
-              <Button onClick={savePermissions} disabled={savingPermissions}>
-                {savingPermissions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Save permissions
-              </Button>
-            </div>
-          </TabsContent>
-        )}
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
