@@ -41,7 +41,11 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { NIGERIAN_BANKS } from '@/lib/nigerian-banks';
 
 interface ContractorData {
   id: string;
@@ -49,7 +53,9 @@ interface ContractorData {
   first_name: string | null;
   last_name: string | null;
   bank_name: string;
+  bank_code: string | null;
   account_number: string;
+  account_name: string | null;
   default_amount_ngn: number;
   default_amount?: number | null;
   whatsapp_phone?: string | null;
@@ -91,6 +97,13 @@ const ContractorProfile = () => {
   const [editMode, setEditMode] = useState(false);
   const [showPwdEdit, setShowPwdEdit] = useState(false);
   const [showPwdDisplay, setShowPwdDisplay] = useState(false);
+  const [bankEditMode, setBankEditMode] = useState(false);
+  const [bankForm, setBankForm] = useState({ account_number: '', bank_code: '' });
+  const [bankVerifying, setBankVerifying] = useState(false);
+  const [bankVerified, setBankVerified] = useState(false);
+  const [bankVerifiedName, setBankVerifiedName] = useState<string | null>(null);
+  const [bankError, setBankError] = useState<string | null>(null);
+  const [bankSaving, setBankSaving] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -134,6 +147,33 @@ const ContractorProfile = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const verify = async () => {
+      setBankVerified(false);
+      setBankVerifiedName(null);
+      setBankError(null);
+      if (!bankEditMode) return;
+      const { account_number, bank_code } = bankForm;
+      if (account_number.length !== 10 || !bank_code) return;
+      setBankVerifying(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+          body: { action: 'resolve_account', account_number, bank_code },
+        });
+        if (error || !data?.ok || !data?.data?.account_name) {
+          throw new Error(data?.error || error?.message || 'Verification failed');
+        }
+        setBankVerifiedName(data.data.account_name);
+        setBankVerified(true);
+      } catch {
+        setBankError('Could not verify — check account number and bank');
+      } finally {
+        setBankVerifying(false);
+      }
+    };
+    void verify();
+  }, [bankForm.account_number, bankForm.bank_code, bankEditMode]);
 
   const beginEdit = () => {
     if (!contractor) return;
@@ -185,6 +225,33 @@ const ContractorProfile = () => {
       load();
     }
     setSaving(false);
+  };
+
+  const saveBank = async () => {
+    if (!id || !contractor || !bankVerified || !bankVerifiedName) return;
+    setBankSaving(true);
+    const selectedBank = NIGERIAN_BANKS.find((b) => b.code === bankForm.bank_code);
+    const cName = `${contractor.first_name || ''} ${contractor.last_name || ''}`.trim() || contractor.full_name;
+    const { error } = await supabase
+      .from('contractors')
+      .update({
+        account_number: bankForm.account_number,
+        bank_name: selectedBank?.name || '',
+        bank_code: bankForm.bank_code,
+        account_name: bankVerifiedName,
+      })
+      .eq('id', id);
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('contractor_edited', `Bank details updated for "${cName}"`, currentUser);
+      toast({ title: 'Bank details saved' });
+      setBankEditMode(false);
+      setBankVerified(false);
+      setBankVerifiedName(null);
+      load();
+    }
+    setBankSaving(false);
   };
 
   const handleDeactivate = async () => {
@@ -533,18 +600,6 @@ const ContractorProfile = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <Label>LinkedIn ID</Label>
-                  {editMode ? (
-                    <Input value={form.linkedin_id || ''} onChange={(e) => patch({ linkedin_id: e.target.value })} />
-                  ) : (
-                    <p className="text-sm py-2">{contractor.linkedin_id || '—'}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Numeric ID used by HeyReach to identify this account
-                  </p>
-                </div>
-
-                <div className="space-y-1">
                   <Label>Default Payment Amount (₦)</Label>
                   {editMode ? (
                     <Input
@@ -579,21 +634,128 @@ const ContractorProfile = () => {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Bank details</CardTitle></CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+              <CardTitle className="text-base">Bank details</CardTitle>
+              {!bankEditMode ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setBankForm({
+                      account_number: contractor.account_number || '',
+                      bank_code: contractor.bank_code || '',
+                    });
+                    setBankVerified(false);
+                    setBankVerifiedName(null);
+                    setBankError(null);
+                    setBankEditMode(true);
+                  }}
+                >
+                  <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Bank Details
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setBankEditMode(false);
+                    setBankVerified(false);
+                    setBankVerifiedName(null);
+                    setBankError(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Bank</Label>
-                  <Input value={contractor.bank_name} disabled />
-                </div>
-                <div className="space-y-1">
-                  <Label>Account number</Label>
-                  <Input value={contractor.account_number} disabled />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Bank details are verified via Paystack and can only be changed through the Contractors list.
-              </p>
+              {bankEditMode ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Account Number</Label>
+                      <Input
+                        value={bankForm.account_number}
+                        onChange={(e) =>
+                          setBankForm((p) => ({
+                            ...p,
+                            account_number: e.target.value.replace(/\D/g, '').slice(0, 10),
+                          }))
+                        }
+                        placeholder="0123456789"
+                        maxLength={10}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Bank</Label>
+                      <Select
+                        value={bankForm.bank_code}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, bank_code: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select bank..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NIGERIAN_BANKS.map((b) => (
+                            <SelectItem key={b.code + b.name} value={b.code}>{b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {bankVerifying && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verifying account...
+                    </div>
+                  )}
+
+                  {bankVerified && bankVerifiedName && !bankVerifying && (
+                    <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-2 text-sm text-success">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" />
+                      Verified: {bankVerifiedName}
+                    </div>
+                  )}
+
+                  {bankError && !bankVerifying && (
+                    <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      {bankError}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={saveBank} disabled={!bankVerified || bankSaving}>
+                      {bankSaving
+                        ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        : <Save className="mr-2 h-3.5 w-3.5" />}
+                      Save Bank Details
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Bank</Label>
+                      <p className="text-sm py-2">{contractor.bank_name || '—'}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Account Number</Label>
+                      <p className="text-sm py-2 font-mono">{contractor.account_number || '—'}</p>
+                    </div>
+                    {contractor.account_name && (
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label>Account Name</Label>
+                        <p className="text-sm py-2">{contractor.account_name}</p>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Bank details are verified via Paystack and can only be changed through the Contractors list.
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
