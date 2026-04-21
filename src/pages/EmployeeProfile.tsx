@@ -70,6 +70,11 @@ interface EmployeeData {
   tags: string[] | null;
   photo_url: string | null;
   departments: { name: string } | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  address: string | null;
+  next_of_kin_email: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -107,6 +112,9 @@ const EmployeeProfile = () => {
   });
   const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showPersonalEditDialog, setShowPersonalEditDialog] = useState(false);
+  const [showKinEditDialog, setShowKinEditDialog] = useState(false);
+  const [showAddressEditDialog, setShowAddressEditDialog] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -197,6 +205,11 @@ const EmployeeProfile = () => {
       bank_account_name: form.bank_account_name,
       pension_pin: form.pension_pin,
       annual_leave_days: form.annual_leave_days,
+      date_of_birth: form.date_of_birth,
+      gender: form.gender,
+      marital_status: form.marital_status,
+      address: form.address,
+      next_of_kin_email: form.next_of_kin_email,
     }).eq('id', id);
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
@@ -655,61 +668,84 @@ const EmployeeProfile = () => {
       )}
       {activeTab === 'personal' && (
         <div className="mt-4 space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Basic Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                {[
-                  { label: 'Full name',      value: empName },
-                  { label: 'Date of birth',  value: '—' },
-                  { label: 'Gender',         value: '—' },
-                  { label: 'Email',          value: employee.email },
-                  { label: 'Phone',          value: employee.phone || '—' },
-                  { label: 'Marital status', value: '—' },
-                  { label: 'Start date',     value: formatDate(employee.created_at) },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <dt className="text-muted-foreground">{label}</dt>
-                    <dd className="font-medium mt-0.5">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Next of Kin</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {employee.next_of_kin_name ? (
-                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6 text-sm">
-                  {[
-                    { label: 'Name',         value: employee.next_of_kin_name },
-                    { label: 'Relationship', value: employee.next_of_kin_relationship || '—' },
-                    { label: 'Phone',        value: employee.next_of_kin_phone || '—' },
-                    { label: 'Email',        value: '—' },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="font-medium mt-0.5">{value}</dd>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Basic Details */}
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Basic Details</CardTitle>
+                {canManage && (
+                  <Button size="sm" variant="outline" onClick={() => setShowPersonalEditDialog(true)}>
+                    Edit
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                <dl className="space-y-3 text-sm">
+                  {([
+                    ['Full name',      empName],
+                    ['Date of birth',  employee.date_of_birth ? formatDate(employee.date_of_birth) : '—'],
+                    ['Gender',         employee.gender || '—'],
+                    ['Email',          employee.email],
+                    ['Phone',          employee.phone || '—'],
+                    ['Marital status', employee.marital_status || '—'],
+                  ] as [string, string][]).map(([label, val]) => (
+                    <div key={label} className="flex items-start justify-between gap-4">
+                      <dt className="text-muted-foreground shrink-0">{label}</dt>
+                      <dd className="font-medium text-right">{val}</dd>
                     </div>
                   ))}
                 </dl>
-              ) : (
-                <p className="text-sm text-muted-foreground">No next of kin on file.</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
+            {/* Next of Kin */}
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Next of Kin</CardTitle>
+                {canManage && (
+                  <Button size="sm" variant="outline" onClick={() => setShowKinEditDialog(true)}>
+                    Edit
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {employee.next_of_kin_name ? (
+                  <dl className="space-y-3 text-sm">
+                    {([
+                      ['Name',         employee.next_of_kin_name],
+                      ['Relationship', employee.next_of_kin_relationship || '—'],
+                      ['Phone',        employee.next_of_kin_phone || '—'],
+                      ['Email',        employee.next_of_kin_email || '—'],
+                    ] as [string, string][]).map(([label, val]) => (
+                      <div key={label} className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground shrink-0">{label}</dt>
+                        <dd className="font-medium text-right">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No next of kin recorded.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Home Address */}
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Home Address</CardTitle>
+              {canManage && (
+                <Button size="sm" variant="outline" onClick={() => setShowAddressEditDialog(true)}>
+                  Edit
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">No address on file.</p>
+              {employee.address ? (
+                <p className="text-sm">{employee.address}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">No address recorded.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1142,6 +1178,126 @@ const EmployeeProfile = () => {
             >
               {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Basic Details dialog ── */}
+      <Dialog open={showPersonalEditDialog} onOpenChange={setShowPersonalEditDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Basic Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label>Date of birth</Label>
+              <Input
+                type="date"
+                value={form.date_of_birth || ''}
+                onChange={(e) => patch({ date_of_birth: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Gender</Label>
+              <Select value={form.gender || ''} onValueChange={(v) => patch({ gender: v || null })}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Marital status</Label>
+              <Select value={form.marital_status || ''} onValueChange={(v) => patch({ marital_status: v || null })}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">Single</SelectItem>
+                  <SelectItem value="married">Married</SelectItem>
+                  <SelectItem value="divorced">Divorced</SelectItem>
+                  <SelectItem value="widowed">Widowed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPersonalEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={async () => { const ok = await save(); if (ok) setShowPersonalEditDialog(false); }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Next of Kin dialog ── */}
+      <Dialog open={showKinEditDialog} onOpenChange={setShowKinEditDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Next of Kin</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label>Full name</Label>
+              <Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Relationship</Label>
+              <Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input type="email" value={form.next_of_kin_email || ''} onChange={(e) => patch({ next_of_kin_email: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowKinEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={async () => { const ok = await save(); if (ok) setShowKinEditDialog(false); }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Address dialog ── */}
+      <Dialog open={showAddressEditDialog} onOpenChange={setShowAddressEditDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Home Address</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label>Address</Label>
+              <Textarea
+                rows={3}
+                value={form.address || ''}
+                onChange={(e) => patch({ address: e.target.value })}
+                placeholder="Enter full address…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddressEditDialog(false)}>Cancel</Button>
+            <Button
+              onClick={async () => { const ok = await save(); if (ok) setShowAddressEditDialog(false); }}
+              disabled={saving}
+            >
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
