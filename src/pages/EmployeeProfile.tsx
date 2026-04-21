@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
-  ChevronDown, AlertTriangle, ExternalLink,
+  ChevronDown, AlertTriangle, ExternalLink, Camera,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -68,6 +68,7 @@ interface EmployeeData {
   annual_leave_days: number;
   department_id: string | null;
   tags: string[] | null;
+  photo_url: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -105,6 +106,8 @@ const EmployeeProfile = () => {
   });
   const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const avatarFileRef = useRef<HTMLInputElement>(null);
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -236,6 +239,33 @@ const EmployeeProfile = () => {
     navigate('/employees', { replace: true });
   };
 
+  const uploadPhoto = async (file: File) => {
+    if (!id) return;
+    setUploadingPhoto(true);
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `employees/${id}.${ext}`;
+    const { error: upErr } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true });
+    if (upErr) {
+      toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
+      setUploadingPhoto(false);
+      return;
+    }
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+    const { error: saveErr } = await supabase
+      .from('profiles')
+      .update({ photo_url: publicUrl })
+      .eq('id', id);
+    if (saveErr) {
+      toast({ title: 'Failed to save photo', description: saveErr.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Photo updated' });
+      load();
+    }
+    setUploadingPhoto(false);
+  };
+
   const savePermissions = async () => {
     if (!id) return;
     setSavingPermissions(true);
@@ -327,22 +357,53 @@ const EmployeeProfile = () => {
     <div className="max-w-5xl">
       <button
         onClick={() => navigate('/employees')}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
       >
         ← Employees
       </button>
 
-      {/* ── Profile identity strip ── */}
-      <div className="bg-card border-x border-b rounded-b-xl px-6 pb-4">
-        <div className="flex flex-wrap items-end gap-4 -mt-10">
-          <div className="h-20 w-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-background shrink-0 shadow">
-            <span className="text-2xl font-bold text-primary-foreground">
-              {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0 pt-12 sm:pt-2 pb-1">
+      {/* ── Profile header card ── */}
+      <div className="bg-card border rounded-xl px-6 py-4">
+        <div className="flex items-center gap-4">
+
+          {/* Avatar — click to upload */}
+          <button
+            type="button"
+            onClick={() => avatarFileRef.current?.click()}
+            disabled={uploadingPhoto}
+            className="relative h-16 w-16 rounded-full shrink-0 group focus:outline-none"
+          >
+            {employee.photo_url ? (
+              <img
+                src={employee.photo_url}
+                alt={empName}
+                className="h-16 w-16 rounded-full object-cover ring-2 ring-background shadow"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-primary flex items-center justify-center ring-2 ring-background shadow">
+                <span className="text-xl font-bold text-primary-foreground">
+                  {initialsOf(employee.first_name, employee.last_name, employee.full_name)}
+                </span>
+              </div>
+            )}
+            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              {uploadingPhoto
+                ? <Loader2 className="h-5 w-5 text-white animate-spin" />
+                : <Camera className="h-5 w-5 text-white" />}
+            </div>
+          </button>
+          <input
+            ref={avatarFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ''; }}
+          />
+
+          {/* Name / role / email */}
+          <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold leading-tight">{empName}</h1>
+              <h1 className="text-xl font-semibold leading-tight">{empName}</h1>
               <Badge
                 className={
                   employee.status === 'active'
@@ -353,40 +414,41 @@ const EmployeeProfile = () => {
                 {employee.status === 'active' ? 'Active' : 'Inactive'}
               </Badge>
             </div>
-            <p className="text-muted-foreground text-sm mt-0.5">
+            <p className="text-muted-foreground text-sm mt-0.5 truncate">
               {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}
             </p>
           </div>
-          <div className="ml-auto pb-1">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  Manage <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                  Edit Profile
+
+          {/* Manage dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="shrink-0">
+                Manage <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                Edit Profile
+              </DropdownMenuItem>
+              {canManage && (
+                <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
+                  Deactivate
                 </DropdownMenuItem>
-                {canManage && (
-                  <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
-                    Deactivate
+              )}
+              {isSuperAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={() => setConfirmAnonymise(true)}
+                  >
+                    Delete &amp; Anonymise
                   </DropdownMenuItem>
-                )}
-                {isSuperAdmin && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600"
-                      onClick={() => setConfirmAnonymise(true)}
-                    >
-                      Delete &amp; Anonymise
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
         </div>
       </div>
 
