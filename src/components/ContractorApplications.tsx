@@ -46,13 +46,18 @@ interface Application {
   first_name: string | null;
   last_name: string | null;
   full_name: string | null;
+  linkedin_full_name: string | null;
   email: string;
   phone: string | null;
   linkedin_url: string | null;
   linkedin_profile_url: string | null;
+  linkedin_email: string | null;
   bank_name: string;
+  bank_code: string | null;
   account_number: string;
   account_name: string | null;
+  heyreach_password_enc: string | null;
+  default_amount_ngn: number | null;
   additional_info: string | null;
   status: 'pending' | 'pending_review' | 'approved' | 'rejected';
   rejection_reason: string | null;
@@ -122,15 +127,20 @@ export function ContractorApplications() {
       const { data: contractor, error: cErr } = await supabase
         .from('contractors')
         .insert({
-          full_name: applicantName(app),
+          full_name: app.linkedin_full_name || applicantName(app),
           first_name: app.first_name,
           last_name: app.last_name,
+          email: app.email,
+          phone: app.phone,
           bank_name: app.bank_name,
+          bank_code: app.bank_code || '',
           account_number: app.account_number,
           account_name: app.account_name,
-          default_amount_ngn: 0,
-          linkedin_id: linkedinHandle,
-          linkedin_url: linkedIn,
+          linkedin_url: app.linkedin_url || app.linkedin_profile_url,
+          heyreach_email: app.linkedin_email,
+          heyreach_password_enc: app.heyreach_password_enc,
+          default_amount: app.default_amount_ngn || 0,
+          default_amount_ngn: app.default_amount_ngn || 0,
           status: 'active',
         })
         .select('id')

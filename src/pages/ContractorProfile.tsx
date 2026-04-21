@@ -209,6 +209,7 @@ const ContractorProfile = () => {
         heyreach_email: form.heyreach_email,
         heyreach_password_enc: form.heyreach_password_enc,
         linkedin_url: form.linkedin_url,
+        default_amount_ngn: Number(form.default_amount),
         default_amount: Number(form.default_amount),
         notes: form.notes,
       })
