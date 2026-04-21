@@ -159,7 +159,9 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('documents').select('*').eq('uploaded_by', id)
         .order('created_at', { ascending: false }).limit(30),
-      supabase.from('audit_logs').select('*').eq('performed_by', id)
+      supabase.from('audit_logs')
+        .select('id, action_type, description, created_at, performed_by, performed_by_name')
+        .or(`entity_id.eq.${id},performed_by.eq.${id}`)
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('salary_increments').select('*').eq('employee_id', id)
         .order('effective_date', { ascending: false }),
@@ -818,21 +820,23 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {auditLogs.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No audit logs for this employee.</p>
+                <p className="px-4 py-6 text-sm text-muted-foreground">No activity recorded.</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="pl-4">Description</TableHead>
-                      <TableHead>Action by</TableHead>
-                      <TableHead className="pr-4">Timestamp</TableHead>
+                      <TableHead className="pl-4">Action</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="pr-4 whitespace-nowrap">Date</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {auditLogs.map((log: any) => (
                       <TableRow key={log.id}>
-                        <TableCell className="pl-4">{log.description}</TableCell>
-                        <TableCell>{log.performed_by_name || '—'}</TableCell>
+                        <TableCell className="pl-4 font-mono text-xs whitespace-nowrap">
+                          {log.action_type || '—'}
+                        </TableCell>
+                        <TableCell className="text-sm">{log.description || '—'}</TableCell>
                         <TableCell className="pr-4 text-muted-foreground text-xs whitespace-nowrap">
                           {formatDateTime(log.created_at)}
                         </TableCell>
