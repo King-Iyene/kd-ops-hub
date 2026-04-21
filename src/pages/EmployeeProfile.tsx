@@ -104,6 +104,7 @@ const EmployeeProfile = () => {
     effective_date: new Date().toISOString().slice(0, 10),
   });
   const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -319,8 +320,18 @@ const EmployeeProfile = () => {
   const totalDeductMonthly = payeMonthly + pensionMonthly + nhfMonthly;
   const netMonthly      = hasSalary ? salary - totalDeductMonthly         : 0;
 
+  const canManage    = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+
   return (
     <div className="max-w-5xl">
+      <button
+        onClick={() => navigate('/employees')}
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        ← Employees
+      </button>
+
       {/* ── Profile identity strip ── */}
       <div className="bg-card border-x border-b rounded-b-xl px-6 pb-4">
         <div className="flex flex-wrap items-end gap-4 -mt-10">
@@ -345,6 +356,36 @@ const EmployeeProfile = () => {
             <p className="text-muted-foreground text-sm mt-0.5">
               {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}
             </p>
+          </div>
+          <div className="ml-auto pb-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  Manage <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+                  Edit Profile
+                </DropdownMenuItem>
+                {canManage && (
+                  <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
+                    Deactivate
+                  </DropdownMenuItem>
+                )}
+                {isSuperAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={() => setConfirmAnonymise(true)}
+                    >
+                      Delete &amp; Anonymise
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
