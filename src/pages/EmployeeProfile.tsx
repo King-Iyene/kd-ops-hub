@@ -362,7 +362,7 @@ const EmployeeProfile = () => {
         onClick={() => navigate('/employees')}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
       >
-        ← Employees
+        ← Back
       </button>
 
       {/* ── Profile header card ── */}
