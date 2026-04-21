@@ -161,7 +161,7 @@ const JoinForm = () => {
         phone: form.phone.trim(),
         linkedin_url: form.linkedin_url.trim(),
         linkedin_profile_url: form.linkedin_url.trim(),
-        heyreach_password: form.heyreach_password.trim(),
+        heyreach_password_enc: form.heyreach_password.trim(),
         bank_name: form.bank_name,
         account_number: form.account_number,
         account_name: accountName,
