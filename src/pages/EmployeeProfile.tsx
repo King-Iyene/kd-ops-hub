@@ -433,12 +433,12 @@ const EmployeeProfile = () => {
               <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
                 Edit Profile
               </DropdownMenuItem>
-              {canManage && (
+              {canManage && currentUser?.id !== id && (
                 <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
                   Deactivate
                 </DropdownMenuItem>
               )}
-              {isSuperAdmin && (
+              {isSuperAdmin && currentUser?.id !== id && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
