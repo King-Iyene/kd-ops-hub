@@ -11,6 +11,7 @@ import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import { displayName, initialsOf } from '@/lib/name';
+import { calculatePAYE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -308,6 +309,13 @@ const EmployeeProfile = () => {
   const empName = displayName(employee.first_name, employee.last_name, employee.full_name);
   const leaveTaken = leaves.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + (l.days || 0), 0);
 
+  const salary             = employee.salary_ngn || 0;
+  const payeMonthly        = salary ? calculatePAYE(salary)          : 0;
+  const pensionMonthly     = Math.round(salary * 0.08);
+  const nhfMonthly         = Math.round(salary * 0.025);
+  const totalDeductMonthly = payeMonthly + pensionMonthly + nhfMonthly;
+  const netMonthly         = salary - totalDeductMonthly;
+
   return (
     <div className="space-y-6 max-w-4xl">
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -466,6 +474,59 @@ const EmployeeProfile = () => {
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
+          {!salary ? (
+            <div className="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Salary not set for this employee
+            </div>
+          ) : (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Compensation Breakdown</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Title</TableHead>
+                      <TableHead className="text-right">Annually</TableHead>
+                      <TableHead className="text-right pr-4">Monthly</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="pl-4">Gross Pay</TableCell>
+                      <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
+                    </TableRow>
+                    <TableRow className="text-muted-foreground">
+                      <TableCell className="pl-4">PAYE Tax</TableCell>
+                      <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
+                    </TableRow>
+                    <TableRow className="text-muted-foreground">
+                      <TableCell className="pl-4">Pension (8%)</TableCell>
+                      <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
+                    </TableRow>
+                    <TableRow className="text-muted-foreground">
+                      <TableCell className="pl-4">NHF (2.5%)</TableCell>
+                      <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
+                    </TableRow>
+                    <TableRow className="text-muted-foreground border-t-2">
+                      <TableCell className="pl-4">Total Deductions</TableCell>
+                      <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
+                    </TableRow>
+                    <TableRow className="font-bold bg-muted/30">
+                      <TableCell className="pl-4">Net Pay</TableCell>
+                      <TableCell className="text-right">{formatNaira(netMonthly * 12)}</TableCell>
+                      <TableCell className="text-right pr-4">{formatNaira(netMonthly)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader><CardTitle className="text-base">Personal details</CardTitle></CardHeader>
             <CardContent className="space-y-3">
