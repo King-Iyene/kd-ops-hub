@@ -1082,6 +1082,67 @@ const EmployeeProfile = () => {
         </DialogContent>
       </Dialog>
 
+      {/* ── Deactivate dialog ── */}
+      <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate {employee?.first_name}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            They will lose platform access immediately.
+            Their records remain visible and this can
+            be reversed by an admin.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeactivate(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeactivate} disabled={actioning}>
+              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Deactivate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete & Anonymise dialog ── */}
+      <Dialog open={confirmAnonymise} onOpenChange={(o) => { if (!o) { setConfirmAnonymise(false); setAnonymiseInput(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">
+              Permanently delete {employee?.first_name}?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+              <li>Their account will be permanently closed</li>
+              <li>Their name and contact details will be erased</li>
+              <li>Payment records will show as "Former Employee"</li>
+              <li className="text-red-600 font-medium">This CANNOT be undone.</li>
+            </ul>
+            <p className="text-sm font-medium">Type DELETE to confirm:</p>
+            <Input
+              value={anonymiseInput}
+              onChange={(e) => setAnonymiseInput(e.target.value)}
+              placeholder="Type DELETE"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setConfirmAnonymise(false); setAnonymiseInput(''); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={anonymiseInput !== 'DELETE' || actioning}
+              onClick={handleAnonymise}
+            >
+              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };
