@@ -119,6 +119,12 @@ const calcDays = (start: string, end: string): number => {
   return diff < 0 ? 0 : diff + 1;
 };
 
+const TabCount = ({ n }: { n: number }) => (
+  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+    {n}
+  </span>
+);
+
 const Leave = () => {
   usePageTitle('Leave');
   const { profile } = useAuthStore();
@@ -138,7 +144,7 @@ const Leave = () => {
   const [actioning, setActioning] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | LeaveStatus>(isManager ? 'all' : 'pending');
+  const [statusFilter, setStatusFilter] = useState<'all' | LeaveStatus>('pending');
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -453,6 +459,16 @@ const Leave = () => {
 
   const pagination = usePagination(visible, 20);
 
+  const statusCounts = useMemo(() => {
+    const scope = tab === 'mine' ? myRequests : teamRequests;
+    return {
+      all: scope.length,
+      pending: scope.filter((r) => r.status === 'pending').length,
+      approved: scope.filter((r) => r.status === 'approved').length,
+      rejected: scope.filter((r) => r.status === 'rejected').length,
+    };
+  }, [tab, myRequests, teamRequests]);
+
   // -- Render ---------------------------------------------------------------
 
   const annualLeft = balance
@@ -536,10 +552,10 @@ const Leave = () => {
               </div>
               <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
                 <TabsList>
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="pending">Pending</TabsTrigger>
-                  <TabsTrigger value="approved">Approved</TabsTrigger>
-                  <TabsTrigger value="rejected">Rejected</TabsTrigger>
+                  <TabsTrigger value="all">All <TabCount n={statusCounts.all} /></TabsTrigger>
+                  <TabsTrigger value="pending">Pending <TabCount n={statusCounts.pending} /></TabsTrigger>
+                  <TabsTrigger value="approved">Approved <TabCount n={statusCounts.approved} /></TabsTrigger>
+                  <TabsTrigger value="rejected">Rejected <TabCount n={statusCounts.rejected} /></TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>

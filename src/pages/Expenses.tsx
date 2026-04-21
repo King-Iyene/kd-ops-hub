@@ -138,6 +138,12 @@ const DEFAULT_MILEAGE_RATE = 100; // ₦/km — sensible default for Nigeria
 const mileageAmount = (km: number, rate: number) =>
   Math.max(0, Math.round(km * rate * 100) / 100);
 
+const TabCount = ({ n }: { n: number }) => (
+  <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+    {n}
+  </span>
+);
+
 const Expenses = () => {
   usePageTitle('Expenses');
   const { profile } = useAuthStore();
@@ -157,7 +163,7 @@ const Expenses = () => {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>(
-    isApprover ? 'all' : 'pending',
+    'pending',
   );
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
 
@@ -858,6 +864,15 @@ const Expenses = () => {
 
   const pagination = usePagination(filtered, 20);
 
+  const statusCounts = useMemo(() => ({
+    all: expenses.length,
+    pending: expenses.filter(
+      (e) => e.status === 'pending' || e.status === 'pending_second_approval',
+    ).length,
+    approved: expenses.filter((e) => e.status === 'approved').length,
+    rejected: expenses.filter((e) => e.status === 'rejected').length,
+  }), [expenses]);
+
   // -- Trend chart ----------------------------------------------------------
 
   const trendData = useMemo(() => {
@@ -1049,10 +1064,10 @@ const Expenses = () => {
           </div>
           <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
             <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
+              <TabsTrigger value="all">All <TabCount n={statusCounts.all} /></TabsTrigger>
+              <TabsTrigger value="pending">Pending <TabCount n={statusCounts.pending} /></TabsTrigger>
+              <TabsTrigger value="approved">Approved <TabCount n={statusCounts.approved} /></TabsTrigger>
+              <TabsTrigger value="rejected">Rejected <TabCount n={statusCounts.rejected} /></TabsTrigger>
             </TabsList>
           </Tabs>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
