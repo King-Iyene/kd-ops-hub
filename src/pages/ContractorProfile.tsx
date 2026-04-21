@@ -17,6 +17,10 @@ import {
   Trash2,
   ChevronDown,
   AlertTriangle,
+  Pencil,
+  Lock,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -37,8 +41,6 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 interface ContractorData {
@@ -49,6 +51,10 @@ interface ContractorData {
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
+  default_amount?: number | null;
+  whatsapp_phone?: string | null;
+  heyreach_email?: string | null;
+  heyreach_password_enc?: string | null;
   linkedin_id: string | null;
   linkedin_url: string | null;
   notes: string | null;
@@ -82,6 +88,9 @@ const ContractorProfile = () => {
   const [anonymiseInput, setAnonymiseInput] = useState('');
   const [actioning, setActioning] = useState(false);
   const [form, setForm] = useState<Partial<ContractorData>>({});
+  const [editMode, setEditMode] = useState(false);
+  const [showPwdEdit, setShowPwdEdit] = useState(false);
+  const [showPwdDisplay, setShowPwdDisplay] = useState(false);
   const [payments, setPayments] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -126,19 +135,43 @@ const ContractorProfile = () => {
     load();
   }, [load]);
 
+  const beginEdit = () => {
+    if (!contractor) return;
+    setForm({
+      first_name: contractor.first_name || '',
+      last_name: contractor.last_name || '',
+      whatsapp_phone: contractor.whatsapp_phone || '',
+      heyreach_email: contractor.heyreach_email || '',
+      heyreach_password_enc: contractor.heyreach_password_enc || '',
+      linkedin_url: contractor.linkedin_url || '',
+      linkedin_id: contractor.linkedin_id || '',
+      default_amount: contractor.default_amount ?? contractor.default_amount_ngn ?? 0,
+      notes: contractor.notes || '',
+    });
+    setShowPwdEdit(false);
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    if (contractor) setForm(contractor);
+    setShowPwdEdit(false);
+    setEditMode(false);
+  };
+
   const save = async () => {
     if (!id || !form) return;
     setSaving(true);
-    const cName = displayName(form.first_name, form.last_name, form.full_name);
+    const cName = `${form.first_name || ''} ${form.last_name || ''}`.trim();
     const { error } = await supabase
       .from('contractors')
       .update({
-        first_name: form.first_name,
-        last_name: form.last_name,
-        full_name: cName,
-        default_amount_ngn: form.default_amount_ngn,
-        linkedin_id: form.linkedin_id,
+        name: form.first_name + ' ' + form.last_name,
+        phone: form.whatsapp_phone,
+        heyreach_email: form.heyreach_email,
+        heyreach_password_enc: form.heyreach_password_enc,
         linkedin_url: form.linkedin_url,
+        linkedin_id: form.linkedin_id,
+        default_amount: Number(form.default_amount),
         notes: form.notes,
       })
       .eq('id', id);
@@ -146,7 +179,9 @@ const ContractorProfile = () => {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
     } else {
       await logAudit('contractor_edited', `Contractor profile "${cName}" updated`, currentUser);
-      toast({ title: 'Contractor profile saved' });
+      toast({ title: 'Contractor details saved' });
+      setEditMode(false);
+      setShowPwdEdit(false);
       load();
     }
     setSaving(false);
@@ -199,6 +234,7 @@ const ContractorProfile = () => {
   const doneCnt = checks.filter((c) => c.ok).length;
   const pct = Math.round((doneCnt / checks.length) * 100);
   const ctrName = displayName(contractor.first_name, contractor.last_name, contractor.full_name);
+  const canViewPassword = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -364,42 +400,180 @@ const ContractorProfile = () => {
 
         <TabsContent value="overview" className="mt-4 space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Contractor details</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>First name</Label>
-                  <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+            <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+              <CardTitle className="text-base">Contractor details</CardTitle>
+              {!editMode ? (
+                <Button variant="outline" size="sm" onClick={beginEdit}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Details
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={cancelEdit} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={save} disabled={saving}>
+                    {saving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+                    Save
+                  </Button>
                 </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label>Last name</Label>
-                  <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+                  <Label>First Name</Label>
+                  {editMode ? (
+                    <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+                  ) : (
+                    <p className="text-sm py-2">{contractor.first_name || '—'}</p>
+                  )}
                 </div>
+
                 <div className="space-y-1">
-                  <Label>Default amount (₦)</Label>
-                  <Input
-                    type="number"
-                    value={form.default_amount_ngn || 0}
-                    onChange={(e) => patch({ default_amount_ngn: Number(e.target.value) || 0 })}
-                  />
+                  <Label>Last Name</Label>
+                  {editMode ? (
+                    <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+                  ) : (
+                    <p className="text-sm py-2">{contractor.last_name || '—'}</p>
+                  )}
                 </div>
+
                 <div className="space-y-1">
-                  <Label>LinkedIn ID</Label>
-                  <Input value={form.linkedin_id || ''} onChange={(e) => patch({ linkedin_id: e.target.value })} />
+                  <Label>Phone / WhatsApp</Label>
+                  {editMode ? (
+                    <Input
+                      value={form.whatsapp_phone || ''}
+                      onChange={(e) => patch({ whatsapp_phone: e.target.value })}
+                      placeholder="+234..."
+                    />
+                  ) : (
+                    <p className="text-sm py-2">{contractor.whatsapp_phone || '—'}</p>
+                  )}
                 </div>
+
+                <div className="space-y-1">
+                  <Label>LinkedIn Email</Label>
+                  {editMode ? (
+                    <Input
+                      type="email"
+                      value={form.heyreach_email || ''}
+                      onChange={(e) => patch({ heyreach_email: e.target.value })}
+                    />
+                  ) : (
+                    <p className="text-sm py-2 break-all">{contractor.heyreach_email || '—'}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    LinkedIn Password
+                  </Label>
+                  {editMode ? (
+                    <div className="relative">
+                      <Input
+                        type={showPwdEdit ? 'text' : 'password'}
+                        value={form.heyreach_password_enc || ''}
+                        onChange={(e) => patch({ heyreach_password_enc: e.target.value })}
+                        className="pr-10"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPwdEdit((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPwdEdit ? 'Hide password' : 'Show password'}
+                      >
+                        {showPwdEdit ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 py-1">
+                      <p className="text-sm font-mono">
+                        {showPwdDisplay ? (contractor.heyreach_password_enc || '—') : '••••••••'}
+                      </p>
+                      {canViewPassword && contractor.heyreach_password_enc && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setShowPwdDisplay((v) => !v)}
+                        >
+                          {showPwdDisplay ? (
+                            <><EyeOff className="mr-1 h-3.5 w-3.5" /> Hide</>
+                          ) : (
+                            <><Eye className="mr-1 h-3.5 w-3.5" /> View</>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-1">
                   <Label>LinkedIn URL</Label>
-                  <Input value={form.linkedin_url || ''} onChange={(e) => patch({ linkedin_url: e.target.value })} placeholder="https://linkedin.com/in/..." />
+                  {editMode ? (
+                    <Input
+                      value={form.linkedin_url || ''}
+                      onChange={(e) => patch({ linkedin_url: e.target.value })}
+                      placeholder="https://linkedin.com/in/..."
+                    />
+                  ) : contractor.linkedin_url ? (
+                    <a
+                      href={contractor.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline break-all py-2 inline-block"
+                    >
+                      {contractor.linkedin_url}
+                    </a>
+                  ) : (
+                    <p className="text-sm py-2">—</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>LinkedIn ID</Label>
+                  {editMode ? (
+                    <Input value={form.linkedin_id || ''} onChange={(e) => patch({ linkedin_id: e.target.value })} />
+                  ) : (
+                    <p className="text-sm py-2">{contractor.linkedin_id || '—'}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Numeric ID used by HeyReach to identify this account
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <Label>Default Payment Amount (₦)</Label>
+                  {editMode ? (
+                    <Input
+                      type="number"
+                      value={form.default_amount ?? 0}
+                      onChange={(e) => patch({ default_amount: Number(e.target.value) || 0 })}
+                    />
+                  ) : (
+                    <p className="text-sm py-2 currency">
+                      {formatNaira(contractor.default_amount ?? contractor.default_amount_ngn ?? 0)}
+                    </p>
+                  )}
                 </div>
               </div>
+
               <div className="space-y-1">
-                <Label>Notes</Label>
-                <Textarea
-                  value={form.notes || ''}
-                  onChange={(e) => patch({ notes: e.target.value })}
-                  rows={3}
-                  placeholder="Internal notes about this contractor..."
-                />
+                <Label>Internal Notes</Label>
+                {editMode ? (
+                  <Textarea
+                    value={form.notes || ''}
+                    onChange={(e) => patch({ notes: e.target.value })}
+                    rows={3}
+                    placeholder="Internal notes about this contractor..."
+                  />
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap py-2 text-muted-foreground">
+                    {contractor.notes || 'No notes added.'}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -422,13 +596,6 @@ const ContractorProfile = () => {
               </p>
             </CardContent>
           </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={save} disabled={saving}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              Save changes
-            </Button>
-          </div>
         </TabsContent>
 
         <TabsContent value="payments" className="mt-4">
