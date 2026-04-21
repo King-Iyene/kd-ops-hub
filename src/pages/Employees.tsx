@@ -8,10 +8,8 @@ import {
   Pencil,
   Mail,
   UserPlus,
-  CheckCircle2,
   AlertTriangle,
   UserX,
-  Trash2,
   Info,
   Check,
 } from 'lucide-react';
@@ -48,6 +46,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -137,8 +136,8 @@ const Employees = () => {
     start_date: new Date().toISOString().slice(0, 10),
   });
 
-  const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [confirmReactivate, setConfirmReactivate] = useState<Employee | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
@@ -153,12 +152,16 @@ const Employees = () => {
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
+    let query = supabase
+      .from('profiles')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
+      .neq('is_anonymised', true)
+      .order('created_at', { ascending: false });
+    if (!showInactive) {
+      query = query.eq('status', 'active');
+    }
     const [employeesRes, tagsRes] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
-        .neq('is_anonymised', true)
-        .order('created_at', { ascending: false }),
+      query,
       supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
     ]);
     if (employeesRes.error) {
@@ -167,7 +170,7 @@ const Employees = () => {
     setEmployees((employeesRes.data as Employee[]) || []);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, [toast]);
+  }, [showInactive, toast]);
 
   useEffect(() => {
     fetchEmployees();
@@ -388,21 +391,19 @@ const Employees = () => {
     fetchEmployees();
   };
 
-  const deleteEmployee = async (e: Employee) => {
-    try {
-      const { error } = await supabase.rpc('soft_delete_employee', { p_user_id: e.id });
-      if (error) throw error;
-      await logAudit('employee_deleted', `Employee "${e.full_name}" permanently deleted`, profile);
-      toast({ title: 'Employee deleted' });
-      setConfirmDelete(null);
-      fetchEmployees();
-    } catch (err: any) {
-      toast({ title: 'Delete failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+  const reactivateEmployee = async (e: Employee) => {
+    const { error } = await supabase.from('profiles').update({ status: 'active' }).eq('id', e.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
     }
+    await logAudit('employee_edited', `Employee "${e.full_name}" reactivated`, profile);
+    toast({ title: 'Employee reactivated' });
+    setConfirmReactivate(null);
+    fetchEmployees();
   };
 
   const filtered = employees.filter((e) => {
-    if (!showInactive && e.status === 'inactive') return false;
     const q = search.trim().toLowerCase();
     if (roleFilter !== 'all' && e.role !== roleFilter) return false;
     if (!q) return true;
@@ -477,13 +478,13 @@ const Employees = () => {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant={showInactive ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => setShowInactive((v) => !v)}
-          >
-            {showInactive ? 'Hide inactive' : 'Show inactive'}
-          </Button>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">
+            <Switch
+              checked={showInactive}
+              onCheckedChange={(v) => { setShowInactive(v); pagination.reset(); }}
+            />
+            Show inactive
+          </label>
         </div>
         <CardContent className="p-0">
           {loading ? (
@@ -584,28 +585,23 @@ const Employees = () => {
                               <Pencil className="h-4 w-4" />
                             </Button>
                           )}
-                          {isAdmin && e.status !== 'invited' && (
+                          {isAdmin && e.status === 'active' && (
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
-                              title={e.status === 'active' ? 'Deactivate' : 'Reactivate'}
+                              title="Deactivate"
                             >
-                              {e.status === 'active' ? (
-                                <UserX className="h-4 w-4 text-destructive" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-success" />
-                              )}
+                              <UserX className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
-                          {isSuperAdmin && (
+                          {isAdmin && e.status === 'inactive' && (
                             <Button
                               size="sm"
-                              variant="ghost"
-                              onClick={(evt) => { evt.stopPropagation(); setConfirmDelete(e); }}
-                              title="Delete permanently"
+                              variant="outline"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(e); }}
                             >
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                              Reactivate
                             </Button>
                           )}
                         </div>
@@ -845,19 +841,18 @@ const Employees = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+      <Dialog open={!!confirmReactivate} onOpenChange={(v) => { if (!v) setConfirmReactivate(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete employee permanently</DialogTitle>
+            <DialogTitle>Reactivate {confirmReactivate?.first_name || confirmReactivate?.full_name}?</DialogTitle>
             <DialogDescription>
-              This will permanently remove <strong>{confirmDelete?.full_name}</strong> from
-              both the platform and Supabase Auth. This cannot be undone.
+              They will regain platform access immediately.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => confirmDelete && deleteEmployee(confirmDelete)}>
-              Delete permanently
+            <Button variant="outline" onClick={() => setConfirmReactivate(null)}>Cancel</Button>
+            <Button onClick={() => confirmReactivate && reactivateEmployee(confirmReactivate)}>
+              Reactivate
             </Button>
           </DialogFooter>
         </DialogContent>
