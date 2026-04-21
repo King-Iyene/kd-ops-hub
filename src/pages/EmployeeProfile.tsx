@@ -103,6 +103,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -347,6 +348,8 @@ const EmployeeProfile = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>Edit Profile</DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
                 {employee.status === 'active' ? 'Deactivate' : 'Reactivate'}
               </DropdownMenuItem>
@@ -365,6 +368,61 @@ const EmployeeProfile = () => {
           </DropdownMenu>
         )}
       </div>
+
+      {/* Edit Profile dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Profile — {empName}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>First name</Label>
+                <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <Label>Last name</Label>
+                <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Phone</Label>
+              <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <Label>Role</Label>
+              <Select value={form.role || employee.role} onValueChange={(v) => patch({ role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="field_staff">Field Staff</SelectItem>
+                  <SelectItem value="driver">Driver</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Monthly gross salary (₦)</Label>
+              <Input
+                type="number"
+                value={form.salary_ngn || ''}
+                onChange={(e) => patch({ salary_ngn: Number(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => { save(); setShowEditDialog(false); }} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" /> Save changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Deactivate / reactivate dialog */}
       <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
