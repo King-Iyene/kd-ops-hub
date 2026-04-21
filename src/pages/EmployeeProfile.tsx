@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getBankCode } from '@/lib/paystack';
 import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
@@ -75,6 +76,9 @@ interface EmployeeData {
   marital_status: string | null;
   address: string | null;
   next_of_kin_email: string | null;
+  employee_number: string | null;
+  employment_type: string | null;
+  start_date: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -110,13 +114,15 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'>('job_pay');
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showPersonalEditDialog, setShowPersonalEditDialog] = useState(false);
   const [showKinEditDialog, setShowKinEditDialog] = useState(false);
   const [showAddressEditDialog, setShowAddressEditDialog] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const [bankEditMode, setBankEditMode] = useState(false);
+  const [bankSaving, setBankSaving] = useState(false);
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -210,6 +216,9 @@ const EmployeeProfile = () => {
       marital_status: form.marital_status,
       address: form.address,
       next_of_kin_email: form.next_of_kin_email,
+      employee_number: form.employee_number,
+      employment_type: form.employment_type,
+      start_date: form.start_date,
     }).eq('id', id);
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
@@ -221,6 +230,27 @@ const EmployeeProfile = () => {
     load();
     setSaving(false);
     return true;
+  };
+
+  const saveBank = async () => {
+    if (!id) return;
+    setBankSaving(true);
+    const bankCode = getBankCode(bankDetails.bank_name);
+    const { error } = await supabase.from('profiles').update({
+      bank_name: bankDetails.bank_name,
+      bank_code: bankCode || '',
+      bank_account_number: bankDetails.account_number,
+      bank_account_name: bankDetails.account_name,
+    }).eq('id', id);
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      await logAudit('employee_edited', `Bank details updated for "${employee?.full_name || id}"`, currentUser);
+      toast({ title: 'Bank details saved' });
+      setBankEditMode(false);
+      load();
+    }
+    setBankSaving(false);
   };
 
   const handleDeactivate = async () => {
@@ -508,6 +538,19 @@ const EmployeeProfile = () => {
             {`Increments (${increments.length})`}
           </button>
         )}
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('permissions')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'permissions'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Permissions
+          </button>
+        )}
       </div>
 
       {/* ── Tab content ── */}
@@ -584,14 +627,33 @@ const EmployeeProfile = () => {
                   {([
                     ['Department',      employee.departments?.name ?? '—'],
                     ['Role',            roleLabel(employee.role)],
-                    ['Start Date',      formatDate(employee.created_at)],
-                    ['Employee Number', '—'],
+                    ['Start Date',      employee.start_date ? formatDate(employee.start_date) : formatDate(employee.created_at)],
+                    ['Employee Number', employee.employee_number || '—'],
                   ] as [string, string][]).map(([label, val]) => (
                     <div key={label} className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">{label}</dt>
                       <dd className="font-medium">{val}</dd>
                     </div>
                   ))}
+                  <div className="flex items-center justify-between text-sm">
+                    <dt className="text-muted-foreground">Employment Type</dt>
+                    <dd>
+                      {employee.employment_type ? (
+                        <Badge className={cn(
+                          'text-xs',
+                          employee.employment_type === 'Full-time'
+                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                            : employee.employment_type === 'Part-time'
+                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                              : 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+                        )}>
+                          {employee.employment_type}
+                        </Badge>
+                      ) : (
+                        <span className="font-medium">—</span>
+                      )}
+                    </dd>
+                  </div>
                 </dl>
               </CardContent>
             </Card>
@@ -602,11 +664,38 @@ const EmployeeProfile = () => {
 
             {/* Card 3 — Payment Method */}
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Payment Method</CardTitle>
+                {canManage && !bankEditMode && (
+                  <Button size="sm" variant="outline" onClick={() => setBankEditMode(true)}>
+                    Edit
+                  </Button>
+                )}
+                {bankEditMode && (
+                  <Button size="sm" variant="ghost" onClick={() => setBankEditMode(false)}>
+                    Cancel
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                {employee.bank_name && employee.bank_account_number ? (
+                {bankEditMode ? (
+                  <div className="space-y-4">
+                    <BankAccountField
+                      value={bankDetails}
+                      onChange={setBankDetails}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={saveBank}
+                        disabled={!bankDetails.verified || bankSaving}
+                      >
+                        {bankSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        Save Bank Details
+                      </Button>
+                    </div>
+                  </div>
+                ) : employee.bank_name && employee.bank_account_number ? (
                   <>
                     <dl className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -629,7 +718,14 @@ const EmployeeProfile = () => {
                 ) : (
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">No payment method on file.</p>
-                    <p className="text-xs text-muted-foreground">Update via Edit Profile</p>
+                    {canManage && (
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => setBankEditMode(true)}
+                      >
+                        Add bank account
+                      </button>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -888,6 +984,26 @@ const EmployeeProfile = () => {
 
       {activeTab === 'leave' && (
         <div className="mt-4">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Leave taken</p>
+                <p className="text-2xl font-bold">
+                  {leaveTaken}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">days</span>
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Remaining</p>
+                <p className="text-2xl font-bold">
+                  {Math.max(0, (employee.annual_leave_days || 20) - leaveTaken)}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">days</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Leave Requests</CardTitle>
@@ -1020,8 +1136,13 @@ const EmployeeProfile = () => {
       {activeTab === 'increments' && (
         <div className="mt-4">
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Salary Increments</CardTitle>
+              {canManage && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowIncrementDialog(true)}>
+                  <Plus className="h-4 w-4" /> Add Increment
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               {increments.length === 0 ? (
@@ -1061,6 +1182,23 @@ const EmployeeProfile = () => {
           </Card>
         </div>
       )}
+      {activeTab === 'permissions' && isSuperAdmin && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Permissions</CardTitle>
+              <Button size="sm" onClick={savePermissions} disabled={savingPermissions}>
+                {savingPermissions && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Save
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <PermissionsEditor value={permissions} onChange={setPermissions} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ── Edit Profile dialog ── */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md">
@@ -1107,6 +1245,25 @@ const EmployeeProfile = () => {
                 value={form.salary_ngn ?? ''}
                 onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Employee number</Label>
+              <Input value={form.employee_number || ''} onChange={(e) => patch({ employee_number: e.target.value || null })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Employment type</Label>
+              <Select value={form.employment_type || ''} onValueChange={(v) => patch({ employment_type: v || null })}>
+                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Full-time">Full-time</SelectItem>
+                  <SelectItem value="Part-time">Part-time</SelectItem>
+                  <SelectItem value="Contract">Contract</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Start date</Label>
+              <Input type="date" value={form.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} />
             </div>
           </div>
           <DialogFooter>
@@ -1298,6 +1455,71 @@ const EmployeeProfile = () => {
             >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Add Salary Increment dialog ── */}
+      <Dialog
+        open={showIncrementDialog}
+        onOpenChange={(v) => {
+          if (!v) {
+            setShowIncrementDialog(false);
+            setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add Salary Increment</DialogTitle>
+            <DialogDescription>
+              Record a salary change for {empName}. Current salary:{' '}
+              {formatNaira(employee?.salary_ngn || 0)}/month.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-1">
+            <div className="space-y-1.5">
+              <Label>Effective date</Label>
+              <Input
+                type="date"
+                value={incrementForm.effective_date}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, effective_date: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>New monthly salary (₦)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={incrementForm.new_salary || ''}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, new_salary: Number(e.target.value) }))}
+                placeholder="Enter new salary…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <Textarea
+                rows={3}
+                value={incrementForm.reason}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, reason: e.target.value }))}
+                placeholder="Performance review, promotion, cost of living adjustment…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowIncrementDialog(false);
+                setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={recordIncrement} disabled={savingIncrement || incrementForm.new_salary <= 0}>
+              {savingIncrement && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Increment
             </Button>
           </DialogFooter>
         </DialogContent>
