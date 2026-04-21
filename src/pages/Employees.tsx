@@ -138,6 +138,7 @@ const Employees = () => {
   });
 
   const [confirmDelete, setConfirmDelete] = useState<Employee | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
@@ -156,6 +157,7 @@ const Employees = () => {
       supabase
         .from('profiles')
         .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
+        .neq('is_anonymised', true)
         .order('created_at', { ascending: false }),
       supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
     ]);
@@ -400,6 +402,7 @@ const Employees = () => {
   };
 
   const filtered = employees.filter((e) => {
+    if (!showInactive && e.status === 'inactive') return false;
     const q = search.trim().toLowerCase();
     if (roleFilter !== 'all' && e.role !== roleFilter) return false;
     if (!q) return true;
@@ -474,6 +477,13 @@ const Employees = () => {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant={showInactive ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={() => setShowInactive((v) => !v)}
+          >
+            {showInactive ? 'Hide inactive' : 'Show inactive'}
+          </Button>
         </div>
         <CardContent className="p-0">
           {loading ? (

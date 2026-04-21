@@ -15,6 +15,8 @@ import {
   FileText,
   Shield,
   Trash2,
+  ChevronDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -28,7 +30,15 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 
 interface ContractorData {
@@ -67,7 +77,10 @@ const ContractorProfile = () => {
   const [contractor, setContractor] = useState<ContractorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [confirmAnonymise, setConfirmAnonymise] = useState(false);
+  const [anonymiseInput, setAnonymiseInput] = useState('');
+  const [actioning, setActioning] = useState(false);
   const [form, setForm] = useState<Partial<ContractorData>>({});
   const [payments, setPayments] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -139,14 +152,37 @@ const ContractorProfile = () => {
     setSaving(false);
   };
 
-  const handleDelete = async () => {
+  const handleDeactivate = async () => {
     if (!id || !contractor) return;
-    const { error } = await supabase.from('contractors').delete().eq('id', id);
+    setActioning(true);
+    const next = contractor.status === 'active' ? 'inactive' : 'active';
+    const { error } = await supabase.from('contractors').update({ status: next }).eq('id', id);
     if (error) {
-      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setActioning(false);
       return;
     }
-    await logAudit('contractor_deleted', `Contractor "${contractor.full_name}" deleted`, currentUser);
+    await logAudit(
+      next === 'inactive' ? 'contractor_deactivated' : 'contractor_edited',
+      `Contractor "${contractor.full_name}" ${next === 'inactive' ? 'deactivated' : 'reactivated'}`,
+      currentUser,
+    );
+    toast({ title: `Contractor ${next === 'inactive' ? 'deactivated' : 'reactivated'}` });
+    setConfirmDeactivate(false);
+    setActioning(false);
+    load();
+  };
+
+  const handleAnonymise = async () => {
+    if (!id || !contractor) return;
+    setActioning(true);
+    const { error } = await supabase.rpc('soft_delete_contractor', { contractor_id: id });
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      setActioning(false);
+      return;
+    }
+    await logAudit('contractor_deactivated', `Contractor "${contractor.full_name}" permanently anonymised`, currentUser);
     navigate('/contractors', { replace: true });
   };
 
@@ -188,21 +224,102 @@ const ContractorProfile = () => {
           {contractor.status}
         </Badge>
         {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
-          <Button variant="destructive" size="sm" onClick={() => setConfirmDelete(true)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                Manage <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
+                {contractor.status === 'active' ? 'Deactivate' : 'Reactivate'}
+              </DropdownMenuItem>
+              {currentUser?.role === 'super_admin' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => { setAnonymiseInput(''); setConfirmAnonymise(true); }}
+                  >
+                    Delete &amp; Anonymise
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      {/* Deactivate / reactivate dialog */}
+      <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete {ctrName}?</DialogTitle>
+            <DialogTitle>
+              {contractor.status === 'active' ? 'Deactivate' : 'Reactivate'} {ctrName}?
+            </DialogTitle>
+            <DialogDescription>
+              {contractor.status === 'active'
+                ? `${ctrName} will be deactivated and hidden from active contractor lists. Their records remain visible and this can be reversed.`
+                : `${ctrName} will be reactivated and restored to active status.`}
+            </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">This cannot be undone.</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="outline" onClick={() => setConfirmDeactivate(false)} disabled={actioning}>
+              Cancel
+            </Button>
+            <Button
+              variant={contractor.status === 'active' ? 'destructive' : 'default'}
+              onClick={handleDeactivate}
+              disabled={actioning}
+            >
+              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {contractor.status === 'active' ? 'Deactivate' : 'Reactivate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete & anonymise dialog (super_admin only) */}
+      <Dialog open={confirmAnonymise} onOpenChange={(o) => { if (!o) { setConfirmAnonymise(false); setAnonymiseInput(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Permanently delete {ctrName}?
+            </DialogTitle>
+            <DialogDescription asChild>
+              <ul className="mt-2 space-y-1 text-sm text-muted-foreground list-none">
+                <li>• Their account will be permanently closed</li>
+                <li>• Their name and contact details will be erased</li>
+                <li>• Their payment records and task history will show as &ldquo;Former Contractor&rdquo; to preserve reports</li>
+                <li className="font-semibold text-destructive">• This CANNOT be undone.</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Type <strong>DELETE</strong> to confirm</Label>
+            <Input
+              value={anonymiseInput}
+              onChange={(e) => setAnonymiseInput(e.target.value)}
+              placeholder="DELETE"
+              className={anonymiseInput === 'DELETE' ? 'border-destructive' : ''}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setConfirmAnonymise(false); setAnonymiseInput(''); }}
+              disabled={actioning}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleAnonymise}
+              disabled={anonymiseInput !== 'DELETE' || actioning}
+            >
+              {actioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Trash2 className="mr-2 h-4 w-4" /> Delete permanently
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

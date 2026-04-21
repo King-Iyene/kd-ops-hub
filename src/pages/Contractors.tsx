@@ -160,6 +160,7 @@ const Contractors = () => {
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [showInactive, setShowInactive] = useState(false);
 
   // CSV import state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -179,7 +180,7 @@ const Contractors = () => {
 
   const fetchContractors = async () => {
     const [contractorsRes, tagsRes] = await Promise.all([
-      supabase.from('contractors').select('*').order('full_name'),
+      supabase.from('contractors').select('*').neq('is_anonymised', true).order('full_name'),
       supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name'),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
@@ -450,9 +451,10 @@ const Contractors = () => {
     setImportSummary(null);
   };
 
-  const filtered = contractors.filter((c) =>
-    c.full_name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = contractors.filter((c) => {
+    if (!showInactive && c.status === 'inactive') return false;
+    return c.full_name.toLowerCase().includes(search.toLowerCase());
+  });
 
   if (loading) return <TableSkeleton rows={5} />;
 
@@ -514,14 +516,23 @@ const Contractors = () => {
         </TabsList>
 
         <TabsContent value="contractors" className="mt-4 space-y-4">
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search contractors..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search contractors..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant={showInactive ? 'secondary' : 'outline'}
+          size="sm"
+          onClick={() => setShowInactive((v) => !v)}
+        >
+          {showInactive ? 'Hide inactive' : 'Show inactive'}
+        </Button>
       </div>
 
       <Card>
