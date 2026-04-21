@@ -321,42 +321,6 @@ const EmployeeProfile = () => {
 
   return (
     <div className="max-w-5xl">
-      {/* ── Banner ── */}
-      <div className="relative h-32 rounded-t-xl bg-gradient-to-r from-slate-800 to-slate-900">
-        {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
-          <div className="absolute top-4 right-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-sm"
-                >
-                  Manage <ChevronDown className="ml-1.5 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Edit Profile</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
-                  {employee.status === 'active' ? 'Deactivate' : 'Reactivate'}
-                </DropdownMenuItem>
-                {currentUser?.role === 'super_admin' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
-                      onClick={() => { setAnonymiseInput(''); setConfirmAnonymise(true); }}
-                    >
-                      Delete &amp; Anonymise
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
-      </div>
-
       {/* ── Profile identity strip ── */}
       <div className="bg-card border-x border-b rounded-b-xl px-6 pb-4">
         <div className="flex flex-wrap items-end gap-4 -mt-10">
