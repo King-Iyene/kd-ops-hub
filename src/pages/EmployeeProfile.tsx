@@ -225,7 +225,7 @@ const EmployeeProfile = () => {
   const handleAnonymise = async () => {
     if (!id || !employee) return;
     setActioning(true);
-    const { error } = await supabase.rpc('soft_delete_employee', { user_id: id });
+    const { error } = await supabase.rpc('soft_delete_employee', { p_user_id: id });
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       setActioning(false);

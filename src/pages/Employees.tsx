@@ -390,7 +390,7 @@ const Employees = () => {
 
   const deleteEmployee = async (e: Employee) => {
     try {
-      const { error } = await supabase.rpc('delete_user_completely', { user_id: e.id });
+      const { error } = await supabase.rpc('soft_delete_employee', { p_user_id: e.id });
       if (error) throw error;
       await logAudit('employee_deleted', `Employee "${e.full_name}" permanently deleted`, profile);
       toast({ title: 'Employee deleted' });
