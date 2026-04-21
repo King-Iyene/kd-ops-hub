@@ -176,7 +176,7 @@ const ContractorProfile = () => {
   const handleAnonymise = async () => {
     if (!id || !contractor) return;
     setActioning(true);
-    const { error } = await supabase.rpc('soft_delete_contractor', { contractor_id: id });
+    const { error } = await supabase.rpc('soft_delete_contractor', { p_contractor_id: id });
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       setActioning(false);

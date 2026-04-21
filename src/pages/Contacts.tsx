@@ -284,7 +284,7 @@ const Contacts = () => {
   };
 
   const deleteContact = async (c: Contact) => {
-    const { error } = await supabase.from('contacts').delete().eq('id', c.id);
+    const { error } = await supabase.rpc('soft_delete_contact', { p_contact_id: c.id });
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
