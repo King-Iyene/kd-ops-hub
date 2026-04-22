@@ -93,6 +93,7 @@ interface TripLog {
   odometer_start: number | null;
   odometer_end: number | null;
   km_driven: number | null;
+  vehicle_id: string | null;
   fuel_amount_ngn: number | null;
   litres: number | null;
   issues: string | null;
@@ -149,18 +150,88 @@ function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | nul
   );
 }
 
-function TripVehicleFuel({ vehicleId, vehicles }: { vehicleId: string; vehicles: VehicleSummary[] }) {
+function TripVehicleFuel({
+  vehicleId, vehicles, kmDriven, litresAdded,
+}: {
+  vehicleId: string;
+  vehicles: VehicleSummary[];
+  kmDriven?: number | null;
+  litresAdded?: number | null;
+}) {
   if (!vehicleId) return null;
   const veh = vehicles.find((v) => v.id === vehicleId);
   if (!veh) return null;
+
   const cap = veh.tank_capacity_litres || 60;
-  const cur = Math.min(veh.current_fuel_litres || 0, cap);
-  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
-  const est = veh.avg_km_per_litre > 0 ? Math.round(cur * veh.avg_km_per_litre) : null;
+  const startFuel = Math.min(veh.current_fuel_litres || 0, cap);
+  const eff = veh.avg_km_per_litre > 0 ? veh.avg_km_per_litre : null;
+
+  const consumed = kmDriven != null && kmDriven > 0 && eff ? kmDriven / eff : null;
+  const added = litresAdded && litresAdded > 0 ? litresAdded : null;
+  const hasCalc = consumed != null || added != null;
+
+  const endFuel = hasCalc
+    ? Math.min(cap, Math.max(0, startFuel - (consumed ?? 0) + (added ?? 0)))
+    : null;
+
+  const toPct = (v: number) => cap > 0 ? Math.round((v / cap) * 100) : 0;
+  const barColor = (pct: number) => pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
+  const txtColor = (pct: number) => pct >= 50 ? 'text-green-700' : pct >= 20 ? 'text-amber-700' : 'text-red-700';
+
+  const startPct = toPct(startFuel);
+  const endPct = endFuel != null ? toPct(endFuel) : null;
+
   return (
-    <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border mt-1 ${pct < 20 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-muted/40 border-muted text-muted-foreground'}`}>
-      <span>Fuel: <strong>{cur.toFixed(0)}L / {cap}L ({pct}%)</strong>{est !== null ? ` · ~${est.toLocaleString()} km range` : ''}</span>
-      {pct < 20 && <AlertTriangle className="h-3 w-3 text-red-500" />}
+    <div className="rounded-md border bg-muted/30 p-3 space-y-2 mt-1 text-xs">
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-muted-foreground font-medium">Fuel at start</span>
+          <span className={`font-semibold ${txtColor(startPct)}`}>
+            {startFuel.toFixed(0)}L / {cap}L ({startPct}%)
+          </span>
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+          <div className={`h-full rounded-full ${barColor(startPct)}`} style={{ width: `${startPct}%` }} />
+        </div>
+      </div>
+
+      {consumed != null && (
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Est. consumed ({kmDriven?.toLocaleString()} km ÷ {eff} km/L)</span>
+          <span className="text-red-600 font-medium">−{consumed.toFixed(1)}L</span>
+        </div>
+      )}
+      {added != null && (
+        <div className="flex items-center justify-between">
+          <span className="text-muted-foreground">Fuel purchased this trip</span>
+          <span className="text-green-600 font-medium">+{added.toFixed(1)}L</span>
+        </div>
+      )}
+
+      {endFuel != null && endPct != null && (
+        <div className="pt-1 border-t space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground font-medium">Fuel at end</span>
+            <span className={`font-semibold ${txtColor(endPct)}`}>
+              {endFuel.toFixed(0)}L / {cap}L ({endPct}%)
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full ${barColor(endPct)}`} style={{ width: `${endPct}%` }} />
+          </div>
+          {endPct < 20 && (
+            <p className="flex items-center gap-1 text-red-600 mt-0.5">
+              <AlertTriangle className="h-3 w-3" /> Low fuel after this trip
+            </p>
+          )}
+        </div>
+      )}
+
+      {startPct < 20 && !hasCalc && (
+        <p className="flex items-center gap-1 text-red-600">
+          <AlertTriangle className="h-3 w-3" /> Low fuel — consider refuelling before this trip
+        </p>
+      )}
     </div>
   );
 }
@@ -470,15 +541,18 @@ const Fleet = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      // Deduct estimated consumption from vehicle fuel balance
-      if (tripForm.vehicle_id && km && km > 0) {
+      // Update vehicle fuel balance: deduct estimated consumption, add any litres purchased
+      if (tripForm.vehicle_id) {
         const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);
-        if (veh && veh.avg_km_per_litre > 0) {
-          const consumed = km / veh.avg_km_per_litre;
-          await supabase
-            .from('vehicles')
-            .update({ current_fuel_litres: Math.max(0, veh.current_fuel_litres - consumed) })
-            .eq('id', veh.id);
+        if (veh) {
+          const eff = veh.avg_km_per_litre > 0 ? veh.avg_km_per_litre : null;
+          const consumed = km && km > 0 && eff ? km / eff : 0;
+          const litresPurchased = parseFloat(tripForm.litres) || 0;
+          const cap = veh.tank_capacity_litres || 60;
+          const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) - consumed + litresPurchased));
+          const updatePayload: Record<string, unknown> = { current_fuel_litres: newBalance };
+          if (litresPurchased > 0) updatePayload.last_refuel_at = new Date().toISOString();
+          await supabase.from('vehicles').update(updatePayload).eq('id', veh.id);
         }
       }
       await logAudit(
@@ -1363,7 +1437,6 @@ const Fleet = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <TripVehicleFuel vehicleId={tripForm.vehicle_id} vehicles={vehicles} />
             </div>
             <div className="space-y-1">
               <Label>Date</Label>
@@ -1447,6 +1520,16 @@ const Fleet = () => {
                 />
               </div>
             </div>
+            <TripVehicleFuel
+              vehicleId={tripForm.vehicle_id}
+              vehicles={vehicles}
+              kmDriven={
+                tripForm.odometer_start && tripForm.odometer_end
+                  ? Math.max(0, parseFloat(tripForm.odometer_end) - parseFloat(tripForm.odometer_start))
+                  : null
+              }
+              litresAdded={parseFloat(tripForm.litres) || null}
+            />
             <div className="space-y-1">
               <Label>Issues to Report</Label>
               <Textarea
@@ -1565,6 +1648,14 @@ const Fleet = () => {
 
           {selectedTrip && !tripEditMode && (
             <div className="space-y-3 text-sm">
+              {selectedTrip.vehicle_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Vehicle</p>
+                  <p className="font-medium">
+                    {vehicles.find((v) => v.id === selectedTrip.vehicle_id)?.name || 'Unknown vehicle'}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">From</p>
