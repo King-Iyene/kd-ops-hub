@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle, Wallet } from 'lucide-react';
+import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle, Wallet, Clock, TrendingUp, Zap } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -28,6 +28,14 @@ interface PaymentBatch {
   status: string;
   created_at: string;
   notes: string;
+  batch_type?: string;
+}
+
+interface BatchStats {
+  pendingCount: number;
+  pendingAmount: number;
+  processingCount: number;
+  thisMonthAmount: number;
 }
 
 interface BalanceData {
@@ -51,6 +59,7 @@ const Payments = () => {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
+  const [stats, setStats] = useState<BatchStats>({ pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0 });
 
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
@@ -76,7 +85,39 @@ const Payments = () => {
 
   useEffect(() => {
     fetchBatches();
+    fetchStats();
   }, [statusFilter, page]);
+
+  const fetchStats = async () => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const [pendingRes, processingRes, monthRes] = await Promise.all([
+      supabase
+        .from('payment_batches')
+        .select('total_amount')
+        .eq('status', 'pending_approval'),
+      supabase
+        .from('payment_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'processing'),
+      supabase
+        .from('payment_batches')
+        .select('total_amount')
+        .eq('status', 'processed')
+        .gte('created_at', monthStart)
+        .lte('created_at', monthEnd),
+    ]);
+
+    const pendingRows = (pendingRes.data || []) as { total_amount: number }[];
+    setStats({
+      pendingCount: pendingRows.length,
+      pendingAmount: pendingRows.reduce((s, r) => s + (r.total_amount || 0), 0),
+      processingCount: processingRes.count || 0,
+      thisMonthAmount: ((monthRes.data || []) as { total_amount: number }[]).reduce((s, r) => s + (r.total_amount || 0), 0),
+    });
+  };
 
   const fetchBatches = async () => {
     setLoading(true);
@@ -125,6 +166,13 @@ const Payments = () => {
   }, [batches, search]);
 
   const isLowBalance = balance !== null && balance.available < LOW_BALANCE_THRESHOLD;
+
+  const batchTypeMeta: Record<string, { label: string; className: string }> = {
+    contractor:      { label: 'Contractor',    className: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+    employee_salary: { label: 'Salary Run',    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' },
+    advance:         { label: 'Advance',       className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    prize:           { label: 'Bonus/Prize',   className: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' },
+  };
 
   return (
     <div className="space-y-6">
@@ -231,6 +279,52 @@ const Payments = () => {
         </div>
       </div>
 
+      {/* Stats row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-l-4 border-l-amber-400">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Pending Approval</p>
+                <p className="text-2xl font-bold mt-0.5">{stats.pendingCount}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{formatNaira(stats.pendingAmount)}</p>
+              </div>
+              <div className="rounded-full bg-amber-100 dark:bg-amber-900/30 p-2.5">
+                <Clock className="h-5 w-5 text-amber-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-blue-400">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Processing Now</p>
+                <p className="text-2xl font-bold mt-0.5">{stats.processingCount}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Active transfers</p>
+              </div>
+              <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-2.5">
+                <Zap className="h-5 w-5 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-l-4 border-l-emerald-400">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Paid This Month</p>
+                <p className="text-2xl font-bold mt-0.5">{formatNaira(stats.thisMonthAmount)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Completed batches</p>
+              </div>
+              <div className="rounded-full bg-emerald-100 dark:bg-emerald-900/30 p-2.5">
+                <TrendingUp className="h-5 w-5 text-emerald-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -270,6 +364,7 @@ const Payments = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Batch Name</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Payment Date</TableHead>
                     <TableHead className="text-right">Beneficiaries</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -281,6 +376,15 @@ const Payments = () => {
                   {filtered.map((batch) => (
                     <TableRow key={batch.id} className="cursor-pointer" onClick={() => navigate(`/payments/${batch.id}`)}>
                       <TableCell className="font-medium">{batch.name}</TableCell>
+                      <TableCell>
+                        {batch.batch_type && batchTypeMeta[batch.batch_type] ? (
+                          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', batchTypeMeta[batch.batch_type].className)}>
+                            {batchTypeMeta[batch.batch_type].label}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell>{formatDate(batch.payment_date)}</TableCell>
                       <TableCell className="text-right">{batch.beneficiary_count}</TableCell>
                       <TableCell className="text-right currency">{formatNaira(batch.total_amount || 0)}</TableCell>
