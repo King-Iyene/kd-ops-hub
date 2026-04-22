@@ -2,19 +2,27 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, formatDate } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus } from 'lucide-react';
+import {
+  Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus,
+  Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
+} from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+
+type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
 
 interface BatchItem {
   full_name: string;
@@ -23,6 +31,8 @@ interface BatchItem {
   amount_ngn: number;
   reference: string;
   contractor_id?: string;
+  employee_id?: string;
+  item_type?: 'contractor' | 'employee' | 'adhoc';
 }
 
 interface Contractor {
@@ -32,6 +42,55 @@ interface Contractor {
   account_number: string;
   default_amount_ngn: number;
 }
+
+interface Employee {
+  id: string;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  salary_ngn: number | null;
+  job_title: string | null;
+}
+
+const BATCH_TYPES: {
+  type: BatchType;
+  icon: React.ReactNode;
+  label: string;
+  desc: string;
+  color: string;
+}[] = [
+  {
+    type: 'contractor',
+    icon: <Building2 className="h-5 w-5" />,
+    label: 'Contractor Payment',
+    desc: 'Pay partners & contractors',
+    color: 'text-blue-600',
+  },
+  {
+    type: 'employee_salary',
+    icon: <Banknote className="h-5 w-5" />,
+    label: 'Employee Salary Run',
+    desc: 'Monthly salary disbursement',
+    color: 'text-emerald-600',
+  },
+  {
+    type: 'advance',
+    icon: <CreditCard className="h-5 w-5" />,
+    label: 'Salary Advance',
+    desc: 'Short-term advance payment',
+    color: 'text-amber-600',
+  },
+  {
+    type: 'prize',
+    icon: <Gift className="h-5 w-5" />,
+    label: 'Bonus / Prize',
+    desc: '13th month, performance, etc.',
+    color: 'text-purple-600',
+  },
+];
 
 const emptyBank: BankAccountValue = {
   bank_name: '',
@@ -46,6 +105,7 @@ const NewPaymentBatch = () => {
   const { profile } = useAuthStore();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [batchType, setBatchType] = useState<BatchType>('contractor');
 
   // Step 1
   const [batchName, setBatchName] = useState('');
@@ -53,11 +113,15 @@ const NewPaymentBatch = () => {
   const [scheduledDate, setScheduledDate] = useState('');
   const [period, setPeriod] = useState('');
   const [notes, setNotes] = useState('');
+  const [advanceReason, setAdvanceReason] = useState('');
+  const [bonusType, setBonusType] = useState('Performance Bonus');
 
   // Step 2
   const [items, setItems] = useState<BatchItem[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
   // Ad-hoc beneficiary dialog
   const [showAdHoc, setShowAdHoc] = useState(false);
@@ -70,9 +134,14 @@ const NewPaymentBatch = () => {
       .select('*')
       .eq('status', 'active')
       .order('full_name')
-      .then(({ data }) => {
-        setContractors((data as Contractor[]) || []);
-      });
+      .then(({ data }) => setContractors((data as Contractor[]) || []));
+
+    supabase
+      .from('profiles')
+      .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title')
+      .eq('status', 'active')
+      .order('full_name')
+      .then(({ data }) => setEmployees((data as Employee[]) || []));
   }, []);
 
   const selectedIds = useMemo(
@@ -126,6 +195,47 @@ const NewPaymentBatch = () => {
     (updated[index] as any)[field] = value;
     setItems(updated);
   };
+
+  // Employee helpers
+  const selectedEmployeeIds = useMemo(
+    () => new Set(items.map((i) => i.employee_id).filter(Boolean)),
+    [items],
+  );
+
+  const empDisplayName = (e: Employee) =>
+    e.full_name || `${e.first_name || ''} ${e.last_name || ''}`.trim() || 'Unknown';
+
+  const toggleEmployee = (e: Employee, checked: boolean) => {
+    if (checked) {
+      if (selectedEmployeeIds.has(e.id)) return;
+      setItems((prev) => [
+        ...prev,
+        {
+          full_name: empDisplayName(e),
+          bank_name: e.bank_name || '',
+          account_number: e.bank_account_number || '',
+          amount_ngn: batchType === 'employee_salary' ? (e.salary_ngn || 0) : 0,
+          reference: '',
+          employee_id: e.id,
+          item_type: 'employee',
+        },
+      ]);
+    } else {
+      setItems((prev) => prev.filter((i) => i.employee_id !== e.id));
+    }
+  };
+
+  const filteredEmployees = useMemo(() => {
+    const s = employeeSearchTerm.trim().toLowerCase();
+    if (!s) return employees;
+    return employees.filter(
+      (e) =>
+        empDisplayName(e).toLowerCase().includes(s) ||
+        (e.job_title || '').toLowerCase().includes(s),
+    );
+  }, [employees, employeeSearchTerm]);
+
+  const isEmployeeBatchType = batchType === 'employee_salary' || batchType === 'advance' || batchType === 'prize';
 
   const addAdHoc = () => {
     if (!adHocBank.verified) {
@@ -185,6 +295,9 @@ const NewPaymentBatch = () => {
         beneficiary_count: items.length,
         status: submit ? 'pending_approval' : 'draft',
         created_by: profile?.id,
+        batch_type: batchType,
+        advance_reason: batchType === 'advance' ? advanceReason || null : null,
+        bonus_type: batchType === 'prize' ? bonusType || null : null,
       }).select().single();
 
       if (error) throw error;
@@ -193,6 +306,8 @@ const NewPaymentBatch = () => {
         const batchItems = items.map((item) => ({
           batch_id: batch.id,
           contractor_id: item.contractor_id || null,
+          employee_id: item.employee_id || null,
+          item_type: item.item_type || 'adhoc',
           full_name: item.full_name,
           bank_name: item.bank_name,
           account_number: item.account_number,
@@ -251,8 +366,75 @@ const NewPaymentBatch = () => {
 
       {step === 1 && (
         <Card>
-          <CardHeader><CardTitle>Batch Details</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+          <CardHeader><CardTitle>Payment Type &amp; Details</CardTitle></CardHeader>
+          <CardContent className="space-y-6">
+            {/* Batch type selector */}
+            <div>
+              <Label className="text-sm mb-3 block">What type of payment is this?</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {BATCH_TYPES.map((t) => (
+                  <button
+                    key={t.type}
+                    type="button"
+                    onClick={() => {
+                      setBatchType(t.type);
+                      // auto-fill batch name for salary runs
+                      if (t.type === 'employee_salary' && !batchName) {
+                        const now = new Date();
+                        const month = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                        setBatchName(`Salary Run — ${month}`);
+                        setPeriod(month);
+                        setPaymentDate(
+                          new Date(now.getFullYear(), now.getMonth() + 1, 25)
+                            .toISOString().slice(0, 10),
+                        );
+                      }
+                    }}
+                    className={cn(
+                      'flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all',
+                      batchType === t.type
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/30',
+                    )}
+                  >
+                    <div className={cn('rounded-lg p-1.5 bg-muted', t.color)}>
+                      {t.icon}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm leading-tight">{t.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{t.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Advance reason / bonus type */}
+            {batchType === 'advance' && (
+              <div className="space-y-2">
+                <Label>Advance Reason <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Input
+                  value={advanceReason}
+                  onChange={(e) => setAdvanceReason(e.target.value)}
+                  placeholder="e.g. Medical emergency, school fees, etc."
+                />
+              </div>
+            )}
+            {batchType === 'prize' && (
+              <div className="space-y-2">
+                <Label>Bonus Type</Label>
+                <Select value={bonusType} onValueChange={setBonusType}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['Performance Bonus', '13th Month', 'Christmas Bonus', 'Ramadan Bonus',
+                      'Annual Leave Allowance', 'Other'].map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Batch Name</Label>
@@ -296,91 +478,177 @@ const NewPaymentBatch = () => {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Select Contractors</CardTitle>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowAdHoc(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Add One-off Beneficiary
-                  </Button>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle>
+                    {isEmployeeBatchType ? 'Select Employees' : 'Select Contractors'}
+                  </CardTitle>
+                  {batchType === 'employee_salary' && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Amounts pre-filled from each employee's monthly salary
+                    </p>
+                  )}
                 </div>
+                <Button variant="outline" size="sm" onClick={() => setShowAdHoc(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Add One-off Beneficiary
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search contractors..."
-                  className="pl-9"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 text-xs">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => selectAllVisible(filteredContractors)}
-                  disabled={filteredContractors.length === 0}
-                >
-                  Select all {filteredContractors.length ? `(${filteredContractors.length})` : ''}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => clearAllVisible(filteredContractors)}
-                  disabled={filteredContractors.length === 0}
-                >
-                  Clear visible
-                </Button>
-                <span className="text-muted-foreground ml-auto">
-                  {items.length} selected
-                </span>
-              </div>
-
-              <div className="border rounded-lg max-h-80 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Bank</TableHead>
-                      <TableHead>Account</TableHead>
-                      <TableHead className="text-right">Default Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredContractors.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
-                          No contractors match your search.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {filteredContractors.map((c) => {
-                      const checked = selectedIds.has(c.id);
-                      return (
-                        <TableRow
-                          key={c.id}
-                          className="cursor-pointer"
-                          onClick={() => toggleContractor(c, !checked)}
-                        >
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'}</TableCell>
-                          <TableCell>{c.bank_name}</TableCell>
-                          <TableCell>{c.account_number}</TableCell>
-                          <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
+              {/* Employee picker */}
+              {isEmployeeBatchType && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={employeeSearchTerm}
+                      onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                      placeholder="Search employees..."
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline"
+                      onClick={() => {
+                        filteredEmployees.filter((e) => e.bank_account_number).forEach((e) => {
+                          if (!selectedEmployeeIds.has(e.id)) toggleEmployee(e, true);
+                        });
+                      }}
+                    >
+                      Select all with bank
+                    </Button>
+                    <Button size="sm" variant="outline"
+                      onClick={() => setItems((prev) => prev.filter((i) => !i.employee_id))}
+                    >
+                      Clear employees
+                    </Button>
+                    <span className="text-muted-foreground text-xs ml-auto">
+                      {items.filter((i) => i.employee_id).length} selected
+                    </span>
+                  </div>
+                  <div className="border rounded-lg max-h-80 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10" />
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Bank Account</TableHead>
+                          <TableHead className="text-right">
+                            {batchType === 'employee_salary' ? 'Salary' : 'Amount'}
+                          </TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEmployees.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-6">
+                              No employees found.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {filteredEmployees.map((e) => {
+                          const hasBank = !!e.bank_account_number;
+                          const checked = selectedEmployeeIds.has(e.id);
+                          return (
+                            <TableRow
+                              key={e.id}
+                              className={cn('transition-colors', hasBank ? 'cursor-pointer' : 'opacity-60')}
+                              onClick={() => hasBank && toggleEmployee(e, !checked)}
+                            >
+                              <TableCell onClick={(ev) => ev.stopPropagation()}>
+                                <Checkbox
+                                  checked={checked}
+                                  disabled={!hasBank}
+                                  onCheckedChange={(v) => hasBank && toggleEmployee(e, Boolean(v))}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <p className="font-medium text-sm">{empDisplayName(e)}</p>
+                                <p className="text-xs text-muted-foreground">{e.job_title || '—'}</p>
+                              </TableCell>
+                              <TableCell>
+                                {hasBank ? (
+                                  <div>
+                                    <p className="text-sm">{e.bank_name}</p>
+                                    <p className="font-mono text-xs text-muted-foreground">{e.bank_account_number}</p>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                                    <AlertTriangle className="h-3 w-3" /> No bank set
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-sm">
+                                {e.salary_ngn ? formatNaira(e.salary_ngn) : '—'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+
+              {/* Contractor picker */}
+              {!isEmployeeBatchType && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search contractors..."
+                      className="pl-9"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => selectAllVisible(filteredContractors)} disabled={filteredContractors.length === 0}>
+                      Select all {filteredContractors.length ? `(${filteredContractors.length})` : ''}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => clearAllVisible(filteredContractors)} disabled={filteredContractors.length === 0}>
+                      Clear visible
+                    </Button>
+                    <span className="text-muted-foreground text-xs ml-auto">{items.length} selected</span>
+                  </div>
+                  <div className="border rounded-lg max-h-80 overflow-y-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10" />
+                          <TableHead>Name</TableHead>
+                          <TableHead>Bank</TableHead>
+                          <TableHead>Account</TableHead>
+                          <TableHead className="text-right">Default Amount</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredContractors.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
+                              No contractors match your search.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {filteredContractors.map((c) => {
+                          const checked = selectedIds.has(c.id);
+                          return (
+                            <TableRow key={c.id} className="cursor-pointer" onClick={() => toggleContractor(c, !checked)}>
+                              <TableCell onClick={(ev) => ev.stopPropagation()}>
+                                <Checkbox checked={checked} onCheckedChange={(v) => toggleContractor(c, Boolean(v))} />
+                              </TableCell>
+                              <TableCell className="font-medium">{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'}</TableCell>
+                              <TableCell>{c.bank_name}</TableCell>
+                              <TableCell>{c.account_number}</TableCell>
+                              <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
