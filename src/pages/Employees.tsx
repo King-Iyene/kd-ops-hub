@@ -251,7 +251,7 @@ const Employees = () => {
 
       // Step 3 — send the OTP magic-link invite email. Supabase auto-creates
       // the auth user on click and the DB trigger handles role assignment.
-      const redirect = `${window.location.origin}/profile`;
+      const redirect = `${window.location.origin}/reset-password`;
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email: form.email.trim().toLowerCase(),
         options: {
@@ -303,7 +303,7 @@ const Employees = () => {
         email: e.email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/profile`,
+          emailRedirectTo: `${window.location.origin}/reset-password`,
           data: { full_name: e.full_name },
         },
       });
