@@ -99,6 +99,41 @@ interface TripLog {
   created_at: string;
 }
 
+function WeeklyBudgetBar({ spent, total }: { spent: number; total: number }) {
+  const pct = Math.min(100, Math.round((spent / total) * 100));
+  const over = spent >= total;
+  const warn = pct >= 80 && !over;
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>This week's budget used</span>
+        <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-600 font-semibold' : ''}>
+          {formatNaira(spent)} / {formatNaira(total)} ({pct}%)
+        </span>
+      </div>
+      <Progress value={pct} className={`h-1.5 ${over ? '[&>div]:bg-destructive' : warn ? '[&>div]:bg-amber-500' : ''}`} />
+      {over && <p className="text-xs text-destructive">Weekly budget exceeded. Admin will review before approving.</p>}
+      {warn && <p className="text-xs text-amber-600">Approaching weekly budget limit.</p>}
+    </div>
+  );
+}
+
+function ServiceAlert({ v, todayStr, in30Str }: { v: VehicleSummary; todayStr: string; in30Str: string }) {
+  const msgs: string[] = [];
+  if (v.insurance_expiry && v.insurance_expiry <= in30Str)
+    msgs.push(`insurance expires ${formatDate(v.insurance_expiry)}${v.insurance_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
+  if (v.road_worthiness_expiry && v.road_worthiness_expiry <= in30Str)
+    msgs.push(`roadworthy expires ${formatDate(v.road_worthiness_expiry)}${v.road_worthiness_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
+  if ((v as any).next_service_date && (v as any).next_service_date <= in30Str)
+    msgs.push(`service due ${formatDate((v as any).next_service_date)}`);
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+      <span><strong>{v.name}</strong> ({(v as any).plate_number}): {msgs.join(' · ')}</span>
+    </div>
+  );
+}
+
 function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | null | undefined; vehicles: VehicleSummary[] }) {
   if (!vehicleId) return <span className="text-muted-foreground">—</span>;
   const veh = vehicles.find((v) => v.id === vehicleId);
@@ -802,21 +837,9 @@ const Fleet = () => {
       {/* Phase 4 — service / compliance alerts */}
       {serviceAlerts.length > 0 && (
         <div className="flex flex-col gap-2">
-          {serviceAlerts.map((v) => {
-            const msgs: string[] = [];
-            if (v.insurance_expiry && v.insurance_expiry <= in30Str)
-              msgs.push(`insurance expires ${formatDate(v.insurance_expiry)}${v.insurance_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
-            if (v.road_worthiness_expiry && v.road_worthiness_expiry <= in30Str)
-              msgs.push(`roadworthy expires ${formatDate(v.road_worthiness_expiry)}${v.road_worthiness_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
-            if (v.next_service_date && v.next_service_date <= in30Str)
-              msgs.push(`service due ${formatDate(v.next_service_date)}`);
-            return (
-              <div key={v.id} className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                <span><strong>{v.name}</strong> ({(v as any).plate_number}): {msgs.join(' · ')}</span>
-              </div>
-            );
-          })}
+          {serviceAlerts.map((v) => (
+            <ServiceAlert key={v.id} v={v} todayStr={todayStr} in30Str={in30Str} />
+          ))}
         </div>
       )}
 
@@ -1202,24 +1225,9 @@ const Fleet = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {weekBudget && weekBudget.total > 0 && (() => {
-                  const pct = Math.min(100, Math.round((weekBudget.spent / weekBudget.total) * 100));
-                  const over = weekBudget.spent >= weekBudget.total;
-                  const warn = pct >= 80 && !over;
-                  return (
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>This week's budget used</span>
-                        <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-600 font-semibold' : ''}>
-                          {formatNaira(weekBudget.spent)} / {formatNaira(weekBudget.total)} ({pct}%)
-                        </span>
-                      </div>
-                      <Progress value={pct} className={`h-1.5 ${over ? '[&>div]:bg-destructive' : warn ? '[&>div]:bg-amber-500' : ''}`} />
-                      {over && <p className="text-xs text-destructive">Weekly budget exceeded. Admin will review before approving.</p>}
-                      {warn && <p className="text-xs text-amber-600">Approaching weekly budget limit.</p>}
-                    </div>
-                  );
-                })()}
+                {weekBudget && weekBudget.total > 0 && (
+                  <WeeklyBudgetBar spent={weekBudget.spent} total={weekBudget.total} />
+                )}
               </div>
             )}
             <div className="space-y-1">
