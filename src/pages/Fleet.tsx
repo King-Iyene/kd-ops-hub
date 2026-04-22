@@ -410,6 +410,69 @@ const Fleet = () => {
   const [confirmDeleteFuel, setConfirmDeleteFuel] = useState<FuelRequest | null>(null);
   const [confirmDeleteTrip, setConfirmDeleteTrip] = useState<TripLog | null>(null);
 
+  // Trip log detail / edit
+  const canEditTrip = profile?.role === 'admin' || profile?.role === 'super_admin';
+  const [selectedTrip, setSelectedTrip] = useState<TripLog | null>(null);
+  const [tripEditMode, setTripEditMode] = useState(false);
+  const [savingTripEdit, setSavingTripEdit] = useState(false);
+  const [tripEditForm, setTripEditForm] = useState({
+    date: '',
+    start_location: '',
+    end_location: '',
+    odometer_start: '',
+    odometer_end: '',
+    fuel_amount_ngn: '',
+    litres: '',
+    issues: '',
+  });
+
+  const openTripDetail = (t: TripLog) => {
+    setSelectedTrip(t);
+    setTripEditMode(false);
+    setTripEditForm({
+      date: t.date,
+      start_location: t.start_location,
+      end_location: t.end_location,
+      odometer_start: t.odometer_start != null ? String(t.odometer_start) : '',
+      odometer_end: t.odometer_end != null ? String(t.odometer_end) : '',
+      fuel_amount_ngn: t.fuel_amount_ngn != null ? String(t.fuel_amount_ngn) : '',
+      litres: t.litres != null ? String(t.litres) : '',
+      issues: t.issues || '',
+    });
+  };
+
+  const saveTripEdit = async () => {
+    if (!selectedTrip) return;
+    const start = parseFloat(tripEditForm.odometer_start);
+    const end = parseFloat(tripEditForm.odometer_end);
+    const hasOdo = Number.isFinite(start) && Number.isFinite(end) && tripEditForm.odometer_start && tripEditForm.odometer_end;
+    const km = hasOdo ? end - start : selectedTrip.km_driven;
+    setSavingTripEdit(true);
+    const { error } = await supabase
+      .from('trip_logs')
+      .update({
+        date: tripEditForm.date,
+        start_location: tripEditForm.start_location,
+        end_location: tripEditForm.end_location,
+        odometer_start: Number.isFinite(start) ? start : null,
+        odometer_end: Number.isFinite(end) ? end : null,
+        km_driven: km,
+        fuel_amount_ngn: parseFloat(tripEditForm.fuel_amount_ngn) || null,
+        litres: parseFloat(tripEditForm.litres) || null,
+        issues: tripEditForm.issues || null,
+      })
+      .eq('id', selectedTrip.id);
+    setSavingTripEdit(false);
+    if (error) {
+      toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Trip log updated' });
+      setSelectedTrip(null);
+      setTripEditMode(false);
+      await fetchData();
+    }
+  };
+
   const handleFuelAction = async (
     request: FuelRequest,
     status: 'approved' | 'rejected',
@@ -833,6 +896,7 @@ const Fleet = () => {
                     <TableHead>Employee</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Route</TableHead>
+                    <TableHead className="text-right">Odometer</TableHead>
                     <TableHead className="text-right">KM</TableHead>
                     <TableHead className="text-right">Fuel (₦)</TableHead>
                     <TableHead className="text-right">Litres</TableHead>
@@ -845,7 +909,7 @@ const Fleet = () => {
                   {visibleTrips.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={isAdmin ? 9 : 8}
+                        colSpan={isAdmin ? 10 : 9}
                         className="text-center text-muted-foreground text-sm py-8"
                       >
                         No trip logs yet.
@@ -853,15 +917,24 @@ const Fleet = () => {
                     </TableRow>
                   )}
                   {visibleTrips.map((t) => (
-                    <TableRow key={t.id}>
+                    <TableRow
+                      key={t.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => openTripDetail(t)}
+                    >
                       <TableCell className="font-medium">{t.employee_name}</TableCell>
                       <TableCell>{formatDate(t.date)}</TableCell>
                       <TableCell className="text-sm">
                         {t.start_location} → {t.end_location}
                       </TableCell>
-                      <TableCell className="text-right">{t.km_driven ?? '—'}</TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                        {t.odometer_start != null ? t.odometer_start.toLocaleString() : '—'}
+                        {' → '}
+                        {t.odometer_end != null ? t.odometer_end.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{t.km_driven != null ? t.km_driven.toLocaleString() : '—'}</TableCell>
                       <TableCell className="text-right currency">
-                        {formatNaira(t.fuel_amount_ngn || 0)}
+                        {t.fuel_amount_ngn ? formatNaira(t.fuel_amount_ngn) : '—'}
                       </TableCell>
                       <TableCell className="text-right">{t.litres ?? '—'}</TableCell>
                       <TableCell className="text-right">
@@ -873,7 +946,7 @@ const Fleet = () => {
                         {t.issues || '—'}
                       </TableCell>
                       {isAdmin && (
-                        <TableCell className="text-right">
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1369,6 +1442,149 @@ const Fleet = () => {
             <Button variant="destructive" onClick={() => confirmDeleteTrip && deleteTripLog(confirmDeleteTrip)}>
               Delete
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trip log detail / edit dialog */}
+      <Dialog
+        open={!!selectedTrip}
+        onOpenChange={(v) => {
+          if (!v) { setSelectedTrip(null); setTripEditMode(false); }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Trip Log — {selectedTrip && formatDate(selectedTrip.date)}
+            </DialogTitle>
+            <DialogDescription>{selectedTrip?.employee_name}</DialogDescription>
+          </DialogHeader>
+
+          {selectedTrip && !tripEditMode && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">From</p>
+                  <p className="font-medium">{selectedTrip.start_location || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">To</p>
+                  <p className="font-medium">{selectedTrip.end_location || '—'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 border rounded-lg p-3 bg-muted/30">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Odometer Start</p>
+                  <p className="font-semibold tabular-nums">{selectedTrip.odometer_start != null ? selectedTrip.odometer_start.toLocaleString() : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Odometer End</p>
+                  <p className="font-semibold tabular-nums">{selectedTrip.odometer_end != null ? selectedTrip.odometer_end.toLocaleString() : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Distance (km)</p>
+                  <p className="font-semibold tabular-nums text-primary">{selectedTrip.km_driven != null ? selectedTrip.km_driven.toLocaleString() : '—'}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Fuel (₦)</p>
+                  <p className="font-medium">{selectedTrip.fuel_amount_ngn ? formatNaira(selectedTrip.fuel_amount_ngn) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Litres</p>
+                  <p className="font-medium">{selectedTrip.litres ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">km/L</p>
+                  <p className="font-medium">
+                    {selectedTrip.km_driven && selectedTrip.litres && selectedTrip.km_driven > 0 && selectedTrip.litres > 0
+                      ? (selectedTrip.km_driven / selectedTrip.litres).toFixed(1)
+                      : '—'}
+                  </p>
+                </div>
+              </div>
+              {selectedTrip.issues && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Issues Reported</p>
+                  <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">{selectedTrip.issues}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedTrip && tripEditMode && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Date</Label>
+                  <Input type="date" value={tripEditForm.date} onChange={(e) => setTripEditForm({ ...tripEditForm, date: e.target.value })} />
+                </div>
+                <div />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>From</Label>
+                  <Input value={tripEditForm.start_location} onChange={(e) => setTripEditForm({ ...tripEditForm, start_location: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>To</Label>
+                  <Input value={tripEditForm.end_location} onChange={(e) => setTripEditForm({ ...tripEditForm, end_location: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Odometer Start</Label>
+                  <Input type="number" value={tripEditForm.odometer_start} onChange={(e) => setTripEditForm({ ...tripEditForm, odometer_start: e.target.value })} placeholder="e.g. 42500" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Odometer End</Label>
+                  <Input type="number" value={tripEditForm.odometer_end} onChange={(e) => setTripEditForm({ ...tripEditForm, odometer_end: e.target.value })} placeholder="e.g. 42750" />
+                </div>
+              </div>
+              {tripEditForm.odometer_start && tripEditForm.odometer_end && (
+                <p className="text-xs text-muted-foreground">
+                  Distance: <strong>{(parseFloat(tripEditForm.odometer_end) - parseFloat(tripEditForm.odometer_start)).toLocaleString()} km</strong>
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Fuel Purchased (₦)</Label>
+                  <Input type="number" value={tripEditForm.fuel_amount_ngn} onChange={(e) => setTripEditForm({ ...tripEditForm, fuel_amount_ngn: e.target.value })} placeholder="Optional" />
+                </div>
+                <div className="space-y-1">
+                  <Label>Litres</Label>
+                  <Input type="number" value={tripEditForm.litres} onChange={(e) => setTripEditForm({ ...tripEditForm, litres: e.target.value })} placeholder="Optional" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Issues to Report</Label>
+                <Textarea value={tripEditForm.issues} onChange={(e) => setTripEditForm({ ...tripEditForm, issues: e.target.value })} rows={2} placeholder="Optional" />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            {!tripEditMode && (
+              <>
+                <Button variant="outline" onClick={() => setSelectedTrip(null)}>Close</Button>
+                {canEditTrip && (
+                  <Button variant="outline" onClick={() => setTripEditMode(true)}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                )}
+              </>
+            )}
+            {tripEditMode && (
+              <>
+                <Button variant="outline" onClick={() => setTripEditMode(false)}>Cancel</Button>
+                <Button onClick={saveTripEdit} disabled={savingTripEdit}>
+                  {savingTripEdit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Changes
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
