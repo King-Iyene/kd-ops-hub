@@ -17,23 +17,23 @@ export const useAuth = () => {
       await fetchProfile(userId);
       const fetched = useAuthStore.getState().profile;
 
-      // No profile row at all → self-registered user, not invited.
-      // Users with a profile row but no role yet (freshly invited) are allowed through.
-      // Exception: invite/signup flows and recently-created profiles are allowed through.
+      // No profile row found. Before rejecting, try the self-healing RPC which
+      // creates the profile from pending_invites. This handles cases where the
+      // DB trigger failed (e.g. the auth user already existed before the trigger
+      // was fixed, or a race condition). The RPC raises an exception for users
+      // who have no pending invite, so only legitimate invited users get through.
       if (!fetched) {
-        const url = window.location.href;
-        const isInviteFlow =
-          url.includes('type=invite') ||
-          url.includes('type=signup') ||
-          url.includes('access_token');
-        const createdAt = fetched?.created_at
-          ? new Date(fetched.created_at).getTime()
-          : 0;
-        const isNewProfile = createdAt > 0 && Date.now() - createdAt < 86_400_000;
-
-        if (isInviteFlow || isNewProfile) {
-          setLoading(false);
-          return;
+        const { error: activateErr } = await supabase.rpc('activate_my_profile');
+        if (!activateErr) {
+          await fetchProfile(userId);
+          const healed = useAuthStore.getState().profile;
+          if (healed) {
+            setLoading(false);
+            if (redirectIfLogin && window.location.pathname === '/login') {
+              navigate('/dashboard', { replace: true });
+            }
+            return;
+          }
         }
 
         await supabase.auth.signOut();
