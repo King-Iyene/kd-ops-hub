@@ -34,9 +34,9 @@ setup('authenticate', async ({ page }) => {
   // profile loaded without a double-redirect.
   await page.waitForURL('**/dashboard', { timeout: 20_000 });
 
-  // Scope to h1 — "Dashboard" also appears as a sidebar nav link, so a bare
-  // text= locator resolves to 2 elements and throws in strict mode.
-  await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 15_000 });
+  // The dashboard renders a personalised greeting h1 (e.g. "Good morning, Alice"),
+  // NOT a literal "Dashboard" heading — wait for any h1 to confirm the page loaded.
+  await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
 
   // Persist the authenticated session so other tests skip login.
   await page.context().storageState({ path: 'tests/.auth/user.json' });

@@ -99,6 +99,21 @@ interface TripLog {
   created_at: string;
 }
 
+function FuelRequestFuelLevel({ vehicleId, vehicles }: { vehicleId: string | null | undefined; vehicles: VehicleSummary[] }) {
+  if (!vehicleId) return <span className="text-muted-foreground">—</span>;
+  const veh = vehicles.find((v) => v.id === vehicleId);
+  if (!veh) return <span className="text-muted-foreground">—</span>;
+  const cap = veh.tank_capacity_litres || 60;
+  const cur = Math.min(veh.current_fuel_litres || 0, cap);
+  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+  return (
+    <span className={`font-medium ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+      {cur.toFixed(0)}L ({pct}%)
+      {pct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
+    </span>
+  );
+}
+
 function TripVehicleFuel({ vehicleId, vehicles }: { vehicleId: string; vehicles: VehicleSummary[] }) {
   if (!vehicleId) return null;
   const veh = vehicles.find((v) => v.id === vehicleId);
@@ -878,20 +893,7 @@ const Fleet = () => {
                       </TableCell>
                       <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
                       <TableCell className="text-xs">
-                        {vehicles.find((v) => v.id === (r as any).vehicle_id)
-                          ? (() => {
-                              const veh = vehicles.find((v) => v.id === (r as any).vehicle_id)!;
-                              const cap = veh.tank_capacity_litres || 60;
-                              const cur = Math.min(veh.current_fuel_litres || 0, cap);
-                              const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
-                              return (
-                                <span className={`font-medium ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
-                                  {cur.toFixed(0)}L ({pct}%)
-                                  {pct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
-                                </span>
-                              );
-                            })()
-                          : <span className="text-muted-foreground">—</span>}
+                        <FuelRequestFuelLevel vehicleId={(r as any).vehicle_id} vehicles={vehicles} />
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {r.reason || '—'}
@@ -1861,18 +1863,23 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [vRes, dRes] = await Promise.all([
-      supabase.from('vehicles').select('*').order('name'),
-      supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('role', ['field_staff', 'driver', 'operations'])
-        .eq('status', 'active')
-        .order('full_name'),
-    ]);
-    setVehicles((vRes.data as Vehicle[]) || []);
-    setAllDrivers((dRes.data as FieldStaff[]) || []);
-    setLoading(false);
+    try {
+      const [vRes, dRes] = await Promise.all([
+        supabase.from('vehicles').select('*').order('name'),
+        supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('role', ['field_staff', 'driver', 'operations'])
+          .eq('status', 'active')
+          .order('full_name'),
+      ]);
+      setVehicles((vRes.data as Vehicle[]) || []);
+      setAllDrivers((dRes.data as FieldStaff[]) || []);
+    } catch (err) {
+      console.error('[Fleet] VehiclesTab load failed:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {

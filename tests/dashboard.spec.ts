@@ -3,8 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Dashboard', () => {
   test('loads without errors and shows KPI cards', async ({ page }) => {
     await page.goto('/dashboard');
-    // h1 is unambiguous — the sidebar nav link is not an h1.
-    await expect(page.locator('h1:has-text("Dashboard")')).toBeVisible({ timeout: 10_000 });
+    // The dashboard renders a personalised greeting h1, not a literal "Dashboard" heading.
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
 
     // At least one stat card should render.
     const cards = page.locator('[class*="CardContent"]');
