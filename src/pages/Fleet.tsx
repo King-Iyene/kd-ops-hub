@@ -270,7 +270,7 @@ const Fleet = () => {
         supabase
           .from('audit_logs')
           .select('*')
-          .or('action.ilike.%fuel%,action.ilike.%trip%,action.ilike.%fleet%,action.ilike.%vehicle%')
+          .or('action_type.ilike.%fuel%,action_type.ilike.%trip%,action_type.ilike.%fleet%,action_type.ilike.%vehicle%')
           .order('created_at', { ascending: false })
           .limit(50),
         supabase
@@ -1149,13 +1149,13 @@ const Fleet = () => {
                   {activityLogs.map((log: any) => (
                     <TableRow key={log.id}>
                       <TableCell className="font-medium capitalize">
-                        {(log.action || '').replace(/_/g, ' ')}
+                        {(log.action_type || '').replace(/_/g, ' ')}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-sm truncate">
                         {log.description || '—'}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {log.actor_name || log.actor_id?.slice(0, 8) || '—'}
+                        {log.performed_by_name || log.performed_by?.slice(0, 8) || '—'}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {log.created_at ? formatDate(log.created_at) : '—'}
@@ -1352,12 +1352,12 @@ const Fleet = () => {
             <div className="space-y-1">
               <Label>Vehicle <span className="text-muted-foreground text-xs">(optional)</span></Label>
               <Select
-                value={tripForm.vehicle_id}
-                onValueChange={(v) => setTripForm({ ...tripForm, vehicle_id: v })}
+                value={tripForm.vehicle_id || '__none__'}
+                onValueChange={(v) => setTripForm({ ...tripForm, vehicle_id: v === '__none__' ? '' : v })}
               >
                 <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No vehicle</SelectItem>
+                  <SelectItem value="__none__">No vehicle</SelectItem>
                   {vehicles.map((v) => (
                     <SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>
                   ))}
@@ -2178,12 +2178,12 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Assigned driver</Label>
-                <Select value={form.assigned_driver_id} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v })}>
+                <Select value={form.assigned_driver_id || '__none__'} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v === '__none__' ? '' : v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
                     {allDrivers.map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
                     ))}
