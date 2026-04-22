@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { getBankCode } from '@/lib/paystack';
 import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
@@ -75,6 +76,16 @@ interface EmployeeData {
   marital_status: string | null;
   address: string | null;
   next_of_kin_email: string | null;
+  employee_number: string | null;
+  employment_type: string | null;
+  start_date: string | null;
+  nin: string | null;
+  nhf_number: string | null;
+  nhis_number: string | null;
+  tin: string | null;
+  pension_enabled: boolean | null;
+  nhf_enabled: boolean | null;
+  nhis_enabled: boolean | null;
 }
 
 const EmployeeProfile = () => {
@@ -85,7 +96,6 @@ const EmployeeProfile = () => {
 
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [confirmAnonymise, setConfirmAnonymise] = useState(false);
   const [anonymiseInput, setAnonymiseInput] = useState('');
@@ -110,13 +120,28 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'>('job_pay');
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [showPersonalEditDialog, setShowPersonalEditDialog] = useState(false);
-  const [showKinEditDialog, setShowKinEditDialog] = useState(false);
-  const [showAddressEditDialog, setShowAddressEditDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+  const [bankEditMode, setBankEditMode] = useState(false);
+  const [bankSaving, setBankSaving] = useState(false);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
+
+  type EditSection =
+    | 'employment' | 'compensation' | 'basic' | 'kin' | 'address'
+    | 'statutory' | 'identity';
+  const [editingSection, setEditingSection] = useState<EditSection | null>(null);
+  const [sectionSaving, setSectionSaving] = useState(false);
+
+  const startEdit = (section: EditSection) => {
+    if (employee) setForm(employee);
+    setEditingSection(section);
+  };
+  const cancelEdit = () => {
+    if (employee) setForm(employee);
+    setEditingSection(null);
+  };
 
   const downloadPayslip = async (fileUrl: string) => {
     const { data, error } = await supabase.storage
@@ -156,6 +181,11 @@ const EmployeeProfile = () => {
     });
     setPermissions((data as any).permissions || {});
 
+    // Departments for the inline Edit select.
+    supabase.from('departments').select('id, name').order('name').then(({ data }) => {
+      setDepartments((data as Array<{ id: string; name: string }>) || []);
+    });
+
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
@@ -186,41 +216,50 @@ const EmployeeProfile = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  const save = async (): Promise<boolean> => {
-    if (!id || !form) return false;
-    setSaving(true);
-    const fullName = displayName(form.first_name, form.last_name, form.full_name);
+  const saveBank = async () => {
+    if (!id) return;
+    setBankSaving(true);
+    const bankCode = getBankCode(bankDetails.bank_name);
     const { error } = await supabase.from('profiles').update({
-      first_name: form.first_name,
-      last_name: form.last_name,
-      full_name: fullName,
-      phone: form.phone,
-      job_title: form.job_title,
-      salary_ngn: form.salary_ngn,
-      next_of_kin_name: form.next_of_kin_name,
-      next_of_kin_phone: form.next_of_kin_phone,
-      next_of_kin_relationship: form.next_of_kin_relationship,
-      bank_name: form.bank_name,
-      bank_account_number: form.bank_account_number,
-      bank_account_name: form.bank_account_name,
-      pension_pin: form.pension_pin,
-      annual_leave_days: form.annual_leave_days,
-      date_of_birth: form.date_of_birth,
-      gender: form.gender,
-      marital_status: form.marital_status,
-      address: form.address,
-      next_of_kin_email: form.next_of_kin_email,
+      bank_name: bankDetails.bank_name,
+      bank_code: bankCode || '',
+      bank_account_number: bankDetails.account_number,
+      bank_account_name: bankDetails.account_name,
     }).eq('id', id);
     if (error) {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-      setSaving(false);
-      return false;
+    } else {
+      await logAudit('employee_edited', `Bank details updated for "${employee?.full_name || id}"`, currentUser);
+      toast({ title: 'Bank details saved' });
+      setBankEditMode(false);
+      load();
     }
-    await logAudit('employee_edited', `Employee profile "${fullName}" updated`, currentUser);
-    toast({ title: 'Employee profile saved' });
+    setBankSaving(false);
+  };
+
+  const saveSection = async (label: string, fields: Record<string, any>) => {
+    if (!id) return;
+    setSectionSaving(true);
+    // full_name derived when first/last changes
+    const payload: Record<string, any> = { ...fields };
+    if (fields.first_name !== undefined || fields.last_name !== undefined) {
+      payload.full_name = displayName(
+        fields.first_name ?? employee?.first_name,
+        fields.last_name ?? employee?.last_name,
+        employee?.full_name,
+      );
+    }
+    const { error } = await supabase.from('profiles').update(payload).eq('id', id);
+    if (error) {
+      toast({ title: `Save failed`, description: error.message, variant: 'destructive' });
+      setSectionSaving(false);
+      return;
+    }
+    await logAudit('employee_edited', `${label} updated for "${employee?.full_name || id}"`, currentUser);
+    toast({ title: `${label} saved` });
+    setEditingSection(null);
+    setSectionSaving(false);
     load();
-    setSaving(false);
-    return true;
   };
 
   const handleDeactivate = async () => {
@@ -362,11 +401,19 @@ const EmployeeProfile = () => {
   // ── Compensation (derived from monthly gross) ────────────────────────────
   const hasSalary = !!employee.salary_ngn;
   const salary    = employee.salary_ngn || 0;
-  const payeMonthly     = hasSalary ? calculatePAYE(salary)               : 0;
-  const pensionMonthly  = hasSalary ? Math.round(salary * 0.08)           : 0;
-  const nhfMonthly      = hasSalary ? Math.round(salary * 0.025)          : 0;
-  const totalDeductMonthly = payeMonthly + pensionMonthly + nhfMonthly;
-  const netMonthly      = hasSalary ? salary - totalDeductMonthly         : 0;
+  const pensionOn = employee.pension_enabled !== false; // default true
+  const nhfOn     = employee.nhf_enabled === true;      // default false
+  const nhisOn    = employee.nhis_enabled === true;     // default false
+
+  const payeMonthly            = hasSalary ? calculatePAYE(salary)       : 0;
+  const pensionEmployeeMonthly = hasSalary && pensionOn ? Math.round(salary * 0.08) : 0;
+  const pensionEmployerMonthly = hasSalary && pensionOn ? Math.round(salary * 0.10) : 0;
+  const nhfMonthly             = hasSalary && nhfOn     ? Math.round(salary * 0.025) : 0;
+  const nhisMonthly            = hasSalary && nhisOn    ? Math.round(salary * 0.0175) : 0;
+  const statutoryDeductMonthly = pensionEmployeeMonthly + nhfMonthly + nhisMonthly;
+  const totalDeductMonthly     = payeMonthly + statutoryDeductMonthly;
+  const employerContribMonthly = pensionEmployerMonthly;
+  const netMonthly             = hasSalary ? salary - totalDeductMonthly : 0;
 
   const canManage    = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -445,9 +492,21 @@ const EmployeeProfile = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
-                Edit Profile
-              </DropdownMenuItem>
+              {canManage && (
+                <DropdownMenuItem onClick={() => { setActiveTab('job_pay'); startEdit('employment'); }}>
+                  Edit Employment
+                </DropdownMenuItem>
+              )}
+              {canManage && (
+                <DropdownMenuItem onClick={() => { setActiveTab('personal'); startEdit('basic'); }}>
+                  Edit Personal Info
+                </DropdownMenuItem>
+              )}
+              {canManage && (
+                <DropdownMenuItem onClick={() => { setActiveTab('statutory'); startEdit('statutory'); }}>
+                  Edit Statutory
+                </DropdownMenuItem>
+              )}
               {canManage && currentUser?.id !== id && (
                 <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
                   Deactivate
@@ -475,6 +534,7 @@ const EmployeeProfile = () => {
         {([
           { key: 'job_pay',   label: 'Job & Pay'                        },
           { key: 'personal',  label: 'Personal'                         },
+          { key: 'statutory', label: 'Statutory'                        },
           { key: 'documents', label: 'Documents'                        },
           { key: 'tasks',     label: 'Tasks'                            },
           { key: 'logs',      label: 'Logs'                             },
@@ -508,6 +568,19 @@ const EmployeeProfile = () => {
             {`Increments (${increments.length})`}
           </button>
         )}
+        {isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('permissions')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'permissions'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Permissions
+          </button>
+        )}
       </div>
 
       {/* ── Tab content ── */}
@@ -519,9 +592,55 @@ const EmployeeProfile = () => {
 
             {/* Card 1 — Compensation Breakdown */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Compensation Breakdown</CardTitle>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  Compensation Breakdown
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {canManage && editingSection !== 'compensation' && (
+                    <Button size="sm" variant="outline" onClick={() => startEdit('compensation')}>
+                      Edit Salary
+                    </Button>
+                  )}
+                  {editingSection === 'compensation' && (
+                    <>
+                      <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                      <Button
+                        size="sm"
+                        onClick={() => saveSection('Compensation', {
+                          salary_ngn: Number(form.salary_ngn) || 0,
+                        })}
+                        disabled={sectionSaving}
+                      >
+                        {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        Save
+                      </Button>
+                    </>
+                  )}
+                  {canManage && (
+                    <Button size="sm" variant="ghost" onClick={() => setShowIncrementDialog(true)} title="Log salary change">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
+              {editingSection === 'compensation' && (
+                <div className="px-4 pb-4 pt-1">
+                  <div className="space-y-1.5 max-w-xs">
+                    <Label className="text-xs">Monthly gross salary (₦)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.salary_ngn ?? ''}
+                      onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use the + button to log this as a formal salary increment with history.
+                    </p>
+                  </div>
+                </div>
+              )}
               <CardContent className="p-0">
                 {!hasSalary ? (
                   <div className="mx-4 my-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-700">
@@ -548,26 +667,44 @@ const EmployeeProfile = () => {
                         <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
                         <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
                       </TableRow>
-                      <TableRow className="text-muted-foreground">
-                        <TableCell className="pl-4">Pension Employee 8%</TableCell>
-                        <TableCell className="text-right">{formatNaira(pensionMonthly * 12)}</TableCell>
-                        <TableCell className="text-right pr-4">{formatNaira(pensionMonthly)}</TableCell>
-                      </TableRow>
-                      <TableRow className="text-muted-foreground">
-                        <TableCell className="pl-4">NHF 2.5%</TableCell>
-                        <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
-                        <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
-                      </TableRow>
+                      {pensionOn && (
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">Pension (employee) 8%</TableCell>
+                          <TableCell className="text-right">{formatNaira(pensionEmployeeMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(pensionEmployeeMonthly)}</TableCell>
+                        </TableRow>
+                      )}
+                      {nhfOn && (
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">NHF 2.5%</TableCell>
+                          <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
+                        </TableRow>
+                      )}
+                      {nhisOn && (
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">NHIS 1.75%</TableCell>
+                          <TableCell className="text-right">{formatNaira(nhisMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(nhisMonthly)}</TableCell>
+                        </TableRow>
+                      )}
                       <TableRow className="text-muted-foreground border-t-2">
                         <TableCell className="pl-4">Total Deductions</TableCell>
                         <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
                         <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
                       </TableRow>
-                      <TableRow className="font-bold bg-muted/30">
+                      <TableRow className="font-bold bg-emerald-50/60">
                         <TableCell className="pl-4 text-base">Net Pay</TableCell>
                         <TableCell className="text-right text-base">{formatNaira(netMonthly * 12)}</TableCell>
                         <TableCell className="text-right pr-4 text-base">{formatNaira(netMonthly)}</TableCell>
                       </TableRow>
+                      {pensionOn && (
+                        <TableRow className="text-xs text-muted-foreground bg-muted/10 border-t">
+                          <TableCell className="pl-4">Employer Contribution — Pension 10%</TableCell>
+                          <TableCell className="text-right">{formatNaira(employerContribMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4">{formatNaira(employerContribMonthly)}</TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 )}
@@ -576,23 +713,165 @@ const EmployeeProfile = () => {
 
             {/* Card 2 — Employment Details */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Employment Details</CardTitle>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  Employment Details
+                </CardTitle>
+                {canManage && editingSection !== 'employment' && (
+                  <Button size="sm" variant="outline" onClick={() => startEdit('employment')}>
+                    Edit
+                  </Button>
+                )}
+                {editingSection === 'employment' && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveSection('Employment details', {
+                        department_id: form.department_id || null,
+                        role: form.role,
+                        job_title: form.job_title || null,
+                        employee_number: form.employee_number || null,
+                        employment_type: form.employment_type || null,
+                        start_date: form.start_date || null,
+                        annual_leave_days: form.annual_leave_days ?? 20,
+                        status: form.status,
+                      })}
+                      disabled={sectionSaving}
+                    >
+                      {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                      Save
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                <dl className="space-y-3">
-                  {([
-                    ['Department',      employee.departments?.name ?? '—'],
-                    ['Role',            roleLabel(employee.role)],
-                    ['Start Date',      formatDate(employee.created_at)],
-                    ['Employee Number', '—'],
-                  ] as [string, string][]).map(([label, val]) => (
-                    <div key={label} className="flex items-center justify-between text-sm">
-                      <dt className="text-muted-foreground">{label}</dt>
-                      <dd className="font-medium">{val}</dd>
+                {editingSection === 'employment' ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Department</Label>
+                        <Select
+                          value={form.department_id || ''}
+                          onValueChange={(v) => patch({ department_id: v || null })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            {departments.map((d) => (
+                              <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Role</Label>
+                        <Select value={form.role || ''} onValueChange={(v) => patch({ role: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="super_admin">Super Admin</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="finance">Finance</SelectItem>
+                            <SelectItem value="operations">Operations</SelectItem>
+                            <SelectItem value="field_staff">Field Staff</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  ))}
-                </dl>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Job title</Label>
+                      <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Employee number</Label>
+                        <Input value={form.employee_number || ''} onChange={(e) => patch({ employee_number: e.target.value || null })} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Employment type</Label>
+                        <Select value={form.employment_type || ''} onValueChange={(v) => patch({ employment_type: v || null })}>
+                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Full-time">Full-time</SelectItem>
+                            <SelectItem value="Part-time">Part-time</SelectItem>
+                            <SelectItem value="Contract">Contract</SelectItem>
+                            <SelectItem value="Intern">Intern</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Start date</Label>
+                        <Input type="date" value={form.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Annual leave days</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={form.annual_leave_days ?? ''}
+                          onChange={(e) => patch({ annual_leave_days: Number(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Status</Label>
+                      <Select value={form.status || ''} onValueChange={(v) => patch({ status: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="on_leave">On leave</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ) : (
+                  <dl className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Department</dt>
+                      <dd className="font-medium">{employee.departments?.name ?? '—'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Role</dt>
+                      <dd><Badge variant="secondary" className={roleBadgeClass(employee.role)}>{roleLabel(employee.role)}</Badge></dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Job title</dt>
+                      <dd className="font-medium">{employee.job_title ?? '—'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Employee number</dt>
+                      <dd className="font-medium font-mono">{employee.employee_number || '—'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Employment type</dt>
+                      <dd>
+                        {employee.employment_type ? (
+                          <Badge className={cn(
+                            'text-xs',
+                            employee.employment_type === 'Full-time'
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                              : employee.employment_type === 'Part-time'
+                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                : 'bg-amber-100 text-amber-700 hover:bg-amber-100',
+                          )}>
+                            {employee.employment_type}
+                          </Badge>
+                        ) : <span className="font-medium">—</span>}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Start date</dt>
+                      <dd className="font-medium">{employee.start_date ? formatDate(employee.start_date) : '—'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Annual leave</dt>
+                      <dd className="font-medium">{employee.annual_leave_days ?? 20} days/yr</dd>
+                    </div>
+                  </dl>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -602,11 +881,38 @@ const EmployeeProfile = () => {
 
             {/* Card 3 — Payment Method */}
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Payment Method</CardTitle>
+                {canManage && !bankEditMode && (
+                  <Button size="sm" variant="outline" onClick={() => setBankEditMode(true)}>
+                    Edit
+                  </Button>
+                )}
+                {bankEditMode && (
+                  <Button size="sm" variant="ghost" onClick={() => setBankEditMode(false)}>
+                    Cancel
+                  </Button>
+                )}
               </CardHeader>
               <CardContent>
-                {employee.bank_name && employee.bank_account_number ? (
+                {bankEditMode ? (
+                  <div className="space-y-4">
+                    <BankAccountField
+                      value={bankDetails}
+                      onChange={setBankDetails}
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={saveBank}
+                        disabled={!bankDetails.verified || bankSaving}
+                      >
+                        {bankSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                        Save Bank Details
+                      </Button>
+                    </div>
+                  </div>
+                ) : employee.bank_name && employee.bank_account_number ? (
                   <>
                     <dl className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -629,38 +935,64 @@ const EmployeeProfile = () => {
                 ) : (
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">No payment method on file.</p>
-                    <p className="text-xs text-muted-foreground">Update via Edit Profile</p>
+                    {canManage && (
+                      <button
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => setBankEditMode(true)}
+                      >
+                        Add bank account
+                      </button>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Card 4 — Employment Status */}
+            {/* Card 4 — Payslips quick access */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Employment Status</CardTitle>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Payslips
+                </CardTitle>
+                <button
+                  onClick={() => setActiveTab('payroll')}
+                  className="text-xs text-primary hover:underline"
+                >
+                  View all
+                </button>
               </CardHeader>
               <CardContent>
-                <dl className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <dt className="text-muted-foreground">Employment type</dt>
-                    <dd className="font-medium">Full-time</dd>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <dt className="text-muted-foreground">Status</dt>
-                    <dd>
-                      <Badge
-                        className={
-                          employee.status === 'active'
-                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-100'
-                        }
+                {payslips.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No payslips yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Select payslip</Label>
+                      <Select
+                        value={selectedPayslipId || payslips[0]?.id}
+                        onValueChange={setSelectedPayslipId}
                       >
-                        {employee.status === 'active' ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </dd>
+                        <SelectTrigger><SelectValue placeholder="Choose period" /></SelectTrigger>
+                        <SelectContent>
+                          {payslips.map((p: any) => (
+                            <SelectItem key={p.id} value={p.id}>{p.period || formatDate(p.created_at)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full gap-1.5"
+                      onClick={() => {
+                        const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
+                        if (slip) downloadPayslip(slip.file_url || slip.id);
+                      }}
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download Payslip
+                    </Button>
                   </div>
-                </dl>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -673,28 +1005,104 @@ const EmployeeProfile = () => {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Basic Details</CardTitle>
-                {canManage && (
-                  <Button size="sm" variant="outline" onClick={() => setShowPersonalEditDialog(true)}>
+                {canManage && editingSection !== 'basic' && (
+                  <Button size="sm" variant="outline" onClick={() => startEdit('basic')}>
                     Edit
                   </Button>
                 )}
+                {editingSection === 'basic' && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveSection('Basic details', {
+                        first_name: form.first_name,
+                        last_name: form.last_name,
+                        phone: form.phone,
+                        date_of_birth: form.date_of_birth || null,
+                        gender: form.gender || null,
+                        marital_status: form.marital_status || null,
+                      })}
+                      disabled={sectionSaving}
+                    >
+                      {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                      Save
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                <dl className="space-y-3 text-sm">
-                  {([
-                    ['Full name',      empName],
-                    ['Date of birth',  employee.date_of_birth ? formatDate(employee.date_of_birth) : '—'],
-                    ['Gender',         employee.gender || '—'],
-                    ['Email',          employee.email],
-                    ['Phone',          employee.phone || '—'],
-                    ['Marital status', employee.marital_status || '—'],
-                  ] as [string, string][]).map(([label, val]) => (
-                    <div key={label} className="flex items-start justify-between gap-4">
-                      <dt className="text-muted-foreground shrink-0">{label}</dt>
-                      <dd className="font-medium text-right">{val}</dd>
+                {editingSection === 'basic' ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">First name</Label>
+                        <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Last name</Label>
+                        <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+                      </div>
                     </div>
-                  ))}
-                </dl>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Phone</Label>
+                      <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Date of birth</Label>
+                        <Input
+                          type="date"
+                          value={form.date_of_birth || ''}
+                          onChange={(e) => patch({ date_of_birth: e.target.value || null })}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Gender</Label>
+                        <Select value={form.gender || ''} onValueChange={(v) => patch({ gender: v || null })}>
+                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Marital status</Label>
+                      <Select value={form.marital_status || ''} onValueChange={(v) => patch({ marital_status: v || null })}>
+                        <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="single">Single</SelectItem>
+                          <SelectItem value="married">Married</SelectItem>
+                          <SelectItem value="divorced">Divorced</SelectItem>
+                          <SelectItem value="widowed">Widowed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground italic">
+                      Email cannot be changed here — it is tied to login credentials.
+                    </p>
+                  </div>
+                ) : (
+                  <dl className="space-y-3 text-sm">
+                    {([
+                      ['Full name',      empName],
+                      ['Date of birth',  employee.date_of_birth ? formatDate(employee.date_of_birth) : '—'],
+                      ['Gender',         employee.gender || '—'],
+                      ['Email',          employee.email],
+                      ['Phone',          employee.phone || '—'],
+                      ['Marital status', employee.marital_status || '—'],
+                    ] as [string, string][]).map(([label, val]) => (
+                      <div key={label} className="flex items-start justify-between gap-4">
+                        <dt className="text-muted-foreground shrink-0">{label}</dt>
+                        <dd className="font-medium text-right">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
               </CardContent>
             </Card>
 
@@ -702,14 +1110,51 @@ const EmployeeProfile = () => {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Next of Kin</CardTitle>
-                {canManage && (
-                  <Button size="sm" variant="outline" onClick={() => setShowKinEditDialog(true)}>
+                {canManage && editingSection !== 'kin' && (
+                  <Button size="sm" variant="outline" onClick={() => startEdit('kin')}>
                     Edit
                   </Button>
                 )}
+                {editingSection === 'kin' && (
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => saveSection('Next of kin', {
+                        next_of_kin_name: form.next_of_kin_name,
+                        next_of_kin_relationship: form.next_of_kin_relationship,
+                        next_of_kin_phone: form.next_of_kin_phone,
+                        next_of_kin_email: form.next_of_kin_email,
+                      })}
+                      disabled={sectionSaving}
+                    >
+                      {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                      Save
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                {employee.next_of_kin_name ? (
+                {editingSection === 'kin' ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Full name</Label>
+                      <Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Relationship</Label>
+                      <Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Phone</Label>
+                      <Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Email</Label>
+                      <Input type="email" value={form.next_of_kin_email || ''} onChange={(e) => patch({ next_of_kin_email: e.target.value })} />
+                    </div>
+                  </div>
+                ) : employee.next_of_kin_name ? (
                   <dl className="space-y-3 text-sm">
                     {([
                       ['Name',         employee.next_of_kin_name],
@@ -734,18 +1179,223 @@ const EmployeeProfile = () => {
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Home Address</CardTitle>
-              {canManage && (
-                <Button size="sm" variant="outline" onClick={() => setShowAddressEditDialog(true)}>
+              {canManage && editingSection !== 'address' && (
+                <Button size="sm" variant="outline" onClick={() => startEdit('address')}>
                   Edit
                 </Button>
               )}
+              {editingSection === 'address' && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveSection('Home address', { address: form.address })}
+                    disabled={sectionSaving}
+                  >
+                    {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
-              {employee.address ? (
+              {editingSection === 'address' ? (
+                <Textarea
+                  rows={3}
+                  value={form.address || ''}
+                  onChange={(e) => patch({ address: e.target.value })}
+                  placeholder="Enter full address…"
+                />
+              ) : employee.address ? (
                 <p className="text-sm">{employee.address}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">No address recorded.</p>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeTab === 'statutory' && (
+        <div className="mt-4 space-y-4">
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 px-4 py-3 text-sm text-indigo-900 flex items-start gap-2">
+            <Shield className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium">Nigerian statutory identity & benefits</p>
+              <p className="text-xs text-indigo-800/80">
+                These numbers are required for PAYE filing, pension remittance, NHF, and NHIS.
+                Only admins see or edit this data. Toggle deduction flags per employee.
+              </p>
+            </div>
+          </div>
+
+          {/* Identity numbers */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Identity Numbers</CardTitle>
+              {canManage && editingSection !== 'identity' && (
+                <Button size="sm" variant="outline" onClick={() => startEdit('identity')}>Edit</Button>
+              )}
+              {editingSection === 'identity' && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveSection('Identity numbers', {
+                      nin: form.nin || null,
+                      tin: form.tin || null,
+                    })}
+                    disabled={sectionSaving}
+                  >
+                    {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              {editingSection === 'identity' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">NIN (National ID) — 11 digits</Label>
+                    <Input
+                      value={form.nin || ''}
+                      onChange={(e) => patch({ nin: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                      placeholder="e.g. 12345678901"
+                      inputMode="numeric"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">TIN (Tax ID)</Label>
+                    <Input
+                      value={form.tin || ''}
+                      onChange={(e) => patch({ tin: e.target.value })}
+                      placeholder="FIRS Tax Identification Number"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <dl className="grid grid-cols-1 md:grid-cols-2 gap-y-3 gap-x-8 text-sm">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted-foreground">NIN</dt>
+                    <dd className="font-mono">{employee.nin || <span className="text-muted-foreground">Not set</span>}</dd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted-foreground">TIN</dt>
+                    <dd className="font-mono">{employee.tin || <span className="text-muted-foreground">Not set</span>}</dd>
+                  </div>
+                </dl>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Statutory benefits with toggles */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Statutory Benefits</CardTitle>
+              {canManage && editingSection !== 'statutory' && (
+                <Button size="sm" variant="outline" onClick={() => startEdit('statutory')}>Edit</Button>
+              )}
+              {editingSection === 'statutory' && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveSection('Statutory benefits', {
+                      pension_pin: form.pension_pin || null,
+                      pension_enabled: form.pension_enabled ?? true,
+                      nhf_number: form.nhf_number || null,
+                      nhf_enabled: form.nhf_enabled ?? false,
+                      nhis_number: form.nhis_number || null,
+                      nhis_enabled: form.nhis_enabled ?? false,
+                    })}
+                    disabled={sectionSaving}
+                  >
+                    {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {([
+                {
+                  key: 'pension' as const,
+                  label: 'Pension (RSA)',
+                  rate: '8% employee · 10% employer',
+                  numberField: 'pension_pin',
+                  flagField: 'pension_enabled',
+                  defaultFlag: true,
+                  placeholder: 'RSA PIN — e.g. PEN100000000000',
+                },
+                {
+                  key: 'nhf' as const,
+                  label: 'NHF (Housing Fund)',
+                  rate: '2.5% of basic',
+                  numberField: 'nhf_number',
+                  flagField: 'nhf_enabled',
+                  defaultFlag: false,
+                  placeholder: 'NHF contribution number',
+                },
+                {
+                  key: 'nhis' as const,
+                  label: 'NHIS / HMO',
+                  rate: 'Mandatory for orgs 10+',
+                  numberField: 'nhis_number',
+                  flagField: 'nhis_enabled',
+                  defaultFlag: false,
+                  placeholder: 'NHIS enrollment number',
+                },
+              ]).map((row) => {
+                const isOn = editingSection === 'statutory'
+                  ? ((form as any)[row.flagField] ?? row.defaultFlag)
+                  : ((employee as any)[row.flagField] ?? row.defaultFlag);
+                const num = editingSection === 'statutory'
+                  ? ((form as any)[row.numberField] || '')
+                  : ((employee as any)[row.numberField] || '');
+                return (
+                  <div key={row.key} className="flex flex-col gap-2 pb-4 border-b last:border-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium text-sm">{row.label}</p>
+                        <p className="text-xs text-muted-foreground">{row.rate}</p>
+                      </div>
+                      <Badge className={cn(
+                        'text-xs',
+                        isOn
+                          ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-100',
+                      )}>
+                        {isOn ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    {editingSection === 'statutory' ? (
+                      <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Reference number</Label>
+                          <Input
+                            value={num}
+                            onChange={(e) => patch({ [row.numberField]: e.target.value } as any)}
+                            placeholder={row.placeholder}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isOn ? 'default' : 'outline'}
+                          onClick={() => patch({ [row.flagField]: !isOn } as any)}
+                        >
+                          {isOn ? 'Turn off' : 'Turn on'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm font-mono text-muted-foreground">
+                        {num || <span className="italic">No number on file</span>}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         </div>
@@ -888,6 +1538,26 @@ const EmployeeProfile = () => {
 
       {activeTab === 'leave' && (
         <div className="mt-4">
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Leave taken</p>
+                <p className="text-2xl font-bold">
+                  {leaveTaken}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">days</span>
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Remaining</p>
+                <p className="text-2xl font-bold">
+                  {Math.max(0, (employee.annual_leave_days || 20) - leaveTaken)}{' '}
+                  <span className="text-sm font-normal text-muted-foreground">days</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Leave Requests</CardTitle>
@@ -1020,8 +1690,13 @@ const EmployeeProfile = () => {
       {activeTab === 'increments' && (
         <div className="mt-4">
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Salary Increments</CardTitle>
+              {canManage && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowIncrementDialog(true)}>
+                  <Plus className="h-4 w-4" /> Add Increment
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               {increments.length === 0 ? (
@@ -1061,66 +1736,22 @@ const EmployeeProfile = () => {
           </Card>
         </div>
       )}
-      {/* ── Edit Profile dialog ── */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>First name</Label>
-                <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Last name</Label>
-                <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Job title</Label>
-              <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Role</Label>
-              <Select value={form.role || ''} onValueChange={(v) => patch({ role: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="super_admin">Super Admin</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                  <SelectItem value="field_staff">Field Staff</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Monthly salary (₦)</Label>
-              <Input
-                type="number"
-                min={0}
-                value={form.salary_ngn ?? ''}
-                onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-            <Button
-              onClick={async () => { const ok = await save(); if (ok) setShowEditDialog(false); }}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {activeTab === 'permissions' && isSuperAdmin && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Permissions</CardTitle>
+              <Button size="sm" onClick={savePermissions} disabled={savingPermissions}>
+                {savingPermissions && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Save
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <PermissionsEditor value={permissions} onChange={setPermissions} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Deactivate dialog ── */}
       <Dialog open={confirmDeactivate} onOpenChange={setConfirmDeactivate}>
@@ -1183,121 +1814,69 @@ const EmployeeProfile = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Edit Basic Details dialog ── */}
-      <Dialog open={showPersonalEditDialog} onOpenChange={setShowPersonalEditDialog}>
+      {/* Legacy edit dialogs (Edit Profile / Basic / Kin / Address) removed —
+          all of those sections now edit inline on their respective cards. */}
+
+      {/* ── Add Salary Increment dialog ── */}
+      <Dialog
+        open={showIncrementDialog}
+        onOpenChange={(v) => {
+          if (!v) {
+            setShowIncrementDialog(false);
+            setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+          }
+        }}
+      >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Edit Basic Details</DialogTitle>
+            <DialogTitle>Add Salary Increment</DialogTitle>
+            <DialogDescription>
+              Record a salary change for {empName}. Current salary:{' '}
+              {formatNaira(employee?.salary_ngn || 0)}/month.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <Label>Date of birth</Label>
+              <Label>Effective date</Label>
               <Input
                 type="date"
-                value={form.date_of_birth || ''}
-                onChange={(e) => patch({ date_of_birth: e.target.value || null })}
+                value={incrementForm.effective_date}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, effective_date: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Gender</Label>
-              <Select value={form.gender || ''} onValueChange={(v) => patch({ gender: v || null })}>
-                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                  <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>New monthly salary (₦)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={incrementForm.new_salary || ''}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, new_salary: Number(e.target.value) }))}
+                placeholder="Enter new salary…"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>Marital status</Label>
-              <Select value={form.marital_status || ''} onValueChange={(v) => patch({ marital_status: v || null })}>
-                <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">Single</SelectItem>
-                  <SelectItem value="married">Married</SelectItem>
-                  <SelectItem value="divorced">Divorced</SelectItem>
-                  <SelectItem value="widowed">Widowed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPersonalEditDialog(false)}>Cancel</Button>
-            <Button
-              onClick={async () => { const ok = await save(); if (ok) setShowPersonalEditDialog(false); }}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Edit Next of Kin dialog ── */}
-      <Dialog open={showKinEditDialog} onOpenChange={setShowKinEditDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Next of Kin</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
-            <div className="space-y-1.5">
-              <Label>Full name</Label>
-              <Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Relationship</Label>
-              <Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Phone</Label>
-              <Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input type="email" value={form.next_of_kin_email || ''} onChange={(e) => patch({ next_of_kin_email: e.target.value })} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowKinEditDialog(false)}>Cancel</Button>
-            <Button
-              onClick={async () => { const ok = await save(); if (ok) setShowKinEditDialog(false); }}
-              disabled={saving}
-            >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Edit Address dialog ── */}
-      <Dialog open={showAddressEditDialog} onOpenChange={setShowAddressEditDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Home Address</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-1">
-            <div className="space-y-1.5">
-              <Label>Address</Label>
+              <Label>Reason</Label>
               <Textarea
                 rows={3}
-                value={form.address || ''}
-                onChange={(e) => patch({ address: e.target.value })}
-                placeholder="Enter full address…"
+                value={incrementForm.reason}
+                onChange={(e) => setIncrementForm((p) => ({ ...p, reason: e.target.value }))}
+                placeholder="Performance review, promotion, cost of living adjustment…"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddressEditDialog(false)}>Cancel</Button>
             <Button
-              onClick={async () => { const ok = await save(); if (ok) setShowAddressEditDialog(false); }}
-              disabled={saving}
+              variant="outline"
+              onClick={() => {
+                setShowIncrementDialog(false);
+                setIncrementForm({ new_salary: 0, reason: '', effective_date: new Date().toISOString().slice(0, 10) });
+              }}
             >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
+              Cancel
+            </Button>
+            <Button onClick={recordIncrement} disabled={savingIncrement || incrementForm.new_salary <= 0}>
+              {savingIncrement && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Increment
             </Button>
           </DialogFooter>
         </DialogContent>

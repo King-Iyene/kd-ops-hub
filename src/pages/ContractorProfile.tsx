@@ -184,7 +184,6 @@ const ContractorProfile = () => {
       heyreach_email: contractor.heyreach_email || '',
       heyreach_password_enc: contractor.heyreach_password_enc || '',
       linkedin_url: contractor.linkedin_url || '',
-      linkedin_id: contractor.linkedin_id || '',
       default_amount: contractor.default_amount ?? contractor.default_amount_ngn ?? 0,
       notes: contractor.notes || '',
     });
@@ -210,7 +209,7 @@ const ContractorProfile = () => {
         heyreach_email: form.heyreach_email,
         heyreach_password_enc: form.heyreach_password_enc,
         linkedin_url: form.linkedin_url,
-        linkedin_id: form.linkedin_id,
+        default_amount_ngn: Number(form.default_amount),
         default_amount: Number(form.default_amount),
         notes: form.notes,
       })
@@ -334,6 +333,10 @@ const ContractorProfile = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={beginEdit}>
+                Edit Details
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setConfirmDeactivate(true)}>
                 {contractor.status === 'active' ? 'Deactivate' : 'Reactivate'}
               </DropdownMenuItem>
