@@ -23,7 +23,8 @@ const ResetPassword = () => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      // PASSWORD_RECOVERY = forgot-password link; SIGNED_IN = invite magic link.
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
         setReady(true);
       }
     });
@@ -49,8 +50,8 @@ const ResetPassword = () => {
     if (error) {
       toast({ title: 'Reset failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Password updated', description: 'You can now sign in with your new password.' });
-      navigate('/login', { replace: true });
+      toast({ title: 'Password set', description: 'Welcome! Taking you to your dashboard.' });
+      navigate('/dashboard', { replace: true });
     }
     setLoading(false);
   };
