@@ -51,6 +51,21 @@ interface FieldStaff {
   email: string;
 }
 
+interface VehicleSummary {
+  id: string;
+  name: string;
+  plate_number: string;
+  weekly_budget_ngn: number;
+  assigned_driver_id: string | null;
+  insurance_expiry: string | null;
+  road_worthiness_expiry: string | null;
+  next_service_date: string | null;
+  tank_capacity_litres: number;
+  current_fuel_litres: number;
+  last_refuel_at: string | null;
+  avg_km_per_litre: number;
+}
+
 interface FuelRequest {
   id: string;
   employee_id: string;
@@ -118,7 +133,7 @@ const Fleet = () => {
   const [showFuelBankSection, setShowFuelBankSection] = useState(false);
 
   // Phase 1 — vehicle & weekly budget state
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [fuelVehicleId, setFuelVehicleId] = useState('');
   const [weekBudget, setWeekBudget] = useState<{ spent: number; total: number } | null>(null);
 
@@ -134,6 +149,7 @@ const Fleet = () => {
   const today = new Date().toISOString().slice(0, 10);
   const [tripForm, setTripForm] = useState({
     employee_id: profile?.id || '',
+    vehicle_id: '',
     date: today,
     start_location: '',
     end_location: '',
@@ -192,7 +208,7 @@ const Fleet = () => {
         .limit(50),
       supabase
         .from('vehicles')
-        .select('id, name, plate_number, weekly_budget_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date')
+        .select('id, name, plate_number, weekly_budget_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre')
         .eq('status', 'active')
         .order('name'),
     ]);
@@ -204,7 +220,7 @@ const Fleet = () => {
     setFuelRequests(enrich(fuelRes.data || [], lookup));
     setTripLogs(enrich(tripRes.data || [], lookup));
     setActivityLogs(activityRes.data || []);
-    setVehicles((vehicleRes.data as Vehicle[]) || []);
+    setVehicles((vehicleRes.data as VehicleSummary[]) || []);
     setLoading(false);
   };
 
@@ -365,10 +381,11 @@ const Fleet = () => {
     }
     const start = parseFloat(tripForm.odometer_start);
     const end = parseFloat(tripForm.odometer_end);
-    const km = Number.isFinite(end - start) ? end - start : null;
+    const km = Number.isFinite(end - start) && tripForm.odometer_start && tripForm.odometer_end ? end - start : null;
     setSubmitting(true);
     const { error } = await supabase.from('trip_logs').insert({
       driver_id: tripForm.employee_id,
+      vehicle_id: tripForm.vehicle_id || null,
       date: tripForm.date,
       start_location: tripForm.start_location,
       end_location: tripForm.end_location,
@@ -382,6 +399,17 @@ const Fleet = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Deduct estimated consumption from vehicle fuel balance
+      if (tripForm.vehicle_id && km && km > 0) {
+        const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);
+        if (veh && veh.avg_km_per_litre > 0) {
+          const consumed = km / veh.avg_km_per_litre;
+          await supabase
+            .from('vehicles')
+            .update({ current_fuel_litres: Math.max(0, veh.current_fuel_litres - consumed) })
+            .eq('id', veh.id);
+        }
+      }
       await logAudit(
         'trip_log_submitted',
         `Trip log ${tripForm.start_location} → ${tripForm.end_location} (${km ?? '—'} km)`,
@@ -391,6 +419,7 @@ const Fleet = () => {
       setShowTripForm(false);
       setTripForm({
         employee_id: profile?.id || '',
+        vehicle_id: '',
         date: today,
         start_location: '',
         end_location: '',
@@ -528,6 +557,18 @@ const Fleet = () => {
         title: 'Your fuel request was approved',
         body: `${formatNaira(request.amount_ngn || 0)} at ${request.station_name}`,
       });
+    }
+
+    // Update vehicle fuel balance when a vehicle was specified on the request
+    if ((request as any).vehicle_id && request.litres_est && request.litres_est > 0) {
+      const veh = vehicles.find((v) => v.id === (request as any).vehicle_id);
+      if (veh) {
+        const newBalance = Math.min(veh.current_fuel_litres + request.litres_est, veh.tank_capacity_litres);
+        await supabase
+          .from('vehicles')
+          .update({ current_fuel_litres: newBalance, last_refuel_at: now })
+          .eq('id', veh.id);
+      }
     }
 
     // Phase 2 — auto-pay via Paystack if the driver provided bank details
@@ -789,7 +830,7 @@ const Fleet = () => {
                     <TableHead>Station</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead className="text-right">Litres</TableHead>
-                    <TableHead className="text-right">Odometer</TableHead>
+                    <TableHead>Vehicle Fuel</TableHead>
                     <TableHead>Purpose</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
@@ -807,7 +848,12 @@ const Fleet = () => {
                       </TableCell>
                     </TableRow>
                   )}
-                  {visibleFuel.map((r) => (
+                  {visibleFuel.map((r) => {
+                    const reqVeh = vehicles.find((v) => v.id === (r as any).vehicle_id);
+                    const fPct = reqVeh && reqVeh.tank_capacity_litres > 0
+                      ? Math.round((Math.min(reqVeh.current_fuel_litres, reqVeh.tank_capacity_litres) / reqVeh.tank_capacity_litres) * 100)
+                      : null;
+                    return (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.employee_name}</TableCell>
                       <TableCell>{r.station_name}</TableCell>
@@ -815,8 +861,15 @@ const Fleet = () => {
                         {formatNaira(r.amount_ngn || 0)}
                       </TableCell>
                       <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
-                      <TableCell className="text-right">
-                        {r.odometer?.toLocaleString() ?? '—'}
+                      <TableCell className="text-xs">
+                        {reqVeh && fPct !== null ? (
+                          <span className={`font-medium ${fPct < 20 ? 'text-red-600' : fPct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {reqVeh.current_fuel_litres.toFixed(0)}L ({fPct}%)
+                            {fPct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {r.reason || '—'}
@@ -868,7 +921,8 @@ const Fleet = () => {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1263,6 +1317,35 @@ const Fleet = () => {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Vehicle <span className="text-muted-foreground text-xs">(optional)</span></Label>
+              <Select
+                value={tripForm.vehicle_id}
+                onValueChange={(v) => setTripForm({ ...tripForm, vehicle_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">No vehicle</SelectItem>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {tripForm.vehicle_id && (() => {
+                const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);
+                if (!veh) return null;
+                const cap = veh.tank_capacity_litres || 60;
+                const cur = Math.min(veh.current_fuel_litres || 0, cap);
+                const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+                const est = veh.avg_km_per_litre > 0 ? Math.round(cur * veh.avg_km_per_litre) : null;
+                return (
+                  <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border mt-1 ${pct < 20 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-muted/40 border-muted text-muted-foreground'}`}>
+                    <span>Fuel: <strong>{cur.toFixed(0)}L / {cap}L ({pct}%)</strong>{est !== null ? ` · ~${est.toLocaleString()} km range` : ''}</span>
+                    {pct < 20 && <AlertTriangle className="h-3 w-3 text-red-500" />}
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-1">
               <Label>Date</Label>
@@ -1690,6 +1773,10 @@ interface Vehicle {
   vin: string | null;
   assigned_driver_id: string | null;
   weekly_budget_ngn: number;
+  tank_capacity_litres: number;
+  current_fuel_litres: number;
+  last_refuel_at: string | null;
+  avg_km_per_litre: number;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
   last_service_date: string | null;
@@ -1708,6 +1795,8 @@ const emptyVehicleForm = {
   vin: '',
   assigned_driver_id: '',
   weekly_budget_ngn: '',
+  tank_capacity_litres: '60',
+  avg_km_per_litre: '10',
   insurance_expiry: '',
   road_worthiness_expiry: '',
   last_service_date: '',
@@ -1763,6 +1852,8 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       vin: v.vin || '',
       assigned_driver_id: v.assigned_driver_id || '',
       weekly_budget_ngn: String(v.weekly_budget_ngn || 0),
+      tank_capacity_litres: String(v.tank_capacity_litres || 60),
+      avg_km_per_litre: String(v.avg_km_per_litre || 10),
       insurance_expiry: v.insurance_expiry || '',
       road_worthiness_expiry: v.road_worthiness_expiry || '',
       last_service_date: v.last_service_date || '',
@@ -1787,6 +1878,8 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       vin: form.vin.trim() || null,
       assigned_driver_id: form.assigned_driver_id || null,
       weekly_budget_ngn: parseFloat(form.weekly_budget_ngn) || 0,
+      tank_capacity_litres: parseFloat(form.tank_capacity_litres) || 60,
+      avg_km_per_litre: parseFloat(form.avg_km_per_litre) || 10,
       insurance_expiry: form.insurance_expiry || null,
       road_worthiness_expiry: form.road_worthiness_expiry || null,
       last_service_date: form.last_service_date || null,
@@ -1879,6 +1972,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Plate</TableHead>
                   <TableHead>Assigned Driver</TableHead>
+                  <TableHead>Fuel Level</TableHead>
                   <TableHead className="text-right">Weekly Budget</TableHead>
                   <TableHead>Insurance</TableHead>
                   <TableHead>Road Worthiness</TableHead>
@@ -1889,12 +1983,20 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
               <TableBody>
                 {vehicles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground text-sm py-8">
                       No vehicles registered yet. Add your first vehicle to start tracking.
                     </TableCell>
                   </TableRow>
                 )}
-                {vehicles.map((v) => (
+                {vehicles.map((v) => {
+                  const cap = v.tank_capacity_litres || 60;
+                  const cur = Math.min(v.current_fuel_litres || 0, cap);
+                  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+                  const fuelColor = pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
+                  const daysSince = v.last_refuel_at
+                    ? Math.floor((Date.now() - new Date(v.last_refuel_at).getTime()) / 86_400_000)
+                    : null;
+                  return (
                   <TableRow key={v.id} className="kd-transition">
                     <TableCell>
                       <div className="font-medium">{v.name}</div>
@@ -1906,6 +2008,31 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                     </TableCell>
                     <TableCell className="font-mono">{v.plate_number}</TableCell>
                     <TableCell className="text-sm">{driverName(v.assigned_driver_id)}</TableCell>
+                    <TableCell className="min-w-[120px]">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className={pct < 20 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+                            {cur.toFixed(0)}L / {cap}L
+                          </span>
+                          <span className={`font-semibold ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {pct}%
+                          </span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${fuelColor}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        {daysSince !== null && (
+                          <p className="text-[10px] text-muted-foreground">
+                            Last filled {daysSince === 0 ? 'today' : `${daysSince}d ago`}
+                          </p>
+                        )}
+                        {pct < 20 && (
+                          <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5">
+                            <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right currency">{formatNaira(v.weekly_budget_ngn)}</TableCell>
                     <TableCell>
                       {v.insurance_expiry ? (
@@ -1967,7 +2094,8 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
@@ -2004,6 +2132,16 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
               <div className="space-y-1">
                 <Label>VIN</Label>
                 <Input value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Tank capacity (litres)</Label>
+                <Input type="number" value={form.tank_capacity_litres} onChange={(e) => setForm({ ...form, tank_capacity_litres: e.target.value })} placeholder="e.g. 60" />
+              </div>
+              <div className="space-y-1">
+                <Label>Avg fuel efficiency (km/L)</Label>
+                <Input type="number" step="0.1" value={form.avg_km_per_litre} onChange={(e) => setForm({ ...form, avg_km_per_litre: e.target.value })} placeholder="e.g. 10" />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
