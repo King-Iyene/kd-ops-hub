@@ -114,6 +114,7 @@ const NewPaymentBatch = () => {
   const [period, setPeriod] = useState('');
   const [notes, setNotes] = useState('');
   const [advanceReason, setAdvanceReason] = useState('');
+  const [repaymentMonths, setRepaymentMonths] = useState(3);
   const [bonusType, setBonusType] = useState('Performance Bonus');
 
   // Step 2
@@ -298,6 +299,7 @@ const NewPaymentBatch = () => {
         batch_type: batchType,
         advance_reason: batchType === 'advance' ? advanceReason || null : null,
         bonus_type: batchType === 'prize' ? bonusType || null : null,
+        repayment_months: batchType === 'advance' ? repaymentMonths : 1,
       }).select().single();
 
       if (error) throw error;
@@ -315,7 +317,25 @@ const NewPaymentBatch = () => {
           reference: item.reference,
           status: 'pending',
         }));
-        await supabase.from('batch_items').insert(batchItems);
+        const { data: insertedItems } = await supabase.from('batch_items').insert(batchItems).select();
+
+        // Phase 3 — create employee_advances records for salary advance batches
+        if (batchType === 'advance' && submit && insertedItems) {
+          const advanceInserts = insertedItems
+            .filter((bi: any) => bi.employee_id)
+            .map((bi: any) => ({
+              employee_id: bi.employee_id,
+              source_batch_id: batch.id,
+              source_batch_item_id: bi.id,
+              amount_ngn: bi.amount_ngn,
+              outstanding_ngn: bi.amount_ngn,
+              repayment_months: repaymentMonths,
+              start_period: period || null,
+            }));
+          if (advanceInserts.length > 0) {
+            await supabase.from('employee_advances').insert(advanceInserts);
+          }
+        }
       }
 
       await logAudit(
@@ -411,13 +431,31 @@ const NewPaymentBatch = () => {
 
             {/* Advance reason / bonus type */}
             {batchType === 'advance' && (
-              <div className="space-y-2">
-                <Label>Advance Reason <span className="text-muted-foreground text-xs">(optional)</span></Label>
-                <Input
-                  value={advanceReason}
-                  onChange={(e) => setAdvanceReason(e.target.value)}
-                  placeholder="e.g. Medical emergency, school fees, etc."
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Advance Reason <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                  <Input
+                    value={advanceReason}
+                    onChange={(e) => setAdvanceReason(e.target.value)}
+                    placeholder="e.g. Medical emergency, school fees, etc."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Repayment Plan</Label>
+                  <Select value={String(repaymentMonths)} onValueChange={(v) => setRepaymentMonths(Number(v))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 month (full deduction next salary)</SelectItem>
+                      <SelectItem value="2">2 months</SelectItem>
+                      <SelectItem value="3">3 months</SelectItem>
+                      <SelectItem value="6">6 months</SelectItem>
+                      <SelectItem value="12">12 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Monthly deduction will appear on employee payslips and the employee profile.
+                  </p>
+                </div>
               </div>
             )}
             {batchType === 'prize' && (
