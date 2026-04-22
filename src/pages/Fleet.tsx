@@ -198,46 +198,51 @@ const Fleet = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('role', 'field_staff')
-        .eq('status', 'active')
-        .order('full_name'),
-      supabase.from('profiles').select('id, full_name, email'),
-      supabase
-        .from('fuel_requests')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100),
-      supabase
-        .from('trip_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100),
-      supabase
-        .from('audit_logs')
-        .select('*')
-        .or('action.ilike.%fuel%,action.ilike.%trip%,action.ilike.%fleet%,action.ilike.%vehicle%')
-        .order('created_at', { ascending: false })
-        .limit(50),
-      supabase
-        .from('vehicles')
-        .select('id, name, plate_number, weekly_budget_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre')
-        .eq('status', 'active')
-        .order('name'),
-    ]);
+    try {
+      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .eq('role', 'field_staff')
+          .eq('status', 'active')
+          .order('full_name'),
+        supabase.from('profiles').select('id, full_name, email'),
+        supabase
+          .from('fuel_requests')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('trip_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('audit_logs')
+          .select('*')
+          .or('action.ilike.%fuel%,action.ilike.%trip%,action.ilike.%fleet%,action.ilike.%vehicle%')
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('vehicles')
+          .select('*')
+          .eq('status', 'active')
+          .order('name'),
+      ]);
 
-    const fieldStaff = (staffRes.data as FieldStaff[]) || [];
-    setStaff(fieldStaff);
+      const fieldStaff = (staffRes.data as FieldStaff[]) || [];
+      setStaff(fieldStaff);
 
-    const lookup = ((profilesRes.data as FieldStaff[]) || []).concat(fieldStaff);
-    setFuelRequests(enrich(fuelRes.data || [], lookup));
-    setTripLogs(enrich(tripRes.data || [], lookup));
-    setActivityLogs(activityRes.data || []);
-    setVehicles((vehicleRes.data as VehicleSummary[]) || []);
-    setLoading(false);
+      const lookup = ((profilesRes.data as FieldStaff[]) || []).concat(fieldStaff);
+      setFuelRequests(enrich(fuelRes.data || [], lookup));
+      setTripLogs(enrich(tripRes.data || [], lookup));
+      setActivityLogs(activityRes.data || []);
+      setVehicles((vehicleRes.data as VehicleSummary[]) || []);
+    } catch (err) {
+      console.error('[Fleet] fetchData failed:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Phase 1 — fetch current-week spend for a vehicle against its weekly budget
