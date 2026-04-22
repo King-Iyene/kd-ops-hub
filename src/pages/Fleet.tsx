@@ -39,9 +39,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench } from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
+import { getBankCode, createTransferRecipient, initiateTransfer } from '@/lib/paystack';
 
 interface FieldStaff {
   id: string;
@@ -115,6 +117,18 @@ const Fleet = () => {
   const [fuelBankDetails, setFuelBankDetails] = useState<BankAccountValue>(EMPTY_FUEL_BANK);
   const [showFuelBankSection, setShowFuelBankSection] = useState(false);
 
+  // Phase 1 — vehicle & weekly budget state
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [fuelVehicleId, setFuelVehicleId] = useState('');
+  const [weekBudget, setWeekBudget] = useState<{ spent: number; total: number } | null>(null);
+
+  // Phase 4 — repair request form
+  const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
+  const [showRepairForm, setShowRepairForm] = useState(false);
+  const [repairForm, setRepairForm] = useState({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
+  const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
+  const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
+
   // Trip log form
   const [showTripForm, setShowTripForm] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
@@ -152,7 +166,7 @@ const Fleet = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [staffRes, profilesRes, fuelRes, tripRes, activityRes] = await Promise.all([
+    const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, full_name, email')
@@ -176,6 +190,11 @@ const Fleet = () => {
         .or('action.ilike.%fuel%,action.ilike.%trip%,action.ilike.%fleet%,action.ilike.%vehicle%')
         .order('created_at', { ascending: false })
         .limit(50),
+      supabase
+        .from('vehicles')
+        .select('id, name, plate_number, weekly_budget_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date')
+        .eq('status', 'active')
+        .order('name'),
     ]);
 
     const fieldStaff = (staffRes.data as FieldStaff[]) || [];
@@ -185,7 +204,101 @@ const Fleet = () => {
     setFuelRequests(enrich(fuelRes.data || [], lookup));
     setTripLogs(enrich(tripRes.data || [], lookup));
     setActivityLogs(activityRes.data || []);
+    setVehicles((vehicleRes.data as Vehicle[]) || []);
     setLoading(false);
+  };
+
+  // Phase 1 — fetch current-week spend for a vehicle against its weekly budget
+  const fetchWeekBudget = async (vehicleId: string) => {
+    if (!vehicleId) { setWeekBudget(null); return; }
+    const v = vehicles.find((x) => x.id === vehicleId);
+    if (!v || !v.weekly_budget_ngn) { setWeekBudget(null); return; }
+    const monday = new Date();
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    monday.setHours(0, 0, 0, 0);
+    const { data } = await supabase
+      .from('fuel_requests')
+      .select('amount_ngn')
+      .eq('vehicle_id', vehicleId)
+      .in('status', ['pending', 'approved'])
+      .gte('created_at', monday.toISOString());
+    const spent = (data || []).reduce((s: number, r: any) => s + (r.amount_ngn || 0), 0);
+    setWeekBudget({ spent, total: v.weekly_budget_ngn });
+  };
+
+  // Phase 4 — pre-fill odometer_start from the driver's last trip end reading
+  const prefillOdometer = async (driverId: string) => {
+    if (!driverId) return;
+    const { data } = await supabase
+      .from('trip_logs')
+      .select('odometer_end')
+      .eq('driver_id', driverId)
+      .not('odometer_end', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data?.[0]?.odometer_end) {
+      setTripForm((f) => ({ ...f, odometer_start: String(data[0].odometer_end) }));
+    }
+  };
+
+  // Phase 4 — submit repair reimbursement (creates expense with category='repair')
+  const submitRepairRequest = async () => {
+    if (!repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn) {
+      toast({ title: 'Employee, description and amount are required', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(repairForm.amount_ngn) || 0;
+    if (amount > 10000 && !repairReceipt) {
+      toast({ title: 'A receipt is required for repairs over ₦10,000', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let receiptUrl: string | null = null;
+      if (repairReceipt) {
+        const ext = repairReceipt.name.split('.').pop();
+        const path = `repairs/${profile?.id}/${Date.now()}.${ext}`;
+        const { data: upData } = await supabase.storage
+          .from('receipts')
+          .upload(path, repairReceipt, { upsert: true });
+        if (upData) {
+          const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+          receiptUrl = urlData.publicUrl;
+        }
+      }
+      await supabase.from('expenses').insert({
+        submitted_by: repairForm.employee_id,
+        category: 'repair',
+        budget_category: 'repair',
+        amount_ngn: amount,
+        date: new Date().toISOString().slice(0, 10),
+        description: repairForm.description,
+        status: 'pending',
+        receipt_url: receiptUrl,
+        ...(repairBank.verified ? {
+          bank_name: repairBank.bank_name,
+          account_number: repairBank.account_number,
+          account_name: repairBank.account_name,
+        } : {}),
+      });
+      await logAudit('repair_request_submitted', `Repair: ${repairForm.description} (${formatNaira(amount)})`, profile);
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'repair_request_submitted',
+        module: 'fleet',
+        title: 'Repair reimbursement submitted',
+        body: `${formatNaira(amount)}: ${repairForm.description}`,
+      });
+      toast({ title: 'Repair request submitted' });
+      setShowRepairForm(false);
+      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
+      setRepairBank(EMPTY_REPAIR_BANK);
+      setRepairReceipt(null);
+      fetchData();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+    setSubmitting(false);
   };
 
   const submitFuelRequest = async () => {
@@ -202,6 +315,7 @@ const Fleet = () => {
       odometer: parseFloat(fuelForm.odometer) || null,
       reason: fuelForm.reason,
       status: 'pending',
+      vehicle_id: fuelVehicleId || null,
       ...(fuelBankDetails.verified ? {
         bank_name: fuelBankDetails.bank_name,
         account_number: fuelBankDetails.account_number,
@@ -237,6 +351,8 @@ const Fleet = () => {
       });
       setShowFuelBankSection(false);
       setFuelBankDetails(EMPTY_FUEL_BANK);
+      setFuelVehicleId('');
+      setWeekBudget(null);
       fetchData();
     }
     setSubmitting(false);
@@ -350,7 +466,58 @@ const Fleet = () => {
         body: `${formatNaira(request.amount_ngn || 0)} at ${request.station_name}`,
       });
     }
-    toast({ title: 'Fuel request approved' });
+
+    // Phase 2 — auto-pay via Paystack if the driver provided bank details
+    if (request.bank_name && request.account_number && request.account_name) {
+      try {
+        const { data: batch } = await supabase.from('payment_batches').insert({
+          name: `Fuel Reimbursement — ${request.account_name}`,
+          payment_date: now.slice(0, 10),
+          total_amount: request.amount_ngn,
+          beneficiary_count: 1,
+          status: 'approved',
+          is_quick_pay: true,
+          payment_category: 'fuel_reimbursement',
+          batch_type: 'contractor',
+          created_by: profile?.id,
+        }).select().single();
+        if (batch) {
+          const { data: batchItem } = await supabase.from('batch_items').insert({
+            batch_id: batch.id,
+            full_name: request.account_name,
+            bank_name: request.bank_name,
+            account_number: request.account_number,
+            amount_ngn: request.amount_ngn,
+            item_type: 'adhoc',
+            status: 'pending',
+          }).select().single();
+          await supabase.from('fuel_requests').update({ batch_id: batch.id }).eq('id', request.id);
+          const bankCode = await getBankCode(request.bank_name);
+          const recipient = await createTransferRecipient({
+            name: request.account_name,
+            account_number: request.account_number,
+            bank_code: bankCode,
+          });
+          await initiateTransfer({
+            recipient_code: recipient.recipient_code,
+            amount_ngn: request.amount_ngn,
+            reference: batch.id,
+            reason: `Fuel reimbursement — ${request.station_name}`,
+          });
+          if (batchItem) {
+            await supabase.from('batch_items')
+              .update({ paystack_recipient_code: recipient.recipient_code })
+              .eq('id', batchItem.id);
+          }
+          toast({ title: 'Approved & payment initiated automatically' });
+        }
+      } catch (autoPayErr) {
+        console.warn('[Fleet] auto-pay failed:', autoPayErr);
+        toast({ title: 'Approved. Bank transfer failed — process manually via Expenses.' });
+      }
+    } else {
+      toast({ title: 'Fuel request approved' });
+    }
     fetchData();
   };
 
@@ -439,6 +606,18 @@ const Fleet = () => {
 
   if (loading) return <TableSkeleton rows={5} />;
 
+  // Phase 4 — service alerts (vehicles with expiries within 30 days)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const in30Str = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10);
+  const serviceAlerts = isAdmin
+    ? vehicles.filter(
+        (v) =>
+          (v.insurance_expiry && v.insurance_expiry <= in30Str) ||
+          (v.road_worthiness_expiry && v.road_worthiness_expiry <= in30Str) ||
+          (v.next_service_date && v.next_service_date <= in30Str),
+      )
+    : [];
+
   const myFuelRequests = fuelRequests.filter((r) => r.employee_id === profile?.id);
   const myTripLogs = tripLogs.filter((r) => r.employee_id === profile?.id);
 
@@ -480,6 +659,27 @@ const Fleet = () => {
         </div>
       </div>
 
+      {/* Phase 4 — service / compliance alerts */}
+      {serviceAlerts.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {serviceAlerts.map((v) => {
+            const msgs: string[] = [];
+            if (v.insurance_expiry && v.insurance_expiry <= in30Str)
+              msgs.push(`insurance expires ${formatDate(v.insurance_expiry)}${v.insurance_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
+            if (v.road_worthiness_expiry && v.road_worthiness_expiry <= in30Str)
+              msgs.push(`roadworthy expires ${formatDate(v.road_worthiness_expiry)}${v.road_worthiness_expiry <= todayStr ? ' (EXPIRED)' : ''}`);
+            if (v.next_service_date && v.next_service_date <= in30Str)
+              msgs.push(`service due ${formatDate(v.next_service_date)}`);
+            return (
+              <div key={v.id} className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span><strong>{v.name}</strong> ({(v as any).plate_number}): {msgs.join(' · ')}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList>
           <TabsTrigger value="fuel">
@@ -503,7 +703,10 @@ const Fleet = () => {
 
         {/* FUEL */}
         <TabsContent value="fuel" className="mt-4 space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRepairForm(true)}>
+              <Wrench className="mr-2 h-4 w-4" /> Repair Request
+            </Button>
             <Button onClick={() => setShowFuelForm(true)}>
               <Plus className="mr-2 h-4 w-4" /> New Fuel Request
             </Button>
@@ -612,7 +815,7 @@ const Fleet = () => {
         {/* TRIPS */}
         <TabsContent value="trips" className="mt-4 space-y-4">
           <div className="flex justify-end">
-            <Button onClick={() => setShowTripForm(true)}>
+            <Button onClick={() => { setShowTripForm(true); prefillOdometer(profile?.id || ''); }}>
               <Plus className="mr-2 h-4 w-4" /> New Trip Log
             </Button>
           </div>
@@ -697,7 +900,10 @@ const Fleet = () => {
 
         {/* MY REQUESTS */}
         <TabsContent value="my_requests" className="mt-4 space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowRepairForm(true)}>
+              <Wrench className="mr-2 h-4 w-4" /> Repair Request
+            </Button>
             <Button onClick={() => setShowFuelForm(true)}>
               <Plus className="mr-2 h-4 w-4" /> New Fuel Request
             </Button>
@@ -798,7 +1004,7 @@ const Fleet = () => {
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
-      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); } }}>
+      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Fuel Request</DialogTitle>
@@ -827,6 +1033,45 @@ const Fleet = () => {
                 </SelectContent>
               </Select>
             </div>
+            {/* Phase 1 — vehicle selector + weekly budget bar */}
+            {vehicles.length > 0 && (
+              <div className="space-y-1">
+                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Select
+                  value={fuelVehicleId}
+                  onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vehicle (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicles.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} — {(v as any).plate_number}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {weekBudget && weekBudget.total > 0 && (() => {
+                  const pct = Math.min(100, Math.round((weekBudget.spent / weekBudget.total) * 100));
+                  const over = weekBudget.spent >= weekBudget.total;
+                  const warn = pct >= 80 && !over;
+                  return (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>This week's budget used</span>
+                        <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-600 font-semibold' : ''}>
+                          {formatNaira(weekBudget.spent)} / {formatNaira(weekBudget.total)} ({pct}%)
+                        </span>
+                      </div>
+                      <Progress value={pct} className={`h-1.5 ${over ? '[&>div]:bg-destructive' : warn ? '[&>div]:bg-amber-500' : ''}`} />
+                      {over && <p className="text-xs text-destructive">Weekly budget exceeded. Admin will review before approving.</p>}
+                      {warn && <p className="text-xs text-amber-600">Approaching weekly budget limit.</p>}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Fuel Station</Label>
               <Input
@@ -1123,6 +1368,88 @@ const Fleet = () => {
             <Button variant="outline" onClick={() => setConfirmDeleteTrip(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => confirmDeleteTrip && deleteTripLog(confirmDeleteTrip)}>
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Phase 4 — Repair request dialog */}
+      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Vehicle Repair Reimbursement</DialogTitle>
+            <DialogDescription>
+              Submit a repair or maintenance cost for reimbursement. Receipts are required for amounts over ₦10,000.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Employee</Label>
+              <Select
+                value={repairForm.employee_id}
+                onValueChange={(v) => setRepairForm({ ...repairForm, employee_id: v })}
+              >
+                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectContent>
+                  {staff.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>
+                  ))}
+                  {profile && !staff.find((s) => s.id === profile.id) && (
+                    <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Description of Repair</Label>
+              <Textarea
+                value={repairForm.description}
+                onChange={(e) => setRepairForm({ ...repairForm, description: e.target.value })}
+                placeholder="e.g. Replaced front tyre — Toyota Camry ABC-123-XY"
+                rows={2}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Amount (₦)</Label>
+              <Input
+                type="number"
+                value={repairForm.amount_ngn}
+                onChange={(e) => setRepairForm({ ...repairForm, amount_ngn: e.target.value })}
+              />
+              {parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" /> Receipt required for amounts over ₦10,000
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>
+                Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs">(optional)</span>}
+              </Label>
+              <Input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)}
+              />
+              {repairReceipt && <p className="text-xs text-muted-foreground">{repairReceipt.name}</p>}
+            </div>
+            <div className="pt-2 border-t space-y-2">
+              <p className="text-sm font-medium">Bank account for reimbursement <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
+              <BankAccountField value={repairBank} onChange={setRepairBank} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRepairForm(false)}>Cancel</Button>
+            <Button
+              onClick={submitRepairRequest}
+              disabled={
+                submitting ||
+                !repairForm.employee_id ||
+                !repairForm.description ||
+                !repairForm.amount_ngn
+              }
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Repair
             </Button>
           </DialogFooter>
         </DialogContent>

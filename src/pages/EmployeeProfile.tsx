@@ -114,6 +114,7 @@ const EmployeeProfile = () => {
   const [permissions, setPermissions] = useState<PermissionsMap>({});
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [increments, setIncrements] = useState<any[]>([]);
+  const [advances, setAdvances] = useState<any[]>([]);
   const [showIncrementDialog, setShowIncrementDialog] = useState(false);
   const [savingIncrement, setSavingIncrement] = useState(false);
   const [incrementForm, setIncrementForm] = useState({
@@ -121,7 +122,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const [bankEditMode, setBankEditMode] = useState(false);
@@ -216,7 +217,7 @@ const EmployeeProfile = () => {
         if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
       });
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('payslips').select('*').eq('employee_id', id)
@@ -233,6 +234,8 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('salary_increments').select('*').eq('employee_id', id)
         .order('effective_date', { ascending: false }),
+      supabase.from('employee_advances').select('*').eq('employee_id', id)
+        .order('created_at', { ascending: false }),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -241,6 +244,7 @@ const EmployeeProfile = () => {
     setDocuments(docRes.data || []);
     setAuditLogs(auditRes.data || []);
     setIncrements(incrRes.data || []);
+    setAdvances(advRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -596,6 +600,19 @@ const EmployeeProfile = () => {
             )}
           >
             {`Increments (${increments.length})`}
+          </button>
+        )}
+        {advances.filter((a) => a.status === 'active').length > 0 && (
+          <button
+            onClick={() => setActiveTab('advances')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'advances'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {`Advances (${advances.filter((a) => a.status === 'active').length})`}
           </button>
         )}
         {isSuperAdmin && (
@@ -1764,6 +1781,83 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+      {/* Phase 3 — Advances tab */}
+      {activeTab === 'advances' && (
+        <div className="mt-4 space-y-4">
+          {advances.length === 0 ? (
+            <Card><CardContent className="py-10 text-center text-muted-foreground text-sm">No salary advances recorded.</CardContent></Card>
+          ) : (
+            <>
+              {(() => {
+                const active = advances.filter((a) => a.status === 'active');
+                const totalOutstanding = active.reduce((s: number, a: any) => s + (a.outstanding_ngn || 0), 0);
+                const totalDeduction = active.reduce((s: number, a: any) => s + (a.deduction_per_month || 0), 0);
+                return active.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="pt-5">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Outstanding</p>
+                        <p className="text-2xl font-bold text-destructive">{formatNaira(totalOutstanding)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Monthly Deduction</p>
+                        <p className="text-2xl font-bold">{formatNaira(totalDeduction)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="pt-5">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Active Advances</p>
+                        <p className="text-2xl font-bold">{active.length}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : null;
+              })()}
+              <Card>
+                <CardHeader><CardTitle className="text-base">Advance History</CardTitle></CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead className="text-right">Outstanding</TableHead>
+                        <TableHead className="text-right">Monthly Deduction</TableHead>
+                        <TableHead className="text-right">Months</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {advances.map((a: any) => {
+                        const repaid = a.amount_ngn - a.outstanding_ngn;
+                        const pct = a.amount_ngn > 0 ? Math.round((repaid / a.amount_ngn) * 100) : 0;
+                        return (
+                          <TableRow key={a.id}>
+                            <TableCell className="text-muted-foreground">{formatDate(a.created_at)}</TableCell>
+                            <TableCell>{a.start_period || '—'}</TableCell>
+                            <TableCell className="text-right currency">{formatNaira(a.amount_ngn)}</TableCell>
+                            <TableCell className="text-right currency font-semibold">{formatNaira(a.outstanding_ngn)}</TableCell>
+                            <TableCell className="text-right currency">{formatNaira(a.deduction_per_month)}</TableCell>
+                            <TableCell className="text-right">{a.repayment_months}m</TableCell>
+                            <TableCell>
+                              <Badge variant={a.status === 'active' ? 'destructive' : a.status === 'settled' ? 'default' : 'secondary'}>
+                                {a.status === 'active' ? `${pct}% repaid` : a.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       )}
       {activeTab === 'permissions' && isSuperAdmin && (

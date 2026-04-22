@@ -84,6 +84,7 @@ const CATEGORIES = [
   'fuel',
   'transport',
   'mileage',
+  'repair',
   'office_supplies',
   'client_entertainment',
   'other',
@@ -477,6 +478,15 @@ const Expenses = () => {
       toast({
         title: 'Above expense policy limit',
         description: `The ${form.category.replace(/_/g, ' ')} category is capped at ${formatNaira(policyLimit)}. Ask Finance to raise the limit or split this expense.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (form.category === 'repair' && amount > 10000 && !receiptFile) {
+      toast({
+        title: 'Receipt required',
+        description: 'Vehicle repair claims over ₦10,000 must include a receipt.',
         variant: 'destructive',
       });
       return;
