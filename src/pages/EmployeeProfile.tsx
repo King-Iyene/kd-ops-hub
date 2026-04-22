@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import { openPayslipPrintWindow } from '@/lib/payslip';
 import { displayName, initialsOf } from '@/lib/name';
 import { calculatePAYE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,6 +128,7 @@ const EmployeeProfile = () => {
   const [bankSaving, setBankSaving] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
+  const [companySetting, setCompanySetting] = useState<{ company_name: string; logo_url: string | null }>({ company_name: 'KD Squares Ltd', logo_url: null });
 
   type EditSection =
     | 'employment' | 'compensation' | 'basic' | 'kin' | 'address'
@@ -143,18 +145,39 @@ const EmployeeProfile = () => {
     setEditingSection(null);
   };
 
-  const downloadPayslip = async (fileUrl: string) => {
-    const { data, error } = await supabase.storage
-      .from('payslips')
-      .download(fileUrl);
-    if (data) {
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `payslip-${fileUrl.split('/').pop()}`;
-      a.click();
-      URL.revokeObjectURL(url);
+  const downloadPayslip = async (slip: any) => {
+    // Batch-item payslips have no stored file — generate HTML client-side
+    if (!slip.storage_path && !slip.file_url) {
+      openPayslipPrintWindow({
+        company_name: companySetting.company_name,
+        logo_url: companySetting.logo_url,
+        employee_name: slip.employee_name || employee?.full_name || '',
+        employee_email: employee?.email || slip.employee_email || null,
+        employee_role: employee?.role || null,
+        employee_number: employee?.employee_number || null,
+        bank_name: employee?.bank_name || null,
+        bank_account: employee?.bank_account_number || null,
+        period: slip.period || '',
+        gross_ngn: Number(slip.gross_ngn || 0),
+        paye_ngn: Number(slip.paye_ngn || 0),
+        pension_ngn: Number(slip.pension_ngn || 0),
+        nhf_ngn: Number(slip.nhf_ngn || 0),
+        net_ngn: Number(slip.net_ngn || 0),
+        generated_by: currentUser?.full_name || currentUser?.email || null,
+        payslip_ref: slip.id?.slice(0, 8).toUpperCase() || null,
+      });
+      return;
     }
+    // Payroll-module payslips are stored in Supabase Storage
+    const path = slip.storage_path || slip.file_url;
+    const { data, error } = await supabase.storage.from('payslips').download(path);
+    if (error) { toast({ title: 'Download failed', description: error.message, variant: 'destructive' }); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `payslip-${path.split('/').pop()}`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const load = useCallback(async () => {
@@ -185,6 +208,13 @@ const EmployeeProfile = () => {
     supabase.from('departments').select('id, name').order('name').then(({ data }) => {
       setDepartments((data as Array<{ id: string; name: string }>) || []);
     });
+
+    // Company settings for payslip generation
+    supabase.from('company_settings').select('company_name, logo_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
+      .then(({ data: cs }) => {
+        if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
+      });
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
@@ -986,7 +1016,7 @@ const EmployeeProfile = () => {
                       className="w-full gap-1.5"
                       onClick={() => {
                         const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
-                        if (slip) downloadPayslip(slip.file_url || slip.id);
+                        if (slip) downloadPayslip(slip);
                       }}
                     >
                       <Download className="h-3.5 w-3.5" /> Download Payslip
@@ -1674,7 +1704,7 @@ const EmployeeProfile = () => {
                         size="sm"
                         variant="outline"
                         className="gap-1.5"
-                        onClick={() => downloadPayslip(slip.file_url || slip.id)}
+                        onClick={() => downloadPayslip(slip)}
                       >
                         <Download className="h-4 w-4" /> Download
                       </Button>

@@ -68,88 +68,104 @@ const escapeHtml = (v: any): string => {
     .replace(/'/g, '&#039;');
 };
 
-const printItemReceipt = (item: any, batch: any, generatedBy?: string) => {
+const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
   const isFailed = item.status === 'failed';
   const isSucceeded = item.status === 'succeeded';
-  const txnDateStr = item.created_at
-    ? new Date(item.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const txnDateStr = item.processed_at || item.created_at
+    ? new Date(item.processed_at || item.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : '—';
   const generatedAt = new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const narration = batch?.description || batch?.notes || `KDOps · ${batch?.name || 'batch'}`;
+  const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
   const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCESSFUL' : (item.status?.toUpperCase() || 'PENDING');
-  const statusColor = isFailed ? '#b22222' : isSucceeded ? '#117a3d' : '#8c6700';
+  const statusBg = isFailed ? '#fef2f2' : isSucceeded ? '#f0fdf4' : '#fffbeb';
+  const statusColor = isFailed ? '#b91c1c' : isSucceeded ? '#15803d' : '#b45309';
+  const accentColor = isFailed ? '#b91c1c' : '#006994';
+  const logoHtml = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:44px;width:auto;object-fit:contain;border-radius:6px;" />`
+    : `<div style="width:44px;height:44px;border-radius:8px;background:#0a2533;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;">${escapeHtml((companyName || 'KD').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase())}</div>`;
 
   const html = `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>Payment Receipt — ${escapeHtml(item.full_name || '')}</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #111; background: #fff; padding: 48px; position: relative; }
-    .header { border-bottom: 2px solid ${isFailed ? '#b22222' : '#006994'}; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
-    .company { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
-    .doc-title { font-size: 13px; color: #555; margin-top: 4px; }
-    .status-header { font-size: 14px; font-weight: 700; color: ${statusColor}; border: 2px solid ${statusColor}; padding: 4px 12px; border-radius: 4px; letter-spacing: 0.05em; }
-    .amount { font-size: 32px; font-weight: 700; margin: 24px 0; color: ${isFailed ? '#b22222' : '#111'}; }
-    ${isFailed ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg); font-size: 80px; font-weight: 900; color: rgba(178,34,34,0.08); letter-spacing: 0.1em; pointer-events: none; z-index: 0; }` : ''}
-    .content { position: relative; z-index: 1; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 10px 0; border-bottom: 1px solid #eee; font-size: 13px; }
-    td:first-child { color: #555; width: 40%; }
-    td:last-child { font-weight: 500; }
-    td.status-cell { color: ${statusColor}; font-weight: 700; }
-    .disclaimer { margin-top: 24px; padding: 12px 16px; background: #fde9e9; border: 1px solid #f5c0c0; border-radius: 6px; font-size: 12px; color: #8b0000; }
-    .disclaimer p + p { margin-top: 6px; }
-    .retry-note { margin-top: 12px; padding: 10px 14px; background: #fff5e0; border: 1px solid #f0d890; border-radius: 6px; font-size: 12px; color: #6f5a25; }
-    .footer { margin-top: 32px; font-size: 11px; color: #888; text-align: center; border-top: 1px solid #eee; padding-top: 16px; }
-    @media print { body { padding: 32px; } }
+    body { font-family: 'Inter', system-ui, sans-serif; color: #111827; background: #f9fafb; }
+    .page { max-width: 560px; margin: 32px auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #0a2533 0%, #0d3347 100%); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .company-name { font-size: 17px; font-weight: 700; color: #fff; }
+    .company-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+    .status-pill { padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; }
+    .amount-section { padding: 24px 28px 20px; border-bottom: 1px solid #f3f4f6; }
+    .amount-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 6px; }
+    .amount { font-size: 38px; font-weight: 800; color: ${isFailed ? '#b91c1c' : '#111827'}; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+    .amount-sub { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .details { padding: 20px 28px; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    .row:last-child { border-bottom: none; }
+    .row .lbl { color: #6b7280; flex-shrink: 0; }
+    .row .val { font-weight: 500; text-align: right; word-break: break-all; }
+    .row .val.mono { font-family: monospace; font-size: 11px; }
+    ${isFailed ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-28deg); font-size: 72px; font-weight: 900; color: rgba(185,28,28,0.06); letter-spacing: 0.1em; pointer-events: none; }` : ''}
+    .alert { margin: 0 28px 20px; padding: 14px 16px; border-radius: 10px; font-size: 12px; }
+    .alert.failed { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+    .alert.retry { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; margin-top: -8px; }
+    .footer { padding: 14px 28px; border-top: 1px solid #f3f4f6; font-size: 11px; color: #9ca3af; text-align: center; }
+    @media print { body { background: #fff; } .page { margin: 0; border-radius: 0; box-shadow: none; } .header { background: #0a2533 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
   ${isFailed ? '<div class="watermark">FAILED</div>' : ''}
-  <div class="content">
+  <div class="page">
     <div class="header">
-      <div>
-        <div class="company">KD Squares Ltd</div>
-        <div class="doc-title">Payment Receipt</div>
+      <div class="header-left">
+        ${logoHtml}
+        <div>
+          <div class="company-name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
+          <div class="company-sub">Payment Receipt</div>
+        </div>
       </div>
-      <div class="status-header">${statusText}</div>
+      <div class="status-pill">${escapeHtml(statusText)}</div>
     </div>
-    <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
-    <table>
-      <tr><td>Recipient</td><td>${escapeHtml(item.full_name || '—')}</td></tr>
-      <tr><td>Bank</td><td>${escapeHtml(item.bank_name || '—')}</td></tr>
-      <tr><td>Account number</td><td>${escapeHtml(item.account_number || '—')}</td></tr>
-      <tr><td>Paystack reference</td><td>${escapeHtml(item.paystack_reference || '—')}</td></tr>
-      <tr><td>Transaction date</td><td>${escapeHtml(txnDateStr)}</td></tr>
-      <tr><td>Narration</td><td>${escapeHtml(narration)}</td></tr>
-      <tr><td>Batch</td><td>${escapeHtml(batch?.name || '—')}</td></tr>
-      <tr><td>Status</td><td class="status-cell">${statusText}</td></tr>
-      ${isFailed ? `<tr><td>Failure reason</td><td style="color:#b22222">${escapeHtml(item.failure_reason || 'Transfer rejected')}</td></tr>` : ''}
-    </table>
+
+    <div class="amount-section">
+      <div class="amount-label">Amount Transferred</div>
+      <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
+      <div class="amount-sub">${escapeHtml(narration)}</div>
+    </div>
+
+    <div class="details">
+      <div class="row"><span class="lbl">Recipient</span><span class="val">${escapeHtml(item.full_name || '—')}</span></div>
+      <div class="row"><span class="lbl">Bank</span><span class="val">${escapeHtml(item.bank_name || '—')}</span></div>
+      <div class="row"><span class="lbl">Account</span><span class="val mono">${escapeHtml(item.account_number || '—')}</span></div>
+      <div class="row"><span class="lbl">Paystack ref</span><span class="val mono">${escapeHtml(item.paystack_reference || '—')}</span></div>
+      <div class="row"><span class="lbl">Transaction date</span><span class="val">${escapeHtml(txnDateStr)}</span></div>
+      <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')}</span></div>
+      <div class="row"><span class="lbl">Status</span><span class="val" style="color:${statusColor};font-weight:700">${escapeHtml(statusText)}</span></div>
+      ${isFailed ? `<div class="row"><span class="lbl">Failure reason</span><span class="val" style="color:#b91c1c">${escapeHtml(item.failure_reason || 'Transfer rejected')}</span></div>` : ''}
+    </div>
+
     ${isFailed ? `
-    <div class="disclaimer">
-      <p><strong>No funds were debited.</strong> This payment did not complete.</p>
-      <p>Reason: ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</p>
-    </div>
-    <div class="retry-note">
-      To retry this payment, return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row, or contact your Finance/Admin team.
-    </div>` : ''}
+    <div class="alert failed"><strong>No funds were debited.</strong> ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</div>
+    <div class="alert retry">To retry: return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row.</div>` : ''}
+
     <div class="footer">
-      Generated by KDOps &bull; ${escapeHtml(generatedBy || 'KDOps')} &bull; ${escapeHtml(generatedAt)}<br>
-      This is a system-generated receipt.
+      Generated by KDOps · ${escapeHtml(generatedBy || 'System')} · ${escapeHtml(generatedAt)}<br/>
+      This is a system-generated receipt. No signature required.
     </div>
   </div>
+  <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=640,height=860');
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, '_blank', 'noopener,width=640,height=860');
   if (!win) return;
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
 
 const BatchDetail = () => {
@@ -170,11 +186,21 @@ const BatchDetail = () => {
   const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
+  const [companyName, setCompanyName] = useState('KD Squares Ltd');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [recurDay, setRecurDay] = useState<number>(1);
   const [recurCustomDays, setRecurCustomDays] = useState(30);
 
   useEffect(() => {
     fetchBatch();
+    supabase.from('company_settings').select('company_name, logo_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
+      .then(({ data: cs }) => {
+        if (cs) {
+          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
+          setLogoUrl((cs as any).logo_url || null);
+        }
+      });
   }, [id]);
 
   const fetchBatch = async () => {
@@ -648,10 +674,13 @@ const BatchDetail = () => {
 </head>
 <body>
   <div class="brand">
-    <div class="mark">KD</div>
+    ${logoUrl
+      ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:40px;width:auto;object-fit:contain;border-radius:6px;" />`
+      : `<div class="mark">${escapeHtml(companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase())}</div>`
+    }
     <div>
       <h1>Payment Batch Receipt</h1>
-      <div style="font-size:12px;color:#5b6b75">KD Squares Ltd · KDOps</div>
+      <div style="font-size:12px;color:#5b6b75">${escapeHtml(companyName)} · KDOps</div>
     </div>
   </div>
 
@@ -747,7 +776,7 @@ const BatchDetail = () => {
   </div>
 
   <div class="footer">
-    KD Squares Ltd · Operations Platform · This is a system-generated receipt.
+    ${escapeHtml(companyName)} · Operations Platform · This is a system-generated receipt.
   </div>
 
   <script>window.onload = () => { setTimeout(() => window.print(), 250); };</script>
@@ -1024,7 +1053,7 @@ const BatchDetail = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email)}
+                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email, companyName, logoUrl)}
                             title="Print receipt"
                           >
                             <Download className="h-3.5 w-3.5 mr-1" />
