@@ -99,6 +99,22 @@ interface TripLog {
   created_at: string;
 }
 
+function TripVehicleFuel({ vehicleId, vehicles }: { vehicleId: string; vehicles: VehicleSummary[] }) {
+  if (!vehicleId) return null;
+  const veh = vehicles.find((v) => v.id === vehicleId);
+  if (!veh) return null;
+  const cap = veh.tank_capacity_litres || 60;
+  const cur = Math.min(veh.current_fuel_litres || 0, cap);
+  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+  const est = veh.avg_km_per_litre > 0 ? Math.round(cur * veh.avg_km_per_litre) : null;
+  return (
+    <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border mt-1 ${pct < 20 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-muted/40 border-muted text-muted-foreground'}`}>
+      <span>Fuel: <strong>{cur.toFixed(0)}L / {cap}L ({pct}%)</strong>{est !== null ? ` · ~${est.toLocaleString()} km range` : ''}</span>
+      {pct < 20 && <AlertTriangle className="h-3 w-3 text-red-500" />}
+    </div>
+  );
+}
+
 const Fleet = () => {
   usePageTitle('Fleet');
   const { profile } = useAuthStore();
@@ -848,12 +864,7 @@ const Fleet = () => {
                       </TableCell>
                     </TableRow>
                   )}
-                  {visibleFuel.map((r) => {
-                    const reqVeh = vehicles.find((v) => v.id === (r as any).vehicle_id);
-                    const fPct = reqVeh && reqVeh.tank_capacity_litres > 0
-                      ? Math.round((Math.min(reqVeh.current_fuel_litres, reqVeh.tank_capacity_litres) / reqVeh.tank_capacity_litres) * 100)
-                      : null;
-                    return (
+                  {visibleFuel.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.employee_name}</TableCell>
                       <TableCell>{r.station_name}</TableCell>
@@ -862,14 +873,20 @@ const Fleet = () => {
                       </TableCell>
                       <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
                       <TableCell className="text-xs">
-                        {reqVeh && fPct !== null ? (
-                          <span className={`font-medium ${fPct < 20 ? 'text-red-600' : fPct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
-                            {reqVeh.current_fuel_litres.toFixed(0)}L ({fPct}%)
-                            {fPct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
+                        {vehicles.find((v) => v.id === (r as any).vehicle_id)
+                          ? (() => {
+                              const veh = vehicles.find((v) => v.id === (r as any).vehicle_id)!;
+                              const cap = veh.tank_capacity_litres || 60;
+                              const cur = Math.min(veh.current_fuel_litres || 0, cap);
+                              const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+                              return (
+                                <span className={`font-medium ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+                                  {cur.toFixed(0)}L ({pct}%)
+                                  {pct < 20 && <AlertTriangle className="inline h-3 w-3 ml-0.5 -mt-0.5" />}
+                                </span>
+                              );
+                            })()
+                          : <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                         {r.reason || '—'}
@@ -921,8 +938,7 @@ const Fleet = () => {
                         </TableCell>
                       )}
                     </TableRow>
-                    );
-                  })}
+                  ))}
                 </TableBody>
               </Table>
             </CardContent>
@@ -1332,20 +1348,7 @@ const Fleet = () => {
                   ))}
                 </SelectContent>
               </Select>
-              {tripForm.vehicle_id && (() => {
-                const veh = vehicles.find((v) => v.id === tripForm.vehicle_id);
-                if (!veh) return null;
-                const cap = veh.tank_capacity_litres || 60;
-                const cur = Math.min(veh.current_fuel_litres || 0, cap);
-                const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
-                const est = veh.avg_km_per_litre > 0 ? Math.round(cur * veh.avg_km_per_litre) : null;
-                return (
-                  <div className={`flex items-center justify-between text-xs px-2 py-1.5 rounded border mt-1 ${pct < 20 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-muted/40 border-muted text-muted-foreground'}`}>
-                    <span>Fuel: <strong>{cur.toFixed(0)}L / {cap}L ({pct}%)</strong>{est !== null ? ` · ~${est.toLocaleString()} km range` : ''}</span>
-                    {pct < 20 && <AlertTriangle className="h-3 w-3 text-red-500" />}
-                  </div>
-                );
-              })()}
+              <TripVehicleFuel vehicleId={tripForm.vehicle_id} vehicles={vehicles} />
             </div>
             <div className="space-y-1">
               <Label>Date</Label>
@@ -1763,6 +1766,41 @@ export default Fleet;
 // Vehicles management tab
 // ---------------------------------------------------------------------------
 
+function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: number; lastRefuel: string | null }) {
+  const cap = tank || 60;
+  const cur = Math.min(current || 0, cap);
+  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
+  const bar = pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
+  const daysSince = lastRefuel
+    ? Math.floor((Date.now() - new Date(lastRefuel).getTime()) / 86_400_000)
+    : null;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className={pct < 20 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
+          {cur.toFixed(0)}L / {cap}L
+        </span>
+        <span className={`font-semibold ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
+          {pct}%
+        </span>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${pct}%` }} />
+      </div>
+      {daysSince !== null && (
+        <p className="text-[10px] text-muted-foreground">
+          Last filled {daysSince === 0 ? 'today' : `${daysSince}d ago`}
+        </p>
+      )}
+      {pct < 20 && (
+        <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5">
+          <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
+        </p>
+      )}
+    </div>
+  );
+}
+
 interface Vehicle {
   id: string;
   name: string;
@@ -1988,15 +2026,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                     </TableCell>
                   </TableRow>
                 )}
-                {vehicles.map((v) => {
-                  const cap = v.tank_capacity_litres || 60;
-                  const cur = Math.min(v.current_fuel_litres || 0, cap);
-                  const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
-                  const fuelColor = pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
-                  const daysSince = v.last_refuel_at
-                    ? Math.floor((Date.now() - new Date(v.last_refuel_at).getTime()) / 86_400_000)
-                    : null;
-                  return (
+                {vehicles.map((v) => (
                   <TableRow key={v.id} className="kd-transition">
                     <TableCell>
                       <div className="font-medium">{v.name}</div>
@@ -2008,30 +2038,12 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                     </TableCell>
                     <TableCell className="font-mono">{v.plate_number}</TableCell>
                     <TableCell className="text-sm">{driverName(v.assigned_driver_id)}</TableCell>
-                    <TableCell className="min-w-[120px]">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className={pct < 20 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
-                            {cur.toFixed(0)}L / {cap}L
-                          </span>
-                          <span className={`font-semibold ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
-                            {pct}%
-                          </span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${fuelColor}`} style={{ width: `${pct}%` }} />
-                        </div>
-                        {daysSince !== null && (
-                          <p className="text-[10px] text-muted-foreground">
-                            Last filled {daysSince === 0 ? 'today' : `${daysSince}d ago`}
-                          </p>
-                        )}
-                        {pct < 20 && (
-                          <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5">
-                            <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
-                          </p>
-                        )}
-                      </div>
+                    <TableCell className="min-w-[140px]">
+                      <FuelGauge
+                        tank={v.tank_capacity_litres}
+                        current={v.current_fuel_litres}
+                        lastRefuel={v.last_refuel_at}
+                      />
                     </TableCell>
                     <TableCell className="text-right currency">{formatNaira(v.weekly_budget_ngn)}</TableCell>
                     <TableCell>
@@ -2094,8 +2106,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                       </div>
                     </TableCell>
                   </TableRow>
-                  );
-                })}
+                ))}
               </TableBody>
             </Table>
           </CardContent>
