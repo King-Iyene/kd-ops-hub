@@ -87,8 +87,8 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t safe-bottom">
-        <div className="flex items-center justify-around h-14">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/90 backdrop-blur-md border-t border-border/60 safe-bottom shadow-[0_-1px_0_hsl(var(--border)/0.5),0_-4px_16px_-4px_hsl(var(--primary)/0.08)]">
+        <div className="flex items-center justify-around h-14 px-2">
           {TABS.map((tab) => {
             const active =
               location.pathname === tab.url ||
@@ -98,14 +98,17 @@ export function MobileNav() {
                 key={tab.title}
                 to={tab.url}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 px-3 py-1 kd-transition relative',
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                  'flex flex-col items-center gap-0.5 min-w-[52px] py-1.5 px-3 rounded-xl kd-transition relative',
+                  active ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <tab.icon className="h-5 w-5" />
-                <span className="text-[10px] font-medium">{tab.title}</span>
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px h-0.5 w-6 rounded-full bg-primary" />
+                )}
+                <tab.icon className={cn('h-5 w-5 kd-transition', active && 'text-primary')} />
+                <span className={cn('text-[10px] font-medium', active && 'text-primary')}>{tab.title}</span>
                 {tab.title === 'Approvals' && approvalTotal > 0 && (
-                  <span className="absolute -top-0.5 right-0.5 h-4 min-w-4 px-1 rounded-full bg-warning text-[9px] font-bold text-warning-foreground flex items-center justify-center">
+                  <span className="absolute top-0.5 right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center">
                     {approvalTotal > 9 ? '9+' : approvalTotal}
                   </span>
                 )}
@@ -115,7 +118,7 @@ export function MobileNav() {
 
           <button
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center gap-0.5 px-3 py-1 kd-transition text-muted-foreground hover:text-foreground"
+            className="flex flex-col items-center gap-0.5 min-w-[52px] py-1.5 px-3 rounded-xl kd-transition text-muted-foreground hover:text-foreground hover:bg-muted/60"
           >
             <Menu className="h-5 w-5" />
             <span className="text-[10px] font-medium">More</span>

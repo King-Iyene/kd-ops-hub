@@ -806,10 +806,10 @@ const BatchDetail = () => {
   if (loading)
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
-  if (!batch) return <div className="text-center py-12">Batch not found</div>;
+  if (!batch) return <div className="text-center py-12 text-muted-foreground">Batch not found</div>;
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isFinance = profile?.role === 'finance';
@@ -817,38 +817,55 @@ const BatchDetail = () => {
   const failedItems = items.filter((i) => i.status === 'failed');
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <button onClick={() => navigate('/payments')} className="hover:text-foreground transition-colors">Payments</button>
-        <span>/</span>
-        <span className="text-foreground">{batch.name}</span>
+    <div className="space-y-5 max-w-5xl">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <button onClick={() => navigate('/payments')} className="hover:text-foreground kd-transition font-medium">Payments</button>
+        <span className="text-border">›</span>
+        <span className="text-foreground font-medium truncate max-w-xs">{batch.name}</span>
       </nav>
-      <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/payments')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex-1 min-w-[200px]">
-          <h1 className="text-2xl font-bold">{batch.name}</h1>
-          <p className="text-muted-foreground text-sm">{batch.period}</p>
-        </div>
-        {canExport && (
-          <>
-            <Button variant="outline" size="sm" onClick={downloadReceipt}>
-              <FileText className="mr-2 h-4 w-4" /> Receipt
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportCsv}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-          </>
-        )}
-        <StatusBadge status={batch.status} />
-      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Payment Date</p><p className="font-medium">{formatDate(batch.payment_date)}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Beneficiaries</p><p className="font-medium">{batch.beneficiary_count}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Amount</p><p className="font-bold currency">{formatNaira(batch.total_amount || 0)}</p></CardContent></Card>
-        <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Created</p><p className="font-medium">{formatDate(batch.created_at)}</p></CardContent></Card>
+      {/* Batch header */}
+      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-sm)]">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => navigate('/payments')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl font-bold tracking-tight truncate">{batch.name}</h1>
+                <StatusBadge status={batch.status} />
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">{batch.period || 'No period set'}</p>
+            </div>
+          </div>
+          {canExport && (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={downloadReceipt}>
+                <FileText className="mr-1.5 h-3.5 w-3.5" /> Receipt
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Metadata row */}
+        <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: 'Payment Date', value: formatDate(batch.payment_date) },
+            { label: 'Beneficiaries', value: batch.beneficiary_count },
+            { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
+            { label: 'Created', value: formatDate(batch.created_at) },
+          ].map(({ label, value, bold }) => (
+            <div key={label}>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+              <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {batch.scheduled_date && (
@@ -921,7 +938,7 @@ const BatchDetail = () => {
 
       {/* Action buttons */}
       {(isAdmin || isFinance) && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {batch.status === 'draft' && batch.created_by === profile?.id && (
             <>
               <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
@@ -1005,22 +1022,25 @@ const BatchDetail = () => {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Beneficiaries ({items.length})</CardTitle>
+        <CardHeader className="border-b border-border/60 pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Beneficiaries</CardTitle>
+            <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'recipient' : 'recipients'}</span>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Bank</TableHead>
-                  <TableHead>Account</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Paystack Ref</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="bg-muted/30">
+                  <TableHead className="text-xs">Name</TableHead>
+                  <TableHead className="text-xs">Bank</TableHead>
+                  <TableHead className="text-xs">Account</TableHead>
+                  <TableHead className="text-right text-xs">Amount</TableHead>
+                  <TableHead className="text-xs">Reference</TableHead>
+                  <TableHead className="text-xs">Paystack Ref</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-right text-xs">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
