@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -309,18 +309,6 @@ const Transactions = () => {
         }
       />
 
-      {/* Fee info note */}
-      <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-primary/80 print:hidden">
-        <Landmark className="h-3.5 w-3.5 shrink-0" />
-        <span>
-          Transfer fees shown are estimated based on{' '}
-          <button className="underline font-medium hover:opacity-80" onClick={() => window.open('https://paystack.com/ng/pricing', '_blank', 'noopener')}>
-            Paystack's published rate
-          </button>
-          {' '}(₦10 ≤₦5k · ₦25 ≤₦50k · ₦50 above). Expenses have no Paystack transfer fee.
-        </span>
-      </div>
-
       {/* Summary strip */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
         {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
@@ -500,7 +488,7 @@ const Transactions = () => {
 
         <CardContent className="p-0">
           {loading ? (
-            <TableSkeleton rows={10} cols={6} />
+            <TableSkeleton rows={10} cols={7} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ArrowUpDown}
@@ -520,9 +508,6 @@ const Transactions = () => {
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs">Description</TableHead>
                     <TableHead className="text-right text-xs">Amount</TableHead>
-                    <TableHead className="text-right text-xs">
-                      <span title="Estimated Paystack transfer fee per transaction">Est. Fee</span>
-                    </TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Receipt</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
@@ -532,81 +517,111 @@ const Transactions = () => {
                   {pagination.slice.map((r) => {
                     const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
                     const fee = estimateFee(r);
+                    const feePerTransfer =
+                      fee !== null && r.txn_type === 'payment_batch' && (r.beneficiary_count || 0) > 1
+                        ? fee / (r.beneficiary_count || 1)
+                        : null;
                     return (
-                      <TableRow
-                        key={`${r.txn_type}-${r.id}`}
-                        className="cursor-pointer hover:bg-muted/40 kd-transition"
-                        onClick={() => handleRowClick(r)}
-                      >
-                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                          {formatDate(r.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
-                          >
-                            <Icon className="h-3 w-3 mr-1" />
-                            {typeLabel(r.txn_type)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[240px]">
-                          {r.txn_type === 'payment_batch' && (
-                            <div>
-                              <p className="font-medium truncate">{r.batch_name || r.description}</p>
-                              {r.beneficiary_count != null && (
-                                <p className="text-xs text-muted-foreground">
-                                  {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          {r.txn_type === 'quick_pay' && (
-                            <p className="truncate">{r.description}</p>
-                          )}
-                          {r.txn_type === 'expense' && (
-                            <div>
-                              <p className="font-medium capitalize truncate">
-                                {(r.category || '').replace(/_/g, ' ')}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">{r.description}</p>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
-                          {formatNaira(r.amount_ngn)}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap">
-                          {fee !== null ? (
-                            <span className="text-xs font-medium text-amber-700 bg-amber-50 rounded px-1.5 py-0.5 currency">
-                              {formatNaira(fee)}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/50">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <StatusBadge status={r.status} size="sm" />
-                        </TableCell>
-                        <TableCell>
-                          {r.receipt_url ? (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      <Fragment key={`${r.txn_type}-${r.id}`}>
+                        <TableRow
+                          className="cursor-pointer hover:bg-muted/40 kd-transition"
+                          onClick={() => handleRowClick(r)}
+                        >
+                          <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                            {formatDate(r.created_at)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant="secondary"
+                              className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
                             >
-                              <FileDown className="h-3.5 w-3.5" /> View
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <CopyableRef value={r.reference} />
-                        </TableCell>
-                      </TableRow>
+                              <Icon className="h-3 w-3 mr-1" />
+                              {typeLabel(r.txn_type)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[240px]">
+                            {r.txn_type === 'payment_batch' && (
+                              <div>
+                                <p className="font-medium truncate">{r.batch_name || r.description}</p>
+                                {r.beneficiary_count != null && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            {r.txn_type === 'quick_pay' && (
+                              <p className="truncate">{r.description}</p>
+                            )}
+                            {r.txn_type === 'expense' && (
+                              <div>
+                                <p className="font-medium capitalize truncate">
+                                  {(r.category || '').replace(/_/g, ' ')}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
+                            {formatNaira(r.amount_ngn)}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={r.status} size="sm" />
+                          </TableCell>
+                          <TableCell>
+                            {r.receipt_url ? (
+                              <a
+                                href={r.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              >
+                                <FileDown className="h-3.5 w-3.5" /> View
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/40">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <CopyableRef value={r.reference} />
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Inline fee sub-row — mirrors Paystack's own ledger style */}
+                        {fee !== null && (
+                          <TableRow className="bg-amber-50/60 border-t-0 hover:bg-amber-50/80 kd-transition">
+                            <TableCell className="py-1 text-muted-foreground/0 text-xs select-none" aria-hidden>
+                              ·
+                            </TableCell>
+                            <TableCell className="py-1">
+                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-amber-100 text-amber-700 border border-amber-200/80">
+                                FEE
+                              </span>
+                            </TableCell>
+                            <TableCell className="py-1 text-xs text-muted-foreground">
+                              Transfer fee
+                              {feePerTransfer !== null
+                                ? ` · ${r.beneficiary_count} × ${formatNaira(feePerTransfer)}`
+                                : ''}
+                            </TableCell>
+                            <TableCell className="py-1 text-right text-xs font-semibold text-amber-700 currency whitespace-nowrap">
+                              −{formatNaira(fee)}
+                            </TableCell>
+                            <TableCell className="py-1" />
+                            <TableCell className="py-1" />
+                            <TableCell className="py-1">
+                              <span className="font-mono text-[10px] text-muted-foreground/60 tracking-tight">
+                                FEE | {r.reference
+                                  ? r.reference.length > 10
+                                    ? `${r.reference.slice(0, 10)}…`
+                                    : r.reference
+                                  : '—'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </TableBody>
