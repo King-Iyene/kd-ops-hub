@@ -3,13 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Loader2, Info, RefreshCw, AlertTriangle, Wallet, Clock, TrendingUp, Zap } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Search, RefreshCw, AlertTriangle, Wallet, Clock, TrendingUp, Zap, ArrowRight, Users, Info } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -325,86 +323,111 @@ const Payments = () => {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search batches..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {['draft', 'pending_approval', 'approved', 'funded', 'processing', 'processed', 'partially_processed', 'rejected'].map((k) => (
-                  <SelectItem key={k} value={k}>{statusLabel(k)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Status tabs + search */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+            <TabsList className="h-9 flex-wrap gap-y-1">
+              <TabsTrigger value="all" className="text-xs px-3 py-1.5">All</TabsTrigger>
+              <TabsTrigger value="pending_approval" className="text-xs px-3 py-1.5">Pending Approval</TabsTrigger>
+              <TabsTrigger value="processing" className="text-xs px-3 py-1.5">Processing</TabsTrigger>
+              <TabsTrigger value="processed" className="text-xs px-3 py-1.5">Completed</TabsTrigger>
+              <TabsTrigger value="partially_processed" className="text-xs px-3 py-1.5">Partial</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs px-3 py-1.5">Rejected</TabsTrigger>
+              <TabsTrigger value="draft" className="text-xs px-3 py-1.5">Draft</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search batches…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <TableSkeleton rows={5} />
-          ) : filtered.length === 0 ? (
-            <EmptyState
-              title="No payment batches yet"
-              description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
-              action={
-                <Button onClick={() => navigate('/payments/new')}>
-                  <Plus className="mr-2 h-4 w-4" /> Create Batch
-                </Button>
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Batch Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Payment Date</TableHead>
-                    <TableHead className="text-right">Beneficiaries</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((batch) => (
-                    <TableRow key={batch.id} className="cursor-pointer" onClick={() => navigate(`/payments/${batch.id}`)}>
-                      <TableCell className="font-medium">{batch.name}</TableCell>
-                      <TableCell>
-                        {batch.batch_type && batchTypeMeta[batch.batch_type] ? (
-                          <span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', batchTypeMeta[batch.batch_type].className)}>
-                            {batchTypeMeta[batch.batch_type].label}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{formatDate(batch.payment_date)}</TableCell>
-                      <TableCell className="text-right">{batch.beneficiary_count}</TableCell>
-                      <TableCell className="text-right currency">{formatNaira(batch.total_amount || 0)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={batch.status} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDate(batch.created_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <div className="flex items-center justify-between px-4 py-3 border-t">
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
-            <span className="text-sm text-muted-foreground">Page {page + 1}</span>
-            <Button variant="outline" size="sm" disabled={filtered.length < 20} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+
+        {loading ? (
+          <TableSkeleton rows={5} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            title={statusFilter === 'all' ? 'No payment batches yet' : `No ${statusLabel(statusFilter)?.toLowerCase() || statusFilter} batches`}
+            description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
+            action={
+              <Button onClick={() => navigate('/payments/new')}>
+                <Plus className="mr-2 h-4 w-4" /> Create Batch
+              </Button>
+            }
+          />
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((batch) => {
+              const typeMeta = batch.batch_type ? batchTypeMeta[batch.batch_type] : null;
+              const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
+              return (
+                <div
+                  key={batch.id}
+                  onClick={() => navigate(`/payments/${batch.id}`)}
+                  className={cn(
+                    'group relative flex items-center gap-4 rounded-xl border bg-card px-5 py-4 cursor-pointer transition-all duration-150',
+                    'hover:shadow-md hover:border-primary/30 hover:-translate-y-px',
+                    isProcessing && 'border-l-4 border-l-blue-400',
+                    batch.status === 'pending_approval' && 'border-l-4 border-l-amber-400',
+                    batch.status === 'rejected' && 'border-l-4 border-l-destructive',
+                    batch.status === 'processed' && 'border-l-4 border-l-emerald-400',
+                  )}
+                >
+                  {/* Type badge column */}
+                  <div className="shrink-0 hidden sm:flex flex-col items-center gap-1 w-[88px]">
+                    {typeMeta ? (
+                      <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold leading-none', typeMeta.className)}>
+                        {typeMeta.label}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-semibold text-sm leading-snug truncate">{batch.name}</p>
+                      {typeMeta && (
+                        <span className={cn('sm:hidden inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium', typeMeta.className)}>
+                          {typeMeta.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {batch.beneficiary_count} {batch.beneficiary_count === 1 ? 'beneficiary' : 'beneficiaries'}
+                      </span>
+                      <span>Pay date: {formatDate(batch.payment_date)}</span>
+                      <span className="hidden sm:inline">Created {formatDate(batch.created_at)}</span>
+                    </div>
+                  </div>
+
+                  {/* Amount + status */}
+                  <div className="shrink-0 text-right">
+                    <p className="font-bold text-base tabular-nums">{formatNaira(batch.total_amount || 0)}</p>
+                    <div className="mt-1 flex items-center justify-end gap-1.5">
+                      <StatusBadge status={batch.status} />
+                      {isProcessing && (
+                        <span className="flex h-2 w-2 rounded-full bg-blue-400 animate-pulse" aria-hidden="true" />
+                      )}
+                    </div>
+                  </div>
+
+                  <ArrowRight className="shrink-0 h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+                </div>
+              );
+            })}
           </div>
-        </CardContent>
-      </Card>
+        )}
+
+        <div className="flex items-center justify-between pt-1">
+          <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
+          <span className="text-sm text-muted-foreground">Page {page + 1}</span>
+          <Button variant="outline" size="sm" disabled={filtered.length < 20} onClick={() => setPage(page + 1)}>Next</Button>
+        </div>
+      </div>
     </div>
   );
 };

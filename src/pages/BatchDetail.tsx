@@ -190,6 +190,7 @@ const BatchDetail = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [recurDay, setRecurDay] = useState<number>(1);
   const [recurCustomDays, setRecurCustomDays] = useState(30);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchBatch();
@@ -224,6 +225,65 @@ const BatchDetail = () => {
     setBatch(b);
     setItems(allItems);
     setLoading(false);
+  };
+
+  const syncStatus = async () => {
+    if (!batch) return;
+    setSyncing(true);
+    try {
+      const toCheck = items.filter(
+        (it) => (it.status === 'pending' || it.status === 'retry') && it.paystack_reference,
+      );
+      let changed = false;
+      for (const it of toCheck) {
+        try {
+          const res = await verifyTransfer(it.paystack_reference);
+          if (res.status === 'success') {
+            await supabase
+              .from('batch_items')
+              .update({
+                status: 'succeeded',
+                failure_reason: null,
+                processed_at: new Date().toISOString(),
+                paystack_raw: res.raw,
+              })
+              .eq('id', it.id);
+            await logAudit(
+              'paystack_transfer_succeeded',
+              `Manual sync: transfer succeeded for ${it.full_name} (ref ${it.paystack_reference})`,
+              profile,
+            );
+            changed = true;
+          } else if (['failed', 'reversed'].includes(res.status)) {
+            await supabase
+              .from('batch_items')
+              .update({
+                status: 'failed',
+                failure_reason: res.reason || `Paystack ${res.status}`,
+                processed_at: new Date().toISOString(),
+                paystack_raw: res.raw,
+              })
+              .eq('id', it.id);
+            await logAudit(
+              'paystack_transfer_failed',
+              `Manual sync: transfer ${res.status} for ${it.full_name}: ${res.reason || '—'}`,
+              profile,
+            );
+            changed = true;
+          }
+        } catch {
+          // Transient error — skip this item.
+        }
+      }
+      if (changed) {
+        toast({ title: 'Status synced', description: 'Payment statuses updated from Paystack.' });
+      } else {
+        toast({ title: 'Already up to date', description: 'No status changes found.' });
+      }
+      fetchBatch();
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const canApprove =
@@ -955,9 +1015,22 @@ const BatchDetail = () => {
             </Button>
           )}
           {(batch.status === 'processing' || batch.status === 'partially_processed') && (
-            <Button variant="outline" onClick={fetchBatch} disabled={loading}>
-              <RotateCw className="mr-2 h-4 w-4" /> Refresh Status
-            </Button>
+            <>
+              <Button variant="outline" onClick={fetchBatch} disabled={loading || syncing}>
+                <RotateCw className="mr-2 h-4 w-4" /> Refresh
+              </Button>
+              <Button
+                variant="outline"
+                onClick={syncStatus}
+                disabled={syncing || actionLoading}
+                className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
+              >
+                {syncing
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <RotateCw className="mr-2 h-4 w-4" />}
+                Sync with Paystack
+              </Button>
+            </>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
             <Button
