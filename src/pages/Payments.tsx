@@ -123,7 +123,7 @@ const Payments = () => {
       .from('payment_batches')
       .select('*')
       .order('created_at', { ascending: false })
-      .range(page * 20, (page + 1) * 20 - 1);
+      .range(page * 1000, (page + 1) * 1000 - 1);
 
     if (statusFilter !== 'all') {
       query = query.eq('status', statusFilter);
@@ -365,7 +365,7 @@ const Payments = () => {
                   key={batch.id}
                   onClick={() => navigate(`/payments/${batch.id}`)}
                   className={cn(
-                    'group relative flex items-center gap-4 rounded-xl border bg-card px-5 py-4 cursor-pointer transition-all duration-150',
+                    'group relative flex items-center gap-4 rounded-lg border bg-card px-4 py-2.5 cursor-pointer transition-all duration-150',
                     'hover:shadow-md hover:border-primary/30 hover:-translate-y-px',
                     isProcessing && 'border-l-4 border-l-blue-400',
                     batch.status === 'pending_approval' && 'border-l-4 border-l-amber-400',
@@ -425,7 +425,7 @@ const Payments = () => {
         <div className="flex items-center justify-between pt-1">
           <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</Button>
           <span className="text-sm text-muted-foreground">Page {page + 1}</span>
-          <Button variant="outline" size="sm" disabled={filtered.length < 20} onClick={() => setPage(page + 1)}>Next</Button>
+          <Button variant="outline" size="sm" disabled={filtered.length < 1000} onClick={() => setPage(page + 1)}>Next</Button>
         </div>
       </div>
     </div>

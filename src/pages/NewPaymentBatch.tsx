@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -101,10 +101,13 @@ const emptyBank: BankAccountValue = {
 
 const NewPaymentBatch = () => {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id?: string }>();
+  const isEditMode = !!editId && editId !== 'new';
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(isEditMode);
   const [batchType, setBatchType] = useState<BatchType>('contractor');
 
   // Step 1
@@ -144,6 +147,55 @@ const NewPaymentBatch = () => {
       .order('full_name')
       .then(({ data }) => setEmployees((data as Employee[]) || []));
   }, []);
+
+  useEffect(() => {
+    if (!isEditMode || !editId) return;
+    const loadDraft = async () => {
+      setLoadingEdit(true);
+      try {
+        const [batchRes, itemsRes] = await Promise.all([
+          supabase.from('payment_batches').select('*').eq('id', editId).single(),
+          supabase.from('batch_items').select('*').eq('batch_id', editId).order('created_at'),
+        ]);
+        if (batchRes.error || !batchRes.data) {
+          toast({ title: 'Batch not found', variant: 'destructive' });
+          navigate('/payments');
+          return;
+        }
+        const b = batchRes.data as any;
+        if (b.status !== 'draft') {
+          toast({ title: 'Only draft batches can be edited', variant: 'destructive' });
+          navigate(`/payments/${editId}`);
+          return;
+        }
+        setBatchType((b.batch_type as BatchType) || 'contractor');
+        setBatchName(b.name || '');
+        setPaymentDate(b.payment_date || '');
+        setScheduledDate(b.scheduled_date ? b.scheduled_date.slice(0, 16) : '');
+        setPeriod(b.period || '');
+        setNotes(b.notes || '');
+        setAdvanceReason(b.advance_reason || '');
+        setRepaymentMonths(b.repayment_months || 3);
+        setBonusType(b.bonus_type || 'Performance Bonus');
+        const loadedItems: BatchItem[] = (itemsRes.data || []).map((it: any) => ({
+          full_name: it.full_name || '',
+          bank_name: it.bank_name || '',
+          account_number: it.account_number || '',
+          amount_ngn: it.amount_ngn || 0,
+          reference: it.reference || '',
+          contractor_id: it.contractor_id || undefined,
+          employee_id: it.employee_id || undefined,
+          item_type: it.item_type || 'adhoc',
+        }));
+        setItems(loadedItems);
+        setStep(2);
+      } finally {
+        setLoadingEdit(false);
+      }
+    };
+    loadDraft();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   const selectedIds = useMemo(
     () => new Set(items.map((i) => i.contractor_id).filter(Boolean)),
@@ -286,7 +338,7 @@ const NewPaymentBatch = () => {
     }
     setSaving(true);
     try {
-      const { data: batch, error } = await supabase.from('payment_batches').insert({
+      const batchPayload = {
         name: batchName,
         payment_date: paymentDate,
         scheduled_date: scheduledDate ? new Date(scheduledDate).toISOString() : null,
@@ -294,19 +346,36 @@ const NewPaymentBatch = () => {
         notes,
         total_amount: totalAmount,
         beneficiary_count: items.length,
-        status: submit ? 'pending_approval' : 'draft',
-        created_by: profile?.id,
         batch_type: batchType,
         advance_reason: batchType === 'advance' ? advanceReason || null : null,
         bonus_type: batchType === 'prize' ? bonusType || null : null,
         repayment_months: batchType === 'advance' ? repaymentMonths : 1,
-      }).select().single();
+      };
 
-      if (error) throw error;
+      let batchId: string;
+      if (isEditMode && editId) {
+        const { error } = await supabase
+          .from('payment_batches')
+          .update({ ...batchPayload, status: submit ? 'pending_approval' : 'draft' })
+          .eq('id', editId);
+        if (error) throw error;
+        batchId = editId;
+        // Delete existing items and re-insert fresh ones.
+        const { error: delErr } = await supabase.from('batch_items').delete().eq('batch_id', batchId);
+        if (delErr) throw delErr;
+      } else {
+        const { data: batch, error } = await supabase
+          .from('payment_batches')
+          .insert({ ...batchPayload, status: submit ? 'pending_approval' : 'draft', created_by: profile?.id })
+          .select()
+          .single();
+        if (error) throw error;
+        batchId = batch.id;
+      }
 
       if (items.length > 0) {
         const batchItems = items.map((item) => ({
-          batch_id: batch.id,
+          batch_id: batchId,
           contractor_id: item.contractor_id || null,
           employee_id: item.employee_id || null,
           item_type: item.item_type || 'adhoc',
@@ -325,7 +394,7 @@ const NewPaymentBatch = () => {
             .filter((bi: any) => bi.employee_id)
             .map((bi: any) => ({
               employee_id: bi.employee_id,
-              source_batch_id: batch.id,
+              source_batch_id: batchId,
               source_batch_item_id: bi.id,
               amount_ngn: bi.amount_ngn,
               outstanding_ngn: bi.amount_ngn,
@@ -339,15 +408,17 @@ const NewPaymentBatch = () => {
       }
 
       await logAudit(
-        submit ? 'batch_submitted' : 'batch_created',
+        submit ? 'batch_submitted' : isEditMode ? 'batch_edited' : 'batch_created',
         submit
           ? `Batch "${batchName}" submitted for approval (${items.length} beneficiaries, ${formatNaira(totalAmount)})`
+          : isEditMode
+          ? `Batch "${batchName}" draft updated`
           : `Batch "${batchName}" saved as draft`,
         profile,
       );
 
-      toast({ title: submit ? 'Batch submitted for approval' : 'Batch saved as draft' });
-      navigate('/payments');
+      toast({ title: submit ? 'Batch submitted for approval' : isEditMode ? 'Draft updated' : 'Batch saved as draft' });
+      navigate(isEditMode ? `/payments/${editId}` : '/payments');
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -366,15 +437,23 @@ const NewPaymentBatch = () => {
     );
   }, [contractors, searchTerm]);
 
+  if (loadingEdit) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/payments')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(isEditMode ? `/payments/${editId}` : '/payments')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">New Payment Batch</h1>
-          <p className="text-muted-foreground text-sm">Step {step} of 3</p>
+          <h1 className="text-2xl font-bold">{isEditMode ? 'Edit Payment Batch' : 'New Payment Batch'}</h1>
+          <p className="text-muted-foreground text-sm">{isEditMode ? 'Editing draft' : `Step ${step} of 3`}</p>
         </div>
       </div>
 

@@ -315,6 +315,7 @@ const Budgets = () => {
         name: form.name.trim(),
         period_start: form.period_start,
         period_end: form.period_end,
+        period: `${form.period_start.slice(0, 7)} – ${form.period_end.slice(0, 7)}`,
         department_id: form.department_id === 'none' ? null : form.department_id,
         total_amount_ngn: validItems.reduce(
           (sum, it) => sum + (parseFloat(it.planned_amount_ngn) || 0),

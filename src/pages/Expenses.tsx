@@ -311,6 +311,7 @@ const Expenses = () => {
           name: `Expense Reimbursement — ${expense.account_name}`,
           payment_description: `Expense: ${expense.description || expense.category}`,
           payment_category: 'expense_reimbursement',
+          payment_date: new Date().toISOString().slice(0, 10),
           is_quick_pay: true,
           total_amount: expense.amount_ngn,
           beneficiary_count: 1,
