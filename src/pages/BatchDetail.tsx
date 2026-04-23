@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -190,7 +190,11 @@ const BatchDetail = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [recurDay, setRecurDay] = useState<number>(1);
   const [recurCustomDays, setRecurCustomDays] = useState(30);
-  const [syncing, setSyncing] = useState(false);
+  const itemsRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     fetchBatch();
@@ -225,65 +229,6 @@ const BatchDetail = () => {
     setBatch(b);
     setItems(allItems);
     setLoading(false);
-  };
-
-  const syncStatus = async () => {
-    if (!batch) return;
-    setSyncing(true);
-    try {
-      const toCheck = items.filter(
-        (it) => (it.status === 'pending' || it.status === 'retry') && it.paystack_reference,
-      );
-      let changed = false;
-      for (const it of toCheck) {
-        try {
-          const res = await verifyTransfer(it.paystack_reference);
-          if (res.status === 'success') {
-            await supabase
-              .from('batch_items')
-              .update({
-                status: 'succeeded',
-                failure_reason: null,
-                processed_at: new Date().toISOString(),
-                paystack_raw: res.raw,
-              })
-              .eq('id', it.id);
-            await logAudit(
-              'paystack_transfer_succeeded',
-              `Manual sync: transfer succeeded for ${it.full_name} (ref ${it.paystack_reference})`,
-              profile,
-            );
-            changed = true;
-          } else if (['failed', 'reversed'].includes(res.status)) {
-            await supabase
-              .from('batch_items')
-              .update({
-                status: 'failed',
-                failure_reason: res.reason || `Paystack ${res.status}`,
-                processed_at: new Date().toISOString(),
-                paystack_raw: res.raw,
-              })
-              .eq('id', it.id);
-            await logAudit(
-              'paystack_transfer_failed',
-              `Manual sync: transfer ${res.status} for ${it.full_name}: ${res.reason || '—'}`,
-              profile,
-            );
-            changed = true;
-          }
-        } catch {
-          // Transient error — skip this item.
-        }
-      }
-      if (changed) {
-        toast({ title: 'Status synced', description: 'Payment statuses updated from Paystack.' });
-      } else {
-        toast({ title: 'Already up to date', description: 'No status changes found.' });
-      }
-      fetchBatch();
-    } finally {
-      setSyncing(false);
-    }
   };
 
   const canApprove =
@@ -509,18 +454,21 @@ const BatchDetail = () => {
     }
   };
 
-  // Poll pending Paystack transfers every 30s while the batch is processing.
+  // Poll pending Paystack transfers every 15s while the batch is processing.
+  // Uses itemsRef to always read the latest items and avoid stale-closure misses.
   useEffect(() => {
     if (!batch) return;
-    if (batch.status !== 'processing' && batch.status !== 'partially_processed')
-      return;
-    const pending = items.filter(
-      (it) => it.status === 'pending' && it.paystack_reference,
-    );
-    if (pending.length === 0) return;
+    if (batch.status !== 'processing' && batch.status !== 'partially_processed') return;
 
     let cancelled = false;
     const tick = async () => {
+      const pending = itemsRef.current.filter(
+        (it) => (it.status === 'pending' || it.status === 'retry') && it.paystack_reference,
+      );
+      if (pending.length === 0) {
+        fetchBatch();
+        return;
+      }
       let changed = false;
       for (const it of pending) {
         try {
@@ -567,13 +515,13 @@ const BatchDetail = () => {
     };
 
     tick();
-    const iv = window.setInterval(tick, 30_000);
+    const iv = window.setInterval(tick, 15_000);
     return () => {
       cancelled = true;
       window.clearInterval(iv);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batch?.status, items.length]);
+  }, [batch?.status]);
 
   const retryItem = async (item: any) => {
     if (!APPROVER_ROLES.includes(profile?.role as any)) {
@@ -975,9 +923,14 @@ const BatchDetail = () => {
       {(isAdmin || isFinance) && (
         <div className="flex gap-2 flex-wrap">
           {batch.status === 'draft' && batch.created_by === profile?.id && (
-            <Button onClick={() => updateStatus('pending_approval')} disabled={actionLoading}>
-              Submit for Approval
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
+                Edit Batch
+              </Button>
+              <Button onClick={() => updateStatus('pending_approval')} disabled={actionLoading}>
+                Submit for Approval
+              </Button>
+            </>
           )}
           {batch.status === 'pending_approval' && canApprove && (
             <>
@@ -1015,22 +968,9 @@ const BatchDetail = () => {
             </Button>
           )}
           {(batch.status === 'processing' || batch.status === 'partially_processed') && (
-            <>
-              <Button variant="outline" onClick={fetchBatch} disabled={loading || syncing}>
-                <RotateCw className="mr-2 h-4 w-4" /> Refresh
-              </Button>
-              <Button
-                variant="outline"
-                onClick={syncStatus}
-                disabled={syncing || actionLoading}
-                className="border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
-              >
-                {syncing
-                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  : <RotateCw className="mr-2 h-4 w-4" />}
-                Sync with Paystack
-              </Button>
-            </>
+            <Button variant="outline" onClick={fetchBatch} disabled={loading}>
+              <RotateCw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
             <Button

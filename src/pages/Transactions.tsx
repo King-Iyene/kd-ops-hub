@@ -277,6 +277,28 @@ const Transactions = () => {
         }
       />
 
+      {/* Paystack fee note */}
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-950/20 px-4 py-3 text-xs text-amber-800 dark:text-amber-300 print:hidden">
+        <Landmark className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>
+          Paystack transfer fees are deducted directly from your Paystack wallet per transfer. Fees vary by amount and bank —{' '}
+          <button
+            className="underline font-medium hover:opacity-80"
+            onClick={() => window.open('https://paystack.com/ng/pricing', '_blank', 'noopener')}
+          >
+            view current Paystack pricing
+          </button>{' '}
+          or check your{' '}
+          <button
+            className="underline font-medium hover:opacity-80"
+            onClick={() => window.open('https://dashboard.paystack.com/#/transfers', '_blank', 'noopener')}
+          >
+            Paystack dashboard
+          </button>{' '}
+          for a full fee breakdown per transaction.
+        </span>
+      </div>
+
       {/* Summary strip */}
       <div className="grid grid-cols-3 sm:grid-cols-3 gap-3 print:hidden">
         {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {

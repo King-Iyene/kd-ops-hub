@@ -137,6 +137,14 @@ function AppRoutes() {
           }
         />
         <Route
+          path="/payments/:id/edit"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <NewPaymentBatch />
+            </RoleGuard>
+          }
+        />
+        <Route
           path="/payments/:id"
           element={
             <RoleGuard roles={APPROVER_ROLES}>
