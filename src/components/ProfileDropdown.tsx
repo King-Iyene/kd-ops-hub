@@ -74,8 +74,8 @@ export function ProfileDropdown() {
           className="flex items-center gap-2 rounded-full kd-transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           aria-label="Open profile menu"
         >
-          <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center ring-2 ring-transparent hover:ring-primary/20 kd-transition">
-            <span className="text-sm font-bold text-primary-foreground">
+          <div className="h-8 w-8 rounded-full kd-gradient-brand flex items-center justify-center ring-2 ring-transparent hover:ring-primary/20 kd-transition shadow-sm">
+            <span className="text-sm font-bold text-white">
               {initials}
             </span>
           </div>
@@ -86,8 +86,8 @@ export function ProfileDropdown() {
         {/* Header: name, email, role badge */}
         <DropdownMenuLabel className="py-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-primary-foreground">
+            <div className="h-10 w-10 rounded-full kd-gradient-brand flex items-center justify-center shrink-0 shadow-sm">
+              <span className="text-sm font-bold text-white">
                 {initials}
               </span>
             </div>

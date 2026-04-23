@@ -7,6 +7,7 @@ interface Props {
   description?: string;
   action?: React.ReactNode;
   className?: string;
+  compact?: boolean;
 }
 
 export function EmptyState({
@@ -15,24 +16,31 @@ export function EmptyState({
   description,
   action,
   className,
+  compact = false,
 }: Props) {
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center text-center py-12 px-6 gap-3',
+        'flex flex-col items-center justify-center text-center px-6',
+        compact ? 'py-8 gap-2.5' : 'py-16 gap-4',
         className,
       )}
     >
-      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-        <Icon className="h-6 w-6 text-muted-foreground" />
+      <div className={cn(
+        'rounded-2xl bg-muted/60 flex items-center justify-center',
+        compact ? 'h-10 w-10' : 'h-14 w-14',
+      )}>
+        <Icon className={cn('text-muted-foreground/70', compact ? 'h-5 w-5' : 'h-7 w-7')} />
       </div>
-      <div className="space-y-1 max-w-sm">
-        <h3 className="text-sm font-semibold">{title}</h3>
+      <div className="space-y-1.5 max-w-xs">
+        <h3 className={cn('font-semibold text-foreground', compact ? 'text-sm' : 'text-base')}>
+          {title}
+        </h3>
         {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
         )}
       </div>
-      {action}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }

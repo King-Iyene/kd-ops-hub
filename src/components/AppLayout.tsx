@@ -4,55 +4,102 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { MobileNav } from '@/components/MobileNav';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useEffectiveRole } from '@/store/authStore';
 
-const portalLabel = (role: string | undefined): string => {
-  switch (role) {
-    case 'super_admin':
-      return 'Super Admin Portal';
-    case 'admin':
-      return 'Admin Portal';
-    case 'finance':
-      return 'Finance Portal';
-    case 'operations':
-      return 'Operations Portal';
-    case 'field_staff':
-      return 'Field Staff Portal';
-    default:
-      return 'Employee Portal';
-  }
+const PORTAL_LABELS: Record<string, { label: string; color: string }> = {
+  super_admin: { label: 'Super Admin',   color: 'bg-purple-500/15 text-purple-700' },
+  admin:       { label: 'Admin',         color: 'bg-primary/10 text-primary' },
+  finance:     { label: 'Finance',       color: 'bg-emerald-500/15 text-emerald-700' },
+  operations:  { label: 'Operations',    color: 'bg-amber-500/15 text-amber-700' },
+  field_staff: { label: 'Field Staff',   color: 'bg-sky-500/15 text-sky-700' },
 };
+
+const ROUTE_TITLES: Record<string, string> = {
+  '/':                     'Dashboard',
+  '/approvals':            'Approvals',
+  '/payments':             'Payments',
+  '/payments/schedule':    'Payment Schedule',
+  '/payments/new':         'New Payment Batch',
+  '/transactions':         'Transactions',
+  '/payroll':              'Payroll',
+  '/subscriptions':        'Subscriptions',
+  '/budgets':              'Budgets',
+  '/cards':                'Cards',
+  '/compliance':           'Compliance',
+  '/expenses':             'Expenses',
+  '/fleet':                'Fleet',
+  '/contractors':          'Contractors',
+  '/employees':            'Employees',
+  '/leave':                'Leave',
+  '/tasks':                'Tasks',
+  '/goals':                'Goals',
+  '/knowledge':            'Knowledge',
+  '/documents':            'Documents',
+  '/reports':              'Reports',
+  '/contacts':             'Contacts',
+  '/referrals':            'Referrals',
+  '/audit':                'Audit Log',
+  '/settings':             'Settings',
+};
+
+function getRouteTitle(pathname: string): string {
+  if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
+  if (pathname.startsWith('/payments/') && pathname.endsWith('/edit')) return 'Edit Payment Batch';
+  if (pathname.startsWith('/payments/')) return 'Batch Detail';
+  if (pathname.startsWith('/contractors/')) return 'Contractor Profile';
+  if (pathname.startsWith('/employees/')) return 'Employee Profile';
+  if (pathname.startsWith('/contacts/')) return 'Contact Profile';
+  return '';
+}
 
 export default function AppLayout() {
   const effectiveRole = useEffectiveRole();
+  const location = useLocation();
+  const portal = PORTAL_LABELS[effectiveRole ?? ''];
+  const pageTitle = getRouteTitle(location.pathname);
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Persistent simulation banner sits above the entire app shell. */}
       <ViewAsBanner />
       <SidebarProvider>
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b bg-card px-4 sticky top-0 z-10">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger />
-              <span className="text-sm font-medium text-muted-foreground hidden sm:block">
-                {portalLabel(effectiveRole)}
-              </span>
+          {/* ── Header ──────────────────────────────────────────────── */}
+          <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-20 shadow-[0_1px_0_hsl(var(--border)/0.6),0_2px_8px_-2px_hsl(var(--primary)/0.06)]">
+            <div className="flex items-center gap-3 min-w-0">
+              <SidebarTrigger className="shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
+              <div className="hidden sm:flex items-center gap-2.5 min-w-0">
+                {pageTitle && (
+                  <h1 className="text-sm font-semibold text-foreground truncate">
+                    {pageTitle}
+                  </h1>
+                )}
+                {portal && (
+                  <>
+                    {pageTitle && <span className="text-border/80 text-xs select-none">·</span>}
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${portal.color}`}>
+                      {portal.label}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <NotificationBell />
+              <div className="w-px h-4 bg-border/60" />
               <ProfileDropdown />
             </div>
           </header>
-          <main className="flex-1 p-4 md:p-6 overflow-auto">
-            <Outlet />
+          {/* ── Main content ────────────────────────────────────────── */}
+          <main className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
+            <div className="kd-page-enter">
+              <Outlet />
+            </div>
           </main>
         </div>
       </SidebarProvider>
       <MobileNav />
-      {/* Bottom padding so mobile content isn't hidden behind the nav bar. */}
       <div className="h-14 md:hidden" />
     </div>
   );
