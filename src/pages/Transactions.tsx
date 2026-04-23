@@ -12,7 +12,6 @@ import {
   Check,
   Printer,
   FileDown,
-  Landmark,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -49,10 +48,6 @@ import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { statusLabel } from '@/components/ui-kit/StatusBadge';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 interface Transaction {
   id: string;
   created_at: string;
@@ -75,27 +70,7 @@ interface Transaction {
   receipt_url: string | null;
 }
 
-/** Synthetic fee entry generated from a transaction row. */
-interface FeeEntry {
-  _kind: 'fee';
-  id: string;
-  parent_id: string;
-  created_at: string;
-  amount_ngn: number;
-  reference: string;
-  parent_reference: string;
-  label: string;
-  per_transfer: number;
-  count: number;
-}
-
-type DisplayRow = ({ _kind: 'txn' } & Transaction) | FeeEntry;
-
 type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'expense';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const STATUS_OPTIONS = [
   'draft',
@@ -136,60 +111,6 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'payment_batch', label: 'Batches' },
   { value: 'expense', label: 'Expenses' },
 ];
-
-// ---------------------------------------------------------------------------
-// Paystack fee — published fixed rate for Nigerian bank transfers (NGN).
-// ₦10 ≤ ₦5,000 · ₦25 ≤ ₦50,000 · ₦50 above.
-// This is not an estimate — the rate is exact and does not vary.
-// ---------------------------------------------------------------------------
-function paystackFeePerTransfer(amountNgn: number): number {
-  if (amountNgn <= 0) return 0;
-  if (amountNgn <= 5_000) return 10;
-  if (amountNgn <= 50_000) return 25;
-  return 50;
-}
-
-function buildFeeEntry(txn: Transaction): FeeEntry | null {
-  if (txn.txn_type === 'expense') return null;
-
-  let perTransfer: number;
-  let count: number;
-
-  if (txn.txn_type === 'quick_pay') {
-    perTransfer = paystackFeePerTransfer(txn.amount_ngn || 0);
-    count = 1;
-  } else {
-    // payment_batch: divide total by recipient count to get per-transfer amount
-    count = txn.beneficiary_count || 1;
-    const perAmount = count > 0 ? (txn.amount_ngn || 0) / count : (txn.amount_ngn || 0);
-    perTransfer = paystackFeePerTransfer(perAmount);
-  }
-
-  const totalFee = perTransfer * count;
-  if (totalFee === 0) return null;
-
-  const label =
-    txn.txn_type === 'payment_batch'
-      ? txn.batch_name || txn.description || 'Payment batch'
-      : txn.description || 'Quick Pay';
-
-  return {
-    _kind: 'fee',
-    id: `fee-${txn.id}`,
-    parent_id: txn.id,
-    created_at: txn.created_at,
-    amount_ngn: totalFee,
-    reference: `FEE | ${txn.reference}`,
-    parent_reference: txn.reference,
-    label,
-    per_transfer: perTransfer,
-    count,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 const Transactions = () => {
   usePageTitle('Transactions');
@@ -254,29 +175,10 @@ const Transactions = () => {
     });
   }, [rows, search, typeFilter, categoryFilter, statusFilter, from, to]);
 
-  // Paginate on real transactions; expand each page with fee rows for display.
   const pagination = usePagination(filtered, 25);
-
-  const pageRows = useMemo((): DisplayRow[] => {
-    const result: DisplayRow[] = [];
-    for (const r of pagination.slice) {
-      result.push({ ...r, _kind: 'txn' as const });
-      const fee = buildFeeEntry(r);
-      if (fee) result.push(fee);
-    }
-    return result;
-  }, [pagination.slice]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, r) => sum + (r.amount_ngn || 0), 0),
-    [filtered],
-  );
-
-  const totalFees = useMemo(
-    () => filtered.reduce((sum, r) => {
-      const fee = buildFeeEntry(r);
-      return sum + (fee?.amount_ngn ?? 0);
-    }, 0),
     [filtered],
   );
 
@@ -346,11 +248,9 @@ const Transactions = () => {
       />
 
       {/* Summary strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 print:hidden">
+      <div className="grid grid-cols-3 gap-3 print:hidden">
         {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
-          const typeRows = rows.filter((r) => r.txn_type === type);
-          const count = typeRows.length;
-          const feeTotal = typeRows.reduce((s, r) => s + (buildFeeEntry(r)?.amount_ngn ?? 0), 0);
+          const count = rows.filter((r) => r.txn_type === type).length;
           const Icon = TYPE_ICON[type];
           return (
             <div
@@ -383,32 +283,9 @@ const Transactions = () => {
                   <p className="text-xs text-muted-foreground mt-0.5">{typeLabel(type)}</p>
                 </div>
               </div>
-              {feeTotal > 0 && (
-                <p className="text-[11px] text-amber-700 mt-2 font-medium">
-                  {formatNaira(feeTotal)} in fees
-                </p>
-              )}
             </div>
           );
         })}
-
-        {/* Total Paystack fees card */}
-        {rows.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-[var(--shadow-sm)]">
-            <div className="flex items-center gap-2.5">
-              <div className="rounded-lg p-2 bg-amber-100 text-amber-700">
-                <Landmark className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold leading-none text-amber-800">
-                  {formatNaira(rows.reduce((s, r) => s + (buildFeeEntry(r)?.amount_ngn ?? 0), 0))}
-                </p>
-                <p className="text-xs text-amber-700/70 mt-0.5">Total Paystack fees</p>
-              </div>
-            </div>
-            <p className="text-[10px] text-amber-600/70 mt-2">Deducted from Paystack wallet</p>
-          </div>
-        )}
       </div>
 
       <Card>
@@ -489,18 +366,12 @@ const Transactions = () => {
               {filtered.length.toLocaleString()} transaction{filtered.length !== 1 ? 's' : ''} matched
             </span>
             <span className="font-medium">{formatNaira(totalAmount)} total</span>
-            {totalFees > 0 && (
-              <span className="text-amber-700 font-medium">{formatNaira(totalFees)} in fees</span>
-            )}
-            {totalFees > 0 && (
-              <span>Net: {formatNaira(totalAmount + totalFees)}</span>
-            )}
           </div>
         )}
 
         <CardContent className="p-0">
           {loading ? (
-            <TableSkeleton rows={10} cols={7} />
+            <TableSkeleton rows={10} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ArrowUpDown}
@@ -526,15 +397,11 @@ const Transactions = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pageRows.map((row) => {
-                    if (row._kind === 'fee') {
-                      return <FeeRow key={row.id} fee={row} />;
-                    }
-                    const r = row as Transaction;
+                  {pagination.slice.map((r) => {
                     const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
                     return (
                       <TableRow
-                        key={`txn-${r.id}`}
+                        key={`${r.txn_type}-${r.id}`}
                         className="cursor-pointer hover:bg-muted/40 kd-transition"
                         onClick={() => handleRowClick(r)}
                       >
@@ -621,47 +488,6 @@ const Transactions = () => {
 };
 
 export default Transactions;
-
-// ---------------------------------------------------------------------------
-// Fee row — appears as a standalone transaction row for Paystack transfer fees
-// ---------------------------------------------------------------------------
-
-function FeeRow({ fee }: { fee: FeeEntry }) {
-  const breakdown =
-    fee.count > 1
-      ? `${fee.count} transfers × ${formatNaira(fee.per_transfer)}`
-      : formatNaira(fee.per_transfer);
-
-  return (
-    <TableRow className="bg-amber-50/50 hover:bg-amber-50/80 kd-transition">
-      <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-        {formatDate(fee.created_at)}
-      </TableCell>
-      <TableCell>
-        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase bg-amber-100 text-amber-700 border border-amber-200/80">
-          <Landmark className="h-3 w-3" />
-          Fee
-        </span>
-      </TableCell>
-      <TableCell className="text-sm max-w-[240px]">
-        <p className="font-medium truncate">Paystack transfer fee</p>
-        <p className="text-xs text-muted-foreground truncate">{fee.label} · {breakdown}</p>
-      </TableCell>
-      <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm text-amber-700">
-        −{formatNaira(fee.amount_ngn)}
-      </TableCell>
-      <TableCell>
-        <span className="text-xs text-muted-foreground/50">—</span>
-      </TableCell>
-      <TableCell>
-        <span className="text-xs text-muted-foreground/40">—</span>
-      </TableCell>
-      <TableCell>
-        <CopyableRef value={fee.reference} />
-      </TableCell>
-    </TableRow>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Copyable reference chip

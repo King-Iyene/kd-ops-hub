@@ -68,6 +68,13 @@ const escapeHtml = (v: any): string => {
     .replace(/'/g, '&#039;');
 };
 
+function paystackFeeForAmount(amountNgn: number): number {
+  if (amountNgn <= 0) return 0;
+  if (amountNgn <= 5_000) return 10;
+  if (amountNgn <= 50_000) return 25;
+  return 50;
+}
+
 const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
   const isFailed = item.status === 'failed';
   const isSucceeded = item.status === 'succeeded';
@@ -146,6 +153,20 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
       <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')}</span></div>
       <div class="row"><span class="lbl">Status</span><span class="val" style="color:${statusColor};font-weight:700">${escapeHtml(statusText)}</span></div>
       ${isFailed ? `<div class="row"><span class="lbl">Failure reason</span><span class="val" style="color:#b91c1c">${escapeHtml(item.failure_reason || 'Transfer rejected')}</span></div>` : ''}
+      ${isSucceeded ? (() => {
+        const fee = paystackFeeForAmount(Number(item.amount_ngn) || 0);
+        const total = (Number(item.amount_ngn) || 0) + fee;
+        const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+        return `
+      <div class="row" style="background:#fffbeb;border-radius:6px;padding:10px 8px;margin-top:4px;">
+        <span class="lbl" style="color:#92400e;">Paystack transfer fee</span>
+        <span class="val" style="color:#b45309;">${fmtNgn(fee)}</span>
+      </div>
+      <div class="row" style="font-weight:700;font-size:14px;border-top:2px solid #f3f4f6;margin-top:4px;">
+        <span class="lbl" style="color:#111827;">Total debited from wallet</span>
+        <span class="val">${fmtNgn(total)}</span>
+      </div>`;
+      })() : ''}
     </div>
 
     ${isFailed ? `
