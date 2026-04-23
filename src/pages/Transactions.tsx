@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -17,7 +17,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatDateTime, formatNaira, toIsoDate } from '@/lib/format';
+import { formatDate, formatNaira, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,13 +38,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -54,6 +47,11 @@ import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import { statusLabel } from '@/components/ui-kit/StatusBadge';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface Transaction {
   id: string;
@@ -77,7 +75,27 @@ interface Transaction {
   receipt_url: string | null;
 }
 
+/** Synthetic fee entry generated from a transaction row. */
+interface FeeEntry {
+  _kind: 'fee';
+  id: string;
+  parent_id: string;
+  created_at: string;
+  amount_ngn: number;
+  reference: string;
+  parent_reference: string;
+  label: string;
+  per_transfer: number;
+  count: number;
+}
+
+type DisplayRow = ({ _kind: 'txn' } & Transaction) | FeeEntry;
+
 type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'expense';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const STATUS_OPTIONS = [
   'draft',
@@ -105,7 +123,6 @@ const TYPE_COLOR: Record<string, string> = {
   expense: 'bg-warning/10 text-warning border border-warning/30',
 };
 
-
 const typeLabel = (t: string) => {
   if (t === 'payment_batch') return 'Batch';
   if (t === 'quick_pay') return 'Quick Pay';
@@ -113,38 +130,66 @@ const typeLabel = (t: string) => {
   return t.replace(/_/g, ' ');
 };
 
-import { statusLabel } from '@/components/ui-kit/StatusBadge';
-
-// ---------------------------------------------------------------------------
-// Paystack transfer fee calculator (Nigerian bank transfers from balance)
-// Published rate: ₦10 (≤₦5k), ₦25 (₦5k–₦50k), ₦50 (>₦50k) per transfer.
-// ---------------------------------------------------------------------------
-function paystackTransferFee(amountNgn: number): number {
-  if (amountNgn <= 0) return 0;
-  if (amountNgn <= 5_000) return 10;
-  if (amountNgn <= 50_000) return 25;
-  return 50;
-}
-
-function estimateFee(txn: Transaction): number | null {
-  if (txn.txn_type === 'expense') return null;
-  if (txn.txn_type === 'quick_pay') {
-    return paystackTransferFee(txn.amount_ngn || 0);
-  }
-  if (txn.txn_type === 'payment_batch') {
-    const count = txn.beneficiary_count || 1;
-    const perTransfer = count > 0 ? (txn.amount_ngn || 0) / count : (txn.amount_ngn || 0);
-    return paystackTransferFee(perTransfer) * count;
-  }
-  return null;
-}
-
 const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'quick_pay', label: 'Quick Pay' },
   { value: 'payment_batch', label: 'Batches' },
   { value: 'expense', label: 'Expenses' },
 ];
+
+// ---------------------------------------------------------------------------
+// Paystack fee — published fixed rate for Nigerian bank transfers (NGN).
+// ₦10 ≤ ₦5,000 · ₦25 ≤ ₦50,000 · ₦50 above.
+// This is not an estimate — the rate is exact and does not vary.
+// ---------------------------------------------------------------------------
+function paystackFeePerTransfer(amountNgn: number): number {
+  if (amountNgn <= 0) return 0;
+  if (amountNgn <= 5_000) return 10;
+  if (amountNgn <= 50_000) return 25;
+  return 50;
+}
+
+function buildFeeEntry(txn: Transaction): FeeEntry | null {
+  if (txn.txn_type === 'expense') return null;
+
+  let perTransfer: number;
+  let count: number;
+
+  if (txn.txn_type === 'quick_pay') {
+    perTransfer = paystackFeePerTransfer(txn.amount_ngn || 0);
+    count = 1;
+  } else {
+    // payment_batch: divide total by recipient count to get per-transfer amount
+    count = txn.beneficiary_count || 1;
+    const perAmount = count > 0 ? (txn.amount_ngn || 0) / count : (txn.amount_ngn || 0);
+    perTransfer = paystackFeePerTransfer(perAmount);
+  }
+
+  const totalFee = perTransfer * count;
+  if (totalFee === 0) return null;
+
+  const label =
+    txn.txn_type === 'payment_batch'
+      ? txn.batch_name || txn.description || 'Payment batch'
+      : txn.description || 'Quick Pay';
+
+  return {
+    _kind: 'fee',
+    id: `fee-${txn.id}`,
+    parent_id: txn.id,
+    created_at: txn.created_at,
+    amount_ngn: totalFee,
+    reference: `FEE | ${txn.reference}`,
+    parent_reference: txn.reference,
+    label,
+    per_transfer: perTransfer,
+    count,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 const Transactions = () => {
   usePageTitle('Transactions');
@@ -209,7 +254,18 @@ const Transactions = () => {
     });
   }, [rows, search, typeFilter, categoryFilter, statusFilter, from, to]);
 
+  // Paginate on real transactions; expand each page with fee rows for display.
   const pagination = usePagination(filtered, 25);
+
+  const pageRows = useMemo((): DisplayRow[] => {
+    const result: DisplayRow[] = [];
+    for (const r of pagination.slice) {
+      result.push({ ...r, _kind: 'txn' as const });
+      const fee = buildFeeEntry(r);
+      if (fee) result.push(fee);
+    }
+    return result;
+  }, [pagination.slice]);
 
   const totalAmount = useMemo(
     () => filtered.reduce((sum, r) => sum + (r.amount_ngn || 0), 0),
@@ -218,25 +274,16 @@ const Transactions = () => {
 
   const totalFees = useMemo(
     () => filtered.reduce((sum, r) => {
-      const fee = estimateFee(r);
-      return sum + (fee ?? 0);
+      const fee = buildFeeEntry(r);
+      return sum + (fee?.amount_ngn ?? 0);
     }, 0),
     [filtered],
   );
 
   const exportCsv = async () => {
     const header = [
-      'date',
-      'type',
-      'description',
-      'category',
-      'amount_ngn',
-      'status',
-      'reference',
-      'bank_name',
-      'account_number',
-      'account_name',
-      'receipt_url',
+      'date', 'type', 'description', 'category', 'amount_ngn',
+      'status', 'reference', 'bank_name', 'account_number', 'account_name', 'receipt_url',
     ];
     const data = filtered.map((r) => [
       r.created_at || '',
@@ -263,10 +310,6 @@ const Transactions = () => {
     toast({ title: 'Transactions exported' });
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const clearFilters = () => {
     setSearch('');
     setTypeFilter('all');
@@ -281,11 +324,8 @@ const Transactions = () => {
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
   const handleRowClick = (r: Transaction) => {
-    if (r.txn_type === 'expense') {
-      navigate('/expenses');
-    } else {
-      navigate(`/payments/${r.id}`);
-    }
+    if (r.txn_type === 'expense') navigate('/expenses');
+    else navigate(`/payments/${r.id}`);
   };
 
   return (
@@ -295,14 +335,10 @@ const Transactions = () => {
         description={`All financial activity across KDOps — ${rows.length.toLocaleString()} transactions`}
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handlePrint}>
+            <Button variant="outline" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" /> Print
             </Button>
-            <Button
-              variant="outline"
-              onClick={exportCsv}
-              disabled={filtered.length === 0}
-            >
+            <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
               <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
           </div>
@@ -314,15 +350,19 @@ const Transactions = () => {
         {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
           const typeRows = rows.filter((r) => r.txn_type === type);
           const count = typeRows.length;
-          const totalFeeForType = typeRows.reduce((s, r) => s + (estimateFee(r) ?? 0), 0);
+          const feeTotal = typeRows.reduce((s, r) => s + (buildFeeEntry(r)?.amount_ngn ?? 0), 0);
           const Icon = TYPE_ICON[type];
-          const label = typeLabel(type);
           return (
             <div
               key={type}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && (setTypeFilter((prev) => (prev === type ? 'all' : type)), pagination.reset())}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setTypeFilter((prev) => (prev === type ? 'all' : type));
+                  pagination.reset();
+                }
+              }}
               className={cn(
                 'rounded-xl border bg-card px-4 py-3 cursor-pointer kd-transition shadow-[var(--shadow-sm)]',
                 typeFilter === type
@@ -340,19 +380,19 @@ const Transactions = () => {
                 </div>
                 <div className="min-w-0">
                   <p className="text-lg font-bold leading-none">{count.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{typeLabel(type)}</p>
                 </div>
               </div>
-              {totalFeeForType > 0 && (
+              {feeTotal > 0 && (
                 <p className="text-[11px] text-amber-700 mt-2 font-medium">
-                  ~{formatNaira(totalFeeForType)} fees
+                  {formatNaira(feeTotal)} in fees
                 </p>
               )}
             </div>
           );
         })}
 
-        {/* Total fees summary card */}
+        {/* Total Paystack fees card */}
         {rows.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-[var(--shadow-sm)]">
             <div className="flex items-center gap-2.5">
@@ -361,9 +401,9 @@ const Transactions = () => {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold leading-none text-amber-800">
-                  {formatNaira(rows.reduce((s, r) => s + (estimateFee(r) ?? 0), 0))}
+                  {formatNaira(rows.reduce((s, r) => s + (buildFeeEntry(r)?.amount_ngn ?? 0), 0))}
                 </p>
-                <p className="text-xs text-amber-700/70 mt-0.5">Est. total fees</p>
+                <p className="text-xs text-amber-700/70 mt-0.5">Total Paystack fees</p>
               </div>
             </div>
             <p className="text-[10px] text-amber-600/70 mt-2">Deducted from Paystack wallet</p>
@@ -372,17 +412,14 @@ const Transactions = () => {
       </div>
 
       <Card>
-        {/* Filter bar */}
+        {/* Filter tabs */}
         <div className="p-4 border-b flex items-center gap-1 flex-wrap print:hidden">
           {FILTER_TABS.map((tab) => (
             <Button
               key={tab.value}
               variant={typeFilter === tab.value ? 'secondary' : 'ghost'}
               size="sm"
-              className={cn(
-                'rounded-full px-4',
-                typeFilter === tab.value && 'font-semibold',
-              )}
+              className={cn('rounded-full px-4', typeFilter === tab.value && 'font-semibold')}
               onClick={() => {
                 setTypeFilter(tab.value);
                 pagination.reset();
@@ -401,66 +438,41 @@ const Transactions = () => {
               className="pl-9"
               placeholder="Search reference, description, bank..."
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                pagination.reset();
-              }}
+              onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
             />
           </div>
-          <Select
-            value={categoryFilter}
-            onValueChange={(v) => {
-              setCategoryFilter(v);
-              pagination.reset();
-            }}
-          >
+          <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {categories.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c.replace(/_/g, ' ')}
-                </SelectItem>
+                <SelectItem key={c} value={c}>{c.replace(/_/g, ' ')}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v);
-              pagination.reset();
-            }}
-          >
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {statusLabel(s)}
-                </SelectItem>
+                <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Input
             type="date"
             value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              pagination.reset();
-            }}
+            onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
             className="w-[150px]"
           />
           <Input
             type="date"
             value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              pagination.reset();
-            }}
+            onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
             className="w-[150px]"
           />
           {hasActiveFilters && (
@@ -470,7 +482,7 @@ const Transactions = () => {
           )}
         </div>
 
-        {/* Filtered summary */}
+        {/* Filtered totals */}
         {hasActiveFilters && (
           <div className="px-4 py-2 border-b bg-muted/30 text-xs text-muted-foreground flex items-center gap-4 flex-wrap">
             <span>
@@ -478,10 +490,10 @@ const Transactions = () => {
             </span>
             <span className="font-medium">{formatNaira(totalAmount)} total</span>
             {totalFees > 0 && (
-              <span className="text-amber-700 font-medium">~{formatNaira(totalFees)} in fees</span>
+              <span className="text-amber-700 font-medium">{formatNaira(totalFees)} in fees</span>
             )}
             {totalFees > 0 && (
-              <span className="text-muted-foreground">Net: {formatNaira(totalAmount + totalFees)}</span>
+              <span>Net: {formatNaira(totalAmount + totalFees)}</span>
             )}
           </div>
         )}
@@ -514,114 +526,78 @@ const Transactions = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagination.slice.map((r) => {
+                  {pageRows.map((row) => {
+                    if (row._kind === 'fee') {
+                      return <FeeRow key={row.id} fee={row} />;
+                    }
+                    const r = row as Transaction;
                     const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
-                    const fee = estimateFee(r);
-                    const feePerTransfer =
-                      fee !== null && r.txn_type === 'payment_batch' && (r.beneficiary_count || 0) > 1
-                        ? fee / (r.beneficiary_count || 1)
-                        : null;
                     return (
-                      <Fragment key={`${r.txn_type}-${r.id}`}>
-                        <TableRow
-                          className="cursor-pointer hover:bg-muted/40 kd-transition"
-                          onClick={() => handleRowClick(r)}
-                        >
-                          <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                            {formatDate(r.created_at)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="secondary"
-                              className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
-                            >
-                              <Icon className="h-3 w-3 mr-1" />
-                              {typeLabel(r.txn_type)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm max-w-[240px]">
-                            {r.txn_type === 'payment_batch' && (
-                              <div>
-                                <p className="font-medium truncate">{r.batch_name || r.description}</p>
-                                {r.beneficiary_count != null && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            {r.txn_type === 'quick_pay' && (
-                              <p className="truncate">{r.description}</p>
-                            )}
-                            {r.txn_type === 'expense' && (
-                              <div>
-                                <p className="font-medium capitalize truncate">
-                                  {(r.category || '').replace(/_/g, ' ')}
+                      <TableRow
+                        key={`txn-${r.id}`}
+                        className="cursor-pointer hover:bg-muted/40 kd-transition"
+                        onClick={() => handleRowClick(r)}
+                      >
+                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                          {formatDate(r.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
+                          >
+                            <Icon className="h-3 w-3 mr-1" />
+                            {typeLabel(r.txn_type)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[240px]">
+                          {r.txn_type === 'payment_batch' && (
+                            <div>
+                              <p className="font-medium truncate">{r.batch_name || r.description}</p>
+                              {r.beneficiary_count != null && (
+                                <p className="text-xs text-muted-foreground">
+                                  {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate">{r.description}</p>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
-                            {formatNaira(r.amount_ngn)}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge status={r.status} size="sm" />
-                          </TableCell>
-                          <TableCell>
-                            {r.receipt_url ? (
-                              <a
-                                href={r.receipt_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                              >
-                                <FileDown className="h-3.5 w-3.5" /> View
-                              </a>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/40">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <CopyableRef value={r.reference} />
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Inline fee sub-row — mirrors Paystack's own ledger style */}
-                        {fee !== null && (
-                          <TableRow className="bg-amber-50/60 border-t-0 hover:bg-amber-50/80 kd-transition">
-                            <TableCell className="py-1 text-muted-foreground/0 text-xs select-none" aria-hidden>
-                              ·
-                            </TableCell>
-                            <TableCell className="py-1">
-                              <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-bold tracking-widest uppercase bg-amber-100 text-amber-700 border border-amber-200/80">
-                                FEE
-                              </span>
-                            </TableCell>
-                            <TableCell className="py-1 text-xs text-muted-foreground">
-                              Transfer fee
-                              {feePerTransfer !== null
-                                ? ` · ${r.beneficiary_count} × ${formatNaira(feePerTransfer)}`
-                                : ''}
-                            </TableCell>
-                            <TableCell className="py-1 text-right text-xs font-semibold text-amber-700 currency whitespace-nowrap">
-                              −{formatNaira(fee)}
-                            </TableCell>
-                            <TableCell className="py-1" />
-                            <TableCell className="py-1" />
-                            <TableCell className="py-1">
-                              <span className="font-mono text-[10px] text-muted-foreground/60 tracking-tight">
-                                FEE | {r.reference
-                                  ? r.reference.length > 10
-                                    ? `${r.reference.slice(0, 10)}…`
-                                    : r.reference
-                                  : '—'}
-                              </span>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Fragment>
+                              )}
+                            </div>
+                          )}
+                          {r.txn_type === 'quick_pay' && (
+                            <p className="truncate">{r.description}</p>
+                          )}
+                          {r.txn_type === 'expense' && (
+                            <div>
+                              <p className="font-medium capitalize truncate">
+                                {(r.category || '').replace(/_/g, ' ')}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
+                          {formatNaira(r.amount_ngn)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={r.status} size="sm" />
+                        </TableCell>
+                        <TableCell>
+                          {r.receipt_url ? (
+                            <a
+                              href={r.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            >
+                              <FileDown className="h-3.5 w-3.5" /> View
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/40">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <CopyableRef value={r.reference} />
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
@@ -647,7 +623,48 @@ const Transactions = () => {
 export default Transactions;
 
 // ---------------------------------------------------------------------------
-// Copyable reference
+// Fee row — appears as a standalone transaction row for Paystack transfer fees
+// ---------------------------------------------------------------------------
+
+function FeeRow({ fee }: { fee: FeeEntry }) {
+  const breakdown =
+    fee.count > 1
+      ? `${fee.count} transfers × ${formatNaira(fee.per_transfer)}`
+      : formatNaira(fee.per_transfer);
+
+  return (
+    <TableRow className="bg-amber-50/50 hover:bg-amber-50/80 kd-transition">
+      <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+        {formatDate(fee.created_at)}
+      </TableCell>
+      <TableCell>
+        <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-bold tracking-wider uppercase bg-amber-100 text-amber-700 border border-amber-200/80">
+          <Landmark className="h-3 w-3" />
+          Fee
+        </span>
+      </TableCell>
+      <TableCell className="text-sm max-w-[240px]">
+        <p className="font-medium truncate">Paystack transfer fee</p>
+        <p className="text-xs text-muted-foreground truncate">{fee.label} · {breakdown}</p>
+      </TableCell>
+      <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm text-amber-700">
+        −{formatNaira(fee.amount_ngn)}
+      </TableCell>
+      <TableCell>
+        <span className="text-xs text-muted-foreground/50">—</span>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs text-muted-foreground/40">—</span>
+      </TableCell>
+      <TableCell>
+        <CopyableRef value={fee.reference} />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Copyable reference chip
 // ---------------------------------------------------------------------------
 
 function CopyableRef({ value }: { value: string }) {
