@@ -154,6 +154,7 @@ const BONUS_TYPES = [
   'Christmas Bonus',
   'Ramadan Bonus',
   'Annual Leave Allowance',
+  'KD Star Prize',
   'Other',
 ] as const;
 
