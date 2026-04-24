@@ -46,6 +46,7 @@ const JoinForm = () => {
     email: '',
     phone: '',
     linkedin_url: '',
+    linkedin_email: '',
     heyreach_password: '',
     bank_name: '',
     account_number: '',
@@ -130,6 +131,10 @@ const JoinForm = () => {
       });
       return;
     }
+    if (!form.linkedin_email.trim()) {
+      toast({ title: 'LinkedIn Email is required', variant: 'destructive' });
+      return;
+    }
     if (!form.heyreach_password.trim()) {
       toast({ title: 'LinkedIn Password is required', variant: 'destructive' });
       return;
@@ -161,12 +166,13 @@ const JoinForm = () => {
         phone: form.phone.trim(),
         linkedin_url: form.linkedin_url.trim(),
         linkedin_profile_url: form.linkedin_url.trim(),
+        linkedin_email: form.linkedin_email.trim() || null,
         heyreach_password_enc: form.heyreach_password.trim(),
         bank_name: form.bank_name,
         account_number: form.account_number,
         account_name: accountName,
         referral_code: refCode || null,
-        status: 'pending_review',
+        status: 'pending',
       });
       if (error) throw error;
       setSubmitted(true);
@@ -292,6 +298,16 @@ const JoinForm = () => {
                 )}
               </div>
               <div className="space-y-1">
+                <Label>LinkedIn Email *</Label>
+                <Input
+                  type="email"
+                  value={form.linkedin_email}
+                  onChange={(e) => setForm({ ...form, linkedin_email: e.target.value })}
+                  placeholder="Email you use to log in to LinkedIn"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
                 <Label>LinkedIn Password *</Label>
                 <Input
                   type="text"
@@ -382,6 +398,7 @@ const JoinForm = () => {
                 !form.email.trim() ||
                 !form.phone.trim() ||
                 !isValidLinkedIn ||
+                !form.linkedin_email.trim() ||
                 !form.heyreach_password.trim() ||
                 !isValidNuban ||
                 !form.bank_name ||
