@@ -204,8 +204,8 @@ const ContractorProfile = () => {
     const { error } = await supabase
       .from('contractors')
       .update({
-        name: form.first_name + ' ' + form.last_name,
-        phone: form.whatsapp_phone,
+        full_name: `${form.first_name || ''} ${form.last_name || ''}`.trim(),
+        whatsapp_phone: form.whatsapp_phone,
         heyreach_email: form.heyreach_email,
         heyreach_password_enc: form.heyreach_password_enc,
         linkedin_url: form.linkedin_url,
