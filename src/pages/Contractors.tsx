@@ -199,6 +199,7 @@ const Contractors = () => {
     let query = supabase
       .from('contractors')
       .select('*')
+      .neq('status', 'deleted')
       .neq('is_anonymised', true)
       .order('full_name');
     if (!showInactive) {
