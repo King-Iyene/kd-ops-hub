@@ -59,6 +59,7 @@ interface VehicleSummary {
   name: string;
   plate_number: string;
   weekly_budget_ngn: number;
+  carry_forward_ngn: number;
   assigned_driver_id: string | null;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
@@ -89,6 +90,9 @@ interface FuelRequest {
   payment_sent_at: string | null;
   fuel_station_name: string | null;
   litres_filled: number | null;
+  budget_exception: boolean;
+  budget_exception_by: string | null;
+  budget_exception_at: string | null;
 }
 
 interface TripLog {
@@ -455,21 +459,59 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
 
 // ---------------------------------------------------------------------------
 
-function WeeklyBudgetBar({ spent, total }: { spent: number; total: number }) {
-  const pct = Math.min(100, Math.round((spent / total) * 100));
-  const over = spent >= total;
-  const warn = pct >= 80 && !over;
+function WeeklyBudgetBar({
+  spent, total, carryForward, remaining,
+}: {
+  spent: number; total: number; carryForward: number; remaining: number;
+}) {
+  const pctRemaining = total > 0 ? Math.min(100, Math.round((remaining / total) * 100)) : 0;
+  const isOver   = remaining <= 0;
+  const isRed    = !isOver && pctRemaining < 25;
+  const isAmber  = !isOver && !isRed && pctRemaining < 50;
+
+  const barColour = total <= 0
+    ? ''
+    : isOver  ? '[&>div]:bg-destructive'
+    : isRed   ? '[&>div]:bg-red-500'
+    : isAmber ? '[&>div]:bg-amber-500'
+    :           '[&>div]:bg-green-500';
+
+  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-red-600' : isAmber ? 'text-amber-600' : 'text-green-700';
+
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>This week's budget used</span>
-        <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-600 font-semibold' : ''}>
-          {formatNaira(spent)} / {formatNaira(total)} ({pct}%)
+    <div className="rounded-md border px-3 py-2.5 space-y-2 bg-muted/30 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-muted-foreground">Weekly Budget</span>
+        <span className={`font-semibold ${remainColour}`}>
+          {formatNaira(remaining)} remaining
         </span>
       </div>
-      <Progress value={pct} className={`h-1.5 ${over ? '[&>div]:bg-destructive' : warn ? '[&>div]:bg-amber-500' : ''}`} />
-      {over && <p className="text-xs text-destructive">Weekly budget exceeded. Admin will review before approving.</p>}
-      {warn && <p className="text-xs text-amber-600">Approaching weekly budget limit.</p>}
+      <Progress
+        value={total > 0 ? pctRemaining : 0}
+        className={`h-2 bg-muted/60 ${barColour}`}
+      />
+      <div className="grid grid-cols-3 text-muted-foreground gap-1">
+        <div>
+          <p>Used</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNaira(spent)}</p>
+        </div>
+        <div className="text-center">
+          <p>Remaining</p>
+          <p className={`font-semibold tabular-nums ${remainColour}`}>{formatNaira(remaining)}</p>
+        </div>
+        <div className="text-right">
+          <p>Total</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNaira(total)}</p>
+        </div>
+      </div>
+      {carryForward > 0 && (
+        <p className="text-blue-600">
+          Includes {formatNaira(carryForward)} carry-forward from last week.
+        </p>
+      )}
+      {isOver  && <p className="text-destructive font-medium">Weekly budget exhausted.</p>}
+      {isRed   && <p className="text-red-600">Less than 25% of budget remaining.</p>}
+      {isAmber && <p className="text-amber-600">Less than 50% of budget remaining.</p>}
     </div>
   );
 }
@@ -634,7 +676,9 @@ const Fleet = () => {
   // Phase 1 — vehicle & weekly budget state
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [fuelVehicleId, setFuelVehicleId] = useState('');
-  const [weekBudget, setWeekBudget] = useState<{ spent: number; total: number } | null>(null);
+  const [weekBudget, setWeekBudget] = useState<{
+    spent: number; total: number; carryForward: number; remaining: number;
+  } | null>(null);
 
   // Phase 4 — repair request form
   const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
@@ -913,22 +957,35 @@ const Fleet = () => {
     }
   };
 
-  // Phase 1 — fetch current-week spend for a vehicle against its weekly budget
+  // Fetch current-week spend for a vehicle, accounting for carry-forward.
+  // Counts only approved/post-approval statuses — pending requests do not
+  // reduce the available budget until the admin approves them.
   const fetchWeekBudget = async (vehicleId: string) => {
     if (!vehicleId) { setWeekBudget(null); return; }
     const v = vehicles.find((x) => x.id === vehicleId);
     if (!v || !v.weekly_budget_ngn) { setWeekBudget(null); return; }
-    const monday = new Date();
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+
+    // Week window: Monday 00:00:00 → Sunday 23:59:59 (local time)
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
     const { data } = await supabase
       .from('fuel_requests')
       .select('amount_ngn')
       .eq('vehicle_id', vehicleId)
-      .in('status', ['pending', 'approved'])
-      .gte('created_at', monday.toISOString());
+      .in('status', ['approved', 'payment_sent', 'receipt_uploaded', 'completed'])
+      .gte('created_at', monday.toISOString())
+      .lte('created_at', sunday.toISOString());
+
     const spent = (data || []).reduce((s: number, r: any) => s + (r.amount_ngn || 0), 0);
-    setWeekBudget({ spent, total: v.weekly_budget_ngn });
+    const carryForward = v.carry_forward_ngn ?? 0;
+    const total = v.weekly_budget_ngn + carryForward;
+    setWeekBudget({ spent, total, carryForward, remaining: Math.max(0, total - spent) });
   };
 
   // Phase 4 — pre-fill odometer_start from the driver's last trip end reading
@@ -1187,7 +1244,7 @@ const Fleet = () => {
 
   // ---- End trip clock-in helpers ----
 
-  const submitFuelRequest = async () => {
+  const submitFuelRequest = async (asException = false) => {
     if (!fuelForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
@@ -1200,7 +1257,7 @@ const Fleet = () => {
       litres_est: parseFloat(fuelForm.litres_est) || null,
       odometer: parseFloat(fuelForm.odometer) || null,
       reason: fuelForm.reason,
-      status: 'pending',
+      status: asException ? 'budget_blocked' : 'pending',
       vehicle_id: fuelVehicleId || null,
       ...(fuelBankDetails.verified ? {
         bank_name: fuelBankDetails.bank_name,
@@ -1238,8 +1295,8 @@ const Fleet = () => {
       }
 
       await logAudit(
-        'fuel_request_submitted',
-        `Fuel request submitted (${formatNaira(
+        asException ? 'fuel_budget_exception_requested' : 'fuel_request_submitted',
+        `Fuel request ${asException ? 'submitted as budget exception' : 'submitted'} (${formatNaira(
           parseFloat(fuelForm.amount_ngn) || 0,
         )} at ${fuelForm.station_name})`,
         profile,
@@ -1248,8 +1305,8 @@ const Fleet = () => {
         roles: ['super_admin', 'admin', 'finance'],
         type: 'fuel_request_submitted',
         module: 'fleet',
-        title: 'Fuel request submitted',
-        body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}`,
+        title: asException ? 'Fuel budget exception requested' : 'Fuel request submitted',
+        body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}${asException ? ' — OVER BUDGET' : ''}`,
       });
       toast({ title: 'Fuel request submitted' });
       setShowFuelForm(false);
@@ -1522,6 +1579,62 @@ const Fleet = () => {
     } else {
       toast({ title: 'Fuel request approved' });
     }
+    fetchData();
+  };
+
+  const handleBudgetException = async (r: FuelRequest) => {
+    if (profile?.role !== 'super_admin' && profile?.role !== 'admin') {
+      toast({ title: 'Only super_admin or admin may approve budget exceptions', variant: 'destructive' });
+      return;
+    }
+    const now = new Date().toISOString();
+    const note = `Approved as budget exception by ${profile.full_name || 'Admin'} on ${new Date().toLocaleDateString('en-GB')}.`;
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({
+        status: 'approved',
+        budget_exception: true,
+        budget_exception_by: profile.id,
+        budget_exception_at: now,
+        admin_note: r.admin_note ? `${r.admin_note}\n${note}` : note,
+      })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await supabase.from('expenses').insert({
+      category: 'fuel',
+      budget_category: 'fuel',
+      amount_ngn: r.amount_ngn,
+      date: now.slice(0, 10),
+      description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+      submitted_by: (r as any).driver_id || r.employee_id,
+      status: 'approved',
+      approved_by: profile.id,
+      approved_at: now,
+      ...(r.bank_name ? {
+        bank_name: r.bank_name,
+        account_number: r.account_number,
+        account_name: r.account_name,
+      } : {}),
+    });
+    await logAudit(
+      'fuel_budget_exception_approved',
+      `Budget exception approved for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)}) by ${profile.full_name}`,
+      profile,
+    );
+    const driverId = (r as any).driver_id || r.employee_id;
+    if (driverId) {
+      await notifyUser({
+        userId: driverId,
+        type: 'fuel_request_approved',
+        module: 'fleet',
+        title: 'Your fuel request was approved as a budget exception',
+        body: `${formatNaira(r.amount_ngn || 0)} at ${r.station_name}`,
+      });
+    }
+    toast({ title: 'Budget exception approved' });
     fetchData();
   };
 
@@ -1885,14 +1998,32 @@ const Fleet = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={r.status} />
+                        {r.status === 'budget_blocked'
+                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
+                          : <StatusBadge status={r.status} />}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(r.created_at)}
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
-                          {r.status === 'pending' ? (
+                          {r.status === 'budget_blocked' ? (
+                            <div className="flex justify-end gap-1 flex-wrap">
+                              {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                                  onClick={() => handleBudgetException(r)}
+                                >
+                                  <Check className="h-3 w-3 mr-1" /> Approve as Budget Exception
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteFuel(r)} title="Delete">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ) : r.status === 'pending' ? (
                             <div className="flex justify-end gap-1">
                               <Button
                                 size="sm"
@@ -2366,7 +2497,12 @@ const Fleet = () => {
                   </SelectContent>
                 </Select>
                 {weekBudget && weekBudget.total > 0 && (
-                  <WeeklyBudgetBar spent={weekBudget.spent} total={weekBudget.total} />
+                  <WeeklyBudgetBar
+                    spent={weekBudget.spent}
+                    total={weekBudget.total}
+                    carryForward={weekBudget.carryForward}
+                    remaining={weekBudget.remaining}
+                  />
                 )}
               </div>
             )}
@@ -2457,22 +2593,49 @@ const Fleet = () => {
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFuelForm(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={submitFuelRequest}
-              disabled={
-                submitting ||
-                !fuelForm.employee_id ||
-                !fuelForm.station_name ||
-                !fuelForm.amount_ngn
-              }
-            >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
-            </Button>
-          </DialogFooter>
+
+          {/* CHANGE 3 — budget block warning */}
+          {(() => {
+            const requested = parseFloat(fuelForm.amount_ngn) || 0;
+            const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
+            return (
+              <>
+                {isOverBudget && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/5 px-3 py-2.5 text-sm text-destructive mt-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p>
+                      Your request of <strong>{formatNaira(requested)}</strong> exceeds your remaining weekly budget
+                      of <strong>{formatNaira(weekBudget!.remaining)}</strong>.
+                      Contact your manager to request a budget exception, or use the button below.
+                    </p>
+                  </div>
+                )}
+                <DialogFooter className="gap-2 flex-wrap">
+                  <Button variant="outline" onClick={() => setShowFuelForm(false)}>
+                    Cancel
+                  </Button>
+                  {isOverBudget ? (
+                    <Button
+                      variant="outline"
+                      className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                      onClick={() => submitFuelRequest(true)}
+                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
+                    >
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Request Budget Exception
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => submitFuelRequest()}
+                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
+                    >
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
