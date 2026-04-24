@@ -86,6 +86,11 @@ export const useAuth = () => {
       if (event === 'INITIAL_SESSION') {
         return;
       }
+      // Silent background JWT refresh — Supabase already persisted the new
+      // token; no profile re-fetch or navigation needed.
+      if (event === 'TOKEN_REFRESHED' && session) {
+        return;
+      }
       // Bug 2 — token refresh failure, sign out cleanly.
       if (event === 'TOKEN_REFRESHED' && !session) {
         supabase.auth.signOut();
