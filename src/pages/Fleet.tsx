@@ -39,7 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText } from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -81,6 +81,7 @@ interface FuelRequest {
   bank_name: string | null;
   account_number: string | null;
   account_name: string | null;
+  request_doc_url: string | null;
 }
 
 interface TripLog {
@@ -268,6 +269,7 @@ const Fleet = () => {
   const EMPTY_FUEL_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
   const [fuelBankDetails, setFuelBankDetails] = useState<BankAccountValue>(EMPTY_FUEL_BANK);
   const [showFuelBankSection, setShowFuelBankSection] = useState(false);
+  const [fuelDoc, setFuelDoc] = useState<File | null>(null);
 
   // Phase 1 — vehicle & weekly budget state
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
@@ -465,7 +467,7 @@ const Fleet = () => {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from('fuel_requests').insert({
+    const { data: inserted, error } = await supabase.from('fuel_requests').insert({
       driver_id: fuelForm.employee_id,
       station_name: fuelForm.station_name,
       amount_ngn: parseFloat(fuelForm.amount_ngn) || 0,
@@ -479,10 +481,36 @@ const Fleet = () => {
         account_number: fuelBankDetails.account_number,
         account_name: fuelBankDetails.account_name,
       } : {}),
-    });
+    }).select('id').single();
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Upload supporting document (optional) and patch the URL back onto the row.
+      if (fuelDoc && inserted?.id) {
+        try {
+          const safeName = fuelDoc.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const path = `fuel-request-docs/${inserted.id}-${safeName}`;
+          const { data: upData, error: upErr } = await supabase.storage
+            .from('receipts')
+            .upload(path, fuelDoc, { upsert: true });
+          if (upErr) throw upErr;
+          if (upData) {
+            const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+            await supabase
+              .from('fuel_requests')
+              .update({ request_doc_url: urlData.publicUrl })
+              .eq('id', inserted.id);
+          }
+        } catch (docErr: any) {
+          // Don't fail the whole submission — the request is already logged.
+          toast({
+            title: 'Request submitted, but document upload failed',
+            description: docErr?.message || 'Please edit the request to re-attach.',
+            variant: 'destructive',
+          });
+        }
+      }
+
       await logAudit(
         'fuel_request_submitted',
         `Fuel request submitted (${formatNaira(
@@ -511,6 +539,7 @@ const Fleet = () => {
       setFuelBankDetails(EMPTY_FUEL_BANK);
       setFuelVehicleId('');
       setWeekBudget(null);
+      setFuelDoc(null);
       fetchData();
     }
     setSubmitting(false);
@@ -992,8 +1021,18 @@ const Fleet = () => {
                       <TableCell className="text-xs">
                         <FuelRequestFuelLevel vehicleId={(r as any).vehicle_id} vehicles={vehicles} />
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {r.reason || '—'}
+                      <TableCell className="text-sm text-muted-foreground max-w-xs">
+                        <p className="truncate">{r.reason || '—'}</p>
+                        {r.request_doc_url && (
+                          <a
+                            href={r.request_doc_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <FileText className="h-3 w-3" /> View Document
+                          </a>
+                        )}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={r.status} />
@@ -1251,7 +1290,7 @@ const Fleet = () => {
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
-      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); } }}>
+      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>New Fuel Request</DialogTitle>
@@ -1343,6 +1382,23 @@ const Fleet = () => {
                 value={fuelForm.reason}
                 onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })}
               />
+            </div>
+            <div className="space-y-1">
+              <Label>Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(e) => setFuelDoc(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Attach a photo of previous receipt, fuel station quote, or any supporting evidence.
+              </p>
+              {fuelDoc && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{fuelDoc.name}</span>
+                  {' '}— {(fuelDoc.size / 1024).toFixed(1)} KB
+                </p>
+              )}
             </div>
             <div className="pt-2 border-t">
               {!showFuelBankSection ? (
