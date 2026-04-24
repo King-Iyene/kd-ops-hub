@@ -1047,6 +1047,7 @@ const Fleet = () => {
   const [startGeoState, setStartGeoState] = useState<GeoState>('idle');
   const [startCoords, setStartCoords] = useState<GeoCoords | null>(null);
   const [startTripForm, setStartTripForm] = useState({ vehicle_id: '', odometer_start: '', manual_location: '' });
+  const [lastVehicleOdometer, setLastVehicleOdometer] = useState<number | null>(null);
   const [startingTrip, setStartingTrip] = useState(false);
 
   // End Trip dialog
@@ -1434,6 +1435,7 @@ const Fleet = () => {
     setStartCoords(null);
     setStartAddress(null);
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
+    setLastVehicleOdometer(null);
     acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr));
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
@@ -1476,6 +1478,14 @@ const Fleet = () => {
     setActiveTrip({ ...data, employee_id: data.driver_id, employee_name: profile?.full_name || '' } as TripLog);
     setShowStartTrip(false);
     await logAudit('trip_started', `Trip started at ${locationStr || 'unknown location'} (odometer: ${odoStart.toLocaleString()} km)`, profile);
+    const startVeh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
+    await notifyRoles({
+      roles: ['super_admin', 'admin', 'operations'],
+      type: 'trip_started',
+      module: 'fleet',
+      title: `${profile?.full_name || 'A driver'} started a trip`,
+      body: `${startVeh ? startVeh.plate_number + ' · ' : ''}From: ${locationStr || 'unknown location'} · Odometer: ${odoStart.toLocaleString()} km`,
+    });
     toast({ title: 'Trip started', description: 'Tap "End Trip" when you arrive at your destination.' });
     fetchData();
   };
@@ -1558,6 +1568,25 @@ const Fleet = () => {
         module: 'fleet',
         title: `${tripVeh.plate_number} out-of-area trip end`,
         body: `${tripVeh.plate_number} ended a trip more than 100 km from its home base.`,
+      });
+    }
+
+    // Routine trip completion notification — always sent so admins see every trip close
+    {
+      const completionVeh = tripVeh || (activeTrip.vehicle_id ? vehicles.find((v) => v.id === activeTrip.vehicle_id) : null);
+      const distStr = distanceKm != null ? `${distanceKm.toFixed(0)} km` : null;
+      const durStr = `${Math.floor(durationMin / 60)}h ${durationMin % 60}m`;
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'operations'],
+        type: 'trip_completed',
+        module: 'fleet',
+        title: `${profile?.full_name || 'Driver'} completed a trip${isAnomaly ? ' ⚠' : ''}`,
+        body: [
+          completionVeh?.plate_number,
+          distStr,
+          durStr,
+          endLocationStr ? `→ ${endLocationStr}` : null,
+        ].filter(Boolean).join(' · '),
       });
     }
 
@@ -1904,6 +1933,13 @@ const Fleet = () => {
     const end = parseFloat(tripEditForm.odometer_end);
     const hasOdo = Number.isFinite(start) && Number.isFinite(end) && tripEditForm.odometer_start && tripEditForm.odometer_end;
     const km = hasOdo ? end - start : selectedTrip.km_driven;
+    const newLitres = parseFloat(tripEditForm.litres) || null;
+
+    // Re-run anomaly detection whenever odometer values change
+    const { isAnomaly: editIsAnomaly, reason: editAnomalyReason } = (hasOdo && km != null)
+      ? detectAnomalies(km, selectedTrip.duration_minutes || 0)
+      : { isAnomaly: selectedTrip.is_anomaly, reason: selectedTrip.anomaly_reason };
+
     setSavingTripEdit(true);
     const { error } = await supabase
       .from('trip_logs')
@@ -1915,14 +1951,42 @@ const Fleet = () => {
         odometer_end: Number.isFinite(end) ? end : null,
         km_driven: km,
         fuel_amount_ngn: parseFloat(tripEditForm.fuel_amount_ngn) || null,
-        litres: parseFloat(tripEditForm.litres) || null,
+        litres: newLitres,
         issues: tripEditForm.issues || null,
+        is_anomaly: editIsAnomaly,
+        anomaly_reason: editAnomalyReason,
       })
       .eq('id', selectedTrip.id);
     setSavingTripEdit(false);
     if (error) {
       toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
     } else {
+      // Recalculate vehicle fuel balance when litres or distance changed
+      const kmChanged = km !== selectedTrip.km_driven;
+      const litresChanged = newLitres !== selectedTrip.litres;
+      if (selectedTrip.vehicle_id && (kmChanged || litresChanged)) {
+        const veh = vehicles.find((v) => v.id === selectedTrip.vehicle_id);
+        if (veh) {
+          const rate = veh.fuel_consumption_rate_lkm > 0
+            ? veh.fuel_consumption_rate_lkm
+            : veh.avg_km_per_litre > 0 ? 1 / veh.avg_km_per_litre : null;
+          const origConsumed = selectedTrip.km_driven && selectedTrip.km_driven > 0 && rate ? selectedTrip.km_driven * rate : 0;
+          const newConsumed  = km && km > 0 && rate ? km * rate : 0;
+          const origBought   = selectedTrip.litres || 0;
+          const newBought    = newLitres || 0;
+          const delta = (-newConsumed + newBought) - (-origConsumed + origBought);
+          if (Math.abs(delta) > 0.01) {
+            const cap = veh.tank_capacity_litres || 60;
+            const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) + delta));
+            await supabase.from('vehicles').update({ current_fuel_litres: newBalance }).eq('id', veh.id);
+            await logAudit(
+              'trip_fuel_adjusted',
+              `Trip edit adjusted ${veh.plate_number} fuel balance by ${delta > 0 ? '+' : ''}${delta.toFixed(1)} L (now ${newBalance.toFixed(1)} L)`,
+              profile,
+            );
+          }
+        }
+      }
       toast({ title: 'Trip log updated' });
       setSelectedTrip(null);
       setTripEditMode(false);
@@ -2709,6 +2773,26 @@ const Fleet = () => {
                   <p className="text-xs text-muted-foreground mb-0.5">Start Odometer</p>
                   <p className="font-medium">{activeTrip.odometer_start != null ? `${activeTrip.odometer_start.toLocaleString()} km` : '—'}</p>
                 </div>
+                {(() => {
+                  const av = vehicles.find((v) => v.id === activeTrip.vehicle_id);
+                  if (!av || !av.tank_capacity_litres) return null;
+                  const pct = Math.round(Math.min(100, (av.current_fuel_litres / av.tank_capacity_litres) * 100));
+                  const col = pct < 25 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-700 dark:text-green-400';
+                  return (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Fuel Level</p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${pct < 25 ? 'bg-red-500' : pct < 50 ? 'bg-amber-500' : 'bg-green-500'}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className={`text-xs font-medium tabular-nums shrink-0 ${col}`}>
+                          {pct}% · {av.current_fuel_litres.toFixed(1)} L
+                          {pct < 25 && ' ⚠'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               {/* Live GPS tracking status */}
               {lastBreadcrumbAt && (
@@ -2729,6 +2813,57 @@ const Fleet = () => {
               </div>
             </div>
           )}
+
+          {/* Admin: Live trips overview */}
+          {isAdmin && (() => {
+            const liveTrips = tripLogs.filter((t) => t.status === 'in_progress');
+            if (!liveTrips.length) return null;
+            return (
+              <div className="rounded-lg border border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-950/20 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-3.5 w-3.5 text-green-600 animate-pulse shrink-0" />
+                  <span className="text-sm font-semibold text-green-800 dark:text-green-300">
+                    {liveTrips.length} Live Trip{liveTrips.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {liveTrips.map((t) => {
+                    const lv = vehicles.find((v) => v.id === t.vehicle_id);
+                    const elSec = t.trip_start_time ? Math.floor((Date.now() - Date.parse(t.trip_start_time)) / 1000) : null;
+                    return (
+                      <div key={t.id} className="bg-white dark:bg-green-950/40 rounded border border-green-200 dark:border-green-800 px-3 py-2 space-y-0.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium truncate">{t.employee_name}</span>
+                          {elSec != null && (
+                            <span className="text-xs font-mono text-green-700 dark:text-green-400 shrink-0">{formatDuration(elSec)}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{lv ? `${lv.plate_number} — ${lv.name}` : '—'}</p>
+                        <p className="text-xs text-muted-foreground truncate">From: {t.start_location || '—'}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Today's trip stats */}
+          {(() => {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayDone = visibleTrips.filter((t) => t.date === todayStr && t.status === 'completed');
+            if (!todayDone.length) return null;
+            const todayKm = todayDone.reduce((s, t) => s + (t.km_driven || 0), 0);
+            const todayL  = todayDone.reduce((s, t) => s + (t.litres   || 0), 0);
+            return (
+              <div className="flex items-center gap-3 text-sm px-1 flex-wrap">
+                <span className="font-semibold text-foreground">Today</span>
+                <span className="text-muted-foreground">{todayDone.length} trip{todayDone.length > 1 ? 's' : ''} completed</span>
+                <span className="text-muted-foreground">{todayKm.toLocaleString()} km</span>
+                {todayL > 0 && <span className="text-muted-foreground">{todayL.toFixed(1)} L used</span>}
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader>
@@ -3406,7 +3541,18 @@ const Fleet = () => {
                 <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
                 <Select
                   value={startTripForm.vehicle_id || '__none__'}
-                  onValueChange={(v) => setStartTripForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}
+                  onValueChange={(v) => {
+                    const vid = v === '__none__' ? '' : v;
+                    setStartTripForm((f) => ({ ...f, vehicle_id: vid }));
+                    if (vid) {
+                      supabase.from('trip_logs').select('odometer_end').eq('vehicle_id', vid)
+                        .not('odometer_end', 'is', null).neq('status', 'in_progress')
+                        .order('trip_end_time', { ascending: false }).limit(1).maybeSingle()
+                        .then(({ data }) => setLastVehicleOdometer(data?.odometer_end ?? null));
+                    } else {
+                      setLastVehicleOdometer(null);
+                    }
+                  }}
                 >
                   <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                   <SelectContent>
@@ -3449,6 +3595,18 @@ const Fleet = () => {
               />
               {startTripForm.odometer_start && (
                 <p className="text-xs text-muted-foreground">{parseFloat(startTripForm.odometer_start).toLocaleString()} km on the clock</p>
+              )}
+              {lastVehicleOdometer != null && startTripForm.odometer_start && (
+                parseFloat(startTripForm.odometer_start) < lastVehicleOdometer ? (
+                  <p className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    Odometer went backwards — last recorded was {lastVehicleOdometer.toLocaleString()} km. Please check.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    +{(parseFloat(startTripForm.odometer_start) - lastVehicleOdometer).toLocaleString()} km since last trip
+                  </p>
+                )
               )}
             </div>
 
