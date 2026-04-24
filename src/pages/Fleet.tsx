@@ -40,7 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map, Gauge, Zap, ParkingCircle } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -336,7 +336,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
       <DialogContent className="max-w-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <Map className="h-4 w-4" /> Trip Map — {trip.employee_name}
+            <MapIcon className="h-4 w-4" /> Trip Map — {trip.employee_name}
           </DialogTitle>
           <DialogDescription>
             {formatDate(trip.date)} · {trip.start_location || '—'} → {trip.end_location || '—'}
@@ -353,7 +353,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                 activeTab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
               }`}
             >
-              {t === 'map' ? <Map className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+              {t === 'map' ? <MapIcon className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
               {t === 'map' ? 'Map' : 'Events'}
               {t === 'events' && events.length > 0 && (
                 <span className="bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
@@ -2338,7 +2338,7 @@ const Fleet = () => {
                           <div className="flex items-center justify-end gap-0.5">
                             {(t.start_lat != null || t.end_lat != null) && (
                               <Button size="sm" variant="ghost" onClick={() => openTripMap(t)} title="View map">
-                                <Map className="h-4 w-4 text-blue-600" />
+                                <MapIcon className="h-4 w-4 text-blue-600" />
                               </Button>
                             )}
                             <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteTrip(t)} title="Delete">
