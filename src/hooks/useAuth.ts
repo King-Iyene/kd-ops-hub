@@ -91,6 +91,16 @@ export const useAuth = () => {
       if (event === 'TOKEN_REFRESHED' && session) {
         return;
       }
+      // SIGNED_IN while the same user is already active — Supabase fires this
+      // on tab focus / session rehydration in some SDK versions. Suppress it to
+      // avoid running finish() (and its signOut fallback) on an active session.
+      if (
+        event === 'SIGNED_IN' &&
+        session?.user &&
+        useAuthStore.getState().user?.id === session.user.id
+      ) {
+        return;
+      }
       // Bug 2 — token refresh failure, sign out cleanly.
       if (event === 'TOKEN_REFRESHED' && !session) {
         supabase.auth.signOut();
