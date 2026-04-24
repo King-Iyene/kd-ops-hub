@@ -77,6 +77,8 @@ interface VehicleSummary {
   last_refuel_at: string | null;
   avg_km_per_litre: number;
   fuel_consumption_rate_lkm: number;
+  home_base_lat: number | null;
+  home_base_lng: number | null;
 }
 
 interface FuelRequest {
@@ -102,6 +104,11 @@ interface FuelRequest {
   budget_exception: boolean;
   budget_exception_by: string | null;
   budget_exception_at: string | null;
+  is_anomaly: boolean;
+  anomaly_type: string | null;
+  anomaly_reviewed_by: string | null;
+  anomaly_reviewed_at: string | null;
+  anomaly_review_note: string | null;
 }
 
 interface TripLog {
@@ -128,6 +135,10 @@ interface TripLog {
   end_lng: number | null;
   is_anomaly: boolean;
   anomaly_reason: string | null;
+  is_out_of_area: boolean;
+  anomaly_reviewed_by: string | null;
+  anomaly_reviewed_at: string | null;
+  anomaly_review_note: string | null;
   status: string;
 }
 
@@ -218,6 +229,16 @@ function detectAnomalies(distanceKm: number | null, durationMin: number): { isAn
   return flags.length > 0 ? { isAnomaly: true, reason: flags.join('; ') } : { isAnomaly: false, reason: null };
 }
 
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 // ---------------------------------------------------------------------------
 // Reverse geocoding (Nominatim / OpenStreetMap — free, no API key required)
 // ---------------------------------------------------------------------------
@@ -240,16 +261,6 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
   } catch {
     return formatCoords(lat, lng);
   }
-}
-
-// Haversine formula — returns distance in kilometres between two lat/lng pairs.
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ---------------------------------------------------------------------------
@@ -958,7 +969,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity'>('fuel');
+  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies'>('fuel');
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -995,6 +1006,14 @@ const Fleet = () => {
   const [weekBudget, setWeekBudget] = useState<{
     spent: number; total: number; carryForward: number; remaining: number;
   } | null>(null);
+
+  // Anomaly detection
+  const [showDuplicateFuelWarning, setShowDuplicateFuelWarning] = useState(false);
+  const [pendingFuelAsException, setPendingFuelAsException] = useState(false);
+  const [reviewingAnomaly, setReviewingAnomaly] = useState<{ type: 'trip' | 'fuel'; id: string; label: string } | null>(null);
+  const [anomalyReviewDecision, setAnomalyReviewDecision] = useState<'valid' | 'fraudulent' | ''>('');
+  const [anomalyReviewNote, setAnomalyReviewNote] = useState('');
+  const [submittingAnomalyReview, setSubmittingAnomalyReview] = useState(false);
 
   // Phase 4 — repair request form
   const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
@@ -1485,6 +1504,15 @@ const Fleet = () => {
     const durationMin = Math.max(0, Math.round((now.getTime() - startMs) / 60_000));
     const distanceKm = activeTrip.odometer_start != null ? odoEnd - activeTrip.odometer_start : null;
     const { isAnomaly, reason: anomalyReason } = detectAnomalies(distanceKm, durationMin);
+
+    // RULE 4: out-of-area detection
+    const tripVeh = activeTrip.vehicle_id ? vehicles.find((v) => v.id === activeTrip.vehicle_id) : null;
+    let isOutOfArea = false;
+    if (endCoords && tripVeh?.home_base_lat != null && tripVeh?.home_base_lng != null) {
+      const distFromBase = haversineKm(endCoords.lat, endCoords.lng, tripVeh.home_base_lat, tripVeh.home_base_lng);
+      if (distFromBase > 100) isOutOfArea = true;
+    }
+
     setEndingTrip(true);
     const { error } = await supabase
       .from('trip_logs')
@@ -1502,6 +1530,7 @@ const Fleet = () => {
         status: 'completed',
         is_anomaly: isAnomaly,
         anomaly_reason: anomalyReason,
+        is_out_of_area: isOutOfArea,
       })
       .eq('id', activeTrip.id);
     setEndingTrip(false);
@@ -1509,6 +1538,29 @@ const Fleet = () => {
       toast({ title: 'Failed to end trip', description: error.message, variant: 'destructive' });
       return;
     }
+
+    // RULE 1: notify admins on trip anomaly (e.g. distance > 500 km)
+    if (isAnomaly) {
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'operations'],
+        type: 'trip_anomaly',
+        module: 'fleet',
+        title: 'Trip anomaly detected',
+        body: anomalyReason || 'A trip has been flagged for review.',
+      });
+    }
+
+    // RULE 4: notify admins when vehicle ends trip far from home base
+    if (isOutOfArea && tripVeh) {
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'operations'],
+        type: 'trip_out_of_area',
+        module: 'fleet',
+        title: `${tripVeh.plate_number} out-of-area trip end`,
+        body: `${tripVeh.plate_number} ended a trip more than 100 km from its home base.`,
+      });
+    }
+
     // Update vehicle fuel balance — CHANGE 1
     if (activeTrip.vehicle_id) {
       const veh = vehicles.find((v) => v.id === activeTrip.vehicle_id);
@@ -1594,11 +1646,62 @@ const Fleet = () => {
 
   // ---- End trip clock-in helpers ----
 
-  const submitFuelRequest = async (asException = false) => {
+  const submitFuelRequest = async (asException = false, skipDuplicateCheck = false) => {
     if (!fuelForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
     }
+
+    // RULE 3: same-day duplicate check (only when a vehicle is selected)
+    if (!skipDuplicateCheck && fuelVehicleId) {
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const dayEnd   = new Date(); dayEnd.setHours(23, 59, 59, 999);
+      const { data: dupes } = await supabase
+        .from('fuel_requests')
+        .select('id')
+        .eq('vehicle_id', fuelVehicleId)
+        .gte('created_at', dayStart.toISOString())
+        .lte('created_at', dayEnd.toISOString())
+        .limit(1);
+      if (dupes?.length) {
+        setPendingFuelAsException(asException);
+        setShowDuplicateFuelWarning(true);
+        return;
+      }
+    }
+
+    // RULE 2: fuel efficiency anomaly check
+    let fuelIsAnomaly = false;
+    let fuelAnomalyType: string | null = null;
+    const litresEst = parseFloat(fuelForm.litres_est);
+    const odometerNow = parseFloat(fuelForm.odometer);
+    if (fuelVehicleId && litresEst > 0 && Number.isFinite(odometerNow) && odometerNow > 0) {
+      const { data: lastTrip } = await supabase
+        .from('trip_logs')
+        .select('odometer_end')
+        .eq('vehicle_id', fuelVehicleId)
+        .not('odometer_end', 'is', null)
+        .order('trip_end_time', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastTrip?.odometer_end) {
+        const distKm = odometerNow - (lastTrip.odometer_end as number);
+        if (distKm > 0) {
+          const effKmL = distKm / litresEst;
+          if (effKmL < 2 || effKmL > 30) {
+            fuelIsAnomaly = true;
+            fuelAnomalyType = 'efficiency_anomaly';
+          }
+        }
+      }
+    }
+
+    // Append duplicate marker to note if driver confirmed a same-day re-submit
+    let noteStr = fuelForm.reason;
+    if (skipDuplicateCheck) {
+      noteStr = noteStr ? `${noteStr} [duplicate_same_day]` : 'duplicate_same_day';
+    }
+
     setSubmitting(true);
     const { data: inserted, error } = await supabase.from('fuel_requests').insert({
       driver_id: fuelForm.employee_id,
@@ -1606,9 +1709,11 @@ const Fleet = () => {
       amount_ngn: parseFloat(fuelForm.amount_ngn) || 0,
       litres_est: parseFloat(fuelForm.litres_est) || null,
       odometer: parseFloat(fuelForm.odometer) || null,
-      reason: fuelForm.reason,
+      reason: noteStr || null,
       status: asException ? 'budget_blocked' : 'pending',
       vehicle_id: fuelVehicleId || null,
+      is_anomaly: fuelIsAnomaly,
+      anomaly_type: fuelAnomalyType,
       ...(fuelBankDetails.verified ? {
         bank_name: fuelBankDetails.bank_name,
         account_number: fuelBankDetails.account_number,
@@ -1618,6 +1723,16 @@ const Fleet = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // RULE 2: notify admins if efficiency anomaly was detected
+      if (fuelIsAnomaly && inserted?.id) {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'operations'],
+          type: 'fuel_efficiency_anomaly',
+          module: 'fleet',
+          title: 'Fuel efficiency anomaly',
+          body: `A fuel request was flagged: estimated efficiency outside normal range (2–30 km/L). Please review.`,
+        });
+      }
       // Upload supporting document (optional) and patch the URL back onto the row.
       if (fuelDoc && inserted?.id) {
         try {
@@ -2216,6 +2331,34 @@ const Fleet = () => {
     fetchData();
   };
 
+  const handleAnomalyReview = async () => {
+    if (!reviewingAnomaly || !anomalyReviewDecision || !anomalyReviewNote.trim()) return;
+    setSubmittingAnomalyReview(true);
+    const reviewedAt = new Date().toISOString();
+    const reviewPayload = {
+      anomaly_reviewed_by: profile?.id,
+      anomaly_reviewed_at: reviewedAt,
+      anomaly_review_note: `${anomalyReviewDecision === 'valid' ? 'Reviewed — Valid' : 'Fraudulent / Error'}: ${anomalyReviewNote.trim()}`,
+    };
+    const table = reviewingAnomaly.type === 'trip' ? 'trip_logs' : 'fuel_requests';
+    const { error } = await supabase.from(table).update(reviewPayload).eq('id', reviewingAnomaly.id);
+    setSubmittingAnomalyReview(false);
+    if (error) {
+      toast({ title: 'Review failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'anomaly_reviewed',
+      `Anomaly on ${reviewingAnomaly.type} "${reviewingAnomaly.label}" marked as ${anomalyReviewDecision === 'valid' ? 'Valid' : 'Fraudulent/Error'}: ${anomalyReviewNote.trim()}`,
+      profile,
+    );
+    toast({ title: 'Anomaly review saved' });
+    setReviewingAnomaly(null);
+    setAnomalyReviewDecision('');
+    setAnomalyReviewNote('');
+    fetchData();
+  };
+
   if (loading) return <TableSkeleton rows={5} />;
 
   // Phase 4 — service alerts (vehicles with expiries within 30 days)
@@ -2235,6 +2378,10 @@ const Fleet = () => {
 
   const visibleFuel = isAdmin ? fuelRequests : myFuelRequests;
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;
+
+  const anomalousTrips = tripLogs.filter((t) => t.is_anomaly || t.is_out_of_area);
+  const anomalousFuelReqs = fuelRequests.filter((r) => r.is_anomaly);
+  const totalAnomalies = anomalousTrips.length + anomalousFuelReqs.length;
 
   const fleetAvgEfficiency = (() => {
     let totalKm = 0;
@@ -2308,6 +2455,16 @@ const Fleet = () => {
           <TabsTrigger value="activity">
             <History className="mr-2 h-4 w-4" /> Activity
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="anomalies" className="relative">
+              <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
+              {totalAnomalies > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4">
+                  {totalAnomalies > 9 ? '9+' : totalAnomalies}
+                </span>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* FUEL */}
@@ -2823,6 +2980,154 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="vehicles" className="mt-4">
             <VehiclesTab staff={staff} />
+          </TabsContent>
+        )}
+
+        {/* ANOMALIES */}
+        {isAdmin && (
+          <TabsContent value="anomalies" className="mt-4 space-y-6">
+            <div>
+              <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-red-500" /> Flagged Trip Logs
+                <span className="text-xs text-muted-foreground font-normal">({anomalousTrips.length})</span>
+              </h2>
+              {anomalousTrips.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No anomalous trips.</p>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Route</TableHead>
+                          <TableHead>Flags</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Reviewed</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {anomalousTrips.map((t) => (
+                          <TableRow key={t.id} className="bg-red-50/40 dark:bg-red-950/10">
+                            <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
+                            <TableCell className="text-xs max-w-[200px]">
+                              <span className="truncate block" title={`${t.start_location} → ${t.end_location}`}>
+                                {t.start_location || '—'} → {t.end_location || '—'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-xs">
+                              <div className="flex flex-col gap-0.5">
+                                {t.is_anomaly && (
+                                  <span className="text-red-600 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> {t.anomaly_reason}
+                                  </span>
+                                )}
+                                {t.is_out_of_area && (
+                                  <span className="text-orange-600 flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" /> Out-of-area end location
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {t.anomaly_reviewed_at ? (
+                                <span className="text-xs text-muted-foreground">{t.anomaly_review_note?.split(':')[0]}</span>
+                              ) : (
+                                <Badge variant="outline" className="border-red-300 text-red-700 text-xs">Unreviewed</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {t.anomaly_reviewed_at ? formatDate(t.anomaly_reviewed_at.slice(0, 10)) : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {!t.anomaly_reviewed_at && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}
+                                >
+                                  Review
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+                <Fuel className="h-4 w-4 text-red-500" /> Flagged Fuel Requests
+                <span className="text-xs text-muted-foreground font-normal">({anomalousFuelReqs.length})</span>
+              </h2>
+              {anomalousFuelReqs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No anomalous fuel requests.</p>
+              ) : (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Driver</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Station</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Reviewed</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {anomalousFuelReqs.map((r) => (
+                          <TableRow key={r.id} className="bg-red-50/40 dark:bg-red-950/10">
+                            <TableCell className="font-medium text-sm">{r.employee_name}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{formatDate(r.created_at.slice(0, 10))}</TableCell>
+                            <TableCell className="text-sm">{r.station_name || '—'}</TableCell>
+                            <TableCell className="text-sm tabular-nums">{formatNaira(r.amount_ngn || 0)}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="border-orange-300 text-orange-700 text-xs">
+                                {r.anomaly_type === 'efficiency_anomaly' ? 'Efficiency' : r.anomaly_type || 'Anomaly'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {r.anomaly_reviewed_at ? (
+                                <span className="text-xs text-muted-foreground">{r.anomaly_review_note?.split(':')[0]}</span>
+                              ) : (
+                                <Badge variant="outline" className="border-red-300 text-red-700 text-xs">Unreviewed</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {r.anomaly_reviewed_at ? formatDate(r.anomaly_reviewed_at.slice(0, 10)) : '—'}
+                            </TableCell>
+                            <TableCell>
+                              {!r.anomaly_reviewed_at && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}
+                                >
+                                  Review
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </TabsContent>
         )}
       </Tabs>
@@ -3909,6 +4214,78 @@ const Fleet = () => {
           onClose={() => setViewingTripMap(null)}
         />
       )}
+
+      {/* DUPLICATE FUEL WARNING */}
+      <Dialog open={showDuplicateFuelWarning} onOpenChange={(v) => { if (!v) setShowDuplicateFuelWarning(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Duplicate fuel request today
+            </DialogTitle>
+            <DialogDescription>
+              A fuel request for this vehicle has already been submitted today. Are you sure you want to submit another?
+              If you proceed, the note <strong>"duplicate_same_day"</strong> will be appended to this request.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDuplicateFuelWarning(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowDuplicateFuelWarning(false);
+                submitFuelRequest(pendingFuelAsException, true);
+              }}
+            >
+              Yes, submit anyway
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ANOMALY REVIEW DIALOG */}
+      <Dialog open={!!reviewingAnomaly} onOpenChange={(v) => { if (!v) { setReviewingAnomaly(null); setAnomalyReviewDecision(''); setAnomalyReviewNote(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review anomaly</DialogTitle>
+            <DialogDescription className="text-xs break-words">
+              {reviewingAnomaly?.label}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Decision <span className="text-destructive">*</span></Label>
+              <Select value={anomalyReviewDecision} onValueChange={(v) => setAnomalyReviewDecision(v as any)}>
+                <SelectTrigger><SelectValue placeholder="Select outcome…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="valid">Reviewed — Valid</SelectItem>
+                  <SelectItem value="fraudulent">Fraudulent / Error</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Reason / notes <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={anomalyReviewNote}
+                onChange={(e) => setAnomalyReviewNote(e.target.value)}
+                placeholder="Explain why this anomaly is valid or fraudulent…"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReviewingAnomaly(null); setAnomalyReviewDecision(''); setAnomalyReviewNote(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAnomalyReview}
+              disabled={submittingAnomalyReview || !anomalyReviewDecision || !anomalyReviewNote.trim()}
+            >
+              {submittingAnomalyReview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -3976,6 +4353,8 @@ interface Vehicle {
   last_refuel_at: string | null;
   avg_km_per_litre: number;
   fuel_consumption_rate_lkm: number;
+  home_base_lat: number | null;
+  home_base_lng: number | null;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
   last_service_date: string | null;
