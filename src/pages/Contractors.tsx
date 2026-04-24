@@ -58,10 +58,17 @@ interface Contractor {
   full_name: string;
   first_name: string | null;
   last_name: string | null;
+  email: string | null;
+  whatsapp_phone: string | null;
   bank_name: string;
   account_number: string;
+  account_name: string | null;
+  bank_code: string | null;
   default_amount_ngn: number;
   linkedin_id: string;
+  linkedin_url: string | null;
+  heyreach_email: string | null;
+  onboarded_at: string | null;
   status: string;
   agreement_signed?: boolean | null;
   kyc_document_uploaded?: boolean | null;
@@ -97,6 +104,11 @@ interface ParsedRow {
   account_number: string;
   default_amount_ngn: number;
   linkedin_id: string;
+  email: string;
+  whatsapp_phone: string;
+  linkedin_url: string;
+  heyreach_email: string;
+  onboarded_at: string | null;
   valid: boolean;
   errors: string[];
 }
@@ -158,6 +170,12 @@ const Contractors = () => {
     last_name: '',
     default_amount_ngn: '',
     linkedin_id: '',
+    email: '',
+    whatsapp_phone: '',
+    linkedin_url: '',
+    heyreach_email: '',
+    heyreach_password: '',
+    onboarded_at: '',
   });
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -201,7 +219,7 @@ const Contractors = () => {
 
   const resetForm = () => {
     setEditing(null);
-    setForm({ first_name: '', last_name: '', default_amount_ngn: '', linkedin_id: '' });
+    setForm({ first_name: '', last_name: '', default_amount_ngn: '', linkedin_id: '', email: '', whatsapp_phone: '', linkedin_url: '', heyreach_email: '', heyreach_password: '', onboarded_at: '' });
     setBank(emptyBank);
     setSelectedTagIds([]);
   };
@@ -228,6 +246,15 @@ const Contractors = () => {
       linkedin_id: form.linkedin_id,
       status: 'active',
       tags: selectedTagIds,
+      ...(!editing ? {
+        account_name: bank.account_name || null,
+        email: form.email.trim() || null,
+        whatsapp_phone: form.whatsapp_phone.trim() || null,
+        linkedin_url: form.linkedin_url.trim() || null,
+        heyreach_email: form.heyreach_email.trim() || null,
+        heyreach_password_enc: form.heyreach_password.trim() || null,
+        onboarded_at: form.onboarded_at || null,
+      } : {}),
     };
 
     try {
@@ -298,10 +325,10 @@ const Contractors = () => {
     try {
       const { data: rows, error } = await supabase
         .from('contractors')
-        .select('first_name, last_name, email, phone, bank_name, account_number, account_name, status, created_at')
+        .select('first_name, last_name, email, whatsapp_phone, linkedin_url, linkedin_id, heyreach_email, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
         .order('full_name');
       if (error) throw error;
-      const header = ['first_name', 'last_name', 'email', 'phone', 'bank_name', 'account_number', 'account_name', 'status', 'created_at'];
+      const header = ['first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_id', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
       const csvRows = (rows as any[]).map((r) =>
         header.map((col) => csvEscape(r[col])).join(','),
       );
@@ -325,11 +352,11 @@ const Contractors = () => {
   // --- CSV import flow ---------------------------------------------------
 
   const downloadSample = () => {
-    const header = ['full_name', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_id'];
+    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_id', 'linkedin_url', 'heyreach_email', 'onboarded_at'];
     const rows = [
-      ['Chinwe Okafor', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123'],
-      ['Adewale Ogunleye', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye'],
-      ['Ifeoma Nwachukwu', 'Zenith Bank', '0345678901', '175000', ''],
+      ['Chinwe Okafor', 'chinwe@example.com', '+2348012345678', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123', 'https://linkedin.com/in/chinwe-okafor', 'chinwe@gmail.com', '2026-01-15'],
+      ['Adewale Ogunleye', 'adewale@example.com', '+2348023456789', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye', 'https://linkedin.com/in/adewale-ogunleye', '', ''],
+      ['Ifeoma Nwachukwu', '', '', 'Zenith Bank', '0345678901', '175000', '', '', '', ''],
     ];
     const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -350,6 +377,11 @@ const Contractors = () => {
     const amount_raw = raw.default_amount_ngn ?? raw.amount ?? '0';
     const default_amount_ngn = parseFloat(String(amount_raw).replace(/,/g, '')) || 0;
     const linkedin_id = (raw.linkedin_id || '').trim();
+    const email = (raw.email || '').trim();
+    const whatsapp_phone = (raw.whatsapp_phone || raw.phone || '').trim();
+    const linkedin_url = (raw.linkedin_url || '').trim();
+    const heyreach_email = (raw.heyreach_email || raw.linkedin_email || '').trim();
+    const onboarded_at = (raw.onboarded_at || '').trim() || null;
 
     const errors: string[] = [];
     if (!full_name) errors.push('Full name is required');
@@ -373,6 +405,11 @@ const Contractors = () => {
       account_number,
       default_amount_ngn,
       linkedin_id,
+      email,
+      whatsapp_phone,
+      linkedin_url,
+      heyreach_email,
+      onboarded_at,
       valid: errors.length === 0,
       errors,
     };
@@ -426,6 +463,11 @@ const Contractors = () => {
         default_amount_ngn: r.default_amount_ngn,
         linkedin_id: r.linkedin_id || null,
         status: 'active',
+        email: r.email || null,
+        whatsapp_phone: r.whatsapp_phone || null,
+        linkedin_url: r.linkedin_url || null,
+        heyreach_email: r.heyreach_email || null,
+        onboarded_at: r.onboarded_at || null,
       }));
 
       const { error } = await supabase.from('contractors').insert(payload);
@@ -685,7 +727,7 @@ const Contractors = () => {
           if (!v) resetForm();
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? 'Edit' : 'Add'} Contractor</DialogTitle>
           </DialogHeader>
@@ -708,6 +750,28 @@ const Contractors = () => {
                 />
               </div>
             </div>
+            {!editing && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    placeholder="ada@example.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Phone / WhatsApp</Label>
+                  <Input
+                    value={form.whatsapp_phone}
+                    onChange={(e) => setForm({ ...form, whatsapp_phone: e.target.value })}
+                    placeholder="+234 800 000 0000"
+                  />
+                </div>
+              </div>
+            )}
+
             {bank.verified &&
               bank.account_name &&
               (form.first_name.trim() || form.last_name.trim()) &&
@@ -719,6 +783,39 @@ const Contractors = () => {
               )}
 
             <BankAccountField value={bank} onChange={setBank} />
+
+            {!editing && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>LinkedIn Profile URL</Label>
+                  <Input
+                    value={form.linkedin_url}
+                    onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+                    placeholder="https://linkedin.com/in/your-profile"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>LinkedIn Email</Label>
+                    <Input
+                      type="email"
+                      value={form.heyreach_email}
+                      onChange={(e) => setForm({ ...form, heyreach_email: e.target.value })}
+                      placeholder="LinkedIn login email"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>LinkedIn Password</Label>
+                    <Input
+                      type="password"
+                      value={form.heyreach_password}
+                      onChange={(e) => setForm({ ...form, heyreach_password: e.target.value })}
+                      placeholder="LinkedIn login password"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -739,6 +836,16 @@ const Contractors = () => {
                 />
               </div>
             </div>
+            {!editing && (
+              <div className="space-y-1">
+                <Label>Date Onboarded (LinkedIn Outreach)</Label>
+                <Input
+                  type="date"
+                  value={form.onboarded_at}
+                  onChange={(e) => setForm({ ...form, onboarded_at: e.target.value })}
+                />
+              </div>
+            )}
             {availableTags.length > 0 && (
               <div className="space-y-1">
                 <Label>Tags</Label>
