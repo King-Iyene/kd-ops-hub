@@ -39,7 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio } from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -103,7 +103,83 @@ interface TripLog {
   litres: number | null;
   issues: string | null;
   created_at: string;
+  trip_start_time: string | null;
+  trip_end_time: string | null;
+  duration_minutes: number | null;
+  start_lat: number | null;
+  start_lng: number | null;
+  end_lat: number | null;
+  end_lng: number | null;
+  is_anomaly: boolean;
+  anomaly_reason: string | null;
+  status: string;
 }
+
+// ---------------------------------------------------------------------------
+// Geolocation & trip-clock helpers (outside component — no hook rules)
+// ---------------------------------------------------------------------------
+
+type GeoCoords = { lat: number; lng: number; accuracy: number };
+type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout';
+
+const GEO_ERROR_MSG: Record<Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>, string> = {
+  denied:      'Location permission denied — enable it in your browser settings, or type the location below.',
+  unavailable: 'GPS signal unavailable — please type your location below.',
+  timeout:     'GPS timed out — please type your location below or try again.',
+};
+
+function getGeolocation(): Promise<GeoCoords> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject('unavailable'); return; }
+    // Two-phase: fire a quick low-accuracy call to show something fast,
+    // then a high-accuracy call for the definitive fix.
+    let settled = false;
+    const settle = (coords: GeoCoords) => { if (!settled) { settled = true; resolve(coords); } };
+    const fail   = (code: string)      => { if (!settled) { settled = true; reject(code); } };
+
+    // Phase 1 — rough, fast (max 3 s, cached ok)
+    navigator.geolocation.getCurrentPosition(
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      () => {/* ignore — phase 2 will handle */},
+      { enableHighAccuracy: false, timeout: 3000, maximumAge: 60_000 },
+    );
+    // Phase 2 — precise, definitive (max 15 s, fresh fix)
+    navigator.geolocation.getCurrentPosition(
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    );
+  });
+}
+
+function formatCoords(lat: number, lng: number): string {
+  return `${Math.abs(lat).toFixed(5)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(5)}°${lng >= 0 ? 'E' : 'W'}`;
+}
+
+function formatDuration(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+function detectAnomalies(distanceKm: number | null, durationMin: number): { isAnomaly: boolean; reason: string | null } {
+  const flags: string[] = [];
+  if (distanceKm !== null && distanceKm < 0)              flags.push('Odometer went backwards');
+  if (distanceKm !== null && distanceKm > 500)            flags.push('Distance exceeds 500 km');
+  if (durationMin > 720)                                  flags.push('Trip exceeded 12 hours');
+  if (durationMin < 2 && distanceKm !== null && distanceKm > 1) flags.push('Implausibly short duration for distance covered');
+  if (durationMin > 5 && distanceKm === 0)                flags.push('No distance recorded despite 5+ minutes elapsed');
+  if (distanceKm !== null && durationMin > 0) {
+    const avgKmH = (distanceKm / durationMin) * 60;
+    if (avgKmH > 150) flags.push(`Average speed ${avgKmH.toFixed(0)} km/h exceeds 150 km/h`);
+  }
+  return flags.length > 0 ? { isAnomaly: true, reason: flags.join('; ') } : { isAnomaly: false, reason: null };
+}
+
+// ---------------------------------------------------------------------------
 
 function WeeklyBudgetBar({ spent, total }: { spent: number; total: number }) {
   const pct = Math.min(100, Math.round((spent / total) * 100));
@@ -309,6 +385,33 @@ const Fleet = () => {
     issues: '',
   });
 
+  // Real-time trip clock-in
+  const [activeTrip, setActiveTrip] = useState<TripLog | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Start Trip dialog
+  const [showStartTrip, setShowStartTrip] = useState(false);
+  const [startGeoState, setStartGeoState] = useState<GeoState>('idle');
+  const [startCoords, setStartCoords] = useState<GeoCoords | null>(null);
+  const [startTripForm, setStartTripForm] = useState({ vehicle_id: '', odometer_start: '', manual_location: '' });
+  const [startingTrip, setStartingTrip] = useState(false);
+
+  // End Trip dialog
+  const [showEndTrip, setShowEndTrip] = useState(false);
+  const [endGeoState, setEndGeoState] = useState<GeoState>('idle');
+  const [endCoords, setEndCoords] = useState<GeoCoords | null>(null);
+  const [endTripForm, setEndTripForm] = useState({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
+  const [endingTrip, setEndingTrip] = useState(false);
+
+  // Post-trip summary
+  const [tripSummary, setTripSummary] = useState<{
+    distanceKm: number | null; durationMin: number; isAnomaly: boolean; anomalyReason: string | null;
+    startLocation: string; endLocation: string;
+  } | null>(null);
+
+  // Cancel in-progress trip confirmation
+  const [confirmCancelTrip, setConfirmCancelTrip] = useState(false);
+
   useEffect(() => {
     // keep form employee_id in sync with the logged-in user
     setFuelForm((f) => ({ ...f, employee_id: profile?.id || '' }));
@@ -319,6 +422,40 @@ const Fleet = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Recover any in-progress trip for this driver when their profile loads.
+  useEffect(() => {
+    if (!profile?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from('trip_logs').select('*')
+        .eq('driver_id', profile.id)
+        .eq('status', 'in_progress')
+        .limit(1).maybeSingle();
+      if (data) {
+        setActiveTrip({
+          ...data,
+          employee_id: data.driver_id,
+          employee_name: profile.full_name || '',
+        } as TripLog);
+      } else {
+        setActiveTrip(null);
+      }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
+  // Elapsed-time counter — computed from wall clock so tab throttling can't cause drift.
+  useEffect(() => {
+    if (!activeTrip?.trip_start_time) { setElapsedSeconds(0); return; }
+    const startMs = Date.parse(activeTrip.trip_start_time);
+    const tick = () => setElapsedSeconds(Math.floor((Date.now() - startMs) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    const onVisibility = () => { if (!document.hidden) tick(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisibility); };
+  }, [activeTrip?.trip_start_time]);
 
   const enrich = (rows: any[], staffList: FieldStaff[]) => {
     const byId = new Map(staffList.map((s) => [s.id, s]));
@@ -470,6 +607,164 @@ const Fleet = () => {
     }
     setSubmitting(false);
   };
+
+  // ---- Trip clock-in helpers ----
+
+  const fetchLastOdometer = async (driverId: string): Promise<string> => {
+    const { data } = await supabase
+      .from('trip_logs').select('odometer_end')
+      .eq('driver_id', driverId)
+      .not('odometer_end', 'is', null)
+      .neq('status', 'in_progress')
+      .order('created_at', { ascending: false }).limit(1);
+    return data?.[0]?.odometer_end != null ? String(data[0].odometer_end) : '';
+  };
+
+  const acquireGeo = (
+    setState: (s: GeoState) => void,
+    setCoords: (c: GeoCoords | null) => void,
+  ) => {
+    setState('acquiring');
+    setCoords(null);
+    getGeolocation()
+      .then((c) => { setCoords(c); setState('ok'); })
+      .catch((code) => { setState(code as GeoState); });
+  };
+
+  const openStartTrip = () => {
+    setShowStartTrip(true);
+    setStartGeoState('idle');
+    setStartCoords(null);
+    setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
+    acquireGeo(setStartGeoState, setStartCoords);
+    if (profile?.id) {
+      fetchLastOdometer(profile.id).then((v) =>
+        setStartTripForm((f) => ({ ...f, odometer_start: v })),
+      );
+    }
+  };
+
+  const handleStartTrip = async () => {
+    const odoStart = parseFloat(startTripForm.odometer_start);
+    if (!Number.isFinite(odoStart) || odoStart < 0) {
+      toast({ title: 'Start odometer reading is required', variant: 'destructive' });
+      return;
+    }
+    const locationStr = startCoords
+      ? formatCoords(startCoords.lat, startCoords.lng)
+      : startTripForm.manual_location.trim();
+    setStartingTrip(true);
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('trip_logs')
+      .insert({
+        driver_id: profile?.id,
+        vehicle_id: startTripForm.vehicle_id || null,
+        date: now.slice(0, 10),
+        trip_start_time: now,
+        start_location: locationStr,
+        start_lat: startCoords?.lat ?? null,
+        start_lng: startCoords?.lng ?? null,
+        odometer_start: odoStart,
+        status: 'in_progress',
+        end_location: '',
+      })
+      .select('*').single();
+    setStartingTrip(false);
+    if (error) {
+      toast({ title: 'Failed to start trip', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setActiveTrip({ ...data, employee_id: data.driver_id, employee_name: profile?.full_name || '' } as TripLog);
+    setShowStartTrip(false);
+    await logAudit('trip_started', `Trip started at ${locationStr || 'unknown location'} (odometer: ${odoStart.toLocaleString()} km)`, profile);
+    toast({ title: 'Trip started', description: 'Tap "End Trip" when you arrive at your destination.' });
+    fetchData();
+  };
+
+  const openEndTrip = () => {
+    setShowEndTrip(true);
+    setEndGeoState('idle');
+    setEndCoords(null);
+    setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
+    acquireGeo(setEndGeoState, setEndCoords);
+  };
+
+  const handleEndTrip = async () => {
+    if (!activeTrip) return;
+    const odoEnd = parseFloat(endTripForm.odometer_end);
+    if (!Number.isFinite(odoEnd) || odoEnd < 0) {
+      toast({ title: 'End odometer reading is required', variant: 'destructive' });
+      return;
+    }
+    const endLocationStr = endCoords
+      ? formatCoords(endCoords.lat, endCoords.lng)
+      : endTripForm.manual_location.trim();
+    const now = new Date();
+    const startMs = activeTrip.trip_start_time ? Date.parse(activeTrip.trip_start_time) : Date.now();
+    const durationMin = Math.max(0, Math.round((now.getTime() - startMs) / 60_000));
+    const distanceKm = activeTrip.odometer_start != null ? odoEnd - activeTrip.odometer_start : null;
+    const { isAnomaly, reason: anomalyReason } = detectAnomalies(distanceKm, durationMin);
+    setEndingTrip(true);
+    const { error } = await supabase
+      .from('trip_logs')
+      .update({
+        trip_end_time: now.toISOString(),
+        duration_minutes: durationMin,
+        end_location: endLocationStr,
+        end_lat: endCoords?.lat ?? null,
+        end_lng: endCoords?.lng ?? null,
+        odometer_end: odoEnd,
+        km_driven: distanceKm,
+        fuel_amount_ngn: parseFloat(endTripForm.fuel_amount_ngn) || null,
+        litres: parseFloat(endTripForm.litres) || null,
+        issues: endTripForm.issues || null,
+        status: 'completed',
+        is_anomaly: isAnomaly,
+        anomaly_reason: anomalyReason,
+      })
+      .eq('id', activeTrip.id);
+    setEndingTrip(false);
+    if (error) {
+      toast({ title: 'Failed to end trip', description: error.message, variant: 'destructive' });
+      return;
+    }
+    // Update vehicle fuel balance
+    if (activeTrip.vehicle_id) {
+      const veh = vehicles.find((v) => v.id === activeTrip.vehicle_id);
+      if (veh) {
+        const litresPurchased = parseFloat(endTripForm.litres) || 0;
+        const eff = veh.avg_km_per_litre > 0 ? veh.avg_km_per_litre : null;
+        const consumed = distanceKm && distanceKm > 0 && eff ? distanceKm / eff : 0;
+        const cap = veh.tank_capacity_litres || 60;
+        const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) - consumed + litresPurchased));
+        const vPayload: Record<string, unknown> = { current_fuel_litres: newBalance };
+        if (litresPurchased > 0) vPayload.last_refuel_at = now.toISOString();
+        await supabase.from('vehicles').update(vPayload).eq('id', veh.id);
+      }
+    }
+    await logAudit(
+      'trip_ended',
+      `Trip ended at ${endLocationStr || 'unknown location'} — ${distanceKm?.toLocaleString() ?? '—'} km in ${durationMin} min${isAnomaly ? ' ⚠ ANOMALY' : ''}`,
+      profile,
+    );
+    setTripSummary({ distanceKm, durationMin, isAnomaly, anomalyReason, startLocation: activeTrip.start_location || '—', endLocation: endLocationStr || '—' });
+    setActiveTrip(null);
+    setShowEndTrip(false);
+    fetchData();
+  };
+
+  const handleCancelActiveTrip = async () => {
+    if (!activeTrip) return;
+    const { error } = await supabase.from('trip_logs').delete().eq('id', activeTrip.id);
+    if (error) { toast({ title: 'Failed to cancel trip', description: error.message, variant: 'destructive' }); return; }
+    await logAudit('trip_cancelled', 'In-progress trip cancelled and removed', profile);
+    setActiveTrip(null);
+    setConfirmCancelTrip(false);
+    toast({ title: 'Trip cancelled' });
+  };
+
+  // ---- End trip clock-in helpers ----
 
   const submitFuelRequest = async () => {
     if (!fuelForm.employee_id) {
@@ -1252,11 +1547,60 @@ const Fleet = () => {
 
         {/* TRIPS */}
         <TabsContent value="trips" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button onClick={() => { setShowTripForm(true); prefillOdometer(profile?.id || ''); }}>
-              <Plus className="mr-2 h-4 w-4" /> New Trip Log
+          <div className="flex justify-end gap-2">
+            {!activeTrip && (
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={openStartTrip}
+              >
+                <Navigation className="h-4 w-4 mr-2" /> Start Trip
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => { setShowTripForm(true); prefillOdometer(profile?.id || ''); }}>
+              <Plus className="mr-2 h-4 w-4" /> Log Trip Manually
             </Button>
           </div>
+
+          {/* Active trip card — live clock-in panel */}
+          {activeTrip && (
+            <div className="rounded-lg border-2 border-green-500 bg-green-50 dark:border-green-700 dark:bg-green-950/20 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Radio className="h-4 w-4 text-green-600 animate-pulse" />
+                  <span className="font-semibold text-green-800 dark:text-green-300 text-sm">Trip In Progress</span>
+                </div>
+                <span className="text-2xl font-mono font-bold text-green-700 dark:text-green-400 tabular-nums">
+                  {formatDuration(elapsedSeconds)}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Started</p>
+                  <p className="font-medium">{activeTrip.trip_start_time ? formatDate(activeTrip.trip_start_time) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Vehicle</p>
+                  <p className="font-medium">{vehicles.find((v) => v.id === activeTrip.vehicle_id)?.name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Start Location</p>
+                  <p className="font-mono text-xs truncate">{activeTrip.start_location || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-0.5">Start Odometer</p>
+                  <p className="font-medium">{activeTrip.odometer_start != null ? `${activeTrip.odometer_start.toLocaleString()} km` : '—'}</p>
+                </div>
+              </div>
+              <div className="flex gap-2 pt-1 border-t border-green-200 dark:border-green-800">
+                <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={openEndTrip}>
+                  <Navigation className="h-4 w-4 mr-2 rotate-180" /> End Trip
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-destructive" onClick={() => setConfirmCancelTrip(true)}>
+                  Cancel Trip
+                </Button>
+              </div>
+            </div>
+          )}
 
           <Card>
             <CardHeader>
@@ -1268,15 +1612,16 @@ const Fleet = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Employee</TableHead>
+                    <TableHead>Driver</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Route</TableHead>
-                    <TableHead className="text-right">Odometer</TableHead>
-                    <TableHead className="text-right">KM</TableHead>
-                    <TableHead className="text-right">Fuel (₦)</TableHead>
-                    <TableHead className="text-right">Litres</TableHead>
-                    <TableHead className="text-right">km/L</TableHead>
-                    <TableHead>Issues</TableHead>
+                    <TableHead>Start Time</TableHead>
+                    <TableHead>End Time</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Start Location</TableHead>
+                    <TableHead>End Location</TableHead>
+                    <TableHead className="text-right">Distance (km)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Anomaly</TableHead>
                     {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
@@ -1284,7 +1629,7 @@ const Fleet = () => {
                   {visibleTrips.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={isAdmin ? 10 : 9}
+                        colSpan={isAdmin ? 11 : 10}
                         className="text-center text-muted-foreground text-sm py-8"
                       >
                         No trip logs yet.
@@ -1294,40 +1639,66 @@ const Fleet = () => {
                   {visibleTrips.map((t) => (
                     <TableRow
                       key={t.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={`cursor-pointer hover:bg-muted/50 ${t.is_anomaly ? 'bg-red-50/50 dark:bg-red-950/10' : ''}`}
                       onClick={() => openTripDetail(t)}
                     >
                       <TableCell className="font-medium">{t.employee_name}</TableCell>
-                      <TableCell>{formatDate(t.date)}</TableCell>
-                      <TableCell className="text-sm">
-                        {t.start_location} → {t.end_location}
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
-                        {t.odometer_start != null ? t.odometer_start.toLocaleString() : '—'}
-                        {' → '}
-                        {t.odometer_end != null ? t.odometer_end.toLocaleString() : '—'}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{t.km_driven != null ? t.km_driven.toLocaleString() : '—'}</TableCell>
-                      <TableCell className="text-right currency">
-                        {t.fuel_amount_ngn ? formatNaira(t.fuel_amount_ngn) : '—'}
-                      </TableCell>
-                      <TableCell className="text-right">{t.litres ?? '—'}</TableCell>
-                      <TableCell className="text-right">
-                        {t.km_driven && t.litres && t.km_driven > 0 && t.litres > 0
-                          ? (t.km_driven / t.litres).toFixed(1)
+                      <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
+                      <TableCell className="text-xs tabular-nums">
+                        {t.trip_start_time
+                          ? new Date(t.trip_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                        {t.issues || '—'}
+                      <TableCell className="text-xs tabular-nums">
+                        {t.trip_end_time
+                          ? new Date(t.trip_end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          : t.status === 'in_progress' ? <span className="text-green-600 font-medium">Live</span> : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs tabular-nums">
+                        {t.duration_minutes != null
+                          ? `${Math.floor(t.duration_minutes / 60)}h ${t.duration_minutes % 60}m`
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono max-w-[140px] truncate" title={t.start_location}>
+                        {t.start_location || '—'}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono max-w-[140px] truncate" title={t.end_location}>
+                        {t.end_location || (t.status === 'in_progress' ? <span className="text-green-600 italic">In progress…</span> : '—')}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {t.km_driven != null ? t.km_driven.toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={
+                            t.status === 'in_progress'
+                              ? 'border-green-400 text-green-700 bg-green-50'
+                              : t.status === 'completed'
+                              ? 'border-blue-300 text-blue-700 bg-blue-50'
+                              : ''
+                          }
+                        >
+                          {t.status === 'in_progress' ? 'In Progress' : t.status === 'completed' ? 'Completed' : t.status || 'Completed'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {t.is_anomaly ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex items-center gap-1 text-xs text-red-600 font-medium cursor-help">
+                                <AlertTriangle className="h-3.5 w-3.5" /> Flag
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-xs">{t.anomaly_reason}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/40" />
+                        )}
                       </TableCell>
                       {isAdmin && (
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setConfirmDeleteTrip(t)}
-                            title="Delete"
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteTrip(t)} title="Delete">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
@@ -1652,6 +2023,336 @@ const Fleet = () => {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* START TRIP DIALOG */}
+      <Dialog open={showStartTrip} onOpenChange={(v) => { if (!v) setShowStartTrip(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Navigation className="h-4 w-4 text-green-600" /> Start Trip
+            </DialogTitle>
+            <DialogDescription>
+              Your GPS location will be recorded at the start and end of this trip.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* GPS status panel */}
+            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+              startGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
+              startGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
+              startGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
+                                             'border-amber-300 bg-amber-50 text-amber-800'
+            }`}>
+              {startGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
+              {startGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
+              {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {startGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                {startGeoState === 'ok' && startCoords && (
+                  <>
+                    <p className="font-medium font-mono text-xs">{formatCoords(startCoords.lat, startCoords.lng)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
+                  </>
+                )}
+                {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+                  <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                )}
+                {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
+              </div>
+              {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords)}>
+                  Retry
+                </button>
+              )}
+            </div>
+
+            {/* Manual location fallback */}
+            {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+              <div className="space-y-1">
+                <Label>Start Location <span className="text-destructive">*</span></Label>
+                <Input
+                  value={startTripForm.manual_location}
+                  onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                  placeholder="e.g. Victoria Island depot, Lagos"
+                />
+              </div>
+            )}
+
+            {/* Vehicle selector */}
+            {vehicles.length > 0 && (
+              <div className="space-y-1">
+                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Select
+                  value={startTripForm.vehicle_id || '__none__'}
+                  onValueChange={(v) => setStartTripForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No vehicle</SelectItem>
+                    {vehicles.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name} — {(v as any).plate_number}
+                        {v.current_fuel_litres != null && v.tank_capacity_litres > 0 && (
+                          <span className={`ml-2 text-xs ${(v.current_fuel_litres / v.tank_capacity_litres) < 0.2 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                            ({Math.round((v.current_fuel_litres / v.tank_capacity_litres) * 100)}% fuel)
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* Show fuel level warning for selected vehicle */}
+                {startTripForm.vehicle_id && (() => {
+                  const veh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
+                  if (!veh || !veh.tank_capacity_litres) return null;
+                  const pct = Math.round((veh.current_fuel_litres / veh.tank_capacity_litres) * 100);
+                  if (pct >= 20) return null;
+                  return (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Low fuel: {pct}% — consider refuelling before departing.
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Start odometer */}
+            <div className="space-y-1">
+              <Label>Start Odometer Reading (km) <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                value={startTripForm.odometer_start}
+                onChange={(e) => setStartTripForm((f) => ({ ...f, odometer_start: e.target.value }))}
+                placeholder="e.g. 42500"
+              />
+              {startTripForm.odometer_start && (
+                <p className="text-xs text-muted-foreground">{parseFloat(startTripForm.odometer_start).toLocaleString()} km on the clock</p>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground border-t pt-2">
+              Your location is recorded at trip start and end only — not tracked continuously.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStartTrip(false)}>Cancel</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleStartTrip}
+              disabled={
+                startingTrip ||
+                !startTripForm.odometer_start ||
+                (startGeoState !== 'ok' && !startTripForm.manual_location.trim())
+              }
+            >
+              {startingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Timer className="mr-2 h-4 w-4" /> Start Trip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* END TRIP DIALOG */}
+      <Dialog open={showEndTrip} onOpenChange={(v) => { if (!v) setShowEndTrip(false); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Navigation className="h-4 w-4 rotate-180" /> End Trip
+            </DialogTitle>
+            <DialogDescription>
+              Record your end location and odometer reading to complete this trip.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Trip-in-progress summary */}
+            {activeTrip && (
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1">
+                <p className="text-muted-foreground">Trip started</p>
+                <p className="font-medium">{activeTrip.trip_start_time ? formatDate(activeTrip.trip_start_time) : '—'} · {formatDuration(elapsedSeconds)} elapsed</p>
+                <p className="font-mono truncate">{activeTrip.start_location || '—'}</p>
+              </div>
+            )}
+
+            {/* GPS status panel */}
+            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+              endGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
+              endGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
+              endGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
+                                           'border-amber-300 bg-amber-50 text-amber-800'
+            }`}>
+              {endGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
+              {endGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
+              {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {endGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                {endGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                {endGeoState === 'ok' && endCoords && (
+                  <>
+                    <p className="font-medium font-mono text-xs">{formatCoords(endCoords.lat, endCoords.lng)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(endCoords.accuracy)} m</p>
+                  </>
+                )}
+                {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+                  <p className="text-xs">{GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                )}
+                {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
+              </div>
+              {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords)}>
+                  Retry
+                </button>
+              )}
+            </div>
+
+            {/* Manual location fallback */}
+            {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+              <div className="space-y-1">
+                <Label>End Location <span className="text-destructive">*</span></Label>
+                <Input
+                  value={endTripForm.manual_location}
+                  onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                  placeholder="e.g. Ikeja client office, Lagos"
+                />
+              </div>
+            )}
+
+            {/* End odometer */}
+            <div className="space-y-1">
+              <Label>End Odometer Reading (km) <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                value={endTripForm.odometer_end}
+                onChange={(e) => setEndTripForm((f) => ({ ...f, odometer_end: e.target.value }))}
+                placeholder="e.g. 42650"
+              />
+              {endTripForm.odometer_end && activeTrip?.odometer_start != null && (
+                <p className="text-xs text-muted-foreground">
+                  Distance: <strong>{Math.max(0, parseFloat(endTripForm.odometer_end) - activeTrip.odometer_start).toLocaleString()} km</strong>
+                  {parseFloat(endTripForm.odometer_end) - activeTrip.odometer_start > 500 && (
+                    <span className="text-amber-600 ml-2 flex items-center gap-0.5 inline-flex">
+                      <AlertTriangle className="h-3 w-3" /> Distance &gt; 500 km — will be flagged for review
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
+
+            {/* Optional: fuel this trip */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Fuel Purchased (₦) <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Input
+                  type="number"
+                  value={endTripForm.fuel_amount_ngn}
+                  onChange={(e) => setEndTripForm((f) => ({ ...f, fuel_amount_ngn: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Litres <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Input
+                  type="number"
+                  value={endTripForm.litres}
+                  onChange={(e) => setEndTripForm((f) => ({ ...f, litres: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Issues to Report <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Textarea
+                value={endTripForm.issues}
+                onChange={(e) => setEndTripForm((f) => ({ ...f, issues: e.target.value }))}
+                rows={2}
+                placeholder="Vehicle or route issues, incidents…"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEndTrip(false)}>Cancel</Button>
+            <Button
+              onClick={handleEndTrip}
+              disabled={
+                endingTrip ||
+                !endTripForm.odometer_end ||
+                (endGeoState !== 'ok' && !endTripForm.manual_location.trim())
+              }
+            >
+              {endingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Complete Trip
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* TRIP SUMMARY DIALOG */}
+      <Dialog open={!!tripSummary} onOpenChange={(v) => { if (!v) setTripSummary(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" /> Trip Completed
+            </DialogTitle>
+          </DialogHeader>
+          {tripSummary && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md bg-muted/50 px-3 py-2 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {tripSummary.distanceKm != null ? tripSummary.distanceKm.toLocaleString() : '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Kilometres driven</p>
+                </div>
+                <div className="rounded-md bg-muted/50 px-3 py-2 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {Math.floor(tripSummary.durationMin / 60)}h {tripSummary.durationMin % 60}m
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Duration</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">From</p>
+                  <p className="font-mono text-xs truncate">{tripSummary.startLocation}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">To</p>
+                  <p className="font-mono text-xs truncate">{tripSummary.endLocation}</p>
+                </div>
+              </div>
+              {tripSummary.isAnomaly && (
+                <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Anomaly flagged for admin review</p>
+                    <p className="text-xs mt-0.5">{tripSummary.anomalyReason}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setTripSummary(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* CANCEL ACTIVE TRIP CONFIRMATION */}
+      <Dialog open={confirmCancelTrip} onOpenChange={(v) => { if (!v) setConfirmCancelTrip(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel in-progress trip?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the trip record. Any distance and time already recorded will be lost. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmCancelTrip(false)}>Keep Trip</Button>
+            <Button variant="destructive" onClick={handleCancelActiveTrip}>Cancel Trip</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
