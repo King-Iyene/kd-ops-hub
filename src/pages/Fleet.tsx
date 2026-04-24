@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatDate } from '@/lib/format';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,13 @@ import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, Credi
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+// Fix Leaflet default marker icons broken by Vite's asset pipeline
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
+  iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
+  shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
+});
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -68,6 +76,7 @@ interface VehicleSummary {
   current_fuel_litres: number;
   last_refuel_at: string | null;
   avg_km_per_litre: number;
+  fuel_consumption_rate_lkm: number;
 }
 
 interface FuelRequest {
@@ -1193,18 +1202,52 @@ const Fleet = () => {
       toast({ title: 'Failed to end trip', description: error.message, variant: 'destructive' });
       return;
     }
-    // Update vehicle fuel balance
+    // Update vehicle fuel balance — CHANGE 1
     if (activeTrip.vehicle_id) {
       const veh = vehicles.find((v) => v.id === activeTrip.vehicle_id);
       if (veh) {
         const litresPurchased = parseFloat(endTripForm.litres) || 0;
-        const eff = veh.avg_km_per_litre > 0 ? veh.avg_km_per_litre : null;
-        const consumed = distanceKm && distanceKm > 0 && eff ? distanceKm / eff : 0;
+        // Prefer fuel_consumption_rate_lkm (L/km); fall back to 1/avg_km_per_litre
+        const rate = veh.fuel_consumption_rate_lkm > 0
+          ? veh.fuel_consumption_rate_lkm
+          : (veh.avg_km_per_litre > 0 ? 1 / veh.avg_km_per_litre : null);
+        const consumed = distanceKm && distanceKm > 0 && rate ? distanceKm * rate : 0;
         const cap = veh.tank_capacity_litres || 60;
-        const newBalance = Math.min(cap, Math.max(0, (veh.current_fuel_litres || 0) - consumed + litresPurchased));
+        const startLevel = veh.current_fuel_litres || 0;
+        const afterConsume = startLevel - consumed;
+        const floored = afterConsume < 0;
+        const levelAfterConsume = Math.max(0, afterConsume);
+        const newBalance = Math.min(cap, levelAfterConsume + litresPurchased);
         const vPayload: Record<string, unknown> = { current_fuel_litres: newBalance };
         if (litresPurchased > 0) vPayload.last_refuel_at = now.toISOString();
         await supabase.from('vehicles').update(vPayload).eq('id', veh.id);
+        if (consumed > 0) {
+          await supabase.from('fuel_level_logs').insert({
+            vehicle_id: veh.id,
+            event_type: 'trip_consumed',
+            amount_litres: consumed,
+            resulting_level_litres: levelAfterConsume,
+            reference_id: activeTrip.id,
+          });
+        }
+        if (litresPurchased > 0) {
+          await supabase.from('fuel_level_logs').insert({
+            vehicle_id: veh.id,
+            event_type: 'fuel_added',
+            amount_litres: litresPurchased,
+            resulting_level_litres: newBalance,
+            reference_id: activeTrip.id,
+          });
+        }
+        if (floored) {
+          await notifyRoles({
+            roles: ['super_admin', 'admin', 'operations'],
+            type: 'fuel_level_critical',
+            module: 'fleet',
+            title: `${veh.plate_number} fuel may be empty`,
+            body: `${veh.plate_number} fuel level may be empty — last trip consumed more than estimated remaining fuel.`,
+          });
+        }
       }
     }
     await logAudit(
@@ -1691,6 +1734,27 @@ const Fleet = () => {
         })
         .eq('id', uploadingReceiptFor.id);
       if (error) throw error;
+      // CHANGE 2 — bump vehicle fuel level from actual litres filled
+      const litresFilledNum = parseFloat(receiptForm.litres_filled) || 0;
+      const receiptVehicleId = (uploadingReceiptFor as any).vehicle_id as string | null;
+      if (receiptVehicleId && litresFilledNum > 0) {
+        const veh = vehicles.find((v) => v.id === receiptVehicleId);
+        if (veh) {
+          const cap = veh.tank_capacity_litres || 60;
+          const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilledNum);
+          await supabase.from('vehicles').update({
+            current_fuel_litres: newLevel,
+            last_refuel_at: new Date().toISOString(),
+          }).eq('id', receiptVehicleId);
+          await supabase.from('fuel_level_logs').insert({
+            vehicle_id: receiptVehicleId,
+            event_type: 'fuel_added',
+            amount_litres: litresFilledNum,
+            resulting_level_litres: newLevel,
+            reference_id: uploadingReceiptFor.id,
+          });
+        }
+      }
       await logAudit(
         'fuel_receipt_uploaded',
         `Receipt uploaded for fuel request (${formatNaira(uploadingReceiptFor.amount_ngn || 0)})`,
@@ -3543,29 +3607,36 @@ function FuelGauge({ tank, current, lastRefuel }: { tank: number; current: numbe
   const cap = tank || 60;
   const cur = Math.min(current || 0, cap);
   const pct = cap > 0 ? Math.round((cur / cap) * 100) : 0;
-  const bar = pct >= 50 ? 'bg-green-500' : pct >= 20 ? 'bg-amber-500' : 'bg-red-500';
+  const isCritical = pct < 10;
+  const barColor = pct >= 50 ? 'bg-green-500' : pct >= 25 ? 'bg-amber-500' : 'bg-red-500';
+  const textColor = pct >= 50 ? 'text-green-700' : pct >= 25 ? 'text-amber-600' : 'text-red-600';
   const daysSince = lastRefuel
     ? Math.floor((Date.now() - new Date(lastRefuel).getTime()) / 86_400_000)
     : null;
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
-        <span className={pct < 20 ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
-          {cur.toFixed(0)}L / {cap}L
-        </span>
-        <span className={`font-semibold ${pct < 20 ? 'text-red-600' : pct < 50 ? 'text-amber-600' : 'text-green-600'}`}>
-          {pct}%
+        <span className={`font-medium ${textColor}`}>
+          {pct}% — {cur.toFixed(0)}L remaining of {cap}L
         </span>
       </div>
       <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${pct}%` }} />
+        <div
+          className={`h-full rounded-full transition-all ${barColor}${isCritical ? ' animate-pulse' : ''}`}
+          style={{ width: `${Math.max(pct, 2)}%` }}
+        />
       </div>
       {daysSince !== null && (
         <p className="text-[10px] text-muted-foreground">
           Last filled {daysSince === 0 ? 'today' : `${daysSince}d ago`}
         </p>
       )}
-      {pct < 20 && (
+      {isCritical && (
+        <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5 animate-pulse">
+          <AlertTriangle className="h-2.5 w-2.5" /> Critical — may be empty
+        </p>
+      )}
+      {!isCritical && pct < 25 && (
         <p className="text-[10px] text-red-600 font-medium flex items-center gap-0.5">
           <AlertTriangle className="h-2.5 w-2.5" /> Low fuel
         </p>
@@ -3588,6 +3659,7 @@ interface Vehicle {
   current_fuel_litres: number;
   last_refuel_at: string | null;
   avg_km_per_litre: number;
+  fuel_consumption_rate_lkm: number;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
   last_service_date: string | null;
@@ -3595,6 +3667,114 @@ interface Vehicle {
   notes: string | null;
   status: string;
   created_at: string;
+}
+
+interface FuelLevelLog {
+  id: string;
+  vehicle_id: string;
+  event_type: 'trip_consumed' | 'fuel_added';
+  amount_litres: number;
+  resulting_level_litres: number;
+  reference_id: string | null;
+  created_at: string;
+}
+
+function FuelHistoryDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
+  const [logs, setLogs] = useState<FuelLevelLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    supabase
+      .from('fuel_level_logs')
+      .select('*')
+      .eq('vehicle_id', vehicle.id)
+      .gte('created_at', since)
+      .order('created_at')
+      .then(({ data }) => {
+        setLogs((data as FuelLevelLog[]) || []);
+        setLoading(false);
+      });
+  }, [vehicle.id]);
+
+  const chartData = logs.map((l) => ({
+    date: new Date(l.created_at).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }),
+    level: parseFloat(l.resulting_level_litres.toFixed(1)),
+    type: l.event_type,
+  }));
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Fuel history — {vehicle.name} ({vehicle.plate_number})</DialogTitle>
+          <DialogDescription>Last 30 days of fuel level changes</DialogDescription>
+        </DialogHeader>
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : logs.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">No fuel level changes recorded in the last 30 days.</p>
+        ) : (
+          <div className="space-y-4">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis unit="L" domain={[0, vehicle.tank_capacity_litres || 60]} tick={{ fontSize: 11 }} />
+                <ReTooltip formatter={(v: number) => [`${v}L`, 'Fuel level']} />
+                <Line
+                  type="monotone"
+                  dataKey="level"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={(props: any) => {
+                    const { cx, cy, payload } = props;
+                    const fill = payload.type === 'fuel_added' ? '#22c55e' : '#ef4444';
+                    return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill={fill} stroke="white" strokeWidth={1.5} />;
+                  }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground justify-center">
+              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" /> Fuel added</span>
+              <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> Trip consumed</span>
+            </div>
+            <div className="max-h-48 overflow-y-auto border rounded text-xs">
+              <table className="w-full">
+                <thead className="sticky top-0 bg-muted text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-3 py-2">Date</th>
+                    <th className="text-left px-3 py-2">Event</th>
+                    <th className="text-right px-3 py-2">Amount</th>
+                    <th className="text-right px-3 py-2">Level after</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...logs].reverse().map((l) => (
+                    <tr key={l.id} className="border-t">
+                      <td className="px-3 py-1.5 text-muted-foreground">{new Date(l.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
+                      <td className="px-3 py-1.5">
+                        {l.event_type === 'fuel_added'
+                          ? <span className="text-green-600 font-medium">Fuel added</span>
+                          : <span className="text-red-600 font-medium">Trip consumed</span>}
+                      </td>
+                      <td className="px-3 py-1.5 text-right">{l.event_type === 'fuel_added' ? '+' : '−'}{l.amount_litres.toFixed(1)}L</td>
+                      <td className="px-3 py-1.5 text-right font-medium">{l.resulting_level_litres.toFixed(1)}L</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 const emptyVehicleForm = {
@@ -3626,6 +3806,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [allDrivers, setAllDrivers] = useState<FieldStaff[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
+  const [viewingFuelHistory, setViewingFuelHistory] = useState<Vehicle | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -3875,6 +4056,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
+                        <Button size="sm" variant="ghost" title="Fuel history" onClick={() => setViewingFuelHistory(v)}>
+                          <History className="h-4 w-4" />
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -4010,6 +4194,10 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {viewingFuelHistory && (
+        <FuelHistoryDialog vehicle={viewingFuelHistory} onClose={() => setViewingFuelHistory(null)} />
+      )}
     </>
   );
 }
