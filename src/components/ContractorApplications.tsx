@@ -71,8 +71,7 @@ const applicantName = (a: Application) =>
 
 const linkedInUrl = (a: Application) => a.linkedin_url || a.linkedin_profile_url;
 
-const isPending = (a: Application) =>
-  a.status === 'pending' || a.status === 'pending_review';
+const isPending = (a: Application) => a.status === 'pending';
 
 const STATUS_CLS: Record<string, string> = {
   pending: 'bg-warning/10 text-warning',
@@ -147,9 +146,10 @@ export function ContractorApplications() {
         .single();
       if (cErr) throw cErr;
 
-      // Mark application as approved.
+      // Mark application as approved — error is checked so a failed update
+      // surfaces immediately rather than being silently swallowed.
       const now = new Date().toISOString();
-      await supabase
+      const { error: appUpdateErr } = await supabase
         .from('contractor_applications')
         .update({
           status: 'approved',
@@ -159,6 +159,7 @@ export function ContractorApplications() {
           contractor_id: (contractor as any).id,
         })
         .eq('id', app.id);
+      if (appUpdateErr) throw appUpdateErr;
 
       // Send approval email.
       await sendEmail(
