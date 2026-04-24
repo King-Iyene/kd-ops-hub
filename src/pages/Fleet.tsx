@@ -1617,6 +1617,12 @@ const Fleet = () => {
     setTripSummary({ distanceKm, durationMin, isAnomaly, anomalyReason, startLocation: activeTrip.start_location || '—', endLocation: endLocationStr || '—' });
     setActiveTrip(null);
     setShowEndTrip(false);
+    // Fire smart-alerts (best-effort — no await so UI closes instantly)
+    if (activeTrip.vehicle_id) {
+      supabase.functions.invoke('fleet-alerts', {
+        body: { event: 'trip_ended', vehicle_id: activeTrip.vehicle_id },
+      }).catch(() => {/* best-effort */});
+    }
     fetchData();
   };
 
@@ -2044,6 +2050,12 @@ const Fleet = () => {
     } else {
       toast({ title: 'Fuel request approved' });
     }
+    // Fire smart-alerts for budget thresholds (best-effort)
+    if ((request as any).vehicle_id) {
+      supabase.functions.invoke('fleet-alerts', {
+        body: { event: 'fuel_approved', vehicle_id: (request as any).vehicle_id },
+      }).catch(() => {/* best-effort */});
+    }
     fetchData();
   };
 
@@ -2100,6 +2112,12 @@ const Fleet = () => {
       });
     }
     toast({ title: 'Budget exception approved' });
+    // Fire smart-alerts for budget thresholds (best-effort)
+    if ((r as any).vehicle_id) {
+      supabase.functions.invoke('fleet-alerts', {
+        body: { event: 'fuel_approved', vehicle_id: (r as any).vehicle_id },
+      }).catch(() => {/* best-effort */});
+    }
     fetchData();
   };
 
