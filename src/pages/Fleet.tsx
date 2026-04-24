@@ -39,7 +39,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw } from 'lucide-react';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -82,6 +82,10 @@ interface FuelRequest {
   account_number: string | null;
   account_name: string | null;
   request_doc_url: string | null;
+  receipt_url: string | null;
+  payment_sent_at: string | null;
+  fuel_station_name: string | null;
+  litres_filled: number | null;
 }
 
 interface TripLog {
@@ -270,6 +274,12 @@ const Fleet = () => {
   const [fuelBankDetails, setFuelBankDetails] = useState<BankAccountValue>(EMPTY_FUEL_BANK);
   const [showFuelBankSection, setShowFuelBankSection] = useState(false);
   const [fuelDoc, setFuelDoc] = useState<File | null>(null);
+
+  // Post-payment receipt upload
+  const [uploadingReceiptFor, setUploadingReceiptFor] = useState<FuelRequest | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', litres_filled: '', notes: '' });
+  const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Phase 1 — vehicle & weekly budget state
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
@@ -799,6 +809,130 @@ const Fleet = () => {
     fetchData();
   };
 
+  const handleMarkPaymentSent = async (r: FuelRequest) => {
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({ status: 'payment_sent', payment_sent_at: new Date().toISOString() })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'fuel_payment_sent',
+      `Payment marked as sent for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)})`,
+      profile,
+    );
+    const driverId = (r as any).driver_id || r.employee_id;
+    if (driverId) {
+      await notifyUser({
+        userId: driverId,
+        type: 'fuel_payment_sent',
+        module: 'fleet',
+        title: 'Fuel payment sent',
+        body: `${formatNaira(r.amount_ngn || 0)} has been sent. Please upload your receipt.`,
+      });
+    }
+    toast({ title: 'Payment marked as sent. Driver will be prompted to upload receipt.' });
+    fetchData();
+  };
+
+  const submitFuelReceipt = async () => {
+    if (!uploadingReceiptFor || !receiptFile) {
+      toast({ title: 'Please select a receipt file', variant: 'destructive' });
+      return;
+    }
+    setSubmittingReceipt(true);
+    try {
+      const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `fuel-receipts/${uploadingReceiptFor.id}-${safeName}`;
+      const { data: upData, error: upErr } = await supabase.storage
+        .from('receipts')
+        .upload(path, receiptFile, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+      const { error } = await supabase
+        .from('fuel_requests')
+        .update({
+          status: 'receipt_uploaded',
+          receipt_url: urlData.publicUrl,
+          fuel_station_name: receiptForm.fuel_station_name.trim() || null,
+          litres_filled: parseFloat(receiptForm.litres_filled) || null,
+          admin_note: receiptForm.notes.trim() || null,
+        })
+        .eq('id', uploadingReceiptFor.id);
+      if (error) throw error;
+      await logAudit(
+        'fuel_receipt_uploaded',
+        `Receipt uploaded for fuel request (${formatNaira(uploadingReceiptFor.amount_ngn || 0)})`,
+        profile,
+      );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'fuel_receipt_uploaded',
+        module: 'fleet',
+        title: 'Fuel receipt uploaded',
+        body: `${profile?.full_name || 'Driver'} uploaded a receipt for ${formatNaira(uploadingReceiptFor.amount_ngn || 0)}`,
+      });
+      toast({ title: 'Receipt submitted. Admin will review.' });
+      setUploadingReceiptFor(null);
+      setReceiptFile(null);
+      setReceiptForm({ fuel_station_name: '', litres_filled: '', notes: '' });
+      fetchData();
+    } catch (err: any) {
+      toast({ title: 'Error uploading receipt', description: err.message, variant: 'destructive' });
+    }
+    setSubmittingReceipt(false);
+  };
+
+  const handleMarkComplete = async (r: FuelRequest) => {
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({ status: 'completed' })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('fuel_request_completed', `Fuel request completed for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)})`, profile);
+    const driverId = (r as any).driver_id || r.employee_id;
+    if (driverId) {
+      await notifyUser({
+        userId: driverId,
+        type: 'fuel_request_completed',
+        module: 'fleet',
+        title: 'Fuel request completed',
+        body: `Your fuel request for ${formatNaira(r.amount_ngn || 0)} has been marked complete.`,
+      });
+    }
+    toast({ title: 'Marked as complete' });
+    fetchData();
+  };
+
+  const handleRequestReceiptResubmission = async (r: FuelRequest) => {
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({ status: 'payment_sent', receipt_url: null })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('fuel_receipt_resubmission_requested', `Receipt resubmission requested for ${r.employee_name}`, profile);
+    const driverId = (r as any).driver_id || r.employee_id;
+    if (driverId) {
+      await notifyUser({
+        userId: driverId,
+        type: 'fuel_receipt_resubmission',
+        module: 'fleet',
+        title: 'Receipt resubmission required',
+        body: 'Admin has requested a new receipt for your fuel payment. Please re-upload.',
+      });
+    }
+    toast({ title: 'Resubmission requested. Driver notified.' });
+    fetchData();
+  };
+
   const confirmFuelReject = async () => {
     if (!rejectingFuel) return;
     if (!isValidRejectionReason(fuelRejectReason)) {
@@ -1067,6 +1201,34 @@ const Fleet = () => {
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </div>
+                          ) : r.status === 'approved' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs"
+                              onClick={() => handleMarkPaymentSent(r)}
+                            >
+                              <CreditCard className="h-3 w-3 mr-1" /> Mark Payment Sent
+                            </Button>
+                          ) : r.status === 'receipt_uploaded' ? (
+                            <div className="flex justify-end gap-1 flex-wrap">
+                              {r.receipt_url && (
+                                <a
+                                  href={r.receipt_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-input bg-background hover:bg-accent"
+                                >
+                                  <FileText className="h-3 w-3" /> View Receipt
+                                </a>
+                              )}
+                              <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
+                                <Check className="h-3 w-3 mr-1" /> Complete
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleRequestReceiptResubmission(r)}>
+                                <RotateCcw className="h-3 w-3 mr-1" /> Re-request
+                              </Button>
+                            </div>
                           ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
                             <Button
                               size="sm"
@@ -1195,6 +1357,34 @@ const Fleet = () => {
             </Button>
           </div>
 
+          {/* Yellow action banners for payment_sent requests */}
+          {myFuelRequests.filter((r) => r.status === 'payment_sent').map((r) => (
+            <div
+              key={r.id}
+              className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
+            >
+              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-600" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">Payment sent for {r.station_name} — {formatNaira(r.amount_ngn || 0)}</p>
+                <p className="text-xs mt-0.5">
+                  {r.payment_sent_at ? `Sent on ${formatDate(r.payment_sent_at)}. ` : ''}
+                  Please upload your fuel receipt to complete this request.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={() => {
+                  setUploadingReceiptFor(r);
+                  setReceiptFile(null);
+                  setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
+                }}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
+              </Button>
+            </div>
+          ))}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">My Fuel Requests</CardTitle>
@@ -1209,12 +1399,13 @@ const Fleet = () => {
                     <TableHead>Purpose</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {myFuelRequests.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground text-sm py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">
                         You have no fuel requests yet.
                       </TableCell>
                     </TableRow>
@@ -1227,6 +1418,22 @@ const Fleet = () => {
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{r.reason || '—'}</TableCell>
                       <TableCell><StatusBadge status={r.status} /></TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(r.created_at)}</TableCell>
+                      <TableCell>
+                        {r.status === 'payment_sent' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs"
+                            onClick={() => {
+                              setUploadingReceiptFor(r);
+                              setReceiptFile(null);
+                              setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
+                            }}
+                          >
+                            <Upload className="h-3 w-3 mr-1" /> Upload Receipt
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1833,6 +2040,80 @@ const Fleet = () => {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* FUEL RECEIPT UPLOAD DIALOG */}
+      <Dialog
+        open={!!uploadingReceiptFor}
+        onOpenChange={(v) => {
+          if (!v) { setUploadingReceiptFor(null); setReceiptFile(null); setReceiptForm({ fuel_station_name: '', litres_filled: '', notes: '' }); }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Fuel Receipt</DialogTitle>
+            <DialogDescription>
+              Confirm the station details and attach a photo or PDF of your receipt.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-0.5">
+              <p className="text-muted-foreground text-xs">Fuel request</p>
+              <p className="font-medium">{uploadingReceiptFor?.station_name} — {formatNaira(uploadingReceiptFor?.amount_ngn || 0)}</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Station Name <span className="text-muted-foreground font-normal text-xs">(confirm or correct)</span></Label>
+              <Input
+                value={receiptForm.fuel_station_name}
+                onChange={(e) => setReceiptForm({ ...receiptForm, fuel_station_name: e.target.value })}
+                placeholder="e.g. Total Energies, Lekki"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Litres Filled <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Input
+                type="number"
+                value={receiptForm.litres_filled}
+                onChange={(e) => setReceiptForm({ ...receiptForm, litres_filled: e.target.value })}
+                placeholder="e.g. 25.5"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Receipt <span className="text-destructive">*</span></Label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-xs text-muted-foreground">Photo or PDF of the fuel station receipt.</p>
+              {receiptFile && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{receiptFile.name}</span>
+                  {' '}— {(receiptFile.size / 1024).toFixed(1)} KB
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Notes <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Textarea
+                value={receiptForm.notes}
+                onChange={(e) => setReceiptForm({ ...receiptForm, notes: e.target.value })}
+                placeholder="Any additional notes for admin…"
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadingReceiptFor(null)}>Cancel</Button>
+            <Button
+              onClick={submitFuelReceipt}
+              disabled={submittingReceipt || !receiptFile}
+            >
+              {submittingReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Upload className="mr-2 h-4 w-4" /> Submit Receipt
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
