@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -39,7 +39,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map, Gauge, Zap, ParkingCircle } from 'lucide-react';
+import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -56,6 +59,7 @@ interface VehicleSummary {
   name: string;
   plate_number: string;
   weekly_budget_ngn: number;
+  carry_forward_ngn: number;
   assigned_driver_id: string | null;
   insurance_expiry: string | null;
   road_worthiness_expiry: string | null;
@@ -86,6 +90,9 @@ interface FuelRequest {
   payment_sent_at: string | null;
   fuel_station_name: string | null;
   litres_filled: number | null;
+  budget_exception: boolean;
+  budget_exception_by: string | null;
+  budget_exception_at: string | null;
 }
 
 interface TripLog {
@@ -113,6 +120,29 @@ interface TripLog {
   is_anomaly: boolean;
   anomaly_reason: string | null;
   status: string;
+}
+
+interface BreadcrumbRow {
+  id: string;
+  trip_id: string;
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  speed_kmh: number | null;
+  heading: number | null;
+  is_speeding: boolean;
+  recorded_at: string;
+}
+
+interface TripEvent {
+  id: string;
+  trip_id: string;
+  event_type: 'speeding' | 'hard_braking' | 'extended_stop';
+  lat: number | null;
+  lng: number | null;
+  speed_kmh: number | null;
+  details: string | null;
+  recorded_at: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -180,22 +210,308 @@ function detectAnomalies(distanceKm: number | null, durationMin: number): { isAn
 }
 
 // ---------------------------------------------------------------------------
+// Reverse geocoding (Nominatim / OpenStreetMap — free, no API key required)
+// ---------------------------------------------------------------------------
 
-function WeeklyBudgetBar({ spent, total }: { spent: number; total: number }) {
-  const pct = Math.min(100, Math.round((spent / total) * 100));
-  const over = spent >= total;
-  const warn = pct >= 80 && !over;
+const geocodeCache = new Map<string, string>();
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  if (geocodeCache.has(key)) return geocodeCache.get(key)!;
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+      { headers: { 'Accept-Language': 'en-GB', 'User-Agent': 'KD-Ops-Hub-Fleet/1.0' } },
+    );
+    if (!res.ok) throw new Error('geocode_fail');
+    const json = await res.json();
+    const address = (json.display_name as string) || formatCoords(lat, lng);
+    geocodeCache.set(key, address);
+    return address;
+  } catch {
+    return formatCoords(lat, lng);
+  }
+}
+
+// Haversine formula — returns distance in kilometres between two lat/lng pairs.
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ---------------------------------------------------------------------------
+// Trip map sub-components (must live before Fleet to satisfy JSX scope)
+// ---------------------------------------------------------------------------
+
+function FitBoundsToRoute({ points }: { points: [number, number][] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length >= 2) {
+      map.fitBounds(points as L.LatLngTuple[], { padding: [32, 32], maxZoom: 15 });
+    } else if (points.length === 1) {
+      map.setView(points[0] as L.LatLngTuple, 14);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
+const EVENT_LABEL: Record<string, string> = {
+  speeding:      'Speeding',
+  hard_braking:  'Hard Braking',
+  extended_stop: 'Extended Stop',
+};
+
+const EVENT_COLOR: Record<string, string> = {
+  speeding:      'bg-red-100 text-red-700 border-red-300',
+  hard_braking:  'bg-orange-100 text-orange-700 border-orange-300',
+  extended_stop: 'bg-blue-100 text-blue-700 border-blue-300',
+};
+
+const EVENT_ICON: Record<string, React.ReactNode> = {
+  speeding:      <Gauge className="h-3 w-3" />,
+  hard_braking:  <Zap className="h-3 w-3" />,
+  extended_stop: <ParkingCircle className="h-3 w-3" />,
+};
+
+interface TripMapModalProps {
+  trip: TripLog;
+  breadcrumbs: BreadcrumbRow[];
+  events: TripEvent[];
+  loading: boolean;
+  onClose: () => void;
+}
+
+function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapModalProps) {
+  const [activeTab, setActiveTab] = useState<'map' | 'events'>('map');
+
+  const startPos: [number, number] | null =
+    trip.start_lat != null && trip.start_lng != null ? [trip.start_lat, trip.start_lng] : null;
+  const endPos: [number, number] | null =
+    trip.end_lat != null && trip.end_lng != null ? [trip.end_lat, trip.end_lng] : null;
+
+  const center: [number, number] = startPos ?? endPos ?? [6.5244, 3.3792]; // Lagos fallback
+  const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
+  const boundsPoints: [number, number][] =
+    trail.length >= 2 ? trail : [startPos, endPos].filter(Boolean) as [number, number][];
+
+  const startIcon = useMemo(() => L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;border-radius:50%;background:#16a34a;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.45)"></div>',
+    iconSize: [14, 14] as L.PointExpression,
+    iconAnchor: [7, 7] as L.PointExpression,
+  }), []);
+
+  const endIcon = useMemo(() => L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;border-radius:50%;background:#dc2626;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.45)"></div>',
+    iconSize: [14, 14] as L.PointExpression,
+    iconAnchor: [7, 7] as L.PointExpression,
+  }), []);
+
+  const eventIcon = useMemo(() => L.divIcon({
+    className: '',
+    html: '<div style="width:10px;height:10px;border-radius:50%;background:#f97316;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
+    iconSize: [10, 10] as L.PointExpression,
+    iconAnchor: [5, 5] as L.PointExpression,
+  }), []);
+
+  const hasGps = startPos != null || endPos != null;
+
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>This week's budget used</span>
-        <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-600 font-semibold' : ''}>
-          {formatNaira(spent)} / {formatNaira(total)} ({pct}%)
+    <Dialog open onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2">
+            <Map className="h-4 w-4" /> Trip Map — {trip.employee_name}
+          </DialogTitle>
+          <DialogDescription>
+            {formatDate(trip.date)} · {trip.start_location || '—'} → {trip.end_location || '—'}
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Tab bar */}
+        <div className="flex gap-1 shrink-0 border-b pb-2">
+          {(['map', 'events'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveTab(t)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {t === 'map' ? <Map className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+              {t === 'map' ? 'Map' : 'Events'}
+              {t === 'events' && events.length > 0 && (
+                <span className="bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
+                  {events.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto min-h-0">
+          {loading ? (
+            <div className="flex items-center justify-center h-48">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : activeTab === 'map' ? (
+            <>
+              {!hasGps ? (
+                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
+                  No GPS coordinates recorded for this trip.
+                </div>
+              ) : (
+                <div className="rounded-md overflow-hidden border" style={{ height: 400 }}>
+                  <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
+                    <TileLayer
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+                    {boundsPoints.length >= 1 && <FitBoundsToRoute points={boundsPoints} />}
+                    {trail.length > 1 && (
+                      <Polyline positions={trail} color="#3b82f6" weight={3} opacity={0.75} />
+                    )}
+                    {startPos && (
+                      <Marker position={startPos} icon={startIcon}>
+                        <Popup>
+                          <strong>Start</strong><br />{trip.start_location || formatCoords(startPos[0], startPos[1])}<br />
+                          {trip.trip_start_time && new Date(trip.trip_start_time).toLocaleTimeString('en-GB')}
+                        </Popup>
+                      </Marker>
+                    )}
+                    {endPos && (
+                      <Marker position={endPos} icon={endIcon}>
+                        <Popup>
+                          <strong>End</strong><br />{trip.end_location || formatCoords(endPos[0], endPos[1])}<br />
+                          {trip.trip_end_time && new Date(trip.trip_end_time).toLocaleTimeString('en-GB')}
+                        </Popup>
+                      </Marker>
+                    )}
+                    {events.map((ev) =>
+                      ev.lat != null && ev.lng != null ? (
+                        <Marker key={ev.id} position={[ev.lat, ev.lng]} icon={eventIcon}>
+                          <Popup>
+                            <strong>{EVENT_LABEL[ev.event_type] || ev.event_type}</strong><br />
+                            {ev.details}<br />
+                            <span style={{ fontSize: '0.7rem', color: '#666' }}>
+                              {new Date(ev.recorded_at).toLocaleTimeString('en-GB')}
+                            </span>
+                          </Popup>
+                        </Marker>
+                      ) : null,
+                    )}
+                  </MapContainer>
+                </div>
+              )}
+              {/* Legend */}
+              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-600 inline-block shrink-0" /> Start</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-600 inline-block shrink-0" /> End</span>
+                <span className="flex items-center gap-1.5"><span className="w-6 h-0.5 bg-blue-500 inline-block shrink-0" /> Route</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block shrink-0" /> Event</span>
+                <span className="ml-auto">{breadcrumbs.length} GPS pings · {events.length} events</span>
+              </div>
+            </>
+          ) : (
+            /* Events tab */
+            events.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                No driving events were recorded for this trip.
+              </div>
+            ) : (
+              <div className="space-y-2 py-1">
+                {events.map((ev) => (
+                  <div key={ev.id} className="flex items-start gap-3 p-3 rounded-md border">
+                    <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border shrink-0 ${EVENT_COLOR[ev.event_type] || 'bg-muted text-muted-foreground'}`}>
+                      {EVENT_ICON[ev.event_type]}
+                      {EVENT_LABEL[ev.event_type] || ev.event_type}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">{ev.details || '—'}</p>
+                      {ev.lat != null && ev.lng != null && (
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{formatCoords(ev.lat, ev.lng)}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                      {new Date(ev.recorded_at).toLocaleTimeString('en-GB')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+
+        <DialogFooter className="shrink-0 pt-2">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function WeeklyBudgetBar({
+  spent, total, carryForward, remaining,
+}: {
+  spent: number; total: number; carryForward: number; remaining: number;
+}) {
+  const pctRemaining = total > 0 ? Math.min(100, Math.round((remaining / total) * 100)) : 0;
+  const isOver   = remaining <= 0;
+  const isRed    = !isOver && pctRemaining < 25;
+  const isAmber  = !isOver && !isRed && pctRemaining < 50;
+
+  const barColour = total <= 0
+    ? ''
+    : isOver  ? '[&>div]:bg-destructive'
+    : isRed   ? '[&>div]:bg-red-500'
+    : isAmber ? '[&>div]:bg-amber-500'
+    :           '[&>div]:bg-green-500';
+
+  const remainColour = isOver ? 'text-destructive' : isRed ? 'text-red-600' : isAmber ? 'text-amber-600' : 'text-green-700';
+
+  return (
+    <div className="rounded-md border px-3 py-2.5 space-y-2 bg-muted/30 text-xs">
+      <div className="flex items-center justify-between">
+        <span className="font-medium text-muted-foreground">Weekly Budget</span>
+        <span className={`font-semibold ${remainColour}`}>
+          {formatNaira(remaining)} remaining
         </span>
       </div>
-      <Progress value={pct} className={`h-1.5 ${over ? '[&>div]:bg-destructive' : warn ? '[&>div]:bg-amber-500' : ''}`} />
-      {over && <p className="text-xs text-destructive">Weekly budget exceeded. Admin will review before approving.</p>}
-      {warn && <p className="text-xs text-amber-600">Approaching weekly budget limit.</p>}
+      <Progress
+        value={total > 0 ? pctRemaining : 0}
+        className={`h-2 bg-muted/60 ${barColour}`}
+      />
+      <div className="grid grid-cols-3 text-muted-foreground gap-1">
+        <div>
+          <p>Used</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNaira(spent)}</p>
+        </div>
+        <div className="text-center">
+          <p>Remaining</p>
+          <p className={`font-semibold tabular-nums ${remainColour}`}>{formatNaira(remaining)}</p>
+        </div>
+        <div className="text-right">
+          <p>Total</p>
+          <p className="font-semibold text-foreground tabular-nums">{formatNaira(total)}</p>
+        </div>
+      </div>
+      {carryForward > 0 && (
+        <p className="text-blue-600">
+          Includes {formatNaira(carryForward)} carry-forward from last week.
+        </p>
+      )}
+      {isOver  && <p className="text-destructive font-medium">Weekly budget exhausted.</p>}
+      {isRed   && <p className="text-red-600">Less than 25% of budget remaining.</p>}
+      {isAmber && <p className="text-amber-600">Less than 50% of budget remaining.</p>}
     </div>
   );
 }
@@ -360,7 +676,9 @@ const Fleet = () => {
   // Phase 1 — vehicle & weekly budget state
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
   const [fuelVehicleId, setFuelVehicleId] = useState('');
-  const [weekBudget, setWeekBudget] = useState<{ spent: number; total: number } | null>(null);
+  const [weekBudget, setWeekBudget] = useState<{
+    spent: number; total: number; carryForward: number; remaining: number;
+  } | null>(null);
 
   // Phase 4 — repair request form
   const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
@@ -412,6 +730,25 @@ const Fleet = () => {
   // Cancel in-progress trip confirmation
   const [confirmCancelTrip, setConfirmCancelTrip] = useState(false);
 
+  // Live breadcrumb tracking (watchPosition)
+  const watchIdRef = useRef<number | null>(null);
+  const prevSpeedRef = useRef<number | null>(null);
+  const lastBreadcrumbPosRef = useRef<{ lat: number; lng: number } | null>(null);
+  const lastBreadcrumbTimeRef = useRef<number>(0);
+  const [liveSpeed, setLiveSpeed] = useState<number | null>(null);
+  const [lastBreadcrumbAt, setLastBreadcrumbAt] = useState<Date | null>(null);
+  const [breadcrumbCount, setBreadcrumbCount] = useState(0);
+
+  // Map view state
+  const [viewingTripMap, setViewingTripMap] = useState<TripLog | null>(null);
+  const [mapBreadcrumbs, setMapBreadcrumbs] = useState<BreadcrumbRow[]>([]);
+  const [mapEvents, setMapEvents] = useState<TripEvent[]>([]);
+  const [loadingMapData, setLoadingMapData] = useState(false);
+
+  // Reverse-geocoded human addresses for start/end GPS fixes
+  const [startAddress, setStartAddress] = useState<string | null>(null);
+  const [endAddress, setEndAddress] = useState<string | null>(null);
+
   useEffect(() => {
     // keep form employee_id in sync with the logged-in user
     setFuelForm((f) => ({ ...f, employee_id: profile?.id || '' }));
@@ -456,6 +793,111 @@ const Fleet = () => {
     document.addEventListener('visibilitychange', onVisibility);
     return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisibility); };
   }, [activeTrip?.trip_start_time]);
+
+  // Live breadcrumb tracking — runs for the lifetime of an active trip.
+  // Inserts GPS pings to trip_breadcrumbs and driving events to trip_events.
+  useEffect(() => {
+    const tripId = activeTrip?.id ?? null;
+
+    if (!tripId) {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      prevSpeedRef.current = null;
+      lastBreadcrumbPosRef.current = null;
+      lastBreadcrumbTimeRef.current = 0;
+      setLiveSpeed(null);
+      setLastBreadcrumbAt(null);
+      setBreadcrumbCount(0);
+      return;
+    }
+
+    if (!navigator.geolocation) return;
+
+    const MIN_DIST_KM = 0.020;   // 20 m — suppress tiny GPS jitter
+    const MIN_INTERVAL_MS = 15_000; // 15 s — max breadcrumb rate at rest
+    const STOP_THRESHOLD_MS = 5 * 60_000; // 5 min — flag as extended stop
+    const SPEED_THRESHOLD_KMH = 100;
+    const HARD_BRAKE_DROP_KMH = 40;
+
+    const onPosition = (pos: GeolocationPosition) => {
+      const { latitude: lat, longitude: lng, accuracy, speed, heading } = pos.coords;
+      const speedKmh = speed != null && speed >= 0 ? speed * 3.6 : null;
+      setLiveSpeed(speedKmh != null ? Math.round(speedKmh) : null);
+
+      const now = Date.now();
+      const prevPos = lastBreadcrumbPosRef.current;
+      const distMoved = prevPos ? haversineKm(prevPos.lat, prevPos.lng, lat, lng) : Infinity;
+      const msSinceLast = now - lastBreadcrumbTimeRef.current;
+
+      const hasMovedEnough = distMoved >= MIN_DIST_KM;
+      const timeThresholdMet = msSinceLast >= MIN_INTERVAL_MS;
+      const isExtendedStop = !hasMovedEnough && msSinceLast >= STOP_THRESHOLD_MS;
+
+      if (!hasMovedEnough && !timeThresholdMet) return;
+
+      lastBreadcrumbPosRef.current = { lat, lng };
+      lastBreadcrumbTimeRef.current = now;
+      setLastBreadcrumbAt(new Date());
+      setBreadcrumbCount((n) => n + 1);
+
+      const isSpeeding = speedKmh != null && speedKmh > SPEED_THRESHOLD_KMH;
+      const isHardBraking =
+        speedKmh != null &&
+        prevSpeedRef.current != null &&
+        prevSpeedRef.current - speedKmh >= HARD_BRAKE_DROP_KMH;
+
+      prevSpeedRef.current = speedKmh;
+
+      // Insert breadcrumb (fire-and-forget — errors are non-critical)
+      supabase.from('trip_breadcrumbs').insert({
+        trip_id: tripId, lat, lng,
+        accuracy: accuracy ?? null,
+        speed_kmh: speedKmh,
+        heading: heading ?? null,
+        is_speeding: isSpeeding,
+      }).then(() => {}).catch(() => {});
+
+      // Collect events to batch-insert
+      const evts: Array<{ event_type: string; speed_kmh: number | null; details: string }> = [];
+      if (isSpeeding) evts.push({
+        event_type: 'speeding',
+        speed_kmh: speedKmh,
+        details: `${Math.round(speedKmh!)} km/h — exceeds ${SPEED_THRESHOLD_KMH} km/h threshold`,
+      });
+      if (isHardBraking) evts.push({
+        event_type: 'hard_braking',
+        speed_kmh: speedKmh,
+        details: `Speed dropped from ${Math.round(prevSpeedRef.current ?? 0)} to ${Math.round(speedKmh!)} km/h`,
+      });
+      if (isExtendedStop) evts.push({
+        event_type: 'extended_stop',
+        speed_kmh: speedKmh,
+        details: `Vehicle stationary for ${Math.round(msSinceLast / 60_000)} minutes`,
+      });
+
+      if (evts.length > 0) {
+        supabase.from('trip_events').insert(
+          evts.map((ev) => ({ ...ev, trip_id: tripId, lat, lng })),
+        ).then(() => {}).catch(() => {});
+      }
+    };
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      onPosition,
+      () => { /* silent — live tracking is best-effort */ },
+      { enableHighAccuracy: true, timeout: 20_000, maximumAge: 5_000 },
+    );
+
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTrip?.id]);
 
   const enrich = (rows: any[], staffList: FieldStaff[]) => {
     const byId = new Map(staffList.map((s) => [s.id, s]));
@@ -515,22 +957,35 @@ const Fleet = () => {
     }
   };
 
-  // Phase 1 — fetch current-week spend for a vehicle against its weekly budget
+  // Fetch current-week spend for a vehicle, accounting for carry-forward.
+  // Counts only approved/post-approval statuses — pending requests do not
+  // reduce the available budget until the admin approves them.
   const fetchWeekBudget = async (vehicleId: string) => {
     if (!vehicleId) { setWeekBudget(null); return; }
     const v = vehicles.find((x) => x.id === vehicleId);
     if (!v || !v.weekly_budget_ngn) { setWeekBudget(null); return; }
-    const monday = new Date();
-    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+
+    // Week window: Monday 00:00:00 → Sunday 23:59:59 (local time)
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
     const { data } = await supabase
       .from('fuel_requests')
       .select('amount_ngn')
       .eq('vehicle_id', vehicleId)
-      .in('status', ['pending', 'approved'])
-      .gte('created_at', monday.toISOString());
+      .in('status', ['approved', 'payment_sent', 'receipt_uploaded', 'completed'])
+      .gte('created_at', monday.toISOString())
+      .lte('created_at', sunday.toISOString());
+
     const spent = (data || []).reduce((s: number, r: any) => s + (r.amount_ngn || 0), 0);
-    setWeekBudget({ spent, total: v.weekly_budget_ngn });
+    const carryForward = v.carry_forward_ngn ?? 0;
+    const total = v.weekly_budget_ngn + carryForward;
+    setWeekBudget({ spent, total, carryForward, remaining: Math.max(0, total - spent) });
   };
 
   // Phase 4 — pre-fill odometer_start from the driver's last trip end reading
@@ -623,11 +1078,18 @@ const Fleet = () => {
   const acquireGeo = (
     setState: (s: GeoState) => void,
     setCoords: (c: GeoCoords | null) => void,
+    onAddress?: (addr: string) => void,
   ) => {
     setState('acquiring');
     setCoords(null);
     getGeolocation()
-      .then((c) => { setCoords(c); setState('ok'); })
+      .then((c) => {
+        setCoords(c);
+        setState('ok');
+        if (onAddress) {
+          reverseGeocode(c.lat, c.lng).then(onAddress).catch(() => {});
+        }
+      })
       .catch((code) => { setState(code as GeoState); });
   };
 
@@ -635,8 +1097,9 @@ const Fleet = () => {
     setShowStartTrip(true);
     setStartGeoState('idle');
     setStartCoords(null);
+    setStartAddress(null);
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
-    acquireGeo(setStartGeoState, setStartCoords);
+    acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr));
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
         setStartTripForm((f) => ({ ...f, odometer_start: v })),
@@ -651,7 +1114,7 @@ const Fleet = () => {
       return;
     }
     const locationStr = startCoords
-      ? formatCoords(startCoords.lat, startCoords.lng)
+      ? (startAddress || formatCoords(startCoords.lat, startCoords.lng))
       : startTripForm.manual_location.trim();
     setStartingTrip(true);
     const now = new Date().toISOString();
@@ -686,8 +1149,9 @@ const Fleet = () => {
     setShowEndTrip(true);
     setEndGeoState('idle');
     setEndCoords(null);
+    setEndAddress(null);
     setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
-    acquireGeo(setEndGeoState, setEndCoords);
+    acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr));
   };
 
   const handleEndTrip = async () => {
@@ -698,7 +1162,7 @@ const Fleet = () => {
       return;
     }
     const endLocationStr = endCoords
-      ? formatCoords(endCoords.lat, endCoords.lng)
+      ? (endAddress || formatCoords(endCoords.lat, endCoords.lng))
       : endTripForm.manual_location.trim();
     const now = new Date();
     const startMs = activeTrip.trip_start_time ? Date.parse(activeTrip.trip_start_time) : Date.now();
@@ -764,9 +1228,23 @@ const Fleet = () => {
     toast({ title: 'Trip cancelled' });
   };
 
+  const openTripMap = async (t: TripLog) => {
+    setViewingTripMap(t);
+    setLoadingMapData(true);
+    setMapBreadcrumbs([]);
+    setMapEvents([]);
+    const [bcRes, evRes] = await Promise.all([
+      supabase.from('trip_breadcrumbs').select('*').eq('trip_id', t.id).order('recorded_at'),
+      supabase.from('trip_events').select('*').eq('trip_id', t.id).order('recorded_at'),
+    ]);
+    setMapBreadcrumbs((bcRes.data as BreadcrumbRow[]) || []);
+    setMapEvents((evRes.data as TripEvent[]) || []);
+    setLoadingMapData(false);
+  };
+
   // ---- End trip clock-in helpers ----
 
-  const submitFuelRequest = async () => {
+  const submitFuelRequest = async (asException = false) => {
     if (!fuelForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
@@ -779,7 +1257,7 @@ const Fleet = () => {
       litres_est: parseFloat(fuelForm.litres_est) || null,
       odometer: parseFloat(fuelForm.odometer) || null,
       reason: fuelForm.reason,
-      status: 'pending',
+      status: asException ? 'budget_blocked' : 'pending',
       vehicle_id: fuelVehicleId || null,
       ...(fuelBankDetails.verified ? {
         bank_name: fuelBankDetails.bank_name,
@@ -817,8 +1295,8 @@ const Fleet = () => {
       }
 
       await logAudit(
-        'fuel_request_submitted',
-        `Fuel request submitted (${formatNaira(
+        asException ? 'fuel_budget_exception_requested' : 'fuel_request_submitted',
+        `Fuel request ${asException ? 'submitted as budget exception' : 'submitted'} (${formatNaira(
           parseFloat(fuelForm.amount_ngn) || 0,
         )} at ${fuelForm.station_name})`,
         profile,
@@ -827,8 +1305,8 @@ const Fleet = () => {
         roles: ['super_admin', 'admin', 'finance'],
         type: 'fuel_request_submitted',
         module: 'fleet',
-        title: 'Fuel request submitted',
-        body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}`,
+        title: asException ? 'Fuel budget exception requested' : 'Fuel request submitted',
+        body: `${formatNaira(parseFloat(fuelForm.amount_ngn) || 0)} at ${fuelForm.station_name}${asException ? ' — OVER BUDGET' : ''}`,
       });
       toast({ title: 'Fuel request submitted' });
       setShowFuelForm(false);
@@ -1101,6 +1579,62 @@ const Fleet = () => {
     } else {
       toast({ title: 'Fuel request approved' });
     }
+    fetchData();
+  };
+
+  const handleBudgetException = async (r: FuelRequest) => {
+    if (profile?.role !== 'super_admin' && profile?.role !== 'admin') {
+      toast({ title: 'Only super_admin or admin may approve budget exceptions', variant: 'destructive' });
+      return;
+    }
+    const now = new Date().toISOString();
+    const note = `Approved as budget exception by ${profile.full_name || 'Admin'} on ${new Date().toLocaleDateString('en-GB')}.`;
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({
+        status: 'approved',
+        budget_exception: true,
+        budget_exception_by: profile.id,
+        budget_exception_at: now,
+        admin_note: r.admin_note ? `${r.admin_note}\n${note}` : note,
+      })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await supabase.from('expenses').insert({
+      category: 'fuel',
+      budget_category: 'fuel',
+      amount_ngn: r.amount_ngn,
+      date: now.slice(0, 10),
+      description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+      submitted_by: (r as any).driver_id || r.employee_id,
+      status: 'approved',
+      approved_by: profile.id,
+      approved_at: now,
+      ...(r.bank_name ? {
+        bank_name: r.bank_name,
+        account_number: r.account_number,
+        account_name: r.account_name,
+      } : {}),
+    });
+    await logAudit(
+      'fuel_budget_exception_approved',
+      `Budget exception approved for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)}) by ${profile.full_name}`,
+      profile,
+    );
+    const driverId = (r as any).driver_id || r.employee_id;
+    if (driverId) {
+      await notifyUser({
+        userId: driverId,
+        type: 'fuel_request_approved',
+        module: 'fleet',
+        title: 'Your fuel request was approved as a budget exception',
+        body: `${formatNaira(r.amount_ngn || 0)} at ${r.station_name}`,
+      });
+    }
+    toast({ title: 'Budget exception approved' });
     fetchData();
   };
 
@@ -1464,14 +1998,32 @@ const Fleet = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={r.status} />
+                        {r.status === 'budget_blocked'
+                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
+                          : <StatusBadge status={r.status} />}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(r.created_at)}
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
-                          {r.status === 'pending' ? (
+                          {r.status === 'budget_blocked' ? (
+                            <div className="flex justify-end gap-1 flex-wrap">
+                              {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                                  onClick={() => handleBudgetException(r)}
+                                >
+                                  <Check className="h-3 w-3 mr-1" /> Approve as Budget Exception
+                                </Button>
+                              )}
+                              <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteFuel(r)} title="Delete">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          ) : r.status === 'pending' ? (
                             <div className="flex justify-end gap-1">
                               <Button
                                 size="sm"
@@ -1564,14 +2116,26 @@ const Fleet = () => {
           {/* Active trip card — live clock-in panel */}
           {activeTrip && (
             <div className="rounded-lg border-2 border-green-500 bg-green-50 dark:border-green-700 dark:bg-green-950/20 p-4 space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <Radio className="h-4 w-4 text-green-600 animate-pulse" />
+                  <Radio className="h-4 w-4 text-green-600 animate-pulse shrink-0" />
                   <span className="font-semibold text-green-800 dark:text-green-300 text-sm">Trip In Progress</span>
                 </div>
-                <span className="text-2xl font-mono font-bold text-green-700 dark:text-green-400 tabular-nums">
-                  {formatDuration(elapsedSeconds)}
-                </span>
+                <div className="flex items-center gap-4">
+                  {liveSpeed != null && (
+                    <div className="flex items-center gap-1 text-sm">
+                      <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className={`font-mono font-bold tabular-nums ${
+                        liveSpeed > 100 ? 'text-red-600' : liveSpeed > 80 ? 'text-amber-600' : 'text-green-700 dark:text-green-400'
+                      }`}>
+                        {liveSpeed} km/h
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-2xl font-mono font-bold text-green-700 dark:text-green-400 tabular-nums">
+                    {formatDuration(elapsedSeconds)}
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div>
@@ -1584,13 +2148,22 @@ const Fleet = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Start Location</p>
-                  <p className="font-mono text-xs truncate">{activeTrip.start_location || '—'}</p>
+                  <p className="text-xs truncate">{activeTrip.start_location || '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Start Odometer</p>
                   <p className="font-medium">{activeTrip.odometer_start != null ? `${activeTrip.odometer_start.toLocaleString()} km` : '—'}</p>
                 </div>
               </div>
+              {/* Live GPS tracking status */}
+              {lastBreadcrumbAt && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-green-200 dark:border-green-800 pt-2">
+                  <Radio className="h-3 w-3 text-green-500 animate-pulse shrink-0" />
+                  <span>
+                    GPS tracking active · Last ping {lastBreadcrumbAt.toLocaleTimeString('en-GB')} · {breadcrumbCount} pings recorded
+                  </span>
+                </div>
+              )}
               <div className="flex gap-2 pt-1 border-t border-green-200 dark:border-green-800">
                 <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" onClick={openEndTrip}>
                   <Navigation className="h-4 w-4 mr-2 rotate-180" /> End Trip
@@ -1698,9 +2271,16 @@ const Fleet = () => {
                       </TableCell>
                       {isAdmin && (
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                          <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteTrip(t)} title="Delete">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-0.5">
+                            {(t.start_lat != null || t.end_lat != null) && (
+                              <Button size="sm" variant="ghost" onClick={() => openTripMap(t)} title="View map">
+                                <Map className="h-4 w-4 text-blue-600" />
+                              </Button>
+                            )}
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteTrip(t)} title="Delete">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -1917,7 +2497,12 @@ const Fleet = () => {
                   </SelectContent>
                 </Select>
                 {weekBudget && weekBudget.total > 0 && (
-                  <WeeklyBudgetBar spent={weekBudget.spent} total={weekBudget.total} />
+                  <WeeklyBudgetBar
+                    spent={weekBudget.spent}
+                    total={weekBudget.total}
+                    carryForward={weekBudget.carryForward}
+                    remaining={weekBudget.remaining}
+                  />
                 )}
               </div>
             )}
@@ -2008,22 +2593,49 @@ const Fleet = () => {
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowFuelForm(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={submitFuelRequest}
-              disabled={
-                submitting ||
-                !fuelForm.employee_id ||
-                !fuelForm.station_name ||
-                !fuelForm.amount_ngn
-              }
-            >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
-            </Button>
-          </DialogFooter>
+
+          {/* CHANGE 3 — budget block warning */}
+          {(() => {
+            const requested = parseFloat(fuelForm.amount_ngn) || 0;
+            const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
+            return (
+              <>
+                {isOverBudget && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/5 px-3 py-2.5 text-sm text-destructive mt-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p>
+                      Your request of <strong>{formatNaira(requested)}</strong> exceeds your remaining weekly budget
+                      of <strong>{formatNaira(weekBudget!.remaining)}</strong>.
+                      Contact your manager to request a budget exception, or use the button below.
+                    </p>
+                  </div>
+                )}
+                <DialogFooter className="gap-2 flex-wrap">
+                  <Button variant="outline" onClick={() => setShowFuelForm(false)}>
+                    Cancel
+                  </Button>
+                  {isOverBudget ? (
+                    <Button
+                      variant="outline"
+                      className="border-amber-400 text-amber-700 hover:bg-amber-50"
+                      onClick={() => submitFuelRequest(true)}
+                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
+                    >
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Request Budget Exception
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => submitFuelRequest()}
+                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
+                    >
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
@@ -2054,7 +2666,10 @@ const Fleet = () => {
                 {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
                 {startGeoState === 'ok' && startCoords && (
                   <>
-                    <p className="font-medium font-mono text-xs">{formatCoords(startCoords.lat, startCoords.lng)}</p>
+                    {startAddress
+                      ? <p className="font-medium text-xs leading-snug">{startAddress}</p>
+                      : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(startCoords.lat, startCoords.lng)}</p>
                     <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
                   </>
                 )}
@@ -2064,7 +2679,7 @@ const Fleet = () => {
                 {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
               {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
-                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords)}>
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr))}>
                   Retry
                 </button>
               )}
@@ -2192,7 +2807,10 @@ const Fleet = () => {
                 {endGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
                 {endGeoState === 'ok' && endCoords && (
                   <>
-                    <p className="font-medium font-mono text-xs">{formatCoords(endCoords.lat, endCoords.lng)}</p>
+                    {endAddress
+                      ? <p className="font-medium text-xs leading-snug">{endAddress}</p>
+                      : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(endCoords.lat, endCoords.lng)}</p>
                     <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(endCoords.accuracy)} m</p>
                   </>
                 )}
@@ -2202,7 +2820,7 @@ const Fleet = () => {
                 {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
               {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
-                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords)}>
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr))}>
                   Retry
                 </button>
               )}
@@ -2900,6 +3518,17 @@ const Fleet = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* TRIP MAP MODAL */}
+      {viewingTripMap && (
+        <TripMapModal
+          trip={viewingTripMap}
+          breadcrumbs={mapBreadcrumbs}
+          events={mapEvents}
+          loading={loadingMapData}
+          onClose={() => setViewingTripMap(null)}
+        />
+      )}
     </div>
   );
 };
