@@ -40,7 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -79,6 +79,7 @@ interface VehicleSummary {
   fuel_consumption_rate_lkm: number;
   home_base_lat: number | null;
   home_base_lng: number | null;
+  out_of_service_until: string | null;
 }
 
 interface FuelRequest {
@@ -1743,6 +1744,47 @@ const Fleet = () => {
         body: { event: 'trip_ended', vehicle_id: activeTrip.vehicle_id },
       }).catch(() => {/* best-effort */});
     }
+
+    // Maintenance proximity alerts — check after every trip
+    if (activeTrip.vehicle_id) {
+      const { data: mainItems } = await supabase
+        .from('vehicle_maintenance')
+        .select('*')
+        .eq('vehicle_id', activeTrip.vehicle_id)
+        .neq('status', 'done');
+      const maintVeh = vehicles.find((v) => v.id === activeTrip.vehicle_id);
+      const plate = maintVeh?.plate_number ?? 'Vehicle';
+      const todayMs = Date.now();
+      for (const item of mainItems || []) {
+        if (item.due_date) {
+          const daysUntil = Math.ceil((new Date(item.due_date).getTime() - todayMs) / 86_400_000);
+          if (daysUntil >= 0 && daysUntil <= 7) {
+            await notifyRoles({
+              roles: ['super_admin', 'admin', 'operations'],
+              type: 'maintenance_due_soon',
+              module: 'fleet',
+              priority: 'high',
+              title: `⚠️ ${plate}: ${item.service_type} due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}`,
+              body: `${plate}: ${item.service_type} is due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''} (due ${formatDate(item.due_date)}).`,
+            });
+          }
+        }
+        if (item.due_mileage_km != null && Number.isFinite(odoEnd)) {
+          const kmRemaining = item.due_mileage_km - odoEnd;
+          if (kmRemaining >= 0 && kmRemaining <= 500) {
+            await notifyRoles({
+              roles: ['super_admin', 'admin', 'operations'],
+              type: 'maintenance_due_km',
+              module: 'fleet',
+              priority: 'high',
+              title: `⚠️ ${plate}: ${item.service_type} due in ~${Math.round(kmRemaining)} km`,
+              body: `${plate}: ${item.service_type} due in ~${Math.round(kmRemaining)} km (current: ${Math.round(odoEnd).toLocaleString()} km, due at: ${item.due_mileage_km.toLocaleString()} km).`,
+            });
+          }
+        }
+      }
+    }
+
     fetchData();
   };
 
@@ -1776,6 +1818,18 @@ const Fleet = () => {
     if (!fuelForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
+    }
+
+    // Block fuel requests for vehicles currently out of service
+    if (fuelVehicleId) {
+      const fuelVeh = vehicles.find((v) => v.id === fuelVehicleId);
+      if (fuelVeh?.out_of_service_until) {
+        const today = new Date().toISOString().slice(0, 10);
+        if (fuelVeh.out_of_service_until >= today) {
+          toast({ title: 'Vehicle out of service', description: `This vehicle is out of service until ${formatDate(fuelVeh.out_of_service_until)}. Fuel requests are blocked.`, variant: 'destructive' });
+          return;
+        }
+      }
     }
 
     // RULE 3: same-day duplicate check (only when a vehicle is selected)
@@ -3464,10 +3518,27 @@ const Fleet = () => {
                     {vehicles.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.name} — {(v as any).plate_number}
+                        {(() => {
+                          const today = new Date().toISOString().slice(0, 10);
+                          return (v as any).out_of_service_until >= today ? ' (Out of service)' : '';
+                        })()}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {(() => {
+                  const fv = vehicles.find((v) => v.id === fuelVehicleId);
+                  const today = new Date().toISOString().slice(0, 10);
+                  if (fv?.out_of_service_until && fv.out_of_service_until >= today) {
+                    return (
+                      <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                        <Ban className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>Out of service until {formatDate(fv.out_of_service_until)}. Fuel requests are blocked.</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 {weekBudget && weekBudget.total > 0 && (
                   <WeeklyBudgetBar
                     spent={weekBudget.spent}
@@ -4675,6 +4746,21 @@ interface Vehicle {
   next_service_date: string | null;
   notes: string | null;
   status: string;
+  out_of_service_until: string | null;
+  created_at: string;
+}
+
+interface MaintenanceRecord {
+  id: string;
+  vehicle_id: string;
+  service_type: string;
+  due_date: string | null;
+  due_mileage_km: number | null;
+  recurrence: string;
+  last_done_date: string | null;
+  last_done_mileage_km: number | null;
+  status: string;
+  notes: string | null;
   created_at: string;
 }
 
@@ -4816,6 +4902,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [allEmployees, setAllEmployees] = useState<FieldStaff[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
   const [viewingFuelHistory, setViewingFuelHistory] = useState<Vehicle | null>(null);
+  const [viewingMaintenance, setViewingMaintenance] = useState<Vehicle | null>(null);
+  const [settingOutOfService, setSettingOutOfService] = useState<Vehicle | null>(null);
+  const [outOfServiceDate, setOutOfServiceDate] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -4956,6 +5045,37 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     return new Date(date) < new Date();
   };
 
+  const isOutOfService = (v: Vehicle) => {
+    if (!v.out_of_service_until) return false;
+    return v.out_of_service_until >= new Date().toISOString().slice(0, 10);
+  };
+
+  const handleMarkOutOfService = async () => {
+    if (!settingOutOfService) return;
+    const { error } = await supabase
+      .from('vehicles')
+      .update({ out_of_service_until: outOfServiceDate || null })
+      .eq('id', settingOutOfService.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (outOfServiceDate && settingOutOfService.assigned_driver_id) {
+      await notifyUser({
+        userId: settingOutOfService.assigned_driver_id,
+        type: 'vehicle_out_of_service',
+        module: 'fleet',
+        priority: 'high',
+        title: `${settingOutOfService.plate_number} is out of service`,
+        body: `${settingOutOfService.name} (${settingOutOfService.plate_number}) has been marked out of service until ${formatDate(outOfServiceDate)}.`,
+      });
+    }
+    toast({ title: outOfServiceDate ? 'Vehicle marked out of service' : 'Vehicle returned to service' });
+    setSettingOutOfService(null);
+    setOutOfServiceDate('');
+    load();
+  };
+
   if (loading) return <TableSkeleton rows={5} />;
 
   return (
@@ -4995,13 +5115,23 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                   </TableRow>
                 )}
                 {vehicles.map((v) => (
-                  <TableRow key={v.id} className="kd-transition">
+                  <TableRow key={v.id} className={`kd-transition${isOutOfService(v) ? ' bg-red-50/40 dark:bg-red-950/10' : ''}`}>
                     <TableCell>
-                      <div className="font-medium">{v.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {v.name}
+                        {isOutOfService(v) && (
+                          <Badge variant="secondary" className="bg-destructive/10 text-destructive border border-destructive/20 text-xs">
+                            <Ban className="h-3 w-3 mr-1" /> Out of Service
+                          </Badge>
+                        )}
+                      </div>
                       {v.make_model && (
                         <div className="text-xs text-muted-foreground">
                           {v.make_model}{v.year ? ` (${v.year})` : ''}{v.color ? ` · ${v.color}` : ''}
                         </div>
+                      )}
+                      {isOutOfService(v) && v.out_of_service_until && (
+                        <div className="text-xs text-destructive mt-0.5">Until {formatDate(v.out_of_service_until)}</div>
                       )}
                     </TableCell>
                     <TableCell className="font-mono">{v.plate_number}</TableCell>
@@ -5067,6 +5197,17 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                       <div className="flex gap-1">
                         <Button size="sm" variant="ghost" title="Fuel history" onClick={() => setViewingFuelHistory(v)}>
                           <History className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="ghost" title="Maintenance schedule" onClick={() => setViewingMaintenance(v)}>
+                          <Wrench className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          title={isOutOfService(v) ? 'Return to service' : 'Mark out of service'}
+                          onClick={() => { setSettingOutOfService(v); setOutOfServiceDate(v.out_of_service_until || ''); }}
+                        >
+                          <CalendarOff className={`h-4 w-4 ${isOutOfService(v) ? 'text-destructive' : ''}`} />
                         </Button>
                         <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
                           <Pencil className="h-4 w-4" />
@@ -5207,6 +5348,406 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       {viewingFuelHistory && (
         <FuelHistoryDialog vehicle={viewingFuelHistory} onClose={() => setViewingFuelHistory(null)} />
       )}
+
+      {viewingMaintenance && (
+        <VehicleMaintenanceDialog vehicle={viewingMaintenance} onClose={() => { setViewingMaintenance(null); load(); }} />
+      )}
+
+      {/* Out-of-service dialog */}
+      <Dialog open={!!settingOutOfService} onOpenChange={(open) => { if (!open) { setSettingOutOfService(null); setOutOfServiceDate(''); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarOff className="h-4 w-4" />
+              {settingOutOfService && isOutOfService(settingOutOfService) ? 'Return to service' : 'Mark out of service'}
+            </DialogTitle>
+            <DialogDescription>
+              {settingOutOfService?.name} ({settingOutOfService?.plate_number})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label>Out of service until</Label>
+              <Input
+                type="date"
+                value={outOfServiceDate}
+                onChange={(e) => setOutOfServiceDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+              <p className="text-xs text-muted-foreground">Leave blank to return the vehicle to service immediately.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setSettingOutOfService(null); setOutOfServiceDate(''); }}>Cancel</Button>
+            <Button
+              variant={outOfServiceDate ? 'destructive' : 'default'}
+              onClick={handleMarkOutOfService}
+            >
+              {outOfServiceDate ? 'Mark out of service' : 'Return to service'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VehicleMaintenanceDialog
+// ---------------------------------------------------------------------------
+
+const SERVICE_TYPES = [
+  'Oil Change',
+  'Tyre Rotation',
+  'Brake Service',
+  'Full Service',
+  'Air Filter',
+  'Transmission Service',
+  'Custom',
+];
+
+const RECURRENCE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'one_time',       label: 'One-time' },
+  { value: 'every_3_months', label: 'Every 3 months' },
+  { value: 'every_6_months', label: 'Every 6 months' },
+  { value: 'every_10000_km', label: 'Every 10,000 km' },
+  { value: 'custom',         label: 'Custom' },
+];
+
+function effectiveMaintStatus(item: MaintenanceRecord): 'done' | 'overdue' | 'upcoming' | 'pending' {
+  if (item.status === 'done') return 'done';
+  if (item.due_date) {
+    const days = Math.ceil((new Date(item.due_date).getTime() - Date.now()) / 86_400_000);
+    if (days < 0) return 'overdue';
+    if (days <= 7) return 'upcoming';
+  }
+  return 'pending';
+}
+
+function maintStatusBadge(status: ReturnType<typeof effectiveMaintStatus>) {
+  switch (status) {
+    case 'done':     return 'bg-success/10 text-success border-success/20';
+    case 'overdue':  return 'bg-destructive/10 text-destructive border-destructive/20';
+    case 'upcoming': return 'bg-warning/10 text-warning border-warning/20';
+    default:         return 'bg-muted text-muted-foreground border-border';
+  }
+}
+
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr);
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: () => void }) {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const [records, setRecords] = useState<MaintenanceRecord[]>([]);
+  const [loadingRec, setLoadingRec] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [addForm, setAddForm] = useState({
+    service_type: 'Oil Change',
+    custom_service_type: '',
+    due_date: '',
+    due_mileage_km: '',
+    recurrence: 'one_time',
+    last_done_date: '',
+    last_done_mileage_km: '',
+    notes: '',
+  });
+
+  const loadRecords = useCallback(async () => {
+    setLoadingRec(true);
+    const { data } = await supabase
+      .from('vehicle_maintenance')
+      .select('*')
+      .eq('vehicle_id', vehicle.id)
+      .order('due_date', { ascending: true, nullsFirst: false });
+    setRecords((data as MaintenanceRecord[]) || []);
+    setLoadingRec(false);
+  }, [vehicle.id]);
+
+  useEffect(() => { loadRecords(); }, [loadRecords]);
+
+  const resetAdd = () => setAddForm({
+    service_type: 'Oil Change', custom_service_type: '', due_date: '',
+    due_mileage_km: '', recurrence: 'one_time', last_done_date: '',
+    last_done_mileage_km: '', notes: '',
+  });
+
+  const handleAdd = async () => {
+    const svcType = addForm.service_type === 'Custom' ? addForm.custom_service_type.trim() : addForm.service_type;
+    if (!svcType) { toast({ title: 'Service type is required', variant: 'destructive' }); return; }
+
+    // Calculate due_date / due_mileage_km from recurrence
+    let dueDate: string | null = addForm.due_date || null;
+    let dueMileage: number | null = parseInt(addForm.due_mileage_km) || null;
+    const baseDateStr = addForm.last_done_date || new Date().toISOString().slice(0, 10);
+    const baseMileage = parseInt(addForm.last_done_mileage_km) || 0;
+
+    switch (addForm.recurrence) {
+      case 'every_3_months': dueDate = addMonths(baseDateStr, 3); dueMileage = null; break;
+      case 'every_6_months': dueDate = addMonths(baseDateStr, 6); dueMileage = null; break;
+      case 'every_10000_km': dueDate = null; dueMileage = baseMileage + 10_000; break;
+    }
+
+    setSubmitting(true);
+    const { error } = await supabase.from('vehicle_maintenance').insert({
+      vehicle_id: vehicle.id,
+      service_type: svcType,
+      due_date: dueDate,
+      due_mileage_km: dueMileage,
+      recurrence: addForm.recurrence,
+      last_done_date: addForm.last_done_date || null,
+      last_done_mileage_km: parseInt(addForm.last_done_mileage_km) || null,
+      status: 'pending',
+      notes: addForm.notes.trim() || null,
+      created_by: profile?.id,
+    });
+    setSubmitting(false);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Service item added' });
+    setShowAdd(false);
+    resetAdd();
+    loadRecords();
+  };
+
+  const handleMarkDone = async (item: MaintenanceRecord) => {
+    const today = new Date().toISOString().slice(0, 10);
+    // Calculate next due from recurrence
+    let nextDueDate: string | null = null;
+    let nextDueMileage: number | null = null;
+    const baseMileage = item.last_done_mileage_km || 0;
+    switch (item.recurrence) {
+      case 'every_3_months': nextDueDate = addMonths(today, 3); break;
+      case 'every_6_months': nextDueDate = addMonths(today, 6); break;
+      case 'every_10000_km': nextDueMileage = baseMileage + 10_000; break;
+    }
+    const isRecurring = item.recurrence !== 'one_time' && item.recurrence !== 'custom';
+    const { error } = await supabase.from('vehicle_maintenance').update({
+      status: isRecurring ? 'pending' : 'done',
+      last_done_date: today,
+      due_date: isRecurring ? nextDueDate : item.due_date,
+      due_mileage_km: isRecurring ? nextDueMileage : item.due_mileage_km,
+    }).eq('id', item.id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Marked as done' + (isRecurring ? ' — next due date set' : '') });
+    loadRecords();
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from('vehicle_maintenance').delete().eq('id', id);
+    loadRecords();
+  };
+
+  const pending = records.filter((r) => effectiveMaintStatus(r) !== 'done');
+  const done    = records.filter((r) => effectiveMaintStatus(r) === 'done');
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
+          <DialogTitle className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" /> Maintenance — {vehicle.name} ({vehicle.plate_number})
+          </DialogTitle>
+          <DialogDescription>Service schedule and history for this vehicle.</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-muted-foreground">{pending.length} active item{pending.length !== 1 ? 's' : ''}</p>
+            <Button size="sm" onClick={() => setShowAdd(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Service Item
+            </Button>
+          </div>
+
+          {loadingRec ? (
+            <TableSkeleton rows={3} />
+          ) : pending.length === 0 && done.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No service items yet. Click "Add Service Item" to create the first one.</p>
+          ) : (
+            <>
+              {pending.length > 0 && (
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Service Type</TableHead>
+                          <TableHead>Due Date</TableHead>
+                          <TableHead>Due Mileage (km)</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Last Done</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pending.map((item) => {
+                          const st = effectiveMaintStatus(item);
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium text-sm">{item.service_type}</TableCell>
+                              <TableCell className="text-sm">{item.due_date ? formatDate(item.due_date) : '—'}</TableCell>
+                              <TableCell className="text-sm">{item.due_mileage_km != null ? item.due_mileage_km.toLocaleString() : '—'}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className={`text-xs border ${maintStatusBadge(st)}`}>
+                                  {st.charAt(0).toUpperCase() + st.slice(1)}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {item.last_done_date ? formatDate(item.last_done_date) : '—'}
+                                {item.last_done_mileage_km != null && ` / ${item.last_done_mileage_km.toLocaleString()} km`}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{item.notes || '—'}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button size="sm" variant="ghost" title="Mark done" onClick={() => handleMarkDone(item)}>
+                                    <CheckSquare className="h-4 w-4 text-success" />
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              )}
+
+              {done.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Completed</p>
+                  <Card>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Service Type</TableHead>
+                            <TableHead>Last Done Date</TableHead>
+                            <TableHead>Last Done Mileage</TableHead>
+                            <TableHead>Notes</TableHead>
+                            <TableHead></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {done.map((item) => (
+                            <TableRow key={item.id} className="opacity-60">
+                              <TableCell className="text-sm">{item.service_type}</TableCell>
+                              <TableCell className="text-sm">{item.last_done_date ? formatDate(item.last_done_date) : '—'}</TableCell>
+                              <TableCell className="text-sm">{item.last_done_mileage_km != null ? item.last_done_mileage_km.toLocaleString() + ' km' : '—'}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{item.notes || '—'}</TableCell>
+                              <TableCell>
+                                <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="shrink-0 px-6 pb-4 pt-3 border-t bg-background">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+
+      {/* Add service item sub-dialog */}
+      <Dialog open={showAdd} onOpenChange={(open) => { if (!open) { setShowAdd(false); resetAdd(); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Service Item</DialogTitle>
+            <DialogDescription>{vehicle.name} ({vehicle.plate_number})</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1">
+              <Label>Service Type <span className="text-destructive">*</span></Label>
+              <Select value={addForm.service_type} onValueChange={(v) => setAddForm({ ...addForm, service_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SERVICE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {addForm.service_type === 'Custom' && (
+                <Input
+                  placeholder="Describe the service…"
+                  value={addForm.custom_service_type}
+                  onChange={(e) => setAddForm({ ...addForm, custom_service_type: e.target.value })}
+                />
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <Label>Recurrence</Label>
+              <Select value={addForm.recurrence} onValueChange={(v) => setAddForm({ ...addForm, recurrence: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RECURRENCE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(addForm.recurrence === 'one_time' || addForm.recurrence === 'custom') && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Due Date</Label>
+                  <Input type="date" value={addForm.due_date} onChange={(e) => setAddForm({ ...addForm, due_date: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label>Due Mileage (km)</Label>
+                  <Input type="number" placeholder="e.g. 45000" value={addForm.due_mileage_km} onChange={(e) => setAddForm({ ...addForm, due_mileage_km: e.target.value })} />
+                </div>
+              </div>
+            )}
+
+            {(addForm.recurrence === 'every_3_months' || addForm.recurrence === 'every_6_months') && (
+              <div className="space-y-1">
+                <Label>Last Done Date <span className="text-muted-foreground text-xs font-normal">(used to calculate next due)</span></Label>
+                <Input type="date" value={addForm.last_done_date} onChange={(e) => setAddForm({ ...addForm, last_done_date: e.target.value })} />
+                <p className="text-xs text-muted-foreground">
+                  Next due: {addForm.last_done_date
+                    ? formatDate(addMonths(addForm.last_done_date, addForm.recurrence === 'every_3_months' ? 3 : 6))
+                    : formatDate(addMonths(new Date().toISOString().slice(0, 10), addForm.recurrence === 'every_3_months' ? 3 : 6))}
+                </p>
+              </div>
+            )}
+
+            {addForm.recurrence === 'every_10000_km' && (
+              <div className="space-y-1">
+                <Label>Last Done Mileage (km) <span className="text-muted-foreground text-xs font-normal">(used to calculate next due)</span></Label>
+                <Input type="number" placeholder="e.g. 35000" value={addForm.last_done_mileage_km} onChange={(e) => setAddForm({ ...addForm, last_done_mileage_km: e.target.value })} />
+                {addForm.last_done_mileage_km && (
+                  <p className="text-xs text-muted-foreground">Next due at: {(parseInt(addForm.last_done_mileage_km) + 10_000).toLocaleString()} km</p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label>Notes</Label>
+              <Textarea rows={2} placeholder="Optional notes…" value={addForm.notes} onChange={(e) => setAddForm({ ...addForm, notes: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowAdd(false); resetAdd(); }}>Cancel</Button>
+            <Button onClick={handleAdd} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Dialog>
   );
 }
