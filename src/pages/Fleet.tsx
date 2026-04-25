@@ -3474,370 +3474,410 @@ const Fleet = () => {
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
-      <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Fuel Request</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Employee</Label>
-              <Select
-                value={fuelForm.employee_id}
-                onValueChange={(v) => setFuelForm({ ...fuelForm, employee_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {staff.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.full_name || s.email}
-                    </SelectItem>
-                  ))}
-                  {profile && !staff.find((s) => s.id === profile.id) && (
-                    <SelectItem value={profile.id}>
-                      {profile.full_name || profile.email} (me)
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Phase 1 — vehicle selector + weekly budget bar */}
-            {vehicles.length > 0 && (
-              <div className="space-y-1">
-                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-                <Select
-                  value={fuelVehicleId}
-                  onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select vehicle (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {vehicles.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name} — {(v as any).plate_number}
-                        {(() => {
-                          const today = new Date().toISOString().slice(0, 10);
-                          return (v as any).out_of_service_until >= today ? ' (Out of service)' : '';
-                        })()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {(() => {
-                  const fv = vehicles.find((v) => v.id === fuelVehicleId);
-                  const today = new Date().toISOString().slice(0, 10);
-                  if (fv?.out_of_service_until && fv.out_of_service_until >= today) {
-                    return (
-                      <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-                        <Ban className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span>Out of service until {formatDate(fv.out_of_service_until)}. Fuel requests are blocked.</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-                {weekBudget && weekBudget.total > 0 && (
-                  <WeeklyBudgetBar
-                    spent={weekBudget.spent}
-                    total={weekBudget.total}
-                    carryForward={weekBudget.carryForward}
-                    remaining={weekBudget.remaining}
-                  />
-                )}
-              </div>
-            )}
-            <div className="space-y-1">
-              <Label>Fuel Station</Label>
-              <Input
-                value={fuelForm.station_name}
-                onChange={(e) => setFuelForm({ ...fuelForm, station_name: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Amount Requested (₦)</Label>
-                <Input
-                  type="number"
-                  value={fuelForm.amount_ngn}
-                  onChange={(e) => setFuelForm({ ...fuelForm, amount_ngn: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Litres (estimated)</Label>
-                <Input
-                  type="number"
-                  value={fuelForm.litres_est}
-                  onChange={(e) => setFuelForm({ ...fuelForm, litres_est: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Current Odometer Reading</Label>
-              <Input
-                type="number"
-                value={fuelForm.odometer}
-                onChange={(e) => setFuelForm({ ...fuelForm, odometer: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Purpose / Reason</Label>
-              <Textarea
-                value={fuelForm.reason}
-                onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
-              <Input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => setFuelDoc(e.target.files?.[0] ?? null)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Attach a photo of previous receipt, fuel station quote, or any supporting evidence.
-              </p>
-              {fuelDoc && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{fuelDoc.name}</span>
-                  {' '}— {(fuelDoc.size / 1024).toFixed(1)} KB
-                </p>
-              )}
-            </div>
-            <div className="pt-2 border-t">
-              {!showFuelBankSection ? (
-                <button
-                  type="button"
-                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
-                  onClick={() => setShowFuelBankSection(true)}
-                >
-                  <CreditCard className="h-3.5 w-3.5" />
-                  Add bank account for reimbursement (optional)
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      Bank account for reimbursement{' '}
-                      <span className="text-muted-foreground font-normal">(optional)</span>
-                    </span>
-                    <button
-                      type="button"
-                      className="text-xs text-muted-foreground hover:text-destructive"
-                      onClick={() => { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
-                </div>
-              )}
-            </div>
-          </div>
+      {/* NEW FUEL REQUEST DIALOG */}
+      {(() => {
+        const requested = parseFloat(fuelForm.amount_ngn) || 0;
+        const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
+        return (
+          <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); } }}>
+            <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
 
-          {/* CHANGE 3 — budget block warning */}
-          {(() => {
-            const requested = parseFloat(fuelForm.amount_ngn) || 0;
-            const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
-            return (
-              <>
+              {/* Pinned header */}
+              <DialogHeader className="shrink-0 px-6 pt-5 pb-4 border-b">
+                <DialogTitle className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100">
+                    <Fuel className="h-4 w-4 text-orange-600" />
+                  </div>
+                  New Fuel Request
+                </DialogTitle>
+                <DialogDescription>Submit a fuel reimbursement request for approval.</DialogDescription>
+              </DialogHeader>
+
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-h-0">
+
+                {/* Driver & Vehicle */}
+                <div className="space-y-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Driver & Vehicle</p>
+                  <div className="space-y-1">
+                    <Label>Employee</Label>
+                    <Select value={fuelForm.employee_id} onValueChange={(v) => setFuelForm({ ...fuelForm, employee_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                      <SelectContent>
+                        {staff.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>
+                        ))}
+                        {profile && !staff.find((s) => s.id === profile.id) && (
+                          <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {vehicles.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Select value={fuelVehicleId} onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}>
+                        <SelectTrigger><SelectValue placeholder="Select vehicle (optional)" /></SelectTrigger>
+                        <SelectContent>
+                          {vehicles.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.name} — {(v as any).plate_number}
+                              {(() => {
+                                const today = new Date().toISOString().slice(0, 10);
+                                return (v as any).out_of_service_until >= today ? ' (Out of service)' : '';
+                              })()}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {(() => {
+                        const fv = vehicles.find((v) => v.id === fuelVehicleId);
+                        const today = new Date().toISOString().slice(0, 10);
+                        if (fv?.out_of_service_until && fv.out_of_service_until >= today) {
+                          return (
+                            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                              <Ban className="h-4 w-4 mt-0.5 shrink-0" />
+                              <span>Out of service until {formatDate(fv.out_of_service_until)}. Fuel requests are blocked.</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {weekBudget && weekBudget.total > 0 && (
+                        <WeeklyBudgetBar spent={weekBudget.spent} total={weekBudget.total} carryForward={weekBudget.carryForward} remaining={weekBudget.remaining} />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Fuel Details */}
+                <div className="space-y-3 pt-4 border-t">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Fuel Details</p>
+                  <div className="space-y-1">
+                    <Label>Fuel Station</Label>
+                    <Input value={fuelForm.station_name} onChange={(e) => setFuelForm({ ...fuelForm, station_name: e.target.value })} placeholder="e.g. NNPC, Total, MRS" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Amount Requested (₦)</Label>
+                      <Input type="number" value={fuelForm.amount_ngn} onChange={(e) => setFuelForm({ ...fuelForm, amount_ngn: e.target.value })} placeholder="0" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Litres (estimated)</Label>
+                      <Input type="number" value={fuelForm.litres_est} onChange={(e) => setFuelForm({ ...fuelForm, litres_est: e.target.value })} placeholder="0" />
+                    </div>
+                  </div>
+
+                  {/* Live amount display */}
+                  {requested > 0 && (
+                    <div className={`rounded-xl border px-4 py-3 text-center transition-all duration-300 ${isOverBudget ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                      <p className={`text-2xl font-bold tracking-tight ${isOverBudget ? 'text-red-700' : 'text-emerald-700'}`}>
+                        {formatNaira(requested)}
+                      </p>
+                      {weekBudget && weekBudget.total > 0 && (
+                        <p className={`text-xs mt-0.5 ${isOverBudget ? 'text-red-500' : 'text-emerald-600'}`}>
+                          {isOverBudget
+                            ? `${formatNaira(requested - weekBudget.remaining)} over budget`
+                            : `${formatNaira(weekBudget.remaining - requested)} remaining after this`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label>Current Odometer Reading <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                    <Input type="number" value={fuelForm.odometer} onChange={(e) => setFuelForm({ ...fuelForm, odometer: e.target.value })} placeholder="km" />
+                  </div>
+                </div>
+
+                {/* Purpose & Documents */}
+                <div className="space-y-3 pt-4 border-t">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Purpose & Documents</p>
+                  <div className="space-y-1">
+                    <Label>Purpose / Reason</Label>
+                    <Textarea value={fuelForm.reason} onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })} placeholder="Brief description of trip purpose…" className="resize-none" rows={2} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
+                    <label className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-4 cursor-pointer transition-colors ${fuelDoc ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-muted/40'}`}>
+                      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => setFuelDoc(e.target.files?.[0] ?? null)} />
+                      {fuelDoc ? (
+                        <>
+                          <FileText className="h-5 w-5 text-primary" />
+                          <p className="text-xs font-medium text-foreground">{fuelDoc.name}</p>
+                          <p className="text-xs text-muted-foreground">{(fuelDoc.size / 1024).toFixed(1)} KB — click to change</p>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="h-5 w-5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground text-center">Click to attach receipt, quote, or supporting evidence</p>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Bank (optional) */}
+                <div className="pt-4 border-t">
+                  {!showFuelBankSection ? (
+                    <button type="button" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors" onClick={() => setShowFuelBankSection(true)}>
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Add bank account for reimbursement (optional)
+                    </button>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Bank account <span className="text-muted-foreground font-normal">(optional)</span></span>
+                        <button type="button" className="text-xs text-muted-foreground hover:text-destructive transition-colors" onClick={() => { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}>Remove</button>
+                      </div>
+                      <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pinned footer */}
+              <div className="shrink-0 px-6 pb-6 pt-4 border-t bg-background space-y-3">
                 {isOverBudget && (
-                  <div className="flex items-start gap-2 rounded-md border border-destructive bg-destructive/5 px-3 py-2.5 text-sm text-destructive mt-2">
+                  <div className="flex items-start gap-2 rounded-lg border border-destructive bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
                     <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <p>
-                      Your request of <strong>{formatNaira(requested)}</strong> exceeds your remaining weekly budget
-                      of <strong>{formatNaira(weekBudget!.remaining)}</strong>.
-                      Contact your manager to request a budget exception, or use the button below.
-                    </p>
+                    <p><strong>{formatNaira(requested)}</strong> exceeds your remaining weekly budget of <strong>{formatNaira(weekBudget!.remaining)}</strong>. Submit as a budget exception or contact your manager.</p>
                   </div>
                 )}
-                <DialogFooter className="gap-2 flex-wrap">
-                  <Button variant="outline" onClick={() => setShowFuelForm(false)}>
-                    Cancel
-                  </Button>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setShowFuelForm(false)}>Cancel</Button>
                   {isOverBudget ? (
-                    <Button
-                      variant="outline"
-                      className="border-amber-400 text-amber-700 hover:bg-amber-50"
-                      onClick={() => submitFuelRequest(true)}
-                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
-                    >
+                    <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50" onClick={() => submitFuelRequest(true)} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}>
                       {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Request Budget Exception
                     </Button>
                   ) : (
-                    <Button
-                      onClick={() => submitFuelRequest()}
-                      disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}
-                    >
-                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
+                    <Button onClick={() => submitFuelRequest()} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}>
+                      {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Submit Request
                     </Button>
                   )}
-                </DialogFooter>
-              </>
-            );
-          })()}
-        </DialogContent>
-      </Dialog>
+                </div>
+              </div>
+
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* START TRIP DIALOG */}
-      <Dialog open={showStartTrip} onOpenChange={(v) => { if (!v) setShowStartTrip(false); }}>
-        <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
-          <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
-            <DialogTitle className="flex items-center gap-2">
-              <Navigation className="h-4 w-4 text-green-600" /> Start Trip
-            </DialogTitle>
-            <DialogDescription>
-              Enter your start location and odometer reading to begin the trip.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
-            {/* GPS status panel */}
-            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
-              startGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
-              startGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
-              startGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
-                                             'border-amber-300 bg-amber-50 text-amber-800'
-            }`}>
-              {startGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
-              {startGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
-              {isGeoError(startGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
-              {startGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
-              <div className="flex-1 min-w-0">
-                {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
-                {startGeoState === 'ok' && startCoords && (
-                  <>
-                    {startAddress
-                      ? <p className="font-medium text-xs leading-snug">{startAddress}</p>
-                      : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
-                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(startCoords.lat, startCoords.lng)}</p>
-                    <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
-                  </>
-                )}
+      {(() => {
+        const locationOk = startGeoState === 'ok' || startTripForm.manual_location.trim().length > 0;
+        const odoOk = !!startTripForm.odometer_start && Number.isFinite(parseFloat(startTripForm.odometer_start));
+        const tripReady = locationOk && odoOk;
+        const steps = [
+          { label: 'Location', done: locationOk },
+          { label: 'Odometer', done: odoOk },
+          { label: 'Ready', done: tripReady },
+        ];
+        return (
+          <Dialog open={showStartTrip} onOpenChange={(v) => { if (!v) setShowStartTrip(false); }}>
+            <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
+              <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
+                <DialogTitle className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100">
+                    <Navigation className="h-4 w-4 text-green-600" />
+                  </div>
+                  Start Trip
+                </DialogTitle>
+                <DialogDescription>Enter your start location and odometer reading to begin.</DialogDescription>
+              </DialogHeader>
+
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
+
+                {/* Step progress */}
+                <div className="flex items-center gap-1">
+                  {steps.map((step, i) => (
+                    <div key={step.label} className="flex items-center gap-1 flex-1">
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium transition-all duration-300 whitespace-nowrap ${step.done ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>
+                        {step.done
+                          ? <CheckCircle2 className="h-3 w-3 shrink-0" />
+                          : <div className="h-3 w-3 rounded-full border-2 border-current shrink-0" />}
+                        {step.label}
+                      </div>
+                      {i < steps.length - 1 && (
+                        <div className={`flex-1 h-px transition-colors duration-300 ${step.done ? 'bg-green-300' : 'bg-border'}`} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* GPS status panel */}
+                <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm transition-colors duration-300 ${
+                  startGeoState === 'ok'        ? 'border-green-300 bg-green-50 text-green-800' :
+                  startGeoState === 'acquiring' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                  startGeoState === 'idle'      ? 'border-border bg-muted/40 text-muted-foreground' :
+                                                  'border-amber-300 bg-amber-50 text-amber-800'
+                }`}>
+                  {/* Animated icon per state */}
+                  {startGeoState === 'acquiring' && (
+                    <div className="relative shrink-0 mt-0.5">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="absolute -inset-1 rounded-full bg-blue-400 opacity-20 animate-ping" />
+                    </div>
+                  )}
+                  {startGeoState === 'ok' && (
+                    <div className="relative shrink-0 mt-0.5">
+                      <LocateFixed className="h-4 w-4 text-green-600" />
+                      <span className="absolute -inset-1 rounded-full bg-green-400 opacity-25 animate-ping" />
+                    </div>
+                  )}
+                  {isGeoError(startGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+                  {startGeoState === 'idle' && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
+
+                  <div className="flex-1 min-w-0">
+                    {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                    {startGeoState === 'ok' && startCoords && (
+                      <>
+                        {startAddress
+                          ? <p className="font-medium text-xs leading-snug">{startAddress}</p>
+                          : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
+                        <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(startCoords.lat, startCoords.lng)}</p>
+                        <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
+                      </>
+                    )}
+                    {isGeoError(startGeoState) && (
+                      <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                    )}
+                    {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
+                  </div>
+                  {(isGeoError(startGeoState) || startGeoState === 'ok') && (
+                    <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, setStartAddress)}>
+                      {startGeoState === 'ok' ? 'Re-acquire' : 'Retry'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Manual location fallback */}
                 {isGeoError(startGeoState) && (
-                  <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                  <div className="space-y-1">
+                    <Label>Start Location <span className="text-destructive">*</span></Label>
+                    <Input
+                      value={startTripForm.manual_location}
+                      onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                      placeholder="e.g. Victoria Island depot, Lagos"
+                    />
+                  </div>
                 )}
-                {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
-              </div>
-              {(isGeoError(startGeoState) || startGeoState === 'ok') && (
-                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, setStartAddress)}>
-                  {startGeoState === 'ok' ? 'Re-acquire' : 'Retry'}
-                </button>
-              )}
-            </div>
 
-            {/* Location input — only shown as a fallback when GPS fails */}
-            {isGeoError(startGeoState) && (
-              <div className="space-y-1">
-                <Label>
-                  Start Location <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  value={startTripForm.manual_location}
-                  onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
-                  placeholder="e.g. Victoria Island depot, Lagos"
-                />
-              </div>
-            )}
+                {/* Vehicle selector */}
+                {vehicles.length > 0 && (
+                  <div className="space-y-1">
+                    <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                    <Select
+                      value={startTripForm.vehicle_id || '__none__'}
+                      onValueChange={(v) => {
+                        const vid = v === '__none__' ? '' : v;
+                        setStartTripForm((f) => ({ ...f, vehicle_id: vid }));
+                        if (vid) {
+                          supabase.from('trip_logs').select('odometer_end').eq('vehicle_id', vid)
+                            .not('odometer_end', 'is', null).neq('status', 'in_progress')
+                            .order('trip_end_time', { ascending: false }).limit(1).maybeSingle()
+                            .then(({ data }) => setLastVehicleOdometer(data?.odometer_end ?? null));
+                        } else {
+                          setLastVehicleOdometer(null);
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No vehicle</SelectItem>
+                        {vehicles.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name} — {(v as any).plate_number}
+                            {v.current_fuel_litres != null && v.tank_capacity_litres > 0 && (
+                              <span className={`ml-2 text-xs ${(v.current_fuel_litres / v.tank_capacity_litres) < 0.2 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                ({Math.round((v.current_fuel_litres / v.tank_capacity_litres) * 100)}% fuel)
+                              </span>
+                            )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {startTripForm.vehicle_id && (() => {
+                      const veh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
+                      if (!veh || !veh.tank_capacity_litres) return null;
+                      const pct = Math.round((veh.current_fuel_litres / veh.tank_capacity_litres) * 100);
+                      if (pct >= 20) return null;
+                      return (
+                        <p className="text-xs text-red-600 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" /> Low fuel: {pct}% — consider refuelling before departing.
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
 
-            {/* Vehicle selector */}
-            {vehicles.length > 0 && (
-              <div className="space-y-1">
-                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-                <Select
-                  value={startTripForm.vehicle_id || '__none__'}
-                  onValueChange={(v) => {
-                    const vid = v === '__none__' ? '' : v;
-                    setStartTripForm((f) => ({ ...f, vehicle_id: vid }));
-                    if (vid) {
-                      supabase.from('trip_logs').select('odometer_end').eq('vehicle_id', vid)
-                        .not('odometer_end', 'is', null).neq('status', 'in_progress')
-                        .order('trip_end_time', { ascending: false }).limit(1).maybeSingle()
-                        .then(({ data }) => setLastVehicleOdometer(data?.odometer_end ?? null));
-                    } else {
-                      setLastVehicleOdometer(null);
-                    }
-                  }}
+                {/* Odometer input */}
+                <div className="space-y-2">
+                  <Label>Start Odometer Reading (km) <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    value={startTripForm.odometer_start}
+                    onChange={(e) => setStartTripForm((f) => ({ ...f, odometer_start: e.target.value }))}
+                    placeholder="e.g. 42500"
+                  />
+
+                  {/* Odometer dashboard readout */}
+                  {startTripForm.odometer_start && Number.isFinite(parseFloat(startTripForm.odometer_start)) && (
+                    <div className="rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-slate-400 mb-0.5">Odometer</p>
+                        <p className="text-xl font-mono font-bold text-white tracking-wider">
+                          {parseFloat(startTripForm.odometer_start).toLocaleString()}
+                          <span className="text-sm font-normal text-slate-400 ml-1">km</span>
+                        </p>
+                      </div>
+                      <Gauge className="h-7 w-7 text-slate-500" />
+                    </div>
+                  )}
+
+                  {lastVehicleOdometer != null && startTripForm.odometer_start && (
+                    parseFloat(startTripForm.odometer_start) < lastVehicleOdometer ? (
+                      <p className="text-xs text-red-600 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        Odometer went backwards — last recorded was {lastVehicleOdometer.toLocaleString()} km. Please check.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        +{(parseFloat(startTripForm.odometer_start) - lastVehicleOdometer).toLocaleString()} km since last trip
+                      </p>
+                    )
+                  )}
+                </div>
+
+                {/* Privacy notice */}
+                <div className="flex items-start gap-2 rounded-md bg-muted/50 border px-3 py-2 text-xs text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <p>Your location is recorded at trip start and end only — not tracked continuously.</p>
+                </div>
+              </div>
+
+              <DialogFooter className="shrink-0 px-6 pb-6 pt-3 border-t bg-background">
+                <Button variant="outline" onClick={() => setShowStartTrip(false)}>Cancel</Button>
+                <Button
+                  className={`transition-all duration-300 text-white ${
+                    tripReady && !startingTrip
+                      ? 'bg-green-600 hover:bg-green-700 ring-2 ring-green-400 ring-offset-2'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                  onClick={handleStartTrip}
+                  disabled={startingTrip || !startTripForm.odometer_start || (startGeoState !== 'ok' && !startTripForm.manual_location.trim())}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">No vehicle</SelectItem>
-                    {vehicles.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name} — {(v as any).plate_number}
-                        {v.current_fuel_litres != null && v.tank_capacity_litres > 0 && (
-                          <span className={`ml-2 text-xs ${(v.current_fuel_litres / v.tank_capacity_litres) < 0.2 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                            ({Math.round((v.current_fuel_litres / v.tank_capacity_litres) * 100)}% fuel)
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {/* Show fuel level warning for selected vehicle */}
-                {startTripForm.vehicle_id && (() => {
-                  const veh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
-                  if (!veh || !veh.tank_capacity_litres) return null;
-                  const pct = Math.round((veh.current_fuel_litres / veh.tank_capacity_litres) * 100);
-                  if (pct >= 20) return null;
-                  return (
-                    <p className="text-xs text-red-600 flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Low fuel: {pct}% — consider refuelling before departing.
-                    </p>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* Start odometer */}
-            <div className="space-y-1">
-              <Label>Start Odometer Reading (km) <span className="text-destructive">*</span></Label>
-              <Input
-                type="number"
-                value={startTripForm.odometer_start}
-                onChange={(e) => setStartTripForm((f) => ({ ...f, odometer_start: e.target.value }))}
-                placeholder="e.g. 42500"
-              />
-              {startTripForm.odometer_start && (
-                <p className="text-xs text-muted-foreground">{parseFloat(startTripForm.odometer_start).toLocaleString()} km on the clock</p>
-              )}
-              {lastVehicleOdometer != null && startTripForm.odometer_start && (
-                parseFloat(startTripForm.odometer_start) < lastVehicleOdometer ? (
-                  <p className="text-xs text-red-600 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3 shrink-0" />
-                    Odometer went backwards — last recorded was {lastVehicleOdometer.toLocaleString()} km. Please check.
-                  </p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    +{(parseFloat(startTripForm.odometer_start) - lastVehicleOdometer).toLocaleString()} km since last trip
-                  </p>
-                )
-              )}
-            </div>
-
-            <p className="text-xs text-muted-foreground border-t pt-2">
-              Your location is recorded at trip start and end only — not tracked continuously.
-            </p>
-          </div>
-          <DialogFooter className="shrink-0 px-6 pb-6 pt-3 border-t bg-background">
-            <Button variant="outline" onClick={() => setShowStartTrip(false)}>Cancel</Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={handleStartTrip}
-              disabled={
-                startingTrip ||
-                !startTripForm.odometer_start ||
-                (startGeoState !== 'ok' && !startTripForm.manual_location.trim())
-              }
-            >
-              {startingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Timer className="mr-2 h-4 w-4" /> Start Trip
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                  {startingTrip
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting…</>
+                    : <><Timer className="mr-2 h-4 w-4" /> {tripReady ? 'Start Trip' : 'Start Trip'}</>}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
 
       {/* END TRIP DIALOG */}
       <Dialog open={showEndTrip} onOpenChange={(v) => { if (!v) setShowEndTrip(false); }}>
