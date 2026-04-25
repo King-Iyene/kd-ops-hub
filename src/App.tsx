@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -67,13 +67,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Driver-only guard for /driver. Unauthenticated users go to /login,
- * any non-driver role is redirected to /dashboard. Honours the
- * Super Admin "view as" simulator via useEffectiveRole.
+ * Guard for /driver. Any authenticated, active user may access the page —
+ * staff without an assigned vehicle see a graceful empty state.
+ * Unauthenticated users are redirected to /login.
  */
 function DriverRouteGuard({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, profileLoading } = useAuthStore();
-  const effectiveRole = useEffectiveRole();
 
   if (loading || profileLoading) {
     return (
@@ -86,9 +85,6 @@ function DriverRouteGuard({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />;
   if (!profile || profile.status !== 'active') {
     return <Navigate to="/login" replace />;
-  }
-  if (effectiveRole !== 'driver') {
-    return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
 }
