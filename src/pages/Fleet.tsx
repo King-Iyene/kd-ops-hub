@@ -720,15 +720,15 @@ interface VehicleStat {
   vehicle_id: string;
   name: string;
   plate_number: string;
-  assigned_driver: string | null;
+  assigned_employee: string | null;
   month_spend: number;
   month_km: number | null;
   cost_per_km: number | null;
   budget_used_pct: number | null;
 }
 
-interface DriverStat {
-  driver_id: string;
+interface EmployeeStat {
+  employee_id: string;
   full_name: string;
   trip_count: number;
   total_km: number;
@@ -787,7 +787,7 @@ function FleetAnalyticsDashboard({
   const [chartBars, setChartBars] = useState<{ label: string; spend: number }[]>([]);
   const [chartMode, setChartMode] = useState<'weekly' | 'monthly'>('weekly');
   const [vehicleStats, setVehicleStats] = useState<VehicleStat[]>([]);
-  const [driverStats, setDriverStats] = useState<DriverStat[]>([]);
+  const [employeeStats, setEmployeeStats] = useState<EmployeeStat[]>([]);
 
   useEffect(() => {
     if (!vehicles.length) return;
@@ -876,7 +876,7 @@ function FleetAnalyticsDashboard({
 
       // Vehicle comparison rows (always this-month basis, regardless of chart range)
       const vStats: VehicleStat[] = vehicles.map((v) => {
-        const driver = staff.find((s) => s.id === v.assigned_driver_id);
+        const employee = staff.find((s) => s.id === v.assigned_driver_id);
         const mSpendV = monthReqs.filter((r) => r.vehicle_id === v.id).reduce((s, r) => s + r.amount_ngn, 0);
         const mKmV = monthTrips.filter((t) => t.vehicle_id === v.id).reduce((s, t) => s + (t.km_driven || 0), 0);
         const vWk = vWeekMap.get(v.id) || 0;
@@ -884,7 +884,7 @@ function FleetAnalyticsDashboard({
           vehicle_id: v.id,
           name: v.name,
           plate_number: v.plate_number,
-          assigned_driver: driver?.full_name || null,
+          assigned_employee: employee?.full_name || null,
           month_spend: mSpendV,
           month_km: mKmV > 0 ? mKmV : null,
           cost_per_km: mSpendV > 0 && mKmV > 0 ? mSpendV / mKmV : null,
@@ -892,21 +892,21 @@ function FleetAnalyticsDashboard({
         };
       }).sort((a, b) => b.month_spend - a.month_spend);
 
-      // Driver performance scoreboard — aggregates over the selected range
-      const byDriver = new Map<string, { km: number; l: number; trips: number; anomalies: number }>();
+      // Employee performance scoreboard — aggregates over the selected range
+      const byEmployee = new Map<string, { km: number; l: number; trips: number; anomalies: number }>();
       for (const t of trips) {
         if (!t.driver_id) continue;
-        const row = byDriver.get(t.driver_id) || { km: 0, l: 0, trips: 0, anomalies: 0 };
+        const row = byEmployee.get(t.driver_id) || { km: 0, l: 0, trips: 0, anomalies: 0 };
         row.km += t.km_driven || 0;
         row.l  += t.litres || 0;
         row.trips += 1;
         if (t.is_anomaly) row.anomalies += 1;
-        byDriver.set(t.driver_id, row);
+        byEmployee.set(t.driver_id, row);
       }
-      const dStats: DriverStat[] = [];
-      for (const [did, r] of byDriver) {
+      const eStats: EmployeeStat[] = [];
+      for (const [did, r] of byEmployee) {
         if (r.trips === 0) continue;
-        const fullName = staff.find((s) => s.id === did)?.full_name || 'Unknown driver';
+        const fullName = staff.find((s) => s.id === did)?.full_name || 'Unknown employee';
         const eff = r.l > 0 && r.km > 0 ? r.km / r.l : null;
         const anomalyRate = r.trips > 0 ? r.anomalies / r.trips : 0;
         // Composite score (0–100): rewards km and efficiency, penalises anomalies.
@@ -914,8 +914,8 @@ function FleetAnalyticsDashboard({
         const kmScore     = Math.min(30, (r.km / 500) * 30);                      // 500 km → 30 pts
         const anomPenalty = anomalyRate * 40;                                     // up to −40
         const score = Math.max(0, Math.round(effScore + kmScore + 10 - anomPenalty));
-        dStats.push({
-          driver_id: did,
+        eStats.push({
+          employee_id: did,
           full_name: fullName,
           trip_count: r.trips,
           total_km: r.km,
@@ -926,14 +926,14 @@ function FleetAnalyticsDashboard({
           score,
         });
       }
-      dStats.sort((a, b) => b.score - a.score);
+      eStats.sort((a, b) => b.score - a.score);
 
       setMonthSpend(mSpend);
       setWeekSpend(wSpend);
       setMonthKm(totalKm > 0 ? totalKm : null);
       setChartBars(bars);
       setVehicleStats(vStats);
-      setDriverStats(dStats);
+      setEmployeeStats(eStats);
       setAnalyticsLoading(false);
     })();
   }, [vehicles.length, staff.length, range]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1033,7 +1033,7 @@ function FleetAnalyticsDashboard({
               <TableHeader>
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
-                  <TableHead>Assigned Driver</TableHead>
+                  <TableHead>Assigned Employee</TableHead>
                   <TableHead className="text-right">Month Spend</TableHead>
                   <TableHead className="text-right">Month Distance</TableHead>
                   <TableHead className="text-right">Cost / km</TableHead>
@@ -1061,7 +1061,7 @@ function FleetAnalyticsDashboard({
                         <div className="text-xs text-muted-foreground font-mono">{s.plate_number}</div>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {s.assigned_driver ?? <span className="text-muted-foreground">—</span>}
+                        {s.assigned_employee ?? <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell className="text-right currency">
                         {s.month_spend > 0 ? formatNaira(s.month_spend) : <span className="text-muted-foreground">—</span>}
@@ -1099,27 +1099,27 @@ function FleetAnalyticsDashboard({
         </CardContent>
       </Card>
 
-      {/* ── Driver Performance Scoreboard ── */}
+      {/* ── Employee Performance Scoreboard ── */}
       <Card>
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            Driver performance — {range === '8w' ? 'last 8 weeks' : range === '6m' ? 'last 6 months' : 'last 12 months'}
+            Employee performance — {range === '8w' ? 'last 8 weeks' : range === '6m' ? 'last 6 months' : 'last 12 months'}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {analyticsLoading ? (
             <TableSkeleton />
-          ) : driverStats.length === 0 ? (
+          ) : employeeStats.length === 0 ? (
             <p className="text-sm text-muted-foreground px-4 py-6 text-center">
-              No driver activity in this range.
+              No employee activity in this range.
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead>
-                  <TableHead>Driver</TableHead>
+                  <TableHead>Employee</TableHead>
                   <TableHead className="text-right">Trips</TableHead>
                   <TableHead className="text-right">Distance</TableHead>
                   <TableHead className="text-right">Efficiency</TableHead>
@@ -1128,11 +1128,11 @@ function FleetAnalyticsDashboard({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {driverStats.map((d, i) => {
+                {employeeStats.map((d, i) => {
                   const scoreColor = d.score >= 75 ? 'text-green-600' : d.score >= 50 ? 'text-amber-600' : 'text-red-600';
                   const rankBadge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
                   return (
-                    <TableRow key={d.driver_id}>
+                    <TableRow key={d.employee_id}>
                       <TableCell className="w-10 font-mono text-sm">{rankBadge}</TableCell>
                       <TableCell className="font-medium">{d.full_name}</TableCell>
                       <TableCell className="text-right tabular-nums">{d.trip_count}</TableCell>
@@ -1298,7 +1298,7 @@ const Fleet = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Recover any in-progress trip for this driver when their profile loads.
+  // Recover any in-progress trip for this employee when their profile loads.
   useEffect(() => {
     if (!profile?.id) return;
     (async () => {
@@ -1526,13 +1526,13 @@ const Fleet = () => {
     setWeekBudget({ spent, total, carryForward, remaining: Math.max(0, total - spent) });
   };
 
-  // Phase 4 — pre-fill odometer_start from the driver's last trip end reading
-  const prefillOdometer = async (driverId: string) => {
-    if (!driverId) return;
+  // Phase 4 — pre-fill odometer_start from the employee's last trip end reading
+  const prefillOdometer = async (employeeId: string) => {
+    if (!employeeId) return;
     const { data } = await supabase
       .from('trip_logs')
       .select('odometer_end')
-      .eq('driver_id', driverId)
+      .eq('driver_id', employeeId)
       .not('odometer_end', 'is', null)
       .order('created_at', { ascending: false })
       .limit(1);
@@ -1603,10 +1603,10 @@ const Fleet = () => {
 
   // ---- Trip clock-in helpers ----
 
-  const fetchLastOdometer = async (driverId: string): Promise<string> => {
+  const fetchLastOdometer = async (employeeId: string): Promise<string> => {
     const { data } = await supabase
       .from('trip_logs').select('odometer_end')
-      .eq('driver_id', driverId)
+      .eq('driver_id', employeeId)
       .not('odometer_end', 'is', null)
       .neq('status', 'in_progress')
       .order('created_at', { ascending: false }).limit(1);
@@ -1685,7 +1685,7 @@ const Fleet = () => {
       roles: ['super_admin', 'admin', 'operations'],
       type: 'trip_started',
       module: 'fleet',
-      title: `${profile?.full_name || 'A driver'} started a trip`,
+      title: `${profile?.full_name || 'An employee'} started a trip`,
       body: `${startVeh ? startVeh.plate_number + ' · ' : ''}From: ${locationStr || 'unknown location'} · Odometer: ${odoStart.toLocaleString()} km`,
     });
     toast({ title: 'Trip started', description: 'Tap "End Trip" when you arrive at your destination.' });
@@ -1782,7 +1782,7 @@ const Fleet = () => {
         roles: ['super_admin', 'admin', 'operations'],
         type: 'trip_completed',
         module: 'fleet',
-        title: `${profile?.full_name || 'Driver'} completed a trip${isAnomaly ? ' ⚠' : ''}`,
+        title: `${profile?.full_name || 'Employee'} completed a trip${isAnomaly ? ' ⚠' : ''}`,
         body: [
           completionVeh?.plate_number,
           distStr,
@@ -1933,7 +1933,7 @@ const Fleet = () => {
       }
     }
 
-    // Append duplicate marker to note if driver confirmed a same-day re-submit
+    // Append duplicate marker to note if employee confirmed a same-day re-submit
     let noteStr = fuelForm.reason;
     if (skipDuplicateCheck) {
       noteStr = noteStr ? `${noteStr} [duplicate_same_day]` : 'duplicate_same_day';
@@ -2265,7 +2265,7 @@ const Fleet = () => {
       }
     }
 
-    // Phase 2 — auto-pay via Paystack if the driver provided bank details
+    // Phase 2 — auto-pay via Paystack if the employee provided bank details
     if (request.bank_name && request.account_number && request.account_name) {
       try {
         const { data: batch } = await supabase.from('payment_batches').insert({
@@ -2367,10 +2367,10 @@ const Fleet = () => {
       `Budget exception approved for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)}) by ${profile.full_name}`,
       profile,
     );
-    const driverId = (r as any).driver_id || r.employee_id;
-    if (driverId) {
+    const employeeId = (r as any).driver_id || r.employee_id;
+    if (employeeId) {
       await notifyUser({
-        userId: driverId,
+        userId: employeeId,
         type: 'fuel_request_approved',
         module: 'fleet',
         title: 'Your fuel request was approved as a budget exception',
@@ -2401,17 +2401,17 @@ const Fleet = () => {
       `Payment marked as sent for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)})`,
       profile,
     );
-    const driverId = (r as any).driver_id || r.employee_id;
-    if (driverId) {
+    const employeeId = (r as any).driver_id || r.employee_id;
+    if (employeeId) {
       await notifyUser({
-        userId: driverId,
+        userId: employeeId,
         type: 'fuel_payment_sent',
         module: 'fleet',
         title: 'Fuel payment sent',
         body: `${formatNaira(r.amount_ngn || 0)} has been sent. Please upload your receipt.`,
       });
     }
-    toast({ title: 'Payment marked as sent. Driver will be prompted to upload receipt.' });
+    toast({ title: 'Payment marked as sent. Employee will be prompted to upload receipt.' });
     fetchData();
   };
 
@@ -2471,7 +2471,7 @@ const Fleet = () => {
         type: 'fuel_receipt_uploaded',
         module: 'fleet',
         title: 'Fuel receipt uploaded',
-        body: `${profile?.full_name || 'Driver'} uploaded a receipt for ${formatNaira(uploadingReceiptFor.amount_ngn || 0)}`,
+        body: `${profile?.full_name || 'Employee'} uploaded a receipt for ${formatNaira(uploadingReceiptFor.amount_ngn || 0)}`,
       });
       toast({ title: 'Receipt submitted. Admin will review.' });
       setUploadingReceiptFor(null);
@@ -2494,10 +2494,10 @@ const Fleet = () => {
       return;
     }
     await logAudit('fuel_request_completed', `Fuel request completed for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)})`, profile);
-    const driverId = (r as any).driver_id || r.employee_id;
-    if (driverId) {
+    const employeeId = (r as any).driver_id || r.employee_id;
+    if (employeeId) {
       await notifyUser({
-        userId: driverId,
+        userId: employeeId,
         type: 'fuel_request_completed',
         module: 'fleet',
         title: 'Fuel request completed',
@@ -2518,17 +2518,17 @@ const Fleet = () => {
       return;
     }
     await logAudit('fuel_receipt_resubmission_requested', `Receipt resubmission requested for ${r.employee_name}`, profile);
-    const driverId = (r as any).driver_id || r.employee_id;
-    if (driverId) {
+    const employeeId = (r as any).driver_id || r.employee_id;
+    if (employeeId) {
       await notifyUser({
-        userId: driverId,
+        userId: employeeId,
         type: 'fuel_receipt_resubmission',
         module: 'fleet',
         title: 'Receipt resubmission required',
         body: 'Admin has requested a new receipt for your fuel payment. Please re-upload.',
       });
     }
-    toast({ title: 'Resubmission requested. Driver notified.' });
+    toast({ title: 'Resubmission requested. Employee notified.' });
     fetchData();
   };
 
@@ -2758,7 +2758,7 @@ const Fleet = () => {
               <Button variant="outline" size="sm" onClick={() => exportCsv(
                 visibleFuel.map((r) => ({
                   date: r.created_at.slice(0, 10),
-                  driver: r.employee_name,
+                  employee: r.employee_name,
                   station: r.station_name,
                   amount_ngn: r.amount_ngn,
                   litres_est: r.litres_est ?? '',
@@ -2944,7 +2944,7 @@ const Fleet = () => {
               <Button variant="outline" size="sm" onClick={() => exportCsv(
                 visibleTrips.map((t) => ({
                   date: t.date,
-                  driver: t.employee_name,
+                  employee: t.employee_name,
                   vehicle: vehicles.find((v) => v.id === t.vehicle_id)?.plate_number ?? '',
                   start_time: t.trip_start_time ?? '',
                   end_time: t.trip_end_time ?? '',
@@ -3120,7 +3120,7 @@ const Fleet = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Driver</TableHead>
+                    <TableHead>Employee</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Start Time</TableHead>
                     <TableHead>End Time</TableHead>
@@ -3397,7 +3397,7 @@ const Fleet = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Driver</TableHead>
+                          <TableHead>Employee</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Route</TableHead>
                           <TableHead>Flags</TableHead>
@@ -3474,7 +3474,7 @@ const Fleet = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Driver</TableHead>
+                          <TableHead>Employee</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Station</TableHead>
                           <TableHead>Amount</TableHead>
@@ -4261,7 +4261,7 @@ const Fleet = () => {
             <DialogTitle>Reject fuel request</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Reason is required. The driver is notified with this note.
+            Reason is required. The employee is notified with this note.
           </p>
           <Textarea
             value={fuelRejectReason}
@@ -4920,7 +4920,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [editing, setEditing] = useState<Vehicle | null>(null);
   const [form, setForm] = useState(emptyVehicleForm);
   const [submitting, setSubmitting] = useState(false);
-  const [allDrivers, setAllDrivers] = useState<FieldStaff[]>([]);
+  const [allEmployees, setAllEmployees] = useState<FieldStaff[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
   const [viewingFuelHistory, setViewingFuelHistory] = useState<Vehicle | null>(null);
 
@@ -4937,7 +4937,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           .order('full_name'),
       ]);
       setVehicles((vRes.data as Vehicle[]) || []);
-      setAllDrivers((dRes.data as FieldStaff[]) || []);
+      setAllEmployees((dRes.data as FieldStaff[]) || []);
     } catch (err) {
       console.error('[Fleet] VehiclesTab load failed:', err);
     } finally {
@@ -5045,9 +5045,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     load();
   };
 
-  const driverName = (id: string | null) => {
+  const employeeName = (id: string | null) => {
     if (!id) return '—';
-    const d = allDrivers.find((s) => s.id === id) || staff.find((s) => s.id === id);
+    const d = allEmployees.find((s) => s.id === id) || staff.find((s) => s.id === id);
     return d?.full_name || '(unassigned)';
   };
 
@@ -5084,7 +5084,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                 <TableRow>
                   <TableHead>Vehicle</TableHead>
                   <TableHead>Plate</TableHead>
-                  <TableHead>Assigned Driver</TableHead>
+                  <TableHead>Assigned Employee</TableHead>
                   <TableHead>Fuel Level</TableHead>
                   <TableHead className="text-right">Weekly Budget</TableHead>
                   <TableHead>Insurance</TableHead>
@@ -5112,7 +5112,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                       )}
                     </TableCell>
                     <TableCell className="font-mono">{v.plate_number}</TableCell>
-                    <TableCell className="text-sm">{driverName(v.assigned_driver_id)}</TableCell>
+                    <TableCell className="text-sm">{employeeName(v.assigned_driver_id)}</TableCell>
                     <TableCell className="min-w-[140px]">
                       <FuelGauge
                         tank={v.tank_capacity_litres}
@@ -5235,14 +5235,14 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Assigned driver</Label>
+                <Label>Assigned employee</Label>
                 <Select value={form.assigned_driver_id || '__none__'} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v === '__none__' ? '' : v })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
-                    {allDrivers.map((d) => (
+                    {allEmployees.map((d) => (
                       <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
                     ))}
                   </SelectContent>

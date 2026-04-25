@@ -579,7 +579,7 @@ const Documents = () => {
               <span>
                 Access is governed centrally: Super Admin and Admin can upload
                 and delete. Finance can download. Operations, Field Staff and
-                Drivers have no access.
+                Employees have no access.
               </span>
             </div>
           </div>
