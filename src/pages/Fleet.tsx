@@ -40,7 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2 } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -170,34 +170,67 @@ interface TripEvent {
 // ---------------------------------------------------------------------------
 
 type GeoCoords = { lat: number; lng: number; accuracy: number };
-type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout';
+type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout' | 'https-required';
+
+const isGeoError = (s: GeoState): s is Exclude<GeoState, 'idle' | 'acquiring' | 'ok'> =>
+  s === 'denied' || s === 'unavailable' || s === 'timeout' || s === 'https-required';
 
 const GEO_ERROR_MSG: Record<Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>, string> = {
-  denied:      'Location permission denied — enable it in your browser settings, or type the location below.',
-  unavailable: 'GPS signal unavailable — please type your location below.',
-  timeout:     'GPS timed out — please type your location below or try again.',
+  denied:          'Location permission denied — click the lock icon in your address bar, allow location, then retry. Or type the location below.',
+  unavailable:     'GPS signal unavailable — your browser could not determine location. Please type the location below.',
+  timeout:         'GPS timed out — your browser took too long to respond. Please type the location below or retry.',
+  'https-required':'This page must be loaded over HTTPS for GPS to work. Please type the location below.',
 };
 
 function getGeolocation(): Promise<GeoCoords> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject('unavailable'); return; }
-    // Two-phase: fire a quick low-accuracy call to show something fast,
-    // then a high-accuracy call for the definitive fix.
-    let settled = false;
-    const settle = (coords: GeoCoords) => { if (!settled) { settled = true; resolve(coords); } };
-    const fail   = (code: string)      => { if (!settled) { settled = true; reject(code); } };
 
-    // Phase 1 — rough, fast (max 3 s, cached ok)
+    // Geolocation requires a secure context (HTTPS) except on localhost.
+    if (typeof window !== 'undefined'
+        && window.location.protocol !== 'https:'
+        && window.location.hostname !== 'localhost'
+        && window.location.hostname !== '127.0.0.1') {
+      reject('https-required');
+      return;
+    }
+
+    // Two-phase strategy:
+    //   Phase 1 — low-accuracy, short timeout; only accepts a fix if it's
+    //             precise enough (< 500 m). Otherwise stored as a fallback.
+    //   Phase 2 — high-accuracy, long timeout; always wins if it completes.
+    //             On failure, we fall back to Phase 1's result if we have one.
+    let settled = false;
+    let quickFix: GeoCoords | null = null;
+
+    const settle = (coords: GeoCoords) => {
+      if (settled) return;
+      settled = true;
+      resolve(coords);
+    };
+    const fail = (code: string) => {
+      if (settled) return;
+      if (quickFix) { settled = true; resolve(quickFix); return; }
+      settled = true;
+      reject(code);
+    };
+
+    // Phase 1 — fast, low-accuracy (max 5 s, 10-s-old cache OK)
     navigator.geolocation.getCurrentPosition(
-      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      () => {/* ignore — phase 2 will handle */},
-      { enableHighAccuracy: false, timeout: 3000, maximumAge: 60_000 },
+      (p) => {
+        const c = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
+        if (c.accuracy < 500) settle(c);    // good enough — use it now
+        else quickFix = c;                  // coarse — keep as fallback
+      },
+      () => {/* ignore — phase 2 may still work */},
+      { enableHighAccuracy: false, timeout: 5_000, maximumAge: 10_000 },
     );
-    // Phase 2 — precise, definitive (max 15 s, fresh fix)
+
+    // Phase 2 — precise, definitive (max 25 s, fresh fix)
     navigator.geolocation.getCurrentPosition(
       (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 25_000, maximumAge: 0 },
     );
   });
 }
@@ -227,6 +260,32 @@ function detectAnomalies(distanceKm: number | null, durationMin: number): { isAn
     if (avgKmH > 150) flags.push(`Average speed ${avgKmH.toFixed(0)} km/h exceeds 150 km/h`);
   }
   return flags.length > 0 ? { isAnomaly: true, reason: flags.join('; ') } : { isAnomaly: false, reason: null };
+}
+
+// Convert rows to a downloadable CSV file. Keys become headers.
+function exportCsv<T extends Record<string, unknown>>(rows: T[], filename: string): void {
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown) => {
+    if (v == null) return '';
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+  const lines = [
+    headers.join(','),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(',')),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -668,6 +727,20 @@ interface VehicleStat {
   budget_used_pct: number | null;
 }
 
+interface DriverStat {
+  driver_id: string;
+  full_name: string;
+  trip_count: number;
+  total_km: number;
+  total_litres: number;
+  anomaly_count: number;
+  efficiency_kml: number | null;
+  anomaly_rate: number;   // 0–1
+  score: number;          // 0–100
+}
+
+type AnalyticsRange = '8w' | '6m' | '12m';
+
 function KpiCard({
   label, icon, value, subtext, warn,
 }: {
@@ -707,16 +780,18 @@ function FleetAnalyticsDashboard({
   onNavigateToVehicles: () => void;
 }) {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [range, setRange] = useState<AnalyticsRange>('8w');
   const [monthSpend, setMonthSpend] = useState(0);
   const [weekSpend, setWeekSpend] = useState(0);
   const [monthKm, setMonthKm] = useState<number | null>(null);
-  const [weeklyBars, setWeeklyBars] = useState<{ label: string; spend: number }[]>([]);
+  const [chartBars, setChartBars] = useState<{ label: string; spend: number }[]>([]);
+  const [chartMode, setChartMode] = useState<'weekly' | 'monthly'>('weekly');
   const [vehicleStats, setVehicleStats] = useState<VehicleStat[]>([]);
-  const fetchedRef = useRef(false);
+  const [driverStats, setDriverStats] = useState<DriverStat[]>([]);
 
   useEffect(() => {
-    if (!vehicles.length || fetchedRef.current) return;
-    fetchedRef.current = true;
+    if (!vehicles.length) return;
+    setAnalyticsLoading(true);
 
     (async () => {
       const now = new Date();
@@ -727,25 +802,28 @@ function FleetAnalyticsDashboard({
       monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
       monday.setHours(0, 0, 0, 0);
 
-      // Fetch from 8 weeks back so one query covers chart + KPIs
-      const fetchSince = new Date(monday);
-      fetchSince.setDate(monday.getDate() - 7 * 7);
+      // Compute fetch window based on selected range
+      const fetchSince = new Date(now);
+      if (range === '8w')  fetchSince.setDate(now.getDate() - 7 * 8);
+      if (range === '6m')  fetchSince.setMonth(now.getMonth() - 6);
+      if (range === '12m') fetchSince.setMonth(now.getMonth() - 12);
+      fetchSince.setHours(0, 0, 0, 0);
 
       const [reqRes, tripRes] = await Promise.all([
         supabase
           .from('fuel_requests')
-          .select('amount_ngn, created_at, vehicle_id')
+          .select('amount_ngn, created_at, vehicle_id, driver_id')
           .in('status', ['approved', 'payment_sent', 'receipt_uploaded', 'completed'])
           .gte('created_at', fetchSince.toISOString()),
         supabase
           .from('trip_logs')
-          .select('vehicle_id, km_driven, created_at')
-          .gte('created_at', monthStart.toISOString())
+          .select('vehicle_id, driver_id, km_driven, litres, is_anomaly, created_at')
+          .gte('created_at', fetchSince.toISOString())
           .not('km_driven', 'is', null),
       ]);
 
-      type ReqRow = { amount_ngn: number; created_at: string; vehicle_id: string | null };
-      type TripRow = { vehicle_id: string | null; km_driven: number; created_at: string };
+      type ReqRow = { amount_ngn: number; created_at: string; vehicle_id: string | null; driver_id: string | null };
+      type TripRow = { vehicle_id: string | null; driver_id: string | null; km_driven: number; litres: number | null; is_anomaly: boolean; created_at: string };
 
       const reqs = (reqRes.data || []) as ReqRow[];
       const trips = (tripRes.data || []) as TripRow[];
@@ -755,25 +833,39 @@ function FleetAnalyticsDashboard({
 
       const monthReqs = reqs.filter((r) => new Date(r.created_at).getTime() >= monthStartMs);
       const weekReqs = reqs.filter((r) => new Date(r.created_at).getTime() >= mondayMs);
+      const monthTrips = trips.filter((t) => new Date(t.created_at).getTime() >= monthStartMs);
 
       const mSpend = monthReqs.reduce((s, r) => s + (r.amount_ngn || 0), 0);
       const wSpend = weekReqs.reduce((s, r) => s + (r.amount_ngn || 0), 0);
-      const totalKm = trips.reduce((s, t) => s + (t.km_driven || 0), 0);
+      const totalKm = monthTrips.reduce((s, t) => s + (t.km_driven || 0), 0);
 
-      // 8 weekly bars (oldest → newest)
+      // Build bars based on selected range
       const bars: { label: string; spend: number }[] = [];
-      for (let w = 7; w >= 0; w--) {
-        const wStart = new Date(monday);
-        wStart.setDate(monday.getDate() - w * 7);
-        const wEnd = new Date(wStart);
-        wEnd.setDate(wStart.getDate() + 7);
-        const wStartMs = wStart.getTime();
-        const wEndMs = wEnd.getTime();
-        const label = wStart.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
-        const spend = reqs
-          .filter((r) => { const d = new Date(r.created_at).getTime(); return d >= wStartMs && d < wEndMs; })
-          .reduce((s, r) => s + (r.amount_ngn || 0), 0);
-        bars.push({ label, spend });
+      if (range === '8w') {
+        for (let w = 7; w >= 0; w--) {
+          const wStart = new Date(monday); wStart.setDate(monday.getDate() - w * 7);
+          const wEnd   = new Date(wStart); wEnd.setDate(wStart.getDate() + 7);
+          const sMs = wStart.getTime(), eMs = wEnd.getTime();
+          bars.push({
+            label: wStart.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }),
+            spend: reqs.filter((r) => { const d = new Date(r.created_at).getTime(); return d >= sMs && d < eMs; })
+                       .reduce((s, r) => s + (r.amount_ngn || 0), 0),
+          });
+        }
+        setChartMode('weekly');
+      } else {
+        const nMonths = range === '6m' ? 6 : 12;
+        for (let m = nMonths - 1; m >= 0; m--) {
+          const mStart = new Date(now.getFullYear(), now.getMonth() - m, 1);
+          const mEnd   = new Date(now.getFullYear(), now.getMonth() - m + 1, 1);
+          const sMs = mStart.getTime(), eMs = mEnd.getTime();
+          bars.push({
+            label: mStart.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+            spend: reqs.filter((r) => { const d = new Date(r.created_at).getTime(); return d >= sMs && d < eMs; })
+                       .reduce((s, r) => s + (r.amount_ngn || 0), 0),
+          });
+        }
+        setChartMode('monthly');
       }
 
       // Per-vehicle weekly spend for budget-used column
@@ -782,11 +874,11 @@ function FleetAnalyticsDashboard({
         if (r.vehicle_id) vWeekMap.set(r.vehicle_id, (vWeekMap.get(r.vehicle_id) || 0) + r.amount_ngn);
       }
 
-      // Vehicle comparison rows
-      const stats: VehicleStat[] = vehicles.map((v) => {
+      // Vehicle comparison rows (always this-month basis, regardless of chart range)
+      const vStats: VehicleStat[] = vehicles.map((v) => {
         const driver = staff.find((s) => s.id === v.assigned_driver_id);
         const mSpendV = monthReqs.filter((r) => r.vehicle_id === v.id).reduce((s, r) => s + r.amount_ngn, 0);
-        const mKmV = trips.filter((t) => t.vehicle_id === v.id).reduce((s, t) => s + (t.km_driven || 0), 0);
+        const mKmV = monthTrips.filter((t) => t.vehicle_id === v.id).reduce((s, t) => s + (t.km_driven || 0), 0);
         const vWk = vWeekMap.get(v.id) || 0;
         return {
           vehicle_id: v.id,
@@ -800,14 +892,51 @@ function FleetAnalyticsDashboard({
         };
       }).sort((a, b) => b.month_spend - a.month_spend);
 
+      // Driver performance scoreboard — aggregates over the selected range
+      const byDriver = new Map<string, { km: number; l: number; trips: number; anomalies: number }>();
+      for (const t of trips) {
+        if (!t.driver_id) continue;
+        const row = byDriver.get(t.driver_id) || { km: 0, l: 0, trips: 0, anomalies: 0 };
+        row.km += t.km_driven || 0;
+        row.l  += t.litres || 0;
+        row.trips += 1;
+        if (t.is_anomaly) row.anomalies += 1;
+        byDriver.set(t.driver_id, row);
+      }
+      const dStats: DriverStat[] = [];
+      for (const [did, r] of byDriver) {
+        if (r.trips === 0) continue;
+        const fullName = staff.find((s) => s.id === did)?.full_name || 'Unknown driver';
+        const eff = r.l > 0 && r.km > 0 ? r.km / r.l : null;
+        const anomalyRate = r.trips > 0 ? r.anomalies / r.trips : 0;
+        // Composite score (0–100): rewards km and efficiency, penalises anomalies.
+        const effScore    = eff != null ? Math.min(100, (eff / 15) * 60) : 30;   // 15 km/L → 60 pts
+        const kmScore     = Math.min(30, (r.km / 500) * 30);                      // 500 km → 30 pts
+        const anomPenalty = anomalyRate * 40;                                     // up to −40
+        const score = Math.max(0, Math.round(effScore + kmScore + 10 - anomPenalty));
+        dStats.push({
+          driver_id: did,
+          full_name: fullName,
+          trip_count: r.trips,
+          total_km: r.km,
+          total_litres: r.l,
+          anomaly_count: r.anomalies,
+          efficiency_kml: eff,
+          anomaly_rate: anomalyRate,
+          score,
+        });
+      }
+      dStats.sort((a, b) => b.score - a.score);
+
       setMonthSpend(mSpend);
       setWeekSpend(wSpend);
       setMonthKm(totalKm > 0 ? totalKm : null);
-      setWeeklyBars(bars);
-      setVehicleStats(stats);
+      setChartBars(bars);
+      setVehicleStats(vStats);
+      setDriverStats(dStats);
       setAnalyticsLoading(false);
     })();
-  }, [vehicles.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicles.length, staff.length, range]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalWeeklyBudget = vehicles.reduce((s, v) => s + v.weekly_budget_ngn, 0);
   const fleetUtilPct = totalWeeklyBudget > 0 ? Math.round((weekSpend / totalWeeklyBudget) * 100) : null;
@@ -846,20 +975,33 @@ function FleetAnalyticsDashboard({
         />
       </div>
 
-      {/* ── Weekly spend bar chart ── */}
+      {/* ── Fuel spend bar chart ── */}
       <Card>
-        <CardHeader className="pb-2 pt-4">
+        <CardHeader className="pb-2 pt-4 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <BarChart2 className="h-4 w-4 text-muted-foreground" />
-            Weekly fuel spend — last 8 weeks
+            Fuel spend — {range === '8w' ? 'last 8 weeks' : range === '6m' ? 'last 6 months' : 'last 12 months'}
           </CardTitle>
+          <div className="flex gap-1">
+            {(['8w', '6m', '12m'] as AnalyticsRange[]).map((r) => (
+              <Button
+                key={r}
+                size="sm"
+                variant={range === r ? 'default' : 'outline'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setRange(r)}
+              >
+                {r === '8w' ? '8W' : r === '6m' ? '6M' : '12M'}
+              </Button>
+            ))}
+          </div>
         </CardHeader>
         <CardContent>
           {analyticsLoading ? (
             <div className="h-52 w-full bg-muted animate-pulse rounded" />
           ) : (
             <ResponsiveContainer width="100%" height={208}>
-              <BarChart data={weeklyBars} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <BarChart data={chartBars} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                 <YAxis
@@ -869,7 +1011,7 @@ function FleetAnalyticsDashboard({
                 />
                 <ReTooltip
                   formatter={(v: number) => [formatNaira(v), 'Spend']}
-                  labelFormatter={(l) => `Week of ${l}`}
+                  labelFormatter={(l) => `${chartMode === 'weekly' ? 'Week of' : 'Month of'} ${l}`}
                 />
                 <Bar dataKey="spend" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={48} />
               </BarChart>
@@ -947,6 +1089,66 @@ function FleetAnalyticsDashboard({
                             {Math.round(s.budget_used_pct)}%
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Driver Performance Scoreboard ── */}
+      <Card>
+        <CardHeader className="pb-2 pt-4">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            Driver performance — {range === '8w' ? 'last 8 weeks' : range === '6m' ? 'last 6 months' : 'last 12 months'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {analyticsLoading ? (
+            <TableSkeleton />
+          ) : driverStats.length === 0 ? (
+            <p className="text-sm text-muted-foreground px-4 py-6 text-center">
+              No driver activity in this range.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Driver</TableHead>
+                  <TableHead className="text-right">Trips</TableHead>
+                  <TableHead className="text-right">Distance</TableHead>
+                  <TableHead className="text-right">Efficiency</TableHead>
+                  <TableHead className="text-right">Anomaly rate</TableHead>
+                  <TableHead className="text-right">Score</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {driverStats.map((d, i) => {
+                  const scoreColor = d.score >= 75 ? 'text-green-600' : d.score >= 50 ? 'text-amber-600' : 'text-red-600';
+                  const rankBadge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+                  return (
+                    <TableRow key={d.driver_id}>
+                      <TableCell className="w-10 font-mono text-sm">{rankBadge}</TableCell>
+                      <TableCell className="font-medium">{d.full_name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d.trip_count}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d.total_km.toLocaleString()} km</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {d.efficiency_kml != null ? `${d.efficiency_kml.toFixed(1)} km/L` : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {d.trip_count === 0 ? '—' : (
+                          <span className={d.anomaly_rate > 0.2 ? 'text-red-600' : d.anomaly_rate > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
+                            {Math.round(d.anomaly_rate * 100)}% ({d.anomaly_count})
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={`font-bold tabular-nums ${scoreColor}`}>{d.score}</span>
                       </TableCell>
                     </TableRow>
                   );
@@ -2551,7 +2753,26 @@ const Fleet = () => {
 
         {/* FUEL */}
         <TabsContent value="fuel" className="mt-4 space-y-4">
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 flex-wrap">
+            {isAdmin && visibleFuel.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => exportCsv(
+                visibleFuel.map((r) => ({
+                  date: r.created_at.slice(0, 10),
+                  driver: r.employee_name,
+                  station: r.station_name,
+                  amount_ngn: r.amount_ngn,
+                  litres_est: r.litres_est ?? '',
+                  litres_filled: r.litres_filled ?? '',
+                  odometer: r.odometer ?? '',
+                  status: r.status,
+                  is_anomaly: r.is_anomaly ? 'yes' : '',
+                  anomaly_type: r.anomaly_type ?? '',
+                })),
+                `fuel-requests-${new Date().toISOString().slice(0, 10)}.csv`,
+              )}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setShowRepairForm(true)}>
               <Wrench className="mr-2 h-4 w-4" /> Repair Request
             </Button>
@@ -2718,7 +2939,31 @@ const Fleet = () => {
 
         {/* TRIPS */}
         <TabsContent value="trips" className="mt-4 space-y-4">
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 flex-wrap">
+            {isAdmin && visibleTrips.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => exportCsv(
+                visibleTrips.map((t) => ({
+                  date: t.date,
+                  driver: t.employee_name,
+                  vehicle: vehicles.find((v) => v.id === t.vehicle_id)?.plate_number ?? '',
+                  start_time: t.trip_start_time ?? '',
+                  end_time: t.trip_end_time ?? '',
+                  duration_min: t.duration_minutes ?? '',
+                  start_location: t.start_location,
+                  end_location: t.end_location,
+                  km_driven: t.km_driven ?? '',
+                  fuel_ngn: t.fuel_amount_ngn ?? '',
+                  litres: t.litres ?? '',
+                  status: t.status,
+                  is_anomaly: t.is_anomaly ? 'yes' : '',
+                  is_out_of_area: t.is_out_of_area ? 'yes' : '',
+                  anomaly_reason: t.anomaly_reason ?? '',
+                })),
+                `trip-logs-${new Date().toISOString().slice(0, 10)}.csv`,
+              )}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+            )}
             {!activeTrip && (
               <Button
                 className="bg-green-600 hover:bg-green-700 text-white"
@@ -3479,8 +3724,8 @@ const Fleet = () => {
 
       {/* START TRIP DIALOG */}
       <Dialog open={showStartTrip} onOpenChange={(v) => { if (!v) setShowStartTrip(false); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Navigation className="h-4 w-4 text-green-600" /> Start Trip
             </DialogTitle>
@@ -3488,7 +3733,7 @@ const Fleet = () => {
               Your GPS location will be recorded at the start and end of this trip.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
             {/* GPS status panel */}
             <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
               startGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
@@ -3498,7 +3743,7 @@ const Fleet = () => {
             }`}>
               {startGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
               {startGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
-              {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {isGeoError(startGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
               {startGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
               <div className="flex-1 min-w-0">
                 {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
@@ -3511,12 +3756,12 @@ const Fleet = () => {
                     <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
                   </>
                 )}
-                {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+                {isGeoError(startGeoState) && (
                   <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
                 )}
                 {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
-              {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+              {isGeoError(startGeoState) && (
                 <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr))}>
                   Retry
                 </button>
@@ -3524,7 +3769,7 @@ const Fleet = () => {
             </div>
 
             {/* Manual location fallback */}
-            {(startGeoState === 'denied' || startGeoState === 'unavailable' || startGeoState === 'timeout') && (
+            {isGeoError(startGeoState) && (
               <div className="space-y-1">
                 <Label>Start Location <span className="text-destructive">*</span></Label>
                 <Input
@@ -3614,7 +3859,7 @@ const Fleet = () => {
               Your location is recorded at trip start and end only — not tracked continuously.
             </p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 px-6 pb-6 pt-3 border-t bg-background">
             <Button variant="outline" onClick={() => setShowStartTrip(false)}>Cancel</Button>
             <Button
               className="bg-green-600 hover:bg-green-700 text-white"
@@ -3634,8 +3879,8 @@ const Fleet = () => {
 
       {/* END TRIP DIALOG */}
       <Dialog open={showEndTrip} onOpenChange={(v) => { if (!v) setShowEndTrip(false); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-md">
-          <DialogHeader>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col gap-0 p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Navigation className="h-4 w-4 rotate-180" /> End Trip
             </DialogTitle>
@@ -3643,7 +3888,7 @@ const Fleet = () => {
               Record your end location and odometer reading to complete this trip.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
             {/* Trip-in-progress summary */}
             {activeTrip && (
               <div className="rounded-md bg-muted/50 px-3 py-2 text-xs space-y-1">
@@ -3662,7 +3907,7 @@ const Fleet = () => {
             }`}>
               {endGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
               {endGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
-              {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {isGeoError(endGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
               {endGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
               <div className="flex-1 min-w-0">
                 {endGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
@@ -3675,12 +3920,12 @@ const Fleet = () => {
                     <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(endCoords.accuracy)} m</p>
                   </>
                 )}
-                {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+                {isGeoError(endGeoState) && (
                   <p className="text-xs">{GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
                 )}
                 {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
-              {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+              {isGeoError(endGeoState) && (
                 <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr))}>
                   Retry
                 </button>
@@ -3688,7 +3933,7 @@ const Fleet = () => {
             </div>
 
             {/* Manual location fallback */}
-            {(endGeoState === 'denied' || endGeoState === 'unavailable' || endGeoState === 'timeout') && (
+            {isGeoError(endGeoState) && (
               <div className="space-y-1">
                 <Label>End Location <span className="text-destructive">*</span></Label>
                 <Input
@@ -3752,7 +3997,7 @@ const Fleet = () => {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 px-6 pb-6 pt-3 border-t bg-background">
             <Button variant="outline" onClick={() => setShowEndTrip(false)}>Cancel</Button>
             <Button
               onClick={handleEndTrip}
