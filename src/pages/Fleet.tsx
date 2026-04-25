@@ -186,7 +186,6 @@ function getGeolocation(): Promise<GeoCoords> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) { reject('unavailable'); return; }
 
-    // Geolocation requires a secure context (HTTPS) except on localhost.
     if (typeof window !== 'undefined'
         && window.location.protocol !== 'https:'
         && window.location.hostname !== 'localhost'
@@ -195,40 +194,53 @@ function getGeolocation(): Promise<GeoCoords> {
       return;
     }
 
-    // Two-phase strategy:
-    //   Phase 1 — low-accuracy, short timeout; only accepts a fix if it's
-    //             precise enough (< 500 m). Otherwise stored as a fallback.
-    //   Phase 2 — high-accuracy, long timeout; always wins if it completes.
-    //             On failure, we fall back to Phase 1's result if we have one.
     let settled = false;
-
     const settle = (coords: GeoCoords) => {
       if (settled) return;
       settled = true;
+      clearTimeout(hardTimer);
       resolve(coords);
     };
     const fail = (code: string) => {
       if (settled) return;
       settled = true;
+      clearTimeout(hardTimer);
       reject(code);
     };
 
-    // Phase 1 — low-accuracy, accepts any fix. Works for desktop IP/WiFi
-    // geolocation which can take up to ~12 s on a cold cache. Resolves
-    // immediately on success so the user is never stuck waiting for Phase 2.
-    navigator.geolocation.getCurrentPosition(
-      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      () => {/* Phase 2 is the definitive error source */},
-      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
-    );
+    // Hard backstop — some desktop browsers silently hang on
+    // getCurrentPosition (no GPS hardware + no cached WiFi fix).
+    // Neither success nor error callback ever fires in that case,
+    // so a JS timer is the only reliable escape hatch.
+    const hardTimer = setTimeout(() => fail('timeout'), 11_000);
 
-    // Phase 2 — high-accuracy GPS, races against Phase 1.
-    // Wins on mobile where real GPS is fast; silently loses on desktop.
-    navigator.geolocation.getCurrentPosition(
-      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-      (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
-    );
+    // Phones / tablets have touch screens; desktops don't.
+    // This determines whether we attempt high-accuracy GPS (Phase 2).
+    const isMobile = navigator.maxTouchPoints > 0;
+
+    if (isMobile) {
+      // Phase 1 — fast, accepts cached position (GPS already warm from
+      //           a recent fix). Resolves immediately when available.
+      navigator.geolocation.getCurrentPosition(
+        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+        () => {/* Phase 2 is the authoritative source */},
+        { enableHighAccuracy: false, timeout: 5_000, maximumAge: 30_000 },
+      );
+      // Phase 2 — full GPS accuracy, races Phase 1.
+      navigator.geolocation.getCurrentPosition(
+        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+        (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+      );
+    } else {
+      // Desktop: no GPS hardware. High-accuracy hangs indefinitely on
+      // most desktop browsers, so we only use low-accuracy (IP/WiFi).
+      navigator.geolocation.getCurrentPosition(
+        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+        (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
+        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
+      );
+    }
   });
 }
 
@@ -1526,7 +1538,12 @@ const Fleet = () => {
     setStartAddress(null);
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
     setLastVehicleOdometer(null);
-    acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr));
+    acquireGeo(setStartGeoState, setStartCoords, (addr) => {
+      setStartAddress(addr);
+      // Pre-fill the manual input so the user can see (and correct) the
+      // detected location, but don't overwrite anything they already typed.
+      setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr });
+    });
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
         setStartTripForm((f) => ({ ...f, odometer_start: v })),
@@ -1540,9 +1557,10 @@ const Fleet = () => {
       toast({ title: 'Start odometer reading is required', variant: 'destructive' });
       return;
     }
-    const locationStr = startCoords
-      ? (startAddress || formatCoords(startCoords.lat, startCoords.lng))
-      : startTripForm.manual_location.trim();
+    // Manual input is always the displayed location string.
+    // GPS coordinates are stored separately for mapping.
+    const locationStr = startTripForm.manual_location.trim()
+      || (startCoords ? (startAddress || formatCoords(startCoords.lat, startCoords.lng)) : '');
     setStartingTrip(true);
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -1586,7 +1604,10 @@ const Fleet = () => {
     setEndCoords(null);
     setEndAddress(null);
     setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
-    acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr));
+    acquireGeo(setEndGeoState, setEndCoords, (addr) => {
+      setEndAddress(addr);
+      setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr });
+    });
   };
 
   const handleEndTrip = async () => {
@@ -1596,9 +1617,8 @@ const Fleet = () => {
       toast({ title: 'End odometer reading is required', variant: 'destructive' });
       return;
     }
-    const endLocationStr = endCoords
-      ? (endAddress || formatCoords(endCoords.lat, endCoords.lng))
-      : endTripForm.manual_location.trim();
+    const endLocationStr = endTripForm.manual_location.trim()
+      || (endCoords ? (endAddress || formatCoords(endCoords.lat, endCoords.lng)) : '');
     const now = new Date();
     const startMs = activeTrip.trip_start_time ? Date.parse(activeTrip.trip_start_time) : Date.now();
     const durationMin = Math.max(0, Math.round((now.getTime() - startMs) / 60_000));
@@ -3650,23 +3670,29 @@ const Fleet = () => {
                 {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
               {isGeoError(startGeoState) && (
-                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => setStartAddress(addr))}>
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => { setStartAddress(addr); setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}>
                   Retry
                 </button>
               )}
             </div>
 
-            {/* Manual location fallback */}
-            {isGeoError(startGeoState) && (
-              <div className="space-y-1">
-                <Label>Start Location <span className="text-destructive">*</span></Label>
-                <Input
-                  value={startTripForm.manual_location}
-                  onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
-                  placeholder="e.g. Victoria Island depot, Lagos"
-                />
-              </div>
-            )}
+            {/* Location input — always visible; GPS pre-fills it when it resolves */}
+            <div className="space-y-1">
+              <Label>
+                Start Location <span className="text-destructive">*</span>
+                {startGeoState === 'ok' && (
+                  <span className="ml-1 text-xs text-green-600 font-normal">(GPS detected — edit if wrong)</span>
+                )}
+                {startGeoState === 'acquiring' && (
+                  <span className="ml-1 text-xs text-muted-foreground font-normal">(GPS acquiring…)</span>
+                )}
+              </Label>
+              <Input
+                value={startTripForm.manual_location}
+                onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                placeholder="e.g. Victoria Island depot, Lagos"
+              />
+            </div>
 
             {/* Vehicle selector */}
             {vehicles.length > 0 && (
@@ -3755,7 +3781,7 @@ const Fleet = () => {
               disabled={
                 startingTrip ||
                 !startTripForm.odometer_start ||
-                (startGeoState !== 'ok' && !startTripForm.manual_location.trim())
+                !startTripForm.manual_location.trim()
               }
             >
               {startingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -3814,23 +3840,29 @@ const Fleet = () => {
                 {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
               {isGeoError(endGeoState) && (
-                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => setEndAddress(addr))}>
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => { setEndAddress(addr); setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}>
                   Retry
                 </button>
               )}
             </div>
 
-            {/* Manual location fallback */}
-            {isGeoError(endGeoState) && (
-              <div className="space-y-1">
-                <Label>End Location <span className="text-destructive">*</span></Label>
-                <Input
-                  value={endTripForm.manual_location}
-                  onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
-                  placeholder="e.g. Ikeja client office, Lagos"
-                />
-              </div>
-            )}
+            {/* Location input — always visible; GPS pre-fills it when it resolves */}
+            <div className="space-y-1">
+              <Label>
+                End Location <span className="text-destructive">*</span>
+                {endGeoState === 'ok' && (
+                  <span className="ml-1 text-xs text-green-600 font-normal">(GPS detected — edit if wrong)</span>
+                )}
+                {endGeoState === 'acquiring' && (
+                  <span className="ml-1 text-xs text-muted-foreground font-normal">(GPS acquiring…)</span>
+                )}
+              </Label>
+              <Input
+                value={endTripForm.manual_location}
+                onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                placeholder="e.g. Ikeja client office, Lagos"
+              />
+            </div>
 
             {/* End odometer */}
             <div className="space-y-1">
@@ -3892,7 +3924,7 @@ const Fleet = () => {
               disabled={
                 endingTrip ||
                 !endTripForm.odometer_end ||
-                (endGeoState !== 'ok' && !endTripForm.manual_location.trim())
+                !endTripForm.manual_location.trim()
               }
             >
               {endingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
