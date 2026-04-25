@@ -85,7 +85,9 @@ export type AuditActionType =
   | 'bank_reconciliation_matched'
   | 'resubmission_created'
   | 'company_settings_saved'
-  | 'report_exported';
+  | 'report_exported'
+  | 'deduction_created'
+  | 'deduction_applied';
 
 export interface AuditActor {
   id?: string | null;

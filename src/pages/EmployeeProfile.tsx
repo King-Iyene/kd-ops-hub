@@ -115,6 +115,17 @@ const EmployeeProfile = () => {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [increments, setIncrements] = useState<any[]>([]);
   const [advances, setAdvances] = useState<any[]>([]);
+  const [deductions, setDeductions] = useState<any[]>([]);
+  const [showDeductionDialog, setShowDeductionDialog] = useState(false);
+  const [savingDeduction, setSavingDeduction] = useState(false);
+  const [deductionForm, setDeductionForm] = useState({
+    description: '',
+    amount_ngn: 0,
+    frequency: 'monthly' as 'monthly' | 'per_payroll_run' | 'one_time',
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: '',
+    total_deductible_amount: '',
+  });
   const [showIncrementDialog, setShowIncrementDialog] = useState(false);
   const [savingIncrement, setSavingIncrement] = useState(false);
   const [incrementForm, setIncrementForm] = useState({
@@ -122,7 +133,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
   const [bankEditMode, setBankEditMode] = useState(false);
@@ -217,7 +228,7 @@ const EmployeeProfile = () => {
         if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
       });
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('payslips').select('*').eq('employee_id', id)
@@ -236,6 +247,9 @@ const EmployeeProfile = () => {
         .order('effective_date', { ascending: false }),
       supabase.from('employee_advances').select('*').eq('employee_id', id)
         .order('created_at', { ascending: false }),
+      supabase.from('employee_deductions').select('*')
+        .eq('entity_id', id).eq('entity_type', 'employee')
+        .order('created_at', { ascending: false }),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -245,6 +259,7 @@ const EmployeeProfile = () => {
     setAuditLogs(auditRes.data || []);
     setIncrements(incrRes.data || []);
     setAdvances(advRes.data || []);
+    setDeductions(deductRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -411,6 +426,43 @@ const EmployeeProfile = () => {
     }
   };
 
+  const saveDeduction = async () => {
+    if (!id || !deductionForm.description.trim() || !deductionForm.amount_ngn || !deductionForm.start_date) return;
+    setSavingDeduction(true);
+    try {
+      const payload: Record<string, unknown> = {
+        entity_id: id,
+        entity_type: 'employee',
+        description: deductionForm.description.trim(),
+        amount_ngn: Number(deductionForm.amount_ngn),
+        frequency: deductionForm.frequency,
+        start_date: deductionForm.start_date,
+        end_date: deductionForm.end_date || null,
+        total_deductible_amount: deductionForm.total_deductible_amount
+          ? Number(deductionForm.total_deductible_amount) : null,
+        created_by: currentUser?.id || null,
+      };
+      const { error } = await supabase.from('employee_deductions').insert(payload);
+      if (error) throw error;
+      await logAudit('deduction_created', `Deduction "${deductionForm.description}" added for "${employee?.full_name}"`, currentUser);
+      toast({ title: 'Deduction added' });
+      setShowDeductionDialog(false);
+      setDeductionForm({ description: '', amount_ngn: 0, frequency: 'monthly', start_date: new Date().toISOString().slice(0, 10), end_date: '', total_deductible_amount: '' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to add deduction', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingDeduction(false);
+    }
+  };
+
+  const deactivateDeduction = async (deductionId: string) => {
+    const { error } = await supabase.from('employee_deductions').update({ status: 'paused' }).eq('id', deductionId);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Deduction paused' });
+    load();
+  };
+
   const yoyGrowth = useMemo(() => {
     if (increments.length === 0 || !employee?.salary_ngn) return null;
     const oneYearAgo = new Date();
@@ -451,6 +503,7 @@ const EmployeeProfile = () => {
 
   const canManage    = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';
+  const canFinance   = ['super_admin', 'admin', 'finance'].includes(currentUser?.role ?? '');
 
   return (
     <div className="max-w-5xl">
@@ -589,6 +642,19 @@ const EmployeeProfile = () => {
             {label}
           </button>
         ))}
+        {canFinance && (
+          <button
+            onClick={() => setActiveTab('deductions')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'deductions'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {`Deductions (${deductions.length})`}
+          </button>
+        )}
         {increments.length > 0 && (
           <button
             onClick={() => setActiveTab('increments')}
@@ -1734,6 +1800,71 @@ const EmployeeProfile = () => {
         </div>
       )}
 
+      {activeTab === 'deductions' && canFinance && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Deductions</CardTitle>
+              {canFinance && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDeductionDialog(true)}>
+                  <Plus className="h-4 w-4" /> Add Deduction
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {deductions.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No deductions configured.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Description</TableHead>
+                      <TableHead className="text-right">Amount (₦)</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Start</TableHead>
+                      <TableHead>End</TableHead>
+                      <TableHead className="text-right">Deducted to Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {deductions.map((d: any) => (
+                      <TableRow key={d.id}>
+                        <TableCell className="pl-4 font-medium">{d.description}</TableCell>
+                        <TableCell className="text-right">{formatNaira(d.amount_ngn)}</TableCell>
+                        <TableCell className="capitalize">{d.frequency.replace(/_/g, ' ')}</TableCell>
+                        <TableCell>{formatDate(d.start_date)}</TableCell>
+                        <TableCell>{d.end_date ? formatDate(d.end_date) : '—'}</TableCell>
+                        <TableCell className="text-right">
+                          {formatNaira(d.amount_deducted_to_date || 0)}
+                          {d.total_deductible_amount ? (
+                            <span className="text-xs text-muted-foreground"> / {formatNaira(d.total_deductible_amount)}</span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700' : d.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                            {d.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {d.status === 'active' && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                              onClick={() => deactivateDeduction(d.id)}>
+                              Pause
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {activeTab === 'increments' && (
         <div className="mt-4">
           <Card>
@@ -2001,6 +2132,80 @@ const EmployeeProfile = () => {
             <Button onClick={recordIncrement} disabled={savingIncrement || incrementForm.new_salary <= 0}>
               {savingIncrement && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Increment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Deduction Dialog */}
+      <Dialog open={showDeductionDialog} onOpenChange={(o) => { if (!o) setShowDeductionDialog(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Deduction</DialogTitle>
+            <DialogDescription>Schedule a recurring or one-time deduction for this employee.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Description <span className="text-destructive">*</span></Label>
+              <Input
+                className="mt-1"
+                placeholder="e.g. Staff loan repayment"
+                value={deductionForm.description}
+                onChange={(e) => setDeductionForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Amount per period (₦) <span className="text-destructive">*</span></Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min={1}
+                  placeholder="0"
+                  value={deductionForm.amount_ngn || ''}
+                  onChange={(e) => setDeductionForm((f) => ({ ...f, amount_ngn: Number(e.target.value) }))}
+                />
+              </div>
+              <div>
+                <Label>Frequency</Label>
+                <Select value={deductionForm.frequency} onValueChange={(v) => setDeductionForm((f) => ({ ...f, frequency: v as typeof f.frequency }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="per_payroll_run">Per Payroll Run</SelectItem>
+                    <SelectItem value="one_time">One-Time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Start Date <span className="text-destructive">*</span></Label>
+                <Input className="mt-1" type="date" value={deductionForm.start_date}
+                  onChange={(e) => setDeductionForm((f) => ({ ...f, start_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>End Date (optional)</Label>
+                <Input className="mt-1" type="date" value={deductionForm.end_date}
+                  onChange={(e) => setDeductionForm((f) => ({ ...f, end_date: e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <Label>Total deductible amount (₦, optional)</Label>
+              <Input className="mt-1" type="number" min={0} placeholder="Leave blank for no cap"
+                value={deductionForm.total_deductible_amount}
+                onChange={(e) => setDeductionForm((f) => ({ ...f, total_deductible_amount: e.target.value }))} />
+              <p className="text-xs text-muted-foreground mt-1">Deductions stop automatically when this total is reached.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeductionDialog(false)}>Cancel</Button>
+            <Button
+              onClick={saveDeduction}
+              disabled={savingDeduction || !deductionForm.description.trim() || !deductionForm.amount_ngn || !deductionForm.start_date}
+            >
+              {savingDeduction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Deduction
             </Button>
           </DialogFooter>
         </DialogContent>

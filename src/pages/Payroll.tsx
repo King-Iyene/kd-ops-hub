@@ -235,7 +235,8 @@ const Payroll = () => {
 
     setWorking(true);
     try {
-      const [contractorRes, expensesRes, employeeRes] = await Promise.all([
+      const periodStart = start.toISOString().slice(0, 10);
+      const [contractorRes, expensesRes, employeeRes, deductionsRes] = await Promise.all([
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
@@ -253,6 +254,12 @@ const Payroll = () => {
           .select('salary_ngn')
           .eq('status', 'active')
           .neq('role', 'driver'),
+        supabase
+          .from('employee_deductions')
+          .select('id, entity_id, entity_type, amount_ngn, total_deductible_amount, amount_deducted_to_date')
+          .eq('status', 'active')
+          .lte('start_date', periodStart)
+          .or(`end_date.is.null,end_date.gte.${periodStart}`),
       ]);
 
       const totalContractor =
@@ -280,10 +287,16 @@ const Payroll = () => {
       const transportAllowance = empCount * form.transport_per_emp;
       const mealSubsidy = empCount * form.meal_per_emp;
       const totalAllowances = housingAllowance + transportAllowance + mealSubsidy;
+      // Sum qualifying deductions (cap check: amount_deducted_to_date < total_deductible_amount)
+      const qualifyingDeductions = (deductionsRes.data || []).filter((d: any) =>
+        d.total_deductible_amount == null ||
+        Number(d.amount_deducted_to_date || 0) < Number(d.total_deductible_amount),
+      );
+      const totalDeductions = qualifyingDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn || 0), 0);
       const burn =
         totalContractor + totalEmployee + totalExpenses +
         paye + pension + nhf + employerPension +
-        bonusTotal + totalAllowances;
+        bonusTotal + totalAllowances - totalDeductions;
 
       // Core upsert — works with the existing schema.
       const { error } = await supabase.from('payroll_runs').upsert(
@@ -396,6 +409,25 @@ const Payroll = () => {
         .maybeSingle();
       const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
 
+      // Fetch all active employee deductions for this period in one query
+      const [y2, m2] = run.period.split('-');
+      const periodStartDate = `${y2}-${m2}-01`;
+      const { data: allDeductions } = await supabase
+        .from('employee_deductions')
+        .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
+        .eq('entity_type', 'employee')
+        .eq('status', 'active')
+        .lte('start_date', periodStartDate)
+        .or(`end_date.is.null,end_date.gte.${periodStartDate}`);
+
+      // Group by employee id
+      const deductionsByEmployee = new Map<string, any[]>();
+      for (const d of (allDeductions || [])) {
+        if (d.total_deductible_amount != null && Number(d.amount_deducted_to_date || 0) >= Number(d.total_deductible_amount)) continue;
+        if (!deductionsByEmployee.has(d.entity_id)) deductionsByEmployee.set(d.entity_id, []);
+        deductionsByEmployee.get(d.entity_id)!.push(d);
+      }
+
       let succeeded = 0;
       let failed = 0;
       for (const e of list) {
@@ -408,7 +440,9 @@ const Payroll = () => {
           const empPaye = calculateNigerianPAYE(empGross);
           const empPension = empGross * PENSION_RATE;
           const empNhf = empGross * NHF_RATE;
-          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf);
+          const empDeductions = deductionsByEmployee.get(e.id) || [];
+          const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
+          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
           const html = renderPayslipHtml({
@@ -423,6 +457,7 @@ const Payroll = () => {
             nhf_ngn: empNhf,
             net_ngn: empNet,
             generated_by: profile?.full_name || profile?.email,
+            extra_deductions: empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
           }, { autoPrint: false });
 
           const path = `${e.id}/${run.period}.html`;
@@ -448,6 +483,10 @@ const Payroll = () => {
               pension_ngn: empPension,
               nhf_ngn: empNhf,
               net_ngn: empNet,
+              deductions_ngn: empDeductionsTotal,
+              deductions_json: empDeductions.length > 0
+                ? empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) }))
+                : null,
               file_url: urlData.publicUrl,
               storage_path: path,
               generated_by: profile?.id || null,
@@ -670,6 +709,47 @@ const Payroll = () => {
       toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
       return;
     }
+
+    // Update amount_deducted_to_date for every deduction applied in this run
+    const { data: payslips } = await supabase
+      .from('payslips')
+      .select('deductions_json')
+      .eq('payroll_run_id', run.id)
+      .not('deductions_json', 'is', null);
+
+    if (payslips && payslips.length > 0) {
+      // Aggregate total applied per deduction id across all payslips (each employee has their own deductions)
+      const appliedById = new Map<string, number>();
+      for (const slip of payslips) {
+        for (const d of (slip.deductions_json as { id: string; amount_ngn: number }[])) {
+          appliedById.set(d.id, (appliedById.get(d.id) ?? 0) + Number(d.amount_ngn));
+        }
+      }
+
+      // Fetch current amounts so we can compute new totals and check caps
+      const deductionIds = Array.from(appliedById.keys());
+      const { data: currentDeductions } = await supabase
+        .from('employee_deductions')
+        .select('id, amount_deducted_to_date, total_deductible_amount')
+        .in('id', deductionIds);
+
+      for (const cd of (currentDeductions || [])) {
+        const applied = appliedById.get(cd.id) ?? 0;
+        const newTotal = Number(cd.amount_deducted_to_date || 0) + applied;
+        const isComplete =
+          cd.total_deductible_amount != null &&
+          newTotal >= Number(cd.total_deductible_amount);
+
+        await supabase
+          .from('employee_deductions')
+          .update({
+            amount_deducted_to_date: newTotal,
+            ...(isComplete ? { status: 'completed' } : {}),
+          })
+          .eq('id', cd.id);
+      }
+    }
+
     await logAudit(
       'payroll_paid',
       `Payroll ${monthLabel(run.period)} marked paid`,

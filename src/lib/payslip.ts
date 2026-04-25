@@ -18,6 +18,7 @@ export interface PayslipData {
   net_ngn: number;
   generated_by?: string | null;
   payslip_ref?: string | null;
+  extra_deductions?: { description: string; amount_ngn: number }[] | null;
 }
 
 const esc = (v: unknown): string => {
@@ -54,7 +55,8 @@ export const renderPayslipHtml = (
   data: PayslipData,
   opts: { autoPrint?: boolean } = {},
 ): string => {
-  const totalDeductions = data.paye_ngn + data.pension_ngn + data.nhf_ngn;
+  const extraDeductTotal = (data.extra_deductions ?? []).reduce((s, d) => s + d.amount_ngn, 0);
+  const totalDeductions = data.paye_ngn + data.pension_ngn + data.nhf_ngn + extraDeductTotal;
   const generated = formatDateTime(new Date());
   const autoPrint = opts.autoPrint !== false;
   const periodLabel = monthLabel(data.period);
@@ -271,6 +273,7 @@ export const renderPayslipHtml = (
           ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right">−&nbsp;${esc(formatNaira(data.paye_ngn))}</td></tr>` : ''}
           ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension Contribution (8%)</td><td class="right">−&nbsp;${esc(formatNaira(data.pension_ngn))}</td></tr>` : ''}
           ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right">−&nbsp;${esc(formatNaira(data.nhf_ngn))}</td></tr>` : ''}
+          ${(data.extra_deductions ?? []).map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right">−&nbsp;${esc(formatNaira(d.amount_ngn))}</td></tr>`).join('')}
           ${totalDeductions === 0 ? `<tr class="deduction"><td style="color:#9ca3af;font-style:italic">No deductions applied</td><td></td></tr>` : ''}
           <tr class="subtotal">
             <td>Total Deductions</td>
