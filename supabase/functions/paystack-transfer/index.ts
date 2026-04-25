@@ -99,7 +99,6 @@ serve(async (req) => {
     // Account-name lookup is not sensitive — secret key stays server-side.
     // ---------------------------------------------------------------
     if (action === "resolve_account") {
-      console.log("[paystack] resolve_account request:", { account_number: params.account_number, bank_code: params.bank_code });
       const qs = new URLSearchParams({
         account_number: params.account_number,
         bank_code: params.bank_code,
