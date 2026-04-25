@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -29,6 +29,7 @@ import Budgets from './pages/Budgets';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
 import Fleet from './pages/Fleet';
+import DriverDashboard from './pages/DriverDashboard';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Contacts from './pages/Contacts';
@@ -65,6 +66,33 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Driver-only guard for /driver. Unauthenticated users go to /login,
+ * any non-driver role is redirected to /dashboard. Honours the
+ * Super Admin "view as" simulator via useEffectiveRole.
+ */
+function DriverRouteGuard({ children }: { children: React.ReactNode }) {
+  const { user, profile, loading, profileLoading } = useAuthStore();
+  const effectiveRole = useEffectiveRole();
+
+  if (loading || profileLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+  if (!profile || profile.status !== 'active') {
+    return <Navigate to="/login" replace />;
+  }
+  if (effectiveRole !== 'driver') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -83,6 +111,18 @@ function AppRoutes() {
           <AuthGuard>
             <Unauthorized />
           </AuthGuard>
+        }
+      />
+
+      {/* Driver portal — dedicated mobile route for users with role 'driver'.
+          Renders outside AppLayout so the next session can build a full-bleed
+          mobile/PWA experience without sidebar or header chrome. */}
+      <Route
+        path="/driver"
+        element={
+          <DriverRouteGuard>
+            <DriverDashboard />
+          </DriverRouteGuard>
         }
       />
 
