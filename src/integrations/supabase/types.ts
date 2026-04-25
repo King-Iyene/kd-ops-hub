@@ -1045,6 +1045,7 @@ export type Database = {
           id: string
           performed_by: string | null
           performed_by_name: string | null
+          user_id: string | null
         }
         Insert: {
           action_type: string
@@ -1053,6 +1054,7 @@ export type Database = {
           id?: string
           performed_by?: string | null
           performed_by_name?: string | null
+          user_id?: string | null
         }
         Update: {
           action_type?: string
@@ -1061,11 +1063,19 @@ export type Database = {
           id?: string
           performed_by?: string | null
           performed_by_name?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "audit_logs_performed_by_fkey"
             columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
