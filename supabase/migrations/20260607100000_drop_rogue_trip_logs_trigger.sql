@@ -30,30 +30,33 @@ BEGIN
 END;
 $$;
 
--- 2. Fix the shared function to use the correct audit_logs column names
+-- 2. Fix the shared function to use the correct audit_logs column names.
+-- Uses to_jsonb(NEW) so we can safely read any column without crashing on
+-- tables that don't have all fields (e.g. fuel_requests has driver_id but
+-- not created_by; vehicle_maintenance has created_by but not driver_id).
 CREATE OR REPLACE FUNCTION public.log_fleet_activity()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  v_row        jsonb;
   v_actor_id   uuid;
   v_actor_name text;
   v_action     text;
   v_desc       text;
 BEGIN
-  -- Resolve the acting user from whichever FK column is present on this table
+  v_row := to_jsonb(NEW);
+
+  -- Safely read whichever actor column this table has; missing keys return NULL
   v_actor_id := COALESCE(
-    (NEW).driver_id,
-    (NEW).submitted_by,
-    (NEW).created_by,
+    (v_row->>'driver_id')::uuid,
+    (v_row->>'created_by')::uuid,
     auth.uid()
   );
 
-  -- Build a human-readable action_type and description
   v_action := TG_TABLE_NAME || '_' || lower(TG_OP);
   v_desc   := initcap(replace(TG_TABLE_NAME, '_', ' ')) || ' ' || lower(TG_OP) || 'd';
 
-  -- Look up the actor's name
   SELECT full_name INTO v_actor_name
   FROM public.profiles
   WHERE id = v_actor_id;
