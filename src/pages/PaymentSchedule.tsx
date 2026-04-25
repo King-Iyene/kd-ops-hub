@@ -38,6 +38,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   CalendarClock,
+  Info,
   Repeat,
   Layers,
   Banknote,
@@ -456,6 +457,16 @@ export default function PaymentSchedule() {
         }
       />
 
+      {/* Recurring schedule info callout */}
+      <div className="flex items-start gap-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+        <Info className="h-4 w-4 mt-0.5 shrink-0" />
+        <p>
+          To create a recurring schedule, open any payment batch and click{' '}
+          <strong>"Make Recurring"</strong>. The schedule will appear here automatically and
+          can be paused, edited, or stopped at any time.
+        </p>
+      </div>
+
       {/* Section 1 — Balance alert bar */}
       {!balanceLoading && balance && surplus7 !== null && (
         <div
@@ -587,9 +598,6 @@ export default function PaymentSchedule() {
         <Card>
           <CardHeader>
             <CardTitle>Recurring Schedules</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              To create a recurring schedule, open a payment batch and click "Make recurring".
-            </p>
           </CardHeader>
           <CardContent>
             {loading ? (
