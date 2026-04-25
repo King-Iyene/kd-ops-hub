@@ -30,6 +30,7 @@ import Documents from './pages/Documents';
 import Reports from './pages/Reports';
 import Fleet from './pages/Fleet';
 import ExecAssist from './pages/ExecAssist';
+import DriverDashboard from './pages/DriverDashboard';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Contacts from './pages/Contacts';
@@ -65,6 +66,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
+
 
 function AppRoutes() {
   return (
@@ -220,6 +222,17 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Fleet />
+            </RoleGuard>
+          }
+        />
+        {/* Driver portal — sub-module of Fleet, same auth flow as every other
+            AppLayout route. All active staff can reach it; those without an
+            assigned vehicle see a graceful empty state. */}
+        <Route
+          path="/fleet/driver"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <DriverDashboard />
             </RoleGuard>
           }
         />

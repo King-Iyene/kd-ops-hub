@@ -27,6 +27,8 @@ import {
   Layers,
   ChevronRight,
   Briefcase,
+  ChevronDown,
+  Smartphone,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -40,6 +42,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
@@ -65,7 +70,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Cards',             url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',        url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Expenses',          url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], section: 'Operations' },
-  { title: 'Fleet',             url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'] },
+  { title: 'Fleet',             url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Contractors',       url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Employees',         url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',             url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -79,6 +84,11 @@ const ALL_NAV: NavItem[] = [
   { title: 'Referrals',         url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Audit Log',         url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'], section: 'Admin' },
   { title: 'Settings',          url: '/settings',          icon: Settings,        roles: ['super_admin'] },
+];
+
+const FLEET_SUB_ITEMS = [
+  { title: 'Fleet Overview', url: '/fleet',        icon: Truck },
+  { title: 'Driver Portal',  url: '/fleet/driver', icon: Smartphone },
 ];
 
 function getInitials(name: string): string {
@@ -100,6 +110,8 @@ export function AppSidebar() {
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const fleetActive = location.pathname === '/fleet' || location.pathname.startsWith('/fleet/');
+  const [fleetOpen, setFleetOpen] = useState(fleetActive);
   useEffect(() => {
     supabase
       .from('company_settings')
@@ -167,6 +179,70 @@ export function AppSidebar() {
                     (item.url !== '/' && location.pathname.startsWith(item.url));
                 const showBadge = item.badge === 'approvals' && approvalTotal > 0;
                 const showSection = !collapsed && item.section && idx > 0;
+
+                // Fleet gets a collapsible sub-menu with Fleet Overview + Driver Portal.
+                if (item.url === '/fleet') {
+                  return (
+                    <SidebarMenuItem key={item.title} className="list-none">
+                      {showSection && (
+                        <div className="px-2 pt-4 pb-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-sidebar-foreground/35">
+                            {item.section}
+                          </span>
+                        </div>
+                      )}
+                      {/* Fleet parent button — toggles sub-menu */}
+                      <SidebarMenuButton
+                        isActive={fleetActive}
+                        tooltip={collapsed ? 'Fleet' : undefined}
+                        className="relative"
+                        onClick={() => !collapsed && setFleetOpen((o) => !o)}
+                      >
+                        <span className={`flex items-center gap-2.5 w-full rounded-lg px-2.5 py-2 text-sm font-medium kd-transition group relative cursor-pointer ${fleetActive ? 'bg-white/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_1px_3px_rgba(0,0,0,0.2)]' : 'text-sidebar-foreground/75 hover:bg-white/8 hover:text-sidebar-foreground'}`}>
+                          {fleetActive && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-cyan-400" />
+                          )}
+                          <Truck className={`h-4 w-4 shrink-0 kd-transition ${fleetActive ? 'text-cyan-300' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80'}`} />
+                          {!collapsed && (
+                            <>
+                              <span className="flex-1 truncate">Fleet</span>
+                              {fleetOpen
+                                ? <ChevronDown className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />
+                                : <ChevronRight className="h-3 w-3 text-sidebar-foreground/40 shrink-0" />}
+                            </>
+                          )}
+                        </span>
+                      </SidebarMenuButton>
+
+                      {/* Sub-items */}
+                      {(fleetOpen || collapsed) && (
+                        <SidebarMenuSub className={collapsed ? 'ml-0 pl-0 border-l-0' : ''}>
+                          {FLEET_SUB_ITEMS.map((sub) => {
+                            const subActive = location.pathname === sub.url
+                              || (sub.url !== '/fleet' && location.pathname.startsWith(sub.url));
+                            return (
+                              <SidebarMenuSubItem key={sub.url} className="list-none">
+                                <SidebarMenuSubButton
+                                  asChild
+                                  isActive={subActive}
+                                  tooltip={collapsed ? sub.title : undefined}
+                                >
+                                  <NavLink
+                                    to={sub.url}
+                                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium kd-transition ${subActive ? 'text-cyan-300 bg-white/10' : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/6'}`}
+                                  >
+                                    <sub.icon className="h-3.5 w-3.5 shrink-0" />
+                                    {!collapsed && <span className="truncate">{sub.title}</span>}
+                                  </NavLink>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            );
+                          })}
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                }
 
                 return (
                   <SidebarMenuItem key={item.title} className="list-none">
