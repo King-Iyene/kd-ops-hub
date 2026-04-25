@@ -3693,36 +3693,32 @@ const Fleet = () => {
               </div>
             )}
 
-            {/* Location input — always visible; GPS pre-fills it on mobile when it resolves */}
-            <div className="space-y-1">
-              <Label>
-                Start Location <span className="text-destructive">*</span>
-                {startGeoState === 'ok' && (
-                  <span className="ml-1 text-xs text-green-600 font-normal">(GPS detected — edit if wrong)</span>
+            {/* Location input — desktop always; mobile only as fallback when GPS fails */}
+            {(startGeoState === 'desktop_skip' || isGeoError(startGeoState)) && (
+              <div className="space-y-1">
+                <Label>
+                  Start Location <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={startTripForm.manual_location}
+                  onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                  placeholder="e.g. Victoria Island depot, Lagos"
+                />
+                {startGeoState === 'desktop_skip' && (
+                  <p className="text-xs text-muted-foreground">
+                    Type your location above.{' '}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => { setStartAddress(addr); setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
+                    >
+                      Try GPS anyway
+                    </button>{' '}
+                    (often inaccurate on desktop).
+                  </p>
                 )}
-                {startGeoState === 'acquiring' && (
-                  <span className="ml-1 text-xs text-muted-foreground font-normal">(GPS acquiring…)</span>
-                )}
-              </Label>
-              <Input
-                value={startTripForm.manual_location}
-                onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
-                placeholder="e.g. Victoria Island depot, Lagos"
-              />
-              {startGeoState === 'desktop_skip' && (
-                <p className="text-xs text-muted-foreground">
-                  Type your location above.{' '}
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => { setStartAddress(addr); setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
-                  >
-                    Try GPS anyway
-                  </button>{' '}
-                  (often inaccurate on desktop).
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Vehicle selector */}
             {vehicles.length > 0 && (
@@ -3811,7 +3807,7 @@ const Fleet = () => {
               disabled={
                 startingTrip ||
                 !startTripForm.odometer_start ||
-                !startTripForm.manual_location.trim()
+                (startGeoState !== 'ok' && !startTripForm.manual_location.trim())
               }
             >
               {startingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -3878,36 +3874,32 @@ const Fleet = () => {
               </div>
             )}
 
-            {/* Location input — always visible; GPS pre-fills it on mobile when it resolves */}
-            <div className="space-y-1">
-              <Label>
-                End Location <span className="text-destructive">*</span>
-                {endGeoState === 'ok' && (
-                  <span className="ml-1 text-xs text-green-600 font-normal">(GPS detected — edit if wrong)</span>
+            {/* Location input — desktop always; mobile only as fallback when GPS fails */}
+            {(endGeoState === 'desktop_skip' || isGeoError(endGeoState)) && (
+              <div className="space-y-1">
+                <Label>
+                  End Location <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={endTripForm.manual_location}
+                  onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
+                  placeholder="e.g. Ikeja client office, Lagos"
+                />
+                {endGeoState === 'desktop_skip' && (
+                  <p className="text-xs text-muted-foreground">
+                    Type your location above.{' '}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => { setEndAddress(addr); setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
+                    >
+                      Try GPS anyway
+                    </button>{' '}
+                    (often inaccurate on desktop).
+                  </p>
                 )}
-                {endGeoState === 'acquiring' && (
-                  <span className="ml-1 text-xs text-muted-foreground font-normal">(GPS acquiring…)</span>
-                )}
-              </Label>
-              <Input
-                value={endTripForm.manual_location}
-                onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
-                placeholder="e.g. Ikeja client office, Lagos"
-              />
-              {endGeoState === 'desktop_skip' && (
-                <p className="text-xs text-muted-foreground">
-                  Type your location above.{' '}
-                  <button
-                    type="button"
-                    className="underline"
-                    onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => { setEndAddress(addr); setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
-                  >
-                    Try GPS anyway
-                  </button>{' '}
-                  (often inaccurate on desktop).
-                </p>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* End odometer */}
             <div className="space-y-1">
@@ -3969,7 +3961,7 @@ const Fleet = () => {
               disabled={
                 endingTrip ||
                 !endTripForm.odometer_end ||
-                !endTripForm.manual_location.trim()
+                (endGeoState !== 'ok' && !endTripForm.manual_location.trim())
               }
             >
               {endingTrip && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
