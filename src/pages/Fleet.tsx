@@ -3721,9 +3721,9 @@ const Fleet = () => {
                 )}
                 {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
-              {isGeoError(startGeoState) && (
+              {(isGeoError(startGeoState) || startGeoState === 'ok') && (
                 <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, setStartAddress)}>
-                  Retry
+                  {startGeoState === 'ok' ? 'Re-acquire' : 'Retry'}
                 </button>
               )}
             </div>
