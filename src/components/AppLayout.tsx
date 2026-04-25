@@ -38,6 +38,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/knowledge':            'Knowledge',
   '/documents':            'Documents',
   '/reports':              'Reports',
+  '/assistant':            'Executive Assist',
   '/contacts':             'Contacts',
   '/referrals':            'Referrals',
   '/audit':                'Audit Log',
