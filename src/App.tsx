@@ -29,6 +29,7 @@ import Budgets from './pages/Budgets';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
 import Fleet from './pages/Fleet';
+import ExecAssist from './pages/ExecAssist';
 import Expenses from './pages/Expenses';
 import Contractors from './pages/Contractors';
 import Contacts from './pages/Contacts';
@@ -313,6 +314,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Knowledge />
+            </RoleGuard>
+          }
+        />
+
+        {/* Executive Assist — managers and above. */}
+        <Route
+          path="/assistant"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <ExecAssist />
             </RoleGuard>
           }
         />

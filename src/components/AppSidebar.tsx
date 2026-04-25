@@ -26,6 +26,7 @@ import {
   ArrowUpDown,
   Layers,
   ChevronRight,
+  Briefcase,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -70,6 +71,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Leave',             url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Tasks',             url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], section: 'Workspace' },
   { title: 'Goals',             url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Executive Assist',  url: '/assistant',         icon: Briefcase,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Knowledge',         url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Documents',         url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',           url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },
