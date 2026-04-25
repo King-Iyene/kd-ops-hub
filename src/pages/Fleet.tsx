@@ -201,7 +201,6 @@ function getGeolocation(): Promise<GeoCoords> {
     //   Phase 2 — high-accuracy, long timeout; always wins if it completes.
     //             On failure, we fall back to Phase 1's result if we have one.
     let settled = false;
-    let quickFix: GeoCoords | null = null;
 
     const settle = (coords: GeoCoords) => {
       if (settled) return;
@@ -210,27 +209,25 @@ function getGeolocation(): Promise<GeoCoords> {
     };
     const fail = (code: string) => {
       if (settled) return;
-      if (quickFix) { settled = true; resolve(quickFix); return; }
       settled = true;
       reject(code);
     };
 
-    // Phase 1 — fast, low-accuracy (max 5 s, 10-s-old cache OK)
+    // Phase 1 — low-accuracy, accepts any fix. Works for desktop IP/WiFi
+    // geolocation which can take up to ~12 s on a cold cache. Resolves
+    // immediately on success so the user is never stuck waiting for Phase 2.
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        const c = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
-        if (c.accuracy < 500) settle(c);    // good enough — use it now
-        else quickFix = c;                  // coarse — keep as fallback
-      },
-      () => {/* ignore — phase 2 may still work */},
-      { enableHighAccuracy: false, timeout: 5_000, maximumAge: 10_000 },
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      () => {/* Phase 2 is the definitive error source */},
+      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 60_000 },
     );
 
-    // Phase 2 — precise, definitive (max 25 s, fresh fix)
+    // Phase 2 — high-accuracy GPS, races against Phase 1.
+    // Wins on mobile where real GPS is fast; silently loses on desktop.
     navigator.geolocation.getCurrentPosition(
       (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
-      { enableHighAccuracy: true, timeout: 25_000, maximumAge: 0 },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
     );
   });
 }
@@ -727,18 +724,6 @@ interface VehicleStat {
   budget_used_pct: number | null;
 }
 
-interface EmployeeStat {
-  employee_id: string;
-  full_name: string;
-  trip_count: number;
-  total_km: number;
-  total_litres: number;
-  anomaly_count: number;
-  efficiency_kml: number | null;
-  anomaly_rate: number;   // 0–1
-  score: number;          // 0–100
-}
-
 type AnalyticsRange = '8w' | '6m' | '12m';
 
 function KpiCard({
@@ -787,7 +772,6 @@ function FleetAnalyticsDashboard({
   const [chartBars, setChartBars] = useState<{ label: string; spend: number }[]>([]);
   const [chartMode, setChartMode] = useState<'weekly' | 'monthly'>('weekly');
   const [vehicleStats, setVehicleStats] = useState<VehicleStat[]>([]);
-  const [employeeStats, setEmployeeStats] = useState<EmployeeStat[]>([]);
 
   useEffect(() => {
     if (!vehicles.length) return;
@@ -892,48 +876,11 @@ function FleetAnalyticsDashboard({
         };
       }).sort((a, b) => b.month_spend - a.month_spend);
 
-      // Employee performance scoreboard — aggregates over the selected range
-      const byEmployee = new Map<string, { km: number; l: number; trips: number; anomalies: number }>();
-      for (const t of trips) {
-        if (!t.driver_id) continue;
-        const row = byEmployee.get(t.driver_id) || { km: 0, l: 0, trips: 0, anomalies: 0 };
-        row.km += t.km_driven || 0;
-        row.l  += t.litres || 0;
-        row.trips += 1;
-        if (t.is_anomaly) row.anomalies += 1;
-        byEmployee.set(t.driver_id, row);
-      }
-      const eStats: EmployeeStat[] = [];
-      for (const [did, r] of byEmployee) {
-        if (r.trips === 0) continue;
-        const fullName = staff.find((s) => s.id === did)?.full_name || 'Unknown employee';
-        const eff = r.l > 0 && r.km > 0 ? r.km / r.l : null;
-        const anomalyRate = r.trips > 0 ? r.anomalies / r.trips : 0;
-        // Composite score (0–100): rewards km and efficiency, penalises anomalies.
-        const effScore    = eff != null ? Math.min(100, (eff / 15) * 60) : 30;   // 15 km/L → 60 pts
-        const kmScore     = Math.min(30, (r.km / 500) * 30);                      // 500 km → 30 pts
-        const anomPenalty = anomalyRate * 40;                                     // up to −40
-        const score = Math.max(0, Math.round(effScore + kmScore + 10 - anomPenalty));
-        eStats.push({
-          employee_id: did,
-          full_name: fullName,
-          trip_count: r.trips,
-          total_km: r.km,
-          total_litres: r.l,
-          anomaly_count: r.anomalies,
-          efficiency_kml: eff,
-          anomaly_rate: anomalyRate,
-          score,
-        });
-      }
-      eStats.sort((a, b) => b.score - a.score);
-
       setMonthSpend(mSpend);
       setWeekSpend(wSpend);
       setMonthKm(totalKm > 0 ? totalKm : null);
       setChartBars(bars);
       setVehicleStats(vStats);
-      setEmployeeStats(eStats);
       setAnalyticsLoading(false);
     })();
   }, [vehicles.length, staff.length, range]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1099,65 +1046,6 @@ function FleetAnalyticsDashboard({
         </CardContent>
       </Card>
 
-      {/* ── Employee Performance Scoreboard ── */}
-      <Card>
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            Employee performance — {range === '8w' ? 'last 8 weeks' : range === '6m' ? 'last 6 months' : 'last 12 months'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {analyticsLoading ? (
-            <TableSkeleton />
-          ) : employeeStats.length === 0 ? (
-            <p className="text-sm text-muted-foreground px-4 py-6 text-center">
-              No employee activity in this range.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">Trips</TableHead>
-                  <TableHead className="text-right">Distance</TableHead>
-                  <TableHead className="text-right">Efficiency</TableHead>
-                  <TableHead className="text-right">Anomaly rate</TableHead>
-                  <TableHead className="text-right">Score</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employeeStats.map((d, i) => {
-                  const scoreColor = d.score >= 75 ? 'text-green-600' : d.score >= 50 ? 'text-amber-600' : 'text-red-600';
-                  const rankBadge = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
-                  return (
-                    <TableRow key={d.employee_id}>
-                      <TableCell className="w-10 font-mono text-sm">{rankBadge}</TableCell>
-                      <TableCell className="font-medium">{d.full_name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{d.trip_count}</TableCell>
-                      <TableCell className="text-right tabular-nums">{d.total_km.toLocaleString()} km</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {d.efficiency_kml != null ? `${d.efficiency_kml.toFixed(1)} km/L` : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {d.trip_count === 0 ? '—' : (
-                          <span className={d.anomaly_rate > 0.2 ? 'text-red-600' : d.anomaly_rate > 0 ? 'text-amber-600' : 'text-muted-foreground'}>
-                            {Math.round(d.anomaly_rate * 100)}% ({d.anomaly_count})
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className={`font-bold tabular-nums ${scoreColor}`}>{d.score}</span>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
