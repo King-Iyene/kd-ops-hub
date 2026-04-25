@@ -267,13 +267,6 @@ export default function DriverDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* Sticky brand bar */}
-      <header className="sticky top-0 z-50 bg-[#006994] text-white shadow-md">
-        <div className="max-w-[430px] mx-auto px-4 py-3">
-          <p className="font-bold text-base tracking-tight">KDOps Driver</p>
-        </div>
-      </header>
-
       <main className="max-w-[430px] mx-auto px-4 py-4 space-y-4 pb-10">
         {/* Section 1 (trip control) lands in a follow-up turn. */}
 

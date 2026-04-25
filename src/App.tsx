@@ -66,28 +66,6 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/**
- * Guard for /driver. Any authenticated, active user may access the page —
- * staff without an assigned vehicle see a graceful empty state.
- * Unauthenticated users are redirected to /login.
- */
-function DriverRouteGuard({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading, profileLoading } = useAuthStore();
-
-  if (loading || profileLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) return <Navigate to="/login" replace />;
-  if (!profile || profile.status !== 'active') {
-    return <Navigate to="/login" replace />;
-  }
-  return <>{children}</>;
-}
 
 function AppRoutes() {
   return (
@@ -107,18 +85,6 @@ function AppRoutes() {
           <AuthGuard>
             <Unauthorized />
           </AuthGuard>
-        }
-      />
-
-      {/* Driver portal — dedicated mobile route for users with role 'driver'.
-          Renders outside AppLayout so the next session can build a full-bleed
-          mobile/PWA experience without sidebar or header chrome. */}
-      <Route
-        path="/driver"
-        element={
-          <DriverRouteGuard>
-            <DriverDashboard />
-          </DriverRouteGuard>
         }
       />
 
@@ -255,6 +221,17 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <Fleet />
+            </RoleGuard>
+          }
+        />
+        {/* Driver portal — sub-module of Fleet, same auth flow as every other
+            AppLayout route. All active staff can reach it; those without an
+            assigned vehicle see a graceful empty state. */}
+        <Route
+          path="/fleet/driver"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <DriverDashboard />
             </RoleGuard>
           }
         />
