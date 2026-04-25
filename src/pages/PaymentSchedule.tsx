@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -43,7 +42,6 @@ import {
   Layers,
   Banknote,
   CreditCard,
-  Plus,
   Pencil,
   Trash2,
   PauseCircle,
@@ -140,25 +138,20 @@ const TYPE_CONFIG: Record<
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
-type FrequencyType = RecurringSchedule['frequency'];
-type CategoryType = 'contractor' | 'payroll' | 'subscription' | 'other';
-
 interface RecurringForm {
-  name: string;
-  frequency: FrequencyType;
-  next_due_date: string;
-  estimated_amount_ngn: string;
-  category: CategoryType;
-  auto_create_draft_batch: boolean;
+  frequency: string;
+  next_run_date: string;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  custom_interval_days: number | null;
 }
 
 const EMPTY_FORM: RecurringForm = {
-  name: '',
   frequency: 'monthly',
-  next_due_date: '',
-  estimated_amount_ngn: '',
-  category: 'other',
-  auto_create_draft_batch: false,
+  next_run_date: '',
+  day_of_week: null,
+  day_of_month: null,
+  custom_interval_days: null,
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -272,41 +265,23 @@ export default function PaymentSchedule() {
     const batchSum = batches
       .filter((b) => b.scheduled_date <= in7days)
       .reduce((s, b) => s + (b.total_amount || 0), 0);
-    const recurringSum = recurringSchedules
-      .filter(
-        (r) =>
-          r.status === 'active' &&
-          r.next_due_date &&
-          r.next_due_date >= today &&
-          r.next_due_date <= in7days,
-      )
-      .reduce((s, r) => s + (r.estimated_amount_ngn || 0), 0);
     const payrollSum = payrollRuns.reduce((s, p) => s + (p.total_burn_ngn || 0), 0);
     const subscriptionSum = subscriptions
       .filter((s) => s.next_renewal_date <= in7days)
       .reduce((s, sub) => s + (sub.amount_ngn || 0), 0);
-    return batchSum + recurringSum + payrollSum + subscriptionSum;
-  }, [batches, recurringSchedules, payrollRuns, subscriptions, today, in7days]);
+    return batchSum + payrollSum + subscriptionSum;
+  }, [batches, payrollRuns, subscriptions, in7days]);
 
   const obligations30 = useMemo(() => {
     const batchSum = batches
       .filter((b) => b.scheduled_date <= in30days)
       .reduce((s, b) => s + (b.total_amount || 0), 0);
-    const recurringSum = recurringSchedules
-      .filter(
-        (r) =>
-          r.status === 'active' &&
-          r.next_due_date &&
-          r.next_due_date >= today &&
-          r.next_due_date <= in30days,
-      )
-      .reduce((s, r) => s + (r.estimated_amount_ngn || 0), 0);
     const payrollSum = payrollRuns.reduce((s, p) => s + (p.total_burn_ngn || 0), 0);
     const subscriptionSum = subscriptions
       .filter((s) => s.next_renewal_date <= in30days)
       .reduce((s, sub) => s + (sub.amount_ngn || 0), 0);
-    return batchSum + recurringSum + payrollSum + subscriptionSum;
-  }, [batches, recurringSchedules, payrollRuns, subscriptions, today, in30days]);
+    return batchSum + payrollSum + subscriptionSum;
+  }, [batches, payrollRuns, subscriptions, in30days]);
 
   const overdueTotal = useMemo(
     () => overdueBatches.reduce((s, b) => s + (b.total_amount || 0), 0),
@@ -337,12 +312,12 @@ export default function PaymentSchedule() {
         type: 'batch' as const,
       })),
       ...recurringSchedules
-        .filter((r) => r.status === 'active' && r.next_due_date)
+        .filter((r) => r.status === 'active' && r.next_run_date)
         .map((r) => ({
           id: r.id,
-          name: r.name,
-          amount: r.estimated_amount_ngn || 0,
-          dueDate: r.next_due_date!,
+          name: r.batch_name,
+          amount: 0,
+          dueDate: r.next_run_date!,
           status: r.status,
           type: 'recurring' as const,
         })),
@@ -388,65 +363,39 @@ export default function PaymentSchedule() {
 
   // ─── Recurring CRUD ────────────────────────────────────────────────────────
 
-  function openAdd() {
-    setEditingSchedule(null);
-    setForm(EMPTY_FORM);
-    setScheduleDialog(true);
-  }
-
   function openEdit(s: RecurringSchedule) {
     setEditingSchedule(s);
     setForm({
-      name: s.name,
       frequency: s.frequency,
-      next_due_date: s.next_due_date ?? '',
-      estimated_amount_ngn: s.estimated_amount_ngn?.toString() ?? '',
-      category: s.category,
-      auto_create_draft_batch: s.auto_create_draft_batch,
+      next_run_date: s.next_run_date ?? '',
+      day_of_week: s.day_of_week,
+      day_of_month: s.day_of_month,
+      custom_interval_days: null,
     });
     setScheduleDialog(true);
   }
 
   async function saveSchedule() {
-    if (!form.name.trim()) {
-      toast({ title: 'Name is required', variant: 'destructive' });
+    if (!editingSchedule) return;
+    setSaving(true);
+    const payload: Record<string, unknown> = {
+      frequency: form.frequency,
+      next_run_date: form.next_run_date || null,
+      day_of_week: form.frequency === 'weekly' ? form.day_of_week : null,
+      day_of_month: form.frequency === 'monthly' ? form.day_of_month : null,
+      custom_interval_days: form.frequency === 'custom' ? (form.custom_interval_days ?? 30) : null,
+    };
+    const { error } = await supabase
+      .from('recurring_schedules')
+      .update(payload)
+      .eq('id', editingSchedule.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      setSaving(false);
       return;
     }
-    setSaving(true);
-    const payload = {
-      name: form.name.trim(),
-      frequency: form.frequency,
-      next_due_date: form.next_due_date || null,
-      estimated_amount_ngn: form.estimated_amount_ngn
-        ? parseFloat(form.estimated_amount_ngn)
-        : null,
-      category: form.category,
-      auto_create_draft_batch: form.auto_create_draft_batch,
-    };
-
-    if (editingSchedule) {
-      const { error } = await supabase
-        .from('recurring_schedules')
-        .update(payload)
-        .eq('id', editingSchedule.id);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        setSaving(false);
-        return;
-      }
-      await logAudit('subscription_edited', `Recurring schedule updated: ${payload.name}`, profile);
-      toast({ title: 'Schedule updated' });
-    } else {
-      const { error } = await supabase.from('recurring_schedules').insert(payload);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        setSaving(false);
-        return;
-      }
-      await logAudit('subscription_added', `Recurring schedule created: ${payload.name}`, profile);
-      toast({ title: 'Schedule added' });
-    }
-
+    await logAudit('subscription_edited', `Recurring schedule updated: ${editingSchedule.batch_name}`, profile);
+    toast({ title: 'Schedule updated' });
     setSaving(false);
     setScheduleDialog(false);
     fetchData();
@@ -464,7 +413,7 @@ export default function PaymentSchedule() {
     }
     await logAudit(
       next === 'paused' ? 'subscription_cancelled' : 'subscription_renewed',
-      `Recurring schedule ${next === 'paused' ? 'paused' : 'resumed'}: ${s.name}`,
+      `Recurring schedule ${next === 'paused' ? 'paused' : 'resumed'}: ${s.batch_name}`,
       profile,
     );
     toast({ title: `Schedule ${next === 'paused' ? 'paused' : 'resumed'}` });
@@ -484,7 +433,7 @@ export default function PaymentSchedule() {
     }
     await logAudit(
       'subscription_cancelled',
-      `Recurring schedule deleted: ${confirmDelete.name}`,
+      `Recurring schedule deleted: ${confirmDelete.batch_name}`,
       profile,
     );
     toast({ title: 'Schedule deleted' });
@@ -636,12 +585,11 @@ export default function PaymentSchedule() {
       {/* Section 4 — Recurring schedules manager */}
       <div ref={recurringRef}>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader>
             <CardTitle>Recurring Schedules</CardTitle>
-            <Button size="sm" onClick={openAdd}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Recurring Schedule
-            </Button>
+            <p className="text-sm text-muted-foreground mt-1">
+              To create a recurring schedule, open a payment batch and click "Make recurring".
+            </p>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -650,197 +598,157 @@ export default function PaymentSchedule() {
               <EmptyState
                 icon={Repeat}
                 title="No recurring schedules"
-                description="Add recurring payment schedules to track predictable obligations."
+                description="Open a payment batch and click 'Make recurring' to set one up."
               />
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Next Due</TableHead>
-                    <TableHead>Est. Amount</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recurringSchedules.map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">{s.name}</TableCell>
-                      <TableCell className="capitalize">{s.frequency}</TableCell>
-                      <TableCell>{formatDate(s.next_due_date)}</TableCell>
-                      <TableCell className="currency">
-                        {s.estimated_amount_ngn != null
-                          ? formatNaira(s.estimated_amount_ngn)
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="capitalize">{s.category}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={s.status} size="sm" />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => openEdit(s)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => togglePause(s)}
-                          >
-                            {s.status === 'active' ? (
-                              <PauseCircle className="h-3.5 w-3.5" />
-                            ) : (
-                              <PlayCircle className="h-3.5 w-3.5 text-green-600" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => setConfirmDelete(s)}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Next Run</TableHead>
+                      <TableHead>Last Run</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {recurringSchedules.map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{s.batch_name}</TableCell>
+                        <TableCell className="capitalize">{s.frequency}</TableCell>
+                        <TableCell>{s.next_run_date ? formatDate(s.next_run_date) : '—'}</TableCell>
+                        <TableCell>{s.last_run_date ? formatDate(s.last_run_date) : '—'}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={s.status} size="sm" />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEdit(s)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => togglePause(s)}
+                            >
+                              {s.status === 'active' ? (
+                                <PauseCircle className="h-3.5 w-3.5" />
+                              ) : (
+                                <PlayCircle className="h-3.5 w-3.5 text-green-600" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setConfirmDelete(s)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Add / Edit dialog */}
+      {/* Edit schedule dialog */}
       <Dialog open={scheduleDialog} onOpenChange={setScheduleDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingSchedule ? 'Edit' : 'Add'} Recurring Schedule
-            </DialogTitle>
-            <DialogDescription>
-              Define a recurring payment obligation to track and optionally
-              auto-generate draft batches.
-            </DialogDescription>
+            <DialogTitle>Edit Recurring Schedule</DialogTitle>
+            <DialogDescription>{editingSchedule?.batch_name}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="rs-name">Name *</Label>
-              <Input
-                id="rs-name"
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Monthly Contractor Payments"
-              />
+              <Label>Frequency</Label>
+              <Select
+                value={form.frequency}
+                onValueChange={(v) => setForm((f) => ({ ...f, frequency: v }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="biweekly">Biweekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="custom">Custom interval</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {form.frequency === 'weekly' && (
               <div className="space-y-1.5">
-                <Label>Frequency</Label>
+                <Label>Day of week</Label>
                 <Select
-                  value={form.frequency}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, frequency: v as FrequencyType }))
-                  }
+                  value={String(form.day_of_week ?? 1)}
+                  onValueChange={(v) => setForm((f) => ({ ...f, day_of_week: Number(v) }))}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                    <SelectItem value="biweekly">Biweekly</SelectItem>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map((d, i) => (
+                      <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+            )}
 
+            {form.frequency === 'monthly' && (
               <div className="space-y-1.5">
-                <Label htmlFor="rs-due">Next Due Date</Label>
+                <Label>Day of month</Label>
                 <Input
-                  id="rs-due"
-                  type="date"
-                  value={form.next_due_date}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, next_due_date: e.target.value }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="rs-amount">Estimated Amount (NGN)</Label>
-                <Input
-                  id="rs-amount"
                   type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.estimated_amount_ngn}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, estimated_amount_ngn: e.target.value }))
-                  }
-                  placeholder="0.00"
+                  min={1}
+                  max={31}
+                  value={form.day_of_month ?? 1}
+                  onChange={(e) => setForm((f) => ({ ...f, day_of_month: Number(e.target.value) }))}
                 />
               </div>
+            )}
 
+            {form.frequency === 'custom' && (
               <div className="space-y-1.5">
-                <Label>Category</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, category: v as CategoryType }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="contractor">Contractor</SelectItem>
-                    <SelectItem value="payroll">Payroll</SelectItem>
-                    <SelectItem value="subscription">Subscription</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Every N days</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={form.custom_interval_days ?? 30}
+                  onChange={(e) => setForm((f) => ({ ...f, custom_interval_days: Number(e.target.value) }))}
+                />
               </div>
-            </div>
+            )}
 
-            <div className="flex items-center gap-3 rounded-lg border p-3">
-              <Switch
-                id="rs-auto"
-                checked={form.auto_create_draft_batch}
-                onCheckedChange={(v) =>
-                  setForm((f) => ({ ...f, auto_create_draft_batch: v }))
-                }
+            <div className="space-y-1.5">
+              <Label>Next run date</Label>
+              <Input
+                type="date"
+                value={form.next_run_date}
+                onChange={(e) => setForm((f) => ({ ...f, next_run_date: e.target.value }))}
               />
-              <Label htmlFor="rs-auto" className="cursor-pointer">
-                Auto-create draft batch when due
-              </Label>
             </div>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setScheduleDialog(false)}
-              disabled={saving}
-            >
+            <Button variant="outline" onClick={() => setScheduleDialog(false)} disabled={saving}>
               Cancel
             </Button>
             <Button onClick={saveSchedule} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingSchedule ? 'Update' : 'Create'}
+              Update
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -853,10 +761,11 @@ export default function PaymentSchedule() {
       >
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete Recurring Schedule</DialogTitle>
+            <DialogTitle>Stop Recurring Schedule</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{confirmDelete?.name}&rdquo;? This
-              cannot be undone.
+              Are you sure you want to stop &ldquo;{confirmDelete?.batch_name}&rdquo;? The
+              schedule will be deleted and no further batches will be auto-created. This cannot be
+              undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -864,7 +773,7 @@ export default function PaymentSchedule() {
               Cancel
             </Button>
             <Button variant="destructive" onClick={deleteSchedule}>
-              Delete
+              Stop &amp; Delete
             </Button>
           </DialogFooter>
         </DialogContent>
