@@ -21,6 +21,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Plus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -107,6 +108,17 @@ const ContractorProfile = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [deductions, setDeductions] = useState<any[]>([]);
+  const [showDeductionDialog, setShowDeductionDialog] = useState(false);
+  const [savingDeduction, setSavingDeduction] = useState(false);
+  const [deductionForm, setDeductionForm] = useState({
+    description: '',
+    amount_ngn: 0,
+    frequency: 'monthly' as 'monthly' | 'per_payroll_run' | 'one_time',
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: '',
+    total_deductible_amount: '',
+  });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -125,7 +137,7 @@ const ContractorProfile = () => {
     setContractor(c);
     setForm(c);
 
-    const [payRes, docRes, auditRes] = await Promise.all([
+    const [payRes, docRes, auditRes, deductRes] = await Promise.all([
       supabase
         .from('batch_items')
         .select('*, payment_batches!inner(description, status, created_at)')
@@ -137,10 +149,14 @@ const ContractorProfile = () => {
       supabase.from('audit_logs').select('*')
         .or(`actor_id.eq.${id},description.ilike.%${id.slice(0, 8)}%`)
         .order('created_at', { ascending: false }).limit(50),
+      supabase.from('employee_deductions').select('*')
+        .eq('entity_id', id).eq('entity_type', 'contractor')
+        .order('created_at', { ascending: false }),
     ]);
     setPayments(payRes.data || []);
     setDocuments(docRes.data || []);
     setAuditLogs(auditRes.data || []);
+    setDeductions(deductRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -301,6 +317,43 @@ const ContractorProfile = () => {
   const pct = Math.round((doneCnt / checks.length) * 100);
   const ctrName = displayName(contractor.first_name, contractor.last_name, contractor.full_name);
   const canViewPassword = currentUser?.role === 'super_admin' || currentUser?.role === 'admin';
+  const canFinance = ['super_admin', 'admin', 'finance'].includes(currentUser?.role ?? '');
+
+  const saveDeduction = async () => {
+    if (!id || !contractor || !deductionForm.description.trim() || !deductionForm.amount_ngn || !deductionForm.start_date) return;
+    setSavingDeduction(true);
+    try {
+      const payload: Record<string, unknown> = {
+        entity_id: id,
+        entity_type: 'contractor',
+        description: deductionForm.description.trim(),
+        amount_ngn: Number(deductionForm.amount_ngn),
+        frequency: deductionForm.frequency,
+        start_date: deductionForm.start_date,
+        end_date: deductionForm.end_date || null,
+        total_deductible_amount: deductionForm.total_deductible_amount ? Number(deductionForm.total_deductible_amount) : null,
+        created_by: currentUser?.id || null,
+      };
+      const { error } = await supabase.from('employee_deductions').insert(payload);
+      if (error) throw error;
+      await logAudit('deduction_created', `Deduction "${deductionForm.description}" added for contractor "${contractor.full_name}"`, currentUser);
+      toast({ title: 'Deduction added' });
+      setShowDeductionDialog(false);
+      setDeductionForm({ description: '', amount_ngn: 0, frequency: 'monthly', start_date: new Date().toISOString().slice(0, 10), end_date: '', total_deductible_amount: '' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to add deduction', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingDeduction(false);
+    }
+  };
+
+  const deactivateDeduction = async (deductionId: string) => {
+    const { error } = await supabase.from('employee_deductions').update({ status: 'paused' }).eq('id', deductionId);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Deduction paused' });
+    load();
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -466,6 +519,7 @@ const ContractorProfile = () => {
           <TabsTrigger value="onboarding">Onboarding ({doneCnt}/{checks.length})</TabsTrigger>
           <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          {canFinance && <TabsTrigger value="deductions">Deductions ({deductions.length})</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -884,6 +938,116 @@ const ContractorProfile = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {canFinance && (
+          <TabsContent value="deductions" className="mt-4">
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Deductions</CardTitle>
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowDeductionDialog(true)}>
+                  <Plus className="mr-1 h-4 w-4" /> Add Deduction
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {deductions.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-muted-foreground">No deductions configured.</p>
+                ) : (
+                  <div className="divide-y">
+                    {deductions.map((d: any) => (
+                      <div key={d.id} className="flex items-center gap-3 px-4 py-3 flex-wrap">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{d.description}</p>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {d.frequency.replace(/_/g, ' ')} · {formatDate(d.start_date)}{d.end_date ? ` → ${formatDate(d.end_date)}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-medium">{formatNaira(d.amount_ngn)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Deducted: {formatNaira(d.amount_deducted_to_date || 0)}
+                            {d.total_deductible_amount ? ` / ${formatNaira(d.total_deductible_amount)}` : ''}
+                          </p>
+                        </div>
+                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700' : d.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                          {d.status}
+                        </span>
+                        {d.status === 'active' && (
+                          <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground shrink-0"
+                            onClick={() => deactivateDeduction(d.id)}>
+                            Pause
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Add Deduction Dialog */}
+            <Dialog open={showDeductionDialog} onOpenChange={(o) => { if (!o) setShowDeductionDialog(false); }}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Deduction</DialogTitle>
+                  <DialogDescription>Schedule a recurring or one-time deduction for this contractor.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <div>
+                    <Label>Description <span className="text-destructive">*</span></Label>
+                    <Input className="mt-1" placeholder="e.g. Equipment deposit" value={deductionForm.description}
+                      onChange={(e) => setDeductionForm((f) => ({ ...f, description: e.target.value }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Amount per period (₦) <span className="text-destructive">*</span></Label>
+                      <Input className="mt-1" type="number" min={1} placeholder="0"
+                        value={deductionForm.amount_ngn || ''}
+                        onChange={(e) => setDeductionForm((f) => ({ ...f, amount_ngn: Number(e.target.value) }))} />
+                    </div>
+                    <div>
+                      <Label>Frequency</Label>
+                      <Select value={deductionForm.frequency} onValueChange={(v) => setDeductionForm((f) => ({ ...f, frequency: v as typeof f.frequency }))}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="per_payroll_run">Per Payroll Run</SelectItem>
+                          <SelectItem value="one_time">One-Time</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Start Date <span className="text-destructive">*</span></Label>
+                      <Input className="mt-1" type="date" value={deductionForm.start_date}
+                        onChange={(e) => setDeductionForm((f) => ({ ...f, start_date: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>End Date (optional)</Label>
+                      <Input className="mt-1" type="date" value={deductionForm.end_date}
+                        onChange={(e) => setDeductionForm((f) => ({ ...f, end_date: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Total deductible amount (₦, optional)</Label>
+                    <Input className="mt-1" type="number" min={0} placeholder="Leave blank for no cap"
+                      value={deductionForm.total_deductible_amount}
+                      onChange={(e) => setDeductionForm((f) => ({ ...f, total_deductible_amount: e.target.value }))} />
+                    <p className="text-xs text-muted-foreground mt-1">Deductions stop automatically when this total is reached.</p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowDeductionDialog(false)}>Cancel</Button>
+                  <Button onClick={saveDeduction}
+                    disabled={savingDeduction || !deductionForm.description.trim() || !deductionForm.amount_ngn || !deductionForm.start_date}>
+                    {savingDeduction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Add Deduction
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
