@@ -69,14 +69,14 @@ interface ScheduleBatch {
 
 interface RecurringSchedule {
   id: string;
-  name: string;
-  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
-  next_due_date: string | null;
-  estimated_amount_ngn: number | null;
-  category: 'contractor' | 'payroll' | 'subscription' | 'other';
-  status: 'active' | 'paused';
-  auto_create_draft_batch: boolean;
-  created_at: string;
+  source_batch_id: string;
+  frequency: string;
+  next_run_date: string | null;
+  last_run_date: string | null;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  status: string;
+  batch_name: string;
 }
 
 interface ApprovedPayroll {
@@ -141,7 +141,7 @@ const TYPE_CONFIG: Record<
 // ─── Form ─────────────────────────────────────────────────────────────────────
 
 type FrequencyType = RecurringSchedule['frequency'];
-type CategoryType = RecurringSchedule['category'];
+type CategoryType = 'contractor' | 'payroll' | 'subscription' | 'other';
 
 interface RecurringForm {
   name: string;
@@ -224,8 +224,18 @@ export default function PaymentSchedule() {
         .order('scheduled_date', { ascending: true }),
       supabase
         .from('recurring_schedules')
-        .select('*')
-        .order('next_due_date', { ascending: true }),
+        .select(`
+          id,
+          source_batch_id,
+          frequency,
+          next_run_date,
+          last_run_date,
+          day_of_week,
+          day_of_month,
+          status,
+          payment_batches!source_batch_id(name)
+        `)
+        .order('next_run_date', { ascending: true }),
       supabase
         .from('payroll_runs')
         .select('id, period, total_burn_ngn, status, created_at')
@@ -241,7 +251,11 @@ export default function PaymentSchedule() {
 
     setBatches((batchRes.data as ScheduleBatch[]) ?? []);
     setOverdueBatches((overdueRes.data as ScheduleBatch[]) ?? []);
-    setRecurringSchedules((recurringRes.data as RecurringSchedule[]) ?? []);
+    const mapped = ((recurringRes.data as any[]) ?? []).map((r) => ({
+      ...r,
+      batch_name: (r.payment_batches as { name: string } | null)?.name ?? 'Unnamed Batch',
+    })) as RecurringSchedule[];
+    setRecurringSchedules(mapped);
     setPayrollRuns((payrollRes.data as ApprovedPayroll[]) ?? []);
     setSubscriptions((subRes.data as ScheduleSubscription[]) ?? []);
     setLoading(false);
