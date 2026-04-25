@@ -170,16 +170,10 @@ interface TripEvent {
 // ---------------------------------------------------------------------------
 
 type GeoCoords = { lat: number; lng: number; accuracy: number };
-type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout' | 'https-required' | 'desktop_skip';
+type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout' | 'https-required';
 
-const isGeoError = (s: GeoState): s is Exclude<GeoState, 'idle' | 'acquiring' | 'ok' | 'desktop_skip'> =>
+const isGeoError = (s: GeoState): s is Exclude<GeoState, 'idle' | 'acquiring' | 'ok'> =>
   s === 'denied' || s === 'unavailable' || s === 'timeout' || s === 'https-required';
-
-// Phones / tablets have a real GPS chip; desktops don't and fall back to
-// IP/WiFi geolocation, which is unreliable. We use this to skip the GPS
-// auto-acquire on desktop and just collect the location via text input.
-const isMobileDevice = (): boolean =>
-  typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
 
 const GEO_ERROR_MSG: Record<Exclude<GeoState, 'idle' | 'acquiring' | 'ok'>, string> = {
   denied:          'Location permission denied — click the lock icon in your address bar, allow location, then retry. Or type the location below.',
@@ -1543,18 +1537,8 @@ const Fleet = () => {
     setStartAddress(null);
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
     setLastVehicleOdometer(null);
-    if (isMobileDevice()) {
-      setStartGeoState('idle');
-      acquireGeo(setStartGeoState, setStartCoords, (addr) => {
-        setStartAddress(addr);
-        // Pre-fill the manual input so the user can see (and correct) the
-        // detected location, but don't overwrite anything they already typed.
-        setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr });
-      });
-    } else {
-      // Desktop: no GPS chip, so don't auto-attempt it.
-      setStartGeoState('desktop_skip');
-    }
+    setStartGeoState('idle');
+    acquireGeo(setStartGeoState, setStartCoords, setStartAddress);
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
         setStartTripForm((f) => ({ ...f, odometer_start: v })),
@@ -1614,15 +1598,8 @@ const Fleet = () => {
     setEndCoords(null);
     setEndAddress(null);
     setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
-    if (isMobileDevice()) {
-      setEndGeoState('idle');
-      acquireGeo(setEndGeoState, setEndCoords, (addr) => {
-        setEndAddress(addr);
-        setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr });
-      });
-    } else {
-      setEndGeoState('desktop_skip');
-    }
+    setEndGeoState('idle');
+    acquireGeo(setEndGeoState, setEndCoords, setEndAddress);
   };
 
   const handleEndTrip = async () => {
@@ -3657,44 +3634,42 @@ const Fleet = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 min-h-0">
-            {/* GPS status panel — hidden on desktop where GPS is unreliable */}
-            {startGeoState !== 'desktop_skip' && (
-              <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
-                startGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
-                startGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
-                startGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
-                                               'border-amber-300 bg-amber-50 text-amber-800'
-              }`}>
-                {startGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
-                {startGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
-                {isGeoError(startGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
-                {startGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
-                <div className="flex-1 min-w-0">
-                  {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
-                  {startGeoState === 'ok' && startCoords && (
-                    <>
-                      {startAddress
-                        ? <p className="font-medium text-xs leading-snug">{startAddress}</p>
-                        : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
-                      <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(startCoords.lat, startCoords.lng)}</p>
-                      <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
-                    </>
-                  )}
-                  {isGeoError(startGeoState) && (
-                    <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'|'desktop_skip'>]}</p>
-                  )}
-                  {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
-                </div>
-                {isGeoError(startGeoState) && (
-                  <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => { setStartAddress(addr); setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}>
-                    Retry
-                  </button>
+            {/* GPS status panel */}
+            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+              startGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
+              startGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
+              startGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
+                                             'border-amber-300 bg-amber-50 text-amber-800'
+            }`}>
+              {startGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
+              {startGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
+              {isGeoError(startGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {startGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                {startGeoState === 'ok' && startCoords && (
+                  <>
+                    {startAddress
+                      ? <p className="font-medium text-xs leading-snug">{startAddress}</p>
+                      : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(startCoords.lat, startCoords.lng)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(startCoords.accuracy)} m</p>
+                  </>
                 )}
+                {isGeoError(startGeoState) && (
+                  <p className="text-xs">{GEO_ERROR_MSG[startGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                )}
+                {startGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
-            )}
+              {isGeoError(startGeoState) && (
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setStartGeoState, setStartCoords, setStartAddress)}>
+                  Retry
+                </button>
+              )}
+            </div>
 
-            {/* Location input — desktop always; mobile only as fallback when GPS fails */}
-            {(startGeoState === 'desktop_skip' || isGeoError(startGeoState)) && (
+            {/* Location input — only shown as a fallback when GPS fails */}
+            {isGeoError(startGeoState) && (
               <div className="space-y-1">
                 <Label>
                   Start Location <span className="text-destructive">*</span>
@@ -3704,19 +3679,6 @@ const Fleet = () => {
                   onChange={(e) => setStartTripForm((f) => ({ ...f, manual_location: e.target.value }))}
                   placeholder="e.g. Victoria Island depot, Lagos"
                 />
-                {startGeoState === 'desktop_skip' && (
-                  <p className="text-xs text-muted-foreground">
-                    Type your location above.{' '}
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={() => acquireGeo(setStartGeoState, setStartCoords, (addr) => { setStartAddress(addr); setStartTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
-                    >
-                      Try GPS anyway
-                    </button>{' '}
-                    (often inaccurate on desktop).
-                  </p>
-                )}
               </div>
             )}
 
@@ -3838,44 +3800,42 @@ const Fleet = () => {
               </div>
             )}
 
-            {/* GPS status panel — hidden on desktop where GPS is unreliable */}
-            {endGeoState !== 'desktop_skip' && (
-              <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
-                endGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
-                endGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
-                endGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
-                                             'border-amber-300 bg-amber-50 text-amber-800'
-              }`}>
-                {endGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
-                {endGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
-                {isGeoError(endGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
-                {endGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
-                <div className="flex-1 min-w-0">
-                  {endGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
-                  {endGeoState === 'ok' && endCoords && (
-                    <>
-                      {endAddress
-                        ? <p className="font-medium text-xs leading-snug">{endAddress}</p>
-                        : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
-                      <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(endCoords.lat, endCoords.lng)}</p>
-                      <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(endCoords.accuracy)} m</p>
-                    </>
-                  )}
-                  {isGeoError(endGeoState) && (
-                    <p className="text-xs">{GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'|'desktop_skip'>]}</p>
-                  )}
-                  {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
-                </div>
-                {isGeoError(endGeoState) && (
-                  <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => { setEndAddress(addr); setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}>
-                    Retry
-                  </button>
+            {/* GPS status panel */}
+            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+              endGeoState === 'ok'       ? 'border-green-300 bg-green-50 text-green-800' :
+              endGeoState === 'acquiring'? 'border-blue-200 bg-blue-50 text-blue-700' :
+              endGeoState === 'idle'     ? 'border-border bg-muted/40 text-muted-foreground' :
+                                           'border-amber-300 bg-amber-50 text-amber-800'
+            }`}>
+              {endGeoState === 'acquiring' && <Loader2 className="h-4 w-4 mt-0.5 shrink-0 animate-spin" />}
+              {endGeoState === 'ok'        && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />}
+              {isGeoError(endGeoState) && <LocateOff className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+              {endGeoState === 'idle'      && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
+              <div className="flex-1 min-w-0">
+                {endGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                {endGeoState === 'ok' && endCoords && (
+                  <>
+                    {endAddress
+                      ? <p className="font-medium text-xs leading-snug">{endAddress}</p>
+                      : <Loader2 className="h-3 w-3 animate-spin text-green-600 mt-0.5" />}
+                    <p className="font-mono text-xs text-muted-foreground mt-0.5">{formatCoords(endCoords.lat, endCoords.lng)}</p>
+                    <p className="text-xs text-green-600 mt-0.5">Accuracy: ±{Math.round(endCoords.accuracy)} m</p>
+                  </>
                 )}
+                {isGeoError(endGeoState) && (
+                  <p className="text-xs">{GEO_ERROR_MSG[endGeoState as Exclude<GeoState, 'idle'|'acquiring'|'ok'>]}</p>
+                )}
+                {endGeoState === 'idle' && <p>Waiting for GPS…</p>}
               </div>
-            )}
+              {isGeoError(endGeoState) && (
+                <button type="button" className="text-xs underline shrink-0" onClick={() => acquireGeo(setEndGeoState, setEndCoords, setEndAddress)}>
+                  Retry
+                </button>
+              )}
+            </div>
 
-            {/* Location input — desktop always; mobile only as fallback when GPS fails */}
-            {(endGeoState === 'desktop_skip' || isGeoError(endGeoState)) && (
+            {/* Location input — only shown as a fallback when GPS fails */}
+            {isGeoError(endGeoState) && (
               <div className="space-y-1">
                 <Label>
                   End Location <span className="text-destructive">*</span>
@@ -3885,19 +3845,6 @@ const Fleet = () => {
                   onChange={(e) => setEndTripForm((f) => ({ ...f, manual_location: e.target.value }))}
                   placeholder="e.g. Ikeja client office, Lagos"
                 />
-                {endGeoState === 'desktop_skip' && (
-                  <p className="text-xs text-muted-foreground">
-                    Type your location above.{' '}
-                    <button
-                      type="button"
-                      className="underline"
-                      onClick={() => acquireGeo(setEndGeoState, setEndCoords, (addr) => { setEndAddress(addr); setEndTripForm((f) => f.manual_location ? f : { ...f, manual_location: addr }); })}
-                    >
-                      Try GPS anyway
-                    </button>{' '}
-                    (often inaccurate on desktop).
-                  </p>
-                )}
               </div>
             )}
 
