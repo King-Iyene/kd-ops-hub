@@ -214,33 +214,22 @@ function getGeolocation(): Promise<GeoCoords> {
     // so a JS timer is the only reliable escape hatch.
     const hardTimer = setTimeout(() => fail('timeout'), 11_000);
 
-    // Phones / tablets have touch screens; desktops don't.
-    // This determines whether we attempt high-accuracy GPS (Phase 2).
-    const isMobile = navigator.maxTouchPoints > 0;
-
-    if (isMobile) {
-      // Phase 1 — fast, accepts cached position (GPS already warm from
-      //           a recent fix). Resolves immediately when available.
-      navigator.geolocation.getCurrentPosition(
-        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-        () => {/* Phase 2 is the authoritative source */},
-        { enableHighAccuracy: false, timeout: 5_000, maximumAge: 30_000 },
-      );
-      // Phase 2 — full GPS accuracy, races Phase 1.
-      navigator.geolocation.getCurrentPosition(
-        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-        (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
-        { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
-      );
-    } else {
-      // Desktop: no GPS hardware. High-accuracy hangs indefinitely on
-      // most desktop browsers, so we only use low-accuracy (IP/WiFi).
-      navigator.geolocation.getCurrentPosition(
-        (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
-        (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
-        { enableHighAccuracy: false, timeout: 10_000, maximumAge: 60_000 },
-      );
-    }
+    // Phase 1 — quick low-accuracy fix; maximumAge:0 forces a fresh lookup
+    // so the browser cannot serve a stale cached position from a previous session.
+    navigator.geolocation.getCurrentPosition(
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      () => {/* ignore; Phase 2 is authoritative */},
+      { enableHighAccuracy: false, timeout: 5_000, maximumAge: 0 },
+    );
+    // Phase 2 — full GPS accuracy, races Phase 1.
+    // On mobile this uses the GPS chip and typically wins.
+    // On desktop (no GPS hardware) this may hang; the 11s hard timer above is
+    // the escape hatch — Phase 1's low-accuracy result will already have resolved.
+    navigator.geolocation.getCurrentPosition(
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+    );
   });
 }
 
@@ -1349,6 +1338,14 @@ const Fleet = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Managers (admin/finance/super_admin/operations) see all records.
+      // Field staff and drivers only pull their own records from the DB.
+      const canSeeAll = ['admin', 'finance', 'super_admin', 'operations'].includes(profile?.role || '');
+      const uid = profile?.id || '';
+
+      const fuelBase = supabase.from('fuel_requests').select('*').order('created_at', { ascending: false }).limit(100);
+      const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
+
       const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
         supabase
           .from('profiles')
@@ -1357,16 +1354,8 @@ const Fleet = () => {
           .eq('status', 'active')
           .order('full_name'),
         supabase.from('profiles').select('id, full_name, email'),
-        supabase
-          .from('fuel_requests')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('trip_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
+        canSeeAll ? fuelBase : fuelBase.eq('driver_id', uid),
+        canSeeAll ? tripBase : tripBase.eq('driver_id', uid),
         supabase
           .from('audit_logs')
           .select('*')
