@@ -1035,10 +1035,30 @@ const BatchDetail = () => {
       )}
 
       {processResults && (
-        <div className="flex items-center gap-4 px-1 py-2 text-sm">
-          <span className="text-success font-medium">✓ {processResults.succeeded} completed</span>
-          <span className="text-destructive font-medium">✗ {processResults.failed} failed</span>
-          <span className="text-warning font-medium">◷ {processResults.pending} pending</span>
+        <div className="rounded-lg border border-border/60 bg-card p-4 space-y-3">
+          <div className="flex items-center gap-4 text-sm flex-wrap">
+            <span className="text-green-600 dark:text-green-400 font-semibold">
+              ✓ {processResults.succeeded} payments successful
+            </span>
+            <span className="text-destructive font-semibold">
+              ✗ {processResults.failed} payments failed
+            </span>
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">
+              ◷ {processResults.pending} payments pending
+            </span>
+          </div>
+          {processResults.failed > 0 && items.filter((i) => i.status === 'failed').length > 0 && (
+            <div className="space-y-1 pt-1 border-t border-border/40">
+              {items
+                .filter((i) => i.status === 'failed')
+                .map((i) => (
+                  <div key={i.id} className="flex items-start gap-2 text-xs text-destructive">
+                    <span className="font-semibold shrink-0">{i.full_name || 'Unknown'}:</span>
+                    <span>{i.failure_reason || 'Transfer rejected'}</span>
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1068,16 +1088,18 @@ const BatchDetail = () => {
                 {items.map((item) => (
                   <TableRow
                     key={item.id}
-                    className={item.status === 'failed' ? 'border-l-4 border-l-destructive kd-transition' : 'kd-transition'}
+                    className={item.status === 'failed' ? 'border-l-4 border-l-destructive bg-destructive/5 kd-transition' : 'kd-transition'}
                   >
-                    <TableCell className="font-medium">{item.full_name || 'Unknown Recipient'}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{item.full_name || 'Unknown Recipient'}</div>
+                      {item.failure_reason && (
+                        <p className="text-[11px] text-destructive mt-0.5">{item.failure_reason}</p>
+                      )}
+                    </TableCell>
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{item.account_number}</TableCell>
                     <TableCell className="text-right">
                       <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
-                      {item.failure_reason && (
-                        <p className="text-[11px] text-destructive mt-0.5 text-right">{item.failure_reason}</p>
-                      )}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
