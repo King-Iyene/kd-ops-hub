@@ -8,6 +8,7 @@
 // Payload: { to: string, subject: string, html: string }
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,28 @@ serve(async (req) => {
   }
 
   try {
+    // Auth gate: require a valid Supabase JWT.
+    // Function is deployed with --no-verify-jwt so the platform doesn't reject
+    // before we get here; we validate the token in code so error messages are
+    // explicit and so this stays consistent with paystack-transfer.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+    );
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace("Bearer ", ""),
+    );
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ ok: false, error: authError?.message || "Not authenticated" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const { to, subject, html } = await req.json();
     if (!to || !subject || !html) {
       return new Response(JSON.stringify({ ok: false, error: "to, subject, and html are required" }), {

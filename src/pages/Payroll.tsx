@@ -1276,11 +1276,11 @@ const Payroll = () => {
             <DialogTitle>Confirm manual payment record</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            ⚠️ This records that salaries were paid via your bank or another method. No automatic transfer will be made by KDOps. Only proceed if you have already transferred salaries manually.
+            ⚠️ This records that salaries for {confirmPaidRun ? monthLabel(confirmPaidRun.period) : ''} were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmPaidRun(null)}>Cancel</Button>
-            <Button onClick={markPaid}>Confirm</Button>
+            <Button onClick={markPaid}>Confirm — Record as Paid</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
