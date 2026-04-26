@@ -2119,7 +2119,7 @@ function TagsManager() {
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
-      .from('global_tags')
+      .from('tags')
       .select('*')
       .order('name');
     setTags((data as Tag[]) || []);
@@ -2148,12 +2148,12 @@ function TagsManager() {
     const payload = { name: name.trim(), color, module };
     try {
       if (editing) {
-        const { error } = await supabase.from('global_tags').update(payload).eq('id', editing.id);
+        const { error } = await supabase.from('tags').update(payload).eq('id', editing.id);
         if (error) throw error;
         await logAudit('company_settings_saved', `Tag "${payload.name}" updated`, profile);
         toast({ title: 'Tag updated' });
       } else {
-        const { error } = await supabase.from('global_tags').insert(payload);
+        const { error } = await supabase.from('tags').insert(payload);
         if (error) throw error;
         await logAudit('company_settings_saved', `Tag "${payload.name}" created`, profile);
         toast({ title: 'Tag created' });
@@ -2169,7 +2169,7 @@ function TagsManager() {
   };
 
   const handleDelete = async (t: Tag) => {
-    const { error } = await supabase.from('global_tags').delete().eq('id', t.id);
+    const { error } = await supabase.from('tags').delete().eq('id', t.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
     } else {
