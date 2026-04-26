@@ -248,7 +248,7 @@ const Payroll = () => {
     setWorking(true);
     try {
       const periodStart = start.toISOString().slice(0, 10);
-      const [contractorRes, expensesRes, employeeRes, deductionsRes] = await Promise.all([
+      const [contractorRes, expensesRes, employeeRes, deductionsRes, advancesRes] = await Promise.all([
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
@@ -272,6 +272,12 @@ const Payroll = () => {
           .eq('status', 'active')
           .lte('start_date', periodStart)
           .or(`end_date.is.null,end_date.gte.${periodStart}`),
+        // Active advances whose repayment started on or before this period
+        supabase
+          .from('employee_advances')
+          .select('id, employee_id, deduction_per_month, outstanding_ngn')
+          .eq('status', 'active')
+          .lte('start_period', form.period),
       ]);
 
       const totalContractor =
@@ -290,9 +296,11 @@ const Payroll = () => {
           0,
         ) || 0;
       const empCount = (employeeRes.data || []).length;
-      const paye = calculateNigerianPAYE(totalContractor + totalEmployee);
-      const pension = (totalContractor + totalEmployee) * PENSION_RATE;
-      const nhf = (totalContractor + totalEmployee) * NHF_RATE;
+      // PAYE, pension and NHF are statutory obligations on employment income only —
+      // contractor payments are handled via WHT separately.
+      const paye = calculateNigerianPAYE(totalEmployee);
+      const pension = totalEmployee * PENSION_RATE;
+      const nhf = totalEmployee * NHF_RATE;
       const employerPension = totalEmployee * EMPLOYER_PENSION_RATE;
       const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
@@ -305,10 +313,15 @@ const Payroll = () => {
         Number(d.amount_deducted_to_date || 0) < Number(d.total_deductible_amount),
       );
       const totalDeductions = qualifyingDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn || 0), 0);
+      // Advance repayments reduce net payroll outflow this period
+      const totalAdvanceRepayments = (advancesRes.data || []).reduce(
+        (s: number, a: any) => s + Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+        0,
+      );
       const burn =
         totalContractor + totalEmployee + totalExpenses +
         paye + pension + nhf + employerPension +
-        bonusTotal + totalAllowances - totalDeductions;
+        bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
       // Core upsert — works with the existing schema.
       const { error } = await supabase.from('payroll_runs').upsert(
@@ -422,23 +435,38 @@ const Payroll = () => {
         .maybeSingle();
       const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
 
-      // Fetch all active employee deductions for this period in one query
+      // Fetch all active employee deductions and advances for this period in one batch
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
-      const { data: allDeductions } = await supabase
-        .from('employee_deductions')
-        .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
-        .eq('entity_type', 'employee')
-        .eq('status', 'active')
-        .lte('start_date', periodStartDate)
-        .or(`end_date.is.null,end_date.gte.${periodStartDate}`);
+      const [{ data: allDeductions }, { data: allAdvances }] = await Promise.all([
+        supabase
+          .from('employee_deductions')
+          .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
+          .eq('entity_type', 'employee')
+          .eq('status', 'active')
+          .lte('start_date', periodStartDate)
+          .or(`end_date.is.null,end_date.gte.${periodStartDate}`),
+        supabase
+          .from('employee_advances')
+          .select('id, employee_id, deduction_per_month, outstanding_ngn')
+          .eq('status', 'active')
+          .lte('start_period', run.period),
+      ]);
 
-      // Group by employee id
+      // Group deductions by employee id, excluding capped ones
       const deductionsByEmployee = new Map<string, any[]>();
       for (const d of (allDeductions || [])) {
         if (d.total_deductible_amount != null && Number(d.amount_deducted_to_date || 0) >= Number(d.total_deductible_amount)) continue;
         if (!deductionsByEmployee.has(d.entity_id)) deductionsByEmployee.set(d.entity_id, []);
         deductionsByEmployee.get(d.entity_id)!.push(d);
+      }
+
+      // Group advances by employee id
+      const advancesByEmployee = new Map<string, any[]>();
+      for (const a of (allAdvances || [])) {
+        if (Number(a.outstanding_ngn || 0) <= 0) continue;
+        if (!advancesByEmployee.has(a.employee_id)) advancesByEmployee.set(a.employee_id, []);
+        advancesByEmployee.get(a.employee_id)!.push(a);
       }
 
       let succeeded = 0;
@@ -455,8 +483,23 @@ const Payroll = () => {
           const empNhf = empGross * NHF_RATE;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
-          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal);
+          const empAdvances = advancesByEmployee.get(e.id) || [];
+          // Deduct the smaller of deduction_per_month or outstanding_ngn to avoid over-deducting
+          const empAdvancesTotal = empAdvances.reduce(
+            (s: number, a: any) => s + Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+            0,
+          );
+          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
+
+          // Build combined extra_deductions list for payslip (deductions + advance repayments)
+          const allEmpDeductionLines = [
+            ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
+            ...empAdvances.map((a: any) => ({
+              description: 'Salary Advance Repayment',
+              amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+            })),
+          ];
 
           const html = renderPayslipHtml({
             company_name: companyName,
@@ -470,7 +513,7 @@ const Payroll = () => {
             nhf_ngn: empNhf,
             net_ngn: empNet,
             generated_by: profile?.full_name || profile?.email,
-            extra_deductions: empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
+            extra_deductions: allEmpDeductionLines,
           }, { autoPrint: false });
 
           const path = `${e.id}/${run.period}.html`;
@@ -496,9 +539,23 @@ const Payroll = () => {
               pension_ngn: empPension,
               nhf_ngn: empNhf,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal,
-              deductions_json: empDeductions.length > 0
-                ? empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) }))
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal,
+              deductions_json: [
+                ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
+                ...empAdvances.map((a: any) => ({
+                  advance_id: a.id,
+                  description: 'Salary Advance Repayment',
+                  amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+                })),
+              ].length > 0
+                ? [
+                    ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
+                    ...empAdvances.map((a: any) => ({
+                      advance_id: a.id,
+                      description: 'Salary Advance Repayment',
+                      amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+                    })),
+                  ]
                 : null,
               file_url: urlData.publicUrl,
               storage_path: path,
@@ -589,6 +646,12 @@ const Payroll = () => {
   const doDisburse = async () => {
     if (!disburseTarget) return;
     const { run, payslips } = disburseTarget;
+    // Prevent double disbursement if the run was already paid
+    if (run.status === 'paid') {
+      toast({ title: 'Already disbursed', description: 'This payroll run has already been paid.', variant: 'destructive' });
+      setDisburseTarget(null);
+      return;
+    }
     setDisbursing(true);
     const errors: string[] = [];
     let succeeded = 0;
@@ -728,6 +791,12 @@ const Payroll = () => {
   const markPaid = async () => {
     if (!confirmPaidRun) return;
     const run = confirmPaidRun;
+    // Idempotency guard — never apply deductions twice
+    if (run.status === 'paid') {
+      setConfirmPaidRun(null);
+      toast({ title: 'Already marked paid', variant: 'destructive' });
+      return;
+    }
     setConfirmPaidRun(null);
     const { error } = await supabase
       .from('payroll_runs')
@@ -741,40 +810,71 @@ const Payroll = () => {
     // Update amount_deducted_to_date for every deduction applied in this run
     const { data: payslips } = await supabase
       .from('payslips')
-      .select('deductions_json')
+      .select('employee_id, deductions_json')
       .eq('payroll_run_id', run.id)
       .not('deductions_json', 'is', null);
 
     if (payslips && payslips.length > 0) {
-      // Aggregate total applied per deduction id across all payslips (each employee has their own deductions)
-      const appliedById = new Map<string, number>();
+      // Separate deduction IDs from advance IDs
+      const appliedDeductionById = new Map<string, number>();
+      const appliedAdvanceById = new Map<string, number>();
+
       for (const slip of payslips) {
-        for (const d of (slip.deductions_json as { id: string; amount_ngn: number }[])) {
-          appliedById.set(d.id, (appliedById.get(d.id) ?? 0) + Number(d.amount_ngn));
+        for (const d of (slip.deductions_json as { id?: string; advance_id?: string; amount_ngn: number }[])) {
+          if (d.advance_id) {
+            appliedAdvanceById.set(d.advance_id, (appliedAdvanceById.get(d.advance_id) ?? 0) + Number(d.amount_ngn));
+          } else if (d.id) {
+            appliedDeductionById.set(d.id, (appliedDeductionById.get(d.id) ?? 0) + Number(d.amount_ngn));
+          }
         }
       }
 
-      // Fetch current amounts so we can compute new totals and check caps
-      const deductionIds = Array.from(appliedById.keys());
-      const { data: currentDeductions } = await supabase
-        .from('employee_deductions')
-        .select('id, amount_deducted_to_date, total_deductible_amount')
-        .in('id', deductionIds);
-
-      for (const cd of (currentDeductions || [])) {
-        const applied = appliedById.get(cd.id) ?? 0;
-        const newTotal = Number(cd.amount_deducted_to_date || 0) + applied;
-        const isComplete =
-          cd.total_deductible_amount != null &&
-          newTotal >= Number(cd.total_deductible_amount);
-
-        await supabase
+      // Update employee_deductions tracking
+      const deductionIds = Array.from(appliedDeductionById.keys());
+      if (deductionIds.length > 0) {
+        const { data: currentDeductions } = await supabase
           .from('employee_deductions')
-          .update({
-            amount_deducted_to_date: newTotal,
-            ...(isComplete ? { status: 'completed' } : {}),
-          })
-          .eq('id', cd.id);
+          .select('id, amount_deducted_to_date, total_deductible_amount')
+          .in('id', deductionIds);
+
+        for (const cd of (currentDeductions || [])) {
+          const applied = appliedDeductionById.get(cd.id) ?? 0;
+          const newTotal = Number(cd.amount_deducted_to_date || 0) + applied;
+          const isComplete =
+            cd.total_deductible_amount != null &&
+            newTotal >= Number(cd.total_deductible_amount);
+
+          await supabase
+            .from('employee_deductions')
+            .update({
+              amount_deducted_to_date: newTotal,
+              ...(isComplete ? { status: 'completed' } : {}),
+            })
+            .eq('id', cd.id);
+        }
+      }
+
+      // Reduce outstanding_ngn on advances that were repaid this period
+      const advanceIds = Array.from(appliedAdvanceById.keys());
+      if (advanceIds.length > 0) {
+        const { data: currentAdvances } = await supabase
+          .from('employee_advances')
+          .select('id, outstanding_ngn')
+          .in('id', advanceIds);
+
+        for (const ca of (currentAdvances || [])) {
+          const repaid = appliedAdvanceById.get(ca.id) ?? 0;
+          const newOutstanding = Math.max(0, Number(ca.outstanding_ngn || 0) - repaid);
+          const isSettled = newOutstanding === 0;
+
+          await supabase
+            .from('employee_advances')
+            .update({
+              outstanding_ngn: newOutstanding,
+              ...(isSettled ? { status: 'settled' } : {}),
+            })
+            .eq('id', ca.id);
+        }
       }
     }
 
