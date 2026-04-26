@@ -15,6 +15,7 @@ import {
   Tags,
   Info,
   AlertTriangle,
+  Activity,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -62,6 +63,9 @@ interface CompanySettings {
   currency_code: string;
   usd_rate: number | null;
   cash_on_hand_ngn: number;
+  external_monthly_burn_ngn: number;
+  monthly_revenue_estimate_ngn: number;
+  cash_updated_at: string | null;
   expense_limits: Record<string, number>;
   dual_approval_threshold_ngn: number;
   paystack_mode: 'test' | 'live';
@@ -198,6 +202,9 @@ const SettingsPage = () => {
         currency_code: settings.currency_code,
         usd_rate: settings.usd_rate,
         cash_on_hand_ngn: settings.cash_on_hand_ngn,
+        external_monthly_burn_ngn: settings.external_monthly_burn_ngn,
+        monthly_revenue_estimate_ngn: settings.monthly_revenue_estimate_ngn,
+        cash_updated_at: settings.cash_updated_at,
         expense_limits: settings.expense_limits,
         dual_approval_threshold_ngn: settings.dual_approval_threshold_ngn,
         paystack_mode: settings.paystack_mode,
@@ -385,12 +392,70 @@ const SettingsPage = () => {
                     type="number"
                     value={settings.cash_on_hand_ngn || 0}
                     onChange={(e) =>
-                      patch({ cash_on_hand_ngn: Number(e.target.value) || 0 })
+                      patch({
+                        cash_on_hand_ngn: Number(e.target.value) || 0,
+                        cash_updated_at: new Date().toISOString(),
+                      })
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Powers the runway estimate on the Cash Flow report.
+                    {settings.cash_updated_at ? (
+                      <>
+                        Last updated {new Date(settings.cash_updated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}.
+                        {(() => {
+                          const days = Math.floor((Date.now() - new Date(settings.cash_updated_at).getTime()) / 86400000);
+                          if (days >= 7) return <span className="text-warning ml-1">⚠ Stale ({days}d) — update from your bank app.</span>;
+                          return null;
+                        })()}
+                      </>
+                    ) : (
+                      <span className="text-warning">Never updated. Open your bank app and enter the current balance.</span>
+                    )}
                   </p>
+                </div>
+              </div>
+
+              {/* ── Runway tracking ─────────────────────────────────────── */}
+              <div className="rounded-lg border border-border/60 bg-muted/30 p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <Activity className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">Runway tracking</p>
+                    <p className="text-xs text-muted-foreground">
+                      Powers the Financial Health score on the dashboard. Update weekly for accuracy.
+                      Off-platform expenses (rent, utilities, contractors paid outside KDOps) won't be
+                      captured automatically — set the monthly estimate below so runway stays honest.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label>External monthly burn (₦)</Label>
+                    <Input
+                      type="number"
+                      value={settings.external_monthly_burn_ngn || 0}
+                      onChange={(e) =>
+                        patch({ external_monthly_burn_ngn: Number(e.target.value) || 0 })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Recurring monthly spend that doesn't flow through KDOps.
+                      Added to in-platform burn for runway calculations.
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Monthly revenue estimate (₦)</Label>
+                    <Input
+                      type="number"
+                      value={settings.monthly_revenue_estimate_ngn || 0}
+                      onChange={(e) =>
+                        patch({ monthly_revenue_estimate_ngn: Number(e.target.value) || 0 })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Optional. Reduces effective burn for more honest runway. Leave 0 if volatile.
+                    </p>
+                  </div>
                 </div>
               </div>
               <Separator />
