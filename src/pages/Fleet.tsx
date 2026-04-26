@@ -59,6 +59,7 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import { getBankCode, createTransferRecipient, initiateTransfer } from '@/lib/paystack';
+import { cn } from '@/lib/utils';
 
 interface FieldStaff {
   id: string;
