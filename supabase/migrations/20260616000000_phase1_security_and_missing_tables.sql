@@ -1,16 +1,18 @@
 -- ─────────────────────────────────────────────────────────────────────────
--- PHASE 1 SECURITY HARDENING (P0)
+-- PHASE 1 — SECURITY HARDENING + MISSING TABLES + WEBHOOK IDEMPOTENCY
 --
--- Fixes the highest-priority issues found in the production-readiness +
+-- Idempotent. Safe to re-run. Skips RLS work on tables that don't exist
+-- on this DB (live schema drift). Defensive everywhere.
+--
+-- Fixes the highest-priority issues from the production-readiness +
 -- security audits:
 --   1. audit_logs RLS — block read by non-managers, block impersonation on insert
 --   2. Wide-open RLS (USING (true)) on tasks, task_comments, approval_comments,
 --      referrals, vehicle_maintenance, employee_deductions
---   3. Missing tables that the UI queries (silent failures): salary_increments,
---      revenue_entries; tags view aliases global_tags
---   4. webhook_idempotency table for the paystack-webhook edge function
---
--- Idempotent — safe to run more than once. Run in Supabase SQL Editor.
+--   3. tags — add 'module' column the UI filters on; migrate rows from
+--      legacy global_tags table; one canonical table
+--   4. Missing tables: salary_increments, revenue_entries
+--   5. webhook_idempotency for the paystack-webhook edge function
 -- ─────────────────────────────────────────────────────────────────────────
 
 -- ── 1. AUDIT LOGS ────────────────────────────────────────────────────────
@@ -31,131 +33,172 @@ CREATE POLICY "audit_logs_insert_self_only" ON public.audit_logs
   FOR INSERT TO authenticated
   WITH CHECK (performed_by = auth.uid() OR performed_by IS NULL);
 
--- ── 2. WIDE-OPEN POLICIES — REPLACE USING(true) WITH ROLE/OWNER GATES ──
+-- ── 2. TASKS ─────────────────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='tasks') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_all"               ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_all_authenticated" ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "Authenticated can manage tasks" ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_select" ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_insert" ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_update" ON public.tasks';
+    EXECUTE 'DROP POLICY IF EXISTS "tasks_delete" ON public.tasks';
+    EXECUTE $POL$
+      CREATE POLICY "tasks_select" ON public.tasks FOR SELECT TO authenticated
+      USING (assignee_id = auth.uid() OR created_by = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin', 'operations'))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "tasks_insert" ON public.tasks FOR INSERT TO authenticated
+      WITH CHECK (created_by = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin', 'operations'))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "tasks_update" ON public.tasks FOR UPDATE TO authenticated
+      USING (assignee_id = auth.uid() OR created_by = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin', 'operations'))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "tasks_delete" ON public.tasks FOR DELETE TO authenticated
+      USING (created_by = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin'))
+    $POL$;
+  END IF;
+END $$;
 
--- Tasks: only the assignee, creator, or operations/admins.
-DROP POLICY IF EXISTS "tasks_all"               ON public.tasks;
-DROP POLICY IF EXISTS "tasks_all_authenticated" ON public.tasks;
-DROP POLICY IF EXISTS "Authenticated can manage tasks" ON public.tasks;
-DROP POLICY IF EXISTS "tasks_select" ON public.tasks;
-DROP POLICY IF EXISTS "tasks_insert" ON public.tasks;
-DROP POLICY IF EXISTS "tasks_update" ON public.tasks;
-DROP POLICY IF EXISTS "tasks_delete" ON public.tasks;
-
-CREATE POLICY "tasks_select" ON public.tasks
-  FOR SELECT TO authenticated
-  USING (
-    assignee_id = auth.uid()
-    OR created_by = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'operations')
-  );
-CREATE POLICY "tasks_insert" ON public.tasks
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    created_by = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'operations')
-  );
-CREATE POLICY "tasks_update" ON public.tasks
-  FOR UPDATE TO authenticated
-  USING (
-    assignee_id = auth.uid()
-    OR created_by = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'operations')
-  );
-CREATE POLICY "tasks_delete" ON public.tasks
-  FOR DELETE TO authenticated
-  USING (
-    created_by = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin')
-  );
-
--- Task comments: visible to anyone who can see the parent task.
-DROP POLICY IF EXISTS "task_comments_all"               ON public.task_comments;
-DROP POLICY IF EXISTS "task_comments_all_authenticated" ON public.task_comments;
-DROP POLICY IF EXISTS "task_comments_select"            ON public.task_comments;
-DROP POLICY IF EXISTS "task_comments_insert"            ON public.task_comments;
-
-CREATE POLICY "task_comments_select" ON public.task_comments
-  FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.tasks t WHERE t.id = task_id AND (
+-- ── 3. TASK COMMENTS ─────────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='task_comments') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "task_comments_all"               ON public.task_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "task_comments_all_authenticated" ON public.task_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "task_comments_select"            ON public.task_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "task_comments_insert"            ON public.task_comments';
+    EXECUTE $POL$
+      CREATE POLICY "task_comments_select" ON public.task_comments FOR SELECT TO authenticated
+      USING (EXISTS (SELECT 1 FROM public.tasks t WHERE t.id = task_id AND (
         t.assignee_id = auth.uid() OR t.created_by = auth.uid()
-        OR public.current_user_role() IN ('super_admin', 'admin', 'operations')
+        OR public.current_user_role() IN ('super_admin', 'admin', 'operations'))))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "task_comments_insert" ON public.task_comments FOR INSERT TO authenticated
+      WITH CHECK (author_id = auth.uid())
+    $POL$;
+  END IF;
+END $$;
+
+-- ── 4. APPROVAL COMMENTS ─────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='approval_comments') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "approval_comments_all"               ON public.approval_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "approval_comments_all_authenticated" ON public.approval_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "approval_comments_select"            ON public.approval_comments';
+    EXECUTE 'DROP POLICY IF EXISTS "approval_comments_insert"            ON public.approval_comments';
+    EXECUTE $POL$
+      CREATE POLICY "approval_comments_select" ON public.approval_comments FOR SELECT TO authenticated
+      USING (public.current_user_role() IN ('super_admin', 'admin', 'finance', 'operations'))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "approval_comments_insert" ON public.approval_comments FOR INSERT TO authenticated
+      WITH CHECK (author_id = auth.uid()
+        AND public.current_user_role() IN ('super_admin', 'admin', 'finance', 'operations'))
+    $POL$;
+  END IF;
+END $$;
+
+-- ── 5. REFERRALS ─────────────────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='referrals') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "referrals_write"  ON public.referrals';
+    EXECUTE 'DROP POLICY IF EXISTS "referrals_read"   ON public.referrals';
+    EXECUTE 'DROP POLICY IF EXISTS "referrals_select" ON public.referrals';
+    EXECUTE 'DROP POLICY IF EXISTS "referrals_modify" ON public.referrals';
+    EXECUTE $POL$
+      CREATE POLICY "referrals_select" ON public.referrals FOR SELECT TO authenticated
+      USING (referrer_id = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin', 'finance'))
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "referrals_modify" ON public.referrals FOR ALL TO authenticated
+      USING (referrer_id = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin'))
+      WITH CHECK (referrer_id = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin'))
+    $POL$;
+  END IF;
+END $$;
+
+-- ── 6. VEHICLE MAINTENANCE ───────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='vehicle_maintenance') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "vehicle_maintenance_all"               ON public.vehicle_maintenance';
+    EXECUTE 'DROP POLICY IF EXISTS "vehicle_maintenance_all_authenticated" ON public.vehicle_maintenance';
+    EXECUTE 'DROP POLICY IF EXISTS "vehicle_maintenance_select"            ON public.vehicle_maintenance';
+    EXECUTE 'DROP POLICY IF EXISTS "vehicle_maintenance_modify"            ON public.vehicle_maintenance';
+    EXECUTE $POL$
+      CREATE POLICY "vehicle_maintenance_select" ON public.vehicle_maintenance FOR SELECT TO authenticated
+      USING (true)
+    $POL$;
+    EXECUTE $POL$
+      CREATE POLICY "vehicle_maintenance_modify" ON public.vehicle_maintenance FOR ALL TO authenticated
+      USING (public.current_user_role() IN ('super_admin', 'admin', 'operations'))
+      WITH CHECK (public.current_user_role() IN ('super_admin', 'admin', 'operations'))
+    $POL$;
+  END IF;
+END $$;
+
+-- ── 7. EMPLOYEE DEDUCTIONS ───────────────────────────────────────────────
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='employee_deductions') THEN
+    EXECUTE 'DROP POLICY IF EXISTS "employee_deductions_select"               ON public.employee_deductions';
+    EXECUTE 'DROP POLICY IF EXISTS "employee_deductions_select_authenticated" ON public.employee_deductions';
+    EXECUTE 'DROP POLICY IF EXISTS "Authenticated can view employee_deductions" ON public.employee_deductions';
+    EXECUTE $POL$
+      CREATE POLICY "employee_deductions_select" ON public.employee_deductions FOR SELECT TO authenticated
+      USING (entity_id = auth.uid()
+        OR public.current_user_role() IN ('super_admin', 'admin', 'finance'))
+    $POL$;
+  END IF;
+END $$;
+
+-- ── 8. TAGS — add module column, migrate from global_tags, RLS ──────────
+ALTER TABLE public.tags
+  ADD COLUMN IF NOT EXISTS module text NOT NULL DEFAULT 'all'
+    CHECK (module IN ('all', 'contacts', 'contractors', 'employees', 'tasks', 'documents'));
+
+-- Migrate any rows from global_tags into tags (idempotent — name conflicts
+-- are skipped). Only runs if global_tags exists.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='global_tags') THEN
+    EXECUTE $MIG$
+      INSERT INTO public.tags (name, color, module, created_at)
+      SELECT g.name, g.color, g.module, g.created_at
+      FROM public.global_tags g
+      WHERE NOT EXISTS (
+        SELECT 1 FROM public.tags t WHERE t.name = g.name
       )
-    )
-  );
-CREATE POLICY "task_comments_insert" ON public.task_comments
-  FOR INSERT TO authenticated
-  WITH CHECK (author_id = auth.uid());
+    $MIG$;
+  END IF;
+END $$;
 
--- Approval comments: only approvers.
-DROP POLICY IF EXISTS "approval_comments_all"               ON public.approval_comments;
-DROP POLICY IF EXISTS "approval_comments_all_authenticated" ON public.approval_comments;
-DROP POLICY IF EXISTS "approval_comments_select"            ON public.approval_comments;
-DROP POLICY IF EXISTS "approval_comments_insert"            ON public.approval_comments;
+ALTER TABLE public.tags ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated can view tags" ON public.tags;
+CREATE POLICY "Authenticated can view tags" ON public.tags
+  FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "approval_comments_select" ON public.approval_comments
-  FOR SELECT TO authenticated
-  USING (public.current_user_role() IN ('super_admin', 'admin', 'finance', 'operations'));
-CREATE POLICY "approval_comments_insert" ON public.approval_comments
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    author_id = auth.uid()
-    AND public.current_user_role() IN ('super_admin', 'admin', 'finance', 'operations')
-  );
-
--- Referrals: scope to owner OR admin.
-DROP POLICY IF EXISTS "referrals_write"  ON public.referrals;
-DROP POLICY IF EXISTS "referrals_read"   ON public.referrals;
-DROP POLICY IF EXISTS "referrals_select" ON public.referrals;
-DROP POLICY IF EXISTS "referrals_modify" ON public.referrals;
-
-CREATE POLICY "referrals_select" ON public.referrals
-  FOR SELECT TO authenticated
-  USING (
-    referrer_id = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'finance')
-  );
-CREATE POLICY "referrals_modify" ON public.referrals
+DROP POLICY IF EXISTS "Admins manage tags" ON public.tags;
+CREATE POLICY "Admins manage tags" ON public.tags
   FOR ALL TO authenticated
-  USING (
-    referrer_id = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin')
-  )
-  WITH CHECK (
-    referrer_id = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin')
-  );
+  USING (public.current_user_role() IN ('super_admin', 'admin'))
+  WITH CHECK (public.current_user_role() IN ('super_admin', 'admin'));
 
--- Vehicle maintenance: read open (it's just service log info), write admins/operations.
-DROP POLICY IF EXISTS "vehicle_maintenance_all"               ON public.vehicle_maintenance;
-DROP POLICY IF EXISTS "vehicle_maintenance_all_authenticated" ON public.vehicle_maintenance;
-DROP POLICY IF EXISTS "vehicle_maintenance_select"            ON public.vehicle_maintenance;
-DROP POLICY IF EXISTS "vehicle_maintenance_modify"            ON public.vehicle_maintenance;
-
-CREATE POLICY "vehicle_maintenance_select" ON public.vehicle_maintenance
-  FOR SELECT TO authenticated
-  USING (true);
-CREATE POLICY "vehicle_maintenance_modify" ON public.vehicle_maintenance
-  FOR ALL TO authenticated
-  USING (public.current_user_role() IN ('super_admin', 'admin', 'operations'))
-  WITH CHECK (public.current_user_role() IN ('super_admin', 'admin', 'operations'));
-
--- Employee deductions: own row OR admin/finance only.
-DROP POLICY IF EXISTS "employee_deductions_select"               ON public.employee_deductions;
-DROP POLICY IF EXISTS "employee_deductions_select_authenticated" ON public.employee_deductions;
-DROP POLICY IF EXISTS "Authenticated can view employee_deductions" ON public.employee_deductions;
-
-CREATE POLICY "employee_deductions_select" ON public.employee_deductions
-  FOR SELECT TO authenticated
-  USING (
-    entity_id = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'finance')
-  );
-
--- ── 3. MISSING TABLES & VIEW ─────────────────────────────────────────────
-
+-- ── 9. SALARY INCREMENTS ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.salary_increments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -171,18 +214,16 @@ CREATE INDEX IF NOT EXISTS salary_increments_employee_idx
 
 ALTER TABLE public.salary_increments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "salary_increments_select" ON public.salary_increments;
-CREATE POLICY "salary_increments_select" ON public.salary_increments
-  FOR SELECT TO authenticated
-  USING (
-    employee_id = auth.uid()
-    OR public.current_user_role() IN ('super_admin', 'admin', 'finance')
-  );
+CREATE POLICY "salary_increments_select" ON public.salary_increments FOR SELECT TO authenticated
+  USING (employee_id = auth.uid()
+    OR public.current_user_role() IN ('super_admin', 'admin', 'finance'));
+
 DROP POLICY IF EXISTS "salary_increments_modify" ON public.salary_increments;
-CREATE POLICY "salary_increments_modify" ON public.salary_increments
-  FOR ALL TO authenticated
+CREATE POLICY "salary_increments_modify" ON public.salary_increments FOR ALL TO authenticated
   USING (public.current_user_role() IN ('super_admin', 'admin', 'finance'))
   WITH CHECK (public.current_user_role() IN ('super_admin', 'admin', 'finance'));
 
+-- ── 10. REVENUE ENTRIES ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.revenue_entries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   amount_ngn numeric(14,2) NOT NULL DEFAULT 0,
@@ -193,27 +234,19 @@ CREATE TABLE IF NOT EXISTS public.revenue_entries (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT revenue_entries_month_format CHECK (month ~ '^\d{4}-\d{2}$')
 );
-CREATE INDEX IF NOT EXISTS revenue_entries_month_idx
-  ON public.revenue_entries (month);
+CREATE INDEX IF NOT EXISTS revenue_entries_month_idx ON public.revenue_entries (month);
 
 ALTER TABLE public.revenue_entries ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "revenue_entries_select" ON public.revenue_entries;
-CREATE POLICY "revenue_entries_select" ON public.revenue_entries
-  FOR SELECT TO authenticated
+CREATE POLICY "revenue_entries_select" ON public.revenue_entries FOR SELECT TO authenticated
   USING (public.current_user_role() IN ('super_admin', 'admin', 'finance'));
+
 DROP POLICY IF EXISTS "revenue_entries_modify" ON public.revenue_entries;
-CREATE POLICY "revenue_entries_modify" ON public.revenue_entries
-  FOR ALL TO authenticated
+CREATE POLICY "revenue_entries_modify" ON public.revenue_entries FOR ALL TO authenticated
   USING (public.current_user_role() IN ('super_admin', 'admin', 'finance'))
   WITH CHECK (public.current_user_role() IN ('super_admin', 'admin', 'finance'));
 
--- tags view: unblocks Contractors / Tasks / Employees pages which query
--- supabase.from('tags'). Maps directly to the existing global_tags table.
-CREATE OR REPLACE VIEW public.tags AS
-SELECT id, name, color, module, created_at FROM public.global_tags;
-
--- ── 4. WEBHOOK IDEMPOTENCY ───────────────────────────────────────────────
-
+-- ── 11. WEBHOOK IDEMPOTENCY ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.webhook_idempotency (
   reference   text NOT NULL,
   event_type  text NOT NULL,
@@ -225,8 +258,7 @@ CREATE INDEX IF NOT EXISTS webhook_idempotency_processed_idx
 
 ALTER TABLE public.webhook_idempotency ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "webhook_idempotency_admin_select" ON public.webhook_idempotency;
-CREATE POLICY "webhook_idempotency_admin_select" ON public.webhook_idempotency
-  FOR SELECT TO authenticated
+CREATE POLICY "webhook_idempotency_admin_select" ON public.webhook_idempotency FOR SELECT TO authenticated
   USING (public.current_user_role() IN ('super_admin', 'admin'));
 
 NOTIFY pgrst, 'reload schema';
