@@ -38,7 +38,7 @@ export function RoleGuard({ roles, children, inline = false, permission }: Props
   }
 
   if (!effectiveRole) {
-    return <>{children}</>;
+    return <Navigate to="/unauthorized" replace />;
   }
 
   if (!hasRole(effectiveRole, roles)) {
