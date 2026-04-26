@@ -357,6 +357,32 @@ const Approvals = () => {
         .update(update)
         .eq('id', rawId(it.id));
       if (error) throw error;
+
+      // When a fuel request is approved, mirror it as an approved expense
+      // so finance can pay it through the Expenses module (the same flow
+      // used by Fleet's own approval path). Without this, approving from
+      // the Approvals page leaves the fuel cost off Expenses entirely.
+      if (it.kind === 'fuel') {
+        const f = it.raw || {};
+        const now = new Date().toISOString();
+        await supabase.from('expenses').insert({
+          category: 'fuel',
+          budget_category: 'fuel',
+          amount_ngn: f.amount_ngn,
+          date: now.slice(0, 10),
+          description: `Fuel — ${f.station_name || 'Station'} — ${f.reason || 'Fuel request'}`,
+          submitted_by: f.driver_id || f.employee_id,
+          status: 'approved',
+          approved_by: profile?.id,
+          approved_at: now,
+          ...(f.bank_name ? {
+            bank_name: f.bank_name,
+            account_number: f.account_number,
+            account_name: f.account_name,
+          } : {}),
+        });
+      }
+
       await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
 
       // Notify the submitter that their request was approved. Without this,

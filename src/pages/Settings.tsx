@@ -1145,21 +1145,161 @@ const SettingsPage = () => {
 export default SettingsPage;
 
 // ---------------------------------------------------------------------------
-// Data Retention panel
-//
-// Phase 1: Image compression on new uploads (functional, opt-out).
-// Phase 2 (placeholder): cleanup jobs for audit logs, notifications, and
-//          receipts. Intentionally disabled until the backend cron jobs
-//          and archive flow are built. The UI is rendered now so admins
-//          can see what's coming and we get feedback on the design.
+// Data Retention panel — Phase 2 (functional)
 // ---------------------------------------------------------------------------
+
+interface RetentionPolicy {
+  id: string;
+  data_type: 'audit_logs' | 'notifications' | 'receipts';
+  mode: 'off' | 'archive' | 'archive_delete';
+  retention_days: number;
+  enabled_at: string | null;
+  scheduled_first_run_at: string | null;
+  last_run_at: string | null;
+  last_run_count: number | null;
+  last_run_status: string | null;
+  all_paused: boolean;
+}
+
+const RETENTION_OPTIONS_DAYS = [
+  { label: '6 months',  value: 180 },
+  { label: '1 year',    value: 365 },
+  { label: '2 years',   value: 730 },
+  { label: '3 years',   value: 1095 },
+  { label: '6 years (FIRS minimum)', value: 2190 },
+];
+
+const RETENTION_META = {
+  audit_logs: {
+    title: 'Audit log retention',
+    icon: Activity,
+    whatItIs: 'Every action on the platform (approvals, payments, edits, deletes) is recorded in the audit log. After ~12 months of active use the table can hold 50,000–200,000 rows.',
+    whyEnable: 'Old audit rows take database space and slow queries. Archiving compresses them to a JSON file in the archives/ bucket.',
+    recommended: 1095,
+    legalNote: 'FIRS requires 6 years of supporting records for tax-relevant transactions. Audit logs are evidence — if in doubt, archive (don\'t delete) and keep at least 6 years.',
+    dangers: [
+      'Once deleted (and the archive expires), there is NO way to reconstruct who did what.',
+      'Auditors may request records going back 6+ years.',
+      'Missing audit logs during a fraud investigation can create legal exposure.',
+    ],
+  },
+  notifications: {
+    title: 'Notifications cleanup',
+    icon: Bell,
+    whatItIs: 'Read in-app notifications older than the chosen period are deleted. Unread notifications are NEVER touched.',
+    whyEnable: 'Notifications accumulate quickly. Cleaning up read ones keeps the bell dropdown fast.',
+    recommended: 90,
+    legalNote: 'Notifications duplicate information already in audit_logs and source records. Safe to delete once read.',
+    dangers: [
+      'Users will lose their notification history older than the period.',
+      'No archive is kept for notifications (they are duplicated data).',
+    ],
+  },
+  receipts: {
+    title: 'Receipts & fuel photos retention',
+    icon: Archive,
+    whatItIs: 'Approved expense rows older than the chosen period are archived (and optionally deleted). The actual receipt files in storage are kept; only the DB row is touched.',
+    whyEnable: 'After 1–2 years, expense rows tied to closed budgets are reference-only and slow down reports.',
+    recommended: 1095,
+    legalNote: 'Strongly recommend ARCHIVE only — never DELETE. Tax audits may require originals; retain at least 6 years.',
+    dangers: [
+      'If "archive + delete" is enabled and the archive ZIP is later lost, the data is gone.',
+      'Deleted expense rows will no longer appear in historical reports.',
+    ],
+  },
+} as const;
 
 function DataRetentionPanel() {
   const [compressOn, setCompressOn] = useState(isImageCompressionEnabled());
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const [policies, setPolicies] = useState<RetentionPolicy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pausing, setPausing] = useState(false);
+  const [configureFor, setConfigureFor] = useState<RetentionPolicy | null>(null);
+  const [runningPolicyId, setRunningPolicyId] = useState<string | null>(null);
 
   const toggleCompress = (next: boolean) => {
     setImageCompressionEnabled(next);
     setCompressOn(next);
+  };
+
+  const loadPolicies = useCallback(async () => {
+    setLoading(true);
+    // Ensure a row exists for each data type (idempotent).
+    const types: RetentionPolicy['data_type'][] = ['audit_logs', 'notifications', 'receipts'];
+    for (const t of types) {
+      await supabase.from('retention_policies').upsert(
+        { data_type: t },
+        { onConflict: 'data_type', ignoreDuplicates: true },
+      );
+    }
+    const { data, error } = await supabase
+      .from('retention_policies')
+      .select('*')
+      .in('data_type', types);
+    if (error) {
+      toast({ title: 'Could not load retention policies', description: error.message, variant: 'destructive' });
+      setLoading(false);
+      return;
+    }
+    setPolicies((data as RetentionPolicy[]) || []);
+    setLoading(false);
+  }, [toast]);
+
+  useEffect(() => { loadPolicies(); }, [loadPolicies]);
+
+  const anyPaused = policies.some((p) => p.all_paused);
+  const anyEnabled = policies.some((p) => p.mode !== 'off');
+
+  const togglePauseAll = async () => {
+    setPausing(true);
+    const next = !anyPaused;
+    const { error } = await supabase
+      .from('retention_policies')
+      .update({ all_paused: next })
+      .in('data_type', ['audit_logs', 'notifications', 'receipts']);
+    setPausing(false);
+    if (error) {
+      toast({ title: 'Failed to update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'document_uploaded' as any, // closest existing audit type
+      `Data retention ${next ? 'PAUSED ALL' : 'RESUMED ALL'} by admin`,
+      profile,
+    );
+    toast({ title: next ? 'All retention paused' : 'Retention resumed' });
+    loadPolicies();
+  };
+
+  const runNow = async (p: RetentionPolicy) => {
+    if (!confirm(
+      `Run cleanup for "${RETENTION_META[p.data_type].title}" right now?\n\n` +
+      `This will archive (and ${p.mode === 'archive_delete' ? 'DELETE' : 'KEEP'}) rows older than ` +
+      `${p.retention_days} days. Cannot be undone after the archive expires (90 days).`
+    )) return;
+
+    setRunningPolicyId(p.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('data-retention-runner', {
+        body: { policy_id: p.id },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
+      const r = (data?.results || [])[0];
+      if (r?.error) throw new Error(r.error);
+      toast({
+        title: 'Cleanup complete',
+        description: `Archived ${r?.archived ?? 0} · Deleted ${r?.deleted ?? 0}`,
+      });
+      loadPolicies();
+    } catch (err: any) {
+      toast({ title: 'Cleanup failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setRunningPolicyId(null);
+    }
   };
 
   return (
@@ -1244,73 +1384,56 @@ function DataRetentionPanel() {
         </CardContent>
       </Card>
 
-      {/* ── Audit logs retention — PLACEHOLDER ─────────────────────── */}
-      <RetentionPlaceholder
-        icon={Activity}
-        title="Audit log retention"
-        whatItIs="Every action on the platform (approvals, payments, edits, deletes) is recorded in the audit log. After ~12 months of active use the table can hold 50,000–200,000 rows."
-        whyEnable="Old audit rows take up database space and slow down queries. Archiving compresses them to a JSON file in the archives/ bucket; deleting frees the space permanently."
-        retentionOptions={['6 months', '1 year', '2 years', '3 years', '6 years (Nigerian tax minimum)']}
-        recommended="3 years"
-        legalNote="FIRS requires 6 years of supporting records for tax-relevant transactions (payments, expenses). Audit logs are evidence — if in doubt, archive don't delete, and keep at least 6 years."
-        dangers={[
-          'Once deleted (and the archive expires after 90 days), there is NO way to reconstruct who did what.',
-          'Auditors may request records going back 6+ years.',
-          'If a fraud investigation starts, missing audit logs can create legal exposure.',
-        ]}
-        steps={[
-          'Toggle the feature ON — opens a warning dialog explaining what will happen.',
-          'Pick a retention period from the dropdown.',
-          'See a live preview: "this would currently affect X rows / Y MB".',
-          'Type "I understand" + enter your password to confirm.',
-          'Cleanup is delayed 7 days — daily reminder emails to all admins during that period.',
-          'Each scheduled run sends an email 24 h before with affected count and a "Cancel this run" link.',
-        ]}
-      />
+      {/* ── Pause-all banner (only shown if any policy is enabled) ─── */}
+      {anyEnabled && (
+        <Card className={anyPaused ? 'border-red-300 bg-red-50/50' : 'border-emerald-200'}>
+          <CardContent className="pt-4 pb-4 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm">
+              <ShieldCheck className={anyPaused ? 'h-4 w-4 text-red-600' : 'h-4 w-4 text-emerald-600'} />
+              {anyPaused
+                ? <span className="font-medium text-red-900">All retention is paused — no scheduled runs will execute.</span>
+                : <span className="font-medium text-emerald-900">Retention is running normally on enabled policies.</span>}
+            </div>
+            <Button
+              variant={anyPaused ? 'default' : 'destructive'}
+              size="sm"
+              onClick={togglePauseAll}
+              disabled={pausing}
+            >
+              {pausing && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              {anyPaused ? 'Resume all' : 'Pause all retention'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* ── Notifications retention — PLACEHOLDER ──────────────────── */}
-      <RetentionPlaceholder
-        icon={Bell}
-        title="Notifications cleanup"
-        whatItIs="Read in-app notifications older than the chosen period are deleted (unread notifications are always preserved)."
-        whyEnable="Notifications accumulate quickly — every approval, rejection, batch update creates one. Cleaning up read ones keeps the bell dropdown fast and reduces row count."
-        retentionOptions={['30 days', '60 days', '90 days', '180 days', '1 year']}
-        recommended="90 days"
-        legalNote="Notifications duplicate information that's already in audit_logs and the source records (batches, expenses). Safe to delete once read."
-        dangers={[
-          'Users will lose their notification history older than the period.',
-          'No archive is kept (notifications are duplicated data).',
-        ]}
-        steps={[
-          'Toggle ON, pick a period, confirm with password.',
-          '7-day delay before first run, with reminder emails.',
-          'Only reads notifications where read = true; unread are never touched.',
-          'Cancel the schedule any time from this panel.',
-        ]}
-      />
+      {/* ── Per-policy cards ───────────────────────────────────────── */}
+      {loading ? (
+        <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">Loading policies…</CardContent></Card>
+      ) : (
+        (['audit_logs', 'notifications', 'receipts'] as const).map((dt) => {
+          const p = policies.find((x) => x.data_type === dt);
+          if (!p) return null;
+          return (
+            <RetentionPolicyCard
+              key={dt}
+              policy={p}
+              onConfigure={() => setConfigureFor(p)}
+              onRunNow={() => runNow(p)}
+              isRunning={runningPolicyId === p.id}
+            />
+          );
+        })
+      )}
 
-      {/* ── Receipts / file retention — PLACEHOLDER ─────────────────── */}
-      <RetentionPlaceholder
-        icon={Archive}
-        title="Receipts &amp; fuel photos retention"
-        whatItIs="Files older than the chosen period are moved from the receipts/ bucket into a compressed archive. The DB row keeps the metadata; the file itself is bundled into a monthly ZIP in the archives/ bucket."
-        whyEnable="Receipt and fuel-photo files are the largest single category of storage. Archiving them after 1–2 years can reduce bucket size by 80–90% while keeping the records legally accessible."
-        retentionOptions={['1 year', '2 years', '3 years', '6 years', 'Never auto-archive']}
-        recommended="2 years (archive only, no delete)"
-        legalNote="Receipts are tax-relevant. We recommend ARCHIVE only — never DELETE. Archived files can be restored by extracting the ZIP and re-uploading."
-        dangers={[
-          'Archived files take an extra step to view — the ZIP must be extracted first.',
-          'If "delete after archive" is enabled and the archive ZIP is later lost, the file is gone.',
-          'Tax audits may require originals — retain at least 6 years.',
-        ]}
-        steps={[
-          'Pick "Archive only" mode (recommended) or "Archive + delete" (advanced).',
-          'Choose retention period.',
-          'Confirm with password + 7-day delay.',
-          'First run produces a ZIP per month for files in scope.',
-          'ZIPs are kept indefinitely in archives/ bucket unless you explicitly remove them.',
-        ]}
-      />
+      {/* Multi-step enable / configure dialog */}
+      {configureFor && (
+        <ConfigureRetentionDialog
+          policy={configureFor}
+          onClose={() => setConfigureFor(null)}
+          onSaved={() => { setConfigureFor(null); loadPolicies(); }}
+        />
+      )}
 
       {/* ── Documents — LOCKED ─────────────────────────────────────── */}
       <Card className="border-emerald-200">
@@ -1364,30 +1487,38 @@ function DataRetentionPanel() {
   );
 }
 
-interface RetentionPlaceholderProps {
-  icon: typeof Activity;
-  title: string;
-  whatItIs: string;
-  whyEnable: string;
-  retentionOptions: string[];
-  recommended: string;
-  legalNote: string;
-  dangers: string[];
-  steps: string[];
-}
+function RetentionPolicyCard({
+  policy, onConfigure, onRunNow, isRunning,
+}: {
+  policy: RetentionPolicy;
+  onConfigure: () => void;
+  onRunNow: () => void;
+  isRunning: boolean;
+}) {
+  const meta = RETENTION_META[policy.data_type];
+  const Icon = meta.icon;
+  const inDelay = policy.scheduled_first_run_at && new Date(policy.scheduled_first_run_at) > new Date();
+  const enabled = policy.mode !== 'off';
 
-function RetentionPlaceholder({
-  icon: Icon, title, whatItIs, whyEnable, retentionOptions,
-  recommended, legalNote, dangers, steps,
-}: RetentionPlaceholderProps) {
+  let badge: { label: string; cls: string };
+  if (policy.all_paused && enabled) {
+    badge = { label: 'Paused', cls: 'bg-red-100 text-red-700' };
+  } else if (!enabled) {
+    badge = { label: 'Off', cls: 'bg-muted text-muted-foreground' };
+  } else if (inDelay) {
+    badge = { label: '7-day delay', cls: 'bg-amber-100 text-amber-700' };
+  } else {
+    badge = { label: 'Active', cls: 'bg-emerald-100 text-emerald-700' };
+  }
+
   return (
-    <Card className="opacity-95">
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base flex items-center gap-2 flex-wrap">
           <Icon className="h-4 w-4 text-primary" />
-          {title}
-          <span className="text-[10px] font-medium uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
-            Coming soon
+          {meta.title}
+          <span className={`text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded ${badge.cls}`}>
+            {badge.label}
           </span>
         </CardTitle>
       </CardHeader>
@@ -1395,70 +1526,303 @@ function RetentionPlaceholder({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">What it is</p>
-            <p className="text-xs leading-relaxed">{whatItIs}</p>
+            <p className="text-xs leading-relaxed">{meta.whatItIs}</p>
           </div>
           <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Why you might enable it</p>
-            <p className="text-xs leading-relaxed">{whyEnable}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Why enable it</p>
+            <p className="text-xs leading-relaxed">{meta.whyEnable}</p>
           </div>
         </div>
 
-        <div className="flex items-end gap-3 flex-wrap">
-          <div className="space-y-1 min-w-[180px]">
-            <Label className="text-xs">Retention period</Label>
-            <Select disabled value="disabled">
-              <SelectTrigger>
-                <SelectValue placeholder="Disabled" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="disabled">Disabled (default)</SelectItem>
-                {retentionOptions.map((o) => (
-                  <SelectItem key={o} value={o}>{o}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Current configuration */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+          <div className="rounded-lg border bg-card px-3 py-2">
+            <p className="text-muted-foreground">Mode</p>
+            <p className="font-semibold mt-0.5 capitalize">
+              {policy.mode === 'archive_delete' ? 'Archive + delete' : policy.mode}
+            </p>
           </div>
-          <div className="space-y-1 min-w-[180px]">
-            <Label className="text-xs">Mode</Label>
-            <Select disabled value="off">
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="off">Off</SelectItem>
-                <SelectItem value="archive">Archive only (safe)</SelectItem>
-                <SelectItem value="archive_delete">Archive + delete (advanced)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="rounded-lg border bg-card px-3 py-2">
+            <p className="text-muted-foreground">Retention</p>
+            <p className="font-semibold mt-0.5">
+              {enabled ? `${policy.retention_days} days` : '—'}
+            </p>
           </div>
-          <Button disabled variant="outline" size="sm">
-            Enable…
-          </Button>
-        </div>
-
-        <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-3 py-2 text-xs">
-          <span className="font-semibold">Recommended:</span> {recommended}
+          <div className="rounded-lg border bg-card px-3 py-2">
+            <p className="text-muted-foreground">First run</p>
+            <p className="font-semibold mt-0.5">
+              {policy.scheduled_first_run_at
+                ? new Date(policy.scheduled_first_run_at).toLocaleDateString('en-NG')
+                : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card px-3 py-2">
+            <p className="text-muted-foreground">Last run</p>
+            <p className="font-semibold mt-0.5">
+              {policy.last_run_at
+                ? `${new Date(policy.last_run_at).toLocaleDateString('en-NG')} · ${policy.last_run_count ?? 0}`
+                : 'Never'}
+            </p>
+          </div>
         </div>
 
         <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          <span className="font-semibold">Legal note:</span> {legalNote}
+          <span className="font-semibold">Legal note:</span> {meta.legalNote}
         </div>
 
         <div>
           <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Dangers</p>
           <ul className="list-disc pl-5 text-xs space-y-1 text-muted-foreground leading-relaxed">
-            {dangers.map((d, i) => <li key={i}>{d}</li>)}
+            {meta.dangers.map((d, i) => <li key={i}>{d}</li>)}
           </ul>
         </div>
 
-        <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">How enabling will work</p>
-          <ol className="list-decimal pl-5 text-xs space-y-1 text-muted-foreground leading-relaxed">
-            {steps.map((s, i) => <li key={i}>{s}</li>)}
-          </ol>
+        <div className="flex gap-2 pt-1 flex-wrap">
+          <Button variant="outline" size="sm" onClick={onConfigure}>
+            {enabled ? 'Reconfigure' : 'Enable…'}
+          </Button>
+          {enabled && !inDelay && !policy.all_paused && (
+            <Button variant="outline" size="sm" onClick={onRunNow} disabled={isRunning}>
+              {isRunning && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Run now
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-step configure / enable dialog
+//   Step 1: warning + I understand checkbox
+//   Step 2: pick mode + retention + see preview count
+//   Step 3: type confirmation phrase to enable
+// ---------------------------------------------------------------------------
+
+function ConfigureRetentionDialog({
+  policy, onClose, onSaved,
+}: {
+  policy: RetentionPolicy;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const meta = RETENTION_META[policy.data_type];
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [acknowledged, setAcknowledged] = useState(false);
+  const [mode, setMode] = useState<RetentionPolicy['mode']>(policy.mode === 'off' ? 'archive' : policy.mode);
+  const [retentionDays, setRetentionDays] = useState<number>(policy.retention_days || meta.recommended);
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const expectedPhrase = `enable ${policy.data_type.replace('_', ' ')}`;
+
+  // Compute preview count whenever step 2 is shown or settings change.
+  useEffect(() => {
+    if (step !== 2) return;
+    setPreviewLoading(true);
+    const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+    const sourceTable: Record<RetentionPolicy['data_type'], string> = {
+      audit_logs: 'audit_logs',
+      notifications: 'notifications',
+      receipts: 'expenses',
+    };
+    let q = supabase
+      .from(sourceTable[policy.data_type])
+      .select('id', { count: 'exact', head: true })
+      .lt('created_at', cutoff);
+    if (policy.data_type === 'notifications') q = q.eq('read', true);
+    q.then(({ count }) => {
+      setPreviewCount(count ?? 0);
+      setPreviewLoading(false);
+    });
+  }, [step, retentionDays, policy.data_type]);
+
+  const save = async () => {
+    setSaving(true);
+    const firstRun = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase
+      .from('retention_policies')
+      .update({
+        mode,
+        retention_days: retentionDays,
+        enabled_by: profile?.id,
+        enabled_at: new Date().toISOString(),
+        scheduled_first_run_at: policy.scheduled_first_run_at || firstRun,
+      })
+      .eq('id', policy.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: 'Could not save', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'document_uploaded' as any,
+      `Retention policy "${meta.title}" set to ${mode} / ${retentionDays} days`,
+      profile,
+    );
+    toast({
+      title: 'Policy saved',
+      description: `First run scheduled for ${new Date(firstRun).toLocaleDateString('en-NG')}. You can pause or change settings any time.`,
+    });
+    onSaved();
+  };
+
+  const disable = async () => {
+    if (!confirm('Disable this retention policy? Future scheduled runs will not execute.')) return;
+    setSaving(true);
+    await supabase
+      .from('retention_policies')
+      .update({ mode: 'off', scheduled_first_run_at: null })
+      .eq('id', policy.id);
+    setSaving(false);
+    toast({ title: 'Policy disabled' });
+    onSaved();
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <meta.icon className="h-5 w-5 text-primary" />
+            {meta.title} — step {step} of 3
+          </DialogTitle>
+          <DialogDescription>
+            {step === 1 && 'Read the warning carefully before continuing.'}
+            {step === 2 && 'Choose how aggressively to clean up — and see what would be affected today.'}
+            {step === 3 && 'Type the confirmation phrase to enable.'}
+          </DialogDescription>
+        </DialogHeader>
+
+        {step === 1 && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2.5 text-xs">
+              <p className="font-bold text-red-900 mb-1">This will permanently move (and optionally delete) data.</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-red-900">
+                {meta.dangers.map((d, i) => <li key={i}>{d}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+              <p className="font-semibold mb-1">Legal note</p>
+              <p>{meta.legalNote}</p>
+            </div>
+            <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-3 py-2.5 text-xs">
+              <p className="font-semibold mb-1">Built-in safeguards</p>
+              <ul className="list-disc pl-5 space-y-0.5">
+                <li>7-day delay before the first run.</li>
+                <li>Archives kept in private archives/ bucket — recoverable for 90 days.</li>
+                <li>Pause-all button stops every policy with one click.</li>
+                <li>Every run is audit-logged.</li>
+              </ul>
+            </div>
+            <label className="flex items-start gap-2 pt-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                className="mt-1"
+              />
+              <span className="text-xs leading-relaxed">
+                I have read the dangers and the legal note. I understand that
+                deleted data may not be recoverable after 90 days.
+              </span>
+            </label>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Mode</Label>
+                <Select value={mode} onValueChange={(v) => setMode(v as any)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="archive">Archive only (recommended)</SelectItem>
+                    <SelectItem value="archive_delete">Archive + delete (advanced)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Retention period</Label>
+                <Select value={String(retentionDays)} onValueChange={(v) => setRetentionDays(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {RETENTION_OPTIONS_DAYS.map((o) => (
+                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="rounded-lg border bg-muted/40 px-3 py-2.5 text-xs">
+              <p className="text-muted-foreground">If enabled today, the first run would affect:</p>
+              <p className="text-2xl font-bold mt-1">
+                {previewLoading ? '…' : previewCount?.toLocaleString() ?? '—'}
+                <span className="text-sm font-normal text-muted-foreground ml-1">rows</span>
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Cutoff: anything older than {new Date(Date.now() - retentionDays * 86_400_000).toLocaleDateString('en-NG')}
+              </p>
+            </div>
+            {mode === 'archive_delete' && (
+              <div className="rounded-lg border-l-4 border-red-500 bg-red-50 px-3 py-2 text-xs text-red-900">
+                <span className="font-semibold">⚠ Archive + delete</span> permanently removes rows from the source table after the archive succeeds. The archive is your only recovery path.
+              </div>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              Recommended for this data type: <strong>{RETENTION_OPTIONS_DAYS.find((o) => o.value === meta.recommended)?.label}</strong>
+            </p>
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="space-y-3 text-sm">
+            <p>Type <code className="bg-muted px-1 rounded">{expectedPhrase}</code> to confirm.</p>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={expectedPhrase}
+              autoFocus
+            />
+            <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-3 py-2 text-xs">
+              On save, this policy will be marked enabled and the first run will execute on <strong>{new Date(Date.now() + 7 * 86_400_000).toLocaleDateString('en-NG')}</strong> (7 days from now). You can pause or disable it any time before then.
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="flex-wrap gap-2">
+          {policy.mode !== 'off' && step === 1 && (
+            <Button variant="destructive" size="sm" onClick={disable} disabled={saving}>
+              Disable policy
+            </Button>
+          )}
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          {step > 1 && (
+            <Button variant="outline" onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}>Back</Button>
+          )}
+          {step === 1 && (
+            <Button onClick={() => setStep(2)} disabled={!acknowledged}>Next</Button>
+          )}
+          {step === 2 && (
+            <Button onClick={() => setStep(3)} disabled={previewLoading}>Next</Button>
+          )}
+          {step === 3 && (
+            <Button
+              onClick={save}
+              disabled={confirmText.trim().toLowerCase() !== expectedPhrase || saving}
+            >
+              {saving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+              Enable policy
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
