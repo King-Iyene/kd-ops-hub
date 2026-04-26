@@ -96,6 +96,7 @@ interface ProfileRow {
   id: string;
   full_name: string;
   email: string;
+  phone: string | null;
 }
 
 const LEAVE_TYPES: { value: LeaveType; label: string; icon: typeof Plane }[] = [
@@ -188,7 +189,7 @@ const Leave = () => {
       const [myRes, teamRes, profilesRes, balanceRes] = await Promise.all([
         myQuery,
         teamQuery,
-        supabase.from('profiles').select('id, full_name, email'),
+        supabase.from('profiles').select('id, full_name, email, phone'),
         supabase
           .from('leave_balances')
           .select('*')
@@ -358,6 +359,19 @@ const Leave = () => {
         title: 'Your leave request was approved',
         body: `${req.leave_type} · ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}`,
       });
+      // Best-effort SMS — never blocks if Termii key is missing or phone is null.
+      try {
+        const phone = profiles.get(req.employee_id)?.phone;
+        if (phone) {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              channel: 'sms',
+              to: phone.replace(/^\+/, ''),
+              message: `Your ${req.leave_type} leave request (${req.days_requested} day${req.days_requested === 1 ? '' : 's'}) has been approved. – KDOps`,
+            },
+          });
+        }
+      } catch { /* SMS is best-effort */ }
       toast({ title: 'Leave approved' });
       fetchAll();
       refreshApprovals();
@@ -395,6 +409,19 @@ const Leave = () => {
         auditType: 'leave_rejected',
         auditDescription: `Leave rejected for ${profiles.get(showReject.employee_id)?.full_name || showReject.employee_id}: ${rejectReason.trim()}`,
       });
+      // Best-effort SMS — never blocks if Termii key is missing or phone is null.
+      try {
+        const phone = profiles.get(showReject.employee_id)?.phone;
+        if (phone) {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              channel: 'sms',
+              to: phone.replace(/^\+/, ''),
+              message: `Your leave request has been rejected. Reason: ${rejectReason.trim()}. – KDOps`,
+            },
+          });
+        }
+      } catch { /* SMS is best-effort */ }
       toast({ title: 'Leave rejected' });
       setShowReject(null);
       setRejectReason('');

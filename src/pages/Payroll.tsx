@@ -386,7 +386,7 @@ const Payroll = () => {
     try {
       const { data: employees, error: fetchErr } = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, role, salary_ngn')
+        .select('id, full_name, first_name, last_name, email, role, salary_ngn, phone')
         .eq('status', 'active')
         .neq('role', 'driver')
         .gt('salary_ngn', 0);
@@ -496,6 +496,18 @@ const Payroll = () => {
           if (upsertErr) throw upsertErr;
 
           succeeded++;
+          // Best-effort SMS — never blocks if Termii key is missing or phone is null.
+          try {
+            if (e.phone) {
+              await supabase.functions.invoke('send-email', {
+                body: {
+                  channel: 'sms',
+                  to: (e.phone as string).replace(/^\+/, ''),
+                  message: `Your payslip for ${monthLabel(run.period)} is ready. Net pay: ₦${empNet.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Log in to KDOps to view it.`,
+                },
+              });
+            }
+          } catch { /* SMS is best-effort */ }
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
