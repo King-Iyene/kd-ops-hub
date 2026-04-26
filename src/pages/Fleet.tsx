@@ -215,17 +215,26 @@ function getGeolocation(): Promise<GeoCoords> {
     // so a JS timer is the only reliable escape hatch.
     const hardTimer = setTimeout(() => fail('timeout'), 11_000);
 
-    // Phase 1 — quick low-accuracy fix; maximumAge:0 forces a fresh lookup
-    // so the browser cannot serve a stale cached position from a previous session.
+    // Phase 0 — instant cache hit (up to 60 s old).
+    // Desktop browsers cache their last IP/WiFi fix; this returns it
+    // immediately without a network round-trip.  Mobile devices with a GPS
+    // chip will beat this via Phase 2, so it doesn't hurt accuracy there.
+    navigator.geolocation.getCurrentPosition(
+      (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
+      () => {/* no cached fix — continue to Phase 1 */},
+      { enableHighAccuracy: false, timeout: 1_000, maximumAge: 60_000 },
+    );
+    // Phase 1 — fresh low-accuracy fix (IP / WiFi on desktop, quick cell-tower
+    // on mobile).  30 s maximumAge lets desktop Chrome/Firefox return a recent
+    // IP location without a new network lookup, avoiding silent hangs.
     navigator.geolocation.getCurrentPosition(
       (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       () => {/* ignore; Phase 2 is authoritative */},
-      { enableHighAccuracy: false, timeout: 5_000, maximumAge: 0 },
+      { enableHighAccuracy: false, timeout: 5_000, maximumAge: 30_000 },
     );
-    // Phase 2 — full GPS accuracy, races Phase 1.
-    // On mobile this uses the GPS chip and typically wins.
-    // On desktop (no GPS hardware) this may hang; the 11s hard timer above is
-    // the escape hatch — Phase 1's low-accuracy result will already have resolved.
+    // Phase 2 — full GPS accuracy, races Phases 0 and 1.
+    // On mobile this uses the GPS chip and typically wins with the best fix.
+    // On desktop (no GPS hardware) Phase 0/1 will already have resolved.
     navigator.geolocation.getCurrentPosition(
       (p) => settle({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }),
       (e) => fail(e.code === 1 ? 'denied' : e.code === 2 ? 'unavailable' : 'timeout'),
