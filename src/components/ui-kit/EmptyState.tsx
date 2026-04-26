@@ -27,10 +27,14 @@ export function EmptyState({
       )}
     >
       <div className={cn(
-        'rounded-2xl bg-muted/60 flex items-center justify-center',
+        'relative rounded-2xl bg-muted/60 flex items-center justify-center kd-animate-float',
         compact ? 'h-10 w-10' : 'h-14 w-14',
       )}>
-        <Icon className={cn('text-muted-foreground/70', compact ? 'h-5 w-5' : 'h-7 w-7')} />
+        {/* Soft aurora halo */}
+        {!compact && (
+          <span className="pointer-events-none absolute inset-0 rounded-2xl bg-[hsl(var(--tod-glow))] opacity-10 blur-xl" />
+        )}
+        <Icon className={cn('relative text-muted-foreground/70', compact ? 'h-5 w-5' : 'h-7 w-7')} />
       </div>
       <div className="space-y-1.5 max-w-xs">
         <h3 className={cn('font-semibold text-foreground', compact ? 'text-sm' : 'text-base')}>

@@ -608,6 +608,31 @@
     pointer-events: none;
   }
 
+  /* Magnetic CTA — gentle press-down + glow on hover */
+  .kd-magnetic {
+    position: relative;
+    transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms ease;
+  }
+  .kd-magnetic:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px -6px hsl(var(--tod-glow) / 0.5), 0 0 0 1px hsl(var(--tod-glow) / 0.3);
+  }
+  .kd-magnetic:active {
+    transform: translateY(0);
+    transition-duration: 80ms;
+  }
+
+  /* Glassmorphic toolbar — floating action surfaces */
+  .kd-toolbar-glass {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.85), hsl(var(--card) / 0.7));
+    backdrop-filter: blur(14px) saturate(180%);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow:
+      0 1px 0 hsl(var(--background) / 0.5) inset,
+      0 8px 24px -8px hsl(var(--primary) / 0.12);
+  }
+
   /* Reduced motion fallback */
   @media (prefers-reduced-motion: reduce) {
     .kd-aurora::before,

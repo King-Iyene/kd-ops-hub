@@ -4,8 +4,13 @@ import {
   LogOut,
   Eye,
   ChevronDown,
+  Sun,
+  Sunrise,
+  Sunset,
+  Moon,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useTimeOfDay, greetingFor, type TimeOfDay } from '@/hooks/useTimeOfDay';
 import {
   roleBadgeClass,
   roleLabel,
@@ -42,12 +47,22 @@ const ROLE_DOT: Record<string, string> = {
   field_staff: 'bg-muted-foreground',
 };
 
+const TOD_ICON: Record<TimeOfDay, typeof Sun> = {
+  morning: Sunrise,
+  afternoon: Sun,
+  evening: Sunset,
+  night: Moon,
+};
+
 export function ProfileDropdown() {
   const navigate = useNavigate();
   const profile = useAuthStore((s) => s.profile);
   const viewAs = useAuthStore((s) => s.viewAsRole);
   const setViewAsRole = useAuthStore((s) => s.setViewAsRole);
   const signOut = useAuthStore((s) => s.signOut);
+  const tod = useTimeOfDay();
+  const TodIcon = TOD_ICON[tod];
+  const firstName = profile?.full_name?.split(' ')[0] || '';
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const initials = initialsOf(profile?.full_name, profile?.email);
@@ -99,6 +114,13 @@ export function ProfileDropdown() {
                 {profile?.email || ''}
               </p>
             </div>
+          </div>
+          {/* Time-of-day greeting strip */}
+          <div className="mt-3 flex items-center gap-2 rounded-md bg-muted/40 px-2.5 py-1.5">
+            <TodIcon className="h-3.5 w-3.5 kd-tod-text" />
+            <span className="text-[11px] text-muted-foreground">
+              {greetingFor(tod)}{firstName ? `, ${firstName}` : ''}.
+            </span>
           </div>
           <div className="mt-3">
             <Badge

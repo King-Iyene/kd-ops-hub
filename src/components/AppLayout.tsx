@@ -5,6 +5,7 @@ import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
+import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
@@ -124,6 +125,7 @@ export default function AppLayout() {
         </div>
       </SidebarProvider>
       <CommandPalette />
+      <KeyboardShortcuts />
       <MobileNav />
       <div className="h-14 md:hidden" />
     </div>

@@ -1,6 +1,7 @@
 import { useRef, type MouseEvent } from 'react';
 import { type LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CountUp } from '@/components/CountUp';
 
 interface Props {
   title: string;
@@ -94,7 +95,9 @@ export function StatCard({
             {title}
           </p>
           <p className={cn('text-2xl font-bold leading-none currency kd-stat-number truncate', tone === 'gold' && 'kd-text-gradient-gold')}>
-            {value}
+            {typeof value === 'number' && Number.isFinite(value)
+              ? <CountUp value={value} />
+              : value}
           </p>
           {subtitle && (
             <p className="text-xs text-muted-foreground mt-1.5 truncate">{subtitle}</p>
