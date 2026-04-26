@@ -491,7 +491,7 @@ const Employees = () => {
             <TableSkeleton rows={6} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={UserPlus}
+              illustration="ghost"
               title="No employees match"
               description="Invite a teammate to get started."
               action={

@@ -374,7 +374,7 @@ const Transactions = () => {
             <TableSkeleton rows={10} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={ArrowUpDown}
+              illustration="satellite"
               title="No transactions found"
               description={
                 hasActiveFilters

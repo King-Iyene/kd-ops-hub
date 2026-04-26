@@ -28,6 +28,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
+import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import {
   formatDate,
@@ -377,6 +378,7 @@ const Payroll = () => {
       `Payroll ${monthLabel(run.period)} approved (${formatNaira(run.total_burn_ngn)})`,
       profile,
     );
+    burst({ palette: 'success', count: 70 });
     toast({ title: 'Payroll approved' });
     load();
   };
@@ -528,6 +530,7 @@ const Payroll = () => {
           variant: 'destructive',
         });
       } else {
+        burst({ palette: 'gold', count: 60 });
         toast({
           title: `${succeeded} payslip${succeeded === 1 ? '' : 's'} generated`,
           description: `All payslips for ${monthLabel(run.period)} saved successfully.`,
@@ -983,7 +986,7 @@ const Payroll = () => {
             <TableSkeleton rows={5} cols={7} />
           ) : runs.length === 0 ? (
             <EmptyState
-              icon={Banknote}
+              illustration="coin"
               title="No payroll runs yet"
               description="Create a payroll run to calculate monthly salary costs and generate payslips."
               action={

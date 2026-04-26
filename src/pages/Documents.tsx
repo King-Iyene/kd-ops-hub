@@ -387,7 +387,7 @@ const Documents = () => {
             <ErrorState message={error} onRetry={fetchDocs} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={FileText}
+              illustration="plane"
               title="No documents yet"
               description="Upload contracts, receipts, or policies to store them securely and track expiry."
               action={

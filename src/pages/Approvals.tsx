@@ -614,7 +614,7 @@ const Approvals = () => {
                 <ErrorState message={error} onRetry={fetchAll} />
               ) : visible.length === 0 ? (
                 <EmptyState
-                  icon={Inbox}
+                  illustration="radar"
                   title="All caught up"
                   description="Nothing waiting for your review right now. New submissions will appear here."
                 />

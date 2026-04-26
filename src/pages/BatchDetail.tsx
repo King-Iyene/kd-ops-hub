@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermission } from '@/hooks/usePermission';
+import { burst } from '@/components/Burst';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import {
@@ -298,6 +299,7 @@ const BatchDetail = () => {
 
         const amountTxt = formatNaira(batch?.total_amount || 0);
         if (status === 'approved') {
+          burst({ palette: 'success', count: 70 });
           await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`, profile);
           if (batch?.created_by) {
             await notifyUser({

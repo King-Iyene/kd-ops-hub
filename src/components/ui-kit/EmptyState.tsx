@@ -1,8 +1,11 @@
 import { type LucideIcon, Inbox } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Illustration, type IllustrationKind } from '@/components/Illustrations';
 
 interface Props {
   icon?: LucideIcon;
+  /** Use a bespoke animated illustration instead of the icon. Takes precedence. */
+  illustration?: IllustrationKind;
   title: string;
   description?: string;
   action?: React.ReactNode;
@@ -12,6 +15,7 @@ interface Props {
 
 export function EmptyState({
   icon: Icon = Inbox,
+  illustration,
   title,
   description,
   action,
@@ -22,20 +26,23 @@ export function EmptyState({
     <div
       className={cn(
         'flex flex-col items-center justify-center text-center px-6',
-        compact ? 'py-8 gap-2.5' : 'py-16 gap-4',
+        compact ? 'py-8 gap-2.5' : 'py-12 gap-4',
         className,
       )}
     >
-      <div className={cn(
-        'relative rounded-2xl bg-muted/60 flex items-center justify-center kd-animate-float',
-        compact ? 'h-10 w-10' : 'h-14 w-14',
-      )}>
-        {/* Soft aurora halo */}
-        {!compact && (
-          <span className="pointer-events-none absolute inset-0 rounded-2xl bg-[hsl(var(--tod-glow))] opacity-10 blur-xl" />
-        )}
-        <Icon className={cn('relative text-muted-foreground/70', compact ? 'h-5 w-5' : 'h-7 w-7')} />
-      </div>
+      {illustration && !compact ? (
+        <Illustration kind={illustration} className="h-32 w-32 -mb-2" />
+      ) : (
+        <div className={cn(
+          'relative rounded-2xl bg-muted/60 flex items-center justify-center kd-animate-float',
+          compact ? 'h-10 w-10' : 'h-14 w-14',
+        )}>
+          {!compact && (
+            <span className="pointer-events-none absolute inset-0 rounded-2xl bg-[hsl(var(--tod-glow))] opacity-10 blur-xl" />
+          )}
+          <Icon className={cn('relative text-muted-foreground/70', compact ? 'h-5 w-5' : 'h-7 w-7')} />
+        </div>
+      )}
       <div className="space-y-1.5 max-w-xs">
         <h3 className={cn('font-semibold text-foreground', compact ? 'text-sm' : 'text-base')}>
           {title}

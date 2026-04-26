@@ -326,6 +326,7 @@ const Payments = () => {
           <TableSkeleton rows={5} />
         ) : filtered.length === 0 ? (
           <EmptyState
+            illustration="coin"
             title={statusFilter === 'all' ? 'No payment batches yet' : `No ${statusLabel(statusFilter)?.toLowerCase() || statusFilter} batches`}
             description="Create a batch to pay contractors in bulk or use Quick Pay for one-off transfers."
             action={
