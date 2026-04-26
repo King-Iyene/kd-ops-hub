@@ -224,6 +224,27 @@ serve(async (req) => {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
+  // ------------------------------------------------------------------
+  // IDEMPOTENCY GUARD
+  // Paystack retries webhooks on network failure. Without this guard,
+  // duplicate (reference, event) deliveries would update batch_item N
+  // times and flood notifications. The (reference, event_type) pair is
+  // PRIMARY KEY in webhook_idempotency, so a duplicate INSERT raises
+  // 23505 (unique_violation) — we catch that and exit silently with 200.
+  // ------------------------------------------------------------------
+  const { error: dupErr } = await supabase
+    .from("webhook_idempotency")
+    .insert({ reference, event_type: event });
+  if (dupErr) {
+    if (dupErr.code === "23505") {
+      console.info("[webhook] Duplicate delivery — skipping:", event, reference);
+      return new Response("ok (duplicate)", { status: 200, headers: corsHeaders });
+    }
+    // Other errors: log but proceed — better to risk a duplicate than to
+    // block a legitimate event indefinitely.
+    console.warn("[webhook] idempotency insert failed:", dupErr.message);
+  }
+
   const now = new Date().toISOString();
 
   // ------------------------------------------------------------------
