@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
+import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
@@ -1589,7 +1590,7 @@ const Fleet = () => {
         // as an expense and finance never sees it.
         toast({
           title: 'Repair submission failed',
-          description: repairExpErr.message,
+          description: friendlyDbError(repairExpErr),
           variant: 'destructive',
         });
         setSubmitting(false);
@@ -2025,7 +2026,7 @@ const Fleet = () => {
       } : {}),
     }).select('id').single();
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not submit fuel request', description: friendlyDbError(error), variant: 'destructive' });
     } else {
       // Mirror the fuel request into Expenses immediately as a pending row,
       // linked by fuel_request_id. This makes the cost visible to finance
@@ -2253,7 +2254,7 @@ const Fleet = () => {
       .eq('id', selectedTrip.id);
     setSavingTripEdit(false);
     if (error) {
-      toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not save', description: friendlyDbError(error), variant: 'destructive' });
     } else {
       // Recalculate vehicle fuel balance when litres or distance changed
       const kmChanged = km !== selectedTrip.km_driven;

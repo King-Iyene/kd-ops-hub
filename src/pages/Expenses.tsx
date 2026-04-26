@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
+import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
@@ -542,7 +543,7 @@ const Expenses = () => {
     }).select();
     console.log('[KDOps] expense insert:', { inserted, error, userId: profile?.id });
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not save expense', description: friendlyDbError(error), variant: 'destructive' });
     } else {
       await logAudit(
         'expense_submitted',

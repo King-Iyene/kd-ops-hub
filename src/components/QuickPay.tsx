@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
+import { friendlyDbError } from '@/lib/db-errors';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 const emptyBank: BankAccountValue = {
@@ -183,10 +184,11 @@ export function QuickPayDialog() {
       setResult({ ok: true, ref: transfer.reference || ref });
       toast({ title: 'Quick Pay sent', description: `Ref: ${transfer.reference || ref}` });
     } catch (err: any) {
-      setResult({ ok: false, reason: err?.message || 'Transfer failed' });
+      const friendly = friendlyDbError(err);
+      setResult({ ok: false, reason: friendly });
       toast({
         title: 'Quick Pay failed',
-        description: err?.message,
+        description: friendly,
         variant: 'destructive',
       });
     } finally {
