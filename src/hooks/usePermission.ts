@@ -1,5 +1,6 @@
 import { useAuthStore } from '@/store/authStore';
-import { isPermissionDenied } from '@/components/RoleGuard';
+import { isPermissionDenied, hasExplicitPermission } from '@/components/RoleGuard';
+import { hasRole, type Role } from '@/lib/roles';
 
 /**
  * Returns true when the current user is allowed to perform the given action.
@@ -10,4 +11,19 @@ import { isPermissionDenied } from '@/components/RoleGuard';
 export function usePermission(key: string): boolean {
   const { profile } = useAuthStore();
   return !isPermissionDenied(profile, key);
+}
+
+/**
+ * Stricter check: the user must EITHER have a role in `allowedRoles` OR
+ * have the permission explicitly set to true. Use this to gate buttons /
+ * features whose default visibility is role-restricted but can be granted
+ * to lower-privilege roles via the permissions JSONB.
+ */
+export function useFeatureAccess(key: string, allowedRoles: Role[]): boolean {
+  const { profile } = useAuthStore();
+  if (!profile) return false;
+  if (profile.role === 'super_admin') return true;
+  if (isPermissionDenied(profile, key)) return false;
+  if (hasRole(profile.role as Role, allowedRoles)) return true;
+  return hasExplicitPermission(profile, key);
 }

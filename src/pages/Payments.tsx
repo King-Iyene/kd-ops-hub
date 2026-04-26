@@ -13,7 +13,8 @@ import {
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { usePermission } from '@/hooks/usePermission';
+import { usePermission, useFeatureAccess } from '@/hooks/usePermission';
+import { APPROVER_ROLES } from '@/lib/roles';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -58,7 +59,7 @@ const Payments = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const canQuickPay = usePermission('payments.quick_pay');
+  const canQuickPay = useFeatureAccess('payments.quick_pay', APPROVER_ROLES);
   const [batches, setBatches] = useState<PaymentBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

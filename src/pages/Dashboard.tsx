@@ -231,17 +231,42 @@ const Dashboard = () => {
         batchesRes, fuelRes, activityRes, subsRes, budgetsRes,
         expensesRes, processedBatchesRes, upcomingPaymentsRes,
       ] = await Promise.all([
-        supabase.from('payment_batches').select('total_amount, beneficiary_count').eq('status', 'processed').gte('created_at', monthStart),
+        // Disbursed = money that actually left the bank. Includes 'processed'
+        // (all items succeeded) and 'partially_processed' (some failed — failed
+        // items are netted out below by joining batch_items).
+        supabase.from('payment_batches').select('id, total_amount, beneficiary_count, status').in('status', ['processed', 'partially_processed']).gte('created_at', monthStart),
         supabase.from('fuel_requests').select('amount_ngn').eq('status', 'approved').gte('created_at', weekStart),
         supabase.from('audit_logs').select('id, action_type, description, performed_by_name, created_at').order('created_at', { ascending: false }).limit(15),
         supabase.from('subscriptions').select('id, name, amount_ngn, next_renewal_date').eq('status', 'active').lte('next_renewal_date', inThirtyDays.toISOString().slice(0, 10)).order('next_renewal_date', { ascending: true }).limit(6),
         supabase.from('budgets').select('id, name, total_amount_ngn, period_start, period_end, status').eq('status', 'approved').limit(20),
         supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved'),
-        supabase.from('payment_batches').select('total_amount, payment_date, status').in('status', ['processed', 'funded']),
+        supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']),
         supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).eq('status', 'scheduled').order('scheduled_date', { ascending: true }).limit(5),
       ]);
 
-      const totalDisbursed = batchesRes.data?.reduce((sum, b) => sum + (b.total_amount || 0), 0) || 0;
+      // Subtract failed batch_items from partially_processed batches so the
+      // KPIs reflect actual money moved, not the gross intended amount.
+      const allDisbursed = [...(batchesRes.data || []), ...(processedBatchesRes.data || [])] as any[];
+      const partialIds = allDisbursed.filter((b) => b.status === 'partially_processed').map((b) => b.id);
+      const succeededByBatch = new Map<string, number>();
+      if (partialIds.length > 0) {
+        const { data: items } = await supabase
+          .from('batch_items')
+          .select('batch_id, amount_ngn, status')
+          .in('batch_id', partialIds);
+        for (const it of (items || []) as any[]) {
+          if (it.status === 'succeeded') {
+            succeededByBatch.set(it.batch_id, (succeededByBatch.get(it.batch_id) ?? 0) + Number(it.amount_ngn || 0));
+          }
+        }
+      }
+      const actualDisbursedAmount = (b: any): number => {
+        if (b.status === 'processed') return Number(b.total_amount || 0);
+        if (b.status === 'partially_processed') return succeededByBatch.get(b.id) ?? 0;
+        return 0;
+      };
+
+      const totalDisbursed = (batchesRes.data || []).reduce((sum: number, b: any) => sum + actualDisbursedAmount(b), 0);
       const partnersPaid = batchesRes.data?.reduce((sum, b) => sum + (b.beneficiary_count || 0), 0) || 0;
       const fuelSpend = fuelRes.data?.reduce((sum, f) => sum + (f.amount_ngn || 0), 0) || 0;
 
@@ -262,7 +287,7 @@ const Dashboard = () => {
         }
         for (const bx of batches as any[]) {
           const t = new Date(bx.payment_date).getTime();
-          if (t >= s && t <= e) actual += Number(bx.total_amount || 0);
+          if (t >= s && t <= e) actual += actualDisbursedAmount(bx);
         }
         return { name: b.name, planned: Number(b.total_amount_ngn || 0), actual };
       });
