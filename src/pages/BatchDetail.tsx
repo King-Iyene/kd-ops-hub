@@ -616,6 +616,7 @@ const BatchDetail = () => {
       'bank_name',
       'account_number',
       'amount_ngn',
+      'paystack_fee_ngn',
       'reference',
       'status',
     ];
@@ -624,6 +625,7 @@ const BatchDetail = () => {
       i.bank_name ?? '',
       i.account_number ?? '',
       i.amount_ngn ?? 0,
+      (i as any).paystack_fee_ngn ?? 0,
       i.reference ?? '',
       i.status ?? '',
     ]);
@@ -882,17 +884,35 @@ const BatchDetail = () => {
 
         {/* Metadata row */}
         <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: 'Payment Date', value: formatDate(batch.payment_date) },
-            { label: 'Beneficiaries', value: batch.beneficiary_count },
-            { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
-            { label: 'Created', value: formatDate(batch.created_at) },
-          ].map(({ label, value, bold }) => (
-            <div key={label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
-              <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
-            </div>
-          ))}
+          {(() => {
+            const succeededAmount = items
+              .filter((i) => i.status === 'succeeded')
+              .reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
+            const totalFees = items.reduce(
+              (s, i) => s + Number((i as any).paystack_fee_ngn || 0),
+              0,
+            );
+            const totalCost = succeededAmount + totalFees;
+            const cells: Array<{ label: string; value: any; bold?: boolean }> = [
+              { label: 'Payment Date', value: formatDate(batch.payment_date) },
+              { label: 'Beneficiaries', value: batch.beneficiary_count },
+              { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
+              { label: 'Created', value: formatDate(batch.created_at) },
+            ];
+            if (totalFees > 0) {
+              cells.push(
+                { label: 'Disbursed (succeeded)', value: formatNaira(succeededAmount) },
+                { label: 'Paystack Fees', value: formatNaira(totalFees) },
+                { label: 'Total Cost', value: formatNaira(totalCost), bold: true },
+              );
+            }
+            return cells.map(({ label, value, bold }) => (
+              <div key={label}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+                <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
@@ -1085,6 +1105,7 @@ const BatchDetail = () => {
                   <TableHead className="text-xs">Bank</TableHead>
                   <TableHead className="text-xs">Account</TableHead>
                   <TableHead className="text-right text-xs">Amount</TableHead>
+                  <TableHead className="text-right text-xs">Fee</TableHead>
                   <TableHead className="text-xs">Reference</TableHead>
                   <TableHead className="text-xs">Paystack Ref</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
@@ -1107,6 +1128,11 @@ const BatchDetail = () => {
                     <TableCell>{item.account_number}</TableCell>
                     <TableCell className="text-right">
                       <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {(item as any).paystack_fee_ngn > 0
+                        ? <span className="currency">{formatNaira((item as any).paystack_fee_ngn)}</span>
+                        : '—'}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">

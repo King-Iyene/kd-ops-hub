@@ -231,6 +231,13 @@ serve(async (req) => {
   // ------------------------------------------------------------------
 
   if (event === "transfer.success") {
+    // Paystack returns the fee on the transfer object, in kobo (NGN * 100).
+    // Capture it as a structured column so reports can aggregate without
+    // having to JSON-walk paystack_raw.
+    const feeKoboRaw = data?.fee ?? data?.data?.fee ?? 0;
+    const feeKobo = Number(feeKoboRaw) || 0;
+    const feeNgn = feeKobo > 0 ? Math.round(feeKobo) / 100 : 0;
+
     const { error: updateErr } = await supabase
       .from("batch_items")
       .update({
@@ -238,6 +245,7 @@ serve(async (req) => {
         failure_reason: null,
         processed_at: now,
         paystack_raw: data,
+        paystack_fee_ngn: feeNgn,
       })
       .eq("id", item.id);
 
