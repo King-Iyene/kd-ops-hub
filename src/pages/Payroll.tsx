@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePermission } from '@/hooks/usePermission';
 import { logAudit } from '@/lib/audit';
 import {
   formatDate,
@@ -544,6 +545,8 @@ const Payroll = () => {
   };
 
   const canDisburse = ['super_admin', 'admin', 'finance'].includes(profile?.role || '');
+  const canApprovePerm = usePermission('payroll.approve');
+  const canGeneratePayslipsPerm = usePermission('payroll.generate_payslips');
 
   const openDisburse = async (run: PayrollRun) => {
     setWorking(true);
@@ -1055,23 +1058,25 @@ const Payroll = () => {
                             Submit
                           </Button>
                         )}
-                        {r.status === 'pending_approval' && (
+                        {r.status === 'pending_approval' && canApprovePerm && (
                           <Button size="sm" variant="outline" onClick={() => approve(r)}>
                             Approve
                           </Button>
                         )}
                         {r.status === 'approved' && (
                           <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => generatePayslips(r)}
-                              disabled={working}
-                              title="Generate payslips for every active employee"
-                            >
-                              {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                              Generate payslips
-                            </Button>
+                            {canGeneratePayslipsPerm && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => generatePayslips(r)}
+                                disabled={working}
+                                title="Generate payslips for every active employee"
+                              >
+                                {working && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                                Generate payslips
+                              </Button>
+                            )}
                             {canDisburse && (
                               <Button
                                 size="sm"

@@ -13,6 +13,7 @@ import {
 import { QuickPayDialog } from '@/components/QuickPay';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { usePermission } from '@/hooks/usePermission';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -57,6 +58,7 @@ const Payments = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  const canQuickPay = usePermission('payments.quick_pay');
   const [batches, setBatches] = useState<PaymentBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -235,7 +237,7 @@ const Payments = () => {
 
           {/* Action buttons */}
           <div className="flex gap-2">
-            <QuickPayDialog />
+            {canQuickPay && <QuickPayDialog />}
             <Button onClick={() => navigate('/payments/new')}>
               <Plus className="mr-2 h-4 w-4" /> New Batch
             </Button>

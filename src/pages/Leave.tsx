@@ -15,6 +15,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePermission } from '@/hooks/usePermission';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
@@ -134,6 +135,7 @@ const Leave = () => {
   const isManager =
     profile?.role === 'super_admin' ||
     profile?.role === 'admin';
+  const canApprovePerm = usePermission('leave.approve');
 
   const [tab, setTab] = useState<'mine' | 'team'>(isManager ? 'team' : 'mine');
   const [loading, setLoading] = useState(true);
@@ -626,7 +628,7 @@ const Leave = () => {
                       {pagination.slice.map((r) => {
                         const emp = profiles.get(r.employee_id);
                         const busy = actioning === r.id;
-                        const canManageRow = isManager && r.status === 'pending';
+                        const canManageRow = isManager && canApprovePerm && r.status === 'pending';
                         const canCancelOwn =
                           r.employee_id === profile?.id && r.status === 'pending';
                         return (

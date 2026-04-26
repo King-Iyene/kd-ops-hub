@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { usePermission } from '@/hooks/usePermission';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
@@ -149,10 +150,12 @@ const Expenses = () => {
   usePageTitle('Expenses');
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const canApprovePerm = usePermission('expenses.approve');
+  const canProcessPerm = usePermission('expenses.process_payments');
   const isApprover =
-    profile?.role === 'admin' ||
+    (profile?.role === 'admin' ||
     profile?.role === 'finance' ||
-    profile?.role === 'super_admin';
+    profile?.role === 'super_admin') && canApprovePerm;
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgets, setBudgets] = useState<BudgetSummary[]>([]);
@@ -274,6 +277,7 @@ const Expenses = () => {
 
   const canProcessPayment = (e: Expense) =>
     isApprover &&
+    canProcessPerm &&
     e.status === 'approved' &&
     (e.payment_status === 'pending' || e.payment_status == null) &&
     !!e.account_number &&
@@ -282,6 +286,7 @@ const Expenses = () => {
 
   const canRetryPayment = (e: Expense) =>
     isApprover &&
+    canProcessPerm &&
     e.status === 'approved' &&
     e.payment_status === 'failed' &&
     !!e.account_number &&

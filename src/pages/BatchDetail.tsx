@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usePermission } from '@/hooks/usePermission';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import {
@@ -194,6 +195,7 @@ const BatchDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { profile } = useAuthStore();
+  const canApprovePerm = usePermission('payments.approve_batches');
   const [batch, setBatch] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,12 +255,15 @@ const BatchDetail = () => {
   };
 
   const canApprove =
-    !!profile && APPROVER_ROLES.includes(profile.role as any);
+    !!profile && APPROVER_ROLES.includes(profile.role as any) && canApprovePerm;
 
   const cannotApproveReason = (() => {
     if (!profile) return 'Not authenticated.';
     if (!APPROVER_ROLES.includes(profile.role as any)) {
       return 'Only Admin or Finance roles can approve payment batches.';
+    }
+    if (!canApprovePerm) {
+      return 'Your permissions do not allow approving payment batches.';
     }
     return null;
   })();
