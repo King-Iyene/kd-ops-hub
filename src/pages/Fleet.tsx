@@ -390,55 +390,110 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
   const boundsPoints: [number, number][] =
     trail.length >= 2 ? trail : [startPos, endPos].filter(Boolean) as [number, number][];
 
+  // Custom Leaflet markers — pulse animation comes from CSS classes on the
+  // divIcon. The geometry / coordinates are unchanged; only visuals are
+  // restyled.
   const startIcon = useMemo(() => L.divIcon({
     className: '',
-    html: '<div style="width:14px;height:14px;border-radius:50%;background:#16a34a;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.45)"></div>',
-    iconSize: [14, 14] as L.PointExpression,
-    iconAnchor: [7, 7] as L.PointExpression,
+    html: '<div class="kd-trip-marker-start"></div>',
+    iconSize: [18, 18] as L.PointExpression,
+    iconAnchor: [9, 9] as L.PointExpression,
   }), []);
 
   const endIcon = useMemo(() => L.divIcon({
     className: '',
-    html: '<div style="width:14px;height:14px;border-radius:50%;background:#dc2626;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.45)"></div>',
-    iconSize: [14, 14] as L.PointExpression,
-    iconAnchor: [7, 7] as L.PointExpression,
+    html: '<div class="kd-trip-marker-end"></div>',
+    iconSize: [18, 18] as L.PointExpression,
+    iconAnchor: [9, 9] as L.PointExpression,
   }), []);
 
   const eventIcon = useMemo(() => L.divIcon({
     className: '',
-    html: '<div style="width:10px;height:10px;border-radius:50%;background:#f97316;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
-    iconSize: [10, 10] as L.PointExpression,
-    iconAnchor: [5, 5] as L.PointExpression,
+    html: '<div class="kd-trip-marker-event"></div>',
+    iconSize: [12, 12] as L.PointExpression,
+    iconAnchor: [6, 6] as L.PointExpression,
   }), []);
 
   const hasGps = startPos != null || endPos != null;
 
+  // Telemetry — read-only, derived purely from existing data
+  const distanceKm = trip.km_driven;
+  const durationMin = trip.duration_minutes;
+  const litres = trip.litres;
+  const avgSpeedKph = distanceKm != null && durationMin != null && durationMin > 0
+    ? Math.round((distanceKm / (durationMin / 60)) * 10) / 10
+    : null;
+
   return (
     <Dialog open onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl flex flex-col" style={{ maxHeight: '90vh' }}>
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <MapIcon className="h-4 w-4" /> Trip Map — {trip.employee_name}
-          </DialogTitle>
-          <DialogDescription>
-            {formatDate(trip.date)} · {trip.start_location || '—'} → {trip.end_location || '—'}
-          </DialogDescription>
+      <DialogContent className="max-w-4xl p-0 max-h-[92vh] flex flex-col gap-0">
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="relative h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-15 blur-md" />
+              <MapIcon className="relative h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <DialogTitle className="kd-display text-lg truncate">Trip Map · {trip.employee_name}</DialogTitle>
+              <DialogDescription className="mt-0.5 truncate">
+                {formatDate(trip.date)} · {trip.start_location || '—'} → {trip.end_location || '—'}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
+        {/* Telemetry strip */}
+        <div className="px-6 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 shrink-0 border-b border-border/60">
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Distance</p>
+            <p className="kd-stat-number text-base font-bold leading-tight">
+              {distanceKm != null ? `${distanceKm.toLocaleString()} km` : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Duration</p>
+            <p className="kd-stat-number text-base font-bold leading-tight">
+              {durationMin != null ? formatDuration(durationMin * 60) : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Avg speed</p>
+            <p className="kd-stat-number text-base font-bold leading-tight">
+              {avgSpeedKph != null ? `${avgSpeedKph} km/h` : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Fuel</p>
+            <p className="kd-stat-number text-base font-bold leading-tight">
+              {litres != null ? `${litres} L` : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 col-span-2 sm:col-span-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Telemetry</p>
+            <p className="kd-stat-number text-base font-bold leading-tight">
+              {breadcrumbs.length} ping{breadcrumbs.length === 1 ? '' : 's'} · {events.length} event{events.length === 1 ? '' : 's'}
+            </p>
+          </div>
+        </div>
+
         {/* Tab bar */}
-        <div className="flex gap-1 shrink-0 border-b pb-2">
+        <div className="px-6 pt-3 flex gap-1 shrink-0">
           {(['map', 'events'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setActiveTab(t)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === t ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
-              }`}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium kd-transition',
+                activeTab === t
+                  ? 'bg-primary/10 text-primary border-b-2 border-primary rounded-b-none'
+                  : 'text-muted-foreground hover:bg-muted',
+              )}
             >
               {t === 'map' ? <MapIcon className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
               {t === 'map' ? 'Map' : 'Events'}
               {t === 'events' && events.length > 0 && (
-                <span className="bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
+                <span className="bg-destructive text-destructive-foreground text-[10px] rounded-full px-1.5 leading-none kd-status-live-danger">
                   {events.length}
                 </span>
               )}
@@ -447,19 +502,26 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto min-h-0">
+        <div className="flex-1 overflow-auto min-h-0 px-6 pt-3 pb-4">
           {loading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center h-64">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Loading trip telemetry…</span>
+              </div>
             </div>
           ) : activeTab === 'map' ? (
             <>
               {!hasGps ? (
-                <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-                  No GPS coordinates recorded for this trip.
-                </div>
+                <Card><CardContent className="p-0">
+                  <EmptyState
+                    illustration="satellite"
+                    title="No GPS coordinates"
+                    description="This trip doesn't have GPS coordinates recorded. Distance and duration data is still available above."
+                  />
+                </CardContent></Card>
               ) : (
-                <div className="rounded-md overflow-hidden border" style={{ height: 400 }}>
+                <div className="kd-trip-map rounded-xl overflow-hidden border border-border/60 shadow-sm" style={{ height: 440 }}>
                   <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
                     <TileLayer
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -467,7 +529,12 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                     />
                     {boundsPoints.length >= 1 && <FitBoundsToRoute points={boundsPoints} />}
                     {trail.length > 1 && (
-                      <Polyline positions={trail} color="#3b82f6" weight={3} opacity={0.75} />
+                      <>
+                        {/* Soft glow underlay */}
+                        <Polyline positions={trail} color="#00ECFF" weight={8} opacity={0.18} />
+                        {/* Crisp top stroke */}
+                        <Polyline positions={trail} color="#006994" weight={3} opacity={0.9} />
+                      </>
                     )}
                     {startPos && (
                       <Marker position={startPos} icon={startIcon}>
@@ -502,24 +569,27 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                 </div>
               )}
               {/* Legend */}
-              <div className="flex items-center gap-4 pt-2 text-xs text-muted-foreground flex-wrap">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-600 inline-block shrink-0" /> Start</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-600 inline-block shrink-0" /> End</span>
-                <span className="flex items-center gap-1.5"><span className="w-6 h-0.5 bg-blue-500 inline-block shrink-0" /> Route</span>
-                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block shrink-0" /> Event</span>
-                <span className="ml-auto">{breadcrumbs.length} GPS pings · {events.length} events</span>
+              <div className="flex items-center gap-4 pt-3 text-xs text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success inline-block shrink-0 kd-status-live-success" /> Start</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive inline-block shrink-0" /> End</span>
+                <span className="flex items-center gap-1.5"><span className="w-6 h-0.5 bg-primary inline-block shrink-0" /> Route</span>
+                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning inline-block shrink-0 kd-status-live-warning" /> Event</span>
               </div>
             </>
           ) : (
             /* Events tab */
             events.length === 0 ? (
-              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                No driving events were recorded for this trip.
-              </div>
+              <Card><CardContent className="p-0">
+                <EmptyState
+                  illustration="radar"
+                  title="No driving events"
+                  description="No events were recorded for this trip. The journey was clean."
+                />
+              </CardContent></Card>
             ) : (
               <div className="space-y-2 py-1">
                 {events.map((ev) => (
-                  <div key={ev.id} className="flex items-start gap-3 p-3 rounded-md border">
+                  <div key={ev.id} className="flex items-start gap-3 p-3 rounded-lg border border-border/60 bg-card kd-transition hover:border-primary/20">
                     <span className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border shrink-0 ${EVENT_COLOR[ev.event_type] || 'bg-muted text-muted-foreground'}`}>
                       {EVENT_ICON[ev.event_type]}
                       {EVENT_LABEL[ev.event_type] || ev.event_type}
@@ -540,7 +610,8 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
           )}
         </div>
 
-        <DialogFooter className="shrink-0 pt-2">
+        {/* Sticky footer */}
+        <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm shrink-0 mt-0">
           <Button variant="outline" onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>

@@ -633,6 +633,77 @@
       0 8px 24px -8px hsl(var(--primary) / 0.12);
   }
 
+  /* ─── Trip Map (Leaflet) custom markers ─────────────────────────── */
+
+  /* Pulsing start dot */
+  .kd-trip-marker-start {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: hsl(var(--success));
+    border: 3px solid white;
+    box-shadow: 0 0 0 0 hsl(var(--success) / 0.6), 0 2px 6px rgba(0, 0, 0, 0.35);
+    animation: kd-breathe-success 2.4s ease-in-out infinite;
+  }
+
+  /* Solid end dot */
+  .kd-trip-marker-end {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: hsl(var(--destructive));
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Pulsing event dot */
+  .kd-trip-marker-event {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: hsl(var(--warning));
+    border: 2px solid white;
+    box-shadow: 0 0 0 0 hsl(var(--warning) / 0.6), 0 1px 4px rgba(0, 0, 0, 0.3);
+    animation: kd-breathe-warning 1.8s ease-in-out infinite;
+  }
+
+  /* Leaflet popup glass restyle (scoped via .kd-trip-map wrapper) */
+  .kd-trip-map .leaflet-popup-content-wrapper {
+    background: hsl(var(--card) / 0.92);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid hsl(var(--border) / 0.6);
+    border-radius: 10px;
+    box-shadow: 0 6px 24px -4px rgb(0 0 0 / 0.18);
+    color: hsl(var(--foreground));
+  }
+  .kd-trip-map .leaflet-popup-content {
+    margin: 10px 12px;
+    font-family: 'Cabin', system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .kd-trip-map .leaflet-popup-tip {
+    background: hsl(var(--card));
+  }
+  .kd-trip-map .leaflet-control-zoom a {
+    background: hsl(var(--card) / 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-color: hsl(var(--border) / 0.6);
+    color: hsl(var(--foreground));
+  }
+  .kd-trip-map .leaflet-control-zoom a:hover {
+    background: hsl(var(--muted));
+  }
+  .kd-trip-map .leaflet-control-attribution {
+    background: hsl(var(--card) / 0.85);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: hsl(var(--muted-foreground));
+    font-size: 10px;
+  }
+
   /* Reduced motion fallback */
   @media (prefers-reduced-motion: reduce) {
     .kd-aurora::before,
@@ -643,7 +714,9 @@
     .kd-status-live-danger,
     .kd-status-live-cyan,
     .kd-icon-glow,
-    .kd-scan-line {
+    .kd-scan-line,
+    .kd-trip-marker-start,
+    .kd-trip-marker-event {
       animation: none !important;
     }
   }
