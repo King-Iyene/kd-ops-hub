@@ -117,6 +117,10 @@ const SettingsPage = () => {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [digest, setDigest] = useState<'immediate' | 'hourly' | 'daily' | 'never'>('immediate');
 
+  // Expense category limits — controls for the "add a new limit" row
+  const [newLimitCategory, setNewLimitCategory] = useState<string>('');
+  const [newLimitAmount, setNewLimitAmount] = useState<string>('');
+
   const load = useCallback(async () => {
     setLoading(true);
     const [settingsRes, notifRes] = await Promise.all([
@@ -857,47 +861,124 @@ const SettingsPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Expense category limits</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Per-category caps on what staff can submit. Categories without a
+                limit set are unrestricted. Submissions above the cap are blocked
+                at submission and never reach an approver.
+              </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <div
-                  key={cat}
-                  className="grid grid-cols-5 items-center gap-3 border-b last:border-0 pb-2"
-                >
-                  <Label className="col-span-2">
-                    {expenseCategoryLabel(cat)}
-                  </Label>
-                  <Input
-                    type="number"
-                    className="col-span-2"
-                    value={settings.expense_limits[cat] || ''}
-                    onChange={(e) =>
-                      patch({
-                        expense_limits: {
-                          ...settings.expense_limits,
-                          [cat]: Number(e.target.value) || 0,
-                        },
-                      })
-                    }
-                    placeholder="No limit"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const next = { ...settings.expense_limits };
-                      delete next[cat];
-                      patch({ expense_limits: next });
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+              {/* ── Existing limits ─────────────────────────────────── */}
+              {Object.entries(settings.expense_limits || {}).filter(([, amt]) => amt > 0).length === 0 ? (
+                <p className="text-sm text-muted-foreground italic py-2">
+                  No category limits set yet. All expense categories are unrestricted.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {Object.entries(settings.expense_limits || {})
+                    .filter(([, amt]) => amt > 0)
+                    .sort(([a], [b]) => expenseCategoryLabel(a).localeCompare(expenseCategoryLabel(b)))
+                    .map(([cat, amount]) => (
+                      <div
+                        key={cat}
+                        className="flex items-center gap-3 border rounded-md p-2 bg-muted/20"
+                      >
+                        <span className="flex-1 text-sm font-medium">
+                          {expenseCategoryLabel(cat)}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-muted-foreground">₦</span>
+                          <Input
+                            type="number"
+                            className="w-32 h-8 text-right"
+                            value={amount}
+                            onChange={(e) =>
+                              patch({
+                                expense_limits: {
+                                  ...settings.expense_limits,
+                                  [cat]: Number(e.target.value) || 0,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const next = { ...settings.expense_limits };
+                            delete next[cat];
+                            patch({ expense_limits: next });
+                          }}
+                          title="Remove limit"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
                 </div>
-              ))}
-              <p className="text-xs text-muted-foreground">
-                Submissions above the per-category cap are blocked with a toast
-                and never reach an approver.
-              </p>
+              )}
+
+              {/* ── Add new limit ───────────────────────────────────── */}
+              {(() => {
+                // Categories that don't already have a limit set
+                const available = EXPENSE_CATEGORIES.filter(
+                  (c) => !((settings.expense_limits || {})[c] > 0),
+                );
+                if (available.length === 0) {
+                  return (
+                    <p className="text-xs text-muted-foreground pt-2 border-t">
+                      All expense categories have limits set.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="flex items-end gap-2 pt-3 border-t">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <Label className="text-xs text-muted-foreground">Add a category limit</Label>
+                      <Select value={newLimitCategory} onValueChange={setNewLimitCategory}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Choose category…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {available.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {expenseCategoryLabel(c)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Amount (₦)</Label>
+                      <Input
+                        type="number"
+                        className="w-36 h-9"
+                        value={newLimitAmount}
+                        onChange={(e) => setNewLimitAmount(e.target.value)}
+                        placeholder="e.g. 50000"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-9"
+                      disabled={!newLimitCategory || !newLimitAmount || Number(newLimitAmount) <= 0}
+                      onClick={() => {
+                        patch({
+                          expense_limits: {
+                            ...settings.expense_limits,
+                            [newLimitCategory]: Number(newLimitAmount),
+                          },
+                        });
+                        setNewLimitCategory('');
+                        setNewLimitAmount('');
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 

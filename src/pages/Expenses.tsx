@@ -1098,14 +1098,14 @@ const Expenses = () => {
             </TabsList>
           </Tabs>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[160px] h-10 sm:h-9">
+            <SelectTrigger className="w-full sm:w-[180px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c} className="capitalize">
-                  {c.replace(/_/g, ' ')}
+                <SelectItem key={c} value={c}>
+                  {expenseCategoryLabel(c)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1550,8 +1550,8 @@ const Expenses = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c} className="capitalize">
-                      {c.replace(/_/g, ' ')}
+                    <SelectItem key={c} value={c}>
+                      {expenseCategoryLabel(c)}
                     </SelectItem>
                   ))}
                 </SelectContent>
