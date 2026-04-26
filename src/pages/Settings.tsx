@@ -44,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { EXPENSE_CATEGORY_KEYS, expenseCategoryLabel } from '@/lib/expense-categories';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -93,14 +94,7 @@ interface CompanySettings {
   twitter_url: string | null;
 }
 
-const EXPENSE_CATEGORIES = [
-  'fuel',
-  'transport',
-  'mileage',
-  'office_supplies',
-  'client_entertainment',
-  'other',
-];
+const EXPENSE_CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
 const NOTIF_EVENTS = [
   { key: 'email_approvals', label: 'Approval requests assigned to me' },
@@ -870,8 +864,8 @@ const SettingsPage = () => {
                   key={cat}
                   className="grid grid-cols-5 items-center gap-3 border-b last:border-0 pb-2"
                 >
-                  <Label className="col-span-2 capitalize">
-                    {cat.replace(/_/g, ' ')}
+                  <Label className="col-span-2">
+                    {expenseCategoryLabel(cat)}
                   </Label>
                   <Input
                     type="number"
@@ -909,60 +903,19 @@ const SettingsPage = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fuel weekly budget (per department)</CardTitle>
+              <CardTitle className="text-base">Fuel budgets</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                {Object.entries(settings.fuel_weekly_budgets || {}).map(
-                  ([dept, amount]) => (
-                    <div key={dept} className="flex items-center gap-3">
-                      <Input
-                        className="flex-1"
-                        value={dept}
-                        readOnly
-                      />
-                      <Input
-                        type="number"
-                        className="w-48"
-                        value={amount}
-                        onChange={(e) =>
-                          patch({
-                            fuel_weekly_budgets: {
-                              ...settings.fuel_weekly_budgets,
-                              [dept]: Number(e.target.value) || 0,
-                            },
-                          })
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          const next = { ...settings.fuel_weekly_budgets };
-                          delete next[dept];
-                          patch({ fuel_weekly_budgets: next });
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ),
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    patch({
-                      fuel_weekly_budgets: {
-                        ...settings.fuel_weekly_budgets,
-                        [`Department ${Object.keys(settings.fuel_weekly_budgets || {}).length + 1}`]: 0,
-                      },
-                    })
-                  }
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Add department
-                </Button>
-              </div>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Fuel budgets are managed per-vehicle in the{' '}
+                <a href="/fleet" className="text-primary underline">Fleet page</a> —
+                each vehicle has a weekly budget, with carry-forward and per-vehicle
+                approval limits enforced when drivers submit fuel requests.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Per-department budgets used to live here but were not enforced anywhere.
+                That UI has been removed to avoid a setting that does nothing.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

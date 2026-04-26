@@ -35,6 +35,7 @@ import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
+import { EXPENSE_CATEGORY_KEYS, expenseCategoryLabel } from '@/lib/expense-categories';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -91,15 +92,7 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
 
-const CATEGORIES = [
-  'fuel',
-  'transport',
-  'mileage',
-  'repair',
-  'office_supplies',
-  'client_entertainment',
-  'other',
-] as const;
+const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
 interface Expense {
   id: string;

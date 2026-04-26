@@ -6,6 +6,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatDate } from '@/lib/format';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
+import { FilePreviewTrigger } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -2907,14 +2908,14 @@ const Fleet = () => {
                       <TableCell className="text-sm text-muted-foreground max-w-xs">
                         <p className="truncate">{r.reason || '—'}</p>
                         {r.request_doc_url && (
-                          <a
-                            href={r.request_doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <FileText className="h-3 w-3" /> View Document
-                          </a>
+                          <div className="mt-1">
+                            <FilePreviewTrigger
+                              url={r.request_doc_url}
+                              label="View Document"
+                              fileName={`fuel-request-${r.id.slice(0, 8)}`}
+                              variant="link"
+                            />
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -2980,14 +2981,11 @@ const Fleet = () => {
                           ) : r.status === 'receipt_uploaded' ? (
                             <div className="flex justify-end gap-1 flex-wrap">
                               {r.receipt_url && (
-                                <a
-                                  href={r.receipt_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-input bg-background hover:bg-accent"
-                                >
-                                  <FileText className="h-3 w-3" /> View Receipt
-                                </a>
+                                <FilePreviewTrigger
+                                  url={r.receipt_url}
+                                  label="View Receipt"
+                                  fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
+                                />
                               )}
                               <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
                                 <Check className="h-3 w-3 mr-1" /> Complete
@@ -3056,14 +3054,12 @@ const Fleet = () => {
                       )}
 
                       {r.request_doc_url && (
-                        <a
-                          href={r.request_doc_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary"
-                        >
-                          <FileText className="h-3 w-3" /> View Document
-                        </a>
+                        <FilePreviewTrigger
+                          url={r.request_doc_url}
+                          label="View Document"
+                          fileName={`fuel-request-${r.id.slice(0, 8)}`}
+                          variant="link"
+                        />
                       )}
 
                       {/* Admin actions, condensed for mobile */}
@@ -3113,14 +3109,12 @@ const Fleet = () => {
                       {isAdmin && r.status === 'receipt_uploaded' && (
                         <MobileCardFooter>
                           {r.receipt_url && (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 text-xs px-3 rounded-md border border-input hover:bg-accent"
-                            >
-                              <FileText className="h-4 w-4" /> View Receipt
-                            </a>
+                            <FilePreviewTrigger
+                              url={r.receipt_url}
+                              label="View Receipt"
+                              fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
+                              className="flex-1 h-9"
+                            />
                           )}
                           <Button
                             size="sm"
