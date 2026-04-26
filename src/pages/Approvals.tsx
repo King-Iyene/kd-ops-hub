@@ -11,6 +11,8 @@ import {
   Inbox,
   Loader2,
   Calendar,
+  ShieldCheck,
+  Activity,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -43,7 +45,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
@@ -532,31 +534,94 @@ const Approvals = () => {
     pagination.slice.length > 0 &&
     pagination.slice.every((r) => selected.has(r.id));
 
+  const totalPendingValue = items.reduce((s, i) => s + (i.amount ?? 0), 0);
+  const oldestPending = items
+    .map((i) => new Date(i.createdAt).getTime())
+    .reduce((min, t) => Math.min(min, t), Date.now());
+  const oldestDays = items.length === 0 ? 0 : Math.max(0, Math.floor((Date.now() - oldestPending) / 86_400_000));
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Approvals Inbox"
-        description={`${counts.total} item${counts.total === 1 ? '' : 's'} waiting across all modules`}
-        actions={
-          selectedCount > 0 && canApprove ? (
-            <Button
-              onClick={() => {
-                const totalAmt = items
-                  .filter((i) => selected.has(i.id))
-                  .reduce((s, i) => s + (i.amount ?? 0), 0);
-                const yes = window.confirm(
-                  `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
-                );
-                if (yes) bulkApprove();
-              }}
-              disabled={bulkLoading}
-            >
-              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
-            </Button>
-          ) : null
-        }
-      />
+      {/* Mission control hero */}
+      <AuroraHero className="p-5 sm:p-6" scanLine={counts.total > 0}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Inbox className="h-4 w-4 opacity-80 kd-icon-glow" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Approvals · Mission Control</span>
+            </div>
+            <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
+              {counts.total === 0 ? 'All clear.' : `${counts.total} pending`}
+            </h1>
+            <p className="text-sm opacity-70 mt-1.5">
+              {counts.total === 0
+                ? 'No items waiting for review. The queue is empty.'
+                : `${formatNaira(totalPendingValue)} in flight${oldestDays > 0 ? ` · oldest ${oldestDays}d` : ''}`}
+            </p>
+          </div>
+          {/* Live status pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <span className={`h-1.5 w-1.5 rounded-full ${counts.total === 0 ? 'bg-emerald-400 kd-status-live-success' : 'bg-amber-300 kd-status-live-warning'}`} />
+              {counts.total === 0 ? 'System idle' : 'Awaiting review'}
+            </span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <ShieldCheck className="h-3 w-3" /> {canApprove ? 'Approver' : 'View only'}
+            </span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <Activity className="h-3 w-3" /> Live
+            </span>
+          </div>
+        </div>
+
+        {/* Module pulse strip */}
+        {counts.total > 0 && (
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {[
+              { k: 'batches', label: 'Batches', n: counts.batches, icon: CreditCard },
+              { k: 'expenses', label: 'Expenses', n: counts.expenses, icon: Receipt },
+              { k: 'fuel', label: 'Fuel', n: counts.fuel, icon: Fuel },
+              { k: 'budgets', label: 'Budgets', n: counts.budgets, icon: PiggyBank },
+              { k: 'leave', label: 'Leave', n: counts.leave, icon: Calendar },
+            ].map(({ k, label, n, icon: Icon }) => (
+              <div key={k} className="rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 px-3 py-2.5 flex items-center gap-2.5">
+                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${n > 0 ? 'bg-amber-400/20' : 'bg-white/10'}`}>
+                  <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-amber-200' : 'text-white/50'}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wider opacity-60">{label}</p>
+                  <p className={`kd-display text-base font-bold leading-none ${n > 0 ? '' : 'opacity-40'}`}>{n}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </AuroraHero>
+
+      {/* Bulk action bar (only when something is selected) */}
+      {selectedCount > 0 && canApprove && (
+        <div className="kd-toolbar-glass rounded-lg p-3 flex items-center justify-between flex-wrap gap-3 kd-animate-slide-down">
+          <p className="text-sm">
+            <span className="font-semibold">{selectedCount}</span> item{selectedCount === 1 ? '' : 's'} selected
+          </p>
+          <Button
+            onClick={() => {
+              const totalAmt = items
+                .filter((i) => selected.has(i.id))
+                .reduce((s, i) => s + (i.amount ?? 0), 0);
+              const yes = window.confirm(
+                `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
+              );
+              if (yes) bulkApprove();
+            }}
+            disabled={bulkLoading}
+            className="kd-magnetic"
+          >
+            {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
+          </Button>
+        </div>
+      )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="flex-wrap h-auto">

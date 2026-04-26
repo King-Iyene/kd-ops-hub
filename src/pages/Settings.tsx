@@ -303,18 +303,20 @@ const SettingsPage = () => {
         }
       />
 
-      <Tabs defaultValue="company">
-        <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="company"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
-          <TabsTrigger value="integrations"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
-          <TabsTrigger value="policy"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
-          <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
-          <TabsTrigger value="security"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+      <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
+        <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-20 md:self-start overflow-x-auto md:overflow-visible">
+          <p className="hidden md:block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
+          <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
+          <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
+          <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
+          <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
+          <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
-            <TabsTrigger value="departments"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
+            <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
           )}
-          <TabsTrigger value="tags"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
+          <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
         </TabsList>
+        <div className="md:min-w-0">
 
         {/* COMPANY ------------------------------------------------------- */}
         <TabsContent value="company" className="mt-4 space-y-4">
@@ -1021,6 +1023,7 @@ const SettingsPage = () => {
         <TabsContent value="tags" className="mt-4 space-y-4">
           <TagsManager />
         </TabsContent>
+        </div>
       </Tabs>
     </div>
   );
