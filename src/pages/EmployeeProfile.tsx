@@ -45,7 +45,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
-import { PermissionsEditor, type PermissionsMap } from '@/components/PermissionsEditor';
+import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 interface EmployeeData {
@@ -2002,7 +2002,11 @@ const EmployeeProfile = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <PermissionsEditor value={permissions} onChange={setPermissions} />
+              <PermissionsEditor
+                value={permissions}
+                onChange={setPermissions}
+                roleDefaults={ROLE_DEFAULT_PERMISSIONS[employee?.role as string] || []}
+              />
             </CardContent>
           </Card>
         </div>

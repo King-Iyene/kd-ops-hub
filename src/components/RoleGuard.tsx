@@ -7,9 +7,13 @@ interface Props {
   roles: Role[];
   children: React.ReactNode;
   inline?: boolean;
-  /** Optional permission key from the JSONB permissions column. When set,
-   *  access is denied if the user's permissions object has this key set to false,
-   *  even when the role would normally allow access. */
+  /** Optional permission key from the JSONB permissions column. Two effects:
+   *  1. If the user's role is in `roles`, access is denied if the permission
+   *     is explicitly `false` (revoke from a role that would normally allow).
+   *  2. If the user's role is NOT in `roles`, access is granted if the
+   *     permission is explicitly `true` (grant to a role that would normally
+   *     not allow). Undefined falls back to role-only behaviour.
+   */
   permission?: string;
 }
 
@@ -41,32 +45,29 @@ export function RoleGuard({ roles, children, inline = false, permission }: Props
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (!hasRole(effectiveRole, roles)) {
-    if (inline) {
-      return (
-        <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
-          You do not have access to this section.
-        </div>
-      );
-    }
-    return <Navigate to="/unauthorized" replace />;
+  const perms = (profile as any).permissions as Record<string, boolean> | null | undefined;
+  const explicitGrant = !!permission && perms?.[permission] === true;
+  const explicitDeny = !!permission && perms?.[permission] === false;
+  const roleAllows = hasRole(effectiveRole, roles);
+
+  // Role grants access unless permission is explicitly revoked
+  if (roleAllows && !explicitDeny) {
+    return <>{children}</>;
   }
 
-  if (permission) {
-    const perms = (profile as any).permissions as Record<string, boolean> | null | undefined;
-    if (perms && perms[permission] === false) {
-      if (inline) {
-        return (
-          <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
-            You do not have access to this section.
-          </div>
-        );
-      }
-      return <Navigate to="/unauthorized" replace />;
-    }
+  // Role does not grant access — but a permission grant can override
+  if (!roleAllows && explicitGrant) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  if (inline) {
+    return (
+      <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
+        You do not have access to this section.
+      </div>
+    );
+  }
+  return <Navigate to="/unauthorized" replace />;
 }
 
 /**
@@ -83,4 +84,19 @@ export function isPermissionDenied(
   const perms = profile.permissions;
   if (perms && perms[permission] === false) return true;
   return false;
+}
+
+/**
+ * Returns true if the user has been explicitly granted a permission via the
+ * JSONB column (permission === true). Use this to enable buttons/features
+ * for users whose role would not normally have access.
+ */
+export function hasExplicitPermission(
+  profile: { role?: string; permissions?: Record<string, boolean> | null } | null,
+  permission: string,
+): boolean {
+  if (!profile) return false;
+  if (profile.role === 'super_admin') return true;
+  const perms = profile.permissions;
+  return !!(perms && perms[permission] === true);
 }

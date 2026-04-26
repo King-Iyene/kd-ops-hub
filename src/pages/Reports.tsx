@@ -64,6 +64,53 @@ const thisYearRange = (): DateRange => {
   };
 };
 
+// Statuses that mean money was actually moved (or partially moved). 'funded'
+// is intentionally excluded — it means the wallet is funded but transfers
+// haven't all completed, so it should not show as "disbursed" in actuals.
+const ACTUAL_DISBURSED_STATUSES = ['processed', 'partially_processed'] as const;
+
+/**
+ * Returns the amount that actually left the bank for a batch.
+ *  - status='processed'  → all items succeeded; use total_amount.
+ *  - status='partially_processed' → some failed; need to subtract failed items.
+ *  - other statuses → 0 (not disbursed yet).
+ *
+ * Pass a Map<batchId, succeededSum> built from a single batch_items query.
+ */
+function actualDisbursed(
+  batch: { id: string; status: string; total_amount: number },
+  succeededByBatch: Map<string, number>,
+): number {
+  if (batch.status === 'processed') return Number(batch.total_amount || 0);
+  if (batch.status === 'partially_processed') {
+    return succeededByBatch.get(batch.id) ?? 0;
+  }
+  return 0;
+}
+
+/**
+ * Fetches batch_items for the given batches whose status indicates partial
+ * processing, and returns a map of batchId → sum of succeeded item amounts.
+ * Avoids unnecessary DB hits when no batches need item-level reconciliation.
+ */
+async function fetchSucceededSums(batches: Array<{ id: string; status: string }>): Promise<Map<string, number>> {
+  const partialIds = batches
+    .filter((b) => b.status === 'partially_processed')
+    .map((b) => b.id);
+  if (partialIds.length === 0) return new Map();
+  const { data: items } = await supabase
+    .from('batch_items')
+    .select('batch_id, amount_ngn, status')
+    .in('batch_id', partialIds);
+  const sums = new Map<string, number>();
+  for (const it of (items || []) as any[]) {
+    if (it.status === 'succeeded') {
+      sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + Number(it.amount_ngn || 0));
+    }
+  }
+  return sums;
+}
+
 const Reports = () => {
   usePageTitle('Reports');
   const [range, setRange] = useState<DateRange>(thisYearRange);
@@ -198,50 +245,55 @@ function PaymentReport({ range }: { range: DateRange }) {
       .lte('payment_date', range.end)
       .order('payment_date', { ascending: true });
     if (error) throw error;
-    return data || [];
+    const batches = data || [];
+    const succeededByBatch = await fetchSucceededSums(batches as any[]);
+    return { batches, succeededByBatch };
   }, [range.start, range.end]);
 
+  const batches = data?.batches || [];
+  const succeededByBatch = data?.succeededByBatch || new Map<string, number>();
+
   const byMonth = useMemo(() => {
-    if (!data) return [] as { month: string; amount: number; batches: number }[];
     const acc: Record<string, { amount: number; batches: number }> = {};
-    for (const b of data as any[]) {
+    for (const b of batches as any[]) {
       const k = monthKey(new Date(b.payment_date));
       acc[k] = acc[k] || { amount: 0, batches: 0 };
-      if (b.status === 'processed' || b.status === 'funded') {
-        acc[k].amount += Number(b.total_amount || 0);
-      }
+      acc[k].amount += actualDisbursed(b, succeededByBatch);
       acc[k].batches += 1;
     }
     return Object.keys(acc)
       .sort()
       .map((k) => ({ month: k, amount: acc[k].amount, batches: acc[k].batches }));
-  }, [data]);
+  }, [batches, succeededByBatch]);
 
   const byStatus = useMemo(() => {
-    if (!data) return [] as { name: string; value: number }[];
     const acc: Record<string, number> = {};
-    for (const b of data as any[]) {
+    for (const b of batches as any[]) {
       acc[b.status] = (acc[b.status] || 0) + 1;
     }
     return Object.entries(acc).map(([name, value]) => ({ name, value }));
-  }, [data]);
+  }, [batches]);
 
-  const totalDisbursed =
-    data
-      ?.filter((b: any) => ['processed', 'funded'].includes(b.status))
-      .reduce((s: number, b: any) => s + Number(b.total_amount || 0), 0) || 0;
-  const totalBatches = data?.length || 0;
+  const totalDisbursed = batches.reduce(
+    (s: number, b: any) => s + actualDisbursed(b, succeededByBatch),
+    0,
+  );
+  const totalBatches = batches.length || 0;
   const totalBeneficiaries =
-    data?.reduce((s: number, b: any) => s + Number(b.beneficiary_count || 0), 0) || 0;
+    batches.reduce((s: number, b: any) => s + Number(b.beneficiary_count || 0), 0) || 0;
 
   const exportCsv = () => {
-    const header = ['name', 'payment_date', 'status', 'beneficiaries', 'total_amount_ngn'];
-    const rows = (data || []).map((b: any) => [
+    const header = [
+      'name', 'payment_date', 'status', 'beneficiaries',
+      'gross_amount_ngn', 'actual_disbursed_ngn',
+    ];
+    const rows = batches.map((b: any) => [
       b.name,
       b.payment_date,
       b.status,
       b.beneficiary_count || 0,
       b.total_amount || 0,
+      actualDisbursed(b, succeededByBatch),
     ]);
     downloadCsv(`kdops-payments-${range.start}_to_${range.end}.csv`, toCsv(header, rows));
   };
@@ -619,16 +671,18 @@ function BudgetReport({ range }: { range: DateRange }) {
       supabase.from('expenses').select('amount_ngn, date').eq('status', 'approved'),
       supabase
         .from('payment_batches')
-        .select('total_amount, payment_date, status')
-        .in('status', ['processed', 'funded']),
+        .select('id, total_amount, payment_date, status')
+        .in('status', [...ACTUAL_DISBURSED_STATUSES]),
     ]);
     if (budgetsRes.error) throw budgetsRes.error;
     if (expensesRes.error) throw expensesRes.error;
     if (batchesRes.error) throw batchesRes.error;
+    const succeededByBatch = await fetchSucceededSums((batchesRes.data || []) as any[]);
     return {
       budgets: budgetsRes.data || [],
       expenses: expensesRes.data || [],
       batches: batchesRes.data || [],
+      succeededByBatch,
     };
   }, [range.start, range.end]);
 
@@ -655,7 +709,7 @@ function BudgetReport({ range }: { range: DateRange }) {
         }
         for (const bx of data.batches as any[]) {
           const t = new Date(bx.payment_date).getTime();
-          if (t >= s && t <= e) actual += Number(bx.total_amount || 0);
+          if (t >= s && t <= e) actual += actualDisbursed(bx, data.succeededByBatch);
         }
         return { name: b.name, planned: Number(b.total_amount_ngn || 0), actual };
       });
@@ -738,8 +792,8 @@ function PnLReport({ range }: { range: DateRange }) {
     const [batchesRes, expensesRes, revenueRes] = await Promise.all([
       supabase
         .from('payment_batches')
-        .select('total_amount, payment_date, status, name')
-        .in('status', ['processed', 'funded'])
+        .select('id, total_amount, payment_date, status, name')
+        .in('status', [...ACTUAL_DISBURSED_STATUSES])
         .gte('payment_date', range.start)
         .lte('payment_date', range.end),
       supabase
@@ -757,10 +811,12 @@ function PnLReport({ range }: { range: DateRange }) {
     ]);
     if (batchesRes.error) throw batchesRes.error;
     if (expensesRes.error) throw expensesRes.error;
+    const succeededByBatch = await fetchSucceededSums((batchesRes.data || []) as any[]);
     return {
       batches: batchesRes.data || [],
       expenses: expensesRes.data || [],
       revenue: revenueRes.data || [],
+      succeededByBatch,
     };
   }, [range.start, range.end]);
 
@@ -770,7 +826,8 @@ function PnLReport({ range }: { range: DateRange }) {
     for (const b of data.batches as any[]) {
       const k = monthKey(new Date(b.payment_date));
       acc[k] = acc[k] || { revenue: 0, costs: 0 };
-      acc[k].costs += Number(b.total_amount || 0);
+      // Cost is what actually left the account, not the gross batch total
+      acc[k].costs += actualDisbursed(b, data.succeededByBatch);
     }
     for (const e of data.expenses as any[]) {
       const k = monthKey(new Date(e.date));
@@ -987,10 +1044,13 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
     const future = new Date();
     future.setDate(future.getDate() + 90);
     const [batchRes, subRes, settingsRes] = await Promise.all([
+      // Committed outflows only: approved (signed off but not yet funded),
+      // funded (wallet topped up), and processing (transfers in flight).
+      // pending_approval is intentionally excluded — those may still be rejected.
       supabase
         .from('payment_batches')
         .select('total_amount, payment_date, scheduled_date, status, name')
-        .in('status', ['approved', 'funded', 'pending_approval'])
+        .in('status', ['approved', 'funded', 'processing'])
         .gte('payment_date', toIsoDate(today))
         .lte('payment_date', toIsoDate(future)),
       supabase
@@ -1109,10 +1169,10 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
       supabase
         .from('payment_batches')
         .select('id, payment_date, status')
-        .in('status', ['processed', 'funded'])
+        .in('status', [...ACTUAL_DISBURSED_STATUSES])
         .gte('payment_date', range.start)
         .lte('payment_date', range.end),
-      supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id'),
+      supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status'),
     ]);
     if (batchesRes.error) throw batchesRes.error;
     if (itemsRes.error) throw itemsRes.error;
@@ -1126,6 +1186,9 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
     let overall = 0;
     for (const it of data.items as any[]) {
       if (!batchIds.has(it.batch_id)) continue;
+      // Only count items that actually succeeded — failed/pending must not
+      // be attributed to the contractor as a paid amount.
+      if (it.status !== 'succeeded') continue;
       const key = it.contractor_id || it.full_name;
       if (!acc[key]) acc[key] = { name: it.full_name || 'Unknown', total: 0 };
       const amt = Number(it.amount_ngn || 0);

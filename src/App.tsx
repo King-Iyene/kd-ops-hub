@@ -112,11 +112,12 @@ function AppRoutes() {
           }
         />
 
-        {/* Payments — Finance + Admin + Super Admin. */}
+        {/* Payments — Finance + Admin + Super Admin by default; other roles can be
+            granted via the permissions JSONB (e.g. ops can schedule/submit batches). */}
         <Route
           path="/payments"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES} permission="payments.view">
               <Payments />
             </RoleGuard>
           }
@@ -124,7 +125,7 @@ function AppRoutes() {
         <Route
           path="/payments/schedule"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
               <PaymentSchedule />
             </RoleGuard>
           }
@@ -132,7 +133,7 @@ function AppRoutes() {
         <Route
           path="/payments/new"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
               <NewPaymentBatch />
             </RoleGuard>
           }
@@ -140,7 +141,7 @@ function AppRoutes() {
         <Route
           path="/payments/:id/edit"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
               <NewPaymentBatch />
             </RoleGuard>
           }
@@ -148,7 +149,7 @@ function AppRoutes() {
         <Route
           path="/payments/:id"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={APPROVER_ROLES} permission="payments.view">
               <BatchDetail />
             </RoleGuard>
           }

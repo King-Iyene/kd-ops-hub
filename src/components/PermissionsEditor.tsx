@@ -139,12 +139,27 @@ interface Props {
   value: PermissionsMap;
   onChange: (updated: PermissionsMap) => void;
   disabled?: boolean;
+  /** Role-default state: keys here are ON by default for the current user
+   *  even when no explicit value is stored. Other keys default OFF.
+   */
+  roleDefaults?: PermissionKey[];
 }
 
-export function PermissionsEditor({ value, onChange, disabled }: Props) {
+export function PermissionsEditor({ value, onChange, disabled, roleDefaults = [] }: Props) {
+  const defaultsSet = new Set<string>(roleDefaults);
+
+  // A toggle is ON when:
+  //   - the value is explicitly true, OR
+  //   - the value is undefined and the role grants this permission by default
+  const isChecked = (key: PermissionKey) => {
+    const v = value[key];
+    if (v === true) return true;
+    if (v === false) return false;
+    return defaultsSet.has(key);
+  };
+
   const toggle = (key: PermissionKey) => {
-    const current = value[key] !== false;
-    onChange({ ...value, [key]: !current });
+    onChange({ ...value, [key]: !isChecked(key) });
   };
 
   return (
@@ -158,14 +173,24 @@ export function PermissionsEditor({ value, onChange, disabled }: Props) {
           </CardHeader>
           <CardContent className="space-y-3">
             {group.permissions.map((perm) => {
-              const checked = value[perm.key] !== false;
+              const checked = isChecked(perm.key);
+              const explicit = value[perm.key] === true || value[perm.key] === false;
               return (
                 <div key={perm.key} className="flex items-center justify-between">
                   <Label
                     htmlFor={perm.key}
-                    className="text-sm font-normal cursor-pointer"
+                    className="text-sm font-normal cursor-pointer flex items-center gap-2"
                   >
-                    {perm.label}
+                    <span>{perm.label}</span>
+                    {!explicit && checked && (
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">role</span>
+                    )}
+                    {explicit && value[perm.key] === true && !defaultsSet.has(perm.key) && (
+                      <span className="text-[10px] uppercase tracking-wider text-success">granted</span>
+                    )}
+                    {explicit && value[perm.key] === false && (
+                      <span className="text-[10px] uppercase tracking-wider text-destructive">denied</span>
+                    )}
                   </Label>
                   <Switch
                     id={perm.key}
@@ -182,5 +207,53 @@ export function PermissionsEditor({ value, onChange, disabled }: Props) {
     </div>
   );
 }
+
+/**
+ * Per-role default permissions. Used by PermissionsEditor to show which
+ * toggles are ON by virtue of the role itself (vs. an explicit grant).
+ * The route guards in App.tsx are the source of truth — this list mirrors
+ * those gates and must stay in sync when routes are added or changed.
+ */
+export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
+  super_admin: PERMISSION_GROUPS.flatMap((g) => g.permissions.map((p) => p.key)),
+  admin: [
+    'dashboard.view_kpis', 'dashboard.view_audit_log',
+    'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
+    'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
+    'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
+    'fleet.view', 'fleet.submit', 'fleet.approve_fuel_requests', 'fleet.manage_vehicles',
+    'leave.view_all', 'leave.approve',
+    'contractors.view', 'contractors.add', 'contractors.edit', 'contractors.delete',
+    'employees.view', 'employees.invite', 'employees.edit', 'employees.change_roles',
+    'reports.view', 'reports.export',
+    'settings.access', 'settings.manage_integrations',
+  ],
+  finance: [
+    'dashboard.view_kpis', 'dashboard.view_audit_log',
+    'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
+    'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
+    'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
+    'fleet.view', 'fleet.approve_fuel_requests',
+    'leave.view_all',
+    'contractors.view', 'contractors.add', 'contractors.edit',
+    'employees.view',
+    'reports.view', 'reports.export',
+  ],
+  operations: [
+    'dashboard.view_kpis',
+    'expenses.view_all', 'expenses.submit',
+    'fleet.view', 'fleet.submit',
+    'leave.view_all', 'leave.approve',
+    'contractors.view',
+    'employees.view',
+  ],
+  field_staff: [
+    'expenses.submit',
+    'fleet.submit',
+  ],
+  driver: [
+    'fleet.submit',
+  ],
+};
 
 export { PERMISSION_GROUPS };
