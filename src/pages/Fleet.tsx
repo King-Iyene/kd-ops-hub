@@ -213,7 +213,7 @@ function getGeolocation(): Promise<GeoCoords> {
     // getCurrentPosition (no GPS hardware + no cached WiFi fix).
     // Neither success nor error callback ever fires in that case,
     // so a JS timer is the only reliable escape hatch.
-    const hardTimer = setTimeout(() => fail('timeout'), 11_000);
+    const hardTimer = setTimeout(() => fail('timeout'), 7_000);
 
     // Phase 0 — instant cache hit (up to 60 s old).
     // Desktop browsers cache their last IP/WiFi fix; this returns it
@@ -3740,7 +3740,14 @@ const Fleet = () => {
                   {startGeoState === 'idle' && <LocateFixed className="h-4 w-4 mt-0.5 shrink-0" />}
 
                   <div className="flex-1 min-w-0">
-                    {startGeoState === 'acquiring' && <p>Acquiring GPS location…</p>}
+                    {startGeoState === 'acquiring' && (
+                      <>
+                        <p>Acquiring GPS location…</p>
+                        <p className="text-xs opacity-75 mt-0.5">
+                          On desktop: check the browser address bar and click <strong>Allow</strong> if prompted.
+                        </p>
+                      </>
+                    )}
                     {startGeoState === 'ok' && startCoords && (
                       <>
                         {startAddress
