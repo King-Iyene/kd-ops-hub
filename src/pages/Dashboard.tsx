@@ -49,7 +49,6 @@ import { MyTasksWidget } from '@/pages/Tasks';
 import { MyGoalsWidget } from '@/pages/Goals';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -407,15 +406,7 @@ const Dashboard = () => {
       <OnboardingChecklist />
       <AnnouncementsBanner />
 
-      {/* ── Command centre row ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <FinancialHealthCard />
-        <CashBurnCard />
-        <MyTasksWidget />
-        <MyGoalsWidget />
-      </div>
-
-      {/* ── KPI stats ────────────────────────────────────────────── */}
+      {/* ── 1. KPI stats — first data visible ────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Partners Paid"
@@ -448,145 +439,117 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* ── Main content grid ────────────────────────────────────── */}
+      {/* ── 2. Quick Actions + Budget Utilisation ────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Activity feed */}
-        <Card className="lg:col-span-2 overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
-            <div className="flex gap-1">
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/audit')}>
-                Audit Log <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/approvals')}>
-                Approvals
-                {approvalCounts.total > 0 && (
-                  <Badge className="ml-1 h-4 px-1 bg-amber-100 text-amber-700 text-[10px]">{approvalCounts.total}</Badge>
+        {/* Quick Actions */}
+        <Card>
+          <CardHeader className="pb-3 border-b">
+            <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 space-y-2">
+            {[
+              { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const },
+              { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const },
+              { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const },
+              { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const },
+              { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const },
+            ].map(({ label, icon: Icon, onClick, badge, variant }) => (
+              <Button
+                key={label}
+                variant={variant}
+                className="w-full justify-start h-9 text-sm"
+                onClick={onClick}
+              >
+                <Icon className="mr-2 h-4 w-4 shrink-0" />
+                {label}
+                {badge !== undefined && badge > 0 && (
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
+                    {badge}
+                  </span>
                 )}
               </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-4 space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full kd-skeleton shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-3 w-36 kd-skeleton rounded" />
-                      <div className="h-2.5 w-56 kd-skeleton rounded" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : activity.length === 0 ? (
-              <EmptyState icon={Inbox} title="No recent activity" description="Actions across all modules will appear here." compact />
-            ) : (
-              <div className="divide-y divide-border/40">
-                {activity.map((item, i) => {
-                  const Icon = ICONS[item.action_type] || FileText;
-                  const toneCls = ACTION_TONE[item.action_type] || 'text-muted-foreground bg-muted';
-                  return (
-                    <div
-                      key={item.id}
-                      className={cn('flex items-start gap-3 px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}
-                    >
-                      <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5', toneCls)}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium leading-snug">{prettyType(item.action_type)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
-                        <p className="text-[11px] text-muted-foreground/50 mt-1">
-                          {item.performed_by_name ? `${item.performed_by_name} · ` : ''}
-                          {item.created_at ? formatDateTime(item.created_at) : ''}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            ))}
           </CardContent>
         </Card>
 
-        {/* Quick actions */}
-        <div className="space-y-3">
-          <Card>
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 space-y-2">
-              {[
-                { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const },
-                { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const },
-                { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const },
-                { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const },
-                { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const },
-              ].map(({ label, icon: Icon, onClick, badge, variant }) => (
-                <Button
-                  key={label}
-                  variant={variant}
-                  className="w-full justify-start h-9 text-sm"
-                  onClick={onClick}
-                >
-                  <Icon className="mr-2 h-4 w-4 shrink-0" />
-                  {label}
-                  {badge !== undefined && badge > 0 && (
-                    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
-                      {badge}
-                    </span>
-                  )}
-                </Button>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Budget utilisation mini */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 border-b">
-              <CardTitle className="text-sm font-semibold">Budget Utilisation</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
-                View <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </CardHeader>
-            <CardContent className="pt-3">
-              {loading ? (
-                <Skeleton className="h-32 w-full" />
-              ) : totalPlanned === 0 ? (
-                <EmptyState icon={PiggyBank} title="No approved budgets" description="Approve a budget to see utilisation." compact />
-              ) : (
+        {/* Budget Utilisation — wider card with donut */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
+            <CardTitle className="text-sm font-semibold">Budget Utilisation</CardTitle>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
+              View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {loading ? (
+              <Skeleton className="h-36 w-full" />
+            ) : totalPlanned === 0 ? (
+              <EmptyState icon={PiggyBank} title="No approved budgets" description="Approve a budget to see utilisation." compact />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-muted-foreground">Used</span>
-                    <span className="text-xs font-semibold">{utilizationPct}%</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs text-muted-foreground">Overall spend</span>
+                    <span className="text-sm font-bold">{utilizationPct}%</span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden mb-3">
+                  <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-4">
                     <div
                       className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-red-500' : utilizationPct > 70 ? 'bg-amber-500' : 'bg-primary')}
                       style={{ width: `${Math.min(utilizationPct, 100)}%` }}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-lg bg-muted/60 px-2.5 py-2">
-                      <p className="text-muted-foreground">Planned</p>
-                      <p className="font-bold currency mt-0.5">{formatNaira(totalPlanned)}</p>
-                    </div>
-                    <div className="rounded-lg bg-muted/60 px-2.5 py-2">
-                      <p className="text-muted-foreground">Actual</p>
-                      <p className="font-bold currency mt-0.5">{formatNaira(totalActual)}</p>
-                    </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Planned', value: totalPlanned },
+                      { label: 'Actual', value: totalActual },
+                      { label: 'Remaining', value: remaining },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-lg bg-muted/60 px-2.5 py-2">
+                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                        <p className="text-xs font-bold currency mt-0.5">{formatNaira(value)}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <ChartGradients />
+                    <Pie
+                      data={donut}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={42}
+                      outerRadius={62}
+                      paddingAngle={2}
+                      stroke="none"
+                      {...chartAnim}
+                    >
+                      {donut.map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? 'url(#kd-grad-donut)' : CHART_COLORS[1]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={<GlassTooltip />}
+                      formatter={(v: number) => formatNaira(v)}
+                      cursor={{ fill: 'transparent' }}
+                    />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ── Lower row ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ── 3. Financial Intelligence ─────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <FinancialHealthCard />
+        <CashBurnCard />
+      </div>
+
+      {/* ── 4. Operational monitoring ─────────────────────────────── */}
+      <div className={cn('grid grid-cols-1 gap-5', isFinanceRole ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
         <ComplianceCard />
 
         {/* Upcoming subscriptions */}
@@ -632,7 +595,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Upcoming payments */}
+        {/* Upcoming payments — finance / admin only */}
         {isFinanceRole && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
@@ -670,60 +633,65 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         )}
-
-        {/* Budget donut */}
-        {!isFinanceRole && totalPlanned > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold">Budget Utilisation</CardTitle>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
-                View budgets <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <ChartGradients />
-                    <Pie
-                      data={donut}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={50}
-                      outerRadius={72}
-                      paddingAngle={2}
-                      stroke="none"
-                      {...chartAnim}
-                    >
-                      {donut.map((_, i) => (
-                        <Cell key={i} fill={i === 0 ? 'url(#kd-grad-donut)' : CHART_COLORS[1]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      content={<GlassTooltip />}
-                      formatter={(v: number) => formatNaira(v)}
-                      cursor={{ fill: 'transparent' }}
-                    />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="space-y-2.5">
-                  {[
-                    { label: 'Planned', value: totalPlanned },
-                    { label: 'Actual', value: totalActual },
-                    { label: 'Remaining', value: remaining },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{label}</p>
-                      <p className="text-sm font-bold currency">{formatNaira(value)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
+
+      {/* ── 5. Productivity ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MyTasksWidget />
+        <MyGoalsWidget />
+      </div>
+
+      {/* ── 6. Audit log — reference data at bottom ───────────────── */}
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
+          <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/audit')}>
+            Full audit log <ArrowRight className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-4 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full kd-skeleton shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 w-36 kd-skeleton rounded" />
+                    <div className="h-2.5 w-56 kd-skeleton rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activity.length === 0 ? (
+            <EmptyState icon={Inbox} title="No recent activity" description="Actions across all modules will appear here." compact />
+          ) : (
+            <div className="divide-y divide-border/40">
+              {activity.map((item, i) => {
+                const Icon = ICONS[item.action_type] || FileText;
+                const toneCls = ACTION_TONE[item.action_type] || 'text-muted-foreground bg-muted';
+                return (
+                  <div
+                    key={item.id}
+                    className={cn('flex items-start gap-3 px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}
+                  >
+                    <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5', toneCls)}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug">{prettyType(item.action_type)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>
+                      <p className="text-[11px] text-muted-foreground/50 mt-1">
+                        {item.performed_by_name ? `${item.performed_by_name} · ` : ''}
+                        {item.created_at ? formatDateTime(item.created_at) : ''}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
