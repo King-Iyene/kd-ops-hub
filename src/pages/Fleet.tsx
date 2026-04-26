@@ -40,6 +40,10 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { AuroraHero } from '@/components/AuroraHero';
+import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { burst } from '@/components/Burst';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
@@ -746,8 +750,20 @@ function KpiCard({
   subtext?: string;
   warn?: boolean;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    el.style.setProperty('--my', `${e.clientY - r.top}px`);
+  };
   return (
-    <Card className={warn ? 'border-red-300 dark:border-red-800' : ''}>
+    <Card
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      className={`kd-holographic relative overflow-hidden ${warn ? 'border-red-300 dark:border-red-800' : ''}`}
+    >
       <CardContent className="pt-4 pb-4">
         <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
           {icon}
@@ -756,7 +772,7 @@ function KpiCard({
         {value === null ? (
           <div className="h-7 w-28 bg-muted animate-pulse rounded mt-1" />
         ) : (
-          <div className={`text-xl font-bold tracking-tight ${warn ? 'text-red-600' : ''}`}>{value}</div>
+          <div className={`kd-stat-number text-xl font-bold tracking-tight ${warn ? 'text-red-600' : ''}`}>{value}</div>
         )}
         {subtext && value !== null && (
           <div className="text-[11px] text-muted-foreground mt-0.5">{subtext}</div>
@@ -960,18 +976,23 @@ function FleetAnalyticsDashboard({
           ) : (
             <ResponsiveContainer width="100%" height={208}>
               <BarChart data={chartBars} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <ChartGradients />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis
                   tickFormatter={(v) => `₦${v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1000).toFixed(0)}k`}`}
-                  tick={{ fontSize: 11 }}
+                  tick={axisTick}
+                  axisLine={false}
+                  tickLine={false}
                   width={56}
                 />
                 <ReTooltip
+                  content={<GlassTooltip />}
                   formatter={(v: number) => [formatNaira(v), 'Spend']}
                   labelFormatter={(l) => `${chartMode === 'weekly' ? 'Week of' : 'Month of'} ${l}`}
+                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
                 />
-                <Bar dataKey="spend" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={48} />
+                <Bar dataKey="spend" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} maxBarSize={48} {...chartAnim} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -2190,6 +2211,7 @@ const Fleet = () => {
         account_name: request.account_name,
       } : {}),
     });
+    burst({ palette: 'success', count: 50 });
     await logAudit(
       'fuel_request_approved',
       `Fuel request for ${request.employee_name} approved (${formatNaira(request.amount_ngn || 0)})`,
@@ -2631,28 +2653,53 @@ const Fleet = () => {
     return totalLitres > 0 ? (totalKm / totalLitres).toFixed(1) : null;
   })();
 
+  const pendingFuelCount = fuelRequests.filter((r) => r.status === 'pending').length;
+  const activeVehicleCount = vehicles.filter((v) => (v as any).status !== 'retired').length;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Fleet</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Manage fuel requests and daily trip logs for company vehicles. Admins review and approve requests, and can add or manage vehicle records.
-              </TooltipContent>
-            </Tooltip>
+      {/* Mission control hero */}
+      <AuroraHero className="p-5 sm:p-6" scanLine={totalAnomalies > 0}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Car className="h-4 w-4 opacity-80 kd-icon-glow" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Fleet · Operations Deck</span>
+            </div>
+            <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
+              {totalAnomalies > 0 ? `${totalAnomalies} anomal${totalAnomalies === 1 ? 'y' : 'ies'} flagged` : 'Fleet running smoothly'}
+            </h1>
+            <p className="text-sm opacity-70 mt-1.5">
+              {isAdmin
+                ? 'Review fuel requests, trip logs, and keep the fleet on the road.'
+                : 'Submit fuel requests and daily trip logs.'}
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm">
-            {isAdmin
-              ? 'Review fuel requests and trip logs'
-              : 'Submit fuel requests and daily trip logs'}
-          </p>
+          {/* Live status pills */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <Car className="h-3 w-3" /> {activeVehicleCount} active vehicle{activeVehicleCount === 1 ? '' : 's'}
+            </span>
+            {isAdmin && (
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+                <Fuel className="h-3 w-3" />
+                <span className={`h-1.5 w-1.5 rounded-full ${pendingFuelCount > 0 ? 'bg-amber-300 kd-status-live-warning' : 'bg-emerald-400 kd-status-live-success'}`} />
+                {pendingFuelCount} pending fuel
+              </span>
+            )}
+            {totalAnomalies > 0 && (
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 backdrop-blur-md border border-red-300/30 text-xs font-medium">
+                <AlertTriangle className="h-3 w-3 text-red-200" />
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400 kd-status-live-danger" />
+                {totalAnomalies} anomal{totalAnomalies === 1 ? 'y' : 'ies'}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <Radio className="h-3 w-3" /> Live telemetry
+            </span>
+          </div>
         </div>
-      </div>
+      </AuroraHero>
 
       {/* Fleet analytics — admins / finance only */}
       {isAdmin && (
@@ -2695,7 +2742,7 @@ const Fleet = () => {
             <TabsTrigger value="anomalies" className="relative">
               <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
               {totalAnomalies > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4">
+                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
                   {totalAnomalies > 9 ? '9+' : totalAnomalies}
                 </span>
               )}
@@ -3342,7 +3389,7 @@ const Fleet = () => {
                 <span className="text-xs text-muted-foreground font-normal">({anomalousTrips.length})</span>
               </h2>
               {anomalousTrips.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No anomalous trips.</p>
+                <Card><CardContent className="p-0"><EmptyState illustration="radar" title="No anomalous trips" description="All trip logs look normal. Anything unusual will surface here." /></CardContent></Card>
               ) : (
                 <Card>
                   <CardContent className="p-0">
@@ -3419,7 +3466,7 @@ const Fleet = () => {
                 <span className="text-xs text-muted-foreground font-normal">({anomalousFuelReqs.length})</span>
               </h2>
               {anomalousFuelReqs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No anomalous fuel requests.</p>
+                <Card><CardContent className="p-0"><EmptyState illustration="radar" title="No anomalous fuel requests" description="All fuel requests look normal." /></CardContent></Card>
               ) : (
                 <Card>
                   <CardContent className="p-0">
