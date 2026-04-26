@@ -2279,7 +2279,7 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    await supabase.from('expenses').insert({
+    const { error: expErr } = await supabase.from('expenses').insert({
       category: 'fuel',
       budget_category: 'fuel',
       amount_ngn: request.amount_ngn,
@@ -2295,6 +2295,13 @@ const Fleet = () => {
         account_name: request.account_name,
       } : {}),
     });
+    if (expErr) {
+      toast({
+        title: 'Approved, but expense entry failed',
+        description: expErr.message,
+        variant: 'destructive',
+      });
+    }
     burst({ palette: 'success', count: 50 });
     await logAudit(
       'fuel_request_approved',

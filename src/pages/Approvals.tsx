@@ -365,7 +365,7 @@ const Approvals = () => {
       if (it.kind === 'fuel') {
         const f = it.raw || {};
         const now = new Date().toISOString();
-        await supabase.from('expenses').insert({
+        const { error: expErr } = await supabase.from('expenses').insert({
           category: 'fuel',
           budget_category: 'fuel',
           amount_ngn: f.amount_ngn,
@@ -381,6 +381,15 @@ const Approvals = () => {
             account_name: f.account_name,
           } : {}),
         });
+        if (expErr) {
+          // Surface — silently dropping this is what caused the
+          // "approved fuel doesn't appear in Expenses" complaint.
+          toast({
+            title: 'Approved, but expense entry failed',
+            description: expErr.message,
+            variant: 'destructive',
+          });
+        }
       }
 
       await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);

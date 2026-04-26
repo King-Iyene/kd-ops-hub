@@ -1646,9 +1646,9 @@ const EmployeeProfile = () => {
                   </TableHeader>
                   <TableBody>
                     {documents.map((doc: any) => {
-                      const url = doc.file_url || (doc.storage_path
-                        ? supabase.storage.from('documents').getPublicUrl(doc.storage_path).data.publicUrl
-                        : null);
+                      // Pass bucket + storage_path so FilePreview generates a
+                      // fresh signed URL on open (the documents bucket is
+                      // private; stored public URLs would 404).
                       return (
                         <TableRow key={doc.id}>
                           <TableCell className="pl-4 font-medium">
@@ -1672,9 +1672,10 @@ const EmployeeProfile = () => {
                           </TableCell>
                           <TableCell className="pr-4 text-right">
                             <div className="flex items-center justify-end gap-1">
-                              {url && (
+                              {doc.storage_path && (
                                 <FilePreviewTrigger
-                                  url={url}
+                                  bucket="documents"
+                                  path={doc.storage_path}
                                   label="View"
                                   fileName={doc.title || doc.file_name}
                                 />
