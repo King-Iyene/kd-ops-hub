@@ -1,3 +1,4 @@
+import { useRef, type MouseEvent } from 'react';
 import { type LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -57,14 +58,25 @@ export function StatCard({
 }: Props) {
   const config = toneConfig[tone];
   const isPositiveTrend = (trend?.value ?? 0) >= 0;
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+    el.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  };
 
   return (
     <div
+      ref={cardRef}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+      onMouseMove={handleMouseMove}
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border/60 bg-card p-5',
+        'kd-holographic relative overflow-hidden rounded-xl border border-border/60 bg-card p-5',
         'kd-transition shadow-[var(--shadow-sm)]',
         onClick && 'cursor-pointer hover:-translate-y-0.5 hover:border-primary/20',
         onClick && config.glow,

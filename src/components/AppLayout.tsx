@@ -4,8 +4,11 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { MobileNav } from '@/components/MobileNav';
+import { CommandPalette } from '@/components/CommandPalette';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useEffectiveRole } from '@/store/authStore';
+import { useTimeOfDay } from '@/hooks/useTimeOfDay';
+import { Search } from 'lucide-react';
 
 const PORTAL_LABELS: Record<string, { label: string; color: string }> = {
   super_admin: { label: 'Super Admin',   color: 'bg-purple-500/15 text-purple-700' },
@@ -58,6 +61,14 @@ export default function AppLayout() {
   const location = useLocation();
   const portal = PORTAL_LABELS[effectiveRole ?? ''];
   const pageTitle = getRouteTitle(location.pathname);
+  // Sets <html data-tod="…"> so CSS picks up ambient palette shifts.
+  useTimeOfDay();
+
+  const openCommandPalette = () => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }),
+    );
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -86,6 +97,19 @@ export default function AppLayout() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Command palette trigger */}
+              <button
+                type="button"
+                onClick={openCommandPalette}
+                className="hidden md:inline-flex items-center gap-2 h-8 px-2.5 rounded-md border border-border/60 bg-muted/40 text-muted-foreground hover:text-foreground hover:bg-muted/70 kd-transition text-xs"
+                aria-label="Open command palette"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span>Search</span>
+                <kbd className="ml-1 hidden lg:inline-flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium">
+                  <span className="text-[11px]">⌘</span>K
+                </kbd>
+              </button>
               <NotificationBell />
               <div className="w-px h-4 bg-border/60" />
               <ProfileDropdown />
@@ -93,12 +117,13 @@ export default function AppLayout() {
           </header>
           {/* ── Main content ────────────────────────────────────────── */}
           <main className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
-            <div className="kd-page-enter">
+            <div key={location.pathname} className="kd-page-transition">
               <Outlet />
             </div>
           </main>
         </div>
       </SidebarProvider>
+      <CommandPalette />
       <MobileNav />
       <div className="h-14 md:hidden" />
     </div>

@@ -15,6 +15,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Cabin', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'Cabin', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -48,6 +48,18 @@ export function StatusBadge({
   const config = STATUS_CONFIG[status] ?? FALLBACK;
   const label = config.label || status.replace(/_/g, ' ');
 
+  // Living dots breathe for dynamic, attention-worthy statuses.
+  const liveAnim =
+    status === 'pending' || status === 'pending_approval' || status === 'pending_second_approval'
+      ? 'kd-status-live-warning'
+      : status === 'processing' || status === 'retry'
+        ? 'kd-status-live-cyan'
+        : status === 'failed' || status === 'rejected'
+          ? 'kd-status-live-danger'
+          : status === 'active' || status === 'succeeded'
+            ? 'kd-status-live-success'
+            : '';
+
   return (
     <span
       className={cn(
@@ -61,7 +73,14 @@ export function StatusBadge({
       )}
     >
       {showDot && (
-        <span className={cn('inline-block rounded-full shrink-0', config.dot, size === 'sm' ? 'h-1.5 w-1.5' : 'h-1.5 w-1.5')} />
+        <span
+          className={cn(
+            'inline-block rounded-full shrink-0',
+            config.dot,
+            size === 'sm' ? 'h-1.5 w-1.5' : 'h-1.5 w-1.5',
+            liveAnim,
+          )}
+        />
       )}
       {label}
     </span>

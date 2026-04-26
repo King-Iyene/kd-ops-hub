@@ -67,6 +67,41 @@
     --shadow-lg: 0 10px 28px -4px rgb(0 105 148 / 0.12), 0 4px 8px -2px rgb(0 0 0 / 0.06);
     --shadow-xl: 0 20px 48px -8px rgb(0 105 148 / 0.16), 0 8px 16px -4px rgb(0 0 0 / 0.08);
     --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 4px 16px -2px hsl(var(--primary) / 0.2);
+
+    /* ─── Ambient time-of-day palette ────────────────────────────────── */
+    /* Default (afternoon) — clear daylight */
+    --tod-aurora-1: 200 100% 45%;   /* primary cyan-teal */
+    --tod-aurora-2: 186 100% 50%;   /* bright cyan */
+    --tod-aurora-3: 200 100% 30%;   /* deep teal */
+    --tod-glow:     186 100% 50%;
+    --tod-greeting: 'Good afternoon';
+  }
+
+  /* Morning — warm amber sunrise (5am–11am) */
+  html[data-tod="morning"] {
+    --tod-aurora-1: 32 95% 60%;     /* amber */
+    --tod-aurora-2: 14 90% 65%;     /* coral */
+    --tod-aurora-3: 41 80% 55%;     /* gold */
+    --tod-glow:     32 95% 60%;
+    --tod-greeting: 'Good morning';
+  }
+
+  /* Evening — golden hour (5pm–8pm) */
+  html[data-tod="evening"] {
+    --tod-aurora-1: 270 70% 55%;    /* violet */
+    --tod-aurora-2: 14 85% 60%;     /* coral */
+    --tod-aurora-3: 41 80% 50%;     /* warm gold */
+    --tod-glow:     270 70% 55%;
+    --tod-greeting: 'Good evening';
+  }
+
+  /* Night — deep space (8pm–5am) */
+  html[data-tod="night"] {
+    --tod-aurora-1: 220 80% 35%;    /* deep blue */
+    --tod-aurora-2: 186 100% 50%;   /* neon cyan */
+    --tod-aurora-3: 270 60% 40%;    /* indigo */
+    --tod-glow:     186 100% 50%;
+    --tod-greeting: 'Working late';
   }
 }
 
@@ -171,6 +206,61 @@
 @keyframes kd-float {
   0%, 100% { transform: translateY(0); }
   50%       { transform: translateY(-4px); }
+}
+
+/* ─── Futuristic / sci-fi keyframes ────────────────────────────────── */
+@keyframes kd-aurora {
+  0%   { transform: translate(0%, 0%) rotate(0deg) scale(1); opacity: 0.55; }
+  33%  { transform: translate(8%, -6%) rotate(40deg) scale(1.08); opacity: 0.7; }
+  66%  { transform: translate(-6%, 8%) rotate(-30deg) scale(0.95); opacity: 0.6; }
+  100% { transform: translate(0%, 0%) rotate(0deg) scale(1); opacity: 0.55; }
+}
+
+@keyframes kd-particle-drift {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translate(var(--drift-x, 20px), -120px); opacity: 0; }
+}
+
+@keyframes kd-breathe-success {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--success) / 0.55); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--success) / 0); }
+}
+
+@keyframes kd-breathe-warning {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--warning) / 0.55); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--warning) / 0); }
+}
+
+@keyframes kd-breathe-danger {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--destructive) / 0.55); }
+  50%      { box-shadow: 0 0 0 5px hsl(var(--destructive) / 0); }
+}
+
+@keyframes kd-breathe-cyan {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--tod-glow) / 0.5); }
+  50%      { box-shadow: 0 0 0 6px hsl(var(--tod-glow) / 0); }
+}
+
+@keyframes kd-scan-line {
+  0%   { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+@keyframes kd-draw-line {
+  from { stroke-dashoffset: var(--path-length, 1000); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes kd-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 4px hsl(var(--tod-glow) / 0.6)); }
+  50%      { filter: drop-shadow(0 0 12px hsl(var(--tod-glow) / 0.9)); }
+}
+
+@keyframes kd-page-transition {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ─── Utility Classes ────────────────────────────────────────────────── */
@@ -365,6 +455,172 @@
   /* Page enter animation */
   .kd-page-enter {
     animation: kd-slide-up 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ─── Futuristic surfaces ─────────────────────────────────────────── */
+
+  /* Display font for hero / headline moments */
+  .kd-display {
+    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    font-feature-settings: "ss01", "ss02";
+  }
+
+  /* Aurora — animated radial mesh, time-of-day aware */
+  .kd-aurora {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .kd-aurora::before,
+  .kd-aurora::after {
+    content: '';
+    position: absolute;
+    inset: -25%;
+    background:
+      radial-gradient(ellipse 50% 40% at 25% 30%, hsl(var(--tod-aurora-1) / 0.65) 0%, transparent 60%),
+      radial-gradient(ellipse 45% 35% at 75% 70%, hsl(var(--tod-aurora-2) / 0.55) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, hsl(var(--tod-aurora-3) / 0.45) 0%, transparent 65%);
+    filter: blur(40px) saturate(140%);
+    animation: kd-aurora 14s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .kd-aurora::after {
+    animation-duration: 22s;
+    animation-direction: reverse;
+    opacity: 0.7;
+  }
+
+  /* Hex grid — subtle sci-fi texture overlay */
+  .kd-hex-grid {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='32' viewBox='0 0 28 32'><path d='M14 0 L28 8 L28 24 L14 32 L0 24 L0 8 Z' fill='none' stroke='white' stroke-opacity='0.08' stroke-width='1'/></svg>");
+    background-size: 28px 32px;
+  }
+
+  /* Dot grid — softer alternative */
+  .kd-dot-grid {
+    background-image: radial-gradient(circle, hsl(var(--foreground) / 0.07) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Floating particle layer (use with several .kd-particle children) */
+  .kd-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .kd-particle {
+    position: absolute;
+    bottom: 0;
+    width: 3px;
+    height: 3px;
+    border-radius: 9999px;
+    background: hsl(var(--tod-glow) / 0.7);
+    box-shadow: 0 0 6px hsl(var(--tod-glow) / 0.6);
+    animation: kd-particle-drift 8s linear infinite;
+  }
+
+  /* Holographic card — mouse-tracking iridescent shimmer */
+  .kd-holographic {
+    position: relative;
+    isolation: isolate;
+  }
+  .kd-holographic::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      circle 220px at var(--mx, 50%) var(--my, 50%),
+      hsl(var(--tod-glow) / 0.18),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 240ms ease;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .kd-holographic:hover::before {
+    opacity: 1;
+  }
+
+  /* Living status dots — breathing rings */
+  .kd-status-live-success { animation: kd-breathe-success 2.4s ease-in-out infinite; }
+  .kd-status-live-warning { animation: kd-breathe-warning 1.8s ease-in-out infinite; }
+  .kd-status-live-danger  { animation: kd-breathe-danger  1.2s ease-in-out infinite; }
+  .kd-status-live-cyan    { animation: kd-breathe-cyan    2.0s ease-in-out infinite; }
+
+  /* Time-of-day aware glow */
+  .kd-tod-glow {
+    box-shadow: 0 0 0 1px hsl(var(--tod-glow) / 0.25), 0 6px 24px -4px hsl(var(--tod-glow) / 0.35);
+  }
+
+  .kd-tod-text {
+    color: hsl(var(--tod-glow));
+  }
+
+  /* Animated icon glow (use on lucide icons) */
+  .kd-icon-glow {
+    animation: kd-glow-pulse 3s ease-in-out infinite;
+  }
+
+  /* Premium page transition */
+  .kd-page-transition {
+    animation: kd-page-transition 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Scan line — drags down a futuristic loading bar */
+  .kd-scan-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, hsl(var(--tod-glow) / 0.7), transparent);
+    animation: kd-scan-line 2.4s linear infinite;
+    pointer-events: none;
+  }
+
+  /* SVG line draw-on */
+  .kd-draw-line {
+    stroke-dasharray: var(--path-length, 1000);
+    animation: kd-draw-line 1200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* Sci-fi border — subtle gradient ring */
+  .kd-border-gradient {
+    position: relative;
+  }
+  .kd-border-gradient::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,
+      hsl(var(--tod-aurora-1) / 0.6),
+      hsl(var(--tod-aurora-2) / 0.3),
+      hsl(var(--tod-aurora-3) / 0.5));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Reduced motion fallback */
+  @media (prefers-reduced-motion: reduce) {
+    .kd-aurora::before,
+    .kd-aurora::after,
+    .kd-particle,
+    .kd-status-live-success,
+    .kd-status-live-warning,
+    .kd-status-live-danger,
+    .kd-status-live-cyan,
+    .kd-icon-glow,
+    .kd-scan-line {
+      animation: none !important;
+    }
   }
 }
 

@@ -247,7 +247,7 @@ export function AppSidebar() {
               <>
                 <span className="flex-1 truncate">{item.title}</span>
                 {showBadge && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-[10px] font-bold text-amber-900">
+                  <span className="relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-[10px] font-bold text-amber-900 kd-status-live-warning">
                     {approvalTotal > 99 ? '99+' : approvalTotal}
                   </span>
                 )}
@@ -257,7 +257,7 @@ export function AppSidebar() {
               </>
             )}
             {sidebarCollapsed && showBadge && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400" />
+              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 kd-status-live-warning" />
             )}
           </NavLink>
         </SidebarMenuButton>

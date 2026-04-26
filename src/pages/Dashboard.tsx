@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
+import { AuroraHero } from '@/components/AuroraHero';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -156,13 +158,6 @@ const prettyType = (t: string) =>
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good morning';
-  if (h >= 12 && h < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
 const CHART_COLORS = ['#006994', '#e2e8f0'];
 
 const Dashboard = () => {
@@ -289,22 +284,29 @@ const Dashboard = () => {
         { name: 'Remaining', value: remaining },
       ];
 
-  const greeting = getGreeting();
+  const tod = useTimeOfDay();
+  const greeting = greetingFor(tod);
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
+  const todSubtitle: Record<typeof tod, string> = {
+    morning:   'A fresh slate. Here\'s where things stand today.',
+    afternoon: 'Mid-day check-in. Here\'s what\'s in motion.',
+    evening:   'Winding down. Here\'s your day at a glance.',
+    night:     'The night shift. Here\'s the pulse of the system.',
+  };
 
   /* ── Personal / field-staff view ───────────────────────────────── */
   if (isPersonal) {
     return (
       <div className="space-y-6">
         {/* Greeting */}
-        <div className="rounded-2xl kd-gradient-brand p-5 text-white">
+        <AuroraHero className="p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-4 w-4 opacity-80" />
-            <span className="text-sm font-medium opacity-80">Personal Overview</span>
+            <Sparkles className="h-4 w-4 opacity-80 kd-icon-glow" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Personal Overview</span>
           </div>
-          <h1 className="text-2xl font-bold">{greeting}, {firstName}</h1>
-          <p className="text-sm opacity-70 mt-0.5">Here's your status for today.</p>
-        </div>
+          <h1 className="kd-display text-3xl sm:text-4xl font-bold">{greeting}, {firstName}.</h1>
+          <p className="text-sm opacity-70 mt-1.5">{todSubtitle[tod]}</p>
+        </AuroraHero>
 
         <AnnouncementsBanner />
 
@@ -326,22 +328,20 @@ const Dashboard = () => {
   /* ── Finance / admin / operations view ─────────────────────────── */
   return (
     <div className="space-y-5">
-      {/* ── Greeting banner ──────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl kd-gradient-brand p-5 text-white">
-        {/* Decorative circle */}
-        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
-        <div className="pointer-events-none absolute -right-2 bottom-4 h-20 w-20 rounded-full bg-cyan-400/10" />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-1">
-            <LayoutDashboard className="h-4 w-4 opacity-70" />
-            <span className="text-xs font-semibold uppercase tracking-wider opacity-70">Operations Dashboard</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{greeting}, {firstName}.</h1>
-          <p className="text-sm opacity-60 mt-0.5">
-            {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+      {/* ── Aurora greeting hero ─────────────────────────────────── */}
+      <AuroraHero className="p-5 sm:p-7" scanLine>
+        <div className="flex items-center gap-2 mb-1">
+          <LayoutDashboard className="h-4 w-4 opacity-80 kd-icon-glow" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Operations Command</span>
         </div>
-      </div>
+        <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
+          {greeting}, {firstName}.
+        </h1>
+        <p className="text-sm opacity-70 mt-1.5">
+          {todSubtitle[tod]}
+          <span className="opacity-50"> · {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+        </p>
+      </AuroraHero>
 
       <OnboardingChecklist />
       <AnnouncementsBanner />
