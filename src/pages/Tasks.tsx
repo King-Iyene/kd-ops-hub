@@ -372,11 +372,11 @@ const Tasks = () => {
       </div>
 
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search tasks, assignees..."
               value={search}
               onChange={(e) => {
@@ -386,7 +386,7 @@ const Tasks = () => {
             />
           </div>
           <Select value={scope} onValueChange={(v) => setScope(v as any)}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -395,7 +395,7 @@ const Tasks = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -408,7 +408,7 @@ const Tasks = () => {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -597,7 +597,7 @@ const Tasks = () => {
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Assignee</Label>
                 <Select

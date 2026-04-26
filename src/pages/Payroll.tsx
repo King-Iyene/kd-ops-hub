@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Banknote,
+  Check,
   CheckCircle2,
   Loader2,
   Plus,
@@ -75,6 +76,14 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 interface BonusLine {
   type: string;
@@ -1002,6 +1011,8 @@ const Payroll = () => {
               }
             />
           ) : (
+            <>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1117,6 +1128,90 @@ const Payroll = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
+
+            {/* Mobile payroll runs — thumb-friendly card list */}
+            <div className="md:hidden p-3 space-y-2">
+              {runs.map((r, idx) => {
+                const prev = runs[idx + 1];
+                const momPct = prev && prev.total_burn_ngn > 0
+                  ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
+                  : null;
+                const accent =
+                  r.status === 'draft' ? 'bg-muted-foreground'
+                  : r.status === 'pending_approval' ? 'bg-amber-500'
+                  : r.status === 'approved' ? 'bg-emerald-500'
+                  : r.status === 'paid' ? 'bg-blue-500'
+                  : 'bg-muted-foreground';
+                return (
+                  <MobileCard key={r.id} accentClassName={accent}>
+                    <MobileCardHeader>
+                      <div className="min-w-0 flex-1">
+                        <MobileCardTitle>{monthLabel(r.period, r.period_type)}</MobileCardTitle>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {r.employee_count ?? 0} employee{r.employee_count === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-base font-bold currency leading-tight">{formatNaira(r.total_burn_ngn)}</p>
+                        {momPct !== null && (
+                          <span className={`text-[10px] font-medium inline-flex items-center gap-0.5 ${momPct >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {momPct >= 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                            {Math.abs(momPct).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
+                    </MobileCardHeader>
+
+                    <MobileCardRow label="Status">
+                      <StatusBadge status={r.status} />
+                    </MobileCardRow>
+                    <MobileCardRow label="Contractor">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Expenses">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
+                    <MobileCardRow label="PAYE">{formatNaira(r.paye_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Pension (emp)">{formatNaira(r.pension_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Pension (er)">{formatNaira(r.total_employee_ngn * EMPLOYER_PENSION_RATE)}</MobileCardRow>
+
+                    <MobileCardFooter className="flex-wrap">
+                      {r.status === 'draft' && (
+                        <Button size="sm" variant="outline" className="h-9" onClick={() => submit(r)}>
+                          Submit
+                        </Button>
+                      )}
+                      {r.status === 'pending_approval' && canApprovePerm && (
+                        <Button size="sm" variant="outline" className="h-9 bg-success/10 text-success border-success/40 hover:bg-success/20" onClick={() => approve(r)}>
+                          <Check className="h-4 w-4 mr-1.5" /> Approve
+                        </Button>
+                      )}
+                      {r.status === 'approved' && canGeneratePayslipsPerm && (
+                        <Button size="sm" variant="outline" className="h-9" onClick={() => generatePayslips(r)} disabled={working}>
+                          {working && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                          Payslips
+                        </Button>
+                      )}
+                      {r.status === 'approved' && canDisburse && (
+                        <Button size="sm" className="h-9" onClick={() => openDisburse(r)} disabled={working}>
+                          {working ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                          Disburse
+                        </Button>
+                      )}
+                      {r.status === 'approved' && (
+                        <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirmPaidRun(r)}>
+                          Manually Paid
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)}>
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

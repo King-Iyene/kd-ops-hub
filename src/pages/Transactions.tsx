@@ -43,6 +43,13 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
@@ -247,8 +254,8 @@ const Transactions = () => {
         }
       />
 
-      {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-3 print:hidden">
+      {/* Summary strip — single column on phones, 3 cols on desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
         {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
           const count = rows.filter((r) => r.txn_type === type).length;
           const Icon = TYPE_ICON[type];
@@ -307,19 +314,19 @@ const Transactions = () => {
           ))}
         </div>
 
-        {/* Secondary filters */}
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap print:hidden">
-          <div className="relative flex-1 min-w-[220px]">
+        {/* Secondary filters — search full-width on mobile, others reflow */}
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap print:hidden">
+          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search reference, description, bank..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
@@ -330,7 +337,7 @@ const Transactions = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
@@ -344,16 +351,16 @@ const Transactions = () => {
             type="date"
             value={from}
             onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
-            className="w-[150px]"
+            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
           />
           <Input
             type="date"
             value={to}
             onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
-            className="w-[150px]"
+            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
           />
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 sm:h-9">
               <X className="h-4 w-4 mr-1" /> Clear
             </Button>
           )}
@@ -384,6 +391,7 @@ const Transactions = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30">
@@ -469,6 +477,74 @@ const Transactions = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile transactions list */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((r) => {
+                  const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
+                  const description =
+                    r.txn_type === 'payment_batch' ? (r.batch_name || r.description)
+                    : r.txn_type === 'expense' ? ((r.category || '').replace(/_/g, ' ') || r.description)
+                    : r.description;
+                  return (
+                    <MobileCard
+                      key={`${r.txn_type}-${r.id}`}
+                      onClick={() => handleRowClick(r)}
+                      accentClassName={
+                        r.txn_type === 'quick_pay' ? 'bg-blue-500'
+                        : r.txn_type === 'payment_batch' ? 'bg-emerald-500'
+                        : 'bg-amber-500'
+                      }
+                    >
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <Badge variant="secondary" className={cn('font-medium text-[10px] mb-1 h-4 px-1.5', TYPE_COLOR[r.txn_type])}>
+                            <Icon className="h-2.5 w-2.5 mr-1" />
+                            {typeLabel(r.txn_type)}
+                          </Badge>
+                          <MobileCardTitle className="text-sm capitalize">{description || '—'}</MobileCardTitle>
+                          {r.txn_type === 'payment_batch' && r.beneficiary_count != null && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                          {r.txn_type === 'expense' && r.description && (
+                            <p className="text-[11px] text-muted-foreground truncate">{r.description}</p>
+                          )}
+                        </div>
+                        <MobileCardMeta className="currency text-base">
+                          {formatNaira(r.amount_ngn)}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <StatusBadge status={r.status} size="sm" />
+                        <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
+                      </div>
+
+                      {r.reference && (
+                        <MobileCardRow label="Reference">
+                          <CopyableRef value={r.reference} />
+                        </MobileCardRow>
+                      )}
+
+                      {r.receipt_url && (
+                        <a
+                          href={r.receipt_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs text-primary"
+                        >
+                          <FileDown className="h-3 w-3" /> View receipt
+                        </a>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

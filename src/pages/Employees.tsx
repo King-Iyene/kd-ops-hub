@@ -52,6 +52,13 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
@@ -452,10 +459,11 @@ const Employees = () => {
       </div>
 
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
+              className="h-10 sm:h-9"
               placeholder="Search by name, email, role..."
               value={search}
               onChange={(e) => {
@@ -510,6 +518,7 @@ const Employees = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -610,6 +619,102 @@ const Employees = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile employees list */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((e) => {
+                  const accent =
+                    e.status === 'active' ? 'bg-emerald-500'
+                    : e.status === 'invited' ? 'bg-amber-500'
+                    : 'bg-muted-foreground';
+                  return (
+                    <MobileCard
+                      key={e.id}
+                      onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}
+                      accentClassName={accent}
+                    >
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <MobileCardTitle>{displayName(e.first_name, e.last_name, e.full_name)}</MobileCardTitle>
+                          <p className="text-[11px] text-muted-foreground capitalize mt-0.5">{roleLabel(e.role)}</p>
+                          {e.tags && e.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {e.tags.map((tid) => {
+                                const tag = availableTags.find((t) => t.id === tid);
+                                if (!tag) return null;
+                                return (
+                                  <span
+                                    key={tid}
+                                    className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                                    style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                                  >
+                                    {tag.name}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <Badge variant="secondary" className={cn('shrink-0 h-5 px-2 text-[10px]', STATUS_BADGE[e.status] || STATUS_BADGE.inactive)}>
+                          {e.status === 'invited' && <Mail className="h-2.5 w-2.5 mr-1" />}
+                          {e.status}
+                        </Badge>
+                      </MobileCardHeader>
+
+                      <MobileCardRow label="Email">
+                        <span className="truncate">{e.email}</span>
+                      </MobileCardRow>
+                      {e.phone && <MobileCardRow label="Phone">{e.phone}</MobileCardRow>}
+                      {e.created_at && <MobileCardRow label="Joined">{formatDate(e.created_at)}</MobileCardRow>}
+
+                      {isAdmin && (
+                        <MobileCardFooter>
+                          {e.status === 'invited' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
+                            >
+                              <Mail className="h-4 w-4 mr-1.5" /> Resend invite
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9"
+                            onClick={(evt) => { evt.stopPropagation(); openEdit(e); }}
+                          >
+                            <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                          </Button>
+                          {e.status === 'active' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-9 px-3 text-destructive"
+                              onClick={(evt) => { evt.stopPropagation(); toggleStatus(e); }}
+                            >
+                              <UserX className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {e.status === 'inactive' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmReactivate(e); }}
+                            >
+                              Reactivate
+                            </Button>
+                          )}
+                        </MobileCardFooter>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

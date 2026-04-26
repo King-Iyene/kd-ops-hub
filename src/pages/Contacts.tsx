@@ -54,6 +54,13 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -366,11 +373,11 @@ const Contacts = () => {
 
         <TabsContent value="contacts" className="mt-4 space-y-4">
       <Card>
-        <div className="p-4 border-b flex gap-2 items-center flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+        <div className="p-3 sm:p-4 border-b flex gap-2 items-center flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search name, email, phone, tags..."
               value={search}
               onChange={(e) => {
@@ -380,7 +387,7 @@ const Contacts = () => {
             />
           </div>
           <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -413,6 +420,7 @@ const Contacts = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -495,6 +503,77 @@ const Contacts = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile contacts list */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((c) => (
+                  <MobileCard
+                    key={c.id}
+                    onClick={() => navigate(`/contacts/${c.id}`)}
+                    accentClassName={c.status === 'converted' ? 'bg-emerald-500' : c.contact_type === 'lead' ? 'bg-amber-500' : 'bg-blue-500'}
+                  >
+                    <MobileCardHeader>
+                      <div className="min-w-0 flex-1">
+                        <MobileCardTitle>{displayName(c.first_name, c.last_name, c.full_name)}</MobileCardTitle>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <Badge variant="secondary" className={`h-4 px-1.5 text-[9px] ${TYPE_BADGE[c.contact_type]}`}>
+                            {c.contact_type}
+                          </Badge>
+                          <Badge variant="secondary" className={`h-4 px-1.5 text-[9px] ${STATUS_BADGE[c.status]}`}>
+                            {c.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </MobileCardHeader>
+
+                    {c.email && <MobileCardRow label="Email"><span className="truncate">{c.email}</span></MobileCardRow>}
+                    {c.phone && <MobileCardRow label="Phone">{c.phone}</MobileCardRow>}
+                    <MobileCardRow label="Added">{formatDate(c.created_at)}</MobileCardRow>
+
+                    <MobileCardFooter>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-9"
+                        onClick={(e) => { e.stopPropagation(); setNoteDialog(c); setNoteText(''); }}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-1.5" /> Note
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-9"
+                        onClick={(e) => { e.stopPropagation(); openEdit(c); }}
+                      >
+                        <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                      </Button>
+                      {c.status !== 'converted' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 px-3 text-success border-success/40"
+                          onClick={(e) => { e.stopPropagation(); convertToContractor(c); }}
+                          title="Convert to contractor"
+                        >
+                          <ArrowRightCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-9 px-3 text-destructive"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(c); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </MobileCardFooter>
+                  </MobileCard>
+                ))}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}
@@ -522,7 +601,7 @@ const Contacts = () => {
             <DialogTitle>{editing ? 'Edit contact' : 'New contact'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>First name *</Label>
                 <Input
@@ -851,7 +930,7 @@ export function WhatsAppGroupsTab() {
               <Label>Description</Label>
               <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Type</Label>
                 <Select value={form.group_type} onValueChange={(v) => setForm({ ...form, group_type: v })}>
