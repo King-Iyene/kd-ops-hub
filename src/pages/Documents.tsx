@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
@@ -220,12 +221,13 @@ const Documents = () => {
 
     setUploading(true);
     try {
+      const compressed = await compressImage(file);
       // Storage path: userId / timestamp-safeName
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
       const path = `${profile?.id || 'anon'}/${Date.now()}-${safeName}`;
-      const up = await supabase.storage.from('documents').upload(path, file, {
+      const up = await supabase.storage.from('documents').upload(path, compressed, {
         upsert: false,
-        contentType: file.type || undefined,
+        contentType: compressed.type || undefined,
       });
       if (up.error) throw up.error;
 

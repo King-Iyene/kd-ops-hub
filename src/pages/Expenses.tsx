@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
@@ -506,10 +507,11 @@ const Expenses = () => {
     // Upload receipt if one was selected.
     let receiptUrl: string | null = null;
     if (receiptFile) {
-      const filename = `${crypto.randomUUID()}-${receiptFile.name}`;
+      const compressed = await compressImage(receiptFile);
+      const filename = `${crypto.randomUUID()}-${compressed.name}`;
       const { error: uploadErr } = await supabase.storage
         .from('receipts')
-        .upload(filename, receiptFile, { contentType: receiptFile.type || undefined });
+        .upload(filename, compressed, { contentType: compressed.type || undefined });
       if (uploadErr) {
         toast({ title: 'Receipt upload failed', description: uploadErr.message, variant: 'destructive' });
         setSubmitting(false);

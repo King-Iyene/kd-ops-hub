@@ -16,8 +16,13 @@ import {
   Info,
   AlertTriangle,
   Activity,
+  Database,
+  Archive,
+  ImageIcon,
+  Clock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatNaira } from '@/lib/format';
@@ -269,10 +274,11 @@ const SettingsPage = () => {
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
-    const path = `company-logo-${Date.now()}-${file.name.replace(/[^a-z0-9.]+/gi, '_')}`;
+    const compressed = await compressImage(file);
+    const path = `company-logo-${Date.now()}-${compressed.name.replace(/[^a-z0-9.]+/gi, '_')}`;
     const { error } = await supabase.storage
       .from('documents')
-      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+      .upload(path, compressed, { upsert: false, contentType: compressed.type || undefined });
     if (error) {
       toast({ title: 'Logo upload failed', description: error.message, variant: 'destructive' });
       return;
@@ -320,6 +326,9 @@ const SettingsPage = () => {
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
           )}
           <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
+          {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+            <TabsTrigger value="retention" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Database className="mr-2 h-4 w-4" /> Data Retention</TabsTrigger>
+          )}
         </TabsList>
         <div className="md:min-w-0">
 
@@ -1122,6 +1131,11 @@ const SettingsPage = () => {
         <TabsContent value="tags" className="mt-4 space-y-4">
           <TagsManager />
         </TabsContent>
+
+        {/* DATA RETENTION ---------------------------------------------- */}
+        <TabsContent value="retention" className="mt-4 space-y-4">
+          <DataRetentionPanel />
+        </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -1129,6 +1143,324 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
+
+// ---------------------------------------------------------------------------
+// Data Retention panel
+//
+// Phase 1: Image compression on new uploads (functional, opt-out).
+// Phase 2 (placeholder): cleanup jobs for audit logs, notifications, and
+//          receipts. Intentionally disabled until the backend cron jobs
+//          and archive flow are built. The UI is rendered now so admins
+//          can see what's coming and we get feedback on the design.
+// ---------------------------------------------------------------------------
+
+function DataRetentionPanel() {
+  const [compressOn, setCompressOn] = useState(isImageCompressionEnabled());
+
+  const toggleCompress = (next: boolean) => {
+    setImageCompressionEnabled(next);
+    setCompressOn(next);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* ── Top warning banner ─────────────────────────────────────── */}
+      <Card className="border-amber-300 bg-amber-50/50">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm space-y-1.5">
+              <p className="font-semibold text-amber-900">
+                Read this before changing anything on this page
+              </p>
+              <p className="text-amber-800 leading-relaxed">
+                Data retention controls how long old records stay in the system.
+                Used incorrectly, they can delete information you legally need
+                (Nigerian tax law generally requires <strong>6 years</strong> of
+                financial records). Every destructive option below is{' '}
+                <strong>disabled by default</strong> and requires multiple
+                confirmations to enable.
+              </p>
+              <p className="text-amber-800 leading-relaxed">
+                <strong>Recovery window:</strong> archives are kept for 90 days
+                after deletion in a private <code className="text-[11px] bg-amber-100 px-1 rounded">archives/</code>{' '}
+                bucket and can be restored by support. After 90 days, archives
+                are also removed and recovery is no longer possible.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Image compression — FUNCTIONAL ─────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ImageIcon className="h-4 w-4 text-primary" />
+            Image compression on upload
+            <span className="text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+              Active
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start justify-between gap-4 p-3 rounded-lg border bg-muted/30">
+            <div className="space-y-1 min-w-0">
+              <p className="text-sm font-medium">Compress receipts, photos &amp; IDs before upload</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Resizes images to 1600 px on the longest side and re-encodes
+                as JPEG at 82% quality. Receipts and ID photos shrink 5–10×
+                with no visible loss. PDFs, GIFs and SVGs are never touched.
+              </p>
+            </div>
+            <Switch checked={compressOn} onCheckedChange={toggleCompress} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-muted-foreground">Typical receipt size</p>
+              <p className="font-semibold mt-0.5">3–5 MB → 250–400 KB</p>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-muted-foreground">Storage savings (1 year)</p>
+              <p className="font-semibold mt-0.5">~90% smaller bucket</p>
+            </div>
+            <div className="rounded-lg border bg-card px-3 py-2">
+              <p className="text-muted-foreground">Risk to existing data</p>
+              <p className="font-semibold mt-0.5 text-emerald-700">None — only new uploads</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 text-xs text-muted-foreground border-t pt-3">
+            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong>Where it applies:</strong> expense receipts, fuel-request
+              photos, vehicle repair receipts, employee avatars, employee
+              documents, contractor IDs, and the company logo. Original files
+              already in storage are <strong>never modified</strong> — this
+              only affects uploads from now on.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Audit logs retention — PLACEHOLDER ─────────────────────── */}
+      <RetentionPlaceholder
+        icon={Activity}
+        title="Audit log retention"
+        whatItIs="Every action on the platform (approvals, payments, edits, deletes) is recorded in the audit log. After ~12 months of active use the table can hold 50,000–200,000 rows."
+        whyEnable="Old audit rows take up database space and slow down queries. Archiving compresses them to a JSON file in the archives/ bucket; deleting frees the space permanently."
+        retentionOptions={['6 months', '1 year', '2 years', '3 years', '6 years (Nigerian tax minimum)']}
+        recommended="3 years"
+        legalNote="FIRS requires 6 years of supporting records for tax-relevant transactions (payments, expenses). Audit logs are evidence — if in doubt, archive don't delete, and keep at least 6 years."
+        dangers={[
+          'Once deleted (and the archive expires after 90 days), there is NO way to reconstruct who did what.',
+          'Auditors may request records going back 6+ years.',
+          'If a fraud investigation starts, missing audit logs can create legal exposure.',
+        ]}
+        steps={[
+          'Toggle the feature ON — opens a warning dialog explaining what will happen.',
+          'Pick a retention period from the dropdown.',
+          'See a live preview: "this would currently affect X rows / Y MB".',
+          'Type "I understand" + enter your password to confirm.',
+          'Cleanup is delayed 7 days — daily reminder emails to all admins during that period.',
+          'Each scheduled run sends an email 24 h before with affected count and a "Cancel this run" link.',
+        ]}
+      />
+
+      {/* ── Notifications retention — PLACEHOLDER ──────────────────── */}
+      <RetentionPlaceholder
+        icon={Bell}
+        title="Notifications cleanup"
+        whatItIs="Read in-app notifications older than the chosen period are deleted (unread notifications are always preserved)."
+        whyEnable="Notifications accumulate quickly — every approval, rejection, batch update creates one. Cleaning up read ones keeps the bell dropdown fast and reduces row count."
+        retentionOptions={['30 days', '60 days', '90 days', '180 days', '1 year']}
+        recommended="90 days"
+        legalNote="Notifications duplicate information that's already in audit_logs and the source records (batches, expenses). Safe to delete once read."
+        dangers={[
+          'Users will lose their notification history older than the period.',
+          'No archive is kept (notifications are duplicated data).',
+        ]}
+        steps={[
+          'Toggle ON, pick a period, confirm with password.',
+          '7-day delay before first run, with reminder emails.',
+          'Only reads notifications where read = true; unread are never touched.',
+          'Cancel the schedule any time from this panel.',
+        ]}
+      />
+
+      {/* ── Receipts / file retention — PLACEHOLDER ─────────────────── */}
+      <RetentionPlaceholder
+        icon={Archive}
+        title="Receipts &amp; fuel photos retention"
+        whatItIs="Files older than the chosen period are moved from the receipts/ bucket into a compressed archive. The DB row keeps the metadata; the file itself is bundled into a monthly ZIP in the archives/ bucket."
+        whyEnable="Receipt and fuel-photo files are the largest single category of storage. Archiving them after 1–2 years can reduce bucket size by 80–90% while keeping the records legally accessible."
+        retentionOptions={['1 year', '2 years', '3 years', '6 years', 'Never auto-archive']}
+        recommended="2 years (archive only, no delete)"
+        legalNote="Receipts are tax-relevant. We recommend ARCHIVE only — never DELETE. Archived files can be restored by extracting the ZIP and re-uploading."
+        dangers={[
+          'Archived files take an extra step to view — the ZIP must be extracted first.',
+          'If "delete after archive" is enabled and the archive ZIP is later lost, the file is gone.',
+          'Tax audits may require originals — retain at least 6 years.',
+        ]}
+        steps={[
+          'Pick "Archive only" mode (recommended) or "Archive + delete" (advanced).',
+          'Choose retention period.',
+          'Confirm with password + 7-day delay.',
+          'First run produces a ZIP per month for files in scope.',
+          'ZIPs are kept indefinitely in archives/ bucket unless you explicitly remove them.',
+        ]}
+      />
+
+      {/* ── Documents — LOCKED ─────────────────────────────────────── */}
+      <Card className="border-emerald-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            Employee &amp; HR documents
+            <span className="text-[10px] font-medium uppercase tracking-wider bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">
+              Protected
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Documents (contracts, IDs, NDAs, payslips, certificates) are{' '}
+            <strong className="text-foreground">never auto-deleted</strong>.
+            They contain legal and personal records that must be retained for
+            the duration of employment plus a statutory tail (typically 7 years
+            after exit under Nigerian labour law). To remove a specific
+            document, use the delete button on that document directly — every
+            deletion is audit-logged.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* ── How to monitor what's filling up storage ───────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4 text-primary" />
+            How to monitor your Supabase usage
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p className="text-muted-foreground leading-relaxed">
+            Check your Supabase dashboard regularly:
+          </p>
+          <ol className="list-decimal pl-5 space-y-1 text-muted-foreground leading-relaxed">
+            <li>Open your project → <strong>Reports</strong> → <strong>Database</strong> &amp; <strong>Storage</strong>.</li>
+            <li>Set a billing alert at <strong>80%</strong> of free-tier limits (500 MB DB, 1 GB storage, 5 GB bandwidth/month).</li>
+            <li>Upgrade to Pro ($25/mo) when storage passes 700 MB or DB passes 400 MB. Pro lifts every limit ~100×.</li>
+          </ol>
+          <p className="text-xs text-muted-foreground border-t pt-2 mt-2 leading-relaxed">
+            With ~700 contractors making 4 payments/month and image
+            compression enabled, you typically have <strong>2–3 years of
+            runway</strong> on the Pro plan before any cleanup is needed.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface RetentionPlaceholderProps {
+  icon: typeof Activity;
+  title: string;
+  whatItIs: string;
+  whyEnable: string;
+  retentionOptions: string[];
+  recommended: string;
+  legalNote: string;
+  dangers: string[];
+  steps: string[];
+}
+
+function RetentionPlaceholder({
+  icon: Icon, title, whatItIs, whyEnable, retentionOptions,
+  recommended, legalNote, dangers, steps,
+}: RetentionPlaceholderProps) {
+  return (
+    <Card className="opacity-95">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+          <Icon className="h-4 w-4 text-primary" />
+          {title}
+          <span className="text-[10px] font-medium uppercase tracking-wider bg-muted text-muted-foreground px-1.5 py-0.5 rounded">
+            Coming soon
+          </span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">What it is</p>
+            <p className="text-xs leading-relaxed">{whatItIs}</p>
+          </div>
+          <div className="rounded-lg border bg-muted/30 px-3 py-2.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Why you might enable it</p>
+            <p className="text-xs leading-relaxed">{whyEnable}</p>
+          </div>
+        </div>
+
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="space-y-1 min-w-[180px]">
+            <Label className="text-xs">Retention period</Label>
+            <Select disabled value="disabled">
+              <SelectTrigger>
+                <SelectValue placeholder="Disabled" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="disabled">Disabled (default)</SelectItem>
+                {retentionOptions.map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 min-w-[180px]">
+            <Label className="text-xs">Mode</Label>
+            <Select disabled value="off">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="off">Off</SelectItem>
+                <SelectItem value="archive">Archive only (safe)</SelectItem>
+                <SelectItem value="archive_delete">Archive + delete (advanced)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button disabled variant="outline" size="sm">
+            Enable…
+          </Button>
+        </div>
+
+        <div className="rounded-lg border-l-4 border-primary bg-primary/5 px-3 py-2 text-xs">
+          <span className="font-semibold">Recommended:</span> {recommended}
+        </div>
+
+        <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span className="font-semibold">Legal note:</span> {legalNote}
+        </div>
+
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">Dangers</p>
+          <ul className="list-disc pl-5 text-xs space-y-1 text-muted-foreground leading-relaxed">
+            {dangers.map((d, i) => <li key={i}>{d}</li>)}
+          </ul>
+        </div>
+
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">How enabling will work</p>
+          <ol className="list-decimal pl-5 text-xs space-y-1 text-muted-foreground leading-relaxed">
+            {steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Departments CRUD

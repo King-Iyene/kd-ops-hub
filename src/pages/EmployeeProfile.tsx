@@ -6,6 +6,7 @@ import {
   ChevronDown, AlertTriangle, ExternalLink, Camera,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
@@ -364,11 +365,12 @@ const EmployeeProfile = () => {
   const uploadPhoto = async (file: File) => {
     if (!id) return;
     setUploadingPhoto(true);
-    const ext = file.name.split('.').pop() || 'jpg';
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split('.').pop() || 'jpg';
     const path = `employees/${id}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true });
+      .upload(path, compressed, { upsert: true });
     if (upErr) {
       toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
       setUploadingPhoto(false);
@@ -399,13 +401,14 @@ const EmployeeProfile = () => {
     }
     setDocUploading(true);
     try {
-      const safeName = docFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const compressed = await compressImage(docFile);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `employee-documents/${id}/${Date.now()}-${safeName}`;
       const { error: upErr } = await supabase.storage
         .from('documents')
-        .upload(path, docFile, {
+        .upload(path, compressed, {
           upsert: false,
-          contentType: docFile.type || 'application/octet-stream',
+          contentType: compressed.type || 'application/octet-stream',
         });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
@@ -417,8 +420,8 @@ const EmployeeProfile = () => {
         expires_at: docForm.expires_at || null,
         storage_path: path,
         file_url: urlData.publicUrl,
-        mime_type: docFile.type || null,
-        file_size_bytes: docFile.size,
+        mime_type: compressed.type || null,
+        file_size_bytes: compressed.size,
         employee_id: id,
         uploaded_by: currentUser?.id || null,
       });

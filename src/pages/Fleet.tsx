@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
@@ -1557,11 +1558,12 @@ const Fleet = () => {
     try {
       let receiptUrl: string | null = null;
       if (repairReceipt) {
-        const ext = repairReceipt.name.split('.').pop();
+        const compressed = await compressImage(repairReceipt);
+        const ext = compressed.name.split('.').pop();
         const path = `repairs/${profile?.id}/${Date.now()}.${ext}`;
         const { data: upData } = await supabase.storage
           .from('receipts')
-          .upload(path, repairReceipt, { upsert: true });
+          .upload(path, compressed, { upsert: true });
         if (upData) {
           const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
           receiptUrl = urlData.publicUrl;
@@ -2027,11 +2029,12 @@ const Fleet = () => {
       // Upload supporting document (optional) and patch the URL back onto the row.
       if (fuelDoc && inserted?.id) {
         try {
-          const safeName = fuelDoc.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const compressed = await compressImage(fuelDoc);
+          const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
           const path = `fuel-request-docs/${inserted.id}-${safeName}`;
           const { data: upData, error: upErr } = await supabase.storage
             .from('receipts')
-            .upload(path, fuelDoc, { upsert: true });
+            .upload(path, compressed, { upsert: true });
           if (upErr) throw upErr;
           if (upData) {
             const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
@@ -2477,11 +2480,12 @@ const Fleet = () => {
     }
     setSubmittingReceipt(true);
     try {
-      const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const compressed = await compressImage(receiptFile);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `fuel-receipts/${uploadingReceiptFor.id}-${safeName}`;
       const { data: upData, error: upErr } = await supabase.storage
         .from('receipts')
-        .upload(path, receiptFile, { upsert: true });
+        .upload(path, compressed, { upsert: true });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
       const { error } = await supabase
