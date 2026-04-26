@@ -4154,36 +4154,36 @@ const Fleet = () => {
 
       {/* TRIP SUMMARY DIALOG */}
       <Dialog open={!!tripSummary} onOpenChange={(v) => { if (!v) setTripSummary(null); }}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-600" /> Trip Completed
             </DialogTitle>
           </DialogHeader>
           {tripSummary && (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0">
               <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-md bg-muted/50 px-3 py-2 text-center">
+                <div className="rounded-md bg-muted/50 px-3 py-2 text-center min-w-0">
                   <p className="text-2xl font-bold tabular-nums">
                     {tripSummary.distanceKm != null ? tripSummary.distanceKm.toLocaleString() : '—'}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Kilometres driven</p>
                 </div>
-                <div className="rounded-md bg-muted/50 px-3 py-2 text-center">
+                <div className="rounded-md bg-muted/50 px-3 py-2 text-center min-w-0">
                   <p className="text-2xl font-bold tabular-nums">
                     {Math.floor(tripSummary.durationMin / 60)}h {tripSummary.durationMin % 60}m
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Duration</p>
                 </div>
               </div>
-              <div className="space-y-2 text-sm">
-                <div>
+              <div className="space-y-2 text-sm min-w-0">
+                <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">From</p>
-                  <p className="font-mono text-xs truncate">{tripSummary.startLocation}</p>
+                  <p className="text-xs break-words">{tripSummary.startLocation}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">To</p>
-                  <p className="font-mono text-xs truncate">{tripSummary.endLocation}</p>
+                  <p className="text-xs break-words">{tripSummary.endLocation}</p>
                 </div>
               </div>
               {tripSummary.isAnomaly && (
