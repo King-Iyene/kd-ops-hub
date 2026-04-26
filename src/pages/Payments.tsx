@@ -11,6 +11,7 @@ import {
   TrendingUp, Zap, ArrowRight, Users, Info,
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
+import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { usePermission, useFeatureAccess } from '@/hooks/usePermission';
@@ -68,22 +69,28 @@ const Payments = () => {
 
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState(false);
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
   const [stats, setStats] = useState<BatchStats>({
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
   });
 
-  const fetchBalance = useCallback(async () => {
+  const fetchBalance = useCallback(async (isRetry = false) => {
     setBalanceLoading(true);
+    if (!isRetry) setBalanceError(false);
     try {
-      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
-        body: { action: 'get_balance' },
-      });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Failed');
-      setBalance(data.data as BalanceData);
+      const result = await getPaystackBalance();
+      setBalance(result);
+      setBalanceError(false);
       setBalanceUpdatedAt(new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }));
     } catch {
-      // silently fail — balance is informational
+      if (!isRetry) {
+        // Race condition: session may not be restored yet on first mount.
+        // One auto-retry after a short pause usually resolves it.
+        setTimeout(() => fetchBalance(true), 1500);
+      } else {
+        setBalanceError(true);
+      }
     } finally {
       setBalanceLoading(false);
     }
@@ -198,6 +205,16 @@ const Payments = () => {
               <div className="space-y-1.5">
                 <div className="h-7 w-36 kd-skeleton rounded" />
                 <div className="h-2.5 w-24 kd-skeleton rounded" />
+              </div>
+            ) : balanceError ? (
+              <div>
+                <p className="text-sm text-muted-foreground">Could not load balance</p>
+                <button
+                  onClick={() => fetchBalance()}
+                  className="text-[11px] text-primary hover:underline mt-0.5"
+                >
+                  Retry
+                </button>
               </div>
             ) : (
               <>

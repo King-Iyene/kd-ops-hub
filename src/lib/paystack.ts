@@ -23,10 +23,19 @@ async function edgeCall<T = any>(
   action: string,
   params: Record<string, unknown>,
 ): Promise<T> {
-  const { data: { session } } = await supabase.auth.getSession();
+  let { data: { session } } = await supabase.auth.getSession();
+  // Session may not be restored from localStorage yet on first page load.
+  // Attempt one silent refresh before giving up.
+  if (!session?.access_token) {
+    const { data } = await supabase.auth.refreshSession();
+    session = data.session;
+  }
+  if (!session?.access_token) {
+    throw new Error('Session expired — please refresh the page and sign in again.');
+  }
   const { data, error } = await supabase.functions.invoke('paystack-transfer', {
     body: { action, ...params },
-    headers: { 'Authorization': `Bearer ${session?.access_token}` },
+    headers: { 'Authorization': `Bearer ${session.access_token}` },
   });
   if (error) {
     let message = 'Transfer failed';
@@ -96,6 +105,10 @@ export async function initiateTransfer(params: {
   reason?: string;
 }): Promise<PaystackTransfer> {
   return edgeCall<PaystackTransfer>('initiate_transfer', params);
+}
+
+export async function getPaystackBalance(): Promise<{ available: number; currency: string }> {
+  return edgeCall('get_balance', {});
 }
 
 export async function verifyTransfer(reference: string): Promise<{
