@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { AuroraHero } from '@/components/AuroraHero';
+import { ChartGradients, GlassTooltip, chartAnim } from '@/components/ChartKit';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
@@ -623,10 +624,26 @@ const Dashboard = () => {
               <div className="grid grid-cols-2 gap-4 items-center">
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
-                    <Pie data={donut} dataKey="value" nameKey="name" innerRadius={50} outerRadius={72} paddingAngle={2}>
-                      {donut.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                    <ChartGradients />
+                    <Pie
+                      data={donut}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={50}
+                      outerRadius={72}
+                      paddingAngle={2}
+                      stroke="none"
+                      {...chartAnim}
+                    >
+                      {donut.map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? 'url(#kd-grad-donut)' : CHART_COLORS[1]} />
+                      ))}
                     </Pie>
-                    <Tooltip formatter={(v: number) => formatNaira(v)} />
+                    <Tooltip
+                      content={<GlassTooltip />}
+                      formatter={(v: number) => formatNaira(v)}
+                      cursor={{ fill: 'transparent' }}
+                    />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>

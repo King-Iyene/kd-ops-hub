@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -266,12 +267,17 @@ function PaymentReport({ range }: { range: DateRange }) {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={byMonth}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-                <Tooltip formatter={(v: number) => formatNaira(v)} />
-                <Bar dataKey="amount" fill="#006994" radius={[4, 4, 0, 0]} name="Disbursed" />
+              <BarChart data={byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <ChartGradients />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={<GlassTooltip />}
+                  formatter={(v: number) => formatNaira(v)}
+                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                />
+                <Bar dataKey="amount" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} name="Disbursed" {...chartAnim} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -281,13 +287,23 @@ function PaymentReport({ range }: { range: DateRange }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
-                <Pie data={byStatus} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80}>
+                <ChartGradients />
+                <Pie
+                  data={byStatus}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  stroke="none"
+                  {...chartAnim}
+                >
                   {byStatus.map((_, i) => (
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -358,12 +374,17 @@ function ExpenseReport({ range }: { range: DateRange }) {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={byCategory}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tickFormatter={(v: string) => v.replace(/_/g, ' ')} />
-              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Bar dataKey="value" fill="#D6AC50" radius={[4, 4, 0, 0]} name="Spend" />
+            <BarChart data={byCategory} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+              <XAxis dataKey="name" tickFormatter={(v: string) => v.replace(/_/g, ' ')} tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ fill: chartTheme.gold, fillOpacity: 0.06 }}
+              />
+              <Bar dataKey="value" fill="url(#kd-grad-gold)" radius={[6, 6, 0, 0]} name="Spend" {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -465,12 +486,26 @@ function FleetReport({ range }: { range: DateRange }) {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={fuelByMonth}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Line type="monotone" dataKey="amount" stroke="#006994" strokeWidth={2} dot />
+            <LineChart data={fuelByMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ stroke: chartTheme.primary, strokeWidth: 1, strokeOpacity: 0.3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="amount"
+                stroke={chartTheme.primary}
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: chartTheme.primary, strokeWidth: 2, stroke: '#fff' }}
+                activeDot={{ r: 5, fill: chartTheme.cyan, strokeWidth: 2, stroke: '#fff' }}
+                filter="url(#kd-line-glow)"
+                {...chartAnim}
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
@@ -554,12 +589,17 @@ function ContractorReport({ range }: { range: DateRange }) {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={top} layout="vertical" margin={{ left: 90 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" tickFormatter={(v) => formatNairaCompact(v)} />
-              <YAxis dataKey="name" type="category" width={80} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Bar dataKey="total" fill="#006994" radius={[0, 4, 4, 0]} name="Total" />
+            <BarChart data={top} layout="vertical" margin={{ top: 8, right: 12, left: 90, bottom: 0 }}>
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} horizontal={false} />
+              <XAxis type="number" tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis dataKey="name" type="category" width={80} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+              />
+              <Bar dataKey="total" fill="url(#kd-grad-primary)" radius={[0, 6, 6, 0]} name="Total" {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -661,14 +701,19 @@ function BudgetReport({ range }: { range: DateRange }) {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={rows}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Legend />
-              <Bar dataKey="planned" fill="#00ECFF" name="Planned" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="actual" fill="#006994" name="Actual" radius={[4, 4, 0, 0]} />
+            <BarChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+              <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="planned" fill="url(#kd-grad-cyan)" name="Planned" radius={[6, 6, 0, 0]} {...chartAnim} />
+              <Bar dataKey="actual" fill="url(#kd-grad-primary)" name="Actual" radius={[6, 6, 0, 0]} {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -911,14 +956,19 @@ function PnLReport({ range }: { range: DateRange }) {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={320}>
-            <BarChart data={monthly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Legend />
-              <Bar dataKey="revenue" fill="#22c55e" name="Revenue" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="costs" fill="#ef4444" name="Costs" radius={[4, 4, 0, 0]} />
+            <BarChart data={monthly} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+              <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ fill: chartTheme.success, fillOpacity: 0.05 }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+              <Bar dataKey="revenue" fill="url(#kd-grad-success)" name="Revenue" radius={[6, 6, 0, 0]} {...chartAnim} />
+              <Bar dataKey="costs" fill="url(#kd-grad-danger)" name="Costs" radius={[6, 6, 0, 0]} {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -1026,11 +1076,16 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
                 { bucket: '61-90 days', amount: buckets.b90 },
               ]}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="bucket" />
-              <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Bar dataKey="amount" fill="#006994" radius={[4, 4, 0, 0]} />
+              <ChartGradients />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+              <XAxis dataKey="bucket" tick={axisTick} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+              <Tooltip
+                content={<GlassTooltip />}
+                formatter={(v: number) => formatNaira(v)}
+                cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+              />
+              <Bar dataKey="amount" fill="url(#kd-grad-primary)" radius={[6, 6, 0, 0]} {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -1119,19 +1174,23 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
+              <ChartGradients />
               <Pie
                 data={rows.slice(0, 8)}
                 dataKey="total"
                 nameKey="name"
                 innerRadius={60}
                 outerRadius={110}
+                paddingAngle={2}
+                stroke="none"
+                {...chartAnim}
               >
                 {rows.slice(0, 8).map((_, i) => (
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v: number) => formatNaira(v)} />
-              <Legend />
+              <Tooltip content={<GlassTooltip />} formatter={(v: number) => formatNaira(v)} cursor={{ fill: 'transparent' }} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
         </CardContent>
