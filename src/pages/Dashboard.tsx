@@ -621,7 +621,7 @@ const Dashboard = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 items-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
                 <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <ChartGradients />

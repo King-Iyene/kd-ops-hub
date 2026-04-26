@@ -44,6 +44,14 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { AuroraHero } from '@/components/AuroraHero';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { burst } from '@/components/Burst';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare } from 'lucide-react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
@@ -2859,6 +2867,7 @@ const Fleet = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -3004,6 +3013,141 @@ const Fleet = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile fuel requests — thumb-friendly card list */}
+              <div className="md:hidden p-3 space-y-2">
+                {visibleFuel.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-8">No fuel requests yet.</p>
+                ) : visibleFuel.map((r) => {
+                  const accent =
+                    r.status === 'pending' ? 'bg-amber-500'
+                    : r.status === 'approved' ? 'bg-emerald-500'
+                    : r.status === 'rejected' ? 'bg-red-500'
+                    : r.status === 'budget_blocked' ? 'bg-red-500'
+                    : r.status === 'receipt_uploaded' ? 'bg-blue-500'
+                    : 'bg-muted-foreground';
+                  return (
+                    <MobileCard key={r.id} accentClassName={accent}>
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <MobileCardTitle>{r.employee_name}</MobileCardTitle>
+                          <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                            {r.station_name}
+                          </p>
+                        </div>
+                        <MobileCardMeta className="currency text-base">
+                          {formatNaira(r.amount_ngn || 0)}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+
+                      <div className="flex items-center gap-3 text-xs">
+                        {r.status === 'budget_blocked'
+                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50">Over Budget</Badge>
+                          : <StatusBadge status={r.status} />}
+                        <span className="text-muted-foreground tabular-nums ml-auto">
+                          {r.litres_est ? `${r.litres_est} L` : ''}
+                        </span>
+                        <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
+                      </div>
+
+                      {r.reason && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{r.reason}</p>
+                      )}
+
+                      {r.request_doc_url && (
+                        <a
+                          href={r.request_doc_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary"
+                        >
+                          <FileText className="h-3 w-3" /> View Document
+                        </a>
+                      )}
+
+                      {/* Admin actions, condensed for mobile */}
+                      {isAdmin && r.status === 'pending' && (
+                        <MobileCardFooter>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                            onClick={() => handleFuelAction(r, 'rejected')}
+                          >
+                            <X className="h-4 w-4 mr-1.5" /> Reject
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                            onClick={() => handleFuelAction(r, 'approved')}
+                          >
+                            <Check className="h-4 w-4 mr-1.5" /> Approve
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                      {isAdmin && r.status === 'budget_blocked' && (profile?.role === 'super_admin' || profile?.role === 'admin') && (
+                        <MobileCardFooter>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9 text-amber-700 border-amber-300 hover:bg-amber-50"
+                            onClick={() => handleBudgetException(r)}
+                          >
+                            <Check className="h-4 w-4 mr-1.5" /> Approve as Exception
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                      {isAdmin && r.status === 'approved' && (
+                        <MobileCardFooter>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9"
+                            onClick={() => handleMarkPaymentSent(r)}
+                          >
+                            <CreditCard className="h-4 w-4 mr-1.5" /> Mark Payment Sent
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                      {isAdmin && r.status === 'receipt_uploaded' && (
+                        <MobileCardFooter>
+                          {r.receipt_url && (
+                            <a
+                              href={r.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 text-xs px-3 rounded-md border border-input hover:bg-accent"
+                            >
+                              <FileText className="h-4 w-4" /> View Receipt
+                            </a>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9 text-green-700 border-green-300 hover:bg-green-50"
+                            onClick={() => handleMarkComplete(r)}
+                          >
+                            <Check className="h-4 w-4 mr-1.5" /> Complete
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                      {r.status === 'rejected' && r.employee_id === profile?.id && (
+                        <MobileCardFooter>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9"
+                            onClick={() => resubmitFuel(r)}
+                          >
+                            Re-edit & Resubmit
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3188,6 +3332,7 @@ const Fleet = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -3293,6 +3438,92 @@ const Fleet = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden p-3 space-y-2">
+                {visibleTrips.length === 0 ? (
+                  <p className="text-center text-muted-foreground text-sm py-8">No trip logs yet.</p>
+                ) : visibleTrips.map((t) => {
+                  const isLive = t.status === 'in_progress';
+                  const accent =
+                    isLive ? 'bg-green-500'
+                    : t.is_anomaly ? 'bg-red-500'
+                    : t.status === 'completed' ? 'bg-blue-500'
+                    : 'bg-muted-foreground';
+                  return (
+                    <MobileCard
+                      key={t.id}
+                      onClick={() => openTripDetail(t)}
+                      accentClassName={accent}
+                      className={t.is_anomaly ? 'bg-red-50/40 dark:bg-red-950/10' : ''}
+                    >
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <MobileCardTitle>{t.employee_name}</MobileCardTitle>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {formatDate(t.date)}
+                            {t.trip_start_time && ` · ${new Date(t.trip_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          {t.km_driven != null && (
+                            <p className="text-base font-bold tabular-nums">{t.km_driven.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">km</span></p>
+                          )}
+                          {isLive ? (
+                            <Badge variant="outline" className="border-green-400 text-green-700 bg-green-50 mt-0.5">Live</Badge>
+                          ) : t.duration_minutes != null && (
+                            <p className="text-[11px] text-muted-foreground tabular-nums">
+                              {Math.floor(t.duration_minutes / 60)}h {t.duration_minutes % 60}m
+                            </p>
+                          )}
+                        </div>
+                      </MobileCardHeader>
+
+                      <div className="space-y-1 text-xs">
+                        <div className="flex items-start gap-2">
+                          <span className="text-muted-foreground w-10 shrink-0">From</span>
+                          <span className="font-mono text-[11px] truncate flex-1">{t.start_location || '—'}</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="text-muted-foreground w-10 shrink-0">To</span>
+                          <span className="font-mono text-[11px] truncate flex-1">
+                            {t.end_location || (isLive ? <span className="text-green-600 italic">In progress…</span> : '—')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {t.is_anomaly && t.anomaly_reason && (
+                        <div className="flex items-start gap-1.5 rounded-md bg-red-50 dark:bg-red-950/20 px-2 py-1.5 text-[11px] text-red-700 dark:text-red-300">
+                          <AlertTriangle className="h-3 w-3 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{t.anomaly_reason}</span>
+                        </div>
+                      )}
+
+                      {isAdmin && (t.start_lat != null || t.end_lat != null) && (
+                        <MobileCardFooter>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-9"
+                            onClick={(e) => { e.stopPropagation(); openTripMap(t); }}
+                          >
+                            <MapIcon className="h-4 w-4 mr-1.5 text-blue-600" /> View map
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-9 px-3 text-destructive"
+                            onClick={(e) => { e.stopPropagation(); setConfirmDeleteTrip(t); }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </MobileCardFooter>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
               {fleetAvgEfficiency && visibleTrips.length > 0 && (
                 <div className="px-4 py-2 border-t text-sm text-muted-foreground flex justify-end gap-2">
                   <span>Fleet average fuel efficiency:</span>

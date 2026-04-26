@@ -170,10 +170,10 @@ const Payments = () => {
           <p className="text-sm text-muted-foreground mt-0.5">Manage partner and contractor payments</p>
         </div>
 
-        <div className="flex items-start gap-3 flex-wrap justify-end">
-          {/* Paystack Balance Card */}
+        <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
+          {/* Paystack Balance Card — full-width on mobile, fixed width on desktop */}
           <div className={cn(
-            'rounded-xl border bg-card px-4 py-3 min-w-[220px] shadow-[var(--shadow-sm)]',
+            'rounded-xl border bg-card px-4 py-3 w-full sm:w-auto sm:min-w-[220px] shadow-[var(--shadow-sm)]',
             isLowBalance ? 'border-amber-300 bg-amber-50' : 'border-border',
           )}>
             <div className="flex items-center justify-between mb-2.5">
@@ -235,10 +235,10 @@ const Payments = () => {
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex gap-2">
+          {/* Action buttons — full-width row on mobile so taps are easy */}
+          <div className="flex gap-2 w-full sm:w-auto">
             {canQuickPay && <QuickPayDialog />}
-            <Button onClick={() => navigate('/payments/new')}>
+            <Button onClick={() => navigate('/payments/new')} className="flex-1 sm:flex-initial h-10 sm:h-9">
               <Plus className="mr-2 h-4 w-4" /> New Batch
             </Button>
           </div>
