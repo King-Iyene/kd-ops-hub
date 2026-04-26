@@ -5329,96 +5329,164 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       </div>
 
       <Dialog open={showForm} onOpenChange={(v) => { if (!v) { setShowForm(false); reset(); } }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit' : 'Add'} Vehicle</DialogTitle>
+        <DialogContent className="max-w-2xl p-0 max-h-[90vh] flex flex-col gap-0">
+          {/* Header — adds a TOD halo behind the icon */}
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/60">
+            <div className="flex items-center gap-3">
+              <div className="relative h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-15 blur-md" />
+                <Car className="relative h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="kd-display text-lg">{editing ? 'Edit Vehicle' : 'Add Vehicle'}</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {editing ? `Updating ${form.name || 'this vehicle'}` : 'Register a new company vehicle'}
+                </p>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Name *</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Office Hilux" />
+
+          {/* Scrollable body */}
+          <div className="overflow-y-auto px-6 py-5 space-y-7 flex-1 min-h-0">
+            {/* Identity */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Car className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Identity</h3>
+                <div className="flex-1 h-px bg-border/60" />
               </div>
-              <div className="space-y-1">
-                <Label>Plate number *</Label>
-                <Input value={form.plate_number} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="e.g. LAG-123-AB" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Name <span className="text-destructive">*</span></Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Office Hilux" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Plate number <span className="text-destructive">*</span></Label>
+                  <Input value={form.plate_number} onChange={(e) => setForm({ ...form, plate_number: e.target.value })} placeholder="e.g. LAG-123-AB" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Make / model</Label>
+                  <Input value={form.make_model} onChange={(e) => setForm({ ...form, make_model: e.target.value })} placeholder="e.g. Toyota Hilux" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Year</Label>
+                  <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="e.g. 2022" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Color</Label>
+                  <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="e.g. White" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">VIN</Label>
+                  <Input value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Make / model</Label>
-                <Input value={form.make_model} onChange={(e) => setForm({ ...form, make_model: e.target.value })} placeholder="e.g. Toyota Hilux" />
+            </section>
+
+            {/* Fuel */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Fuel className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Fuel & efficiency</h3>
+                <div className="flex-1 h-px bg-border/60" />
               </div>
-              <div className="space-y-1">
-                <Label>Year</Label>
-                <Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} placeholder="e.g. 2022" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tank capacity (litres)</Label>
+                  <Input type="number" value={form.tank_capacity_litres} onChange={(e) => setForm({ ...form, tank_capacity_litres: e.target.value })} placeholder="e.g. 60" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Avg fuel efficiency (km/L)</Label>
+                  <Input type="number" step="0.1" value={form.avg_km_per_litre} onChange={(e) => setForm({ ...form, avg_km_per_litre: e.target.value })} placeholder="e.g. 10" />
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label>Color</Label>
-                <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="e.g. White" />
+            </section>
+
+            {/* Assignment */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Assignment & budget</h3>
+                <div className="flex-1 h-px bg-border/60" />
               </div>
-              <div className="space-y-1">
-                <Label>VIN</Label>
-                <Input value={form.vin} onChange={(e) => setForm({ ...form, vin: e.target.value })} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Assigned employee</Label>
+                  <Select value={form.assigned_driver_id || '__none__'} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v === '__none__' ? '' : v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
+                      {allEmployees.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Weekly fuel budget (₦)</Label>
+                  <Input type="number" value={form.weekly_budget_ngn} onChange={(e) => setForm({ ...form, weekly_budget_ngn: e.target.value })} />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Tank capacity (litres)</Label>
-                <Input type="number" value={form.tank_capacity_litres} onChange={(e) => setForm({ ...form, tank_capacity_litres: e.target.value })} placeholder="e.g. 60" />
+            </section>
+
+            {/* Compliance & service */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Compliance & service</h3>
+                <div className="flex-1 h-px bg-border/60" />
               </div>
-              <div className="space-y-1">
-                <Label>Avg fuel efficiency (km/L)</Label>
-                <Input type="number" step="0.1" value={form.avg_km_per_litre} onChange={(e) => setForm({ ...form, avg_km_per_litre: e.target.value })} placeholder="e.g. 10" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Insurance expiry</Label>
+                  <Input type="date" value={form.insurance_expiry} onChange={(e) => setForm({ ...form, insurance_expiry: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Road worthiness expiry</Label>
+                  <Input type="date" value={form.road_worthiness_expiry} onChange={(e) => setForm({ ...form, road_worthiness_expiry: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Last service date</Label>
+                  <Input type="date" value={form.last_service_date} onChange={(e) => setForm({ ...form, last_service_date: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Next service date</Label>
+                  <Input type="date" value={form.next_service_date} onChange={(e) => setForm({ ...form, next_service_date: e.target.value })} />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Assigned employee</Label>
-                <Select value={form.assigned_driver_id || '__none__'} onValueChange={(v) => setForm({ ...form, assigned_driver_id: v === '__none__' ? '' : v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
-                    {allEmployees.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            </section>
+
+            {/* Notes */}
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                <h3 className="kd-display text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Notes</h3>
+                <div className="flex-1 h-px bg-border/60" />
               </div>
-              <div className="space-y-1">
-                <Label>Weekly fuel budget (₦)</Label>
-                <Input type="number" value={form.weekly_budget_ngn} onChange={(e) => setForm({ ...form, weekly_budget_ngn: e.target.value })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Insurance expiry</Label>
-                <Input type="date" value={form.insurance_expiry} onChange={(e) => setForm({ ...form, insurance_expiry: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>Road worthiness expiry</Label>
-                <Input type="date" value={form.road_worthiness_expiry} onChange={(e) => setForm({ ...form, road_worthiness_expiry: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>Last service date</Label>
-                <Input type="date" value={form.last_service_date} onChange={(e) => setForm({ ...form, last_service_date: e.target.value })} />
-              </div>
-              <div className="space-y-1">
-                <Label>Next service date</Label>
-                <Input type="date" value={form.next_service_date} onChange={(e) => setForm({ ...form, next_service_date: e.target.value })} />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Notes</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} placeholder="Internal notes about this vehicle..." />
-            </div>
+            </section>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={submitting || !form.name.trim() || !form.plate_number.trim()}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editing ? 'Update' : 'Add'}
-            </Button>
+
+          {/* Sticky footer */}
+          <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm flex-row items-center sm:justify-between gap-3 mt-0">
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {(!form.name.trim() || !form.plate_number.trim())
+                ? <><span className="text-destructive">●</span> Fill in name and plate number to save</>
+                : <><span className="text-success">●</span> Ready to save</>}
+            </p>
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+              <Button
+                onClick={handleSave}
+                disabled={submitting || !form.name.trim() || !form.plate_number.trim()}
+                className={(!submitting && form.name.trim() && form.plate_number.trim()) ? 'kd-magnetic' : ''}
+              >
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editing ? 'Update vehicle' : 'Add vehicle'}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
