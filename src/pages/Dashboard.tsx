@@ -55,7 +55,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { cn } from '@/lib/utils';
 
 interface DashboardStats {
-  partnersPaid: number;
+  totalEmployees: number;
   totalDisbursed: number;
   fuelSpend: number;
 }
@@ -171,7 +171,7 @@ const Dashboard = () => {
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
   const [stats, setStats] = useState<DashboardStats>({
-    partnersPaid: 0,
+    totalEmployees: 0,
     totalDisbursed: 0,
     fuelSpend: 0,
   });
@@ -263,7 +263,7 @@ const Dashboard = () => {
 
       const [
         batchesRes, fuelRes, activityRes, subsRes, budgetsRes,
-        expensesRes, processedBatchesRes, upcomingPaymentsRes,
+        expensesRes, processedBatchesRes, upcomingPaymentsRes, employeesRes,
       ] = await Promise.all([
         // Disbursed = money that actually left the bank. Includes 'processed'
         // (all items succeeded) and 'partially_processed' (some failed — failed
@@ -276,6 +276,7 @@ const Dashboard = () => {
         supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved'),
         supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']),
         supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).eq('status', 'scheduled').order('scheduled_date', { ascending: true }).limit(5),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('is_anonymised', true),
       ]);
 
       // Subtract failed batch_items from partially_processed batches so the
@@ -301,10 +302,10 @@ const Dashboard = () => {
       };
 
       const totalDisbursed = (batchesRes.data || []).reduce((sum: number, b: any) => sum + actualDisbursedAmount(b), 0);
-      const partnersPaid = batchesRes.data?.reduce((sum, b) => sum + (b.beneficiary_count || 0), 0) || 0;
+      const totalEmployees = employeesRes.count ?? 0;
       const fuelSpend = fuelRes.data?.reduce((sum, f) => sum + (f.amount_ngn || 0), 0) || 0;
 
-      setStats({ partnersPaid, totalDisbursed, fuelSpend });
+      setStats({ totalEmployees, totalDisbursed, fuelSpend });
       setActivity((activityRes.data as AuditLogRow[]) || []);
       setUpcoming((subsRes.data as UpcomingSub[]) || []);
       setUpcomingPayments((upcomingPaymentsRes.data as UpcomingPayment[]) || []);
@@ -409,11 +410,12 @@ const Dashboard = () => {
       {/* ── 1. KPI stats — first data visible ────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          title="Partners Paid"
-          value={loading ? '—' : stats.partnersPaid}
+          title="Total Employees"
+          value={loading ? '—' : stats.totalEmployees}
           icon={Users}
-          subtitle="This month"
+          subtitle="Active on payroll"
           tone="primary"
+          onClick={() => navigate('/employees')}
         />
         <StatCard
           title="Total Disbursed"
