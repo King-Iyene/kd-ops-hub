@@ -78,6 +78,14 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
@@ -1075,11 +1083,11 @@ const Expenses = () => {
       )}
 
       <Card>
-        <div className="p-4 border-b flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="p-3 sm:p-4 border-b flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search description or category..."
               value={search}
               onChange={(e) => {
@@ -1088,16 +1096,16 @@ const Expenses = () => {
               }}
             />
           </div>
-          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
-            <TabsList>
-              <TabsTrigger value="all">All <TabCount n={statusCounts.all} /></TabsTrigger>
-              <TabsTrigger value="pending">Pending <TabCount n={statusCounts.pending} /></TabsTrigger>
-              <TabsTrigger value="approved">Approved <TabCount n={statusCounts.approved} /></TabsTrigger>
-              <TabsTrigger value="rejected">Rejected <TabCount n={statusCounts.rejected} /></TabsTrigger>
+          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }} className="w-full sm:w-auto">
+            <TabsList className="h-auto flex-wrap w-full sm:w-auto">
+              <TabsTrigger value="all" className="flex-1 sm:flex-initial">All <TabCount n={statusCounts.all} /></TabsTrigger>
+              <TabsTrigger value="pending" className="flex-1 sm:flex-initial">Pending <TabCount n={statusCounts.pending} /></TabsTrigger>
+              <TabsTrigger value="approved" className="flex-1 sm:flex-initial">Approved <TabCount n={statusCounts.approved} /></TabsTrigger>
+              <TabsTrigger value="rejected" className="flex-1 sm:flex-initial">Rejected <TabCount n={statusCounts.rejected} /></TabsTrigger>
             </TabsList>
           </Tabs>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1114,6 +1122,7 @@ const Expenses = () => {
               size="sm"
               onClick={bulkApproveSelected}
               disabled={bulkLoading}
+              className="w-full sm:w-auto h-10 sm:h-9"
             >
               {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Check className="mr-2 h-4 w-4" />
@@ -1140,6 +1149,7 @@ const Expenses = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1332,6 +1342,189 @@ const Expenses = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((e) => {
+                  const isPending = e.status === 'pending';
+                  const isPendingSecond = e.status === 'pending_second_approval';
+                  const isRejected = e.status === 'rejected';
+                  const isApproved = e.status === 'approved';
+                  const accent =
+                    isPending || isPendingSecond ? 'bg-amber-500'
+                    : isApproved ? 'bg-emerald-500'
+                    : isRejected ? 'bg-red-500'
+                    : 'bg-muted-foreground';
+                  const isSelected = selected.has(e.id);
+                  return (
+                    <MobileCard
+                      key={e.id}
+                      onClick={() => setDetailExpense(e)}
+                      accentClassName={accent}
+                      className={isSelected ? 'ring-2 ring-primary/40' : ''}
+                    >
+                      <MobileCardHeader>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {isApprover && isPending && (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(v) => toggleSelected(e.id, Boolean(v))}
+                              aria-label={`Select ${e.category}`}
+                              className="shrink-0"
+                              onClick={(evt) => evt.stopPropagation()}
+                            />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              {e.category === 'mileage' && (
+                                <CarFront className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              )}
+                              <MobileCardTitle className="capitalize">
+                                {e.category?.replace(/_/g, ' ')}
+                              </MobileCardTitle>
+                            </div>
+                            {e.mileage_km && (
+                              <p className="text-[10px] text-muted-foreground">
+                                {e.mileage_km} km × {formatNaira(e.rate_per_km_ngn || 0)}/km
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <MobileCardMeta className="currency text-base">
+                          {formatNaira(e.amount_ngn)}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+
+                      {e.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {e.description}
+                        </p>
+                      )}
+
+                      <MobileCardRow label="Date">{formatDate(e.date)}</MobileCardRow>
+                      {isApprover && (
+                        <MobileCardRow label="Submitted by">
+                          {submitterName(e)}
+                        </MobileCardRow>
+                      )}
+                      <MobileCardRow label="Status">
+                        <span className="inline-flex items-center gap-1.5">
+                          <StatusBadge status={e.status} />
+                          {isApproved && paymentBadge(e.payment_status)}
+                        </span>
+                      </MobileCardRow>
+                      {e.receipt_url && (
+                        <MobileCardRow label="Receipt">
+                          <a
+                            href={e.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary"
+                            onClick={(evt) => evt.stopPropagation()}
+                          >
+                            <ExternalLink className="h-3 w-3" /> View
+                          </a>
+                        </MobileCardRow>
+                      )}
+
+                      {isApprover && (isPending || isPendingSecond || (isRejected && isApprover) || canProcessPayment(e) || canRetryPayment(e)) && (
+                        <MobileCardFooter>
+                          {isPending && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                                onClick={(evt) => { evt.stopPropagation(); handleAction(e, 'rejected'); }}
+                              >
+                                <X className="h-4 w-4 mr-1.5" /> Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                                onClick={(evt) => { evt.stopPropagation(); handleAction(e, 'approved'); }}
+                              >
+                                <Check className="h-4 w-4 mr-1.5" /> Approve
+                              </Button>
+                            </>
+                          )}
+                          {isPendingSecond && e.approved_by !== profile?.id && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                                onClick={(evt) => { evt.stopPropagation(); handleAction(e, 'rejected'); }}
+                              >
+                                <X className="h-4 w-4 mr-1.5" /> Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                                onClick={(evt) => { evt.stopPropagation(); handleAction(e, 'approved'); }}
+                              >
+                                <Check className="h-4 w-4 mr-1.5" /> 2nd approve
+                              </Button>
+                            </>
+                          )}
+                          {isPendingSecond && e.approved_by === profile?.id && (
+                            <span className="text-xs text-muted-foreground italic w-full text-center py-2">
+                              You approved · awaiting 2nd
+                            </span>
+                          )}
+                          {canProcessPayment(e) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9 text-success border-success/40 hover:bg-success/5"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmPayment(e); }}
+                            >
+                              <CreditCard className="mr-1.5 h-4 w-4" /> Pay
+                            </Button>
+                          )}
+                          {canRetryPayment(e) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmPayment(e); }}
+                            >
+                              <CreditCard className="mr-1.5 h-4 w-4" /> Retry
+                            </Button>
+                          )}
+                          {isApproved && e.payment_status === 'processing' && (
+                            <span className="text-xs text-muted-foreground inline-flex items-center gap-1 w-full justify-center py-2">
+                              <Loader2 className="h-3 w-3 animate-spin" /> Processing
+                            </span>
+                          )}
+                          {isRejected && e.submitted_by === profile?.id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={(evt) => { evt.stopPropagation(); resubmitExpense(e); }}
+                            >
+                              Re-edit & Resubmit
+                            </Button>
+                          )}
+                          {isRejected && isApprover && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="flex-1 h-9 text-destructive"
+                              onClick={(evt) => { evt.stopPropagation(); setConfirmDeleteExpense(e); }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                            </Button>
+                          )}
+                        </MobileCardFooter>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

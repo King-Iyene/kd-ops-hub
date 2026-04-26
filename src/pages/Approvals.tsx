@@ -51,6 +51,15 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
+import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 
 type Kind = 'batch' | 'expense' | 'fuel' | 'budget' | 'leave';
 
@@ -598,29 +607,64 @@ const Approvals = () => {
         )}
       </AuroraHero>
 
-      {/* Bulk action bar (only when something is selected) */}
+      {/* Bulk action bar (only when something is selected) — inline on
+          desktop, glued above the bottom tab bar on mobile so it stays in
+          thumb reach while scrolling the list. */}
       {selectedCount > 0 && canApprove && (
-        <div className="kd-toolbar-glass rounded-lg p-3 flex items-center justify-between flex-wrap gap-3 kd-animate-slide-down">
-          <p className="text-sm">
-            <span className="font-semibold">{selectedCount}</span> item{selectedCount === 1 ? '' : 's'} selected
-          </p>
-          <Button
-            onClick={() => {
-              const totalAmt = items
-                .filter((i) => selected.has(i.id))
-                .reduce((s, i) => s + (i.amount ?? 0), 0);
-              const yes = window.confirm(
-                `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
-              );
-              if (yes) bulkApprove();
-            }}
-            disabled={bulkLoading}
-            className="kd-magnetic"
-          >
-            {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
-          </Button>
-        </div>
+        <>
+          <div className="hidden md:flex kd-toolbar-glass rounded-lg p-3 items-center justify-between flex-wrap gap-3 kd-animate-slide-down">
+            <p className="text-sm">
+              <span className="font-semibold">{selectedCount}</span> item{selectedCount === 1 ? '' : 's'} selected
+            </p>
+            <Button
+              onClick={() => {
+                const totalAmt = items
+                  .filter((i) => selected.has(i.id))
+                  .reduce((s, i) => s + (i.amount ?? 0), 0);
+                const yes = window.confirm(
+                  `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
+                );
+                if (yes) bulkApprove();
+              }}
+              disabled={bulkLoading}
+              className="kd-magnetic"
+            >
+              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
+            </Button>
+          </div>
+
+          {/* Mobile sticky bulk bar */}
+          <div className="md:hidden fixed inset-x-0 bottom-14 z-30 bg-card/90 backdrop-blur-md border-t border-border/60 safe-bottom shadow-[0_-2px_12px_-4px_hsl(var(--primary)/0.15)] kd-animate-slide-down">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <p className="text-xs">
+                <span className="font-semibold text-base">{selectedCount}</span> selected
+              </p>
+              <Button
+                onClick={() => {
+                  const totalAmt = items
+                    .filter((i) => selected.has(i.id))
+                    .reduce((s, i) => s + (i.amount ?? 0), 0);
+                  const yes = window.confirm(
+                    `Approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}?`,
+                  );
+                  if (yes) bulkApprove();
+                }}
+                disabled={bulkLoading}
+                className="h-11 flex-1 max-w-[60%] bg-success hover:bg-success/90 text-success-foreground"
+              >
+                {bulkLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                Approve {selectedCount}
+              </Button>
+            </div>
+          </div>
+          {/* Spacer so the last list item isn't hidden behind the sticky bar */}
+          <div aria-hidden className="md:hidden" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+        </>
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
@@ -685,104 +729,198 @@ const Approvals = () => {
                 />
               ) : (
                 <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        {canApprove && (
-                          <TableHead className="w-10">
-                            <Checkbox
-                              checked={visibleAllChecked}
-                              onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
-                              aria-label="Select all on this page"
-                            />
-                          </TableHead>
-                        )}
-                        <TableHead>Type</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Submitted by</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pagination.slice.map((it) => {
-                        const Icon = KIND_ICONS[it.kind];
-                        const busy = actioning === it.id;
-                        return (
-                          <TableRow key={it.id} className="kd-transition">
-                            {canApprove && (
+                  {/* Desktop table */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {canApprove && (
+                            <TableHead className="w-10">
+                              <Checkbox
+                                checked={visibleAllChecked}
+                                onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
+                                aria-label="Select all on this page"
+                              />
+                            </TableHead>
+                          )}
+                          <TableHead>Type</TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Submitted by</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {pagination.slice.map((it) => {
+                          const Icon = KIND_ICONS[it.kind];
+                          const busy = actioning === it.id;
+                          return (
+                            <TableRow key={it.id} className="kd-transition">
+                              {canApprove && (
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selected.has(it.id)}
+                                    onCheckedChange={(v) =>
+                                      toggleSelected(it.id, Boolean(v))
+                                    }
+                                    aria-label={`Select ${it.title}`}
+                                  />
+                                </TableCell>
+                              )}
                               <TableCell>
+                                <Badge variant="secondary" className="gap-1">
+                                  <Icon className="h-3 w-3" />
+                                  {KIND_LABELS[it.kind].replace(' Batches', '')}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <button
+                                  className="text-left"
+                                  onClick={() => openItem(it)}
+                                >
+                                  <p className="font-medium hover:underline">
+                                    {it.title}
+                                  </p>
+                                  {it.subtitle && (
+                                    <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                      {it.subtitle}
+                                    </p>
+                                  )}
+                                </button>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {it.submittedBy || '—'}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {formatDate(it.createdAt)}
+                              </TableCell>
+                              <TableCell className="text-right currency font-medium">
+                                {it.amount != null ? formatNaira(it.amount) : '—'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canApprove || busy}
+                                    onClick={() => approveOne(it)}
+                                    title="Approve"
+                                  >
+                                    {busy ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Check className="h-4 w-4 text-success" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canApprove || busy}
+                                    onClick={() => rejectOne(it)}
+                                    title="Reject"
+                                  >
+                                    <X className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Mobile card list — same data, thumb-friendly */}
+                  <div className="md:hidden p-3 space-y-2">
+                    {pagination.slice.map((it) => {
+                      const Icon = KIND_ICONS[it.kind];
+                      const busy = actioning === it.id;
+                      const isSelected = selected.has(it.id);
+                      return (
+                        <MobileCard
+                          key={it.id}
+                          accentClassName={
+                            it.kind === 'batch' ? 'bg-blue-500'
+                            : it.kind === 'expense' ? 'bg-amber-500'
+                            : it.kind === 'fuel' ? 'bg-orange-500'
+                            : it.kind === 'budget' ? 'bg-emerald-500'
+                            : 'bg-violet-500'
+                          }
+                          className={isSelected ? 'ring-2 ring-primary/40' : ''}
+                        >
+                          <MobileCardHeader>
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              {canApprove && (
                                 <Checkbox
-                                  checked={selected.has(it.id)}
+                                  checked={isSelected}
                                   onCheckedChange={(v) =>
                                     toggleSelected(it.id, Boolean(v))
                                   }
                                   aria-label={`Select ${it.title}`}
+                                  className="shrink-0"
+                                  onClick={(e) => e.stopPropagation()}
                                 />
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              <Badge variant="secondary" className="gap-1">
-                                <Icon className="h-3 w-3" />
-                                {KIND_LABELS[it.kind].replace(' Batches', '')}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
+                              )}
                               <button
-                                className="text-left"
+                                className="text-left min-w-0 flex-1"
                                 onClick={() => openItem(it)}
                               >
-                                <p className="font-medium hover:underline">
-                                  {it.title}
-                                </p>
+                                <Badge variant="secondary" className="gap-1 mb-1">
+                                  <Icon className="h-3 w-3" />
+                                  <span className="text-[10px]">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
+                                </Badge>
+                                <MobileCardTitle className="text-sm">{it.title}</MobileCardTitle>
                                 {it.subtitle && (
-                                  <p className="text-xs text-muted-foreground truncate max-w-xs">
+                                  <p className="text-[11px] text-muted-foreground truncate">
                                     {it.subtitle}
                                   </p>
                                 )}
                               </button>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {it.submittedBy || '—'}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatDate(it.createdAt)}
-                            </TableCell>
-                            <TableCell className="text-right currency font-medium">
+                            </div>
+                            <MobileCardMeta className="text-base currency">
                               {it.amount != null ? formatNaira(it.amount) : '—'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={!canApprove || busy}
-                                  onClick={() => approveOne(it)}
-                                  title="Approve"
-                                >
-                                  {busy ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Check className="h-4 w-4 text-success" />
-                                  )}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={!canApprove || busy}
-                                  onClick={() => rejectOne(it)}
-                                  title="Reject"
-                                >
-                                  <X className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                            </MobileCardMeta>
+                          </MobileCardHeader>
+
+                          <MobileCardRow label="Submitted by">
+                            {it.submittedBy || '—'}
+                          </MobileCardRow>
+                          <MobileCardRow label="Date">
+                            {formatDate(it.createdAt)}
+                          </MobileCardRow>
+
+                          {canApprove && (
+                            <MobileCardFooter>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() => rejectOne(it)}
+                                className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                              >
+                                <X className="h-4 w-4 mr-1.5" /> Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => approveOne(it)}
+                                className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                              >
+                                {busy ? (
+                                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4 mr-1.5" />
+                                )}
+                                Approve
+                              </Button>
+                            </MobileCardFooter>
+                          )}
+                        </MobileCard>
+                      );
+                    })}
+                  </div>
+
                   <Pagination
                     page={pagination.page}
                     totalPages={pagination.totalPages}
