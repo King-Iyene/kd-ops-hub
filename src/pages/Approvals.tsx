@@ -358,6 +358,42 @@ const Approvals = () => {
         .eq('id', rawId(it.id));
       if (error) throw error;
       await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
+
+      // Notify the submitter that their request was approved. Without this,
+      // approval was silent on the submitter's side — they had to check the
+      // module manually to know their request went through.
+      const submitterId =
+        it.kind === 'batch'
+          ? it.raw?.created_by
+          : it.kind === 'expense'
+          ? it.raw?.submitted_by
+          : it.kind === 'fuel'
+          ? it.raw?.driver_id
+          : it.kind === 'budget'
+          ? it.raw?.created_by
+          : it.raw?.employee_id;
+
+      const KIND_LABELS: Record<string, string> = {
+        batch: 'payment batch',
+        expense: 'expense',
+        fuel: 'fuel request',
+        budget: 'budget',
+        leave: 'leave request',
+      };
+
+      if (submitterId) {
+        await supabase.from('notifications').insert({
+          user_id: submitterId,
+          type: `${it.kind}_approved`,
+          module: it.kind === 'batch' ? 'payments' : it.kind === 'fuel' ? 'fleet' : it.kind === 'leave' ? 'leave' : it.kind,
+          priority: 'normal',
+          title: `Your ${KIND_LABELS[it.kind] || it.kind} was approved`,
+          body: it.amount
+            ? `${it.title} — ${formatNaira(it.amount)}`
+            : it.title,
+        });
+      }
+
       toast({ title: 'Approved' });
       await fetchAll();
       refreshCounts();
@@ -424,9 +460,18 @@ const Approvals = () => {
           ? it.raw?.created_by
           : it.raw?.employee_id;
 
+      // Map each kind to a human-friendly label so the recipient sees
+      // "Your fuel request was rejected" instead of "Your fuel was rejected".
+      const KIND_LABELS: Record<string, string> = {
+        batch: 'payment batch',
+        expense: 'expense',
+        fuel: 'fuel request',
+        budget: 'budget',
+        leave: 'leave request',
+      };
       await writeRejectionNotification({
         entity: it.kind,
-        entityLabel: it.kind === 'batch' ? 'payment batch' : it.kind,
+        entityLabel: KIND_LABELS[it.kind] || it.kind,
         amount: it.amount,
         reason: rejectReason.trim(),
         submitterId: submitterId || null,

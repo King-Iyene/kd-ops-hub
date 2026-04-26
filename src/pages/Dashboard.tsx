@@ -198,23 +198,58 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!profile?.id || !isPersonal) return;
-    setPersonalLoading(true);
-    Promise.all([
-      supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('employee_id', profile.id).eq('status', 'pending'),
-      supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', profile.id).maybeSingle(),
-      supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
-      supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
-    ]).then(([expRes, leaveRes, taskRes, fuelRes]) => {
-      const quota = (leaveRes.data as any)?.annual_quota ?? 21;
-      const used = (leaveRes.data as any)?.annual_used ?? 0;
-      setPersonalKPIs({
-        pendingExpenses: expRes.count ?? 0,
-        leaveDaysRemaining: Math.max(0, quota - used),
-        assignedTasks: taskRes.count ?? 0,
-        pendingFuel: fuelRes.count ?? 0,
-      });
-    }).catch((err) => console.error('[KDOps] personal KPI load failed:', err))
-      .finally(() => setPersonalLoading(false));
+
+    const loadPersonalKPIs = () => {
+      setPersonalLoading(true);
+      Promise.all([
+        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('employee_id', profile.id).eq('status', 'pending'),
+        supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', profile.id).maybeSingle(),
+        supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
+        supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
+      ]).then(([expRes, leaveRes, taskRes, fuelRes]) => {
+        // Nigerian Labour Act minimum: 6 working days for first year of service.
+        // Default to 12 days as a reasonable starting quota — finance can adjust.
+        const quota = (leaveRes.data as any)?.annual_quota ?? 12;
+        const used = (leaveRes.data as any)?.annual_used ?? 0;
+        setPersonalKPIs({
+          pendingExpenses: expRes.count ?? 0,
+          leaveDaysRemaining: Math.max(0, quota - used),
+          assignedTasks: taskRes.count ?? 0,
+          pendingFuel: fuelRes.count ?? 0,
+        });
+      }).catch((err) => console.error('[KDOps] personal KPI load failed:', err))
+        .finally(() => setPersonalLoading(false));
+    };
+
+    loadPersonalKPIs();
+
+    // Subscribe to changes that affect any of the four KPIs so the user sees
+    // counters update in real time after submitting / cancelling / approving.
+    const channel = supabase
+      .channel(`personal-kpis-${profile.id}`)
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_balances', filter: `employee_id=eq.${profile.id}` },
+        () => loadPersonalKPIs())
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'leave_requests', filter: `employee_id=eq.${profile.id}` },
+        () => loadPersonalKPIs())
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses', filter: `submitted_by=eq.${profile.id}` },
+        () => loadPersonalKPIs())
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'fuel_requests', filter: `driver_id=eq.${profile.id}` },
+        () => loadPersonalKPIs())
+      .subscribe();
+
+    // Refresh whenever the tab becomes visible again — covers cases where the
+    // realtime subscription dropped or status changed in another tab.
+    const onFocus = () => loadPersonalKPIs();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', onFocus);
+    };
   }, [profile?.id, isPersonal]);
 
   const fetchDashboard = async () => {

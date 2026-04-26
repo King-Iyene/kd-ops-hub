@@ -2801,35 +2801,38 @@ const Fleet = () => {
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList>
-          <TabsTrigger value="fuel">
-            <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
-          </TabsTrigger>
-          <TabsTrigger value="my_requests">
-            <User className="mr-2 h-4 w-4" /> My Requests
-          </TabsTrigger>
-          <TabsTrigger value="trips">
-            <MapPin className="mr-2 h-4 w-4" /> Trip Logs
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="vehicles">
-              <Car className="mr-2 h-4 w-4" /> Vehicles
+        {/* Mobile: horizontal scroll lets tabs stay readable instead of clipping */}
+        <div className="overflow-x-auto kd-mobile-snap-x -mx-1 sm:mx-0 px-1 sm:px-0">
+          <TabsList className="w-max sm:w-full">
+            <TabsTrigger value="fuel" className="shrink-0">
+              <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
             </TabsTrigger>
-          )}
-          <TabsTrigger value="activity">
-            <History className="mr-2 h-4 w-4" /> Activity
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="anomalies" className="relative">
-              <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
-              {totalAnomalies > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
-                  {totalAnomalies > 9 ? '9+' : totalAnomalies}
-                </span>
-              )}
+            <TabsTrigger value="my_requests" className="shrink-0">
+              <User className="mr-2 h-4 w-4" /> My Requests
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="trips" className="shrink-0">
+              <MapPin className="mr-2 h-4 w-4" /> Trip Logs
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="vehicles" className="shrink-0">
+                <Car className="mr-2 h-4 w-4" /> Vehicles
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="activity" className="shrink-0">
+              <History className="mr-2 h-4 w-4" /> Activity
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="anomalies" className="relative shrink-0">
+                <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
+                {totalAnomalies > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
+                    {totalAnomalies > 9 ? '9+' : totalAnomalies}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         {/* FUEL */}
         <TabsContent value="fuel" className="mt-4 space-y-4">
