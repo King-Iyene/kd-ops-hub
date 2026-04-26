@@ -358,32 +358,47 @@ const Approvals = () => {
         .eq('id', rawId(it.id));
       if (error) throw error;
 
-      // When a fuel request is approved, mirror it as an approved expense
-      // so finance can pay it through the Expenses module (the same flow
-      // used by Fleet's own approval path). Without this, approving from
-      // the Approvals page leaves the fuel cost off Expenses entirely.
+      // When a fuel request is approved, update the paired expense row
+      // (created at submission time, linked by fuel_request_id) to
+      // 'approved'. If no paired row exists (legacy fuel request from
+      // before the link was wired up), insert one as a fallback.
       if (it.kind === 'fuel') {
         const f = it.raw || {};
         const now = new Date().toISOString();
-        const { error: expErr } = await supabase.from('expenses').insert({
-          category: 'fuel',
-          budget_category: 'fuel',
-          amount_ngn: f.amount_ngn,
-          date: now.slice(0, 10),
-          description: `Fuel — ${f.station_name || 'Station'} — ${f.reason || 'Fuel request'}`,
-          submitted_by: f.driver_id || f.employee_id,
-          status: 'approved',
-          approved_by: profile?.id,
-          approved_at: now,
-          ...(f.bank_name ? {
-            bank_name: f.bank_name,
-            account_number: f.account_number,
-            account_name: f.account_name,
-          } : {}),
-        });
+        const { data: existing } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('fuel_request_id', f.id)
+          .maybeSingle();
+        let expErr: { message: string } | null = null;
+        if (existing?.id) {
+          const { error } = await supabase.from('expenses').update({
+            status: 'approved',
+            approved_by: profile?.id,
+            approved_at: now,
+          }).eq('id', existing.id);
+          expErr = error;
+        } else {
+          const { error } = await supabase.from('expenses').insert({
+            fuel_request_id: f.id,
+            category: 'fuel',
+            budget_category: 'fuel',
+            amount_ngn: f.amount_ngn,
+            date: now.slice(0, 10),
+            description: `Fuel — ${f.station_name || 'Station'} — ${f.reason || 'Fuel request'}`,
+            submitted_by: f.driver_id || f.employee_id,
+            status: 'approved',
+            approved_by: profile?.id,
+            approved_at: now,
+            ...(f.bank_name ? {
+              bank_name: f.bank_name,
+              account_number: f.account_number,
+              account_name: f.account_name,
+            } : {}),
+          });
+          expErr = error;
+        }
         if (expErr) {
-          // Surface — silently dropping this is what caused the
-          // "approved fuel doesn't appear in Expenses" complaint.
           toast({
             title: 'Approved, but expense entry failed',
             description: expErr.message,
@@ -482,6 +497,15 @@ const Approvals = () => {
         .update(patch)
         .eq('id', rawId(it.id));
       if (error) throw error;
+
+      // If a fuel request is rejected, also mark the paired expense row
+      // as rejected so finance no longer sees it as actionable.
+      if (it.kind === 'fuel') {
+        await supabase
+          .from('expenses')
+          .update({ status: 'rejected', rejection_reason: rejectReason.trim() })
+          .eq('fuel_request_id', rawId(it.id));
+      }
 
       // Figure out submitter for notification.
       const submitterId =

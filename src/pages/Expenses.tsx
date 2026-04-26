@@ -780,6 +780,16 @@ const Expenses = () => {
   };
 
   const deleteExpense = async (e: Expense) => {
+    // Best-effort: also remove the receipt file from storage so we don't
+    // leak orphan files. The receipt_url stored on the row is a Supabase
+    // storage URL — extract the path and call remove().
+    const receiptUrl = (e as any).receipt_url as string | null | undefined;
+    if (receiptUrl) {
+      const m = receiptUrl.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/receipts\/(.+?)(?:\?|$)/);
+      const path = m ? decodeURIComponent(m[1]) : null;
+      if (path) await supabase.storage.from('receipts').remove([path]);
+    }
+
     const { error } = await supabase.from('expenses').delete().eq('id', e.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });

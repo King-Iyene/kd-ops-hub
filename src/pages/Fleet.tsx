@@ -2016,6 +2016,30 @@ const Fleet = () => {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Mirror the fuel request into Expenses immediately as a pending row,
+      // linked by fuel_request_id. This makes the cost visible to finance
+      // (and reports) from the moment of submission, not just after
+      // approval. The same row is updated when the request is approved or
+      // rejected — no duplicates.
+      if (inserted?.id) {
+        const amount = parseFloat(fuelForm.amount_ngn) || 0;
+        await supabase.from('expenses').insert({
+          fuel_request_id: inserted.id,
+          category: 'fuel',
+          budget_category: 'fuel',
+          amount_ngn: amount,
+          date: new Date().toISOString().slice(0, 10),
+          description: `Fuel — ${fuelForm.station_name || 'Station'}${noteStr ? ` — ${noteStr}` : ''}`,
+          submitted_by: fuelForm.employee_id,
+          status: 'pending',
+          ...(fuelBankDetails.verified ? {
+            bank_name: fuelBankDetails.bank_name,
+            account_number: fuelBankDetails.account_number,
+            account_name: fuelBankDetails.account_name,
+          } : {}),
+        });
+      }
+
       // RULE 2: notify admins if efficiency anomaly was detected
       if (fuelIsAnomaly && inserted?.id) {
         await notifyRoles({
@@ -2279,22 +2303,42 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    const { error: expErr } = await supabase.from('expenses').insert({
-      category: 'fuel',
-      budget_category: 'fuel',
-      amount_ngn: request.amount_ngn,
-      date: now.slice(0, 10),
-      description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
-      submitted_by: (request as any).driver_id || request.employee_id,
-      status: 'approved',
-      approved_by: profile?.id,
-      approved_at: now,
-      ...(request.bank_name ? {
-        bank_name: request.bank_name,
-        account_number: request.account_number,
-        account_name: request.account_name,
-      } : {}),
-    });
+    // Update the paired expense row (created when the fuel request was
+    // submitted) to 'approved'. Fall back to insert if the link is missing
+    // (legacy fuel requests pre-dating the fuel_request_id column).
+    const { data: existingExp } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('fuel_request_id', request.id)
+      .maybeSingle();
+    let expErr: { message: string } | null = null;
+    if (existingExp?.id) {
+      const { error } = await supabase.from('expenses').update({
+        status: 'approved',
+        approved_by: profile?.id,
+        approved_at: now,
+      }).eq('id', existingExp.id);
+      expErr = error;
+    } else {
+      const { error } = await supabase.from('expenses').insert({
+        fuel_request_id: request.id,
+        category: 'fuel',
+        budget_category: 'fuel',
+        amount_ngn: request.amount_ngn,
+        date: now.slice(0, 10),
+        description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
+        submitted_by: (request as any).driver_id || request.employee_id,
+        status: 'approved',
+        approved_by: profile?.id,
+        approved_at: now,
+        ...(request.bank_name ? {
+          bank_name: request.bank_name,
+          account_number: request.account_number,
+          account_name: request.account_name,
+        } : {}),
+      });
+      expErr = error;
+    }
     if (expErr) {
       toast({
         title: 'Approved, but expense entry failed',
@@ -2411,22 +2455,40 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    await supabase.from('expenses').insert({
-      category: 'fuel',
-      budget_category: 'fuel',
-      amount_ngn: r.amount_ngn,
-      date: now.slice(0, 10),
-      description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
-      submitted_by: (r as any).driver_id || r.employee_id,
-      status: 'approved',
-      approved_by: profile.id,
-      approved_at: now,
-      ...(r.bank_name ? {
-        bank_name: r.bank_name,
-        account_number: r.account_number,
-        account_name: r.account_name,
-      } : {}),
-    });
+    // Update the linked expense (created at submission) instead of
+    // inserting a new one. Falls back to insert for legacy fuel rows
+    // pre-dating fuel_request_id.
+    const { data: expExisting } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('fuel_request_id', r.id)
+      .maybeSingle();
+    if (expExisting?.id) {
+      await supabase.from('expenses').update({
+        status: 'approved',
+        approved_by: profile.id,
+        approved_at: now,
+        description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+      }).eq('id', expExisting.id);
+    } else {
+      await supabase.from('expenses').insert({
+        fuel_request_id: r.id,
+        category: 'fuel',
+        budget_category: 'fuel',
+        amount_ngn: r.amount_ngn,
+        date: now.slice(0, 10),
+        description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+        submitted_by: (r as any).driver_id || r.employee_id,
+        status: 'approved',
+        approved_by: profile.id,
+        approved_at: now,
+        ...(r.bank_name ? {
+          bank_name: r.bank_name,
+          account_number: r.account_number,
+          account_name: r.account_name,
+        } : {}),
+      });
+    }
     await logAudit(
       'fuel_budget_exception_approved',
       `Budget exception approved for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)}) by ${profile.full_name}`,
@@ -2617,6 +2679,12 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
+    // Mirror the rejection onto the linked expense row so finance no
+    // longer sees it as actionable in Expenses.
+    await supabase
+      .from('expenses')
+      .update({ status: 'rejected', rejection_reason: fuelRejectReason.trim() })
+      .eq('fuel_request_id', r.id);
     await writeRejectionNotification({
       entity: 'fuel',
       entityLabel: 'fuel request',
@@ -2658,6 +2726,23 @@ const Fleet = () => {
   };
 
   const deleteFuelRequest = async (r: FuelRequest) => {
+    // Remove uploaded receipt + supporting doc from storage so we don't
+    // leak orphan files. Best-effort: ignore errors here, the row delete
+    // is what the user actually asked for.
+    const pathsToRemove: string[] = [];
+    const extractStoragePath = (url: string | null | undefined, bucket: string): string | null => {
+      if (!url) return null;
+      const m = url.match(new RegExp(`/storage/v1/object/(?:public|sign|authenticated)/${bucket}/(.+?)(?:\\?|$)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    };
+    const receiptPath = extractStoragePath((r as any).receipt_url, 'receipts');
+    const docPath = extractStoragePath((r as any).request_doc_url, 'receipts');
+    if (receiptPath) pathsToRemove.push(receiptPath);
+    if (docPath) pathsToRemove.push(docPath);
+    if (pathsToRemove.length > 0) {
+      await supabase.storage.from('receipts').remove(pathsToRemove);
+    }
+
     const { error } = await supabase.from('fuel_requests').delete().eq('id', r.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
