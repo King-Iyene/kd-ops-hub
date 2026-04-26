@@ -244,8 +244,10 @@ const EmployeeProfile = () => {
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
+      // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
+      // page responsive even for long-tenured employees.
       supabase.from('payslips').select('*').eq('employee_id', id)
-        .order('period', { ascending: false }),
+        .order('period', { ascending: false }).limit(24),
       supabase.from('leave_requests').select('*').eq('employee_id', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('tasks').select('*').eq('assigned_to', id)
@@ -261,12 +263,12 @@ const EmployeeProfile = () => {
         .or(`entity_id.eq.${id},performed_by.eq.${id}`)
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('salary_increments').select('*').eq('employee_id', id)
-        .order('effective_date', { ascending: false }),
+        .order('effective_date', { ascending: false }).limit(20),
       supabase.from('employee_advances').select('*').eq('employee_id', id)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(20),
       supabase.from('employee_deductions').select('*')
         .eq('entity_id', id).eq('entity_type', 'employee')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(20),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);

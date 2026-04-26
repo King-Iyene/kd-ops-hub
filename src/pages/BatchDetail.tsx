@@ -482,14 +482,35 @@ const BatchDetail = () => {
     }
   };
 
-  // Poll pending Paystack transfers every 15s while the batch is processing.
-  // Uses itemsRef to always read the latest items and avoid stale-closure misses.
+  // Poll pending Paystack transfers while the batch is processing.
+  //
+  // Smart polling rules (avoid blowing the Paystack quota at scale):
+  //   • Skip ticks while the tab is hidden (document.hidden === true).
+  //   • Exponential backoff after consecutive ticks with no state change:
+  //     15s → 30s → 60s → 120s (capped). Resets to 15s on any change.
+  //   • Stop polling after 30 minutes of no progress (manual refresh still works).
   useEffect(() => {
     if (!batch) return;
     if (batch.status !== 'processing' && batch.status !== 'partially_processed') return;
 
     let cancelled = false;
+    let intervalMs = 15_000;
+    const MAX_INTERVAL_MS = 120_000;
+    const GIVE_UP_AT = Date.now() + 30 * 60 * 1000;
+    let timer: number | null = null;
+
     const tick = async () => {
+      if (cancelled) return;
+      // Don't poll Paystack while user isn't looking at the page.
+      if (typeof document !== 'undefined' && document.hidden) {
+        timer = window.setTimeout(tick, intervalMs);
+        return;
+      }
+      if (Date.now() > GIVE_UP_AT) {
+        console.info('[KDOps] BatchDetail polling stopped after 30 min of no progress.');
+        return;
+      }
+
       const pending = itemsRef.current.filter(
         (it) => (it.status === 'pending' || it.status === 'retry') && it.paystack_reference,
       );
@@ -539,14 +560,33 @@ const BatchDetail = () => {
           // Transient Paystack error — keep polling.
         }
       }
-      if (changed) fetchBatch();
+      if (changed) {
+        fetchBatch();
+        intervalMs = 15_000; // Reset backoff on any progress.
+      } else {
+        intervalMs = Math.min(intervalMs * 2, MAX_INTERVAL_MS);
+      }
+      if (!cancelled) timer = window.setTimeout(tick, intervalMs);
     };
 
+    // First poll happens immediately, subsequent polls follow the
+    // recursive setTimeout chain above.
     tick();
-    const iv = window.setInterval(tick, 15_000);
+
+    // Re-poll right away when the user comes back to the tab.
+    const onVisibility = () => {
+      if (!document.hidden && !cancelled) {
+        if (timer) { window.clearTimeout(timer); timer = null; }
+        intervalMs = 15_000;
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
-      window.clearInterval(iv);
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.status]);

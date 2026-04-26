@@ -1569,7 +1569,7 @@ const Fleet = () => {
           receiptUrl = urlData.publicUrl;
         }
       }
-      await supabase.from('expenses').insert({
+      const { error: repairExpErr } = await supabase.from('expenses').insert({
         submitted_by: repairForm.employee_id,
         category: 'repair',
         budget_category: 'repair',
@@ -1584,6 +1584,17 @@ const Fleet = () => {
           account_name: repairBank.account_name,
         } : {}),
       });
+      if (repairExpErr) {
+        // Surface — silent failure here means the repair was never logged
+        // as an expense and finance never sees it.
+        toast({
+          title: 'Repair submission failed',
+          description: repairExpErr.message,
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
       await logAudit('repair_request_submitted', `Repair: ${repairForm.description} (${formatNaira(amount)})`, profile);
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],

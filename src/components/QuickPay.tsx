@@ -130,8 +130,10 @@ export function QuickPayDialog() {
 
       const ref = `qp_${(batch as any).id.replace(/-/g, '').slice(0, 20)}`;
 
-      // 3. Insert the batch item.
-      await supabase.from('batch_items').insert({
+      // 3. Insert the batch item. If this fails, the Paystack transfer must
+      // not be initiated — there'd be money on the wire with no DB record
+      // tying it back to the batch. Throw to abort the whole flow.
+      const { error: itemErr } = await supabase.from('batch_items').insert({
         batch_id: (batch as any).id,
         full_name: bank.account_name || bank.account_number,
         bank_name: bank.bank_name,
@@ -142,6 +144,7 @@ export function QuickPayDialog() {
         paystack_recipient_code: recipient.recipient_code,
         paystack_reference: ref,
       });
+      if (itemErr) throw new Error(`Could not create payment record: ${itemErr.message}`);
 
       // 4. Initiate transfer via Edge Function.
       const transfer = await initiateTransfer({
@@ -151,19 +154,25 @@ export function QuickPayDialog() {
         reason: form.description || 'KDOps Quick Pay',
       });
 
-      // 5. Update batch_item with transfer code.
-      await supabase
+      // 5. Update batch_item with transfer code. We can tolerate a failure
+      // here because the transfer is already in flight on Paystack's side
+      // and the webhook will eventually reconcile by paystack_reference.
+      const { error: updateErr } = await supabase
         .from('batch_items')
-        .update({
-          paystack_transfer_code: transfer.transfer_code,
-        })
+        .update({ paystack_transfer_code: transfer.transfer_code })
         .eq('paystack_reference', ref);
+      if (updateErr) {
+        console.warn('[QuickPay] could not stamp transfer_code on batch_item:', updateErr.message);
+      }
 
       // 6. Update batch status.
-      await supabase
+      const { error: batchUpdErr } = await supabase
         .from('payment_batches')
         .update({ status: 'processing' })
         .eq('id', (batch as any).id);
+      if (batchUpdErr) {
+        console.warn('[QuickPay] could not update batch status:', batchUpdErr.message);
+      }
 
       await logAudit(
         'paystack_transfer_initiated',

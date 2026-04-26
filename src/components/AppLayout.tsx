@@ -7,6 +7,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { Outlet, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { Search } from 'lucide-react';
@@ -119,7 +120,11 @@ export default function AppLayout() {
           {/* ── Main content ────────────────────────────────────────── */}
           <main className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
             <div key={location.pathname} className="kd-page-transition">
-              <Outlet />
+              {/* key={pathname} resets the boundary on navigation, so a
+                  crash on one page doesn't permanently break the next. */}
+              <ErrorBoundary key={location.pathname}>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </main>
         </div>

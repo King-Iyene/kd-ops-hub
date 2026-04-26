@@ -133,18 +133,41 @@ const Payments = () => {
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     const fetched = (data as PaymentBatch[]) || [];
 
-    // Sync stale processing statuses
+    // Sync stale processing statuses. Previously this ran one query per
+    // stale batch (N+1) — at scale that meant 100+ requests per page load.
+    // Collapsed into a single IN-query plus an in-memory groupby.
     const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
-    for (const b of stale) {
-      const { data: items } = await supabase.from('batch_items').select('status').eq('batch_id', b.id);
-      if (!items || items.length === 0) continue;
-      const anyPending = items.some((r: any) => r.status === 'pending' || r.status === 'retry');
-      const anyFailed = items.some((r: any) => r.status === 'failed');
-      const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
-      if (correct !== b.status) {
-        await supabase.from('payment_batches').update({ status: correct }).eq('id', b.id);
-        b.status = correct;
+    if (stale.length > 0) {
+      const staleIds = stale.map((b) => b.id);
+      const { data: allItems } = await supabase
+        .from('batch_items')
+        .select('batch_id, status')
+        .in('batch_id', staleIds);
+
+      const itemsByBatch = new Map<string, { status: string }[]>();
+      for (const it of (allItems || []) as { batch_id: string; status: string }[]) {
+        const arr = itemsByBatch.get(it.batch_id) ?? [];
+        arr.push({ status: it.status });
+        itemsByBatch.set(it.batch_id, arr);
       }
+
+      // Aggregate update calls so a page with N stale batches still costs
+      // 1 SELECT + at most N UPDATEs (vs. 2N round-trips before).
+      const updates: Promise<unknown>[] = [];
+      for (const b of stale) {
+        const items = itemsByBatch.get(b.id) ?? [];
+        if (items.length === 0) continue;
+        const anyPending = items.some((r) => r.status === 'pending' || r.status === 'retry');
+        const anyFailed = items.some((r) => r.status === 'failed');
+        const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+        if (correct !== b.status) {
+          updates.push(
+            supabase.from('payment_batches').update({ status: correct }).eq('id', b.id),
+          );
+          b.status = correct;
+        }
+      }
+      if (updates.length > 0) await Promise.all(updates);
     }
 
     setBatches(fetched);

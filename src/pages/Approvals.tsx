@@ -432,7 +432,7 @@ const Approvals = () => {
       };
 
       if (submitterId) {
-        await supabase.from('notifications').insert({
+        const { error: notifyErr } = await supabase.from('notifications').insert({
           user_id: submitterId,
           type: `${it.kind}_approved`,
           module: it.kind === 'batch' ? 'payments' : it.kind === 'fuel' ? 'fleet' : it.kind === 'leave' ? 'leave' : it.kind,
@@ -442,6 +442,11 @@ const Approvals = () => {
             ? `${it.title} — ${formatNaira(it.amount)}`
             : it.title,
         });
+        if (notifyErr) {
+          // Don't block approval — but log so we can see if notification
+          // delivery is consistently failing.
+          console.warn('[KDOps] approval notification insert failed:', notifyErr.message);
+        }
       }
 
       toast({ title: 'Approved' });
