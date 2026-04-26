@@ -75,6 +75,38 @@ const Payments = () => {
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
   });
 
+  const [reconciling, setReconciling] = useState(false);
+
+  const reconcileNow = async () => {
+    if (reconciling) return;
+    if (!confirm(
+      'Reconcile pending transfers with Paystack now?\n\n' +
+      'This re-checks every payment that has been stuck in "pending" for ' +
+      'more than 1 hour. Use this if a payment seems stuck without ever ' +
+      'reaching Paystack confirmation.'
+    )) return;
+    setReconciling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('paystack-reconciliation', {
+        body: {},
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Reconciliation complete',
+        description: `Checked ${data?.items_checked ?? 0} · ${data?.succeeded ?? 0} succeeded · ${data?.failed ?? 0} failed · ${data?.unchanged ?? 0} unchanged`,
+      });
+      fetchBatches();
+      fetchStats();
+    } catch (err: any) {
+      toast({ title: 'Reconciliation failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setReconciling(false);
+    }
+  };
+
   const fetchBalance = useCallback(async (isRetry = false) => {
     setBalanceLoading(true);
     if (!isRetry) setBalanceError(false);
@@ -277,8 +309,20 @@ const Payments = () => {
           </div>
 
           {/* Action buttons — full-width row on mobile so taps are easy */}
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             {canQuickPay && <QuickPayDialog />}
+            {canQuickPay && (
+              <Button
+                variant="outline"
+                onClick={reconcileNow}
+                disabled={reconciling}
+                className="flex-1 sm:flex-initial h-10 sm:h-9"
+                title="Re-check stuck transfers with Paystack"
+              >
+                <RefreshCw className={cn('mr-2 h-4 w-4', reconciling && 'animate-spin')} />
+                Reconcile
+              </Button>
+            )}
             <Button onClick={() => navigate('/payments/new')} className="flex-1 sm:flex-initial h-10 sm:h-9">
               <Plus className="mr-2 h-4 w-4" /> New Batch
             </Button>

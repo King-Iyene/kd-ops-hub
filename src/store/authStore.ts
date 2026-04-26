@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { logAudit } from '@/lib/audit';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole =
@@ -78,6 +79,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ viewAsRole: role });
   },
   signOut: async () => {
+    // Log BEFORE signOut, while we still have an authed session that can
+    // write to audit_logs. Best-effort — never block sign-out on it.
+    const profile = get().profile;
+    if (profile?.id) {
+      try {
+        await logAudit('user_logged_out', `User ${profile.full_name || profile.email} signed out`, profile);
+      } catch {
+        /* ignore */
+      }
+    }
     await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
       try {

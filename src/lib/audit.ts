@@ -87,7 +87,10 @@ export type AuditActionType =
   | 'company_settings_saved'
   | 'report_exported'
   | 'deduction_created'
-  | 'deduction_applied';
+  | 'deduction_applied'
+  | 'user_logged_in'
+  | 'user_logged_out'
+  | 'paystack_reconciliation_run';
 
 export interface AuditActor {
   id?: string | null;
