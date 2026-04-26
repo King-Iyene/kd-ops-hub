@@ -13,6 +13,8 @@ import {
   Network,
   Pencil,
   Tags,
+  Info,
+  AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -579,6 +581,10 @@ const SettingsPage = () => {
               <CardTitle className="text-base">Airtable</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-800 dark:text-blue-300">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <p>Airtable sync is not yet active. Configuration saved here is for future use. No data is currently being synced to or from Airtable.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Base ID</Label>
@@ -625,6 +631,10 @@ const SettingsPage = () => {
               <CardTitle className="text-base">SMTP (email)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-800 dark:text-blue-300">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <p>Email delivery is handled via Resend API. SMTP settings are reserved for future use and are not currently active. Do not store credentials here expecting them to work.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Host</Label>
@@ -705,6 +715,10 @@ const SettingsPage = () => {
               <CardTitle className="text-base">Termii (WhatsApp &amp; SMS)</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <p>SMS and WhatsApp delivery via Termii is not yet active in KDOps. Configuration saved here will be used when this integration is enabled. No messages are currently being sent via Termii.</p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Sender ID</Label>
