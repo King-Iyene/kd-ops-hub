@@ -53,6 +53,14 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
 
 type Kind = 'paye' | 'pension' | 'vat' | 'wht' | 'tcc' | 'cac' | 'itf' | 'nsitf';
@@ -424,6 +432,8 @@ const Compliance = () => {
           ) : error ? (
             <ErrorState message={error} onRetry={load} />
           ) : (
+            <>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -525,6 +535,96 @@ const Compliance = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
+
+            {/* Mobile compliance filings list */}
+            <div className="md:hidden p-3 space-y-2">
+              {rows.map((r) => {
+                const d = daysUntil(r.due_date);
+                const overdue = d !== null && d < 0 && r.status !== 'filed';
+                const dueSoon = d !== null && d >= 0 && d <= 3 && r.status !== 'filed';
+                const accent =
+                  r.status === 'filed' ? 'bg-emerald-500'
+                  : overdue ? 'bg-red-500'
+                  : dueSoon ? 'bg-amber-500'
+                  : 'bg-blue-500';
+                return (
+                  <MobileCard key={r.id} accentClassName={accent}>
+                    <MobileCardHeader>
+                      <div className="min-w-0 flex-1">
+                        <MobileCardTitle>{KIND_LABELS[r.kind]}</MobileCardTitle>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{KIND_NOTES[r.kind]}</p>
+                      </div>
+                      {r.amount_ngn != null && (
+                        <MobileCardMeta className="currency text-base">
+                          {formatNaira(r.amount_ngn)}
+                        </MobileCardMeta>
+                      )}
+                    </MobileCardHeader>
+
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <Badge variant="secondary" className={STATUS_CLASS[r.status]}>{r.status}</Badge>
+                      <span className="text-muted-foreground">{r.period}</span>
+                    </div>
+
+                    <MobileCardRow label="Due date">
+                      <span className={cn(overdue && 'text-destructive font-medium', dueSoon && 'text-warning font-medium')}>
+                        {formatDate(r.due_date)}
+                        {r.status !== 'filed' && d !== null && (
+                          <span className="ml-1 opacity-80">{d < 0 ? `(${-d}d overdue)` : `(in ${d}d)`}</span>
+                        )}
+                      </span>
+                    </MobileCardRow>
+                    {r.status === 'filed' && r.filed_at && (
+                      <MobileCardRow label="Filed">{formatDate(r.filed_at)}</MobileCardRow>
+                    )}
+
+                    <MobileCardFooter>
+                      {r.status !== 'filed' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-9 bg-success/10 text-success border-success/40 hover:bg-success/20"
+                          disabled={markingId === r.id}
+                          onClick={() => markFiled(r)}
+                        >
+                          {markingId === r.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileCheck2 className="mr-1.5 h-4 w-4" />}
+                          Mark filed
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-9"
+                        onClick={() => {
+                          setForm({
+                            kind: r.kind as any,
+                            period: r.period,
+                            due_date: r.due_date,
+                            amount_ngn: r.amount_ngn != null ? String(r.amount_ngn) : '',
+                          });
+                          setEditingFiling(r);
+                          setDialog(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                      </Button>
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-9 px-3 text-destructive"
+                          onClick={() => setDeleteTarget(r)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -535,7 +635,7 @@ const Compliance = () => {
             <DialogTitle>New statutory filing</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Filing</Label>
                 <select
@@ -559,7 +659,7 @@ const Compliance = () => {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Due date (optional)</Label>
                 <Input

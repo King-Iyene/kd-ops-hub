@@ -237,18 +237,18 @@ const Knowledge = () => {
       />
 
       <Card>
-        <div className="p-4 border-b flex gap-2 items-center flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+        <div className="p-3 sm:p-4 border-b flex gap-2 items-center flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search by title or content..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as any)}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

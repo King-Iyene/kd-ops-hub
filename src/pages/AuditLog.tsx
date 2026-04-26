@@ -51,6 +51,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
 
@@ -290,11 +291,11 @@ const AuditLog = () => {
       </div>
 
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search description, actor, action type..."
               value={search}
               onChange={(e) => {
@@ -304,7 +305,7 @@ const AuditLog = () => {
             />
           </div>
           <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -320,13 +321,13 @@ const AuditLog = () => {
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="w-[150px]"
+            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
           />
           <Input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="w-[150px]"
+            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
           />
         </div>
         <CardContent className="p-0">
@@ -340,6 +341,7 @@ const AuditLog = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -384,6 +386,40 @@ const AuditLog = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile audit feed */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((r) => {
+                  const mod = MODULE_OF[r.action_type] || '—';
+                  const Icon = ICON_OF[r.action_type] || AlertTriangle;
+                  return (
+                    <MobileCard key={r.id}>
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px] font-medium', MODULE_COLOR[mod] || MODULE_COLOR['—'])}>
+                              {mod}
+                            </Badge>
+                            <span className="inline-flex items-center gap-1 text-[11px] capitalize text-muted-foreground">
+                              <Icon className="h-3 w-3" />
+                              {prettyType(r.action_type)}
+                            </span>
+                          </div>
+                          <MobileCardTitle className="text-xs font-normal leading-snug whitespace-normal">
+                            {r.description}
+                          </MobileCardTitle>
+                        </div>
+                      </MobileCardHeader>
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                        <span>{r.performed_by_name || '—'}</span>
+                        <span>{r.created_at ? formatDateTime(r.created_at) : '—'}</span>
+                      </div>
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

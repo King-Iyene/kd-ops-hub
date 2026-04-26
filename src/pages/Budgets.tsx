@@ -53,6 +53,14 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
 
@@ -523,11 +531,11 @@ const Budgets = () => {
       </div>
 
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               placeholder="Search budgets..."
               value={search}
               onChange={(e) => {
@@ -537,7 +545,7 @@ const Budgets = () => {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -571,6 +579,7 @@ const Budgets = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -712,6 +721,118 @@ const Budgets = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((r) => {
+                  const spent = spendById[r.id] || 0;
+                  const total = r.total_amount_ngn || 0;
+                  const pct = total > 0 ? Math.min(200, (spent / total) * 100) : 0;
+                  const barColor =
+                    pct >= 100 ? 'bg-destructive'
+                    : pct >= 80 ? 'bg-warning'
+                    : 'bg-success';
+                  const accent =
+                    r.status === 'draft' ? 'bg-muted-foreground'
+                    : r.status === 'pending_approval' ? 'bg-amber-500'
+                    : r.status === 'approved' ? 'bg-emerald-500'
+                    : 'bg-muted-foreground';
+                  return (
+                    <MobileCard
+                      key={r.id}
+                      onClick={() => openEdit(r)}
+                      accentClassName={accent}
+                    >
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <MobileCardTitle>{r.name}</MobileCardTitle>
+                            {r.locked && (
+                              <Badge className="bg-destructive/10 text-destructive gap-1 h-4 px-1.5 text-[9px]">
+                                <Lock className="h-2.5 w-2.5" /> Locked
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {formatDate(r.period_start)} – {formatDate(r.period_end)}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className={cn('text-base font-bold currency leading-tight', pct >= 100 && 'text-destructive')}>
+                            {formatNaira(spent)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">of {formatNaira(total)}</p>
+                        </div>
+                      </MobileCardHeader>
+
+                      {/* Utilisation bar */}
+                      <div className="space-y-1">
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div className={cn('h-full kd-transition', barColor)} style={{ width: `${Math.min(100, pct)}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{total === 0 ? 'No budget' : `${pct.toFixed(0)}% utilised`}</span>
+                          <Badge variant="secondary" className={cn('h-4 px-1.5 text-[9px]', STATUS_CLASSES[r.status])}>
+                            {STATUS_LABELS[r.status] || r.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {r.notes && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{r.notes}</p>
+                      )}
+
+                      {(r.status === 'draft' || (r.status === 'pending_approval' && canManage) || canManage) && (
+                        <MobileCardFooter className="flex-wrap">
+                          {r.status === 'draft' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={(e) => { e.stopPropagation(); submitForApproval(r); }}
+                              disabled={!hasRole(profile?.role, MANAGER_ROLES)}
+                            >
+                              Submit
+                            </Button>
+                          )}
+                          {r.status === 'pending_approval' && canManage && (
+                            <Button
+                              size="sm"
+                              className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                              onClick={(e) => { e.stopPropagation(); approve(r); }}
+                            >
+                              <CheckCircle2 className="mr-1.5 h-4 w-4" /> Approve
+                            </Button>
+                          )}
+                          {canManage && r.status === 'approved' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-9 px-3"
+                              onClick={(e) => { e.stopPropagation(); toggleLock(r); }}
+                              title={r.locked ? 'Unlock budget' : 'Lock budget'}
+                            >
+                              {r.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                            </Button>
+                          )}
+                          {canManage && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-9 px-3 ml-auto"
+                              onClick={(e) => { e.stopPropagation(); setConfirmDelete(r); }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </MobileCardFooter>
+                      )}
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

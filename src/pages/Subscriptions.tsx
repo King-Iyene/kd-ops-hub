@@ -486,12 +486,12 @@ const Subscriptions = () => {
       </div>
 
       <Card>
-        <div className="p-4 border-b flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search subscriptions..."
-              className="pl-9"
+              className="pl-9 h-10 sm:h-9"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -500,7 +500,7 @@ const Subscriptions = () => {
             />
           </div>
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -510,7 +510,7 @@ const Subscriptions = () => {
             </SelectContent>
           </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -659,7 +659,7 @@ const Subscriptions = () => {
                 placeholder="e.g. Figma Organization Plan"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Vendor</Label>
                 <Input
@@ -687,7 +687,7 @@ const Subscriptions = () => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (₦)</Label>
                 <Input

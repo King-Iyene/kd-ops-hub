@@ -94,7 +94,7 @@ const Reports = () => {
                 type="date"
                 value={range.start}
                 onChange={(e) => setRange({ ...range, start: e.target.value })}
-                className="w-[150px]"
+                className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
               />
             </div>
             <div className="space-y-1">
@@ -103,7 +103,7 @@ const Reports = () => {
                 type="date"
                 value={range.end}
                 onChange={(e) => setRange({ ...range, end: e.target.value })}
-                className="w-[150px]"
+                className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
               />
             </div>
           </div>
