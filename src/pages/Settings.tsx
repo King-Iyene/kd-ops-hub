@@ -20,6 +20,13 @@ import {
   Archive,
   ImageIcon,
   Clock,
+  BookOpen,
+  Shield,
+  Wallet,
+  HardDrive,
+  FileWarning,
+  Zap,
+  History,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -328,6 +335,9 @@ const SettingsPage = () => {
           <TabsTrigger value="tags" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Tags className="mr-2 h-4 w-4" /> Tags</TabsTrigger>
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
             <TabsTrigger value="retention" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Database className="mr-2 h-4 w-4" /> Data Retention</TabsTrigger>
+          )}
+          {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+            <TabsTrigger value="reference" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><BookOpen className="mr-2 h-4 w-4" /> System Reference</TabsTrigger>
           )}
         </TabsList>
         <div className="md:min-w-0">
@@ -1136,6 +1146,11 @@ const SettingsPage = () => {
         <TabsContent value="retention" className="mt-4 space-y-4">
           <DataRetentionPanel />
         </TabsContent>
+
+        {/* SYSTEM REFERENCE -------------------------------------------- */}
+        <TabsContent value="reference" className="mt-4 space-y-4">
+          <SystemReferencePanel />
+        </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -1823,6 +1838,205 @@ function ConfigureRetentionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// System Reference panel
+//
+// One-stop documentation of every cap, threshold, retention rule and
+// operational setting the platform enforces. Everything here is read-only.
+// When you change a cap or rule elsewhere in the codebase, update the
+// corresponding entry below so this stays the single source of truth admins
+// can consult instead of digging through code.
+// ---------------------------------------------------------------------------
+
+const REF_MONEY_CAPS = [
+  { what: 'Single payment batch (total)',     cap: '₦5,000,000,000', why: 'Catches typo on bulk runs' },
+  { what: 'Single transfer (one beneficiary)', cap: '₦100,000,000',  why: 'Single Paystack transfer guard' },
+  { what: 'One expense submission',            cap: '₦100,000,000',  why: 'Catches accidental extra digit' },
+  { what: 'One fuel request',                  cap: '₦5,000,000',    why: 'Highest plausible single fuel-up' },
+  { what: 'One subscription',                  cap: '₦50,000,000',   why: 'SaaS / utility max' },
+  { what: 'One revenue entry',                 cap: '₦5,000,000,000', why: 'Monthly revenue ceiling' },
+  { what: 'Annual budget (per category)',      cap: '₦5,000,000,000', why: 'Yearly planning ceiling' },
+  { what: 'Salary advance',                    cap: '₦50,000,000',   why: 'Per-employee advance' },
+  { what: 'Annual salary',                     cap: '₦100,000,000',  why: 'Per-employee yearly comp' },
+];
+
+const REF_RETENTION = [
+  { what: 'Audit logs',         current: 'Configurable in Data Retention tab', recommended: '3 years (FIRS)' },
+  { what: 'Notifications (read)', current: 'Configurable',                     recommended: '90 days' },
+  { what: 'Receipts & files',   current: 'Configurable (archive only mode)',  recommended: '2 years archive, never delete' },
+  { what: 'Documents (HR/legal)', current: 'NEVER auto-deleted (locked)',      recommended: 'Keep 7 years post-employment' },
+  { what: 'Archive recovery window', current: '90 days after archive', recommended: 'Restore via support before this expires' },
+  { what: 'First-run delay',    current: '7 days from enabling',              recommended: 'Used as cancellation window' },
+];
+
+const REF_FILE_RULES = [
+  { what: 'Image compression on upload', value: 'On by default — receipts/photos resize to 1600 px JPEG @ 82%' },
+  { what: 'Skipped from compression',    value: 'PDFs, GIFs, SVGs, files smaller than 200 KB' },
+  { what: 'Documents bucket access',     value: 'Private — preview uses short-lived signed URLs' },
+  { what: 'Receipts bucket access',      value: 'Private — same signed-URL pattern' },
+  { what: 'Blocked file extensions',     value: '.exe .bat .cmd .sh .ps1 .jar .msi .app .dmg .html .js .ts .php .py .rb (executable / scriptable types)' },
+  { what: 'Document NEVER auto-delete',  value: 'HR / legal docs survive any retention policy' },
+];
+
+const REF_OPS_THRESHOLDS = [
+  { what: 'Low Paystack balance warning',     value: 'Below ₦50,000 → orange banner on Payments page' },
+  { what: 'BatchDetail polling interval',     value: '15s → 30s → 60s → 120s (exponential backoff)' },
+  { what: 'BatchDetail polling stop',         value: 'After 30 minutes of no progress (manual refresh still works)' },
+  { what: 'Polling pauses',                   value: 'When browser tab is hidden' },
+  { what: 'Reconciliation threshold',         value: 'Re-checks any batch_item stuck in pending > 1 hour' },
+  { what: 'Reconciliation cap per run',       value: '200 items (rate-limit guard)' },
+  { what: 'EmployeeProfile page caps',        value: '24 payslips · 20 advances / increments / deductions (newest first)' },
+  { what: 'Webhook idempotency',              value: '(reference, event_type) UNIQUE — duplicate Paystack deliveries silently ignored' },
+];
+
+const REF_SECURITY = [
+  { what: 'Audit log read access',  value: 'super_admin / admin / finance / operations only' },
+  { what: 'Audit log write',        value: 'INSERT requires performed_by = your own user_id (no impersonation)' },
+  { what: 'Login / logout audited', value: 'Every session start and end is in audit_logs' },
+  { what: 'Settings (page) access', value: 'super_admin only' },
+  { what: 'Audit log (page) access', value: 'super_admin / admin only' },
+  { what: 'Employees page access',  value: 'super_admin / admin only' },
+  { what: 'Documents bucket write', value: 'admin / finance / operations / super_admin' },
+  { what: 'Tasks visibility',       value: 'Assignee + creator + admin/operations' },
+  { what: 'Approval comments',      value: 'admin / finance / operations only' },
+  { what: 'Employee deductions',    value: 'Self only OR admin / finance' },
+  { what: 'Profile session',        value: 'localStorage (auto-refresh JWT). Cleared on Sign Out' },
+  { what: '"View As role"',         value: 'Super-admin only — sessionStorage, cleared on tab close' },
+];
+
+const REF_PAYSTACK = [
+  { what: 'Webhook signature verification', value: 'HMAC-SHA512, timing-safe compare. Rejected events return 401' },
+  { what: 'Transfer events handled',         value: 'transfer.success, transfer.failed, transfer.reversed' },
+  { what: 'Fees captured',                   value: 'Stored as paystack_fee_ngn per batch_item; surfaced in Reports P&L' },
+  { what: 'Funding wallet link',             value: 'https://dashboard.paystack.com/#/balance/' },
+  { what: 'Manual reconcile button',         value: 'Payments page → "Reconcile" (top-right)' },
+];
+
+const REF_SUPABASE_LIMITS = [
+  { what: 'Free tier — DB storage',     value: '500 MB' },
+  { what: 'Free tier — File storage',    value: '1 GB' },
+  { what: 'Free tier — Bandwidth',       value: '5 GB / month' },
+  { what: 'Free tier — Edge invocations', value: '500K / month' },
+  { what: 'Free tier — Realtime peers',  value: '200 concurrent' },
+  { what: 'Free tier — Auth users',      value: '50,000 MAU' },
+  { what: 'Upgrade trigger',             value: 'Watch Storage closely — first thing to fill at scale. Pro tier ($25/mo) lifts limits 50–100×' },
+];
+
+function SystemReferencePanel() {
+  return (
+    <div className="space-y-4">
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="pt-4 pb-4 flex items-start gap-3">
+          <BookOpen className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold mb-1">System Reference</p>
+            <p className="text-muted-foreground leading-relaxed">
+              Read-only reference of every cap, retention rule, operational
+              threshold and security setting the platform enforces.
+              Bookmark this page — when you forget what the limit on a
+              single transfer is, or how long old audit logs are kept,
+              this is the single source of truth.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <RefSection icon={Wallet}    title="Money limits (typo guards)"
+        rows={REF_MONEY_CAPS.map((r) => ({ a: r.what, b: r.cap, c: r.why }))}
+        cols={['Where', 'Maximum allowed', 'Why this limit']} />
+
+      <RefSection icon={Database}  title="Data retention"
+        rows={REF_RETENTION.map((r) => ({ a: r.what, b: r.current, c: r.recommended }))}
+        cols={['Data type', 'Current behaviour', 'Recommended setting']} />
+
+      <RefSection icon={FileWarning} title="File upload rules"
+        rows={REF_FILE_RULES.map((r) => ({ a: r.what, b: r.value }))}
+        cols={['Setting', 'Value']} />
+
+      <RefSection icon={Zap}        title="Operational thresholds"
+        rows={REF_OPS_THRESHOLDS.map((r) => ({ a: r.what, b: r.value }))}
+        cols={['Trigger / setting', 'Value']} />
+
+      <RefSection icon={Shield}     title="Security &amp; access"
+        rows={REF_SECURITY.map((r) => ({ a: r.what, b: r.value }))}
+        cols={['What', 'Who / how']} />
+
+      <RefSection icon={CreditCard} title="Paystack integration"
+        rows={REF_PAYSTACK.map((r) => ({ a: r.what, b: r.value }))}
+        cols={['Setting', 'Value']} />
+
+      <RefSection icon={HardDrive}  title="Supabase capacity (free tier)"
+        rows={REF_SUPABASE_LIMITS.map((r) => ({ a: r.what, b: r.value }))}
+        cols={['Resource', 'Limit / guidance']} />
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" /> Recent platform changes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-xs space-y-2 leading-relaxed">
+          <p><strong>Phase 1</strong> — Locked down audit logs &amp; wide-open RLS policies (tasks, comments, referrals, deductions). Added webhook idempotency. Created missing tables (salary_increments, revenue_entries).</p>
+          <p><strong>Phase 2</strong> — React error boundaries on every page. N+1 query fix on Payments. Polling backoff + visibility detection. Pagination on EmployeeProfile.</p>
+          <p><strong>Phase 3</strong> — Money sanity-cap CHECK constraints. Storage extension denylist (no .exe / .html / .js uploads). Paystack reconciliation function + button. Login / logout audit logs. Friendly error messages for money inputs.</p>
+          <p className="text-muted-foreground border-t pt-2 mt-2">
+            Each phase is documented in the git history; the SQL migrations to
+            apply are in <code>supabase/migrations/</code> and edge functions
+            in <code>supabase/functions/</code>.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+interface RefRow { a: string; b: string; c?: string; }
+
+function RefSection({
+  icon: Icon, title, rows, cols,
+}: {
+  icon: typeof Wallet;
+  title: string;
+  rows: RefRow[];
+  cols: string[];
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Icon className="h-4 w-4 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/30">
+              <tr>
+                {cols.map((c) => (
+                  <th key={c} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40">
+              {rows.map((r, i) => (
+                <tr key={i} className="hover:bg-muted/20">
+                  <td className="px-3 py-2 align-top font-medium">{r.a}</td>
+                  <td className="px-3 py-2 align-top text-muted-foreground">{r.b}</td>
+                  {cols.length === 3 && (
+                    <td className="px-3 py-2 align-top text-muted-foreground">{r.c || ''}</td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
