@@ -15,13 +15,14 @@ export function PageHeader({ title, description, icon: Icon, actions, badge, cla
     <div className={cn('flex items-start justify-between gap-4 flex-wrap mb-6', className)}>
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-            <Icon className="h-5 w-5 text-primary" />
+          <div className="relative h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+            <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-15 blur-md" />
+            <Icon className="relative h-5 w-5 text-primary" />
           </div>
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+            <h1 className="kd-display text-xl font-bold tracking-tight">{title}</h1>
             {badge}
           </div>
           {description && (

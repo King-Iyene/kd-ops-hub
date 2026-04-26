@@ -16,6 +16,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
+import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
@@ -374,6 +375,7 @@ const Leave = () => {
           });
         }
       } catch { /* SMS is best-effort */ }
+      burst({ palette: 'success', count: 50 });
       toast({ title: 'Leave approved' });
       fetchAll();
       refreshApprovals();
@@ -596,7 +598,7 @@ const Leave = () => {
                 <ErrorState message={error} onRetry={fetchAll} />
               ) : visible.length === 0 ? (
                 <EmptyState
-                  icon={CalendarDays}
+                  illustration="plane"
                   title="No leave requests"
                   description={
                     tab === 'mine'

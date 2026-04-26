@@ -435,7 +435,7 @@ const Goals = () => {
             </div>
           ) : visible.length === 0 ? (
             <EmptyState
-              icon={Target}
+              illustration="satellite"
               title="No goals match"
               description="Set your first goal — company-wide, per team, or for yourself."
               action={

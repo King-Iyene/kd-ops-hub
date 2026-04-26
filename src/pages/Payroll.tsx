@@ -29,6 +29,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
+import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { logAudit } from '@/lib/audit';
 import {
   formatDate,
@@ -948,13 +949,18 @@ const Payroll = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" />
-                <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-                <Tooltip formatter={(v: number) => formatNaira(v)} />
-                <Legend />
-                <Bar dataKey="burn" fill="#006994" name="Total burn" radius={[4, 4, 0, 0]} />
+              <BarChart data={trend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <ChartGradients />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={<GlassTooltip />}
+                  formatter={(v: number) => formatNaira(v)}
+                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="burn" fill="url(#kd-grad-primary)" name="Total burn" radius={[6, 6, 0, 0]} {...chartAnim} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

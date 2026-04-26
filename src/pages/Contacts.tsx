@@ -397,7 +397,7 @@ const Contacts = () => {
             <TableSkeleton rows={6} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={Users}
+              illustration="ghost"
               title="No contacts yet"
               description="Add your first lead, student or partner to start building your pipeline."
               action={

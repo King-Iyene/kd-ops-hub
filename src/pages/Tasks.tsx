@@ -427,7 +427,7 @@ const Tasks = () => {
             <ErrorState message={error} onRetry={load} />
           ) : visible.length === 0 ? (
             <EmptyState
-              icon={ListTodo}
+              illustration="radar"
               title="No tasks match"
               description="Create your first task to start tracking accountability."
               action={

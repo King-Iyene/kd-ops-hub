@@ -531,7 +531,7 @@ const Subscriptions = () => {
             <ErrorState message={error} onRetry={fetchSubs} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={Repeat}
+              illustration="coin"
               title="No subscriptions yet"
               description="Add your first recurring software or service to start tracking renewals."
               action={

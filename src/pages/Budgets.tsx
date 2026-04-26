@@ -558,7 +558,7 @@ const Budgets = () => {
             <ErrorState message={error} onRetry={load} />
           ) : filtered.length === 0 ? (
             <EmptyState
-              icon={PiggyBank}
+              illustration="coin"
               title="No budgets created"
               description="Set up departments in Settings, then create budgets to track spending by department."
               action={

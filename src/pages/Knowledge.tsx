@@ -268,7 +268,7 @@ const Knowledge = () => {
             </div>
           ) : visible.length === 0 ? (
             <EmptyState
-              icon={BookOpen}
+              illustration="plane"
               title="No articles yet"
               description="Create your first internal policy or playbook. Teams search this every day."
               action={

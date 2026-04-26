@@ -29,6 +29,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
+import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
+import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
@@ -635,6 +637,7 @@ const Expenses = () => {
           body: `${cat} — ${amtStr}`,
         });
       }
+      burst({ palette: 'success', count: 50 });
       toast({ title: 'Expense fully approved' });
       fetchData();
       return;
@@ -700,6 +703,7 @@ const Expenses = () => {
           body: `${cat} — ${amtStr}`,
         });
       }
+      burst({ palette: 'success', count: 40 });
       toast({ title: 'Expense approved' });
       fetchData();
     }
@@ -845,6 +849,7 @@ const Expenses = () => {
         `Bulk approved ${rows.length} selected expenses (${formatNaira(total)})`,
         profile,
       );
+      burst({ palette: 'success', count: 70 });
       toast({ title: `Approved ${rows.length} selected` });
       setSelected(new Set());
       fetchData();
@@ -1047,17 +1052,22 @@ const Expenses = () => {
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => formatNairaCompact(v)} />
-                <Tooltip formatter={(v: number) => formatNaira(v)} />
-                <Legend />
-                <Bar dataKey="fuel" stackId="a" fill="#006994" name="Fuel" />
-                <Bar dataKey="transport" stackId="a" fill="#00ECFF" name="Transport" />
-                <Bar dataKey="mileage" stackId="a" fill="#D6AC50" name="Mileage" />
-                <Bar dataKey="office_supplies" stackId="a" fill="#22c55e" name="Office" />
-                <Bar dataKey="other" stackId="a" fill="#a855f7" name="Other" />
+              <BarChart data={trendData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                <ChartGradients />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
+                <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                <Tooltip
+                  content={<GlassTooltip />}
+                  formatter={(v: number) => formatNaira(v)}
+                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="fuel" stackId="a" fill="url(#kd-grad-primary)" name="Fuel" {...chartAnim} />
+                <Bar dataKey="transport" stackId="a" fill="url(#kd-grad-cyan)" name="Transport" {...chartAnim} />
+                <Bar dataKey="mileage" stackId="a" fill="url(#kd-grad-gold)" name="Mileage" {...chartAnim} />
+                <Bar dataKey="office_supplies" stackId="a" fill="url(#kd-grad-success)" name="Office" {...chartAnim} />
+                <Bar dataKey="other" stackId="a" fill="url(#kd-grad-violet)" name="Other" {...chartAnim} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
