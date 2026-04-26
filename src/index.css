@@ -263,12 +263,94 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Mobile-only: slide in from the right when navigating forward — feels
+ * like an iOS push transition. Pure CSS, fires on every route change
+ * because AppLayout already keys its main content by location.pathname. */
+@keyframes kd-page-slide-in-mobile {
+  from { opacity: 0; transform: translateX(8%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Mobile-app polish (Phase 4) ───────────────────────────────────────
+ * Global rules that make the platform feel native on phones. Applied at
+ * the @layer base level so every page picks them up without per-component
+ * changes. All rules are scoped to mobile (max-width: 767px) so the
+ * desktop experience is byte-identical.
+ */
+@layer base {
+  /* Prevent iOS Safari from zooming into form inputs when font-size is
+   * below 16px. This is the single biggest "feels like a website" tell
+   * on iPhone. Forcing 16px on focusable form controls fixes it without
+   * affecting the visual layout (Tailwind's `text-sm` still renders
+   * smaller text everywhere else). */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Remove the grey tap-highlight rectangle iOS draws over buttons and
+   * links — replace it with our own `active:scale` feedback already
+   * baked into shadcn buttons. */
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Native-feeling momentum scrolling on iOS for any element that
+   * scrolls (modal bodies, dialog content, tab content). The default in
+   * iOS WebView is "stops abruptly" which feels jerky. */
+  html,
+  body,
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"] {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide scrollbars on mobile (iOS / Android) so the surface looks like
+   * a native app. They still appear on desktop where pointer hover is
+   * available. */
+  @media (max-width: 767px) and (hover: none) {
+    *::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+    * {
+      scrollbar-width: none;
+    }
+  }
+}
+
 /* ─── Utility Classes ────────────────────────────────────────────────── */
 @layer utilities {
   /* Numeric tabular spacing */
   .currency {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+  }
+
+  /* 44pt tap-target — Apple's HIG minimum. Apply to primary CTAs so they
+   * never fall below the threshold on mobile. Desktop ignores it and
+   * uses whatever height the component already has. */
+  @media (max-width: 767px) {
+    .kd-mobile-tap {
+      min-height: 44px;
+    }
+  }
+
+  /* Mobile-only horizontal scroll-snap utility — used on tab strips and
+   * filter chips that overflow. Scrolling locks to each child so users
+   * can flick through tabs cleanly. */
+  .kd-mobile-snap-x {
+    scroll-snap-type: x mandatory;
+    overflow-x: auto;
+    scroll-padding-inline: 12px;
+  }
+  .kd-mobile-snap-x > * {
+    scroll-snap-align: start;
   }
 
   /* iOS / Android safe-area insets — keeps fixed bars (mobile nav, sticky
@@ -580,9 +662,22 @@
     animation: kd-glow-pulse 3s ease-in-out infinite;
   }
 
-  /* Premium page transition */
+  /* Premium page transition — desktop and tablet feel */
   .kd-page-transition {
     animation: kd-page-transition 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* On mobile, swap to an iOS-style slide-in-from-right so route changes
+   * feel like a native push navigation. */
+  @media (max-width: 767px) {
+    .kd-page-transition {
+      animation: kd-page-slide-in-mobile 260ms cubic-bezier(0.32, 0.72, 0, 1) both;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-page-transition {
+      animation: kd-fade-in 180ms ease both;
+    }
   }
 
   /* Scan line — drags down a futuristic loading bar */

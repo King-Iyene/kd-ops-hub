@@ -22,15 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
@@ -194,29 +186,52 @@ export function QuickPayDialog() {
   };
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) reset();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <Zap className="mr-2 h-4 w-4" /> Quick Pay
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-accent" /> Quick Pay
-          </DialogTitle>
-          <DialogDescription>
-            Send a one-off payment without creating a batch. Verifies the account,
-            creates a recipient, and initiates the transfer via Paystack immediately.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {/* Trigger lives outside the dialog so the parent's flex/grid layout
+          controls placement. */}
+      <Button variant="outline" onClick={() => setOpen(true)}>
+        <Zap className="mr-2 h-4 w-4" /> Quick Pay
+      </Button>
 
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={(v) => {
+          setOpen(v);
+          if (!v) reset();
+        }}
+        size="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <Zap className="h-5 w-5 text-accent" /> Quick Pay
+          </span>
+        }
+        description="Send a one-off payment without creating a batch. Verifies the account, creates a recipient, and initiates the transfer via Paystack immediately."
+        footer={
+          result ? (
+            <Button
+              variant="outline"
+              className="kd-mobile-tap"
+              onClick={() => { reset(); setOpen(false); }}
+            >
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="outline" className="kd-mobile-tap" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePay}
+                disabled={processing || !bank.verified || !form.amount}
+                className="kd-mobile-tap"
+              >
+                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Zap className="mr-2 h-4 w-4" /> Pay now
+              </Button>
+            </>
+          )
+        }
+      >
         {result ? (
           <div className="space-y-4 py-4 text-center">
             {result.ok ? (
@@ -238,82 +253,59 @@ export function QuickPayDialog() {
                 <p className="text-sm text-muted-foreground">{result.reason}</p>
               </>
             )}
-            <Button
-              variant="outline"
-              onClick={() => {
-                reset();
-                setOpen(false);
-              }}
-            >
-              Close
-            </Button>
           </div>
         ) : (
-          <>
-            <div className="space-y-3">
-              <BankAccountField value={bank} onChange={setBank} />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Amount (₦)</Label>
-                  <Input
-                    type="number"
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Description</Label>
-                  <Input
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
-                    }
-                    placeholder="e.g. Freelancer payout"
-                  />
-                </div>
+          <div className="space-y-3">
+            <BankAccountField value={bank} onChange={setBank} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Amount (₦)</Label>
+                <Input
+                  type="number"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="0.00"
+                />
               </div>
-              {bank.verified && form.amount && (
-                <p className="text-sm text-muted-foreground">
-                  Sending <span className="font-semibold currency">{formatNaira(parseFloat(form.amount) || 0)}</span> to{' '}
-                  <span className="font-semibold">{bank.account_name}</span> ·{' '}
-                  {bank.bank_name} · {bank.account_number}
-                </p>
-              )}
-              {bank.verified && (
-                <div className="space-y-2 border-t pt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestRecipient}
-                    disabled={testingRecipient || processing}
-                  >
-                    {testingRecipient && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                    Test Recipient Only
-                  </Button>
-                  {testResult && (
-                    <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap">
-                      {testResult}
-                    </pre>
-                  )}
-                </div>
-              )}
+              <div className="space-y-1">
+                <Label>Description</Label>
+                <Input
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                  placeholder="e.g. Freelancer payout"
+                />
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handlePay}
-                disabled={processing || !bank.verified || !form.amount}
-              >
-                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Zap className="mr-2 h-4 w-4" /> Pay now
-              </Button>
-            </DialogFooter>
-          </>
+            {bank.verified && form.amount && (
+              <p className="text-sm text-muted-foreground">
+                Sending <span className="font-semibold currency">{formatNaira(parseFloat(form.amount) || 0)}</span> to{' '}
+                <span className="font-semibold">{bank.account_name}</span> ·{' '}
+                {bank.bank_name} · {bank.account_number}
+              </p>
+            )}
+            {bank.verified && (
+              <div className="space-y-2 border-t pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTestRecipient}
+                  disabled={testingRecipient || processing}
+                >
+                  {testingRecipient && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  Test Recipient Only
+                </Button>
+                {testResult && (
+                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap">
+                    {testResult}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialog>
+    </>
   );
 }
