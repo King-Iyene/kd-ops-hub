@@ -5,7 +5,6 @@ import {
   Download,
   ArrowUpDown,
   CreditCard,
-  Receipt,
   Zap,
   X,
   Copy,
@@ -58,7 +57,7 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay' | 'expense';
+  txn_type: 'payment_batch' | 'quick_pay' | 'transfer';
   description: string;
   category: string;
   amount_ngn: number;
@@ -77,7 +76,7 @@ interface Transaction {
   receipt_url: string | null;
 }
 
-type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'expense';
+type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'transfer';
 
 const STATUS_OPTIONS = [
   'draft',
@@ -96,19 +95,19 @@ const STATUS_OPTIONS = [
 const TYPE_ICON: Record<string, typeof CreditCard> = {
   payment_batch: CreditCard,
   quick_pay: Zap,
-  expense: Receipt,
+  transfer: ArrowUpDown,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   payment_batch: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
-  expense: 'bg-warning/10 text-warning border border-warning/30',
+  transfer: 'bg-slate-500/10 text-slate-600 border border-slate-500/30',
 };
 
 const typeLabel = (t: string) => {
   if (t === 'payment_batch') return 'Batch';
   if (t === 'quick_pay') return 'Quick Pay';
-  if (t === 'expense') return 'Expense';
+  if (t === 'transfer') return 'Transfer';
   return t.replace(/_/g, ' ');
 };
 
@@ -116,7 +115,7 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'quick_pay', label: 'Quick Pay' },
   { value: 'payment_batch', label: 'Batches' },
-  { value: 'expense', label: 'Expenses' },
+  { value: 'transfer', label: 'Transfers' },
 ];
 
 const Transactions = () => {
@@ -233,7 +232,7 @@ const Transactions = () => {
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
   const handleRowClick = (r: Transaction) => {
-    if (r.txn_type === 'expense') navigate('/expenses');
+    if (r.txn_type === 'transfer') navigate('/payments');
     else navigate(`/payments/${r.id}`);
   };
 
@@ -254,9 +253,9 @@ const Transactions = () => {
         }
       />
 
-      {/* Summary strip — single column on phones, 3 cols on desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 print:hidden">
-        {(['quick_pay', 'payment_batch', 'expense'] as const).map((type) => {
+      {/* Summary strip — single column on phones, 2 cols on desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
+        {(['quick_pay', 'payment_batch'] as const).map((type) => {
           const count = rows.filter((r) => r.txn_type === type).length;
           const Icon = TYPE_ICON[type];
           return (
@@ -386,7 +385,7 @@ const Transactions = () => {
               description={
                 hasActiveFilters
                   ? 'Try widening your filters or date range.'
-                  : 'Transactions will appear here as payments and expenses are recorded.'
+                  : 'Transactions will appear here as payment batches and transfers are recorded.'
               }
             />
           ) : (
@@ -426,7 +425,7 @@ const Transactions = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm max-w-[240px]">
-                          {r.txn_type === 'payment_batch' && (
+                          {r.txn_type === 'payment_batch' ? (
                             <div>
                               <p className="font-medium truncate">{r.batch_name || r.description}</p>
                               {r.beneficiary_count != null && (
@@ -435,17 +434,8 @@ const Transactions = () => {
                                 </p>
                               )}
                             </div>
-                          )}
-                          {r.txn_type === 'quick_pay' && (
+                          ) : (
                             <p className="truncate">{r.description}</p>
-                          )}
-                          {r.txn_type === 'expense' && (
-                            <div>
-                              <p className="font-medium capitalize truncate">
-                                {(r.category || '').replace(/_/g, ' ')}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">{r.description}</p>
-                            </div>
                           )}
                         </TableCell>
                         <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
@@ -485,7 +475,6 @@ const Transactions = () => {
                   const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
                   const description =
                     r.txn_type === 'payment_batch' ? (r.batch_name || r.description)
-                    : r.txn_type === 'expense' ? ((r.category || '').replace(/_/g, ' ') || r.description)
                     : r.description;
                   return (
                     <MobileCard
@@ -494,7 +483,7 @@ const Transactions = () => {
                       accentClassName={
                         r.txn_type === 'quick_pay' ? 'bg-blue-500'
                         : r.txn_type === 'payment_batch' ? 'bg-emerald-500'
-                        : 'bg-amber-500'
+                        : 'bg-slate-400'
                       }
                     >
                       <MobileCardHeader>
@@ -508,9 +497,6 @@ const Transactions = () => {
                             <p className="text-[11px] text-muted-foreground">
                               {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
                             </p>
-                          )}
-                          {r.txn_type === 'expense' && r.description && (
-                            <p className="text-[11px] text-muted-foreground truncate">{r.description}</p>
                           )}
                         </div>
                         <MobileCardMeta className="currency text-base">
