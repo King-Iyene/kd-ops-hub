@@ -108,6 +108,7 @@ interface Expense {
   mileage_km: number | null;
   rate_per_km_ngn: number | null;
   created_at: string;
+  fuel_request_id: string | null;
   // Approval tracking
   approved_by: string | null;
   approved_at: string | null;
@@ -378,11 +379,21 @@ const Expenses = () => {
         .update({ status: 'processing' })
         .eq('id', batchId);
 
+      await syncFuelRequest(expense.fuel_request_id, 'paid');
       await logAudit(
         'expense_payment_initiated',
         `Expense payment initiated — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))} (ref ${transfer.reference})`,
         profile,
       );
+      if (expense.submitted_by) {
+        await notifyUser({
+          userId: expense.submitted_by,
+          type: 'expense_approved',
+          module: 'expenses',
+          title: 'Your expense payment is being processed',
+          body: `${formatNaira(Number(expense.amount_ngn))} — payment initiated via Paystack`,
+        });
+      }
       toast({
         title: 'Payment initiated',
         description: `${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}`,
@@ -575,6 +586,16 @@ const Expenses = () => {
   const [rejectingExpense, setRejectingExpense] = useState<Expense | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // When an expense is linked to a fuel request, keep the fuel_request row
+  // in sync so the Approvals module and Fleet page reflect the real state.
+  const syncFuelRequest = async (
+    fuelRequestId: string | null,
+    status: 'approved' | 'rejected' | 'paid',
+  ) => {
+    if (!fuelRequestId) return;
+    await supabase.from('fuel_requests').update({ status }).eq('id', fuelRequestId);
+  };
+
   const handleAction = async (
     expense: Expense,
     status: 'approved' | 'rejected',
@@ -625,6 +646,7 @@ const Expenses = () => {
         `Expense fully approved (2nd approval): ${cat} — ${amtStr}`,
         profile,
       );
+      await syncFuelRequest(expense.fuel_request_id, 'approved');
       if (expense.submitted_by) {
         await notifyUser({
           userId: expense.submitted_by,
@@ -691,6 +713,7 @@ const Expenses = () => {
         `Expense approved: ${cat} — ${amtStr}`,
         profile,
       );
+      await syncFuelRequest(expense.fuel_request_id, 'approved');
       if (expense.submitted_by) {
         await notifyUser({
           userId: expense.submitted_by,
@@ -727,6 +750,7 @@ const Expenses = () => {
       toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
       return;
     }
+    await syncFuelRequest(e.fuel_request_id, 'rejected');
     await writeRejectionNotification({
       entity: 'expense',
       entityLabel: 'expense',
@@ -823,6 +847,11 @@ const Expenses = () => {
         return;
       }
       const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+      // Sync any linked fuel requests to 'approved'.
+      const fuelIds = pending.map((e) => (e as any).fuel_request_id).filter(Boolean);
+      if (fuelIds.length > 0) {
+        await supabase.from('fuel_requests').update({ status: 'approved' }).in('id', fuelIds);
+      }
       await logAudit(
         'bulk_approved',
         `Bulk approved ${pending.length} expenses (${formatNaira(total)})`,
@@ -850,6 +879,10 @@ const Expenses = () => {
         .update({ status: 'approved' })
         .in('id', rows.map((r) => r.id));
       if (error) throw error;
+      const fuelIds = rows.map((e) => e.fuel_request_id).filter(Boolean) as string[];
+      if (fuelIds.length > 0) {
+        await supabase.from('fuel_requests').update({ status: 'approved' }).in('id', fuelIds);
+      }
       const total = rows.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
       await logAudit(
         'bulk_approved',
