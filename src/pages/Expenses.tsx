@@ -24,6 +24,7 @@ import {
   Paperclip,
   Info,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -94,6 +95,7 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { createTransferRecipient, initiateTransfer, getBankCode, generateKdopsRef } from '@/lib/paystack';
 import { cn } from '@/lib/utils';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
@@ -275,6 +277,8 @@ const Expenses = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 
   // -- Payment helpers -------------------------------------------------------
 
@@ -1071,7 +1075,15 @@ const Expenses = () => {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Track and manage expense claims.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={manualRefresh}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+          </button>
           {isApprover && (
             <Button
               variant="outline"

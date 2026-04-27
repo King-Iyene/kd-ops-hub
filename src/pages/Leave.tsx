@@ -11,7 +11,9 @@ import {
   Clock,
   Info,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -222,6 +224,8 @@ const Leave = () => {
   useEffect(() => {
     if (profile?.id) fetchAll();
   }, [fetchAll, profile?.id]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchAll);
 
   // Bootstrap a balance row for the current employee/year if missing.
   useEffect(() => {
@@ -585,7 +589,15 @@ const Leave = () => {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Submit time off and review your team's leave requests.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={manualRefresh}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+          </button>
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" /> Request Leave
           </Button>

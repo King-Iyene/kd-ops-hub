@@ -55,7 +55,8 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1302,6 +1303,8 @@ const Fleet = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 
   // Recover any in-progress trip for this employee when their profile loads.
   useEffect(() => {
@@ -2887,9 +2890,14 @@ const Fleet = () => {
                 {totalAnomalies} anomal{totalAnomalies === 1 ? 'y' : 'ies'}
               </span>
             )}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
-              <Radio className="h-3 w-3" /> Live telemetry
-            </span>
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              title="Refresh fleet data"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
           </div>
         </div>
       </AuroraHero>

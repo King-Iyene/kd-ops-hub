@@ -13,7 +13,9 @@ import {
   Calendar,
   ShieldCheck,
   Activity,
+  RefreshCw,
 } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -279,6 +281,8 @@ const Approvals = () => {
     fetchAll();
     refreshCounts();
   }, [fetchAll, refreshCounts]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchAll);
 
   // Filter + tab scoping.
   const visible = useMemo(() => {
@@ -697,9 +701,14 @@ const Approvals = () => {
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
               <ShieldCheck className="h-3 w-3" /> {canApprove ? 'Approver' : 'View only'}
             </span>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
-              <Activity className="h-3 w-3" /> Live
-            </span>
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              title="Refresh now"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
           </div>
         </div>
 

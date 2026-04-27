@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -133,6 +134,8 @@ const Payments = () => {
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
 
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
+
   const fetchStats = async () => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -232,7 +235,17 @@ const Payments = () => {
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage partner and contractor payments</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage partner and contractor payments
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="ml-3 inline-flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
+          </p>
         </div>
 
         <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
