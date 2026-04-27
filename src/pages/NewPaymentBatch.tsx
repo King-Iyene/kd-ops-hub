@@ -25,6 +25,7 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
 
 interface BatchItem {
+  _key: string;
   full_name: string;
   bank_name: string;
   account_number: string;
@@ -178,6 +179,7 @@ const NewPaymentBatch = () => {
         setRepaymentMonths(b.repayment_months || 3);
         setBonusType(b.bonus_type || 'Performance Bonus');
         const loadedItems: BatchItem[] = (itemsRes.data || []).map((it: any) => ({
+          _key: it.id || crypto.randomUUID(),
           full_name: it.full_name || '',
           bank_name: it.bank_name || '',
           account_number: it.account_number || '',
@@ -208,6 +210,7 @@ const NewPaymentBatch = () => {
       setItems((prev) => [
         ...prev,
         {
+          _key: crypto.randomUUID(),
           full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
           bank_name: c.bank_name,
           account_number: c.account_number,
@@ -225,6 +228,7 @@ const NewPaymentBatch = () => {
     const toAdd = visible
       .filter((c) => !selectedIds.has(c.id))
       .map((c) => ({
+        _key: crypto.randomUUID(),
         full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
         bank_name: c.bank_name,
         account_number: c.account_number,
@@ -264,6 +268,7 @@ const NewPaymentBatch = () => {
       setItems((prev) => [
         ...prev,
         {
+          _key: crypto.randomUUID(),
           full_name: empDisplayName(e),
           bank_name: e.bank_name || '',
           account_number: e.bank_account_number || '',
@@ -312,6 +317,7 @@ const NewPaymentBatch = () => {
     setItems((prev) => [
       ...prev,
       {
+        _key: crypto.randomUUID(),
         full_name: adHocFullName,
         bank_name: adHocBank.bank_name,
         account_number: adHocBank.account_number,
@@ -799,7 +805,7 @@ const NewPaymentBatch = () => {
                     </TableHeader>
                     <TableBody>
                       {items.map((item, i) => (
-                        <TableRow key={i}>
+                        <TableRow key={item._key}>
                           <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
                           <TableCell>{item.bank_name}</TableCell>
                           <TableCell>{item.account_number}</TableCell>
@@ -866,8 +872,8 @@ const NewPaymentBatch = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item, i) => (
-                    <TableRow key={i}>
+                  {items.map((item) => (
+                    <TableRow key={item._key}>
                       <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
                       <TableCell>{item.bank_name}</TableCell>
                       <TableCell>{item.account_number}</TableCell>
