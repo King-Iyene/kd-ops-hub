@@ -16,7 +16,23 @@ interface State {
 export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
 
+  private static isChunkError(error: Error): boolean {
+    return (
+      error.message.includes('Failed to fetch dynamically imported module') ||
+      error.message.includes('Importing a module script failed') ||
+      error.name === 'ChunkLoadError'
+    );
+  }
+
   static getDerivedStateFromError(error: Error): State {
+    if (ErrorBoundary.isChunkError(error)) {
+      const key = 'kdops_chunk_reload';
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        window.location.reload();
+        return { error: null };
+      }
+    }
     return { error };
   }
 
@@ -25,6 +41,10 @@ export class ErrorBoundary extends Component<Props, State> {
     type SentryGlobal = { captureException?: (e: unknown, ctx?: unknown) => void };
     const s = (window as unknown as { Sentry?: SentryGlobal }).Sentry;
     s?.captureException?.(error, { extra: { componentStack: info.componentStack } });
+  }
+
+  componentDidMount() {
+    sessionStorage.removeItem('kdops_chunk_reload');
   }
 
   reset = () => this.setState({ error: null });
