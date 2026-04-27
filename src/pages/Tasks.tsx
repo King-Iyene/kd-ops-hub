@@ -43,6 +43,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -139,6 +149,7 @@ const Tasks = () => {
   });
 
   const [detailTask, setDetailTask] = useState<Task | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
@@ -277,9 +288,12 @@ const Tasks = () => {
     load();
   };
 
-  const removeTask = async (task: Task) => {
-    if (!window.confirm(`Delete task "${task.title}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from('tasks').delete().eq('id', task.id);
+  const removeTask = (task: Task) => setPendingDelete(task);
+
+  const confirmDeleteTask = async () => {
+    if (!pendingDelete) return;
+    const { error } = await supabase.from('tasks').delete().eq('id', pendingDelete.id);
+    setPendingDelete(null);
     if (error) {
       toast({ title: 'Could not delete', description: error.message, variant: 'destructive' });
       return;
@@ -794,6 +808,23 @@ const Tasks = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.title}" will be permanently deleted. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

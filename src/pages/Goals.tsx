@@ -45,6 +45,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -140,6 +150,7 @@ const Goals = () => {
 
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Goal | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -272,9 +283,12 @@ const Goals = () => {
     load();
   };
 
-  const remove = async (g: Goal) => {
-    if (!window.confirm(`Delete goal "${g.title}"?`)) return;
-    const { error } = await supabase.from('goals').delete().eq('id', g.id);
+  const remove = (g: Goal) => setPendingDelete(g);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { error } = await supabase.from('goals').delete().eq('id', pendingDelete.id);
+    setPendingDelete(null);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
@@ -694,9 +708,35 @@ const Goals = () => {
         </DialogContent>
       </Dialog>
 
+      <GoalDeleteDialog
+        goal={pendingDelete}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 };
+
+function GoalDeleteDialog({ goal, onConfirm, onCancel }: { goal: Goal | null; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <AlertDialog open={!!goal} onOpenChange={(v) => { if (!v) onCancel(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete goal?</AlertDialogTitle>
+          <AlertDialogDescription>
+            "{goal?.title}" will be permanently deleted. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
 
 export default Goals;
 

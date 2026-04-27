@@ -43,6 +43,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AuroraHero } from '@/components/AuroraHero';
@@ -135,6 +145,7 @@ const Approvals = () => {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
 
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'all' | Kind>('all');
@@ -727,13 +738,8 @@ const Approvals = () => {
             </p>
             <Button
               onClick={() => {
-                const totalAmt = items
-                  .filter((i) => selected.has(i.id))
-                  .reduce((s, i) => s + (i.amount ?? 0), 0);
-                const yes = window.confirm(
-                  `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
-                );
-                if (yes) bulkApprove();
+                const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
               }}
               disabled={bulkLoading}
               className="kd-magnetic"
@@ -751,13 +757,8 @@ const Approvals = () => {
               </p>
               <Button
                 onClick={() => {
-                  const totalAmt = items
-                    .filter((i) => selected.has(i.id))
-                    .reduce((s, i) => s + (i.amount ?? 0), 0);
-                  const yes = window.confirm(
-                    `Approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}?`,
-                  );
-                  if (yes) bulkApprove();
+                  const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                  setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
                 }}
                 disabled={bulkLoading}
                 className="h-11 flex-1 max-w-[60%] bg-success hover:bg-success/90 text-success-foreground"
@@ -1086,6 +1087,30 @@ const Approvals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!bulkApproveConfirm} onOpenChange={(v) => { if (!v) setBulkApproveConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm bulk approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to approve{' '}
+              <span className="font-semibold">{bulkApproveConfirm?.count} item{bulkApproveConfirm?.count === 1 ? '' : 's'}</span>{' '}
+              totalling{' '}
+              <span className="font-semibold">{formatNaira(bulkApproveConfirm?.total ?? 0)}</span>.
+              This will trigger payment processing and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setBulkApproveConfirm(null); bulkApprove(); }}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              Approve all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
