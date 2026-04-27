@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
+import { usePagination } from '@/hooks/usePagination';
+import { Pagination } from '@/components/ui-kit/Pagination';
 import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -519,6 +521,8 @@ const Contractors = () => {
     c.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
+  const pagination = usePagination(filtered, 25);
+
   if (loading) return <TableSkeleton rows={5} />;
 
   const validCount = parsedRows.filter((r) => r.valid).length;
@@ -613,7 +617,7 @@ const Contractors = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((c) => {
+              {pagination.items.map((c) => {
                 const { done, total } = onboardingScore(c);
                 const pct = Math.round((done / total) * 100);
                 const tone =
@@ -714,6 +718,16 @@ const Contractors = () => {
               })}
             </TableBody>
           </Table>
+          <Pagination
+            page={pagination.page}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            onPrev={pagination.prev}
+            onNext={pagination.next}
+            hasPrev={pagination.hasPrev}
+            hasNext={pagination.hasNext}
+          />
         </CardContent>
       </Card>
         </TabsContent>

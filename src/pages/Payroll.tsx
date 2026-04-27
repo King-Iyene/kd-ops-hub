@@ -208,7 +208,8 @@ const Payroll = () => {
     const { data } = await supabase
       .from('payroll_runs')
       .select('*')
-      .order('period', { ascending: false });
+      .order('period', { ascending: false })
+      .limit(200);
     setRuns((data as PayrollRun[]) || []);
     setLoading(false);
   }, []);
@@ -415,7 +416,8 @@ const Payroll = () => {
         .select('id, full_name, first_name, last_name, email, role, salary_ngn, phone')
         .eq('status', 'active')
         .neq('role', 'driver')
-        .gt('salary_ngn', 0);
+        .gt('salary_ngn', 0)
+        .limit(500);
       if (fetchErr) throw fetchErr;
 
       const list = (employees || []) as any[];

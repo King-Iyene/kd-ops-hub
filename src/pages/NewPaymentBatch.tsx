@@ -139,6 +139,7 @@ const NewPaymentBatch = () => {
       .select('*')
       .eq('status', 'active')
       .order('full_name')
+      .limit(500)
       .then(({ data }) => setContractors((data as Contractor[]) || []));
 
     supabase
@@ -146,6 +147,7 @@ const NewPaymentBatch = () => {
       .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title')
       .eq('status', 'active')
       .order('full_name')
+      .limit(500)
       .then(({ data }) => setEmployees((data as Employee[]) || []));
   }, []);
 
