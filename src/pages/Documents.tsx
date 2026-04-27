@@ -127,6 +127,7 @@ const Documents = () => {
     const { data, error } = await supabase
       .from('documents')
       .select('*')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
     if (error) {
       setError(error.message);
@@ -293,7 +294,10 @@ const Documents = () => {
 
   const remove = async (doc: DocumentRow) => {
     try {
-      const del = await supabase.from('documents').delete().eq('id', doc.id);
+      const del = await supabase
+        .from('documents')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', doc.id);
       if (del.error) throw del.error;
       await supabase.storage.from('documents').remove([doc.storage_path]);
       await logAudit('document_deleted', `Document "${doc.title}" deleted`, profile);

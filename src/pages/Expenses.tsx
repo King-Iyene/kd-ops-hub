@@ -222,6 +222,7 @@ const Expenses = () => {
       let query = supabase
         .from('expenses')
         .select('*, profiles:submitted_by(full_name, first_name, last_name)')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
       const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
@@ -839,7 +840,10 @@ const Expenses = () => {
       if (path) await supabase.storage.from('receipts').remove([path]);
     }
 
-    const { error } = await supabase.from('expenses').delete().eq('id', e.id);
+    const { error } = await supabase
+      .from('expenses')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', e.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;

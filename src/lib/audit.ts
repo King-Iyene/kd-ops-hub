@@ -90,7 +90,9 @@ export type AuditActionType =
   | 'deduction_applied'
   | 'user_logged_in'
   | 'user_logged_out'
-  | 'paystack_reconciliation_run';
+  | 'paystack_reconciliation_run'
+  | 'expense_first_approval'
+  | 'expense_deleted';
 
 export interface AuditActor {
   id?: string | null;
