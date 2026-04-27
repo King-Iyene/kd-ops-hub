@@ -141,7 +141,17 @@ const Clients = () => {
       if (err) throw err;
       setClients((data as Client[]) || []);
     } catch (err: any) {
-      setError(err?.message || 'Failed to load clients');
+      const msg = err?.message || 'Failed to load clients';
+      // "schema cache" / "relation does not exist" means the migration has not
+      // been applied to the database yet. Show a clearer next-step message.
+      if (/schema cache|does not exist|public\.clients/i.test(msg)) {
+        setError(
+          'The Clients module needs a database migration that has not been deployed yet. ' +
+          'Ask an admin to run "supabase db push" to apply migration 20260428000002_create_clients.sql.'
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
