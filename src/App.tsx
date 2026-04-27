@@ -60,6 +60,9 @@ const Training         = lazy(() => import('./pages/Training'));
 const Projects         = lazy(() => import('./pages/Projects'));
 const Benefits         = lazy(() => import('./pages/Benefits'));
 const Onboarding       = lazy(() => import('./pages/Onboarding'));
+const Recruitment      = lazy(() => import('./pages/Recruitment'));
+const Attendance       = lazy(() => import('./pages/Attendance'));
+const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
@@ -432,6 +435,36 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Onboarding />
+            </RoleGuard>
+          }
+        />
+
+        {/* Recruitment Pipeline — Managers. */}
+        <Route
+          path="/recruitment"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Recruitment />
+            </RoleGuard>
+          }
+        />
+
+        {/* Attendance & Timesheets — Managers. */}
+        <Route
+          path="/attendance"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Attendance />
+            </RoleGuard>
+          }
+        />
+
+        {/* Disciplinary Records — Admin + Super Admin (sensitive HR data). */}
+        <Route
+          path="/disciplinary"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Disciplinary />
             </RoleGuard>
           }
         />
