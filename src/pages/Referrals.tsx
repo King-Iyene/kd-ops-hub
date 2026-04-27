@@ -177,7 +177,7 @@ const Referrals = () => {
         r.status,
         r.is_affiliate ? 'Yes' : 'No',
         r.commission_pct,
-        r.created_at,
+        formatDate(r.created_at),
       ];
     });
     downloadCsv('kdops-referrals.csv', toCsv(header, rows));
@@ -333,6 +333,7 @@ const Referrals = () => {
                               variant="ghost"
                               onClick={() => toggleAffiliate(r)}
                               title={r.is_affiliate ? 'Remove affiliate' : 'Make affiliate'}
+                              aria-label={r.is_affiliate ? 'Remove affiliate status' : 'Mark as affiliate'}
                             >
                               <Star className={`h-4 w-4 ${r.is_affiliate ? 'text-accent fill-accent' : ''}`} />
                             </Button>

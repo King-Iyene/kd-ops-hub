@@ -313,7 +313,7 @@ const Contacts = () => {
       c.source || '',
       c.status,
       (c.tags || []).join('; '),
-      c.created_at,
+      formatDate(c.created_at),
     ]);
     downloadCsv('kdops-contacts.csv', toCsv(header, rows));
   };

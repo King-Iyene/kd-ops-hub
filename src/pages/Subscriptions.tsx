@@ -48,6 +48,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -138,6 +148,7 @@ const Subscriptions = () => {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [renewingId, setRenewingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<Subscription | null>(null);
 
   const fetchSubs = useCallback(async () => {
     setLoading(true);
@@ -374,7 +385,6 @@ const Subscriptions = () => {
   };
 
   const deleteSub = async (s: Subscription) => {
-    if (!confirm(`Permanently delete "${s.name}"? This cannot be undone.`)) return;
     try {
       const { error } = await supabase
         .from('subscriptions')
@@ -387,6 +397,7 @@ const Subscriptions = () => {
         profile,
       );
       toast({ title: 'Subscription deleted' });
+      setPendingDelete(null);
       fetchSubs();
     } catch (err: any) {
       toast({
@@ -646,8 +657,9 @@ const Subscriptions = () => {
                                 size="sm"
                                 variant="ghost"
                                 disabled={!canManage}
-                                onClick={() => deleteSub(s)}
+                                onClick={() => setPendingDelete(s)}
                                 title="Delete permanently"
+                                aria-label={`Delete subscription ${s.name}`}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -791,6 +803,26 @@ const Subscriptions = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.name}" will be permanently removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingDelete && deleteSub(pendingDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

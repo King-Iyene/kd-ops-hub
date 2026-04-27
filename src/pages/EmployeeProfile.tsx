@@ -24,6 +24,16 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -100,6 +110,7 @@ const EmployeeProfile = () => {
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const [pendingDeleteDoc, setPendingDeleteDoc] = useState<any>(null);
   const [confirmAnonymise, setConfirmAnonymise] = useState(false);
   const [anonymiseInput, setAnonymiseInput] = useState('');
   const [actioning, setActioning] = useState(false);
@@ -453,7 +464,7 @@ const EmployeeProfile = () => {
   };
 
   const deleteEmployeeDocument = async (doc: any) => {
-    if (!confirm(`Delete "${doc.title || doc.file_name || 'this document'}"? This cannot be undone.`)) return;
+    setPendingDeleteDoc(null);
     try {
       if (doc.storage_path) {
         await supabase.storage.from('documents').remove([doc.storage_path]);
@@ -1691,8 +1702,9 @@ const EmployeeProfile = () => {
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  onClick={() => deleteEmployeeDocument(doc)}
+                                  onClick={() => setPendingDeleteDoc(doc)}
                                   title="Delete"
+                                  aria-label={`Delete document ${doc.title || doc.file_name || ''}`}
                                 >
                                   <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                 </Button>
@@ -2454,6 +2466,25 @@ const EmployeeProfile = () => {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!pendingDeleteDoc} onOpenChange={(v) => { if (!v) setPendingDeleteDoc(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDeleteDoc?.title || pendingDeleteDoc?.file_name || 'This document'}" will be permanently removed from this employee's record. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => pendingDeleteDoc && deleteEmployeeDocument(pendingDeleteDoc)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

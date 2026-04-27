@@ -16,7 +16,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { toIsoDate } from '@/lib/format';
+import { formatDate, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -317,8 +317,8 @@ const Goals = () => {
       g.quarter,
       g.status,
       g.progress_pct,
-      g.created_at,
-      g.completed_at || '',
+      formatDate(g.created_at),
+      g.completed_at ? formatDate(g.completed_at) : '',
     ]);
     downloadCsv(`kdops-goals-${toIsoDate(new Date())}.csv`, toCsv(header, rows));
   };
