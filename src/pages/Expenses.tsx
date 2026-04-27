@@ -1376,7 +1376,11 @@ const Expenses = () => {
                                 Re-edit & Resubmit
                               </Button>
                             )}
-                            {e.status === 'rejected' && isApprover && (
+                            {(
+                              (e.status === 'rejected' && isApprover) ||
+                              (['pending', 'pending_second_approval'].includes(e.status) &&
+                                ['super_admin', 'admin'].includes(profile?.role || ''))
+                            ) && (
                               <Button
                                 size="sm"
                                 variant="ghost"

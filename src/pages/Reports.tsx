@@ -695,8 +695,8 @@ function ContractorReport({ range }: { range: DateRange }) {
 function BudgetReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
     const [budgetsRes, expensesRes, batchesRes] = await Promise.all([
-      supabase.from('budgets').select('*'),
-      supabase.from('expenses').select('amount_ngn, date').eq('status', 'approved'),
+      supabase.from('budgets').select('*').is('deleted_at', null).limit(200),
+      supabase.from('expenses').select('amount_ngn, date').eq('status', 'approved').is('deleted_at', null).limit(2000),
       supabase
         .from('payment_batches')
         .select('id, total_amount, payment_date, status')
