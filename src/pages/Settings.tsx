@@ -27,6 +27,13 @@ import {
   FileWarning,
   Zap,
   History,
+  Car,
+  Receipt,
+  Users,
+  Lock,
+  RefreshCw,
+  Globe,
+  CheckCircle2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -1862,92 +1869,52 @@ function ConfigureRetentionDialog({
 }
 
 // ---------------------------------------------------------------------------
-// System Reference panel
-//
-// One-stop documentation of every cap, threshold, retention rule and
-// operational setting the platform enforces. Everything here is read-only.
-// When you change a cap or rule elsewhere in the codebase, update the
-// corresponding entry below so this stays the single source of truth admins
-// can consult instead of digging through code.
+// ---------------------------------------------------------------------------
+// System Reference panel — tabbed by module
 // ---------------------------------------------------------------------------
 
-const REF_MONEY_CAPS = [
-  { what: 'Single payment batch (total)',     cap: '₦5,000,000,000', why: 'Catches typo on bulk runs' },
-  { what: 'Single transfer (one beneficiary)', cap: '₦100,000,000',  why: 'Single Paystack transfer guard' },
-  { what: 'One expense submission',            cap: '₦100,000,000',  why: 'Catches accidental extra digit' },
-  { what: 'One fuel request',                  cap: '₦5,000,000',    why: 'Highest plausible single fuel-up' },
-  { what: 'One subscription',                  cap: '₦50,000,000',   why: 'SaaS / utility max' },
-  { what: 'One revenue entry',                 cap: '₦5,000,000,000', why: 'Monthly revenue ceiling' },
-  { what: 'Annual budget (per category)',      cap: '₦5,000,000,000', why: 'Yearly planning ceiling' },
-  { what: 'Salary advance',                    cap: '₦50,000,000',   why: 'Per-employee advance' },
-  { what: 'Annual salary',                     cap: '₦100,000,000',  why: 'Per-employee yearly comp' },
-];
+interface RefRow { a: string; b: string; c?: string; }
 
-const REF_RETENTION = [
-  { what: 'Audit logs',         current: 'Configurable in Data Retention tab', recommended: '3 years (FIRS)' },
-  { what: 'Notifications (read)', current: 'Configurable',                     recommended: '90 days' },
-  { what: 'Receipts & files',   current: 'Configurable (archive only mode)',  recommended: '2 years archive, never delete' },
-  { what: 'Documents (HR/legal)', current: 'NEVER auto-deleted (locked)',      recommended: 'Keep 7 years post-employment' },
-  { what: 'Archive recovery window', current: '90 days after archive', recommended: 'Restore via support before this expires' },
-  { what: 'First-run delay',    current: '7 days from enabling',              recommended: 'Used as cancellation window' },
-];
+function RefTable({ rows, cols }: { rows: RefRow[]; cols: string[] }) {
+  return (
+    <div className="overflow-x-auto rounded-md border">
+      <table className="w-full text-sm">
+        <thead className="border-b bg-muted/30">
+          <tr>
+            {cols.map((c) => (
+              <th key={c} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/40">
+          {rows.map((r, i) => (
+            <tr key={i} className="hover:bg-muted/20">
+              <td className="px-3 py-2 align-top font-medium">{r.a}</td>
+              <td className="px-3 py-2 align-top text-muted-foreground">{r.b}</td>
+              {cols.length === 3 && (
+                <td className="px-3 py-2 align-top text-muted-foreground">{r.c ?? ''}</td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-const REF_FILE_RULES = [
-  { what: 'Image compression on upload', value: 'On by default — receipts/photos resize to 1600 px JPEG @ 82%' },
-  { what: 'Skipped from compression',    value: 'PDFs, GIFs, SVGs, files smaller than 200 KB' },
-  { what: 'Documents bucket access',     value: 'Private — preview uses short-lived signed URLs' },
-  { what: 'Receipts bucket access',      value: 'Private — same signed-URL pattern' },
-  { what: 'Blocked file extensions',     value: '.exe .bat .cmd .sh .ps1 .jar .msi .app .dmg .html .js .ts .php .py .rb (executable / scriptable types)' },
-  { what: 'Document NEVER auto-delete',  value: 'HR / legal docs survive any retention policy' },
-];
-
-const REF_OPS_THRESHOLDS = [
-  { what: 'Low Paystack balance warning',     value: 'Below ₦50,000 → orange banner on Payments page' },
-  { what: 'BatchDetail polling interval',     value: '15s → 30s → 60s → 120s (exponential backoff)' },
-  { what: 'BatchDetail polling stop',         value: 'After 30 minutes of no progress (manual refresh still works)' },
-  { what: 'Polling pauses',                   value: 'When browser tab is hidden' },
-  { what: 'Reconciliation threshold',         value: 'Re-checks any batch_item stuck in pending > 1 hour' },
-  { what: 'Reconciliation cap per run',       value: '200 items (rate-limit guard)' },
-  { what: 'EmployeeProfile page caps',        value: '24 payslips · 20 advances / increments / deductions (newest first)' },
-  { what: 'Webhook idempotency',              value: '(reference, event_type) UNIQUE — duplicate Paystack deliveries silently ignored' },
-];
-
-const REF_SECURITY = [
-  { what: 'Audit log read access',  value: 'super_admin / admin / finance / operations only' },
-  { what: 'Audit log write',        value: 'INSERT requires performed_by = your own user_id (no impersonation)' },
-  { what: 'Login / logout audited', value: 'Every session start and end is in audit_logs' },
-  { what: 'Failed login tracking',  value: 'Recorded in failed_login_attempts (admins only)' },
-  { what: 'Login rate limit',       value: '5 failed attempts per email in 15 minutes → 15-minute lockout' },
-  { what: 'Settings (page) access', value: 'super_admin only' },
-  { what: 'Audit log (page) access', value: 'super_admin / admin only' },
-  { what: 'Employees page access',  value: 'super_admin / admin only' },
-  { what: 'Documents bucket write', value: 'admin / finance / operations / super_admin' },
-  { what: 'Tasks visibility',       value: 'Assignee + creator + admin/operations' },
-  { what: 'Approval comments',      value: 'admin / finance / operations only' },
-  { what: 'Employee deductions',    value: 'Self only OR admin / finance' },
-  { what: 'Profile session',        value: 'localStorage (auto-refresh JWT). Cleared on Sign Out' },
-  { what: '"View As role"',         value: 'Super-admin only — sessionStorage, cleared on tab close' },
-  { what: 'Content Security Policy', value: 'Active in index.html — limits scripts/connects/iframes to known origins' },
-  { what: 'Error reporting hook',   value: 'window.onerror + ErrorBoundary forward to window.Sentry if installed' },
-];
-
-const REF_PAYSTACK = [
-  { what: 'Webhook signature verification', value: 'HMAC-SHA512, timing-safe compare. Rejected events return 401' },
-  { what: 'Transfer events handled',         value: 'transfer.success, transfer.failed, transfer.reversed' },
-  { what: 'Fees captured',                   value: 'Stored as paystack_fee_ngn per batch_item; surfaced in Reports P&L' },
-  { what: 'Funding wallet link',             value: 'https://dashboard.paystack.com/#/balance/' },
-  { what: 'Manual reconcile button',         value: 'Payments page → "Reconcile" (top-right)' },
-];
-
-const REF_SUPABASE_LIMITS = [
-  { what: 'Free tier — DB storage',     value: '500 MB' },
-  { what: 'Free tier — File storage',    value: '1 GB' },
-  { what: 'Free tier — Bandwidth',       value: '5 GB / month' },
-  { what: 'Free tier — Edge invocations', value: '500K / month' },
-  { what: 'Free tier — Realtime peers',  value: '200 concurrent' },
-  { what: 'Free tier — Auth users',      value: '50,000 MAU' },
-  { what: 'Upgrade trigger',             value: 'Watch Storage closely — first thing to fill at scale. Pro tier ($25/mo) lifts limits 50–100×' },
-];
+function RefSection({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Icon className="h-4 w-4 text-primary" />
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function SystemReferencePanel() {
   return (
@@ -1958,110 +1925,381 @@ function SystemReferencePanel() {
           <div className="text-sm">
             <p className="font-semibold mb-1">System Reference</p>
             <p className="text-muted-foreground leading-relaxed">
-              Read-only reference of every cap, retention rule, operational
-              threshold and security setting the platform enforces.
-              Bookmark this page — when you forget what the limit on a
-              single transfer is, or how long old audit logs are kept,
-              this is the single source of truth.
+              Read-only reference of every cap, approval rule, retention policy, security
+              setting and operational threshold the platform enforces — organised by module.
+              This is the single source of truth. When a rule changes in code, this page is updated too.
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <RefSection icon={Wallet}    title="Money limits (typo guards)"
-        rows={REF_MONEY_CAPS.map((r) => ({ a: r.what, b: r.cap, c: r.why }))}
-        cols={['Where', 'Maximum allowed', 'Why this limit']} />
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-2">
+          <TabsTrigger value="overview"      className="text-xs"><History       className="h-3 w-3 mr-1" />Overview</TabsTrigger>
+          <TabsTrigger value="payments"      className="text-xs"><CreditCard    className="h-3 w-3 mr-1" />Payments</TabsTrigger>
+          <TabsTrigger value="expenses"      className="text-xs"><Receipt       className="h-3 w-3 mr-1" />Expenses</TabsTrigger>
+          <TabsTrigger value="fleet"         className="text-xs"><Car           className="h-3 w-3 mr-1" />Fleet</TabsTrigger>
+          <TabsTrigger value="hr"            className="text-xs"><Users         className="h-3 w-3 mr-1" />HR &amp; Leave</TabsTrigger>
+          <TabsTrigger value="security"      className="text-xs"><Shield        className="h-3 w-3 mr-1" />Security</TabsTrigger>
+          <TabsTrigger value="files"         className="text-xs"><FileWarning   className="h-3 w-3 mr-1" />Files &amp; Data</TabsTrigger>
+          <TabsTrigger value="infra"         className="text-xs"><HardDrive     className="h-3 w-3 mr-1" />Infrastructure</TabsTrigger>
+        </TabsList>
 
-      <RefSection icon={Database}  title="Data retention"
-        rows={REF_RETENTION.map((r) => ({ a: r.what, b: r.current, c: r.recommended }))}
-        cols={['Data type', 'Current behaviour', 'Recommended setting']} />
+        {/* ── OVERVIEW ──────────────────────────────────────────────────── */}
+        <TabsContent value="overview" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" /> Platform change history
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs space-y-2 leading-relaxed">
+              <p><strong>Phase 1</strong> — Locked down audit logs &amp; wide-open RLS policies (tasks, comments, referrals, deductions). Added webhook idempotency. Created missing tables (salary_increments, revenue_entries).</p>
+              <p><strong>Phase 2</strong> — React error boundaries on every page. N+1 query fix on Payments. Polling backoff + visibility detection. Pagination on EmployeeProfile.</p>
+              <p><strong>Phase 3</strong> — Money sanity-cap CHECK constraints. Storage extension denylist (no .exe / .html / .js uploads). Paystack reconciliation + button. Login / logout audit logs.</p>
+              <p><strong>Phase 4</strong> — Login rate-limit (5 attempts / 15 min). Failed-login audit table. CSP headers. Global error hooks (Sentry-ready).</p>
+              <p><strong>Phase 5–14</strong> — Dual-approval flow, budget locking, leave balances, payroll advances, virtual cards, knowledge base, goals, announcements, compliance calendar, contractor profiles.</p>
+              <p><strong>Phase 15</strong> — Auto-refresh + focus-based stale data refetch on all data-heavy pages.</p>
+              <p><strong>P0 Go-live hardening</strong> — Admin self-approval exception, Approvals query limits, CORS lockdown on Edge Functions, DB performance indexes, password min-length raised to 12 + complexity, realtime channel cleanup on logout, 10 MB file-size cap on all upload sites.</p>
+              <p><strong>P1 — Payments TDZ fix</strong> — "Cannot access before initialization" crash eliminated. ESLint <code>no-use-before-define</code> rule added as permanent guardrail.</p>
+              <p><strong>P1 — Soft deletes</strong> — expenses, documents, budgets, leave_requests, fuel_requests now use <code>deleted_at</code> instead of hard delete. Records are preserved in DB for audit trail.</p>
+              <p><strong>P1 — Query limits</strong> — All previously unbounded Supabase queries capped. Dashboard, Budgets, Leave, Approvals, Fleet and Reports pages now have explicit <code>.limit()</code> calls.</p>
+              <p className="text-muted-foreground border-t pt-2 mt-2">
+                SQL migrations live in <code>supabase/migrations/</code> · Edge functions in <code>supabase/functions/</code> · Run <code>supabase db push</code> after each deploy.
+              </p>
+            </CardContent>
+          </Card>
 
-      <RefSection icon={FileWarning} title="File upload rules"
-        rows={REF_FILE_RULES.map((r) => ({ a: r.what, b: r.value }))}
-        cols={['Setting', 'Value']} />
+          <RefSection icon={Wallet} title="Money caps (all modules)">
+            <RefTable
+              cols={['What', 'Maximum', 'Why']}
+              rows={[
+                { a: 'Single payment batch (total)',      b: '₦5,000,000,000', c: 'Catches typo on bulk runs' },
+                { a: 'Single transfer (one beneficiary)', b: '₦100,000,000',   c: 'Single Paystack transfer guard' },
+                { a: 'One expense submission',            b: '₦100,000,000',   c: 'Catches accidental extra digit' },
+                { a: 'One fuel request',                  b: '₦5,000,000',     c: 'Highest plausible single fuel-up' },
+                { a: 'One subscription',                  b: '₦50,000,000',    c: 'SaaS / utility max' },
+                { a: 'One revenue entry',                 b: '₦5,000,000,000', c: 'Monthly revenue ceiling' },
+                { a: 'Annual budget (per category)',      b: '₦5,000,000,000', c: 'Yearly planning ceiling' },
+                { a: 'Salary advance',                    b: '₦50,000,000',    c: 'Per-employee advance' },
+                { a: 'Annual salary',                     b: '₦100,000,000',   c: 'Per-employee yearly comp' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
 
-      <RefSection icon={Zap}        title="Operational thresholds"
-        rows={REF_OPS_THRESHOLDS.map((r) => ({ a: r.what, b: r.value }))}
-        cols={['Trigger / setting', 'Value']} />
+        {/* ── PAYMENTS ──────────────────────────────────────────────────── */}
+        <TabsContent value="payments" className="space-y-4">
+          <RefSection icon={CreditCard} title="Paystack integration">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Webhook signature verification', b: 'HMAC-SHA512, timing-safe compare. Rejected events return 401' },
+                { a: 'Transfer events handled',        b: 'transfer.success · transfer.failed · transfer.reversed' },
+                { a: 'Webhook idempotency',            b: '(reference, event_type) UNIQUE — duplicate deliveries silently ignored' },
+                { a: 'Fees captured',                  b: 'paystack_fee_ngn per batch_item; surfaced in Reports P&L' },
+                { a: 'CORS allowed origins',           b: 'ops.kdsquares.com · localhost:5173 · localhost:8080 · localhost:3000 (no wildcard *)' },
+                { a: 'Funding wallet',                 b: 'Payments page → top-right link, or dashboard.paystack.com/#/balance/' },
+              ]}
+            />
+          </RefSection>
 
-      <RefSection icon={Shield}     title="Security &amp; access"
-        rows={REF_SECURITY.map((r) => ({ a: r.what, b: r.value }))}
-        cols={['What', 'Who / how']} />
+          <RefSection icon={RefreshCw} title="Batch processing & reconciliation">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Low balance warning',         b: 'Below ₦50,000 → orange banner on Payments page' },
+                { a: 'BatchDetail polling interval', b: '15s → 30s → 60s → 120s (exponential backoff)' },
+                { a: 'Polling stops after',         b: '30 minutes of no progress (manual refresh still works)' },
+                { a: 'Polling pauses when',         b: 'Browser tab is hidden' },
+                { a: 'Reconciliation threshold',    b: 'Re-checks any transfer stuck in "pending" for more than 1 hour' },
+                { a: 'Reconciliation cap per run',  b: '200 items (rate-limit guard)' },
+                { a: 'Manual reconcile button',     b: 'Payments page → "Reconcile" (top-right)' },
+              ]}
+            />
+          </RefSection>
 
-      <RefSection icon={CreditCard} title="Paystack integration"
-        rows={REF_PAYSTACK.map((r) => ({ a: r.what, b: r.value }))}
-        cols={['Setting', 'Value']} />
+          <RefSection icon={Database} title="Query limits (Payments module)">
+            <RefTable
+              cols={['Query', 'Limit']}
+              rows={[
+                { a: 'Approvals — payment batches',         b: '200 rows' },
+                { a: 'Dashboard — processed batches (KPI)', b: '500 rows' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
 
-      <RefSection icon={HardDrive}  title="Supabase capacity (free tier)"
-        rows={REF_SUPABASE_LIMITS.map((r) => ({ a: r.what, b: r.value }))}
-        cols={['Resource', 'Limit / guidance']} />
+        {/* ── EXPENSES ──────────────────────────────────────────────────── */}
+        <TabsContent value="expenses" className="space-y-4">
+          <RefSection icon={CheckCircle2} title="Approval flow">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Single approval',         b: 'Expenses below the dual-approval threshold need one approver (admin / finance)' },
+                { a: 'Dual approval',           b: 'Expenses at or above the threshold in Settings require two separate approvers' },
+                { a: 'Dual threshold',          b: 'Configurable in Settings → Expense Limits (0 = dual approval disabled)' },
+                { a: 'Self-approval — non-admin', b: 'Staff / finance / operations cannot approve their own expenses' },
+                { a: 'Self-approval — admin',   b: 'super_admin and admin roles CAN first-approve their own expenses (exception)' },
+                { a: 'Second approver',         b: 'Must be a different person from the first approver — enforced in code' },
+                { a: 'Bulk approve',            b: 'Admin / finance only — each item gets its own audit log entry' },
+                { a: 'Rejection reason',        b: 'Mandatory for all rejections — minimum 10 characters' },
+              ]}
+            />
+          </RefSection>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <History className="h-4 w-4 text-primary" /> Recent platform changes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs space-y-2 leading-relaxed">
-          <p><strong>Phase 1</strong> — Locked down audit logs &amp; wide-open RLS policies (tasks, comments, referrals, deductions). Added webhook idempotency. Created missing tables (salary_increments, revenue_entries).</p>
-          <p><strong>Phase 2</strong> — React error boundaries on every page. N+1 query fix on Payments. Polling backoff + visibility detection. Pagination on EmployeeProfile.</p>
-          <p><strong>Phase 3</strong> — Money sanity-cap CHECK constraints. Storage extension denylist (no .exe / .html / .js uploads). Paystack reconciliation function + button. Login / logout audit logs. Friendly error messages for money inputs.</p>
-          <p><strong>Phase 4</strong> — Login rate-limit (5 attempts / 15 min). Failed-login audit table. CSP headers in index.html. Global error reporting hooks (window.onerror + unhandledrejection, Sentry-ready). Subscriptions defensive schema migration.</p>
-          <p className="text-muted-foreground border-t pt-2 mt-2">
-            Each phase is documented in the git history; the SQL migrations to
-            apply are in <code>supabase/migrations/</code> and edge functions
-            in <code>supabase/functions/</code>.
-          </p>
-        </CardContent>
-      </Card>
+          <RefSection icon={Receipt} title="Expense submission rules">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Maximum single expense',    b: '₦100,000,000 (CHECK constraint in DB)' },
+                { a: 'Receipt upload size cap',   b: '10 MB per file' },
+                { a: 'Receipt compression',       b: 'Images auto-compressed to 1600 px JPEG @ 82% on upload' },
+                { a: 'Resubmission',              b: 'Rejected expenses can be edited and resubmitted — creates audit trail' },
+                { a: 'Fuel-linked expenses',      b: 'Approving a fuel request auto-creates / updates a linked expense row' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Database} title="Data & query limits (Expenses)">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Soft delete',               b: 'Deleting an expense sets deleted_at — row stays in DB for audit trail' },
+                { a: 'Deleted row visibility',    b: 'Hidden from all UI queries; visible in Supabase dashboard for recovery' },
+                { a: 'Approvals page limit',      b: '200 pending expenses fetched at once' },
+                { a: 'Dashboard spend-calc limit', b: '2,000 approved expenses (for budget KPIs)' },
+                { a: 'Budgets spend-calc limit',  b: '2,000 approved expenses' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── FLEET ─────────────────────────────────────────────────────── */}
+        <TabsContent value="fleet" className="space-y-4">
+          <RefSection icon={Car} title="Fuel requests">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Maximum single fuel request', b: '₦5,000,000 (DB CHECK constraint)' },
+                { a: 'File size cap',               b: '10 MB per receipt / document' },
+                { a: 'Approval required',           b: 'admin / finance / super_admin' },
+                { a: 'Approved → linked expense',   b: 'Approving a fuel request auto-creates a paired expense row' },
+                { a: 'Soft delete',                 b: 'Deleting sets deleted_at — record preserved in DB' },
+                { a: 'Query limit',                 b: '100 fuel requests fetched per load' },
+                { a: 'Trip logs',                   b: 'Hard deleted (no financial value requiring preservation)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Zap} title="Fleet operational thresholds">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Fuel request query limit',    b: '100 rows (most recent first)' },
+                { a: 'Trip log query limit',        b: '100 rows (most recent first)' },
+                { a: 'Payment type toggle',         b: 'Naming-only — bank fields always visible regardless of toggle' },
+                { a: 'Reimbursement vs company',    b: 'Toggle on fuel & repair forms; stored on expense row (is_reimbursement)' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── HR & LEAVE ────────────────────────────────────────────────── */}
+        <TabsContent value="hr" className="space-y-4">
+          <RefSection icon={Users} title="Leave requests">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Approval roles',          b: 'admin / super_admin / operations' },
+                { a: 'Rejection reason',        b: 'Mandatory — minimum 10 characters' },
+                { a: 'Balance deducted when',   b: 'Leave is approved — restored if approval is reverted' },
+                { a: 'Cancellation',            b: 'Employee can cancel their own pending / approved request' },
+                { a: 'Soft delete',             b: 'Deleting sets deleted_at — record stays in DB' },
+                { a: 'My requests limit',       b: '100 rows (most recent first)' },
+                { a: 'Team view limit',         b: '200 rows (admin / privileged roles only)' },
+                { a: 'Approvals page limit',    b: '200 pending leave requests' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Users} title="Employee profile caps">
+            <RefTable
+              cols={['Data', 'Cap']}
+              rows={[
+                { a: 'Payslips shown',             b: '24 (newest first)' },
+                { a: 'Salary advances shown',      b: '20 (newest first)' },
+                { a: 'Salary increments shown',    b: '20 (newest first)' },
+                { a: 'Deductions shown',           b: '20 (newest first)' },
+                { a: 'Documents shown',            b: '30 (newest first, soft-deleted excluded)' },
+                { a: 'Audit log shown',            b: '50 most recent entries' },
+                { a: 'Maximum annual salary',      b: '₦100,000,000 (DB CHECK constraint)' },
+                { a: 'Maximum salary advance',     b: '₦50,000,000 (DB CHECK constraint)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Database} title="Budgets">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Maximum annual budget',   b: '₦5,000,000,000 per category (DB CHECK)' },
+                { a: 'Approval required',       b: 'admin / finance / super_admin' },
+                { a: 'Locking',                 b: 'Locked budgets block new expense submissions against their categories' },
+                { a: 'Soft delete',             b: 'Deleting sets deleted_at — record stays in DB' },
+                { a: 'Query limit',             b: '200 budget rows per load' },
+                { a: 'Approvals page limit',    b: '200 pending budgets' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── SECURITY ──────────────────────────────────────────────────── */}
+        <TabsContent value="security" className="space-y-4">
+          <RefSection icon={Lock} title="Authentication & passwords">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Minimum password length',   b: '12 characters' },
+                { a: 'Password complexity',       b: 'Must contain at least one letter and one number' },
+                { a: 'Login rate limit',          b: '5 failed attempts per email in 15 minutes → 15-minute lockout' },
+                { a: 'Failed login tracking',     b: 'Recorded in failed_login_attempts table (admins only)' },
+                { a: 'Login / logout audited',    b: 'Every session start and end recorded in audit_logs' },
+                { a: 'Session storage',           b: 'localStorage with auto-refresh JWT. Cleared on Sign Out' },
+                { a: '"View As role"',            b: 'super_admin only — sessionStorage, cleared on tab close' },
+                { a: 'Realtime cleanup',          b: 'All Supabase realtime channels removed on logout (no ghost subscriptions)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Shield} title="Access control (role matrix)">
+            <RefTable
+              cols={['Resource', 'Who can access']}
+              rows={[
+                { a: 'Settings page',            b: 'super_admin only' },
+                { a: 'Audit Log page',           b: 'super_admin / admin only' },
+                { a: 'Employees page',           b: 'super_admin / admin only' },
+                { a: 'Audit log read',           b: 'super_admin / admin / finance / operations' },
+                { a: 'Audit log write',          b: 'INSERT only — performed_by must equal your own user_id' },
+                { a: 'Documents bucket write',   b: 'admin / finance / operations / super_admin' },
+                { a: 'Approval actions',         b: 'admin / finance (single items) · admin / finance (bulk)' },
+                { a: 'Approval comments',        b: 'admin / finance / operations only' },
+                { a: 'Employee deductions',      b: 'Self only OR admin / finance' },
+                { a: 'Tasks visibility',         b: 'Assignee + creator + admin / operations' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Globe} title="Network & API security">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Content Security Policy',   b: 'Active in index.html — restricts scripts, connects, iframes to known origins' },
+                { a: 'Edge function CORS',        b: 'Locked to ops.kdsquares.com + localhost ports (no wildcard *)' },
+                { a: 'Paystack webhook auth',     b: 'HMAC-SHA512 signature verified on every webhook delivery' },
+                { a: 'Error reporting',           b: 'window.onerror + ErrorBoundary forward to window.Sentry if configured' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── FILES & DATA ──────────────────────────────────────────────── */}
+        <TabsContent value="files" className="space-y-4">
+          <RefSection icon={FileWarning} title="File upload rules">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Maximum file size',           b: '10 MB per file (5 MB for company logo)' },
+                { a: 'Image compression',           b: 'On by default — receipts / photos resize to 1600 px JPEG @ 82%' },
+                { a: 'Compression skipped for',     b: 'PDFs, GIFs, SVGs, files smaller than 200 KB' },
+                { a: 'Blocked extensions',          b: '.exe .bat .cmd .sh .ps1 .jar .msi .app .dmg .html .js .ts .php .py .rb' },
+                { a: 'Documents bucket',            b: 'Private — preview uses short-lived signed URLs' },
+                { a: 'Receipts bucket',             b: 'Private — same signed-URL pattern' },
+                { a: 'Documents auto-delete',       b: 'NEVER — HR / legal docs survive any retention policy' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Database} title="Soft deletes (what really happens when you delete)">
+            <RefTable
+              cols={['Table', 'Behaviour']}
+              rows={[
+                { a: 'expenses',       b: 'Sets deleted_at — row stays in DB · hidden from all UI · recoverable via Supabase dashboard' },
+                { a: 'documents',      b: 'Sets deleted_at — DB row kept · storage file removed (frees space)' },
+                { a: 'budgets',        b: 'Sets deleted_at — row stays in DB · hidden from UI' },
+                { a: 'leave_requests', b: 'Sets deleted_at — row stays in DB · hidden from UI' },
+                { a: 'fuel_requests',  b: 'Sets deleted_at — row stays in DB · hidden from UI' },
+                { a: 'contractors',    b: 'Uses soft_delete_contractor RPC — anonymises PII, flags as deleted' },
+                { a: 'trip_logs',      b: 'Hard delete (no financial audit value)' },
+                { a: 'tasks / goals',  b: 'Hard delete' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Archive} title="Data retention policies">
+            <RefTable
+              cols={['Data type', 'Current behaviour', 'Recommended setting']}
+              rows={[
+                { a: 'Audit logs',            b: 'Configurable in Data Retention tab', c: '3 years (FIRS requirement)' },
+                { a: 'Notifications (read)',  b: 'Configurable',                       c: '90 days' },
+                { a: 'Receipts & files',      b: 'Configurable (archive-only mode)',   c: '2 years archive, never hard-delete' },
+                { a: 'Documents (HR/legal)',  b: 'NEVER auto-deleted (locked)',         c: 'Keep 7 years post-employment' },
+                { a: 'Archive recovery',      b: '90-day window after archiving',      c: 'Restore via Supabase before expiry' },
+                { a: 'First-run delay',       b: '7 days from enabling retention',     c: 'Cancellation window' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── INFRASTRUCTURE ────────────────────────────────────────────── */}
+        <TabsContent value="infra" className="space-y-4">
+          <RefSection icon={HardDrive} title="Supabase capacity (free tier)">
+            <RefTable
+              cols={['Resource', 'Limit / guidance']}
+              rows={[
+                { a: 'Database storage',       b: '500 MB — watch this first as data grows' },
+                { a: 'File storage',            b: '1 GB' },
+                { a: 'Bandwidth',               b: '5 GB / month' },
+                { a: 'Edge Function invocations', b: '500,000 / month' },
+                { a: 'Realtime concurrent peers', b: '200' },
+                { a: 'Auth users (MAU)',         b: '50,000' },
+                { a: 'Upgrade trigger',          b: 'Pro tier ($25/mo) lifts all limits 50–100×. Storage fills first at scale.' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Zap} title="Query limits by page">
+            <RefTable
+              cols={['Page / query', 'Limit']}
+              rows={[
+                { a: 'Approvals — each table (batches, expenses, fuel, budgets, leave)', b: '200 rows' },
+                { a: 'Approvals — profiles',           b: '500 rows' },
+                { a: 'Dashboard — approved expenses',  b: '2,000 rows' },
+                { a: 'Dashboard — processed batches',  b: '500 rows' },
+                { a: 'Budgets — budget rows',          b: '200 rows' },
+                { a: 'Budgets — spend-calc expenses',  b: '2,000 rows' },
+                { a: 'Budgets — spend-calc batches',   b: '500 rows' },
+                { a: 'Leave — my requests',            b: '100 rows' },
+                { a: 'Leave — team requests',          b: '200 rows' },
+                { a: 'Fleet — fuel requests',          b: '100 rows' },
+                { a: 'Fleet — trip logs',              b: '100 rows' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Activity} title="Code quality guardrails">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'ESLint: no-use-before-define', b: 'ERROR — const/let arrow functions cannot be referenced before declaration (prevents TDZ runtime crashes). Hoisted function declarations are allowed.' },
+                { a: 'TypeScript strict mode',        b: 'strictNullChecks off (legacy); noImplicitAny off. AuditActionType union enforced.' },
+                { a: 'Build tool',                    b: 'Vite 8 (Rolldown) — stricter minification exposes TDZ bugs; fixed permanently.' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+      </Tabs>
     </div>
-  );
-}
-
-interface RefRow { a: string; b: string; c?: string; }
-
-function RefSection({
-  icon: Icon, title, rows, cols,
-}: {
-  icon: typeof Wallet;
-  title: string;
-  rows: RefRow[];
-  cols: string[];
-}) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Icon className="h-4 w-4 text-primary" /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/30">
-              <tr>
-                {cols.map((c) => (
-                  <th key={c} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {rows.map((r, i) => (
-                <tr key={i} className="hover:bg-muted/20">
-                  <td className="px-3 py-2 align-top font-medium">{r.a}</td>
-                  <td className="px-3 py-2 align-top text-muted-foreground">{r.b}</td>
-                  {cols.length === 3 && (
-                    <td className="px-3 py-2 align-top text-muted-foreground">{r.c || ''}</td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
