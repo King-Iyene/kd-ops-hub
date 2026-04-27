@@ -62,6 +62,7 @@ interface Transaction {
   description: string;
   category: string;
   amount_ngn: number;
+  total_fees_ngn: number;
   status: string;
   reference: string;
   created_by: string | null;
@@ -187,10 +188,16 @@ const Transactions = () => {
     [filtered],
   );
 
+  const totalFees = useMemo(
+    () => filtered.reduce((sum, r) => sum + (r.total_fees_ngn || 0), 0),
+    [filtered],
+  );
+
   const exportCsv = async () => {
     const header = [
       'date', 'type', 'description', 'category', 'amount_ngn',
-      'status', 'reference', 'bank_name', 'account_number', 'account_name', 'receipt_url',
+      'paystack_fees_ngn', 'status', 'reference', 'bank_name',
+      'account_number', 'account_name', 'receipt_url',
     ];
     const data = filtered.map((r) => [
       r.created_at || '',
@@ -198,6 +205,7 @@ const Transactions = () => {
       r.description,
       (r.category || '').replace(/_/g, ' '),
       r.amount_ngn,
+      r.total_fees_ngn || 0,
       statusLabel(r.status),
       r.reference,
       r.bank_name || '',
@@ -370,6 +378,9 @@ const Transactions = () => {
               {filtered.length.toLocaleString()} transaction{filtered.length !== 1 ? 's' : ''} matched
             </span>
             <span className="font-medium">{formatNaira(totalAmount)} total</span>
+            {totalFees > 0 && (
+              <span className="text-warning font-medium">{formatNaira(totalFees)} Paystack fees</span>
+            )}
           </div>
         )}
 
@@ -396,6 +407,7 @@ const Transactions = () => {
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs">Description</TableHead>
                     <TableHead className="text-right text-xs">Amount</TableHead>
+                    <TableHead className="text-right text-xs">Fees</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Receipt</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
@@ -438,6 +450,13 @@ const Transactions = () => {
                         </TableCell>
                         <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
                           {formatNaira(r.amount_ngn)}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap text-xs">
+                          {r.total_fees_ngn > 0 ? (
+                            <span className="text-warning font-medium">{formatNaira(r.total_fees_ngn)}</span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={r.status} size="sm" />
@@ -506,6 +525,12 @@ const Transactions = () => {
                       {r.reference && (
                         <MobileCardRow label="Reference">
                           <CopyableRef value={r.reference} />
+                        </MobileCardRow>
+                      )}
+
+                      {r.total_fees_ngn > 0 && (
+                        <MobileCardRow label="Paystack fees">
+                          <span className="text-warning font-medium">{formatNaira(r.total_fees_ngn)}</span>
                         </MobileCardRow>
                       )}
 
