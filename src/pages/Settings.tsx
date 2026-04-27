@@ -1955,22 +1955,22 @@ function SystemReferencePanel() {
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-2 leading-relaxed">
-              <p><strong>Phase 1</strong> — Locked down audit logs &amp; wide-open RLS policies (tasks, comments, referrals, deductions). Added webhook idempotency. Created missing tables (salary_increments, revenue_entries).</p>
-              <p><strong>Phase 2</strong> — React error boundaries on every page. N+1 query fix on Payments. Polling backoff + visibility detection. Pagination on EmployeeProfile.</p>
-              <p><strong>Phase 3</strong> — Money sanity-cap CHECK constraints. Storage extension denylist (no .exe / .html / .js uploads). Paystack reconciliation + button. Login / logout audit logs.</p>
-              <p><strong>Phase 4</strong> — Login rate-limit (5 attempts / 15 min). Failed-login audit table. CSP headers. Global error hooks (Sentry-ready).</p>
-              <p><strong>Phase 5–14</strong> — Dual-approval flow, budget locking, leave balances, payroll advances, virtual cards, knowledge base, goals, announcements, compliance calendar, contractor profiles.</p>
-              <p><strong>Phase 15</strong> — Auto-refresh + focus-based stale data refetch on all data-heavy pages.</p>
-              <p><strong>P0 Go-live hardening</strong> — Admin self-approval exception, Approvals query limits, CORS lockdown on Edge Functions, DB performance indexes, password min-length raised to 12 + complexity, realtime channel cleanup on logout, 10 MB file-size cap on all upload sites.</p>
-              <p><strong>P1 — Payments TDZ fix</strong> — "Cannot access before initialization" crash eliminated. ESLint <code>no-use-before-define</code> rule added as permanent guardrail.</p>
-              <p><strong>P1 — Soft deletes</strong> — expenses, documents, budgets, leave_requests, fuel_requests now use <code>deleted_at</code> instead of hard delete. Records are preserved in DB for audit trail.</p>
-              <p><strong>P1 — Query limits</strong> — All previously unbounded Supabase queries capped. Dashboard, Budgets, Leave, Approvals, Fleet and Reports pages now have explicit <code>.limit()</code> calls. Final sweep added limits on departments, budget_items, knowledge versions, profiles (Leave) and tags.</p>
-              <p><strong>P1 — Input trimming</strong> — Company settings (<code>company_name</code>, <code>rc_number</code>, <code>tin</code>, <code>address</code>, <code>website</code>) and payment batch <code>name</code> fields are <code>.trim()</code>'d before DB write.</p>
-              <p><strong>P1 — Double-submit protection</strong> — Quick-action handlers (Submit / Approve / Lock / Delete on Budgets, addNote on Contacts, toggleAffiliate on Referrals, toggleStatus on Contractors) now guard against double-clicks with <code>acting</code> / <code>saving</code> state and disable buttons in-flight. Optimistic UI updates with rollback on error.</p>
-              <p><strong>P1 — Confirmation dialogs</strong> — Browser <code>confirm()</code> replaced with in-app <code>AlertDialog</code> on Subscriptions delete, Leave revert-approval, and Employee document delete. Consistent destructive-action UX across the app.</p>
-              <p><strong>P1 — Accessibility &amp; CSV polish</strong> — <code>aria-label</code> added to icon-only buttons (VirtualCards, Knowledge, Subscriptions, Referrals, EmployeeProfile). CSV exports now use <code>formatDate()</code> (en-GB) instead of raw ISO timestamps for Contacts, Goals, and Referrals.</p>
+              <p><strong>Phase 1 — Tighter access control.</strong> Only the right people can see audit logs, tasks, comments, referrals, and deductions. Webhook duplicates from Paystack no longer create duplicate transactions. Two missing tables (salary increments, revenue entries) were added.</p>
+              <p><strong>Phase 2 — More resilient pages.</strong> A bug on one page no longer brings down the whole app — the user sees a friendly error message instead. The Payments page is much faster (was making many small database calls in a loop). Background refreshing slows down when a tab is inactive. Long employee profiles now use page navigation.</p>
+              <p><strong>Phase 3 — Sanity checks &amp; receipts.</strong> The database now rejects unrealistically large amounts (e.g. ₦50 billion typed by accident). Risky file types (.exe, .html, .js) are blocked from upload. A "Reconcile" button on Payments re-checks stuck transfers. Every login and logout is recorded in the audit log.</p>
+              <p><strong>Phase 4 — Login &amp; browser security.</strong> 5 wrong passwords in 15 minutes briefly locks the account. Failed attempts are saved for admins to review. The browser is told which servers it can talk to so injected scripts can't reach unknown sites. App-wide error reporting is wired up (Sentry-ready).</p>
+              <p><strong>Phase 5–14 — Feature build-out.</strong> Two-approver workflow for big expenses, budget locking, leave balance tracking, payroll advances, virtual cards, knowledge base, goals, announcements, compliance calendar, and contractor profiles.</p>
+              <p><strong>Phase 15 — Always fresh data.</strong> When you switch back to a browser tab, lists automatically pull the latest numbers so you never see stale data.</p>
+              <p><strong>P0 Go-live hardening.</strong> Admins can first-approve their own expenses (others can't). The Approvals page caps how many rows it loads at once. Our server APIs reject calls from unknown websites. Database queries are faster thanks to indexes. Passwords must be 12+ characters with letters and numbers. Logging out cleans up live data subscriptions. All file uploads are limited to 10 MB.</p>
+              <p><strong>P1 — Payments page crash fixed.</strong> The page used to crash with "Cannot access before initialization" because some code ran in the wrong order. The fix is now enforced automatically by the linter, so it cannot come back.</p>
+              <p><strong>P1 — Safer delete.</strong> Deleting an expense, document, budget, leave request, or fuel request no longer wipes it permanently. The row is hidden from every screen but stays in the database, so an admin can recover it from the Supabase dashboard if it was a mistake.</p>
+              <p><strong>P1 — Query caps everywhere.</strong> Every list in the app now has a maximum number of rows it fetches at once. This stops pages from getting slower as your data grows. Covers Dashboard, Budgets, Leave, Approvals, Fleet, Reports, plus supporting lists (departments, budget line items, knowledge versions, employee directories, tags).</p>
+              <p><strong>P1 — Auto-trim.</strong> Spaces accidentally typed before or after a value (company name, RC number, TIN, address, website, payment batch name) are stripped automatically before saving.</p>
+              <p><strong>P1 — No more double-clicks.</strong> Buttons like Submit, Approve, Lock, Delete on Budgets — and Add note, Affiliate toggle, Deactivate elsewhere — grey out the moment you click them. The screen updates immediately; if the server rejects the change, the screen reverts and shows an error.</p>
+              <p><strong>P1 — Branded confirmation pop-ups.</strong> When you delete a subscription, revert a leave approval, or delete an employee document, you see the app's own confirmation box instead of the plain browser pop-up. Same look and feel everywhere.</p>
+              <p><strong>P1 — Screen-reader friendliness &amp; cleaner CSV.</strong> Buttons that show only an icon (Pause, Edit, Delete, History) now announce what they do to assistive technology. CSV exports of Contacts, Goals, and Referrals show dates as 27/04/2026 instead of raw timestamps like 2026-04-27T14:00:00Z.</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
-                SQL migrations live in <code>supabase/migrations/</code> · Edge functions in <code>supabase/functions/</code> · Run <code>supabase db push</code> after each deploy.
+                Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
               </p>
             </CardContent>
           </Card>
@@ -1992,17 +1992,17 @@ function SystemReferencePanel() {
             />
           </RefSection>
 
-          <RefSection icon={Sparkles} title="UX, accessibility &amp; data hygiene">
+          <RefSection icon={Sparkles} title="What we polished recently (in plain English)">
             <RefTable
-              cols={['Area', 'Behaviour']}
+              cols={['What you will notice', 'How it works']}
               rows={[
-                { a: 'Destructive actions',     b: 'Branded AlertDialog confirmation on Subscriptions delete, Leave revert, Employee document delete (no browser confirm() popups).' },
-                { a: 'Double-submit protection', b: 'Submit / Approve / Lock / Delete buttons on Budgets disable while in-flight. Same guard on Contractors, Contacts, Referrals quick actions.' },
-                { a: 'Optimistic UI',           b: 'Affiliate toggle, contractor deactivate, contact note: UI updates immediately and rolls back on error.' },
-                { a: 'Icon button a11y',        b: 'All icon-only buttons (VirtualCards, Knowledge, Subscriptions, Referrals, EmployeeProfile) carry aria-label + title.' },
-                { a: 'CSV exports',             b: 'Contacts, Goals, Referrals exports use formatDate() (en-GB) instead of raw ISO timestamps.' },
-                { a: 'Input trimming',          b: 'Company settings + batch name strings trimmed before DB write.' },
-                { a: 'Error visibility',        b: 'Page-level fetch failures toast a destructive notification (e.g. Referrals load), not silent.' },
+                { a: 'Branded "Are you sure?" pop-ups',      b: 'Deleting a subscription, reverting a leave approval, removing an employee document, or running Reconcile on Payments now shows the app\'s own confirmation box instead of the plain browser one.' },
+                { a: 'No accidental double-clicks',          b: 'Buttons like Submit, Approve, Lock, Delete (Budgets), Add note (Contacts), Affiliate toggle (Referrals), Deactivate (Contractors) grey out the moment you click them — so the same change cannot be made twice.' },
+                { a: 'Instant on-screen feedback',           b: 'Toggling an affiliate, deactivating a contractor, or adding a note updates the screen straight away. If the server rejects the change, the screen reverts and you see an error.' },
+                { a: 'Friendlier for screen readers',        b: 'Icon-only buttons (Pause, Edit, Delete, History) now announce what they do to assistive technology — important for low-vision or keyboard-only users.' },
+                { a: 'Cleaner dates in CSV exports',         b: 'Contacts, Goals, and Referrals CSV exports show dates like 27/04/2026 instead of raw timestamps like 2026-04-27T14:00:00Z.' },
+                { a: 'Stray spaces auto-stripped',           b: 'Spaces accidentally typed before or after company name, RC number, TIN, website, address, or payment batch name are removed automatically before saving.' },
+                { a: 'No silent page failures',              b: 'If a page can\'t load its data (e.g. brief network issue), you see a red error toast — never a blank screen with no explanation.' },
               ]}
             />
           </RefSection>
@@ -2240,18 +2240,18 @@ function SystemReferencePanel() {
             />
           </RefSection>
 
-          <RefSection icon={Database} title="Soft deletes (what really happens when you delete)">
+          <RefSection icon={Database} title="What really happens when you click 'Delete'">
             <RefTable
-              cols={['Table', 'Behaviour']}
+              cols={['What you delete', 'What actually happens']}
               rows={[
-                { a: 'expenses',       b: 'Sets deleted_at — row stays in DB · hidden from all UI · recoverable via Supabase dashboard' },
-                { a: 'documents',      b: 'Sets deleted_at — DB row kept · storage file removed (frees space)' },
-                { a: 'budgets',        b: 'Sets deleted_at — row stays in DB · hidden from UI' },
-                { a: 'leave_requests', b: 'Sets deleted_at — row stays in DB · hidden from UI' },
-                { a: 'fuel_requests',  b: 'Sets deleted_at — row stays in DB · hidden from UI' },
-                { a: 'contractors',    b: 'Uses soft_delete_contractor RPC — anonymises PII, flags as deleted' },
-                { a: 'trip_logs',      b: 'Hard delete (no financial audit value)' },
-                { a: 'tasks / goals',  b: 'Hard delete' },
+                { a: 'Expense',           b: 'Hidden from every screen, but kept in the database with a "deleted on" timestamp. An admin can restore it from the Supabase dashboard.' },
+                { a: 'Document',          b: 'Hidden everywhere and the actual file is removed from storage (frees space). The database record stays so the audit log still references it.' },
+                { a: 'Budget',            b: 'Hidden from every screen, but kept in the database. Recoverable from the Supabase dashboard.' },
+                { a: 'Leave request',     b: 'Hidden from every screen, but kept in the database. Recoverable from the Supabase dashboard.' },
+                { a: 'Fuel request',      b: 'Hidden from every screen, but kept in the database. Recoverable from the Supabase dashboard.' },
+                { a: 'Contractor',        b: 'Sensitive personal info (name, email, phone, BVN, bank details) is anonymised. The row stays so historical payments still balance.' },
+                { a: 'Trip log',          b: 'Permanently removed (no financial value tied to it).' },
+                { a: 'Task or Goal',      b: 'Permanently removed.' },
               ]}
             />
           </RefSection>
@@ -2307,13 +2307,13 @@ function SystemReferencePanel() {
             />
           </RefSection>
 
-          <RefSection icon={Activity} title="Code quality guardrails">
+          <RefSection icon={Activity} title="Permanent code guardrails">
             <RefTable
-              cols={['Rule', 'Detail']}
+              cols={['Rule', 'What it prevents']}
               rows={[
-                { a: 'ESLint: no-use-before-define', b: 'ERROR — const/let arrow functions cannot be referenced before declaration (prevents TDZ runtime crashes). Hoisted function declarations are allowed.' },
-                { a: 'TypeScript strict mode',        b: 'strictNullChecks off (legacy); noImplicitAny off. AuditActionType union enforced.' },
-                { a: 'Build tool',                    b: 'Vite 8 (Rolldown) — stricter minification exposes TDZ bugs; fixed permanently.' },
+                { a: 'Linter blocks "used too early" code', b: 'Stops a function from being called before the line that defines it. This was the cause of the old Payments page crash, so the rule is now an error and CI will fail if anyone reintroduces it.' },
+                { a: 'Strict list of audit actions',         b: 'Every audit log action name (e.g. expense_approved, contractor_deactivated) must be in a fixed list. Typos that would silently break the audit log are caught at build time.' },
+                { a: 'Production build tool',                b: 'We use Vite 8 (Rolldown). Its stricter optimisation makes the older crash-causing patterns surface immediately, not in production.' },
               ]}
             />
           </RefSection>

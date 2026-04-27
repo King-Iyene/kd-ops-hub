@@ -9,6 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Plus, Search, RefreshCw, AlertTriangle, Wallet, Clock,
   TrendingUp, Zap, ArrowRight, Users, Info,
 } from 'lucide-react';
@@ -79,6 +89,7 @@ const Payments = () => {
   });
 
   const [reconciling, setReconciling] = useState(false);
+  const [confirmReconcile, setConfirmReconcile] = useState(false);
 
   const fetchBalance = useCallback(async (isRetry = false) => {
     setBalanceLoading(true);
@@ -173,12 +184,7 @@ const Payments = () => {
 
   const reconcileNow = async () => {
     if (reconciling) return;
-    if (!confirm(
-      'Reconcile pending transfers with Paystack now?\n\n' +
-      'This re-checks every payment that has been stuck in "pending" for ' +
-      'more than 1 hour. Use this if a payment seems stuck without ever ' +
-      'reaching Paystack confirmation.'
-    )) return;
+    setConfirmReconcile(false);
     setReconciling(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -325,7 +331,7 @@ const Payments = () => {
             {canQuickPay && (
               <Button
                 variant="outline"
-                onClick={reconcileNow}
+                onClick={() => setConfirmReconcile(true)}
                 disabled={reconciling}
                 className="flex-1 sm:flex-initial h-10 sm:h-9"
                 title="Re-check stuck transfers with Paystack"
@@ -508,6 +514,22 @@ const Payments = () => {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={confirmReconcile} onOpenChange={setConfirmReconcile}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reconcile pending transfers?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This re-checks every payment that has been stuck in "pending" for more than 1 hour.
+              Use this if a payment seems stuck without ever reaching Paystack confirmation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={reconcileNow}>Run reconcile</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
