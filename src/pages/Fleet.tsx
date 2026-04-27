@@ -1582,7 +1582,7 @@ const Fleet = () => {
         status: 'pending',
         receipt_url: receiptUrl,
         is_reimbursement: repairIsReimbursement,
-        ...(repairIsReimbursement && repairBank.verified ? {
+        ...(repairBank.verified ? {
           bank_name: repairBank.bank_name,
           account_number: repairBank.account_number,
           account_name: repairBank.account_name,
@@ -2048,7 +2048,7 @@ const Fleet = () => {
           submitted_by: fuelForm.employee_id,
           status: 'pending',
           is_reimbursement: fuelIsReimbursement,
-          ...(fuelIsReimbursement && fuelBankDetails.verified ? {
+          ...(fuelBankDetails.verified ? {
             bank_name: fuelBankDetails.bank_name,
             account_number: fuelBankDetails.account_number,
             account_name: fuelBankDetails.account_name,
@@ -4100,7 +4100,7 @@ const Fleet = () => {
                     <button
                       type="button"
                       className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !fuelIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
-                      onClick={() => { setFuelIsReimbursement(false); setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}
+                      onClick={() => setFuelIsReimbursement(false)}
                     >
                       <span className="font-medium">Company charge</span>
                       <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
@@ -4108,12 +4108,12 @@ const Fleet = () => {
                   </div>
                 </div>
 
-                {/* Bank (optional — only for reimbursement) */}
-                {fuelIsReimbursement && <div className="pt-2 border-t">
+                {/* Bank (optional) */}
+                <div className="pt-2 border-t">
                   {!showFuelBankSection ? (
                     <button type="button" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors" onClick={() => setShowFuelBankSection(true)}>
                       <CreditCard className="h-3.5 w-3.5" />
-                      Add bank account for reimbursement (optional)
+                      Add bank account (optional)
                     </button>
                   ) : (
                     <div className="space-y-2">
@@ -4124,7 +4124,7 @@ const Fleet = () => {
                       <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
                     </div>
                   )}
-                </div>}
+                </div>
               </div>
 
               {/* Pinned footer */}
@@ -5126,12 +5126,10 @@ const Fleet = () => {
               />
               {repairReceipt && <p className="text-xs text-muted-foreground">{repairReceipt.name}</p>}
             </div>
-            {repairIsReimbursement && (
-              <div className="pt-2 border-t space-y-2">
-                <p className="text-sm font-medium">Bank account for reimbursement <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
-                <BankAccountField value={repairBank} onChange={setRepairBank} />
-              </div>
-            )}
+            <div className="pt-2 border-t space-y-2">
+              <p className="text-sm font-medium">Bank account <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
+              <BankAccountField value={repairBank} onChange={setRepairBank} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRepairForm(false)}>Cancel</Button>
