@@ -4,6 +4,7 @@ import { compressImage } from '@/lib/image-compression';
 import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -4076,7 +4077,14 @@ const Fleet = () => {
                   <div className="space-y-1">
                     <Label>Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
                     <label className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-4 cursor-pointer transition-colors ${fuelDoc ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-muted/40'}`}>
-                      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => setFuelDoc(e.target.files?.[0] ?? null)} />
+                      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        if (!validateFileSize(f, toast)) {
+                          e.target.value = '';
+                          return;
+                        }
+                        setFuelDoc(f);
+                      }} />
                       {fuelDoc ? (
                         <>
                           <FileText className="h-5 w-5 text-primary" />
@@ -5020,7 +5028,14 @@ const Fleet = () => {
               <Input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  if (!validateFileSize(f, toast)) {
+                    (e.target as HTMLInputElement).value = '';
+                    return;
+                  }
+                  setReceiptFile(f);
+                }}
               />
               <p className="text-xs text-muted-foreground">Photo or PDF of the fuel station receipt.</p>
               {receiptFile && (

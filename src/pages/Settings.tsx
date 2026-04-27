@@ -32,6 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { validateFileSize } from '@/lib/file-validation';
 import { formatNaira } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InfoTip } from '@/components/ui-kit/InfoTip';
@@ -283,6 +284,12 @@ const SettingsPage = () => {
   const uploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !settings) return;
+    // 5 MB cap is plenty for a company logo — and stops people uploading
+    // 50 MB raw camera shots into branded PDFs.
+    if (!validateFileSize(file, toast, 5)) {
+      e.target.value = '';
+      return;
+    }
     const compressed = await compressImage(file);
     const path = `company-logo-${Date.now()}-${compressed.name.replace(/[^a-z0-9.]+/gi, '_')}`;
     const { error } = await supabase.storage

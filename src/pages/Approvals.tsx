@@ -163,28 +163,33 @@ const Approvals = () => {
             .from('payment_batches')
             .select('*')
             .eq('status', 'pending_approval')
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(200),
           supabase
             .from('expenses')
             .select('*')
             .eq('status', 'pending')
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(200),
           supabase
             .from('fuel_requests')
             .select('*')
             .eq('status', 'pending')
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(200),
           supabase
             .from('budgets')
             .select('*')
             .eq('status', 'pending_approval')
-            .order('created_at', { ascending: false }),
-          supabase.from('profiles').select('id, full_name, email'),
+            .order('created_at', { ascending: false })
+            .limit(200),
+          supabase.from('profiles').select('id, full_name, email').limit(500),
           supabase
             .from('leave_requests')
             .select('id, employee_id, start_date, end_date, leave_type, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name)')
             .eq('status', 'pending')
-            .order('created_at', { ascending: false }),
+            .order('created_at', { ascending: false })
+            .limit(200),
         ]);
 
       const profilesById = new Map<string, { full_name: string; email: string }>();

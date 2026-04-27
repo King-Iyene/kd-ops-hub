@@ -89,6 +89,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         /* ignore */
       }
     }
+    // Tear down realtime channels so no late events fire after the
+    // session is gone (would otherwise log "Not authenticated" warnings).
+    try {
+      await supabase.removeAllChannels();
+    } catch {
+      /* ignore */
+    }
     await supabase.auth.signOut();
     if (typeof window !== 'undefined') {
       try {

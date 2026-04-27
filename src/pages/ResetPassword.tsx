@@ -37,8 +37,17 @@ const ResetPassword = () => {
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (password.length < 12) {
+      toast({ title: 'Password must be at least 12 characters', variant: 'destructive' });
+      return;
+    }
+    // Reject obviously weak passwords even if they meet length requirement.
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      toast({
+        title: 'Password too weak',
+        description: 'Use at least one letter and one number.',
+        variant: 'destructive',
+      });
       return;
     }
     if (password !== confirm) {
@@ -79,7 +88,7 @@ const ResetPassword = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="At least 12 characters (letters + numbers)"
                 disabled={!ready}
                 required
               />
