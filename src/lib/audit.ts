@@ -95,7 +95,10 @@ export type AuditActionType =
   | 'expense_deleted'
   | 'budget_deleted'
   | 'leave_deleted'
-  | 'fuel_request_deleted';
+  | 'fuel_request_deleted'
+  | 'client_created'
+  | 'client_updated'
+  | 'client_deleted';
 
 export interface AuditActor {
   id?: string | null;

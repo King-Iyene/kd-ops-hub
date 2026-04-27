@@ -112,24 +112,26 @@ async function fetchSucceededSums(batches: Array<{ id: string; status: string }>
 }
 
 /**
- * Returns total Paystack fees keyed by batch_id, summed only across items
- * that succeeded (failed transfers don't accrue a fee).
+ * Returns Paystack fees keyed by batch_id, summed only for succeeded items.
+ * Uses the recorded paystack_fee_ngn when available; falls back to Paystack's
+ * standard Nigerian transfer fee estimate (1.5 % of amount, min ₦50, max ₦2,000)
+ * for items where the webhook has not yet populated the fee column.
  */
 async function fetchPaystackFeeTotals(batchIds: string[]): Promise<Map<string, number>> {
   if (batchIds.length === 0) return new Map();
   const { data: items } = await supabase
     .from('batch_items')
-    .select('batch_id, paystack_fee_ngn, status')
-    .in('batch_id', batchIds)
-    .gt('paystack_fee_ngn', 0);
+    .select('batch_id, amount_ngn, paystack_fee_ngn, status')
+    .in('batch_id', batchIds);
   const sums = new Map<string, number>();
   for (const it of (items || []) as any[]) {
-    if (it.status === 'succeeded') {
-      sums.set(
-        it.batch_id,
-        (sums.get(it.batch_id) ?? 0) + Number(it.paystack_fee_ngn || 0),
-      );
-    }
+    if (it.status !== 'succeeded') continue;
+    const recorded = Number(it.paystack_fee_ngn || 0);
+    const amount   = Number(it.amount_ngn || 0);
+    const fee = recorded > 0
+      ? recorded
+      : Math.max(50, Math.min(0.015 * amount, 2000)); // estimated when not yet populated
+    sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + fee);
   }
   return sums;
 }
@@ -332,7 +334,7 @@ function PaymentReport({ range }: { range: DateRange }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Total Disbursed" value={formatNaira(totalDisbursed)} icon={CreditCard} tone="primary" />
-        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Bank charges" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Transfer fees (est. 1.5%)" />
         <StatCard title="Batches" value={totalBatches} tone="success" />
         <StatCard title="Beneficiaries" value={totalBeneficiaries} tone="warning" />
       </div>
@@ -929,7 +931,7 @@ function PnLReport({ range }: { range: DateRange }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard title="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
         <StatCard title="Operating Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" subtitle="Disbursements + expenses" />
-        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Bank charges" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Transfer fees (est. 1.5%)" />
         <StatCard
           title="Net Profit"
           value={formatNaira(grossProfit)}
