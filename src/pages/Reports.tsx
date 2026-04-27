@@ -93,6 +93,26 @@ function actualDisbursed(
  * processing, and returns a map of batchId → sum of succeeded item amounts.
  * Avoids unnecessary DB hits when no batches need item-level reconciliation.
  */
+/**
+ * Sums the real Paystack transfer fee per batch from batch_items.
+ * Only uses rows where paystack_fee_ngn > 0 (populated by webhook) and
+ * status = 'succeeded' — failed transfers get their fee refunded by Paystack.
+ */
+async function fetchFeesByBatch(batchIds: string[]): Promise<Map<string, number>> {
+  if (batchIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from('batch_items')
+    .select('batch_id, paystack_fee_ngn')
+    .in('batch_id', batchIds)
+    .eq('status', 'succeeded')
+    .gt('paystack_fee_ngn', 0);
+  const sums = new Map<string, number>();
+  for (const it of (data || []) as any[]) {
+    sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + Number(it.paystack_fee_ngn || 0));
+  }
+  return sums;
+}
+
 async function fetchSucceededSums(batches: Array<{ id: string; status: string }>): Promise<Map<string, number>> {
   const partialIds = batches
     .filter((b) => b.status === 'partially_processed')
@@ -247,11 +267,13 @@ function PaymentReport({ range }: { range: DateRange }) {
     if (error) throw error;
     const batches = data || [];
     const succeededByBatch = await fetchSucceededSums(batches as any[]);
-    return { batches, succeededByBatch };
+    const feesByBatch = await fetchFeesByBatch(batches.map((b: any) => b.id));
+    return { batches, succeededByBatch, feesByBatch };
   }, [range.start, range.end]);
 
   const batches = data?.batches || [];
   const succeededByBatch = data?.succeededByBatch || new Map<string, number>();
+  const feesByBatch = data?.feesByBatch || new Map<string, number>();
 
   const byMonth = useMemo(() => {
     const acc: Record<string, { amount: number; batches: number }> = {};
@@ -278,6 +300,10 @@ function PaymentReport({ range }: { range: DateRange }) {
     (s: number, b: any) => s + actualDisbursed(b, succeededByBatch),
     0,
   );
+  const totalPaystackFees = batches.reduce(
+    (s: number, b: any) => s + (feesByBatch.get(b.id) || 0),
+    0,
+  );
   const totalBatches = batches.length || 0;
   const totalBeneficiaries =
     batches.reduce((s: number, b: any) => s + Number(b.beneficiary_count || 0), 0) || 0;
@@ -285,7 +311,7 @@ function PaymentReport({ range }: { range: DateRange }) {
   const exportCsv = () => {
     const header = [
       'name', 'payment_date', 'status', 'beneficiaries',
-      'gross_amount_ngn', 'actual_disbursed_ngn',
+      'gross_amount_ngn', 'actual_disbursed_ngn', 'paystack_fees_ngn',
     ];
     const rows = batches.map((b: any) => [
       b.name,
@@ -294,6 +320,7 @@ function PaymentReport({ range }: { range: DateRange }) {
       b.beneficiary_count || 0,
       b.total_amount || 0,
       actualDisbursed(b, succeededByBatch),
+      feesByBatch.get(b.id) || 0,
     ]);
     downloadCsv(`kdops-payments-${range.start}_to_${range.end}.csv`, toCsv(header, rows));
   };
@@ -303,10 +330,11 @@ function PaymentReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Total Disbursed" value={formatNaira(totalDisbursed)} icon={CreditCard} tone="primary" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalPaystackFees)} icon={Receipt} tone="warning" subtitle="Actual transfer fees" />
         <StatCard title="Batches" value={totalBatches} tone="success" />
-        <StatCard title="Beneficiaries" value={totalBeneficiaries} tone="warning" />
+        <StatCard title="Beneficiaries" value={totalBeneficiaries} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -812,34 +840,35 @@ function PnLReport({ range }: { range: DateRange }) {
     if (batchesRes.error) throw batchesRes.error;
     if (expensesRes.error) throw expensesRes.error;
     const succeededByBatch = await fetchSucceededSums((batchesRes.data || []) as any[]);
+    const feesByBatch = await fetchFeesByBatch(
+      (batchesRes.data || []).map((b: any) => b.id),
+    );
     return {
       batches: batchesRes.data || [],
       expenses: expensesRes.data || [],
       revenue: revenueRes.data || [],
       succeededByBatch,
+      feesByBatch,
     };
   }, [range.start, range.end]);
 
   const monthly = useMemo(() => {
-    if (!data) return [] as { month: string; revenue: number; costs: number; net: number }[];
-    const acc: Record<string, { revenue: number; costs: number }> = {};
+    if (!data) return [] as { month: string; revenue: number; costs: number; fees: number; net: number }[];
+    const acc: Record<string, { revenue: number; costs: number; fees: number }> = {};
     for (const b of data.batches as any[]) {
       const k = monthKey(new Date(b.payment_date));
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
-      // Cost = what actually left the wallet for this batch.
-      // Paystack transfer fees are recorded separately as transactions
-      // on the Transactions page — they are not estimated here to avoid
-      // double-counting or inaccurate figures.
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
       acc[k].costs += actualDisbursed(b, data.succeededByBatch);
+      acc[k].fees += data.feesByBatch.get(b.id) || 0;
     }
     for (const e of data.expenses as any[]) {
       const k = monthKey(new Date(e.date));
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
       acc[k].costs += Number(e.amount_ngn || 0);
     }
     for (const r of (data.revenue as any[])) {
       const k = r.month as string;
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
       acc[k].revenue += Number(r.amount_ngn || 0);
     }
     return Object.keys(acc)
@@ -848,13 +877,15 @@ function PnLReport({ range }: { range: DateRange }) {
         month: k,
         revenue: acc[k].revenue,
         costs: acc[k].costs,
-        net: acc[k].revenue - acc[k].costs,
+        fees: acc[k].fees,
+        net: acc[k].revenue - acc[k].costs - acc[k].fees,
       }));
   }, [data]);
 
   const totalRevenue = monthly.reduce((s, r) => s + r.revenue, 0);
   const totalCosts = monthly.reduce((s, r) => s + r.costs, 0);
-  const grossProfit = totalRevenue - totalCosts;
+  const totalFees = monthly.reduce((s, r) => s + r.fees, 0);
+  const grossProfit = totalRevenue - totalCosts - totalFees;
   const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
   const addEntry = async () => {
@@ -878,11 +909,12 @@ function PnLReport({ range }: { range: DateRange }) {
   };
 
   const exportCsv = () => {
-    const header = ['month', 'revenue', 'costs', 'gross_profit', 'gross_margin_pct'];
+    const header = ['month', 'revenue', 'costs', 'paystack_fees', 'net_profit', 'net_margin_pct'];
     const rows = monthly.map((m) => [
       m.month,
       m.revenue,
       m.costs,
+      m.fees,
       m.net,
       m.revenue > 0 ? ((m.net / m.revenue) * 100).toFixed(1) : '0.0',
     ]);
@@ -894,15 +926,16 @@ function PnLReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <StatCard title="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
         <StatCard title="Operating Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" subtitle="Disbursements + expenses" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={CreditCard} tone="warning" subtitle="Actual transfer fees" />
         <StatCard
           title="Net Profit"
           value={formatNaira(grossProfit)}
           icon={TrendingUp}
           tone={grossProfit >= 0 ? 'success' : 'danger'}
-          subtitle="Revenue − costs"
+          subtitle="Revenue − costs − fees"
         />
         <StatCard
           title="Net Margin"
@@ -1029,7 +1062,8 @@ function PnLReport({ range }: { range: DateRange }) {
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="revenue" fill="url(#kd-grad-success)" name="Revenue" radius={[6, 6, 0, 0]} {...chartAnim} />
-              <Bar dataKey="costs" fill="url(#kd-grad-danger)" name="Costs" radius={[6, 6, 0, 0]} {...chartAnim} />
+              <Bar dataKey="costs" fill="url(#kd-grad-danger)" name="Costs" radius={[0, 0, 0, 0]} stackId="cost" {...chartAnim} />
+              <Bar dataKey="fees" fill="url(#kd-grad-gold)" name="Paystack Fees" radius={[6, 6, 0, 0]} stackId="cost" {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
