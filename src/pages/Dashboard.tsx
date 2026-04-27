@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Building2,
+  Bell,
 } from 'lucide-react';
 import {
   PieChart,
@@ -192,6 +193,38 @@ const Dashboard = () => {
     pendingFuel: 0,
   });
   const [personalLoading, setPersonalLoading] = useState(false);
+
+  // ── Expiry alerts (documents + compliance filings due within 30 days) ───────
+  const [expiringDocs, setExpiringDocs] = useState<{ id: string; title: string; expires_at: string }[]>([]);
+  const [dueFilings, setDueFilings] = useState<{ id: string; kind: string; period: string; due_date: string }[]>([]);
+
+  useEffect(() => {
+    if (!isPersonal) {
+      const today = new Date().toISOString().slice(0, 10);
+      const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      Promise.all([
+        supabase
+          .from('documents')
+          .select('id, title, expires_at')
+          .is('deleted_at', null)
+          .gte('expires_at', today)
+          .lte('expires_at', in30)
+          .order('expires_at', { ascending: true })
+          .limit(5),
+        supabase
+          .from('compliance_filings')
+          .select('id, kind, period, due_date')
+          .neq('status', 'filed')
+          .gte('due_date', today)
+          .lte('due_date', in30)
+          .order('due_date', { ascending: true })
+          .limit(5),
+      ]).then(([docsRes, filingsRes]) => {
+        setExpiringDocs((docsRes.data as any[]) || []);
+        setDueFilings((filingsRes.data as any[]) || []);
+      });
+    }
+  }, [isPersonal]);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside effect; fetchDashboard is initialized before the effect first runs
@@ -432,6 +465,52 @@ const Dashboard = () => {
 
       <OnboardingChecklist />
       <AnnouncementsBanner />
+
+      {/* ── Expiry alerts — documents and compliance filings due soon ─ */}
+      {(expiringDocs.length > 0 || dueFilings.length > 0) && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Bell className="h-4 w-4 text-warning shrink-0" />
+            <p className="text-sm font-semibold text-foreground">Needs attention in the next 30 days</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {expiringDocs.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Documents expiring ({expiringDocs.length})
+                </p>
+                {expiringDocs.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => navigate('/documents')}
+                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
+                  >
+                    <span className="font-medium truncate max-w-[160px]">{d.title}</span>
+                    <span className="text-warning ml-2 shrink-0">{formatDate(d.expires_at)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {dueFilings.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Compliance filings due ({dueFilings.length})
+                </p>
+                {dueFilings.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => navigate('/compliance')}
+                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
+                  >
+                    <span className="font-medium uppercase">{f.kind} — {f.period}</span>
+                    <span className="text-warning ml-2 shrink-0">{formatDate(f.due_date)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── 1. KPI stats — first data visible ────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -52,6 +52,7 @@ const Referrals        = lazy(() => import('./pages/Referrals'));
 const Clients          = lazy(() => import('./pages/Clients'));
 const ClientProfile    = lazy(() => import('./pages/ClientProfile'));
 const VirtualCards     = lazy(() => import('./pages/VirtualCards'));
+const Invoices         = lazy(() => import('./pages/Invoices'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
@@ -179,6 +180,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Transactions />
+            </RoleGuard>
+          }
+        />
+
+        {/* Invoices — Finance + Admin + Super Admin. */}
+        <Route
+          path="/invoices"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Invoices />
             </RoleGuard>
           }
         />

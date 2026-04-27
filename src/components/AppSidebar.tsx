@@ -13,6 +13,7 @@ import {
   CalendarClock,
   PiggyBank,
   FileText,
+  FilePlus2,
   BarChart3,
   CalendarDays,
   ShieldCheck,
@@ -66,6 +67,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',          url: '/budgets',           icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -91,7 +93,7 @@ const ALL_NAV: NavItem[] = [
 // ─── Group definitions ────────────────────────────────────────────────────────
 
 const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Compliance'] },
+  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Compliance'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Tasks', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
