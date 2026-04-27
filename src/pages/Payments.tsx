@@ -131,11 +131,6 @@ const Payments = () => {
     }
   }, []);
 
-  useEffect(() => { fetchBalance(); }, [fetchBalance]);
-  useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
-
-  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
-
   const fetchStats = async () => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -170,9 +165,6 @@ const Payments = () => {
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     const fetched = (data as PaymentBatch[]) || [];
 
-    // Sync stale processing statuses. Previously this ran one query per
-    // stale batch (N+1) — at scale that meant 100+ requests per page load.
-    // Collapsed into a single IN-query plus an in-memory groupby.
     const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
     if (stale.length > 0) {
       const staleIds = stale.map((b) => b.id);
@@ -188,8 +180,6 @@ const Payments = () => {
         itemsByBatch.set(it.batch_id, arr);
       }
 
-      // Aggregate update calls so a page with N stale batches still costs
-      // 1 SELECT + at most N UPDATEs (vs. 2N round-trips before).
       const updates: Promise<unknown>[] = [];
       for (const b of stale) {
         const items = itemsByBatch.get(b.id) ?? [];
@@ -210,6 +200,11 @@ const Payments = () => {
     setBatches(fetched);
     setLoading(false);
   };
+
+  useEffect(() => { fetchBalance(); }, [fetchBalance]);
+  useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 
   const filtered = useMemo(() => {
     if (!debouncedSearch) return batches;
