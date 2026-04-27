@@ -201,6 +201,7 @@ const Payments = () => {
     }
   };
 
+
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
 
