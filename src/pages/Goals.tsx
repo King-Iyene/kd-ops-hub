@@ -168,8 +168,8 @@ const Goals = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const [goalsRes, profilesRes, depsRes] = await Promise.all([
-      supabase.from('goals').select('*').order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name, email').order('full_name'),
+      supabase.from('goals').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('profiles').select('id, full_name, email').order('full_name').limit(500),
       supabase.from('departments').select('id, name').order('name'),
     ]);
     setGoals((goalsRes.data as Goal[]) || []);

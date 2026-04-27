@@ -136,7 +136,8 @@ const Transactions = () => {
     const { data, error } = await supabase
       .from('transactions_view')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     if (error) {
       console.error('[transactions] view error:', error.message);
       setRows([]);

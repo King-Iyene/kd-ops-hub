@@ -107,7 +107,8 @@ const VirtualCards = () => {
       supabase
         .from('virtual_cards')
         .select('*')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(200),
       supabase
         .from('subscriptions')
         .select('id, name')

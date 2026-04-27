@@ -121,7 +121,8 @@ const Knowledge = () => {
     const { data } = await supabase
       .from('knowledge_articles')
       .select('*')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(200);
     setArticles((data as Article[]) || []);
     setLoading(false);
   }, []);
