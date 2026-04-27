@@ -12,6 +12,7 @@ import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   createTransferRecipient,
   initiateTransfer,
+  generateKdopsRef,
   verifyTransfer,
   getBankCode,
 } from '@/lib/paystack';
@@ -232,7 +233,8 @@ const BatchDetail = () => {
           setCompanyName((cs as any).company_name || 'KD Squares Ltd');
           setLogoUrl((cs as any).logo_url || null);
         }
-      });
+      })
+      .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
   }, [id]);
 
   const fetchBatch = async () => {
@@ -378,7 +380,7 @@ const BatchDetail = () => {
           profile,
         );
       }
-      const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef(it.id);
       const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
       const transfer = await initiateTransfer({
         recipient_code: recipientCode!,
@@ -485,14 +487,35 @@ const BatchDetail = () => {
     }
   };
 
-  // Poll pending Paystack transfers every 15s while the batch is processing.
-  // Uses itemsRef to always read the latest items and avoid stale-closure misses.
+  // Poll pending Paystack transfers while the batch is processing.
+  //
+  // Smart polling rules (avoid blowing the Paystack quota at scale):
+  //   • Skip ticks while the tab is hidden (document.hidden === true).
+  //   • Exponential backoff after consecutive ticks with no state change:
+  //     15s → 30s → 60s → 120s (capped). Resets to 15s on any change.
+  //   • Stop polling after 30 minutes of no progress (manual refresh still works).
   useEffect(() => {
     if (!batch) return;
     if (batch.status !== 'processing' && batch.status !== 'partially_processed') return;
 
     let cancelled = false;
+    let intervalMs = 15_000;
+    const MAX_INTERVAL_MS = 120_000;
+    const GIVE_UP_AT = Date.now() + 30 * 60 * 1000;
+    let timer: number | null = null;
+
     const tick = async () => {
+      if (cancelled) return;
+      // Don't poll Paystack while user isn't looking at the page.
+      if (typeof document !== 'undefined' && document.hidden) {
+        timer = window.setTimeout(tick, intervalMs);
+        return;
+      }
+      if (Date.now() > GIVE_UP_AT) {
+        console.info('[KDOps] BatchDetail polling stopped after 30 min of no progress.');
+        return;
+      }
+
       const pending = itemsRef.current.filter(
         (it) => (it.status === 'pending' || it.status === 'retry') && it.paystack_reference,
       );
@@ -542,14 +565,33 @@ const BatchDetail = () => {
           // Transient Paystack error — keep polling.
         }
       }
-      if (changed) fetchBatch();
+      if (changed) {
+        fetchBatch();
+        intervalMs = 15_000; // Reset backoff on any progress.
+      } else {
+        intervalMs = Math.min(intervalMs * 2, MAX_INTERVAL_MS);
+      }
+      if (!cancelled) timer = window.setTimeout(tick, intervalMs);
     };
 
+    // First poll happens immediately, subsequent polls follow the
+    // recursive setTimeout chain above.
     tick();
-    const iv = window.setInterval(tick, 15_000);
+
+    // Re-poll right away when the user comes back to the tab.
+    const onVisibility = () => {
+      if (!document.hidden && !cancelled) {
+        if (timer) { window.clearTimeout(timer); timer = null; }
+        intervalMs = 15_000;
+        tick();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
     return () => {
       cancelled = true;
-      window.clearInterval(iv);
+      if (timer) window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.status]);
@@ -619,6 +661,7 @@ const BatchDetail = () => {
       'bank_name',
       'account_number',
       'amount_ngn',
+      'paystack_fee_ngn',
       'reference',
       'status',
     ];
@@ -627,6 +670,7 @@ const BatchDetail = () => {
       i.bank_name ?? '',
       i.account_number ?? '',
       i.amount_ngn ?? 0,
+      (i as any).paystack_fee_ngn ?? 0,
       i.reference ?? '',
       i.status ?? '',
     ]);
@@ -860,7 +904,7 @@ const BatchDetail = () => {
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => navigate('/payments')}>
+            <Button variant="ghost" size="icon" aria-label="Back to payments" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => navigate('/payments')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">
@@ -885,17 +929,35 @@ const BatchDetail = () => {
 
         {/* Metadata row */}
         <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: 'Payment Date', value: formatDate(batch.payment_date) },
-            { label: 'Beneficiaries', value: batch.beneficiary_count },
-            { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
-            { label: 'Created', value: formatDate(batch.created_at) },
-          ].map(({ label, value, bold }) => (
-            <div key={label}>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
-              <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
-            </div>
-          ))}
+          {(() => {
+            const succeededAmount = items
+              .filter((i) => i.status === 'succeeded')
+              .reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
+            const totalFees = items.reduce(
+              (s, i) => s + Number((i as any).paystack_fee_ngn || 0),
+              0,
+            );
+            const totalCost = succeededAmount + totalFees;
+            const cells: Array<{ label: string; value: any; bold?: boolean }> = [
+              { label: 'Payment Date', value: formatDate(batch.payment_date) },
+              { label: 'Beneficiaries', value: batch.beneficiary_count },
+              { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
+              { label: 'Created', value: formatDate(batch.created_at) },
+            ];
+            if (totalFees > 0) {
+              cells.push(
+                { label: 'Disbursed (succeeded)', value: formatNaira(succeededAmount) },
+                { label: 'Paystack Fees', value: formatNaira(totalFees) },
+                { label: 'Total Cost', value: formatNaira(totalCost), bold: true },
+              );
+            }
+            return cells.map(({ label, value, bold }) => (
+              <div key={label}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+                <p className={`text-sm mt-0.5 currency ${bold ? 'font-bold text-foreground' : 'font-medium'}`}>{value}</p>
+              </div>
+            ));
+          })()}
         </div>
       </div>
 
@@ -1093,6 +1155,7 @@ const BatchDetail = () => {
                   <TableHead className="text-xs">Bank</TableHead>
                   <TableHead className="text-xs">Account</TableHead>
                   <TableHead className="text-right text-xs">Amount</TableHead>
+                  <TableHead className="text-right text-xs">Fee</TableHead>
                   <TableHead className="text-xs">Reference</TableHead>
                   <TableHead className="text-xs">Paystack Ref</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
@@ -1115,6 +1178,11 @@ const BatchDetail = () => {
                     <TableCell>{item.account_number}</TableCell>
                     <TableCell className="text-right">
                       <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                    </TableCell>
+                    <TableCell className="text-right text-xs text-muted-foreground">
+                      {(item as any).paystack_fee_ngn > 0
+                        ? <span className="currency">{formatNaira((item as any).paystack_fee_ngn)}</span>
+                        : '—'}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">

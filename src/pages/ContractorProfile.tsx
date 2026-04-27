@@ -363,7 +363,7 @@ const ContractorProfile = () => {
         <span className="text-foreground">{ctrName}</span>
       </nav>
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/contractors')}>
+        <Button variant="ghost" size="icon" aria-label="Back to contractors" onClick={() => navigate('/contractors')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">

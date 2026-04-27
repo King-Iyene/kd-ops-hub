@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
   initiateTransfer,
+  generateKdopsRef,
   getBankCode,
   NIGERIAN_BANKS,
 } from '@/lib/paystack';
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
+import { friendlyDbError } from '@/lib/db-errors';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 const emptyBank: BankAccountValue = {
@@ -41,8 +43,6 @@ export function QuickPayDialog() {
 
   const [open, setOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [testingRecipient, setTestingRecipient] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
   const [result, setResult] = useState<ResultState>(null);
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [form, setForm] = useState({
@@ -54,38 +54,6 @@ export function QuickPayDialog() {
     setBank(emptyBank);
     setForm({ amount: '', description: '' });
     setResult(null);
-    setTestResult(null);
-  };
-
-  const handleTestRecipient = async () => {
-    if (!bank.verified) {
-      toast({ title: 'Verify bank account first', variant: 'destructive' });
-      return;
-    }
-    const bankCode = getBankCode(bank.bank_name);
-    if (!bankCode) {
-      toast({ title: `Unknown bank: ${bank.bank_name}`, variant: 'destructive' });
-      return;
-    }
-    setTestingRecipient(true);
-    setTestResult(null);
-    try {
-      console.log('[QuickPay-TEST] Calling createTransferRecipient...');
-      const recipient = await createTransferRecipient({
-        name: bank.account_name || bank.account_number,
-        account_number: bank.account_number,
-        bank_code: bankCode,
-      });
-      const output = JSON.stringify(recipient, null, 2);
-      console.log('[QuickPay-TEST] Recipient response:', output);
-      setTestResult(output);
-    } catch (err: any) {
-      const msg = err?.message || 'Unknown error';
-      console.error('[QuickPay-TEST] Error:', msg, err);
-      setTestResult(`ERROR: ${msg}`);
-    } finally {
-      setTestingRecipient(false);
-    }
   };
 
   const handlePay = async () => {
@@ -128,10 +96,12 @@ export function QuickPayDialog() {
         bank_code: bankCode,
       });
 
-      const ref = `qp_${(batch as any).id.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef((batch as any).id);
 
-      // 3. Insert the batch item.
-      await supabase.from('batch_items').insert({
+      // 3. Insert the batch item. If this fails, the Paystack transfer must
+      // not be initiated — there'd be money on the wire with no DB record
+      // tying it back to the batch. Throw to abort the whole flow.
+      const { error: itemErr } = await supabase.from('batch_items').insert({
         batch_id: (batch as any).id,
         full_name: bank.account_name || bank.account_number,
         bank_name: bank.bank_name,
@@ -142,6 +112,7 @@ export function QuickPayDialog() {
         paystack_recipient_code: recipient.recipient_code,
         paystack_reference: ref,
       });
+      if (itemErr) throw new Error(`Could not create payment record: ${itemErr.message}`);
 
       // 4. Initiate transfer via Edge Function.
       const transfer = await initiateTransfer({
@@ -151,19 +122,25 @@ export function QuickPayDialog() {
         reason: form.description || 'KDOps Quick Pay',
       });
 
-      // 5. Update batch_item with transfer code.
-      await supabase
+      // 5. Update batch_item with transfer code. We can tolerate a failure
+      // here because the transfer is already in flight on Paystack's side
+      // and the webhook will eventually reconcile by paystack_reference.
+      const { error: updateErr } = await supabase
         .from('batch_items')
-        .update({
-          paystack_transfer_code: transfer.transfer_code,
-        })
+        .update({ paystack_transfer_code: transfer.transfer_code })
         .eq('paystack_reference', ref);
+      if (updateErr) {
+        console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
+      }
 
       // 6. Update batch status.
-      await supabase
+      const { error: batchUpdErr } = await supabase
         .from('payment_batches')
         .update({ status: 'processing' })
         .eq('id', (batch as any).id);
+      if (batchUpdErr) {
+        console.warn('[KDOps] could not update batch status:', batchUpdErr.message);
+      }
 
       await logAudit(
         'paystack_transfer_initiated',
@@ -174,10 +151,11 @@ export function QuickPayDialog() {
       setResult({ ok: true, ref: transfer.reference || ref });
       toast({ title: 'Quick Pay sent', description: `Ref: ${transfer.reference || ref}` });
     } catch (err: any) {
-      setResult({ ok: false, reason: err?.message || 'Transfer failed' });
+      const friendly = friendlyDbError(err);
+      setResult({ ok: false, reason: friendly });
       toast({
         title: 'Quick Pay failed',
-        description: err?.message,
+        description: friendly,
         variant: 'destructive',
       });
     } finally {
@@ -262,6 +240,7 @@ export function QuickPayDialog() {
                 <Label>Amount (₦)</Label>
                 <Input
                   type="number"
+                  min="0"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   placeholder="0.00"
@@ -284,24 +263,6 @@ export function QuickPayDialog() {
                 <span className="font-semibold">{bank.account_name}</span> ·{' '}
                 {bank.bank_name} · {bank.account_number}
               </p>
-            )}
-            {bank.verified && (
-              <div className="space-y-2 border-t pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestRecipient}
-                  disabled={testingRecipient || processing}
-                >
-                  {testingRecipient && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                  Test Recipient Only
-                </Button>
-                {testResult && (
-                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap">
-                    {testResult}
-                  </pre>
-                )}
-              </div>
             )}
           </div>
         )}

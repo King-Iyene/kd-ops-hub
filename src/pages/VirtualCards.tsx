@@ -41,6 +41,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -79,6 +89,7 @@ const VirtualCards = () => {
 
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<VirtualCard | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<VirtualCard | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     card_name: '',
@@ -214,14 +225,17 @@ const VirtualCards = () => {
     load();
   };
 
-  const remove = async (c: VirtualCard) => {
-    if (!window.confirm(`Delete card record "${c.card_name}"?`)) return;
-    const { error } = await supabase.from('virtual_cards').delete().eq('id', c.id);
+  const remove = (c: VirtualCard) => setPendingDelete(c);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { error } = await supabase.from('virtual_cards').delete().eq('id', pendingDelete.id);
+    setPendingDelete(null);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('virtual_card_deactivated', `Card "${c.card_name}" record deleted`, profile);
+    await logAudit('virtual_card_deactivated', `Card "${pendingDelete.card_name}" record deleted`, profile);
     load();
   };
 
@@ -455,6 +469,23 @@ const VirtualCards = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete card record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.card_name}" will be permanently removed. This does not cancel the card with the card provider.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import {
   X,
   ExternalLink,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -71,7 +72,8 @@ const applicantName = (a: Application) =>
 
 const linkedInUrl = (a: Application) => a.linkedin_url || a.linkedin_profile_url;
 
-const isPending = (a: Application) => a.status === 'pending';
+const isPending = (a: Application) =>
+  a.status === 'pending' || a.status === 'pending_review';
 
 const STATUS_CLS: Record<string, string> = {
   pending: 'bg-warning/10 text-warning',
@@ -238,6 +240,30 @@ export function ContractorApplications() {
     }
   };
 
+  const deleteApplication = async (app: Application) => {
+    if (!confirm(
+      `Permanently delete application from ${applicantName(app)}?\n\n` +
+      `This cannot be undone. If a contractor was already created from this ` +
+      `application, the contractor record will remain.`
+    )) return;
+    try {
+      const { error } = await supabase
+        .from('contractor_applications')
+        .delete()
+        .eq('id', app.id);
+      if (error) throw error;
+      await logAudit(
+        'contractor_deactivated',
+        `Application from ${applicantName(app)} (${app.email}) deleted`,
+        profile,
+      );
+      toast({ title: 'Application deleted' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    }
+  };
+
   const pendingCount = apps.filter(isPending).length;
   const approvedCount = apps.filter((a) => a.status === 'approved').length;
   const rejectedCount = apps.filter((a) => a.status === 'rejected').length;
@@ -346,33 +372,34 @@ export function ContractorApplications() {
                             {formatDate(a.created_at)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {pending ? (
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() => approve(a)}
-                                  title="Approve"
-                                >
-                                  {busy
-                                    ? <Loader2 className="h-4 w-4 animate-spin" />
-                                    : <Check className="h-4 w-4 text-success" />}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  disabled={busy}
-                                  onClick={() => openReject(a)}
-                                  title="Reject"
-                                >
-                                  <X className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            ) : (
+                            <div className="flex justify-end gap-1 items-center">
+                              {pending && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={busy}
+                                    onClick={() => approve(a)}
+                                    title="Approve"
+                                  >
+                                    {busy
+                                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                                      : <Check className="h-4 w-4 text-success" />}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={busy}
+                                    onClick={() => openReject(a)}
+                                    title="Reject"
+                                  >
+                                    <X className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button size="sm" variant="ghost">
+                                  <Button size="sm" variant="ghost" title="More actions">
                                     <ChevronDown className="h-4 w-4" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -383,16 +410,20 @@ export function ContractorApplications() {
                                     </DropdownMenuItem>
                                   )}
                                   {a.status === 'approved' && (
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => openReject(a)}
-                                    >
+                                    <DropdownMenuItem onClick={() => openReject(a)}>
                                       Revoke approval
                                     </DropdownMenuItem>
                                   )}
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => deleteApplication(a)}
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete application
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

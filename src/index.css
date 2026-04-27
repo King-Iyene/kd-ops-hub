@@ -243,9 +243,11 @@
   50%      { box-shadow: 0 0 0 6px hsl(var(--tod-glow) / 0); }
 }
 
-@keyframes kd-scan-line {
-  0%   { transform: translateY(-100%); }
-  100% { transform: translateY(100vh); }
+@keyframes kd-aurora-shimmer {
+  0%   { transform: translateX(-110%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(110%); opacity: 0; }
 }
 
 @keyframes kd-draw-line {
@@ -680,15 +682,30 @@
     }
   }
 
-  /* Scan line — drags down a futuristic loading bar */
+  /* Aurora shimmer — a soft diagonal highlight that drifts across the hero
+     every ~9s. Replaces the old top-to-bottom scan bar (too aggressive). */
   .kd-scan-line {
     position: absolute;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, hsl(var(--tod-glow) / 0.7), transparent);
-    animation: kd-scan-line 2.4s linear infinite;
+    inset: 0;
     pointer-events: none;
+    overflow: hidden;
+  }
+  .kd-scan-line::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    width: 60%;
+    background: linear-gradient(
+      105deg,
+      transparent 0%,
+      hsl(var(--tod-glow) / 0) 20%,
+      hsl(var(--tod-glow) / 0.18) 50%,
+      hsl(var(--tod-glow) / 0) 80%,
+      transparent 100%
+    );
+    filter: blur(8px);
+    animation: kd-aurora-shimmer 9s ease-in-out infinite;
+    will-change: transform, opacity;
   }
 
   /* SVG line draw-on */
@@ -823,7 +840,7 @@
     .kd-status-live-danger,
     .kd-status-live-cyan,
     .kd-icon-glow,
-    .kd-scan-line,
+    .kd-scan-line::before,
     .kd-trip-marker-start,
     .kd-trip-marker-event {
       animation: none !important;

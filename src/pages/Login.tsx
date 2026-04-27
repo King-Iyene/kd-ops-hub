@@ -25,8 +25,35 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setLoginError(null);
+
+    // Pre-flight rate-limit check. Best-effort: if the function is down
+    // or unreachable, we still let Supabase's own rate limit do its job.
+    try {
+      const { data: gate } = await supabase.functions.invoke('record-failed-login', {
+        body: { action: 'check', email },
+      });
+      if (gate?.blocked) {
+        setLoginError(
+          `Too many failed attempts. Try again in ${gate.remainingMinutes ?? 15} minutes, or use "Forgot password" to reset.`,
+        );
+        setLoading(false);
+        return;
+      }
+    } catch { /* don't block login on a check failure */ }
+
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      // Record this failed attempt (and find out if we just hit the cap).
+      try {
+        const { data: rec } = await supabase.functions.invoke('record-failed-login', {
+          body: { action: 'record', email, reason: error.message },
+        });
+        if (rec?.blocked) {
+          setLoginError('Too many failed attempts. Try again in 15 minutes, or use "Forgot password".');
+          setLoading(false);
+          return;
+        }
+      } catch { /* best-effort */ }
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
       setLoginError('Incorrect email or password. Please try again.');
       setLoading(false);
@@ -88,6 +115,7 @@ const Login = () => {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@kdsquares.com"
@@ -101,6 +129,7 @@ const Login = () => {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"

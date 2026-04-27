@@ -372,6 +372,30 @@ const Subscriptions = () => {
     }
   };
 
+  const deleteSub = async (s: Subscription) => {
+    if (!confirm(`Permanently delete "${s.name}"? This cannot be undone.`)) return;
+    try {
+      const { error } = await supabase
+        .from('subscriptions')
+        .delete()
+        .eq('id', s.id);
+      if (error) throw error;
+      await logAudit(
+        'subscription_cancelled',
+        `Subscription "${s.name}" deleted`,
+        profile,
+      );
+      toast({ title: 'Subscription deleted' });
+      fetchSubs();
+    } catch (err: any) {
+      toast({
+        title: 'Could not delete',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const reactivate = async (s: Subscription) => {
     try {
       const { error } = await supabase
@@ -608,14 +632,25 @@ const Subscriptions = () => {
                               </Button>
                             </>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!canManage}
-                              onClick={() => reactivate(s)}
-                            >
-                              Reactivate
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={!canManage}
+                                onClick={() => reactivate(s)}
+                              >
+                                Reactivate
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={!canManage}
+                                onClick={() => deleteSub(s)}
+                                title="Delete permanently"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
                           )}
                         </div>
                       </TableCell>

@@ -5,7 +5,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as ChartTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts';
@@ -24,9 +24,12 @@ import {
   Paperclip,
   Info,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
+import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
@@ -36,6 +39,7 @@ import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
+import { EXPENSE_CATEGORY_KEYS, expenseCategoryLabel } from '@/lib/expense-categories';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,17 +94,11 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
-import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
+import { createTransferRecipient, initiateTransfer, getBankCode, generateKdopsRef } from '@/lib/paystack';
+import { cn } from '@/lib/utils';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
-const CATEGORIES = [
-  'fuel',
-  'transport',
-  'mileage',
-  'repair',
-  'office_supplies',
-  'client_entertainment',
-  'other',
-] as const;
+const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
 interface Expense {
   id: string;
@@ -239,12 +237,6 @@ const Expenses = () => {
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
       ]);
-      console.log('[KDOps] expenses fetch:', {
-        count: expensesRes.data?.length,
-        error: expensesRes.error?.message,
-        privileged,
-        userId: currentProfile?.id,
-      });
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
 
@@ -286,6 +278,8 @@ const Expenses = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 
   // -- Payment helpers -------------------------------------------------------
 
@@ -380,7 +374,7 @@ const Expenses = () => {
         bank_code: bankCode,
       });
 
-      const ref = `kdops_${itemId.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef(itemId);
       const transfer = await initiateTransfer({
         recipient_code: recipient.recipient_code,
         amount_ngn: Number(expense.amount_ngn),
@@ -536,10 +530,11 @@ const Expenses = () => {
     // Upload receipt if one was selected.
     let receiptUrl: string | null = null;
     if (receiptFile) {
-      const filename = `${crypto.randomUUID()}-${receiptFile.name}`;
+      const compressed = await compressImage(receiptFile);
+      const filename = `${crypto.randomUUID()}-${compressed.name}`;
       const { error: uploadErr } = await supabase.storage
         .from('receipts')
-        .upload(filename, receiptFile, { contentType: receiptFile.type || undefined });
+        .upload(filename, compressed, { contentType: compressed.type || undefined });
       if (uploadErr) {
         toast({ title: 'Receipt upload failed', description: uploadErr.message, variant: 'destructive' });
         setSubmitting(false);
@@ -569,9 +564,8 @@ const Expenses = () => {
           }
         : {}),
     }).select();
-    console.log('[KDOps] expense insert:', { inserted, error, userId: profile?.id });
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not save expense', description: friendlyDbError(error), variant: 'destructive' });
     } else {
       await logAudit(
         'expense_submitted',
@@ -834,6 +828,16 @@ const Expenses = () => {
   };
 
   const deleteExpense = async (e: Expense) => {
+    // Best-effort: also remove the receipt file from storage so we don't
+    // leak orphan files. The receipt_url stored on the row is a Supabase
+    // storage URL — extract the path and call remove().
+    const receiptUrl = (e as any).receipt_url as string | null | undefined;
+    if (receiptUrl) {
+      const m = receiptUrl.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/receipts\/(.+?)(?:\?|$)/);
+      const path = m ? decodeURIComponent(m[1]) : null;
+      if (path) await supabase.storage.from('receipts').remove([path]);
+    }
+
     const { error } = await supabase.from('expenses').delete().eq('id', e.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
@@ -1083,7 +1087,15 @@ const Expenses = () => {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Track and manage expense claims.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={manualRefresh}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+          </button>
           {isApprover && (
             <Button
               variant="outline"
@@ -1123,7 +1135,7 @@ const Expenses = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip
+                <ChartTooltip
                   content={<GlassTooltip />}
                   formatter={(v: number) => formatNaira(v)}
                   cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
@@ -1163,14 +1175,14 @@ const Expenses = () => {
             </TabsList>
           </Tabs>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-full sm:w-[160px] h-10 sm:h-9">
+            <SelectTrigger className="w-full sm:w-[180px] h-10 sm:h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
               {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c} className="capitalize">
-                  {c.replace(/_/g, ' ')}
+                <SelectItem key={c} value={c}>
+                  {expenseCategoryLabel(c)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1615,8 +1627,8 @@ const Expenses = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c} className="capitalize">
-                      {c.replace(/_/g, ' ')}
+                    <SelectItem key={c} value={c}>
+                      {expenseCategoryLabel(c)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1660,6 +1672,7 @@ const Expenses = () => {
                   <Label>Distance (km)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.mileage_km}
                     onChange={(e) =>
                       setForm({ ...form, mileage_km: e.target.value })
@@ -1670,6 +1683,7 @@ const Expenses = () => {
                   <Label>Rate (₦/km)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.rate_per_km_ngn}
                     onChange={(e) =>
                       setForm({ ...form, rate_per_km_ngn: e.target.value })
@@ -1689,6 +1703,7 @@ const Expenses = () => {
                   <Label>Amount (₦)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.amount_ngn}
                     onChange={(e) =>
                       setForm({ ...form, amount_ngn: e.target.value })

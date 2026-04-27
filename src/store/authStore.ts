@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { logAudit } from '@/lib/audit';
 import type { User } from '@supabase/supabase-js';
 
 export type UserRole =
@@ -78,7 +79,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ viewAsRole: role });
   },
   signOut: async () => {
-    // Tear down realtime channels first so no late events fire after the
+    // Log BEFORE signOut, while we still have an authed session that can
+    // write to audit_logs. Best-effort — never block sign-out on it.
+    const profile = get().profile;
+    if (profile?.id) {
+      try {
+        await logAudit('user_logged_out', `User ${profile.full_name || profile.email} signed out`, profile);
+      } catch {
+        /* ignore */
+      }
+    }
+    // Tear down realtime channels so no late events fire after the
     // session is gone (would otherwise log "Not authenticated" warnings).
     try {
       await supabase.removeAllChannels();

@@ -34,6 +34,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -95,6 +105,7 @@ const Knowledge = () => {
 
   const [editor, setEditor] = useState<Article | null>(null);
   const [showEditor, setShowEditor] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Article | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: '',
@@ -191,14 +202,17 @@ const Knowledge = () => {
     }
   };
 
-  const remove = async (a: Article) => {
-    if (!window.confirm(`Delete "${a.title}"? Version history is preserved.`)) return;
-    const { error } = await supabase.from('knowledge_articles').delete().eq('id', a.id);
+  const remove = (a: Article) => setPendingDelete(a);
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { error } = await supabase.from('knowledge_articles').delete().eq('id', pendingDelete.id);
+    setPendingDelete(null);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('knowledge_article_deleted', `Article "${a.title}" deleted`, profile);
+    await logAudit('knowledge_article_deleted', `Article "${pendingDelete.title}" deleted`, profile);
     toast({ title: 'Article deleted' });
     load();
   };
@@ -425,6 +439,23 @@ const Knowledge = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete article?</AlertDialogTitle>
+            <AlertDialogDescription>
+              "{pendingDelete?.title}" will be permanently deleted. Version history is preserved in the archive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

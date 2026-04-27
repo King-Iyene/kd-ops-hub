@@ -969,6 +969,7 @@ const Budgets = () => {
                         <TableCell>
                           <Input
                             type="number"
+                            min="0"
                             className="text-right"
                             value={it.planned_amount_ngn}
                             onChange={(e) =>

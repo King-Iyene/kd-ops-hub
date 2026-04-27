@@ -409,6 +409,8 @@ const Referrals = () => {
                 <Label>Commission percentage</Label>
                 <Input
                   type="number"
+                  min="0"
+                  max="100"
                   value={form.commission_pct}
                   onChange={(e) => setForm({ ...form, commission_pct: e.target.value })}
                   placeholder="e.g. 5"

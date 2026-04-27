@@ -8,6 +8,19 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
+function passwordStrength(pw: string): { score: number; label: string; color: string } {
+  if (!pw) return { score: 0, label: '', color: '' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score, label: 'Weak', color: 'bg-destructive' };
+  if (score <= 3) return { score, label: 'Fair', color: 'bg-warning' };
+  return { score, label: 'Strong', color: 'bg-success' };
+}
+
 const Register = () => {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -78,6 +91,7 @@ const Register = () => {
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@kdsquares.com"
@@ -89,11 +103,28 @@ const Register = () => {
               <Input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
               />
+              {password && (() => {
+                const { score, label, color } = passwordStrength(password);
+                return (
+                  <div className="space-y-1">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <div
+                          key={i}
+                          className={`h-1 flex-1 rounded-full transition-colors ${i <= score ? color : 'bg-muted'}`}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{label} — use 12+ characters, numbers and symbols for a strong password.</p>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>

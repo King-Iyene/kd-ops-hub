@@ -26,7 +26,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as ChartTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts';
@@ -106,6 +106,29 @@ async function fetchSucceededSums(batches: Array<{ id: string; status: string }>
   for (const it of (items || []) as any[]) {
     if (it.status === 'succeeded') {
       sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + Number(it.amount_ngn || 0));
+    }
+  }
+  return sums;
+}
+
+/**
+ * Returns total Paystack fees keyed by batch_id, summed only across items
+ * that succeeded (failed transfers don't accrue a fee).
+ */
+async function fetchPaystackFeeTotals(batchIds: string[]): Promise<Map<string, number>> {
+  if (batchIds.length === 0) return new Map();
+  const { data: items } = await supabase
+    .from('batch_items')
+    .select('batch_id, paystack_fee_ngn, status')
+    .in('batch_id', batchIds)
+    .gt('paystack_fee_ngn', 0);
+  const sums = new Map<string, number>();
+  for (const it of (items || []) as any[]) {
+    if (it.status === 'succeeded') {
+      sums.set(
+        it.batch_id,
+        (sums.get(it.batch_id) ?? 0) + Number(it.paystack_fee_ngn || 0),
+      );
     }
   }
   return sums;
@@ -247,11 +270,13 @@ function PaymentReport({ range }: { range: DateRange }) {
     if (error) throw error;
     const batches = data || [];
     const succeededByBatch = await fetchSucceededSums(batches as any[]);
-    return { batches, succeededByBatch };
+    const feesByBatch = await fetchPaystackFeeTotals(batches.map((b: any) => b.id));
+    return { batches, succeededByBatch, feesByBatch };
   }, [range.start, range.end]);
 
   const batches = data?.batches || [];
   const succeededByBatch = data?.succeededByBatch || new Map<string, number>();
+  const feesByBatch = data?.feesByBatch || new Map<string, number>();
 
   const byMonth = useMemo(() => {
     const acc: Record<string, { amount: number; batches: number }> = {};
@@ -278,6 +303,7 @@ function PaymentReport({ range }: { range: DateRange }) {
     (s: number, b: any) => s + actualDisbursed(b, succeededByBatch),
     0,
   );
+  const totalFees = Array.from(feesByBatch.values()).reduce((s, v) => s + v, 0);
   const totalBatches = batches.length || 0;
   const totalBeneficiaries =
     batches.reduce((s: number, b: any) => s + Number(b.beneficiary_count || 0), 0) || 0;
@@ -285,7 +311,7 @@ function PaymentReport({ range }: { range: DateRange }) {
   const exportCsv = () => {
     const header = [
       'name', 'payment_date', 'status', 'beneficiaries',
-      'gross_amount_ngn', 'actual_disbursed_ngn',
+      'gross_amount_ngn', 'actual_disbursed_ngn', 'paystack_fees_ngn',
     ];
     const rows = batches.map((b: any) => [
       b.name,
@@ -294,6 +320,7 @@ function PaymentReport({ range }: { range: DateRange }) {
       b.beneficiary_count || 0,
       b.total_amount || 0,
       actualDisbursed(b, succeededByBatch),
+      feesByBatch.get(b.id) || 0,
     ]);
     downloadCsv(`kdops-payments-${range.start}_to_${range.end}.csv`, toCsv(header, rows));
   };
@@ -303,8 +330,9 @@ function PaymentReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Total Disbursed" value={formatNaira(totalDisbursed)} icon={CreditCard} tone="primary" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Bank charges" />
         <StatCard title="Batches" value={totalBatches} tone="success" />
         <StatCard title="Beneficiaries" value={totalBeneficiaries} tone="warning" />
       </div>
@@ -324,7 +352,7 @@ function PaymentReport({ range }: { range: DateRange }) {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip
+                <ChartTooltip
                   content={<GlassTooltip />}
                   formatter={(v: number) => formatNaira(v)}
                   cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -354,7 +382,7 @@ function PaymentReport({ range }: { range: DateRange }) {
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                <ChartTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -431,7 +459,7 @@ function ExpenseReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="name" tickFormatter={(v: string) => v.replace(/_/g, ' ')} tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.gold, fillOpacity: 0.06 }}
@@ -543,7 +571,7 @@ function FleetReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ stroke: chartTheme.primary, strokeWidth: 1, strokeOpacity: 0.3 }}
@@ -646,7 +674,7 @@ function ContractorReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} horizontal={false} />
               <XAxis type="number" tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis dataKey="name" type="category" width={80} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -760,7 +788,7 @@ function BudgetReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
@@ -812,31 +840,36 @@ function PnLReport({ range }: { range: DateRange }) {
     if (batchesRes.error) throw batchesRes.error;
     if (expensesRes.error) throw expensesRes.error;
     const succeededByBatch = await fetchSucceededSums((batchesRes.data || []) as any[]);
+    const feesByBatch = await fetchPaystackFeeTotals((batchesRes.data || []).map((b: any) => b.id));
     return {
       batches: batchesRes.data || [],
       expenses: expensesRes.data || [],
       revenue: revenueRes.data || [],
       succeededByBatch,
+      feesByBatch,
     };
   }, [range.start, range.end]);
 
   const monthly = useMemo(() => {
-    if (!data) return [] as { month: string; revenue: number; costs: number; net: number }[];
-    const acc: Record<string, { revenue: number; costs: number }> = {};
+    if (!data) return [] as { month: string; revenue: number; costs: number; fees: number; net: number }[];
+    const acc: Record<string, { revenue: number; costs: number; fees: number }> = {};
     for (const b of data.batches as any[]) {
       const k = monthKey(new Date(b.payment_date));
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
-      // Cost is what actually left the account, not the gross batch total
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
+      // Cost is what actually left the account, not the gross batch total.
+      // Paystack fees are tracked separately so they show up as their own
+      // cost line in the report.
       acc[k].costs += actualDisbursed(b, data.succeededByBatch);
+      acc[k].fees += data.feesByBatch.get(b.id) || 0;
     }
     for (const e of data.expenses as any[]) {
       const k = monthKey(new Date(e.date));
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
       acc[k].costs += Number(e.amount_ngn || 0);
     }
     for (const r of (data.revenue as any[])) {
       const k = r.month as string;
-      acc[k] = acc[k] || { revenue: 0, costs: 0 };
+      acc[k] = acc[k] || { revenue: 0, costs: 0, fees: 0 };
       acc[k].revenue += Number(r.amount_ngn || 0);
     }
     return Object.keys(acc)
@@ -845,13 +878,15 @@ function PnLReport({ range }: { range: DateRange }) {
         month: k,
         revenue: acc[k].revenue,
         costs: acc[k].costs,
-        net: acc[k].revenue - acc[k].costs,
+        fees: acc[k].fees,
+        net: acc[k].revenue - acc[k].costs - acc[k].fees,
       }));
   }, [data]);
 
   const totalRevenue = monthly.reduce((s, r) => s + r.revenue, 0);
   const totalCosts = monthly.reduce((s, r) => s + r.costs, 0);
-  const grossProfit = totalRevenue - totalCosts;
+  const totalFees = monthly.reduce((s, r) => s + r.fees, 0);
+  const grossProfit = totalRevenue - totalCosts - totalFees;
   const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
 
   const addEntry = async () => {
@@ -891,17 +926,19 @@ function PnLReport({ range }: { range: DateRange }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard title="Total Revenue" value={formatNaira(totalRevenue)} icon={TrendingUp} tone="success" />
-        <StatCard title="Total Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" />
+        <StatCard title="Operating Costs" value={formatNaira(totalCosts)} icon={Receipt} tone="warning" subtitle="Disbursements + expenses" />
+        <StatCard title="Paystack Fees" value={formatNaira(totalFees)} icon={Wallet} tone="warning" subtitle="Bank charges" />
         <StatCard
-          title="Gross Profit"
+          title="Net Profit"
           value={formatNaira(grossProfit)}
           icon={TrendingUp}
           tone={grossProfit >= 0 ? 'success' : 'danger'}
+          subtitle="Revenue − costs − fees"
         />
         <StatCard
-          title="Gross Margin"
+          title="Net Margin"
           value={totalRevenue > 0 ? `${grossMargin.toFixed(1)}%` : '—'}
           tone={grossMargin >= 0 ? 'success' : 'danger'}
         />
@@ -1018,14 +1055,15 @@ function PnLReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.success, fillOpacity: 0.05 }}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="revenue" fill="url(#kd-grad-success)" name="Revenue" radius={[6, 6, 0, 0]} {...chartAnim} />
-              <Bar dataKey="costs" fill="url(#kd-grad-danger)" name="Costs" radius={[6, 6, 0, 0]} {...chartAnim} />
+              <Bar dataKey="costs" stackId="cost" fill="url(#kd-grad-danger)" name="Costs" radius={[0, 0, 0, 0]} {...chartAnim} />
+              <Bar dataKey="fees" stackId="cost" fill="url(#kd-grad-gold)" name="Paystack Fees" radius={[6, 6, 0, 0]} {...chartAnim} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -1140,7 +1178,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="bucket" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -1252,7 +1290,7 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip content={<GlassTooltip />} formatter={(v: number) => formatNaira(v)} cursor={{ fill: 'transparent' }} />
+              <ChartTooltip content={<GlassTooltip />} formatter={(v: number) => formatNaira(v)} cursor={{ fill: 'transparent' }} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>

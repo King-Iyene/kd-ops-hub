@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { logAudit } from '@/lib/audit';
 
 export const useAuth = () => {
   const { user, profile, loading, setUser, setLoading, fetchProfile } =
@@ -116,6 +117,20 @@ export const useAuth = () => {
         setUser(session.user);
         // Wait for the profile row before releasing the UI.
         finish(session.user.id, true);
+        // Login audit — only on a fresh sign-in (event === SIGNED_IN with
+        // no prior user; rehydration is suppressed earlier in this branch).
+        if (event === 'SIGNED_IN') {
+          (async () => {
+            // Best-effort delay so the profile fetch can populate
+            // performed_by_name. Never block on it.
+            setTimeout(() => {
+              const p = useAuthStore.getState().profile;
+              if (p) {
+                logAudit('user_logged_in', `User ${p.full_name || p.email} signed in`, p);
+              }
+            }, 800);
+          })();
+        }
       } else {
         setUser(null);
         useAuthStore.getState().setProfile(null);

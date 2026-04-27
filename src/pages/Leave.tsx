@@ -11,7 +11,9 @@ import {
   Clock,
   Info,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -223,6 +225,8 @@ const Leave = () => {
     if (profile?.id) fetchAll();
   }, [fetchAll, profile?.id]);
 
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchAll);
+
   // Bootstrap a balance row for the current employee/year if missing.
   useEffect(() => {
     if (!profile?.id || balance || loading) return;
@@ -323,7 +327,10 @@ const Leave = () => {
     const base = (existing as LeaveBalance) || {
       employee_id: req.employee_id,
       year,
-      annual_quota: 21,
+      // Nigerian Labour Act minimum: 6 working days for under 1 year of
+      // service. 12 is the conservative default — finance can raise it per
+      // employee. (Previously hard-coded to 21 which is rich by local norms.)
+      annual_quota: 12,
       annual_used: 0,
       sick_used: 0,
       unpaid_used: 0,
@@ -335,6 +342,65 @@ const Leave = () => {
     await supabase
       .from('leave_balances')
       .upsert(updates, { onConflict: 'employee_id,year' });
+  };
+
+  /**
+   * Reverse an approval: set the request back to pending and decrement the
+   * employee's used-days counter. Used when a manager approved by mistake or
+   * the leave was withdrawn after approval.
+   */
+  const revertApproval = async (req: LeaveRequest) => {
+    if (!isManager) {
+      toast({ title: 'Not authorized', variant: 'destructive' });
+      return;
+    }
+    if (!confirm(`Revert approval for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} day${req.days_requested === 1 ? '' : 's'})? Their balance will be restored.`)) return;
+    setActioning(req.id);
+    try {
+      const { error } = await supabase
+        .from('leave_requests')
+        .update({ status: 'pending', reviewed_by: null })
+        .eq('id', req.id);
+      if (error) throw error;
+
+      // Restore the days back into the balance
+      const year = new Date(req.start_date).getFullYear();
+      const { data: existing } = await supabase
+        .from('leave_balances')
+        .select('*')
+        .eq('employee_id', req.employee_id)
+        .eq('year', year)
+        .maybeSingle();
+      if (existing) {
+        const updates = { ...(existing as LeaveBalance) };
+        if (req.leave_type === 'annual') updates.annual_used = Math.max(0, updates.annual_used - req.days_requested);
+        if (req.leave_type === 'sick') updates.sick_used = Math.max(0, updates.sick_used - req.days_requested);
+        if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
+        await supabase
+          .from('leave_balances')
+          .upsert(updates, { onConflict: 'employee_id,year' });
+      }
+
+      await logAudit(
+        'leave_reverted',
+        `Leave approval reverted for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} days)`,
+        profile,
+      );
+      await notifyUser({
+        userId: req.employee_id,
+        type: 'leave_reverted',
+        module: 'leave',
+        title: 'Leave approval reverted',
+        body: `Your ${req.leave_type} leave (${req.days_requested} day${req.days_requested === 1 ? '' : 's'}) is back to pending. Contact your manager.`,
+      });
+      toast({ title: 'Approval reverted' });
+      fetchAll();
+      refreshApprovals();
+    } catch (err: any) {
+      toast({ title: 'Could not revert', description: err?.message, variant: 'destructive' });
+    } finally {
+      setActioning(null);
+    }
   };
 
   const approve = async (req: LeaveRequest) => {
@@ -504,7 +570,7 @@ const Leave = () => {
 
   const annualLeft = balance
     ? Math.max(0, balance.annual_quota - balance.annual_used)
-    : 21;
+    : 12;
 
   return (
     <div className="space-y-6">
@@ -523,7 +589,15 @@ const Leave = () => {
           </div>
           <p className="text-muted-foreground text-sm mt-1">Submit time off and review your team's leave requests.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <button
+            type="button"
+            onClick={manualRefresh}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Refresh"
+          >
+            <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+          </button>
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" /> Request Leave
           </Button>
@@ -633,6 +707,8 @@ const Leave = () => {
                         const canManageRow = isManager && canApprovePerm && r.status === 'pending';
                         const canCancelOwn =
                           r.employee_id === profile?.id && r.status === 'pending';
+                        const canRevertApproved =
+                          isManager && canApprovePerm && r.status === 'approved';
                         return (
                           <TableRow key={r.id} className="kd-transition">
                             {tab === 'team' && (
@@ -703,6 +779,18 @@ const Leave = () => {
                                     Cancel
                                   </Button>
                                 )}
+                                {canRevertApproved && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={busy}
+                                    onClick={() => revertApproval(r)}
+                                    className="text-xs"
+                                    title="Revert approval and restore balance"
+                                  >
+                                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Revert'}
+                                  </Button>
+                                )}
                                 {isManager && (
                                   <Button
                                     size="sm"
@@ -713,7 +801,7 @@ const Leave = () => {
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
                                 )}
-                                {!canManageRow && !canCancelOwn && !isManager && (
+                                {!canManageRow && !canCancelOwn && !canRevertApproved && !isManager && (
                                   <span className="text-xs text-muted-foreground">—</span>
                                 )}
                               </div>

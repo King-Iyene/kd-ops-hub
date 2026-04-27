@@ -13,7 +13,9 @@ import {
   Calendar,
   ShieldCheck,
   Activity,
+  RefreshCw,
 } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useApprovalStore } from '@/store/approvalStore';
@@ -43,6 +45,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AuroraHero } from '@/components/AuroraHero';
@@ -135,6 +147,7 @@ const Approvals = () => {
   const [items, setItems] = useState<PendingItem[]>([]);
   const [actioning, setActioning] = useState<string | null>(null);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
 
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'all' | Kind>('all');
@@ -274,6 +287,8 @@ const Approvals = () => {
     refreshCounts();
   }, [fetchAll, refreshCounts]);
 
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchAll);
+
   // Filter + tab scoping.
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -362,7 +377,98 @@ const Approvals = () => {
         .update(update)
         .eq('id', rawId(it.id));
       if (error) throw error;
+
+      // When a fuel request is approved, update the paired expense row
+      // (created at submission time, linked by fuel_request_id) to
+      // 'approved'. If no paired row exists (legacy fuel request from
+      // before the link was wired up), insert one as a fallback.
+      if (it.kind === 'fuel') {
+        const f = it.raw || {};
+        const now = new Date().toISOString();
+        const { data: existing } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('fuel_request_id', f.id)
+          .maybeSingle();
+        let expErr: { message: string } | null = null;
+        if (existing?.id) {
+          const { error } = await supabase.from('expenses').update({
+            status: 'approved',
+            approved_by: profile?.id,
+            approved_at: now,
+          }).eq('id', existing.id);
+          expErr = error;
+        } else {
+          const { error } = await supabase.from('expenses').insert({
+            fuel_request_id: f.id,
+            category: 'fuel',
+            budget_category: 'fuel',
+            amount_ngn: f.amount_ngn,
+            date: now.slice(0, 10),
+            description: `Fuel — ${f.station_name || 'Station'} — ${f.reason || 'Fuel request'}`,
+            submitted_by: f.driver_id || f.employee_id,
+            status: 'approved',
+            approved_by: profile?.id,
+            approved_at: now,
+            ...(f.bank_name ? {
+              bank_name: f.bank_name,
+              account_number: f.account_number,
+              account_name: f.account_name,
+            } : {}),
+          });
+          expErr = error;
+        }
+        if (expErr) {
+          toast({
+            title: 'Approved, but expense entry failed',
+            description: expErr.message,
+            variant: 'destructive',
+          });
+        }
+      }
+
       await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
+
+      // Notify the submitter that their request was approved. Without this,
+      // approval was silent on the submitter's side — they had to check the
+      // module manually to know their request went through.
+      const submitterId =
+        it.kind === 'batch'
+          ? it.raw?.created_by
+          : it.kind === 'expense'
+          ? it.raw?.submitted_by
+          : it.kind === 'fuel'
+          ? it.raw?.driver_id
+          : it.kind === 'budget'
+          ? it.raw?.created_by
+          : it.raw?.employee_id;
+
+      const KIND_LABELS: Record<string, string> = {
+        batch: 'payment batch',
+        expense: 'expense',
+        fuel: 'fuel request',
+        budget: 'budget',
+        leave: 'leave request',
+      };
+
+      if (submitterId) {
+        const { error: notifyErr } = await supabase.from('notifications').insert({
+          user_id: submitterId,
+          type: `${it.kind}_approved`,
+          module: it.kind === 'batch' ? 'payments' : it.kind === 'fuel' ? 'fleet' : it.kind === 'leave' ? 'leave' : it.kind,
+          priority: 'normal',
+          title: `Your ${KIND_LABELS[it.kind] || it.kind} was approved`,
+          body: it.amount
+            ? `${it.title} — ${formatNaira(it.amount)}`
+            : it.title,
+        });
+        if (notifyErr) {
+          // Don't block approval — but log so we can see if notification
+          // delivery is consistently failing.
+          console.warn('[KDOps] approval notification insert failed:', notifyErr.message);
+        }
+      }
+
       toast({ title: 'Approved' });
       await fetchAll();
       refreshCounts();
@@ -417,6 +523,15 @@ const Approvals = () => {
         .eq('id', rawId(it.id));
       if (error) throw error;
 
+      // If a fuel request is rejected, also mark the paired expense row
+      // as rejected so finance no longer sees it as actionable.
+      if (it.kind === 'fuel') {
+        await supabase
+          .from('expenses')
+          .update({ status: 'rejected', rejection_reason: rejectReason.trim() })
+          .eq('fuel_request_id', rawId(it.id));
+      }
+
       // Figure out submitter for notification.
       const submitterId =
         it.kind === 'batch'
@@ -429,9 +544,18 @@ const Approvals = () => {
           ? it.raw?.created_by
           : it.raw?.employee_id;
 
+      // Map each kind to a human-friendly label so the recipient sees
+      // "Your fuel request was rejected" instead of "Your fuel was rejected".
+      const KIND_LABELS: Record<string, string> = {
+        batch: 'payment batch',
+        expense: 'expense',
+        fuel: 'fuel request',
+        budget: 'budget',
+        leave: 'leave request',
+      };
       await writeRejectionNotification({
         entity: it.kind,
-        entityLabel: it.kind === 'batch' ? 'payment batch' : it.kind,
+        entityLabel: KIND_LABELS[it.kind] || it.kind,
         amount: it.amount,
         reason: rejectReason.trim(),
         submitterId: submitterId || null,
@@ -582,9 +706,14 @@ const Approvals = () => {
             <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
               <ShieldCheck className="h-3 w-3" /> {canApprove ? 'Approver' : 'View only'}
             </span>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
-              <Activity className="h-3 w-3" /> Live
-            </span>
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              title="Refresh now"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
           </div>
         </div>
 
@@ -623,13 +752,8 @@ const Approvals = () => {
             </p>
             <Button
               onClick={() => {
-                const totalAmt = items
-                  .filter((i) => selected.has(i.id))
-                  .reduce((s, i) => s + (i.amount ?? 0), 0);
-                const yes = window.confirm(
-                  `You are about to approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}.\n\nConfirm?`,
-                );
-                if (yes) bulkApprove();
+                const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
               }}
               disabled={bulkLoading}
               className="kd-magnetic"
@@ -647,13 +771,8 @@ const Approvals = () => {
               </p>
               <Button
                 onClick={() => {
-                  const totalAmt = items
-                    .filter((i) => selected.has(i.id))
-                    .reduce((s, i) => s + (i.amount ?? 0), 0);
-                  const yes = window.confirm(
-                    `Approve ${selectedCount} item${selectedCount === 1 ? '' : 's'} totalling ${formatNaira(totalAmt)}?`,
-                  );
-                  if (yes) bulkApprove();
+                  const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                  setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
                 }}
                 disabled={bulkLoading}
                 className="h-11 flex-1 max-w-[60%] bg-success hover:bg-success/90 text-success-foreground"
@@ -982,6 +1101,30 @@ const Approvals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!bulkApproveConfirm} onOpenChange={(v) => { if (!v) setBulkApproveConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm bulk approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to approve{' '}
+              <span className="font-semibold">{bulkApproveConfirm?.count} item{bulkApproveConfirm?.count === 1 ? '' : 's'}</span>{' '}
+              totalling{' '}
+              <span className="font-semibold">{formatNaira(bulkApproveConfirm?.total ?? 0)}</span>.
+              This will trigger payment processing and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setBulkApproveConfirm(null); bulkApprove(); }}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              Approve all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -12,6 +13,7 @@ import {
   TrendingUp, Zap, ArrowRight, Users, Info,
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
+import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { usePermission, useFeatureAccess } from '@/hooks/usePermission';
@@ -70,22 +72,60 @@ const Payments = () => {
 
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState(false);
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
   const [stats, setStats] = useState<BatchStats>({
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
   });
 
-  const fetchBalance = useCallback(async () => {
-    setBalanceLoading(true);
+  const [reconciling, setReconciling] = useState(false);
+
+  const reconcileNow = async () => {
+    if (reconciling) return;
+    if (!confirm(
+      'Reconcile pending transfers with Paystack now?\n\n' +
+      'This re-checks every payment that has been stuck in "pending" for ' +
+      'more than 1 hour. Use this if a payment seems stuck without ever ' +
+      'reaching Paystack confirmation.'
+    )) return;
+    setReconciling(true);
     try {
-      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
-        body: { action: 'get_balance' },
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('paystack-reconciliation', {
+        body: {},
+        headers: { Authorization: `Bearer ${session?.access_token}` },
       });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Failed');
-      setBalance(data.data as BalanceData);
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Reconciliation complete',
+        description: `Checked ${data?.items_checked ?? 0} · ${data?.succeeded ?? 0} succeeded · ${data?.failed ?? 0} failed · ${data?.unchanged ?? 0} unchanged`,
+      });
+      fetchBatches();
+      fetchStats();
+    } catch (err: any) {
+      toast({ title: 'Reconciliation failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setReconciling(false);
+    }
+  };
+
+  const fetchBalance = useCallback(async (isRetry = false) => {
+    setBalanceLoading(true);
+    if (!isRetry) setBalanceError(false);
+    try {
+      const result = await getPaystackBalance();
+      setBalance(result);
+      setBalanceError(false);
       setBalanceUpdatedAt(new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }));
     } catch {
-      // silently fail — balance is informational
+      if (!isRetry) {
+        // Race condition: session may not be restored yet on first mount.
+        // One auto-retry after a short pause usually resolves it.
+        setTimeout(() => fetchBalance(true), 1500);
+      } else {
+        setBalanceError(true);
+      }
     } finally {
       setBalanceLoading(false);
     }
@@ -93,6 +133,8 @@ const Payments = () => {
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
   useEffect(() => { fetchBatches(); fetchStats(); }, [statusFilter, page]);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 
   const fetchStats = async () => {
     const now = new Date();
@@ -128,18 +170,41 @@ const Payments = () => {
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
     const fetched = (data as PaymentBatch[]) || [];
 
-    // Sync stale processing statuses
+    // Sync stale processing statuses. Previously this ran one query per
+    // stale batch (N+1) — at scale that meant 100+ requests per page load.
+    // Collapsed into a single IN-query plus an in-memory groupby.
     const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
-    for (const b of stale) {
-      const { data: items } = await supabase.from('batch_items').select('status').eq('batch_id', b.id);
-      if (!items || items.length === 0) continue;
-      const anyPending = items.some((r: any) => r.status === 'pending' || r.status === 'retry');
-      const anyFailed = items.some((r: any) => r.status === 'failed');
-      const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
-      if (correct !== b.status) {
-        await supabase.from('payment_batches').update({ status: correct }).eq('id', b.id);
-        b.status = correct;
+    if (stale.length > 0) {
+      const staleIds = stale.map((b) => b.id);
+      const { data: allItems } = await supabase
+        .from('batch_items')
+        .select('batch_id, status')
+        .in('batch_id', staleIds);
+
+      const itemsByBatch = new Map<string, { status: string }[]>();
+      for (const it of (allItems || []) as { batch_id: string; status: string }[]) {
+        const arr = itemsByBatch.get(it.batch_id) ?? [];
+        arr.push({ status: it.status });
+        itemsByBatch.set(it.batch_id, arr);
       }
+
+      // Aggregate update calls so a page with N stale batches still costs
+      // 1 SELECT + at most N UPDATEs (vs. 2N round-trips before).
+      const updates: Promise<unknown>[] = [];
+      for (const b of stale) {
+        const items = itemsByBatch.get(b.id) ?? [];
+        if (items.length === 0) continue;
+        const anyPending = items.some((r) => r.status === 'pending' || r.status === 'retry');
+        const anyFailed = items.some((r) => r.status === 'failed');
+        const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+        if (correct !== b.status) {
+          updates.push(
+            supabase.from('payment_batches').update({ status: correct }).eq('id', b.id),
+          );
+          b.status = correct;
+        }
+      }
+      if (updates.length > 0) await Promise.all(updates);
     }
 
     setBatches(fetched);
@@ -170,7 +235,17 @@ const Payments = () => {
               </TooltipContent>
             </Tooltip>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">Manage partner and contractor payments</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Manage partner and contractor payments
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="ml-3 inline-flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
+          </p>
         </div>
 
         <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
@@ -200,6 +275,16 @@ const Payments = () => {
               <div className="space-y-1.5">
                 <div className="h-7 w-36 kd-skeleton rounded" />
                 <div className="h-2.5 w-24 kd-skeleton rounded" />
+              </div>
+            ) : balanceError ? (
+              <div>
+                <p className="text-sm text-muted-foreground">Could not load balance</p>
+                <button
+                  onClick={() => fetchBalance()}
+                  className="text-[11px] text-primary hover:underline mt-0.5"
+                >
+                  Retry
+                </button>
               </div>
             ) : (
               <>
@@ -239,8 +324,20 @@ const Payments = () => {
           </div>
 
           {/* Action buttons — full-width row on mobile so taps are easy */}
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto flex-wrap">
             {canQuickPay && <QuickPayDialog />}
+            {canQuickPay && (
+              <Button
+                variant="outline"
+                onClick={reconcileNow}
+                disabled={reconciling}
+                className="flex-1 sm:flex-initial h-10 sm:h-9"
+                title="Re-check stuck transfers with Paystack"
+              >
+                <RefreshCw className={cn('mr-2 h-4 w-4', reconciling && 'animate-spin')} />
+                Reconcile
+              </Button>
+            )}
             <Button onClick={() => navigate('/payments/new')} className="flex-1 sm:flex-initial h-10 sm:h-9">
               <Plus className="mr-2 h-4 w-4" /> New Batch
             </Button>

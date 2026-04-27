@@ -6,6 +6,7 @@ import {
   ChevronDown, AlertTriangle, ExternalLink, Camera,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
@@ -46,6 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
 import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
+import { FilePreviewTrigger } from '@/components/FilePreview';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 interface EmployeeData {
@@ -136,6 +138,17 @@ const EmployeeProfile = () => {
   const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
+
+  // Documents upload (admin uploads a contract/NDA/ID copy on the employee's behalf)
+  const [docUploadOpen, setDocUploadOpen] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docForm, setDocForm] = useState({
+    title: '',
+    category: 'contract',
+    description: '',
+    expires_at: '',
+  });
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankSaving, setBankSaving] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
@@ -232,25 +245,31 @@ const EmployeeProfile = () => {
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
         .order('created_at', { ascending: false }).limit(20),
+      // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
+      // page responsive even for long-tenured employees.
       supabase.from('payslips').select('*').eq('employee_id', id)
-        .order('period', { ascending: false }),
+        .order('period', { ascending: false }).limit(24),
       supabase.from('leave_requests').select('*').eq('employee_id', id)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('tasks').select('*').eq('assigned_to', id)
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('documents').select('*').eq('uploaded_by', id)
+      // Documents tied to this employee. Prefer the employee_id link (set when an
+      // admin uploads on behalf of the employee); fall back to uploaded_by for
+      // legacy self-uploaded docs from before the employee_id column existed.
+      supabase.from('documents').select('*')
+        .or(`employee_id.eq.${id},uploaded_by.eq.${id}`)
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('audit_logs')
         .select('id, action_type, description, created_at, performed_by, performed_by_name')
         .or(`entity_id.eq.${id},performed_by.eq.${id}`)
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('salary_increments').select('*').eq('employee_id', id)
-        .order('effective_date', { ascending: false }),
+        .order('effective_date', { ascending: false }).limit(20),
       supabase.from('employee_advances').select('*').eq('employee_id', id)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(20),
       supabase.from('employee_deductions').select('*')
         .eq('entity_id', id).eq('entity_type', 'employee')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(20),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -349,11 +368,12 @@ const EmployeeProfile = () => {
   const uploadPhoto = async (file: File) => {
     if (!id) return;
     setUploadingPhoto(true);
-    const ext = file.name.split('.').pop() || 'jpg';
+    const compressed = await compressImage(file);
+    const ext = compressed.name.split('.').pop() || 'jpg';
     const path = `employees/${id}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true });
+      .upload(path, compressed, { upsert: true });
     if (upErr) {
       toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
       setUploadingPhoto(false);
@@ -371,6 +391,88 @@ const EmployeeProfile = () => {
       load();
     }
     setUploadingPhoto(false);
+  };
+
+  const uploadEmployeeDocument = async () => {
+    if (!id || !docFile) {
+      toast({ title: 'Pick a file first', variant: 'destructive' });
+      return;
+    }
+    if (!docForm.title.trim()) {
+      toast({ title: 'Add a title for the document', variant: 'destructive' });
+      return;
+    }
+    setDocUploading(true);
+    try {
+      const compressed = await compressImage(docFile);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `employee-documents/${id}/${Date.now()}-${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from('documents')
+        .upload(path, compressed, {
+          upsert: false,
+          contentType: compressed.type || 'application/octet-stream',
+        });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+
+      const { error: insErr } = await supabase.from('documents').insert({
+        title: docForm.title.trim(),
+        category: docForm.category,
+        description: docForm.description.trim() || null,
+        expires_at: docForm.expires_at || null,
+        storage_path: path,
+        file_url: urlData.publicUrl,
+        mime_type: compressed.type || null,
+        file_size_bytes: compressed.size,
+        employee_id: id,
+        uploaded_by: currentUser?.id || null,
+      });
+      if (insErr) throw insErr;
+
+      await logAudit(
+        'document_uploaded',
+        `Document "${docForm.title}" uploaded for ${employee?.full_name || id}`,
+        currentUser,
+      );
+      toast({ title: 'Document uploaded' });
+      setDocUploadOpen(false);
+      setDocFile(null);
+      setDocForm({ title: '', category: 'contract', description: '', expires_at: '' });
+      load();
+    } catch (err: any) {
+      toast({
+        title: 'Upload failed',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const deleteEmployeeDocument = async (doc: any) => {
+    if (!confirm(`Delete "${doc.title || doc.file_name || 'this document'}"? This cannot be undone.`)) return;
+    try {
+      if (doc.storage_path) {
+        await supabase.storage.from('documents').remove([doc.storage_path]);
+      }
+      const { error } = await supabase.from('documents').delete().eq('id', doc.id);
+      if (error) throw error;
+      await logAudit(
+        'document_deleted',
+        `Document "${doc.title || doc.file_name}" deleted for ${employee?.full_name || id}`,
+        currentUser,
+      );
+      toast({ title: 'Document deleted' });
+      load();
+    } catch (err: any) {
+      toast({
+        title: 'Delete failed',
+        description: err?.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const savePermissions = async () => {
@@ -1521,7 +1623,12 @@ const EmployeeProfile = () => {
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Documents</CardTitle>
               {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
-                <Button size="sm" variant="outline" className="gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setDocUploadOpen(true)}
+                >
                   <Plus className="h-4 w-4" /> Upload
                 </Button>
               )}
@@ -1533,21 +1640,64 @@ const EmployeeProfile = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="pl-4">File name</TableHead>
-                      <TableHead>Upload date</TableHead>
-                      <TableHead className="pr-4">Uploaded by</TableHead>
+                      <TableHead className="pl-4">Title</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Expires</TableHead>
+                      <TableHead>Uploaded</TableHead>
+                      <TableHead className="pr-4 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {documents.map((doc: any) => (
-                      <TableRow key={doc.id}>
-                        <TableCell className="pl-4 font-medium">
-                          {doc.name || doc.file_name || doc.title || '—'}
-                        </TableCell>
-                        <TableCell>{formatDate(doc.created_at)}</TableCell>
-                        <TableCell className="pr-4">{doc.uploaded_by_name || empName}</TableCell>
-                      </TableRow>
-                    ))}
+                    {documents.map((doc: any) => {
+                      // Pass bucket + storage_path so FilePreview generates a
+                      // fresh signed URL on open (the documents bucket is
+                      // private; stored public URLs would 404).
+                      return (
+                        <TableRow key={doc.id}>
+                          <TableCell className="pl-4 font-medium">
+                            {doc.title || doc.file_name || doc.name || '—'}
+                            {doc.description && (
+                              <p className="text-xs text-muted-foreground mt-0.5 max-w-md truncate">
+                                {doc.description}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {doc.category || 'general'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {doc.expires_at ? formatDate(doc.expires_at) : '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(doc.created_at)}
+                          </TableCell>
+                          <TableCell className="pr-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {doc.storage_path && (
+                                <FilePreviewTrigger
+                                  bucket="documents"
+                                  path={doc.storage_path}
+                                  label="View"
+                                  fileName={doc.title || doc.file_name}
+                                />
+                              )}
+                              {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => deleteEmployeeDocument(doc)}
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -1555,6 +1705,90 @@ const EmployeeProfile = () => {
           </Card>
         </div>
       )}
+
+      {/* ── Document upload dialog ────────────────────────────────────── */}
+      <Dialog open={docUploadOpen} onOpenChange={setDocUploadOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload document for {employee?.first_name || 'employee'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>File</Label>
+              <Input
+                type="file"
+                accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setDocFile(f);
+                  if (f && !docForm.title) {
+                    setDocForm((s) => ({ ...s, title: f.name.replace(/\.[^.]+$/, '') }));
+                  }
+                }}
+              />
+              {docFile && (
+                <p className="text-xs text-muted-foreground">
+                  {docFile.name} · {(docFile.size / 1024).toFixed(1)} KB
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Title</Label>
+              <Input
+                value={docForm.title}
+                onChange={(e) => setDocForm((s) => ({ ...s, title: e.target.value }))}
+                placeholder="e.g. Employment Contract 2026"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Category</Label>
+                <Select
+                  value={docForm.category}
+                  onValueChange={(v) => setDocForm((s) => ({ ...s, category: v }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="nda">NDA</SelectItem>
+                    <SelectItem value="id">ID / passport</SelectItem>
+                    <SelectItem value="cv">CV / resume</SelectItem>
+                    <SelectItem value="certificate">Certificate</SelectItem>
+                    <SelectItem value="reference">Reference letter</SelectItem>
+                    <SelectItem value="medical">Medical</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Expiry (optional)</Label>
+                <Input
+                  type="date"
+                  value={docForm.expires_at}
+                  onChange={(e) => setDocForm((s) => ({ ...s, expires_at: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Description (optional)</Label>
+              <Input
+                value={docForm.description}
+                onChange={(e) => setDocForm((s) => ({ ...s, description: e.target.value }))}
+                placeholder="Brief note about this document"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDocUploadOpen(false)} disabled={docUploading}>
+              Cancel
+            </Button>
+            <Button onClick={uploadEmployeeDocument} disabled={docUploading || !docFile}>
+              {docUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Upload
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {activeTab === 'tasks' && (
         <div className="mt-4">

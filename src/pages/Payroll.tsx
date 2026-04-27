@@ -22,7 +22,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as ChartTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts';
@@ -1063,7 +1063,7 @@ const Payroll = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip
+                <ChartTooltip
                   content={<GlassTooltip />}
                   formatter={(v: number) => formatNaira(v)}
                   cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -1364,7 +1364,7 @@ const Payroll = () => {
                     value={b.amount || ''}
                     onChange={(e) => updateBonus(i, 'amount', Number(e.target.value) || 0)}
                   />
-                  <Button size="icon" variant="ghost" onClick={() => removeBonus(i)}>
+                  <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>

@@ -8,9 +8,15 @@
 --   • Finance users → Transactions page / Reports returning no batch data
 --   • Operations users → Budget utilisation only counting their own expenses
 --   • Operations users → Reports unable to show payment data
+--
+-- Idempotent — safe to re-run. Every CREATE is paired with a DROP IF EXISTS.
 
 -- ── payment_batches ──────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Admins can manage batches" ON public.payment_batches;
+DROP POLICY IF EXISTS "batches_select" ON public.payment_batches;
+DROP POLICY IF EXISTS "batches_insert" ON public.payment_batches;
+DROP POLICY IF EXISTS "batches_update" ON public.payment_batches;
+DROP POLICY IF EXISTS "batches_delete" ON public.payment_batches;
 
 -- Finance and operations can SELECT (read); only admin/finance can mutate.
 CREATE POLICY "batches_select" ON public.payment_batches
@@ -39,6 +45,10 @@ CREATE POLICY "batches_delete" ON public.payment_batches
 
 -- ── batch_items ───────────────────────────────────────────────────────────────
 DROP POLICY IF EXISTS "Admins can manage batch items" ON public.batch_items;
+DROP POLICY IF EXISTS "batch_items_select" ON public.batch_items;
+DROP POLICY IF EXISTS "batch_items_insert" ON public.batch_items;
+DROP POLICY IF EXISTS "batch_items_update" ON public.batch_items;
+DROP POLICY IF EXISTS "batch_items_delete" ON public.batch_items;
 
 CREATE POLICY "batch_items_select" ON public.batch_items
   FOR SELECT TO authenticated

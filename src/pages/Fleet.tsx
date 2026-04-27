@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { compressImage } from '@/lib/image-compression';
+import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
@@ -7,6 +9,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatDate } from '@/lib/format';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
+import { FilePreviewTrigger } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +56,8 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw } from 'lucide-react';
+import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1224,6 +1228,8 @@ const Fleet = () => {
   const [repairForm, setRepairForm] = useState({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
   const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
   const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
+  const [repairIsReimbursement, setRepairIsReimbursement] = useState(true);
+  const [fuelIsReimbursement, setFuelIsReimbursement] = useState(true);
 
   // Trip log form
   const [showTripForm, setShowTripForm] = useState(false);
@@ -1298,6 +1304,8 @@ const Fleet = () => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 
   // Recover any in-progress trip for this employee when their profile loads.
   useEffect(() => {
@@ -1557,17 +1565,18 @@ const Fleet = () => {
     try {
       let receiptUrl: string | null = null;
       if (repairReceipt) {
-        const ext = repairReceipt.name.split('.').pop();
+        const compressed = await compressImage(repairReceipt);
+        const ext = compressed.name.split('.').pop();
         const path = `repairs/${profile?.id}/${Date.now()}.${ext}`;
         const { data: upData } = await supabase.storage
           .from('receipts')
-          .upload(path, repairReceipt, { upsert: true });
+          .upload(path, compressed, { upsert: true });
         if (upData) {
           const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
           receiptUrl = urlData.publicUrl;
         }
       }
-      await supabase.from('expenses').insert({
+      const { error: repairExpErr } = await supabase.from('expenses').insert({
         submitted_by: repairForm.employee_id,
         category: 'repair',
         budget_category: 'repair',
@@ -1576,18 +1585,30 @@ const Fleet = () => {
         description: repairForm.description,
         status: 'pending',
         receipt_url: receiptUrl,
+        is_reimbursement: repairIsReimbursement,
         ...(repairBank.verified ? {
           bank_name: repairBank.bank_name,
           account_number: repairBank.account_number,
           account_name: repairBank.account_name,
         } : {}),
       });
-      await logAudit('repair_request_submitted', `Repair: ${repairForm.description} (${formatNaira(amount)})`, profile);
+      if (repairExpErr) {
+        // Surface — silent failure here means the repair was never logged
+        // as an expense and finance never sees it.
+        toast({
+          title: 'Repair submission failed',
+          description: friendlyDbError(repairExpErr),
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+      await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
         type: 'repair_request_submitted',
         module: 'fleet',
-        title: 'Repair reimbursement submitted',
+        title: repairIsReimbursement ? 'Repair reimbursement submitted' : 'Repair request submitted (company charge)',
         body: `${formatNaira(amount)}: ${repairForm.description}`,
       });
       toast({ title: 'Repair request submitted' });
@@ -2012,8 +2033,33 @@ const Fleet = () => {
       } : {}),
     }).select('id').single();
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not submit fuel request', description: friendlyDbError(error), variant: 'destructive' });
     } else {
+      // Mirror the fuel request into Expenses immediately as a pending row,
+      // linked by fuel_request_id. This makes the cost visible to finance
+      // (and reports) from the moment of submission, not just after
+      // approval. The same row is updated when the request is approved or
+      // rejected — no duplicates.
+      if (inserted?.id) {
+        const amount = parseFloat(fuelForm.amount_ngn) || 0;
+        await supabase.from('expenses').insert({
+          fuel_request_id: inserted.id,
+          category: 'fuel',
+          budget_category: 'fuel',
+          amount_ngn: amount,
+          date: new Date().toISOString().slice(0, 10),
+          description: `Fuel — ${fuelForm.station_name || 'Station'}${noteStr ? ` — ${noteStr}` : ''}`,
+          submitted_by: fuelForm.employee_id,
+          status: 'pending',
+          is_reimbursement: fuelIsReimbursement,
+          ...(fuelBankDetails.verified ? {
+            bank_name: fuelBankDetails.bank_name,
+            account_number: fuelBankDetails.account_number,
+            account_name: fuelBankDetails.account_name,
+          } : {}),
+        });
+      }
+
       // RULE 2: notify admins if efficiency anomaly was detected
       if (fuelIsAnomaly && inserted?.id) {
         await notifyRoles({
@@ -2027,11 +2073,12 @@ const Fleet = () => {
       // Upload supporting document (optional) and patch the URL back onto the row.
       if (fuelDoc && inserted?.id) {
         try {
-          const safeName = fuelDoc.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const compressed = await compressImage(fuelDoc);
+          const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
           const path = `fuel-request-docs/${inserted.id}-${safeName}`;
           const { data: upData, error: upErr } = await supabase.storage
             .from('receipts')
-            .upload(path, fuelDoc, { upsert: true });
+            .upload(path, compressed, { upsert: true });
           if (upErr) throw upErr;
           if (upData) {
             const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
@@ -2215,7 +2262,7 @@ const Fleet = () => {
       .eq('id', selectedTrip.id);
     setSavingTripEdit(false);
     if (error) {
-      toast({ title: 'Error saving', description: error.message, variant: 'destructive' });
+      toast({ title: 'Could not save', description: friendlyDbError(error), variant: 'destructive' });
     } else {
       // Recalculate vehicle fuel balance when litres or distance changed
       const kmChanged = km !== selectedTrip.km_driven;
@@ -2276,22 +2323,49 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    await supabase.from('expenses').insert({
-      category: 'fuel',
-      budget_category: 'fuel',
-      amount_ngn: request.amount_ngn,
-      date: now.slice(0, 10),
-      description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
-      submitted_by: (request as any).driver_id || request.employee_id,
-      status: 'approved',
-      approved_by: profile?.id,
-      approved_at: now,
-      ...(request.bank_name ? {
-        bank_name: request.bank_name,
-        account_number: request.account_number,
-        account_name: request.account_name,
-      } : {}),
-    });
+    // Update the paired expense row (created when the fuel request was
+    // submitted) to 'approved'. Fall back to insert if the link is missing
+    // (legacy fuel requests pre-dating the fuel_request_id column).
+    const { data: existingExp } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('fuel_request_id', request.id)
+      .maybeSingle();
+    let expErr: { message: string } | null = null;
+    if (existingExp?.id) {
+      const { error } = await supabase.from('expenses').update({
+        status: 'approved',
+        approved_by: profile?.id,
+        approved_at: now,
+      }).eq('id', existingExp.id);
+      expErr = error;
+    } else {
+      const { error } = await supabase.from('expenses').insert({
+        fuel_request_id: request.id,
+        category: 'fuel',
+        budget_category: 'fuel',
+        amount_ngn: request.amount_ngn,
+        date: now.slice(0, 10),
+        description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
+        submitted_by: (request as any).driver_id || request.employee_id,
+        status: 'approved',
+        approved_by: profile?.id,
+        approved_at: now,
+        ...(request.bank_name ? {
+          bank_name: request.bank_name,
+          account_number: request.account_number,
+          account_name: request.account_name,
+        } : {}),
+      });
+      expErr = error;
+    }
+    if (expErr) {
+      toast({
+        title: 'Approved, but expense entry failed',
+        description: expErr.message,
+        variant: 'destructive',
+      });
+    }
     burst({ palette: 'success', count: 50 });
     await logAudit(
       'fuel_request_approved',
@@ -2401,22 +2475,40 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    await supabase.from('expenses').insert({
-      category: 'fuel',
-      budget_category: 'fuel',
-      amount_ngn: r.amount_ngn,
-      date: now.slice(0, 10),
-      description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
-      submitted_by: (r as any).driver_id || r.employee_id,
-      status: 'approved',
-      approved_by: profile.id,
-      approved_at: now,
-      ...(r.bank_name ? {
-        bank_name: r.bank_name,
-        account_number: r.account_number,
-        account_name: r.account_name,
-      } : {}),
-    });
+    // Update the linked expense (created at submission) instead of
+    // inserting a new one. Falls back to insert for legacy fuel rows
+    // pre-dating fuel_request_id.
+    const { data: expExisting } = await supabase
+      .from('expenses')
+      .select('id')
+      .eq('fuel_request_id', r.id)
+      .maybeSingle();
+    if (expExisting?.id) {
+      await supabase.from('expenses').update({
+        status: 'approved',
+        approved_by: profile.id,
+        approved_at: now,
+        description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+      }).eq('id', expExisting.id);
+    } else {
+      await supabase.from('expenses').insert({
+        fuel_request_id: r.id,
+        category: 'fuel',
+        budget_category: 'fuel',
+        amount_ngn: r.amount_ngn,
+        date: now.slice(0, 10),
+        description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
+        submitted_by: (r as any).driver_id || r.employee_id,
+        status: 'approved',
+        approved_by: profile.id,
+        approved_at: now,
+        ...(r.bank_name ? {
+          bank_name: r.bank_name,
+          account_number: r.account_number,
+          account_name: r.account_name,
+        } : {}),
+      });
+    }
     await logAudit(
       'fuel_budget_exception_approved',
       `Budget exception approved for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)}) by ${profile.full_name}`,
@@ -2477,11 +2569,12 @@ const Fleet = () => {
     }
     setSubmittingReceipt(true);
     try {
-      const safeName = receiptFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const compressed = await compressImage(receiptFile);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `fuel-receipts/${uploadingReceiptFor.id}-${safeName}`;
       const { data: upData, error: upErr } = await supabase.storage
         .from('receipts')
-        .upload(path, receiptFile, { upsert: true });
+        .upload(path, compressed, { upsert: true });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
       const { error } = await supabase
@@ -2606,6 +2699,12 @@ const Fleet = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
+    // Mirror the rejection onto the linked expense row so finance no
+    // longer sees it as actionable in Expenses.
+    await supabase
+      .from('expenses')
+      .update({ status: 'rejected', rejection_reason: fuelRejectReason.trim() })
+      .eq('fuel_request_id', r.id);
     await writeRejectionNotification({
       entity: 'fuel',
       entityLabel: 'fuel request',
@@ -2647,6 +2746,23 @@ const Fleet = () => {
   };
 
   const deleteFuelRequest = async (r: FuelRequest) => {
+    // Remove uploaded receipt + supporting doc from storage so we don't
+    // leak orphan files. Best-effort: ignore errors here, the row delete
+    // is what the user actually asked for.
+    const pathsToRemove: string[] = [];
+    const extractStoragePath = (url: string | null | undefined, bucket: string): string | null => {
+      if (!url) return null;
+      const m = url.match(new RegExp(`/storage/v1/object/(?:public|sign|authenticated)/${bucket}/(.+?)(?:\\?|$)`));
+      return m ? decodeURIComponent(m[1]) : null;
+    };
+    const receiptPath = extractStoragePath((r as any).receipt_url, 'receipts');
+    const docPath = extractStoragePath((r as any).request_doc_url, 'receipts');
+    if (receiptPath) pathsToRemove.push(receiptPath);
+    if (docPath) pathsToRemove.push(docPath);
+    if (pathsToRemove.length > 0) {
+      await supabase.storage.from('receipts').remove(pathsToRemove);
+    }
+
     const { error } = await supabase.from('fuel_requests').delete().eq('id', r.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
@@ -2775,9 +2891,14 @@ const Fleet = () => {
                 {totalAnomalies} anomal{totalAnomalies === 1 ? 'y' : 'ies'}
               </span>
             )}
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
-              <Radio className="h-3 w-3" /> Live telemetry
-            </span>
+            <button
+              type="button"
+              onClick={manualRefresh}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              title="Refresh fleet data"
+            >
+              <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
+            </button>
           </div>
         </div>
       </AuroraHero>
@@ -2801,35 +2922,38 @@ const Fleet = () => {
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList>
-          <TabsTrigger value="fuel">
-            <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
-          </TabsTrigger>
-          <TabsTrigger value="my_requests">
-            <User className="mr-2 h-4 w-4" /> My Requests
-          </TabsTrigger>
-          <TabsTrigger value="trips">
-            <MapPin className="mr-2 h-4 w-4" /> Trip Logs
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="vehicles">
-              <Car className="mr-2 h-4 w-4" /> Vehicles
+        {/* Mobile: horizontal scroll lets tabs stay readable instead of clipping */}
+        <div className="overflow-x-auto kd-mobile-snap-x -mx-1 sm:mx-0 px-1 sm:px-0">
+          <TabsList className="w-max sm:w-full">
+            <TabsTrigger value="fuel" className="shrink-0">
+              <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
             </TabsTrigger>
-          )}
-          <TabsTrigger value="activity">
-            <History className="mr-2 h-4 w-4" /> Activity
-          </TabsTrigger>
-          {isAdmin && (
-            <TabsTrigger value="anomalies" className="relative">
-              <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
-              {totalAnomalies > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
-                  {totalAnomalies > 9 ? '9+' : totalAnomalies}
-                </span>
-              )}
+            <TabsTrigger value="my_requests" className="shrink-0">
+              <User className="mr-2 h-4 w-4" /> My Requests
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="trips" className="shrink-0">
+              <MapPin className="mr-2 h-4 w-4" /> Trip Logs
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="vehicles" className="shrink-0">
+                <Car className="mr-2 h-4 w-4" /> Vehicles
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="activity" className="shrink-0">
+              <History className="mr-2 h-4 w-4" /> Activity
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="anomalies" className="relative shrink-0">
+                <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
+                {totalAnomalies > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
+                    {totalAnomalies > 9 ? '9+' : totalAnomalies}
+                  </span>
+                )}
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         {/* FUEL */}
         <TabsContent value="fuel" className="mt-4 space-y-4">
@@ -2908,14 +3032,14 @@ const Fleet = () => {
                       <TableCell className="text-sm text-muted-foreground max-w-xs">
                         <p className="truncate">{r.reason || '—'}</p>
                         {r.request_doc_url && (
-                          <a
-                            href={r.request_doc_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                          >
-                            <FileText className="h-3 w-3" /> View Document
-                          </a>
+                          <div className="mt-1">
+                            <FilePreviewTrigger
+                              url={r.request_doc_url}
+                              label="View Document"
+                              fileName={`fuel-request-${r.id.slice(0, 8)}`}
+                              variant="link"
+                            />
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -2981,14 +3105,11 @@ const Fleet = () => {
                           ) : r.status === 'receipt_uploaded' ? (
                             <div className="flex justify-end gap-1 flex-wrap">
                               {r.receipt_url && (
-                                <a
-                                  href={r.receipt_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-input bg-background hover:bg-accent"
-                                >
-                                  <FileText className="h-3 w-3" /> View Receipt
-                                </a>
+                                <FilePreviewTrigger
+                                  url={r.receipt_url}
+                                  label="View Receipt"
+                                  fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
+                                />
                               )}
                               <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
                                 <Check className="h-3 w-3 mr-1" /> Complete
@@ -3057,14 +3178,12 @@ const Fleet = () => {
                       )}
 
                       {r.request_doc_url && (
-                        <a
-                          href={r.request_doc_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary"
-                        >
-                          <FileText className="h-3 w-3" /> View Document
-                        </a>
+                        <FilePreviewTrigger
+                          url={r.request_doc_url}
+                          label="View Document"
+                          fileName={`fuel-request-${r.id.slice(0, 8)}`}
+                          variant="link"
+                        />
                       )}
 
                       {/* Admin actions, condensed for mobile */}
@@ -3114,14 +3233,12 @@ const Fleet = () => {
                       {isAdmin && r.status === 'receipt_uploaded' && (
                         <MobileCardFooter>
                           {r.receipt_url && (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 inline-flex items-center justify-center gap-1.5 h-9 text-xs px-3 rounded-md border border-input hover:bg-accent"
-                            >
-                              <FileText className="h-4 w-4" /> View Receipt
-                            </a>
+                            <FilePreviewTrigger
+                              url={r.receipt_url}
+                              label="View Receipt"
+                              fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
+                              className="flex-1 h-9"
+                            />
                           )}
                           <Button
                             size="sm"
@@ -3839,7 +3956,7 @@ const Fleet = () => {
         const requested = parseFloat(fuelForm.amount_ngn) || 0;
         const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
         return (
-          <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); } }}>
+          <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); setFuelIsReimbursement(true); } }}>
             <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
 
               {/* Pinned header */}
@@ -3984,12 +4101,35 @@ const Fleet = () => {
                   </div>
                 </div>
 
+                {/* Payment type */}
+                <div className="pt-4 border-t space-y-2">
+                  <Label>Payment type</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', fuelIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                      onClick={() => { setFuelIsReimbursement(true); }}
+                    >
+                      <span className="font-medium">Reimbursement</span>
+                      <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !fuelIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                      onClick={() => setFuelIsReimbursement(false)}
+                    >
+                      <span className="font-medium">Company charge</span>
+                      <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Bank (optional) */}
-                <div className="pt-4 border-t">
+                <div className="pt-2 border-t">
                   {!showFuelBankSection ? (
                     <button type="button" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors" onClick={() => setShowFuelBankSection(true)}>
                       <CreditCard className="h-3.5 w-3.5" />
-                      Add bank account for reimbursement (optional)
+                      Add bank account (optional)
                     </button>
                   ) : (
                     <div className="space-y-2">
@@ -4929,12 +5069,12 @@ const Fleet = () => {
       </Dialog>
 
       {/* Phase 4 — Repair request dialog */}
-      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); } }}>
+      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); setRepairIsReimbursement(true); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vehicle Repair Reimbursement</DialogTitle>
+            <DialogTitle>{repairIsReimbursement ? 'Vehicle Repair Reimbursement' : 'Vehicle Repair — Company Charge'}</DialogTitle>
             <DialogDescription>
-              Submit a repair or maintenance cost for reimbursement. Receipts are required for amounts over ₦10,000.
+              Submit a repair or maintenance cost. Receipts are required for amounts over ₦10,000.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -4954,6 +5094,27 @@ const Fleet = () => {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Payment type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                  onClick={() => setRepairIsReimbursement(true)}
+                >
+                  <span className="font-medium">Reimbursement</span>
+                  <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
+                </button>
+                <button
+                  type="button"
+                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                  onClick={() => setRepairIsReimbursement(false)}
+                >
+                  <span className="font-medium">Company charge</span>
+                  <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
+                </button>
+              </div>
             </div>
             <div className="space-y-1">
               <Label>Description of Repair</Label>
@@ -4989,7 +5150,7 @@ const Fleet = () => {
               {repairReceipt && <p className="text-xs text-muted-foreground">{repairReceipt.name}</p>}
             </div>
             <div className="pt-2 border-t space-y-2">
-              <p className="text-sm font-medium">Bank account for reimbursement <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
+              <p className="text-sm font-medium">Bank account <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
               <BankAccountField value={repairBank} onChange={setRepairBank} />
             </div>
           </div>
