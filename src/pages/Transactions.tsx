@@ -7,6 +7,7 @@ import {
   ArrowUpDown,
   CreditCard,
   Zap,
+  Receipt,
   X,
   Copy,
   Check,
@@ -58,11 +59,10 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay';
+  txn_type: 'payment_batch' | 'quick_pay' | 'charge';
   description: string;
   category: string;
   amount_ngn: number;
-  total_fees_ngn: number;
   status: string;
   reference: string;
   created_by: string | null;
@@ -76,9 +76,10 @@ interface Transaction {
   account_number: string | null;
   account_name: string | null;
   receipt_url: string | null;
+  parent_batch_id: string | null;
 }
 
-type FilterTab = 'all' | 'quick_pay' | 'payment_batch';
+type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'charge';
 
 const STATUS_OPTIONS = [
   'draft',
@@ -97,16 +98,19 @@ const STATUS_OPTIONS = [
 const TYPE_ICON: Record<string, typeof CreditCard> = {
   payment_batch: CreditCard,
   quick_pay: Zap,
+  charge: Receipt,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   payment_batch: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
+  charge: 'bg-warning/10 text-warning border border-warning/30',
 };
 
 const typeLabel = (t: string) => {
   if (t === 'payment_batch') return 'Batch';
   if (t === 'quick_pay') return 'Quick Pay';
+  if (t === 'charge') return 'Fee';
   return t.replace(/_/g, ' ');
 };
 
@@ -114,6 +118,7 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'quick_pay', label: 'Quick Pay' },
   { value: 'payment_batch', label: 'Batches' },
+  { value: 'charge', label: 'Fees' },
 ];
 
 const Transactions = () => {
@@ -188,16 +193,10 @@ const Transactions = () => {
     [filtered],
   );
 
-  const totalFees = useMemo(
-    () => filtered.reduce((sum, r) => sum + (r.total_fees_ngn || 0), 0),
-    [filtered],
-  );
-
   const exportCsv = async () => {
     const header = [
       'date', 'type', 'description', 'category', 'amount_ngn',
-      'paystack_fees_ngn', 'status', 'reference', 'bank_name',
-      'account_number', 'account_name', 'receipt_url',
+      'status', 'reference', 'bank_name', 'account_number', 'account_name', 'receipt_url',
     ];
     const data = filtered.map((r) => [
       r.created_at || '',
@@ -205,7 +204,6 @@ const Transactions = () => {
       r.description,
       (r.category || '').replace(/_/g, ' '),
       r.amount_ngn,
-      r.total_fees_ngn || 0,
       statusLabel(r.status),
       r.reference,
       r.bank_name || '',
@@ -239,7 +237,7 @@ const Transactions = () => {
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
   const handleRowClick = (r: Transaction) => {
-    navigate(`/payments/${r.id}`);
+    navigate(`/payments/${r.parent_batch_id || r.id}`);
   };
 
   return (
@@ -378,9 +376,6 @@ const Transactions = () => {
               {filtered.length.toLocaleString()} transaction{filtered.length !== 1 ? 's' : ''} matched
             </span>
             <span className="font-medium">{formatNaira(totalAmount)} total</span>
-            {totalFees > 0 && (
-              <span className="text-warning font-medium">{formatNaira(totalFees)} Paystack fees</span>
-            )}
           </div>
         )}
 
@@ -407,7 +402,6 @@ const Transactions = () => {
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs">Description</TableHead>
                     <TableHead className="text-right text-xs">Amount</TableHead>
-                    <TableHead className="text-right text-xs">Fees</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                     <TableHead className="text-xs">Receipt</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
@@ -448,15 +442,8 @@ const Transactions = () => {
                             <p className="truncate">{r.description}</p>
                           )}
                         </TableCell>
-                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
+                        <TableCell className={cn('text-right font-semibold currency whitespace-nowrap text-sm', r.txn_type === 'charge' && 'text-warning')}>
                           {formatNaira(r.amount_ngn)}
-                        </TableCell>
-                        <TableCell className="text-right whitespace-nowrap text-xs">
-                          {r.total_fees_ngn > 0 ? (
-                            <span className="text-warning font-medium">{formatNaira(r.total_fees_ngn)}</span>
-                          ) : (
-                            <span className="text-muted-foreground/40">—</span>
-                          )}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={r.status} size="sm" />
@@ -512,7 +499,7 @@ const Transactions = () => {
                             </p>
                           )}
                         </div>
-                        <MobileCardMeta className="currency text-base">
+                        <MobileCardMeta className={cn('currency text-base', r.txn_type === 'charge' && 'text-warning')}>
                           {formatNaira(r.amount_ngn)}
                         </MobileCardMeta>
                       </MobileCardHeader>
@@ -525,12 +512,6 @@ const Transactions = () => {
                       {r.reference && (
                         <MobileCardRow label="Reference">
                           <CopyableRef value={r.reference} />
-                        </MobileCardRow>
-                      )}
-
-                      {r.total_fees_ngn > 0 && (
-                        <MobileCardRow label="Paystack fees">
-                          <span className="text-warning font-medium">{formatNaira(r.total_fees_ngn)}</span>
                         </MobileCardRow>
                       )}
 
