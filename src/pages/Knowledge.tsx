@@ -224,7 +224,8 @@ const Knowledge = () => {
       .from('knowledge_article_versions')
       .select('*')
       .eq('article_id', a.id)
-      .order('version', { ascending: false });
+      .order('version', { ascending: false })
+      .limit(100);
     setVersions((data as Version[]) || []);
   };
 

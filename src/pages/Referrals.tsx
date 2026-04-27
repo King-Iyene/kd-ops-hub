@@ -90,21 +90,27 @@ const Referrals = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [refRes, profRes, contractorRes] = await Promise.all([
-      supabase
-        .from('referrals')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(200),
-      supabase.from('profiles').select('id, full_name, email').limit(500),
-      supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name'),
-    ]);
-    setReferrals((refRes.data as Referral[]) || []);
-    const m = new Map<string, ProfileRow>();
-    for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
-    setProfiles(m);
-    setContractors((contractorRes.data as any[]) || []);
-    setLoading(false);
+    try {
+      const [refRes, profRes, contractorRes] = await Promise.all([
+        supabase
+          .from('referrals')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(200),
+        supabase.from('profiles').select('id, full_name, email').limit(500),
+        supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name').limit(500),
+      ]);
+      if (refRes.error) throw refRes.error;
+      setReferrals((refRes.data as Referral[]) || []);
+      const m = new Map<string, ProfileRow>();
+      for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
+      setProfiles(m);
+      setContractors((contractorRes.data as any[]) || []);
+    } catch (err: any) {
+      toast({ title: 'Failed to load referrals', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -151,12 +157,14 @@ const Referrals = () => {
 
   const toggleAffiliate = async (r: Referral) => {
     const next = !r.is_affiliate;
-    await supabase
-      .from('referrals')
-      .update({ is_affiliate: next })
-      .eq('id', r.id);
+    setReferrals((prev) => prev.map((x) => (x.id === r.id ? { ...x, is_affiliate: next } : x)));
+    const { error } = await supabase.from('referrals').update({ is_affiliate: next }).eq('id', r.id);
+    if (error) {
+      setReferrals((prev) => prev.map((x) => (x.id === r.id ? { ...x, is_affiliate: r.is_affiliate } : x)));
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      return;
+    }
     toast({ title: next ? 'Marked as affiliate' : 'Removed affiliate status' });
-    load();
   };
 
   const exportCsv = () => {
