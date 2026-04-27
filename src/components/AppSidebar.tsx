@@ -23,6 +23,7 @@ import {
   Target,
   Gift,
   Contact2,
+  Building2,
   ArrowUpDown,
   Layers,
   ChevronRight,
@@ -79,6 +80,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'] },
   // CRM
+  { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   // Admin
@@ -92,7 +94,7 @@ const GROUPS = [
   { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Compliance'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Tasks', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
-  { key: 'crm',        label: 'CRM',        titles: ['Contacts', 'Referrals'] },
+  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
 ] as const;
 
