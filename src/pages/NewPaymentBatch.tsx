@@ -454,7 +454,7 @@ const NewPaymentBatch = () => {
   return (
     <div className="space-y-6 max-w-5xl">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(isEditMode ? `/payments/${editId}` : '/payments')}>
+        <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => navigate(isEditMode ? `/payments/${editId}` : '/payments')}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -825,7 +825,7 @@ const NewPaymentBatch = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => removeItem(i)}>
+                            <Button variant="ghost" size="icon" aria-label="Remove item" onClick={() => removeItem(i)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </TableCell>

@@ -229,7 +229,8 @@ const BatchDetail = () => {
           setCompanyName((cs as any).company_name || 'KD Squares Ltd');
           setLogoUrl((cs as any).logo_url || null);
         }
-      });
+      })
+      .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
   }, [id]);
 
   const fetchBatch = async () => {
@@ -899,7 +900,7 @@ const BatchDetail = () => {
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-sm)]">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => navigate('/payments')}>
+            <Button variant="ghost" size="icon" aria-label="Back to payments" className="h-8 w-8 shrink-0 rounded-lg" onClick={() => navigate('/payments')}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div className="min-w-0">

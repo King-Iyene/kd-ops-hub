@@ -1364,7 +1364,7 @@ const Payroll = () => {
                     value={b.amount || ''}
                     onChange={(e) => updateBonus(i, 'amount', Number(e.target.value) || 0)}
                   />
-                  <Button size="icon" variant="ghost" onClick={() => removeBonus(i)}>
+                  <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>

@@ -1076,7 +1076,8 @@ function ApplicationsBadge() {
       .from('contractor_applications')
       .select('id', { count: 'exact', head: true })
       .in('status', ['pending', 'pending_review'])
-      .then(({ count: c }) => setCount(c || 0));
+      .then(({ count: c }) => setCount(c || 0))
+      .catch(() => { /* badge is non-critical */ });
   }, []);
   if (count === 0) return null;
   return (

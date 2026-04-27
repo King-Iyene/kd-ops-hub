@@ -8,6 +8,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { Search } from 'lucide-react';
@@ -74,6 +75,7 @@ export default function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <OfflineBanner />
       <ViewAsBanner />
       <SidebarProvider>
         <AppSidebar />

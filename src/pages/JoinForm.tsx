@@ -66,7 +66,8 @@ const JoinForm = () => {
       .select('website_url, linkedin_url, instagram_url, facebook_url, twitter_url')
       .eq('id', '00000000-0000-0000-0000-000000000001')
       .maybeSingle()
-      .then(({ data }) => { if (data) setSocialLinks(data as any); });
+      .then(({ data }) => { if (data) setSocialLinks(data as any); })
+      .catch(() => { /* social links are cosmetic, non-blocking */ });
   }, []);
 
   // Bank verification state
