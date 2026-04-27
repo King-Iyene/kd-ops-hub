@@ -214,6 +214,10 @@ function getGeolocation(): Promise<GeoCoords> {
     }
 
     let settled = false;
+    // hardTimer is declared below; settle/fail close over it and only execute
+    // as geolocation callbacks (i.e. after the synchronous body — and the
+    // setTimeout below — has finished). The closures are runtime-safe.
+    /* eslint-disable @typescript-eslint/no-use-before-define */
     const settle = (coords: GeoCoords) => {
       if (settled) return;
       settled = true;
@@ -226,6 +230,7 @@ function getGeolocation(): Promise<GeoCoords> {
       clearTimeout(hardTimer);
       reject(code);
     };
+    /* eslint-enable @typescript-eslint/no-use-before-define */
 
     // Hard backstop — some desktop browsers silently hang on
     // getCurrentPosition (no GPS hardware + no cached WiFi fix).
@@ -1455,7 +1460,12 @@ const Fleet = () => {
     }));
   };
 
-  const fetchData = async () => {
+  // Defined as a function declaration (not const arrow) so it's hoisted to
+  // the top of this component's scope. Required because useAutoRefresh(fetchData)
+  // at the top level of the component body would otherwise hit a TDZ —
+  // `const` arrow functions are not hoisted; function declarations are.
+  // (Same crash pattern that took down the Payments page in 4/2026.)
+  async function fetchData() {
     setLoading(true);
     try {
       // Managers (admin/finance/super_admin/operations) see all records.
@@ -1502,7 +1512,7 @@ const Fleet = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   // Fetch current-week spend for a vehicle, accounting for carry-forward.
   // Counts only approved/post-approval statuses — pending requests do not

@@ -193,6 +193,7 @@ const Dashboard = () => {
   const [personalLoading, setPersonalLoading] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside effect; fetchDashboard is initialized before the effect first runs
     fetchDashboard();
     refreshApprovals();
     // eslint-disable-next-line react-hooks/exhaustive-deps

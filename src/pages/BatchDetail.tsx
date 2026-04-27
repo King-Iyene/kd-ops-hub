@@ -224,19 +224,6 @@ const BatchDetail = () => {
     itemsRef.current = items;
   }, [items]);
 
-  useEffect(() => {
-    fetchBatch();
-    supabase.from('company_settings').select('company_name, logo_url')
-      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
-      .then(({ data: cs }) => {
-        if (cs) {
-          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
-          setLogoUrl((cs as any).logo_url || null);
-        }
-      })
-      .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
-  }, [id]);
-
   const fetchBatch = async () => {
     const [batchRes, itemsRes] = await Promise.all([
       supabase.from('payment_batches').select('*').eq('id', id).single(),
@@ -259,6 +246,19 @@ const BatchDetail = () => {
     setItems(allItems);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchBatch();
+    supabase.from('company_settings').select('company_name, logo_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
+      .then(({ data: cs }) => {
+        if (cs) {
+          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
+          setLogoUrl((cs as any).logo_url || null);
+        }
+      })
+      .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
+  }, [id]);
 
   const canApprove =
     !!profile && APPROVER_ROLES.includes(profile.role as any) && canApprovePerm;

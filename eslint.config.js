@@ -21,6 +21,25 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Catches the Rolldown/Vite 8 TDZ crash class:
+      //   const { x } = useAutoRefresh(fetchBatches);
+      //   ...
+      //   const fetchBatches = async () => { ... };  // ← defined too late
+      // The base no-use-before-define lets functions slide because function
+      // *declarations* are hoisted. We disable it and use the TS-aware version
+      // below, which knows that `const` arrow functions are NOT hoisted.
+      "no-use-before-define": "off",
+      "@typescript-eslint/no-use-before-define": [
+        "error",
+        {
+          functions: false,    // function decls are hoisted — fine
+          classes: true,
+          variables: true,     // catches const/let used before init (the bug)
+          enums: true,
+          typedefs: false,     // types are erased at runtime; allow forward use
+          ignoreTypeReferences: true,
+        },
+      ],
     },
   },
 );

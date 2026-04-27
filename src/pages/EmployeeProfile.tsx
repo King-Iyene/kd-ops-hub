@@ -258,6 +258,7 @@ const EmployeeProfile = () => {
       // legacy self-uploaded docs from before the employee_id column existed.
       supabase.from('documents').select('*')
         .or(`employee_id.eq.${id},uploaded_by.eq.${id}`)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('audit_logs')
         .select('id, action_type, description, created_at, performed_by, performed_by_name')
@@ -457,7 +458,10 @@ const EmployeeProfile = () => {
       if (doc.storage_path) {
         await supabase.storage.from('documents').remove([doc.storage_path]);
       }
-      const { error } = await supabase.from('documents').delete().eq('id', doc.id);
+      const { error } = await supabase
+        .from('documents')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', doc.id);
       if (error) throw error;
       await logAudit(
         'document_deleted',
