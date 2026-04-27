@@ -166,18 +166,23 @@ const Budgets = () => {
         supabase
           .from('budgets')
           .select('*')
-          .order('created_at', { ascending: false }),
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(200),
         supabase.from('departments').select('id, name').order('name'),
         // Pull approved expenses + processed batches within any budget period
         // to compute actual spend. We fetch broadly and bucket in-memory.
         supabase
           .from('expenses')
           .select('amount_ngn, date, status')
-          .eq('status', 'approved'),
+          .eq('status', 'approved')
+          .is('deleted_at', null)
+          .limit(2000),
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
-          .in('status', ['processed', 'funded']),
+          .in('status', ['processed', 'funded'])
+          .limit(500),
       ]);
 
       if (budgetsRes.error) throw budgetsRes.error;
@@ -459,7 +464,10 @@ const Budgets = () => {
   };
 
   const deleteBudget = async (r: BudgetRow) => {
-    const { error } = await supabase.from('budgets').delete().eq('id', r.id);
+    const { error } = await supabase
+      .from('budgets')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', r.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;

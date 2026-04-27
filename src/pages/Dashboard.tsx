@@ -277,8 +277,8 @@ const Dashboard = () => {
         supabase.from('audit_logs').select('id, action_type, description, performed_by_name, created_at').order('created_at', { ascending: false }).limit(15),
         supabase.from('subscriptions').select('id, name, amount_ngn, next_renewal_date').eq('status', 'active').lte('next_renewal_date', inThirtyDays.toISOString().slice(0, 10)).order('next_renewal_date', { ascending: true }).limit(6),
         supabase.from('budgets').select('id, name, total_amount_ngn, period_start, period_end, status').eq('status', 'approved').limit(20),
-        supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved'),
-        supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']),
+        supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved').is('deleted_at', null).limit(2000),
+        supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']).limit(500),
         supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).eq('status', 'scheduled').order('scheduled_date', { ascending: true }).limit(5),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('is_anonymised', true),
       ]);
