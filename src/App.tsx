@@ -56,7 +56,6 @@ const Invoices         = lazy(() => import('./pages/Invoices'));
 const Vendors          = lazy(() => import('./pages/Vendors'));
 const Performance      = lazy(() => import('./pages/Performance'));
 const Assets           = lazy(() => import('./pages/Assets'));
-const Loans            = lazy(() => import('./pages/Loans'));
 const Training         = lazy(() => import('./pages/Training'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
@@ -393,15 +392,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Employee Loans — Finance + Admin + Super Admin. */}
-        <Route
-          path="/loans"
-          element={
-            <RoleGuard roles={APPROVER_ROLES}>
-              <Loans />
-            </RoleGuard>
-          }
-        />
 
         {/* Training & Certifications — Managers. */}
         <Route

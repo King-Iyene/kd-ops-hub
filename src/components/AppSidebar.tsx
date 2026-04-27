@@ -32,7 +32,6 @@ import {
   Store,
   Star,
   Package,
-  HandCoins,
   GraduationCap,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -74,7 +73,6 @@ const ALL_NAV: NavItem[] = [
   { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Assets',           url: '/assets',            icon: Package,         roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Loans',            url: '/loans',             icon: HandCoins,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -103,7 +101,7 @@ const ALL_NAV: NavItem[] = [
 // ─── Group definitions ────────────────────────────────────────────────────────
 
 const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Loans', 'Compliance'] },
+  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Tasks', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
