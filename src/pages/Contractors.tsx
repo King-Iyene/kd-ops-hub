@@ -212,7 +212,7 @@ const Contractors = () => {
     }
     const [contractorsRes, tagsRes] = await Promise.all([
       query,
-      supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name'),
+      supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
     setAvailableTags((tagsRes.data as Tag[]) || []);
@@ -304,7 +304,13 @@ const Contractors = () => {
   };
 
   const toggleStatus = async (c: Contractor) => {
-    await supabase.from('contractors').update({ status: 'inactive' }).eq('id', c.id);
+    setContractors((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: 'inactive' as const } : x)));
+    const { error } = await supabase.from('contractors').update({ status: 'inactive' }).eq('id', c.id);
+    if (error) {
+      setContractors((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: 'active' as const } : x)));
+      toast({ title: 'Deactivation failed', description: error.message, variant: 'destructive' });
+      return;
+    }
     await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
     toast({ title: 'Contractor deactivated' });
     fetchContractors();

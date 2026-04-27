@@ -128,17 +128,23 @@ const ContactProfile = () => {
   };
 
   const addNote = async () => {
-    if (!id || !noteText.trim()) return;
-    const stamp = new Date().toLocaleString('en-GB');
-    const updated = `${form.notes || ''}\n\n[${stamp}] ${noteText.trim()}`.trim();
-    await supabase.from('contacts').update({ notes: updated }).eq('id', id);
-    await supabase.from('contact_activities').insert({
-      contact_id: id, action: 'note_added', detail: noteText.trim(),
-      performed_by: profile?.id, performed_by_name: profile?.full_name,
-    });
-    setNoteText('');
-    toast({ title: 'Note added' });
-    load();
+    if (!id || !noteText.trim() || saving) return;
+    setSaving(true);
+    try {
+      const stamp = new Date().toLocaleString('en-GB');
+      const updated = `${form.notes || ''}\n\n[${stamp}] ${noteText.trim()}`.trim();
+      await supabase.from('contacts').update({ notes: updated }).eq('id', id);
+      await supabase.from('contact_activities').insert({
+        contact_id: id, action: 'note_added', detail: noteText.trim(),
+        performed_by: profile?.id, performed_by_name: profile?.full_name,
+      });
+      setForm((prev) => ({ ...prev, notes: updated }));
+      setNoteText('');
+      toast({ title: 'Note added' });
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteContact = async () => {
@@ -269,7 +275,7 @@ const ContactProfile = () => {
             <CardHeader><CardTitle className="text-base">Add note</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               <Textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Type a note..." rows={3} />
-              <Button size="sm" onClick={addNote} disabled={!noteText.trim()}>Add note</Button>
+              <Button size="sm" onClick={addNote} disabled={!noteText.trim() || saving}>Add note</Button>
             </CardContent>
           </Card>
           <Card>

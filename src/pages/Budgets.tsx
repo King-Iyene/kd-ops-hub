@@ -157,6 +157,7 @@ const Budgets = () => {
     { category: 'payroll', description: '', planned_amount_ngn: '' },
   ]);
   const [confirmDelete, setConfirmDelete] = useState<BudgetRow | null>(null);
+  const [acting, setActing] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -169,7 +170,7 @@ const Budgets = () => {
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(200),
-        supabase.from('departments').select('id, name').order('name'),
+        supabase.from('departments').select('id, name').order('name').limit(200),
         // Pull approved expenses + processed batches within any budget period
         // to compute actual spend. We fetch broadly and bucket in-memory.
         supabase
@@ -258,7 +259,8 @@ const Budgets = () => {
       .from('budget_items')
       .select('*')
       .eq('budget_id', r.id)
-      .order('created_at');
+      .order('created_at')
+      .limit(1000);
     if (error) {
       toast({ title: 'Could not load line items', description: error.message, variant: 'destructive' });
       return;
@@ -406,76 +408,62 @@ const Budgets = () => {
   };
 
   const submitForApproval = async (r: BudgetRow) => {
-    const { error } = await supabase
-      .from('budgets')
-      .update({ status: 'pending_approval' })
-      .eq('id', r.id);
-    if (error) {
-      toast({ title: 'Submit failed', description: error.message, variant: 'destructive' });
-      return;
+    setActing(r.id);
+    try {
+      const { error } = await supabase.from('budgets').update({ status: 'pending_approval' }).eq('id', r.id);
+      if (error) { toast({ title: 'Submit failed', description: error.message, variant: 'destructive' }); return; }
+      await logAudit('budget_submitted', `Budget "${r.name}" submitted for approval`, profile);
+      toast({ title: 'Submitted for approval' });
+      load();
+    } finally {
+      setActing(null);
     }
-    await logAudit('budget_submitted', `Budget "${r.name}" submitted for approval`, profile);
-    toast({ title: 'Submitted for approval' });
-    load();
   };
 
   const toggleLock = async (r: BudgetRow) => {
     if (!canManage) return;
-    const next = !r.locked;
-    const { error } = await supabase
-      .from('budgets')
-      .update({ locked: next })
-      .eq('id', r.id);
-    if (error) {
-      toast({ title: 'Could not toggle lock', description: error.message, variant: 'destructive' });
-      return;
+    setActing(r.id);
+    try {
+      const next = !r.locked;
+      const { error } = await supabase.from('budgets').update({ locked: next }).eq('id', r.id);
+      if (error) { toast({ title: 'Could not toggle lock', description: error.message, variant: 'destructive' }); return; }
+      await logAudit(next ? 'budget_locked' : 'budget_unlocked', `Budget "${r.name}" ${next ? 'locked' : 'unlocked'}`, profile);
+      toast({
+        title: next ? 'Budget locked' : 'Budget unlocked',
+        description: next ? 'New expenses against its categories will be blocked.' : 'Submissions are allowed again.',
+      });
+      load();
+    } finally {
+      setActing(null);
     }
-    await logAudit(
-      next ? 'budget_locked' : 'budget_unlocked',
-      `Budget "${r.name}" ${next ? 'locked' : 'unlocked'}`,
-      profile,
-    );
-    toast({
-      title: next ? 'Budget locked' : 'Budget unlocked',
-      description: next
-        ? 'New expenses against its categories will be blocked.'
-        : 'Submissions are allowed again.',
-    });
-    load();
   };
 
   const approve = async (r: BudgetRow) => {
     if (!canManage) return;
-    const { error } = await supabase
-      .from('budgets')
-      .update({ status: 'approved', approved_by: profile?.id })
-      .eq('id', r.id);
-    if (error) {
-      toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
-      return;
+    setActing(r.id);
+    try {
+      const { error } = await supabase.from('budgets').update({ status: 'approved', approved_by: profile?.id }).eq('id', r.id);
+      if (error) { toast({ title: 'Approve failed', description: error.message, variant: 'destructive' }); return; }
+      await logAudit('budget_approved', `Budget "${r.name}" approved (${formatNaira(r.total_amount_ngn)})`, profile);
+      toast({ title: 'Budget approved' });
+      load();
+    } finally {
+      setActing(null);
     }
-    await logAudit(
-      'budget_approved',
-      `Budget "${r.name}" approved (${formatNaira(r.total_amount_ngn)})`,
-      profile,
-    );
-    toast({ title: 'Budget approved' });
-    load();
   };
 
   const deleteBudget = async (r: BudgetRow) => {
-    const { error } = await supabase
-      .from('budgets')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', r.id);
-    if (error) {
-      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-      return;
+    setActing(r.id);
+    try {
+      const { error } = await supabase.from('budgets').update({ deleted_at: new Date().toISOString() }).eq('id', r.id);
+      if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
+      await logAudit('budget_deleted', `Budget "${r.name}" deleted`, profile);
+      toast({ title: 'Budget deleted' });
+      setConfirmDelete(null);
+      load();
+    } finally {
+      setActing(null);
     }
-    await logAudit('budget_deleted', `Budget "${r.name}" deleted`, profile);
-    toast({ title: 'Budget deleted' });
-    setConfirmDelete(null);
-    load();
   };
 
   // Fire notifications when any budget crosses 80% / 100% utilisation.
@@ -675,7 +663,7 @@ const Budgets = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => submitForApproval(r)}
-                                disabled={!hasRole(profile?.role, MANAGER_ROLES)}
+                                disabled={!hasRole(profile?.role, MANAGER_ROLES) || acting === r.id}
                               >
                                 Submit
                               </Button>
@@ -685,6 +673,7 @@ const Budgets = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => approve(r)}
+                                disabled={acting === r.id}
                               >
                                 <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
                               </Button>
@@ -695,6 +684,7 @@ const Budgets = () => {
                                 variant="ghost"
                                 onClick={() => toggleLock(r)}
                                 title={r.locked ? 'Unlock budget' : 'Lock budget'}
+                                disabled={acting === r.id}
                               >
                                 {r.locked ? (
                                   <Unlock className="h-4 w-4" />
