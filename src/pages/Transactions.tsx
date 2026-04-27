@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDebounce } from '@/hooks/useDebounce';
 import {
   Search,
   Download,
@@ -127,6 +128,7 @@ const Transactions = () => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<Transaction[]>([]);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [typeFilter, setTypeFilter] = useState<FilterTab>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
@@ -159,7 +161,7 @@ const Transactions = () => {
   }, [rows]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     const fromMs = from ? new Date(from).getTime() : -Infinity;
     const toMs = to ? new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1 : Infinity;
     return rows.filter((r) => {
@@ -179,7 +181,7 @@ const Transactions = () => {
         (r.batch_name || '').toLowerCase().includes(q)
       );
     });
-  }, [rows, search, typeFilter, categoryFilter, statusFilter, from, to]);
+  }, [rows, debouncedSearch, typeFilter, categoryFilter, statusFilter, from, to]);
 
   const pagination = usePagination(filtered, 25);
 

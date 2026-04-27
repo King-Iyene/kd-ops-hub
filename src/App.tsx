@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
 import { ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES } from '@/lib/roles';
 import { Loader as Loader2 } from 'lucide-react';
@@ -103,7 +104,9 @@ function AppRoutes() {
       <Route
         element={
           <AuthGuard>
-            <AppLayout />
+            <ErrorBoundary>
+              <AppLayout />
+            </ErrorBoundary>
           </AuthGuard>
         }
       >

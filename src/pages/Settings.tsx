@@ -124,6 +124,7 @@ const SettingsPage = () => {
   const { profile } = useAuthStore();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
 
   // Notification preferences are per-user, not company-wide.
@@ -1127,12 +1128,15 @@ const SettingsPage = () => {
               </p>
               <Button
                 variant="outline"
+                disabled={exportLoading}
                 onClick={async () => {
+                  setExportLoading(true);
                   await logAudit('report_exported', 'Full company data export requested', profile);
                   toast({
                     title: 'Export queued',
                     description: 'Your export will arrive via email within 15 minutes.',
                   });
+                  setExportLoading(false);
                 }}
               >
                 Request full CSV export

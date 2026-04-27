@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import {
   BookOpen,
   Plus,
@@ -99,6 +100,7 @@ const Knowledge = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [categoryFilter, setCategoryFilter] = useState<'all' | Category>('all');
 
   const [editor, setEditor] = useState<Article | null>(null);
@@ -226,7 +228,7 @@ const Knowledge = () => {
   };
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return articles.filter((a) => {
       if (categoryFilter !== 'all' && a.category !== categoryFilter) return false;
       if (!q) return true;
@@ -234,7 +236,7 @@ const Knowledge = () => {
         a.title.toLowerCase().includes(q) || a.body.toLowerCase().includes(q)
       );
     });
-  }, [articles, search, categoryFilter]);
+  }, [articles, debouncedSearch, categoryFilter]);
 
   return (
     <div className="space-y-6">

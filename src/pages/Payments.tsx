@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatNaira, formatDate } from '@/lib/format';
@@ -64,6 +65,7 @@ const Payments = () => {
   const [batches, setBatches] = useState<PaymentBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [page, setPage] = useState(0);
 
@@ -207,10 +209,10 @@ const Payments = () => {
   };
 
   const filtered = useMemo(() => {
-    if (!search) return batches;
-    const s = search.toLowerCase();
+    if (!debouncedSearch) return batches;
+    const s = debouncedSearch.toLowerCase();
     return batches.filter((b) => b.name.toLowerCase().includes(s));
-  }, [batches, search]);
+  }, [batches, debouncedSearch]);
 
   const isLowBalance = balance !== null && balance.available < LOW_BALANCE_THRESHOLD;
 

@@ -3,21 +3,10 @@ import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-/**
- * Catches uncaught render / lifecycle errors anywhere below it in the tree
- * and shows a recoverable error card instead of letting React unmount the
- * whole app. Use one near the root (around <Outlet />) to scope blast
- * radius to a single page rather than the entire SPA.
- *
- * Note: does NOT catch errors in async callbacks (event handlers, promises).
- * Those still need their own try/catch + toast.
- */
-
 interface Props {
   children: ReactNode;
-  /** Optional: shown above the action buttons. Useful for telling the user
-   *  what they were doing when it broke. */
   context?: string;
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -33,7 +22,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[KDOps] ErrorBoundary caught:', error, info.componentStack);
-    // Forward to Sentry if it's been installed + initialised.
     type SentryGlobal = { captureException?: (e: unknown, ctx?: unknown) => void };
     const s = (window as unknown as { Sentry?: SentryGlobal }).Sentry;
     s?.captureException?.(error, { extra: { componentStack: info.componentStack } });
@@ -43,6 +31,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children;
+
+    if (this.props.fallback) return this.props.fallback;
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -55,11 +45,8 @@ export class ErrorBoundary extends Component<Props, State> {
           </CardHeader>
           <CardContent className="pt-4 space-y-4 text-sm">
             <p className="text-muted-foreground leading-relaxed">
-              {this.props.context
-                ? `${this.props.context} `
-                : ''}
-              The rest of the app is still working — the error is contained
-              to this page only.
+              {this.props.context ? `${this.props.context} ` : ''}
+              The rest of the app is still working — the error is contained to this page only.
             </p>
             <div className="rounded-lg bg-muted/50 px-3 py-2 font-mono text-xs break-all">
               {this.state.error.message || 'Unknown error'}
@@ -71,17 +58,12 @@ export class ErrorBoundary extends Component<Props, State> {
               <Button onClick={() => (window.location.href = '/')} variant="outline" size="sm">
                 <Home className="h-3.5 w-3.5 mr-1.5" /> Go to dashboard
               </Button>
-              <Button
-                onClick={() => window.location.reload()}
-                variant="ghost"
-                size="sm"
-              >
+              <Button onClick={() => window.location.reload()} variant="ghost" size="sm">
                 Reload page
               </Button>
             </div>
             <p className="text-xs text-muted-foreground/70 border-t pt-2">
-              If this keeps happening, please copy the error above and share
-              it with support.
+              If this keeps happening, please copy the error above and share it with support.
             </p>
           </CardContent>
         </Card>

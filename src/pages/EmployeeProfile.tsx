@@ -232,14 +232,15 @@ const EmployeeProfile = () => {
     // Departments for the inline Edit select.
     supabase.from('departments').select('id, name').order('name').then(({ data }) => {
       setDepartments((data as Array<{ id: string; name: string }>) || []);
-    });
+    }).catch(() => { /* departments are non-critical; edit select degrades gracefully */ });
 
     // Company settings for payslip generation
     supabase.from('company_settings').select('company_name, logo_url')
       .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
       .then(({ data: cs }) => {
         if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
-      });
+      })
+      .catch(() => { /* company name is cosmetic on the payslip */ });
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id)
