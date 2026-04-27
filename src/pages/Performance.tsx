@@ -234,7 +234,7 @@ export default function Performance() {
       <PageHeader
         title="Performance Reviews"
         description="Manage review cycles, competency ratings, and development plans."
-        action={<Button onClick={openCycleDialog}><Plus className="h-4 w-4 mr-2" />New Cycle</Button>}
+        actions={<Button onClick={openCycleDialog}><Plus className="h-4 w-4 mr-2" />New Cycle</Button>}
       />
 
       {/* Stats */}

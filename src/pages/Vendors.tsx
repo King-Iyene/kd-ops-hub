@@ -219,7 +219,7 @@ export default function Vendors() {
       <PageHeader
         title="Vendor Registry"
         description="Track suppliers, contracts, and banking details."
-        action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Vendor</Button>}
+        actions={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Vendor</Button>}
       />
 
       {/* Stats */}

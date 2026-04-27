@@ -221,7 +221,7 @@ export default function PettyCash() {
       <PageHeader
         title="Petty Cash"
         description="Manage cash floats, disbursements, and replenishments."
-        action={<Button onClick={openFundCreate}><Plus className="h-4 w-4 mr-2" />New Fund</Button>}
+        actions={<Button onClick={openFundCreate}><Plus className="h-4 w-4 mr-2" />New Fund</Button>}
       />
 
       {/* Stats */}
