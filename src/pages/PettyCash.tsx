@@ -113,12 +113,12 @@ export default function PettyCash() {
   // ── Fund CRUD ──────────────────────────────────────────────────────────────
   const openFundCreate = () => {
     setEditingFund(null);
-    setFundForm({ name: '', opening_balance_ngn: '', status: 'active', notes: '', custodian_id: '' });
+    setFundForm({ name: '', opening_balance_ngn: '', status: 'active', notes: '', custodian_id: '__none__' });
     setFundDialog(true);
   };
   const openFundEdit = (f: Fund) => {
     setEditingFund(f);
-    setFundForm({ name: f.name, opening_balance_ngn: String(f.opening_balance_ngn), status: f.status, notes: f.notes ?? '', custodian_id: f.custodian_id ?? '' });
+    setFundForm({ name: f.name, opening_balance_ngn: String(f.opening_balance_ngn), status: f.status, notes: f.notes ?? '', custodian_id: f.custodian_id ?? '__none__' });
     setFundDialog(true);
   };
   const saveFund = async () => {
@@ -130,7 +130,7 @@ export default function PettyCash() {
       current_balance_ngn: Number(fundForm.opening_balance_ngn) || 0,
       status: fundForm.status,
       notes: fundForm.notes.trim() || null,
-      custodian_id: fundForm.custodian_id || null,
+      custodian_id: (fundForm.custodian_id && fundForm.custodian_id !== '__none__') ? fundForm.custodian_id : null,
       created_by: profile?.id,
     };
     const { error } = editingFund
@@ -394,7 +394,7 @@ export default function PettyCash() {
               <Select value={fundForm.custodian_id} onValueChange={v => setFundForm(p => ({ ...p, custodian_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select custodian" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__none__">None</SelectItem>
                   {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
                 </SelectContent>
               </Select>
