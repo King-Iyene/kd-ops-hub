@@ -1473,7 +1473,7 @@ const Fleet = () => {
       const canSeeAll = ['admin', 'finance', 'super_admin', 'operations'].includes(profile?.role || '');
       const uid = profile?.id || '';
 
-      const fuelBase = supabase.from('fuel_requests').select('*').order('created_at', { ascending: false }).limit(100);
+      const fuelBase = supabase.from('fuel_requests').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100);
       const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
 
       const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
@@ -2773,7 +2773,10 @@ const Fleet = () => {
       await supabase.storage.from('receipts').remove(pathsToRemove);
     }
 
-    const { error } = await supabase.from('fuel_requests').delete().eq('id', r.id);
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', r.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;

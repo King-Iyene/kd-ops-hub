@@ -92,7 +92,10 @@ export type AuditActionType =
   | 'user_logged_out'
   | 'paystack_reconciliation_run'
   | 'expense_first_approval'
-  | 'expense_deleted';
+  | 'expense_deleted'
+  | 'budget_deleted'
+  | 'leave_deleted'
+  | 'fuel_request_deleted';
 
 export interface AuditActor {
   id?: string | null;

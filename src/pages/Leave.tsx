@@ -181,14 +181,18 @@ const Leave = () => {
         .from('leave_requests')
         .select('*')
         .eq('employee_id', currentId)
-        .order('created_at', { ascending: false });
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       // Team Leave — all rows for privileged roles; empty for everyone else.
       const teamQuery = privileged
         ? supabase
             .from('leave_requests')
             .select('*')
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
+            .limit(200)
         : Promise.resolve({ data: [] as LeaveRequest[], error: null });
 
       const [myRes, teamRes, profilesRes, balanceRes] = await Promise.all([
@@ -524,7 +528,10 @@ const Leave = () => {
   };
 
   const deleteLeaveRequest = async (req: LeaveRequest) => {
-    const { error } = await supabase.from('leave_requests').delete().eq('id', req.id);
+    const { error } = await supabase
+      .from('leave_requests')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', req.id);
     if (error) {
       toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
       return;
