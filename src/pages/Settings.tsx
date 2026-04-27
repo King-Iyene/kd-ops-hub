@@ -1978,6 +1978,7 @@ function SystemReferencePanel() {
               <p><strong>P1 — Compliance keyboard shortcut.</strong> In the "New statutory filing" form, pressing Enter now saves the filing — just like clicking the "Save filing" button. This saves time when quickly logging multiple filings in a row.</p>
               <p><strong>P1 — Reports stopped guessing Paystack fees.</strong> The P&amp;L and Payments reports used to show an estimated Paystack fee figure (1.5% of the transfer amount) which was almost never accurate. The "Paystack Fees" stat card and chart bar have been removed from both the P&amp;L and Payments tabs in Reports. The actual fees Paystack charges (e.g. ₦10 per transfer, plus stamp duty) appear as real entries on the Transactions page, where they naturally count toward what you spent.</p>
               <p><strong>P1 — Friendlier Clients error.</strong> If the Clients table has not been created in the database yet, the page used to show a confusing "schema cache" error from Supabase. It now shows a clear message explaining that the database migration needs to be deployed by running "supabase db push" — so admins know exactly what to do.</p>
+              <p><strong>P1 — Paystack fees visible in Transactions.</strong> The Transactions page now shows the actual Paystack transfer fee charged for each payment batch (e.g. ₦10 per transfer) in a dedicated Fees column. Fees come from the real webhook data stored in the database — no estimates. If the fee has not been recorded yet (webhook not fired) the cell shows a dash. The fees total also appears in the filter summary strip when filters are active, and in CSV exports.</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
               </p>
@@ -2017,6 +2018,7 @@ function SystemReferencePanel() {
                 { a: 'Enter key saves compliance filings',  b: 'In the "New statutory filing" form, pressing Enter submits the form — useful when adding several filings quickly without reaching for the mouse.' },
                 { a: 'No more guessed Paystack fees',        b: 'Reports used to show an estimated 1.5% Paystack fee figure that was almost always wrong. That stat card and chart bar are gone — actual transfer fees (₦10 charges, stamp duty etc.) appear as real entries on the Transactions page and naturally count toward operating costs.' },
                 { a: 'Helpful Clients setup message',        b: 'If an admin opens the Clients page before the database migration has been deployed, the page now says "ask an admin to run supabase db push" instead of a confusing "schema cache" error.' },
+                { a: 'Paystack fees per transaction',        b: 'Each row in the Transactions table now shows a "Fees" column with the actual Paystack transfer fee (e.g. ₦10) recorded from the webhook. Mobile cards also show the fee when one is present. Fees appear in the CSV export and in the filter totals strip.' },
               ]}
             />
           </RefSection>
@@ -2031,7 +2033,7 @@ function SystemReferencePanel() {
                 { a: 'Webhook signature verification', b: 'HMAC-SHA512, timing-safe compare. Rejected events return 401' },
                 { a: 'Transfer events handled',        b: 'transfer.success · transfer.failed · transfer.reversed' },
                 { a: 'Webhook idempotency',            b: '(reference, event_type) UNIQUE — duplicate deliveries silently ignored' },
-                { a: 'Fees captured',                  b: 'paystack_fee_ngn per batch_item; surfaced in Reports P&L' },
+                { a: 'Fees captured',                  b: 'paystack_fee_ngn per batch_item; shown in the Fees column on the Transactions page' },
                 { a: 'CORS allowed origins',           b: 'ops.kdsquares.com · localhost:5173 · localhost:8080 · localhost:3000 (no wildcard *)' },
                 { a: 'Funding wallet',                 b: 'Payments page → top-right link, or dashboard.paystack.com/#/balance/' },
               ]}
