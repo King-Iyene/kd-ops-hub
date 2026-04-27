@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define -- shadcn forwardRef pattern */
 import * as React from "react";
 import * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";

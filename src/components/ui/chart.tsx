@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define -- shadcn forwardRef pattern */
 import * as React from "react";
 import * as RechartsPrimitive from "recharts";
 

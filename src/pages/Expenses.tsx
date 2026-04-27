@@ -396,6 +396,7 @@ const Expenses = () => {
         .update({ status: 'processing' })
         .eq('id', batchId);
 
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside async handler; syncFuelRequest is initialized before user can trigger this
       await syncFuelRequest(expense.fuel_request_id, 'paid');
       await logAudit(
         'expense_payment_initiated',

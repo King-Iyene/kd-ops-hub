@@ -80,36 +80,6 @@ const Payments = () => {
 
   const [reconciling, setReconciling] = useState(false);
 
-  const reconcileNow = async () => {
-    if (reconciling) return;
-    if (!confirm(
-      'Reconcile pending transfers with Paystack now?\n\n' +
-      'This re-checks every payment that has been stuck in "pending" for ' +
-      'more than 1 hour. Use this if a payment seems stuck without ever ' +
-      'reaching Paystack confirmation.'
-    )) return;
-    setReconciling(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('paystack-reconciliation', {
-        body: {},
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({
-        title: 'Reconciliation complete',
-        description: `Checked ${data?.items_checked ?? 0} · ${data?.succeeded ?? 0} succeeded · ${data?.failed ?? 0} failed · ${data?.unchanged ?? 0} unchanged`,
-      });
-      fetchBatches();
-      fetchStats();
-    } catch (err: any) {
-      toast({ title: 'Reconciliation failed', description: err?.message, variant: 'destructive' });
-    } finally {
-      setReconciling(false);
-    }
-  };
-
   const fetchBalance = useCallback(async (isRetry = false) => {
     setBalanceLoading(true);
     if (!isRetry) setBalanceError(false);
@@ -199,6 +169,36 @@ const Payments = () => {
 
     setBatches(fetched);
     setLoading(false);
+  };
+
+  const reconcileNow = async () => {
+    if (reconciling) return;
+    if (!confirm(
+      'Reconcile pending transfers with Paystack now?\n\n' +
+      'This re-checks every payment that has been stuck in "pending" for ' +
+      'more than 1 hour. Use this if a payment seems stuck without ever ' +
+      'reaching Paystack confirmation.'
+    )) return;
+    setReconciling(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('paystack-reconciliation', {
+        body: {},
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({
+        title: 'Reconciliation complete',
+        description: `Checked ${data?.items_checked ?? 0} · ${data?.succeeded ?? 0} succeeded · ${data?.failed ?? 0} failed · ${data?.unchanged ?? 0} unchanged`,
+      });
+      fetchBatches();
+      fetchStats();
+    } catch (err: any) {
+      toast({ title: 'Reconciliation failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setReconciling(false);
+    }
   };
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);
