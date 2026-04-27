@@ -26,7 +26,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as ChartTooltip,
   ResponsiveContainer,
   Legend,
 } from 'recharts';
@@ -352,7 +352,7 @@ function PaymentReport({ range }: { range: DateRange }) {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
                 <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
                 <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-                <Tooltip
+                <ChartTooltip
                   content={<GlassTooltip />}
                   formatter={(v: number) => formatNaira(v)}
                   cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -382,7 +382,7 @@ function PaymentReport({ range }: { range: DateRange }) {
                     <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
+                <ChartTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -459,7 +459,7 @@ function ExpenseReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="name" tickFormatter={(v: string) => v.replace(/_/g, ' ')} tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.gold, fillOpacity: 0.06 }}
@@ -571,7 +571,7 @@ function FleetReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ stroke: chartTheme.primary, strokeWidth: 1, strokeOpacity: 0.3 }}
@@ -674,7 +674,7 @@ function ContractorReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} horizontal={false} />
               <XAxis type="number" tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis dataKey="name" type="category" width={80} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -788,7 +788,7 @@ function BudgetReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.05 }}
@@ -1055,7 +1055,7 @@ function PnLReport({ range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="month" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.success, fillOpacity: 0.05 }}
@@ -1178,7 +1178,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
               <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
               <XAxis dataKey="bucket" tick={axisTick} axisLine={false} tickLine={false} />
               <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
-              <Tooltip
+              <ChartTooltip
                 content={<GlassTooltip />}
                 formatter={(v: number) => formatNaira(v)}
                 cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
@@ -1290,7 +1290,7 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
                   <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip content={<GlassTooltip />} formatter={(v: number) => formatNaira(v)} cursor={{ fill: 'transparent' }} />
+              <ChartTooltip content={<GlassTooltip />} formatter={(v: number) => formatNaira(v)} cursor={{ fill: 'transparent' }} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
             </PieChart>
           </ResponsiveContainer>
