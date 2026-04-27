@@ -1226,6 +1226,8 @@ const Fleet = () => {
   const [repairForm, setRepairForm] = useState({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
   const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
   const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
+  const [repairIsReimbursement, setRepairIsReimbursement] = useState(true);
+  const [fuelIsReimbursement, setFuelIsReimbursement] = useState(true);
 
   // Trip log form
   const [showTripForm, setShowTripForm] = useState(false);
@@ -1579,7 +1581,8 @@ const Fleet = () => {
         description: repairForm.description,
         status: 'pending',
         receipt_url: receiptUrl,
-        ...(repairBank.verified ? {
+        is_reimbursement: repairIsReimbursement,
+        ...(repairIsReimbursement && repairBank.verified ? {
           bank_name: repairBank.bank_name,
           account_number: repairBank.account_number,
           account_name: repairBank.account_name,
@@ -1596,12 +1599,12 @@ const Fleet = () => {
         setSubmitting(false);
         return;
       }
-      await logAudit('repair_request_submitted', `Repair: ${repairForm.description} (${formatNaira(amount)})`, profile);
+      await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
         type: 'repair_request_submitted',
         module: 'fleet',
-        title: 'Repair reimbursement submitted',
+        title: repairIsReimbursement ? 'Repair reimbursement submitted' : 'Repair request submitted (company charge)',
         body: `${formatNaira(amount)}: ${repairForm.description}`,
       });
       toast({ title: 'Repair request submitted' });
@@ -2044,7 +2047,8 @@ const Fleet = () => {
           description: `Fuel — ${fuelForm.station_name || 'Station'}${noteStr ? ` — ${noteStr}` : ''}`,
           submitted_by: fuelForm.employee_id,
           status: 'pending',
-          ...(fuelBankDetails.verified ? {
+          is_reimbursement: fuelIsReimbursement,
+          ...(fuelIsReimbursement && fuelBankDetails.verified ? {
             bank_name: fuelBankDetails.bank_name,
             account_number: fuelBankDetails.account_number,
             account_name: fuelBankDetails.account_name,
@@ -3943,7 +3947,7 @@ const Fleet = () => {
         const requested = parseFloat(fuelForm.amount_ngn) || 0;
         const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
         return (
-          <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); } }}>
+          <Dialog open={showFuelForm} onOpenChange={(v) => { setShowFuelForm(v); if (!v) { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); setFuelVehicleId(''); setWeekBudget(null); setFuelDoc(null); setFuelIsReimbursement(true); } }}>
             <DialogContent className="max-w-lg max-h-[90vh] flex flex-col gap-0 p-0">
 
               {/* Pinned header */}
@@ -4081,8 +4085,31 @@ const Fleet = () => {
                   </div>
                 </div>
 
-                {/* Bank (optional) */}
-                <div className="pt-4 border-t">
+                {/* Payment type */}
+                <div className="pt-4 border-t space-y-2">
+                  <Label>Payment type</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', fuelIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                      onClick={() => { setFuelIsReimbursement(true); }}
+                    >
+                      <span className="font-medium">Reimbursement</span>
+                      <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !fuelIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                      onClick={() => { setFuelIsReimbursement(false); setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}
+                    >
+                      <span className="font-medium">Company charge</span>
+                      <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bank (optional — only for reimbursement) */}
+                {fuelIsReimbursement && <div className="pt-2 border-t">
                   {!showFuelBankSection ? (
                     <button type="button" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors" onClick={() => setShowFuelBankSection(true)}>
                       <CreditCard className="h-3.5 w-3.5" />
@@ -4097,7 +4124,7 @@ const Fleet = () => {
                       <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
 
               {/* Pinned footer */}
@@ -5019,12 +5046,12 @@ const Fleet = () => {
       </Dialog>
 
       {/* Phase 4 — Repair request dialog */}
-      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); } }}>
+      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); setRepairIsReimbursement(true); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Vehicle Repair Reimbursement</DialogTitle>
+            <DialogTitle>{repairIsReimbursement ? 'Vehicle Repair Reimbursement' : 'Vehicle Repair — Company Charge'}</DialogTitle>
             <DialogDescription>
-              Submit a repair or maintenance cost for reimbursement. Receipts are required for amounts over ₦10,000.
+              Submit a repair or maintenance cost. Receipts are required for amounts over ₦10,000.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -5044,6 +5071,27 @@ const Fleet = () => {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Payment type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                  onClick={() => setRepairIsReimbursement(true)}
+                >
+                  <span className="font-medium">Reimbursement</span>
+                  <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
+                </button>
+                <button
+                  type="button"
+                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
+                  onClick={() => setRepairIsReimbursement(false)}
+                >
+                  <span className="font-medium">Company charge</span>
+                  <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
+                </button>
+              </div>
             </div>
             <div className="space-y-1">
               <Label>Description of Repair</Label>
@@ -5078,10 +5126,12 @@ const Fleet = () => {
               />
               {repairReceipt && <p className="text-xs text-muted-foreground">{repairReceipt.name}</p>}
             </div>
-            <div className="pt-2 border-t space-y-2">
-              <p className="text-sm font-medium">Bank account for reimbursement <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
-              <BankAccountField value={repairBank} onChange={setRepairBank} />
-            </div>
+            {repairIsReimbursement && (
+              <div className="pt-2 border-t space-y-2">
+                <p className="text-sm font-medium">Bank account for reimbursement <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
+                <BankAccountField value={repairBank} onChange={setRepairBank} />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRepairForm(false)}>Cancel</Button>
