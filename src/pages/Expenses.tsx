@@ -93,6 +93,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { createTransferRecipient, initiateTransfer, getBankCode, generateKdopsRef } from '@/lib/paystack';
+import { cn } from '@/lib/utils';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
