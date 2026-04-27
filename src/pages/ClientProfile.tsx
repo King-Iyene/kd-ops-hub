@@ -94,7 +94,16 @@ const ClientProfile = () => {
       .is('deleted_at', null)
       .single();
     if (error || !data) {
-      toast({ title: 'Client not found', variant: 'destructive' });
+      const msg = error?.message || '';
+      if (/schema cache|does not exist|public\.clients/i.test(msg)) {
+        toast({
+          title: 'Database not ready',
+          description: 'The Clients table has not been deployed. Ask an admin to run "supabase db push".',
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Client not found', variant: 'destructive' });
+      }
       navigate('/clients');
       return;
     }

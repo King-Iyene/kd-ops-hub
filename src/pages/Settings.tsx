@@ -1976,6 +1976,8 @@ function SystemReferencePanel() {
               <p><strong>P1 — Dashboard discovery.</strong> The new Clients module now appears in the Dashboard's Quick Actions panel so it's reachable in one click from anywhere in the app.</p>
               <p><strong>P1 — Client profile pages.</strong> Clicking on any client in the Clients list now opens a dedicated profile page for that client. From there you can edit all details, track contract value, change their status (active / inactive / prospect), and add timestamped notes — the same way you can add notes on a Contact profile. The remove button on the profile also works like the list view: the client is hidden but kept in the database.</p>
               <p><strong>P1 — Compliance keyboard shortcut.</strong> In the "New statutory filing" form, pressing Enter now saves the filing — just like clicking the "Save filing" button. This saves time when quickly logging multiple filings in a row.</p>
+              <p><strong>P1 — Reports stopped guessing Paystack fees.</strong> The P&amp;L and Payments reports used to show an estimated Paystack fee figure (1.5% of the transfer amount) which was almost never accurate. The "Paystack Fees" stat card and chart bar have been removed from both the P&amp;L and Payments tabs in Reports. The actual fees Paystack charges (e.g. ₦10 per transfer, plus stamp duty) appear as real entries on the Transactions page, where they naturally count toward what you spent.</p>
+              <p><strong>P1 — Friendlier Clients error.</strong> If the Clients table has not been created in the database yet, the page used to show a confusing "schema cache" error from Supabase. It now shows a clear message explaining that the database migration needs to be deployed by running "supabase db push" — so admins know exactly what to do.</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
               </p>
@@ -2013,6 +2015,8 @@ function SystemReferencePanel() {
                 { a: 'Click a client to open its profile',  b: 'Clicking any row in the Clients list opens a full profile page where you can edit details, add notes, and change status — without opening a small dialog.' },
                 { a: 'Notes on client profiles',            b: 'You can add timestamped notes to any client the same way you can for Contacts. Each note shows the date and time it was added, and the full history is visible in one place.' },
                 { a: 'Enter key saves compliance filings',  b: 'In the "New statutory filing" form, pressing Enter submits the form — useful when adding several filings quickly without reaching for the mouse.' },
+                { a: 'No more guessed Paystack fees',        b: 'Reports used to show an estimated 1.5% Paystack fee figure that was almost always wrong. That stat card and chart bar are gone — actual transfer fees (₦10 charges, stamp duty etc.) appear as real entries on the Transactions page and naturally count toward operating costs.' },
+                { a: 'Helpful Clients setup message',        b: 'If an admin opens the Clients page before the database migration has been deployed, the page now says "ask an admin to run supabase db push" instead of a confusing "schema cache" error.' },
               ]}
             />
           </RefSection>
