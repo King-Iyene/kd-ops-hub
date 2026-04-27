@@ -57,6 +57,9 @@ const Vendors          = lazy(() => import('./pages/Vendors'));
 const Performance      = lazy(() => import('./pages/Performance'));
 const Assets           = lazy(() => import('./pages/Assets'));
 const Training         = lazy(() => import('./pages/Training'));
+const Projects         = lazy(() => import('./pages/Projects'));
+const Benefits         = lazy(() => import('./pages/Benefits'));
+const Onboarding       = lazy(() => import('./pages/Onboarding'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
@@ -399,6 +402,36 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Training />
+            </RoleGuard>
+          }
+        />
+
+        {/* Project Tracker — Managers. */}
+        <Route
+          path="/projects"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Projects />
+            </RoleGuard>
+          }
+        />
+
+        {/* Employee Benefits — Managers. */}
+        <Route
+          path="/benefits"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Benefits />
+            </RoleGuard>
+          }
+        />
+
+        {/* Onboarding & Offboarding — Managers. */}
+        <Route
+          path="/onboarding"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Onboarding />
             </RoleGuard>
           }
         />
