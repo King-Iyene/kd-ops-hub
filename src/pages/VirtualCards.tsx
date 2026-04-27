@@ -336,6 +336,7 @@ const VirtualCards = () => {
                               variant="ghost"
                               onClick={() => toggleStatus(c, 'paused')}
                               title="Pause"
+                              aria-label={`Pause card ${c.card_name}`}
                             >
                               <Pause className="h-4 w-4" />
                             </Button>
@@ -345,6 +346,7 @@ const VirtualCards = () => {
                               variant="ghost"
                               onClick={() => toggleStatus(c, 'active')}
                               title="Resume"
+                              aria-label={`Resume card ${c.card_name}`}
                             >
                               <Play className="h-4 w-4" />
                             </Button>
@@ -353,6 +355,8 @@ const VirtualCards = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => openEdit(c)}
+                            title="Edit"
+                            aria-label={`Edit card ${c.card_name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -360,6 +364,8 @@ const VirtualCards = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => remove(c)}
+                            title="Delete"
+                            aria-label={`Delete card ${c.card_name}`}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>

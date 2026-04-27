@@ -34,6 +34,7 @@ import {
   RefreshCw,
   Globe,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -1963,7 +1964,11 @@ function SystemReferencePanel() {
               <p><strong>P0 Go-live hardening</strong> — Admin self-approval exception, Approvals query limits, CORS lockdown on Edge Functions, DB performance indexes, password min-length raised to 12 + complexity, realtime channel cleanup on logout, 10 MB file-size cap on all upload sites.</p>
               <p><strong>P1 — Payments TDZ fix</strong> — "Cannot access before initialization" crash eliminated. ESLint <code>no-use-before-define</code> rule added as permanent guardrail.</p>
               <p><strong>P1 — Soft deletes</strong> — expenses, documents, budgets, leave_requests, fuel_requests now use <code>deleted_at</code> instead of hard delete. Records are preserved in DB for audit trail.</p>
-              <p><strong>P1 — Query limits</strong> — All previously unbounded Supabase queries capped. Dashboard, Budgets, Leave, Approvals, Fleet and Reports pages now have explicit <code>.limit()</code> calls.</p>
+              <p><strong>P1 — Query limits</strong> — All previously unbounded Supabase queries capped. Dashboard, Budgets, Leave, Approvals, Fleet and Reports pages now have explicit <code>.limit()</code> calls. Final sweep added limits on departments, budget_items, knowledge versions, profiles (Leave) and tags.</p>
+              <p><strong>P1 — Input trimming</strong> — Company settings (<code>company_name</code>, <code>rc_number</code>, <code>tin</code>, <code>address</code>, <code>website</code>) and payment batch <code>name</code> fields are <code>.trim()</code>'d before DB write.</p>
+              <p><strong>P1 — Double-submit protection</strong> — Quick-action handlers (Submit / Approve / Lock / Delete on Budgets, addNote on Contacts, toggleAffiliate on Referrals, toggleStatus on Contractors) now guard against double-clicks with <code>acting</code> / <code>saving</code> state and disable buttons in-flight. Optimistic UI updates with rollback on error.</p>
+              <p><strong>P1 — Confirmation dialogs</strong> — Browser <code>confirm()</code> replaced with in-app <code>AlertDialog</code> on Subscriptions delete, Leave revert-approval, and Employee document delete. Consistent destructive-action UX across the app.</p>
+              <p><strong>P1 — Accessibility &amp; CSV polish</strong> — <code>aria-label</code> added to icon-only buttons (VirtualCards, Knowledge, Subscriptions, Referrals, EmployeeProfile). CSV exports now use <code>formatDate()</code> (en-GB) instead of raw ISO timestamps for Contacts, Goals, and Referrals.</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 SQL migrations live in <code>supabase/migrations/</code> · Edge functions in <code>supabase/functions/</code> · Run <code>supabase db push</code> after each deploy.
               </p>
@@ -1983,6 +1988,21 @@ function SystemReferencePanel() {
                 { a: 'Annual budget (per category)',      b: '₦5,000,000,000', c: 'Yearly planning ceiling' },
                 { a: 'Salary advance',                    b: '₦50,000,000',    c: 'Per-employee advance' },
                 { a: 'Annual salary',                     b: '₦100,000,000',   c: 'Per-employee yearly comp' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Sparkles} title="UX, accessibility &amp; data hygiene">
+            <RefTable
+              cols={['Area', 'Behaviour']}
+              rows={[
+                { a: 'Destructive actions',     b: 'Branded AlertDialog confirmation on Subscriptions delete, Leave revert, Employee document delete (no browser confirm() popups).' },
+                { a: 'Double-submit protection', b: 'Submit / Approve / Lock / Delete buttons on Budgets disable while in-flight. Same guard on Contractors, Contacts, Referrals quick actions.' },
+                { a: 'Optimistic UI',           b: 'Affiliate toggle, contractor deactivate, contact note: UI updates immediately and rolls back on error.' },
+                { a: 'Icon button a11y',        b: 'All icon-only buttons (VirtualCards, Knowledge, Subscriptions, Referrals, EmployeeProfile) carry aria-label + title.' },
+                { a: 'CSV exports',             b: 'Contacts, Goals, Referrals exports use formatDate() (en-GB) instead of raw ISO timestamps.' },
+                { a: 'Input trimming',          b: 'Company settings + batch name strings trimmed before DB write.' },
+                { a: 'Error visibility',        b: 'Page-level fetch failures toast a destructive notification (e.g. Referrals load), not silent.' },
               ]}
             />
           </RefSection>

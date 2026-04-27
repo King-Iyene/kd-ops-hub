@@ -60,6 +60,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -162,6 +172,7 @@ const Leave = () => {
   });
 
   const [showReject, setShowReject] = useState<LeaveRequest | null>(null);
+  const [pendingRevert, setPendingRevert] = useState<LeaveRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [confirmDeleteLeave, setConfirmDeleteLeave] = useState<LeaveRequest | null>(null);
 
@@ -358,7 +369,7 @@ const Leave = () => {
       toast({ title: 'Not authorized', variant: 'destructive' });
       return;
     }
-    if (!confirm(`Revert approval for ${profiles.get(req.employee_id)?.full_name || req.employee_id} (${req.days_requested} day${req.days_requested === 1 ? '' : 's'})? Their balance will be restored.`)) return;
+    setPendingRevert(null);
     setActioning(req.id);
     try {
       const { error } = await supabase
@@ -791,7 +802,7 @@ const Leave = () => {
                                     size="sm"
                                     variant="outline"
                                     disabled={busy}
-                                    onClick={() => revertApproval(r)}
+                                    onClick={() => setPendingRevert(r)}
                                     className="text-xs"
                                     title="Revert approval and restore balance"
                                   >
@@ -967,6 +978,29 @@ const Leave = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!pendingRevert} onOpenChange={(v) => { if (!v) setPendingRevert(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revert leave approval?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRevert ? (
+                <>
+                  Revert approval for {profiles.get(pendingRevert.employee_id)?.full_name || pendingRevert.employee_id}
+                  {' '}({pendingRevert.days_requested} day{pendingRevert.days_requested === 1 ? '' : 's'})?
+                  Their leave balance will be restored.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => pendingRevert && revertApproval(pendingRevert)}>
+              Revert
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

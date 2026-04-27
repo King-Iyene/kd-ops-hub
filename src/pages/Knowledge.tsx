@@ -322,16 +322,16 @@ const Knowledge = () => {
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" onClick={() => showHistory(a)} title="History">
+                    <Button size="sm" variant="ghost" onClick={() => showHistory(a)} title="History" aria-label={`View history for ${a.title}`}>
                       <History className="h-4 w-4" />
                     </Button>
                     {canWrite && (
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(a)}>
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(a)} title="Edit" aria-label={`Edit ${a.title}`}>
                         <Pencil className="h-4 w-4" />
                       </Button>
                     )}
                     {canWrite && (
-                      <Button size="sm" variant="ghost" onClick={() => remove(a)}>
+                      <Button size="sm" variant="ghost" onClick={() => remove(a)} title="Delete" aria-label={`Delete ${a.title}`}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
