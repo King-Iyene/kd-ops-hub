@@ -436,6 +436,7 @@ const Clients = () => {
               <div className="col-span-2 space-y-1">
                 <Label>Client name *</Label>
                 <Input
+                  autoFocus
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Acme Corporation"
@@ -487,6 +488,8 @@ const Clients = () => {
                 <Label>Start date</Label>
                 <Input
                   type="date"
+                  min="2000-01-01"
+                  max="2099-12-31"
                   value={form.start_date}
                   onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
                 />
