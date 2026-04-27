@@ -10,7 +10,9 @@
 -- Expenses remain visible in the Expenses module only.
 -- =============================================================================
 
-CREATE OR REPLACE VIEW public.transactions_view AS
+DROP VIEW IF EXISTS public.transactions_view;
+
+CREATE VIEW public.transactions_view AS
 
 -- Payment batches (bulk + quick pay)
 SELECT
