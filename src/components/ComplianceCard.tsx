@@ -112,7 +112,8 @@ const ComplianceCard = () => {
         const row = (data && data[0]) as TccDoc | undefined;
         setTcc(row || null);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   const tccDays = daysUntil(tcc?.expires_at);

@@ -209,6 +209,9 @@ const BatchDetail = () => {
   const [processingName, setProcessingName] = useState('');
   const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [savingResubmit, setSavingResubmit] = useState(false);
+  const [retryingAll, setRetryingAll] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -925,7 +928,9 @@ const BatchDetail = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={savingResubmit}
                   onClick={async () => {
+                    setSavingResubmit(true);
                     await supabase
                       .from('payment_batches')
                       .update({ status: 'pending_approval', rejection_reason: null })
@@ -937,6 +942,7 @@ const BatchDetail = () => {
                     );
                     toast({ title: 'Resubmitted for approval' });
                     fetchBatch();
+                    setSavingResubmit(false);
                   }}
                 >
                   Re-edit & Resubmit
@@ -1002,11 +1008,13 @@ const BatchDetail = () => {
             <Button
               variant="outline"
               onClick={async () => {
+                setRetryingAll(true);
                 for (const it of failedItems) {
                   await retryItem(it);
                 }
+                setRetryingAll(false);
               }}
-              disabled={!!retryingId}
+              disabled={!!retryingId || retryingAll}
             >
               <RotateCw className="mr-2 h-4 w-4" /> Retry all failed (
               {failedItems.length})
@@ -1236,7 +1244,8 @@ const BatchDetail = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRecurring(false)}>Cancel</Button>
-            <Button onClick={async () => {
+            <Button disabled={savingSchedule} onClick={async () => {
+              setSavingSchedule(true);
               const today = new Date();
               let nextDate: Date;
               if (recurFrequency === 'weekly') {
@@ -1262,6 +1271,7 @@ const BatchDetail = () => {
               });
               if (error) {
                 toast({ title: 'Could not create schedule', description: error.message, variant: 'destructive' });
+                setSavingSchedule(false);
                 return;
               }
               await logAudit(
@@ -1274,6 +1284,7 @@ const BatchDetail = () => {
                 description: `Next run: ${nextDate.toLocaleDateString('en-GB')}`,
               });
               setShowRecurring(false);
+              setSavingSchedule(false);
             }}>
               Create schedule
             </Button>

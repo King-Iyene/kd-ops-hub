@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -162,6 +163,7 @@ const Contractors = () => {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contractor | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -513,7 +515,7 @@ const Contractors = () => {
   };
 
   const filtered = contractors.filter((c) =>
-    c.full_name.toLowerCase().includes(search.toLowerCase()),
+    c.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()),
   );
 
   if (loading) return <TableSkeleton rows={5} />;

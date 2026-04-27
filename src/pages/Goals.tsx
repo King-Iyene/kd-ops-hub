@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDebounce } from '@/hooks/useDebounce';
 import {
   Target,
   Plus,
@@ -134,6 +135,7 @@ const Goals = () => {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
   const [scopeFilter, setScopeFilter] = useState<'all' | Scope>('all');
   const [quarterFilter, setQuarterFilter] = useState<'all' | string>(currentQuarter());
   const [statusFilter, setStatusFilter] = useState<'all' | Status>('all');
@@ -308,7 +310,7 @@ const Goals = () => {
   };
 
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     return goals.filter((g) => {
       if (scopeFilter !== 'all' && g.scope !== scopeFilter) return false;
       if (quarterFilter !== 'all' && g.quarter !== quarterFilter) return false;
@@ -321,7 +323,7 @@ const Goals = () => {
         owner.toLowerCase().includes(q)
       );
     });
-  }, [goals, search, scopeFilter, quarterFilter, statusFilter, profiles]);
+  }, [goals, debouncedSearch, scopeFilter, quarterFilter, statusFilter, profiles]);
 
   const myStats = useMemo(() => {
     const mine = goals.filter(
