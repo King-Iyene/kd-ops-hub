@@ -686,6 +686,17 @@ const Expenses = () => {
       return;
     }
 
+    // --- Self-approval guard: non-admin roles cannot first-approve their own expense ---
+    const isAdminRole = ['super_admin', 'admin'].includes(profile?.role || '');
+    if (!isAdminRole && expense.submitted_by === profile?.id) {
+      toast({
+        title: 'Self-approval not allowed',
+        description: 'You cannot approve an expense you submitted. Ask another approver.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     // --- First / only approval (expense is pending) ---
     const needsDual = dualThreshold > 0 && amountNgn >= dualThreshold;
 
