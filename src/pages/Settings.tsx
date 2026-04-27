@@ -1897,6 +1897,8 @@ const REF_SECURITY = [
   { what: 'Audit log read access',  value: 'super_admin / admin / finance / operations only' },
   { what: 'Audit log write',        value: 'INSERT requires performed_by = your own user_id (no impersonation)' },
   { what: 'Login / logout audited', value: 'Every session start and end is in audit_logs' },
+  { what: 'Failed login tracking',  value: 'Recorded in failed_login_attempts (admins only)' },
+  { what: 'Login rate limit',       value: '5 failed attempts per email in 15 minutes → 15-minute lockout' },
   { what: 'Settings (page) access', value: 'super_admin only' },
   { what: 'Audit log (page) access', value: 'super_admin / admin only' },
   { what: 'Employees page access',  value: 'super_admin / admin only' },
@@ -1906,6 +1908,8 @@ const REF_SECURITY = [
   { what: 'Employee deductions',    value: 'Self only OR admin / finance' },
   { what: 'Profile session',        value: 'localStorage (auto-refresh JWT). Cleared on Sign Out' },
   { what: '"View As role"',         value: 'Super-admin only — sessionStorage, cleared on tab close' },
+  { what: 'Content Security Policy', value: 'Active in index.html — limits scripts/connects/iframes to known origins' },
+  { what: 'Error reporting hook',   value: 'window.onerror + ErrorBoundary forward to window.Sentry if installed' },
 ];
 
 const REF_PAYSTACK = [
@@ -1983,6 +1987,7 @@ function SystemReferencePanel() {
           <p><strong>Phase 1</strong> — Locked down audit logs &amp; wide-open RLS policies (tasks, comments, referrals, deductions). Added webhook idempotency. Created missing tables (salary_increments, revenue_entries).</p>
           <p><strong>Phase 2</strong> — React error boundaries on every page. N+1 query fix on Payments. Polling backoff + visibility detection. Pagination on EmployeeProfile.</p>
           <p><strong>Phase 3</strong> — Money sanity-cap CHECK constraints. Storage extension denylist (no .exe / .html / .js uploads). Paystack reconciliation function + button. Login / logout audit logs. Friendly error messages for money inputs.</p>
+          <p><strong>Phase 4</strong> — Login rate-limit (5 attempts / 15 min). Failed-login audit table. CSP headers in index.html. Global error reporting hooks (window.onerror + unhandledrejection, Sentry-ready). Subscriptions defensive schema migration.</p>
           <p className="text-muted-foreground border-t pt-2 mt-2">
             Each phase is documented in the git history; the SQL migrations to
             apply are in <code>supabase/migrations/</code> and edge functions

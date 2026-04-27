@@ -32,9 +32,11 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Log to the console — when Sentry is wired up later, replace with
-    // Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
     console.error('[KDOps] ErrorBoundary caught:', error, info.componentStack);
+    // Forward to Sentry if it's been installed + initialised.
+    type SentryGlobal = { captureException?: (e: unknown, ctx?: unknown) => void };
+    const s = (window as unknown as { Sentry?: SentryGlobal }).Sentry;
+    s?.captureException?.(error, { extra: { componentStack: info.componentStack } });
   }
 
   reset = () => this.setState({ error: null });
