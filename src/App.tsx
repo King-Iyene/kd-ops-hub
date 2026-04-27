@@ -53,9 +53,11 @@ const Clients          = lazy(() => import('./pages/Clients'));
 const ClientProfile    = lazy(() => import('./pages/ClientProfile'));
 const VirtualCards     = lazy(() => import('./pages/VirtualCards'));
 const Invoices         = lazy(() => import('./pages/Invoices'));
-const PettyCash        = lazy(() => import('./pages/PettyCash'));
 const Vendors          = lazy(() => import('./pages/Vendors'));
 const Performance      = lazy(() => import('./pages/Performance'));
+const Assets           = lazy(() => import('./pages/Assets'));
+const Loans            = lazy(() => import('./pages/Loans'));
+const Training         = lazy(() => import('./pages/Training'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
@@ -361,16 +363,6 @@ function AppRoutes() {
           }
         />
 
-        {/* Petty Cash — Finance + Admin + Super Admin. */}
-        <Route
-          path="/petty-cash"
-          element={
-            <RoleGuard roles={APPROVER_ROLES}>
-              <PettyCash />
-            </RoleGuard>
-          }
-        />
-
         {/* Vendor Registry — Managers (Finance, Ops, Admin). */}
         <Route
           path="/vendors"
@@ -387,6 +379,36 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Performance />
+            </RoleGuard>
+          }
+        />
+
+        {/* Asset Register — Finance + Admin + Super Admin. */}
+        <Route
+          path="/assets"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Assets />
+            </RoleGuard>
+          }
+        />
+
+        {/* Employee Loans — Finance + Admin + Super Admin. */}
+        <Route
+          path="/loans"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Loans />
+            </RoleGuard>
+          }
+        />
+
+        {/* Training & Certifications — Managers. */}
+        <Route
+          path="/training"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Training />
             </RoleGuard>
           }
         />
