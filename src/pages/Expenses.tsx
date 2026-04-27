@@ -32,6 +32,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
+import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
@@ -1736,7 +1737,14 @@ const Expenses = () => {
                   type="file"
                   accept="image/jpeg,image/png,application/pdf"
                   className="hidden"
-                  onChange={(e) => setReceiptFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    if (!validateFileSize(f, toast)) {
+                      e.target.value = '';
+                      return;
+                    }
+                    setReceiptFile(f);
+                  }}
                 />
               </label>
               {receiptFile && (

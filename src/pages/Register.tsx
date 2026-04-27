@@ -23,8 +23,16 @@ const Register = () => {
       toast({ title: 'Passwords do not match', variant: 'destructive' });
       return;
     }
-    if (password.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    if (password.length < 12) {
+      toast({ title: 'Password must be at least 12 characters', variant: 'destructive' });
+      return;
+    }
+    if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+      toast({
+        title: 'Password too weak',
+        description: 'Use at least one letter and one number.',
+        variant: 'destructive',
+      });
       return;
     }
     setLoading(true);
