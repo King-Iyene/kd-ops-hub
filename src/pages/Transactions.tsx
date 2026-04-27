@@ -58,7 +58,7 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay' | 'transfer';
+  txn_type: 'payment_batch' | 'quick_pay';
   description: string;
   category: string;
   amount_ngn: number;
@@ -77,7 +77,7 @@ interface Transaction {
   receipt_url: string | null;
 }
 
-type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'transfer';
+type FilterTab = 'all' | 'quick_pay' | 'payment_batch';
 
 const STATUS_OPTIONS = [
   'draft',
@@ -96,19 +96,16 @@ const STATUS_OPTIONS = [
 const TYPE_ICON: Record<string, typeof CreditCard> = {
   payment_batch: CreditCard,
   quick_pay: Zap,
-  transfer: ArrowUpDown,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   payment_batch: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
-  transfer: 'bg-slate-500/10 text-slate-600 border border-slate-500/30',
 };
 
 const typeLabel = (t: string) => {
   if (t === 'payment_batch') return 'Batch';
   if (t === 'quick_pay') return 'Quick Pay';
-  if (t === 'transfer') return 'Transfer';
   return t.replace(/_/g, ' ');
 };
 
@@ -116,7 +113,6 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'quick_pay', label: 'Quick Pay' },
   { value: 'payment_batch', label: 'Batches' },
-  { value: 'transfer', label: 'Transfers' },
 ];
 
 const Transactions = () => {
@@ -234,8 +230,7 @@ const Transactions = () => {
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
   const handleRowClick = (r: Transaction) => {
-    if (r.txn_type === 'transfer') navigate('/payments');
-    else navigate(`/payments/${r.id}`);
+    navigate(`/payments/${r.id}`);
   };
 
   return (
@@ -482,11 +477,7 @@ const Transactions = () => {
                     <MobileCard
                       key={`${r.txn_type}-${r.id}`}
                       onClick={() => handleRowClick(r)}
-                      accentClassName={
-                        r.txn_type === 'quick_pay' ? 'bg-blue-500'
-                        : r.txn_type === 'payment_batch' ? 'bg-emerald-500'
-                        : 'bg-slate-400'
-                      }
+                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : 'bg-emerald-500'}
                     >
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">

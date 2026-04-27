@@ -114,6 +114,7 @@ interface Expense {
   rate_per_km_ngn: number | null;
   created_at: string;
   fuel_request_id: string | null;
+  is_reimbursement: boolean | null;
   // Approval tracking
   approved_by: string | null;
   approved_at: string | null;
@@ -198,6 +199,7 @@ const Expenses = () => {
 
   const EMPTY_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
   const [bankDetails, setBankDetails] = useState<BankAccountValue>(EMPTY_BANK);
+  const [isReimbursement, setIsReimbursement] = useState(true);
   const [showBankSection, setShowBankSection] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
@@ -321,12 +323,21 @@ const Expenses = () => {
     let batchId: string | null = null;
     let itemId: string | null = null;
     try {
+      const categoryLabel = (expense.category || 'expense').replace(/_/g, ' ');
+      const isReimb = expense.is_reimbursement !== false;
+      const batchName = isReimb
+        ? `${categoryLabel} Reimbursement — ${expense.account_name}`
+        : `${categoryLabel} — ${expense.description || expense.account_name}`;
+      const paymentDesc = isReimb
+        ? `Reimbursement: ${expense.description || categoryLabel}`
+        : expense.description || categoryLabel;
+
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
-          name: `Expense Reimbursement — ${expense.account_name}`,
-          payment_description: `Expense: ${expense.description || expense.category}`,
-          payment_category: 'expense_reimbursement',
+          name: batchName,
+          payment_description: paymentDesc,
+          payment_category: isReimb ? 'expense_reimbursement' : 'company_charge',
           payment_date: new Date().toISOString().slice(0, 10),
           is_quick_pay: true,
           total_amount: expense.amount_ngn,
@@ -546,6 +557,7 @@ const Expenses = () => {
       rate_per_km_ngn: ratePerKm,
       date: form.date,
       description: form.description.trim(),
+      is_reimbursement: isReimbursement,
       status: 'pending',
       receipt_url: receiptUrl,
       ...(bankDetails.verified
@@ -582,6 +594,7 @@ const Expenses = () => {
         mileage_km: '',
         rate_per_km_ngn: String(DEFAULT_MILEAGE_RATE),
       });
+      setIsReimbursement(true);
       setShowBankSection(false);
       setBankDetails(EMPTY_BANK);
       setReceiptFile(null);
@@ -1597,6 +1610,38 @@ const Expenses = () => {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-1">
+              <Label>Payment type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className={cn(
+                    'flex flex-col items-start rounded-lg border p-3 text-sm kd-transition',
+                    isReimbursement
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-input bg-background text-muted-foreground hover:bg-muted/50',
+                  )}
+                  onClick={() => setIsReimbursement(true)}
+                >
+                  <span className="font-medium">Reimbursement</span>
+                  <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'flex flex-col items-start rounded-lg border p-3 text-sm kd-transition',
+                    !isReimbursement
+                      ? 'border-primary bg-primary/5 text-primary'
+                      : 'border-input bg-background text-muted-foreground hover:bg-muted/50',
+                  )}
+                  onClick={() => setIsReimbursement(false)}
+                >
+                  <span className="font-medium">Company charge</span>
+                  <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
+                </button>
+              </div>
+            </div>
+
             {form.category === 'mileage' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
