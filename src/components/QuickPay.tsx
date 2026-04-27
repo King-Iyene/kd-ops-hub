@@ -42,8 +42,6 @@ export function QuickPayDialog() {
 
   const [open, setOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [testingRecipient, setTestingRecipient] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
   const [result, setResult] = useState<ResultState>(null);
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [form, setForm] = useState({
@@ -55,38 +53,6 @@ export function QuickPayDialog() {
     setBank(emptyBank);
     setForm({ amount: '', description: '' });
     setResult(null);
-    setTestResult(null);
-  };
-
-  const handleTestRecipient = async () => {
-    if (!bank.verified) {
-      toast({ title: 'Verify bank account first', variant: 'destructive' });
-      return;
-    }
-    const bankCode = getBankCode(bank.bank_name);
-    if (!bankCode) {
-      toast({ title: `Unknown bank: ${bank.bank_name}`, variant: 'destructive' });
-      return;
-    }
-    setTestingRecipient(true);
-    setTestResult(null);
-    try {
-      console.log('[QuickPay-TEST] Calling createTransferRecipient...');
-      const recipient = await createTransferRecipient({
-        name: bank.account_name || bank.account_number,
-        account_number: bank.account_number,
-        bank_code: bankCode,
-      });
-      const output = JSON.stringify(recipient, null, 2);
-      console.log('[QuickPay-TEST] Recipient response:', output);
-      setTestResult(output);
-    } catch (err: any) {
-      const msg = err?.message || 'Unknown error';
-      console.error('[QuickPay-TEST] Error:', msg, err);
-      setTestResult(`ERROR: ${msg}`);
-    } finally {
-      setTestingRecipient(false);
-    }
   };
 
   const handlePay = async () => {
@@ -163,7 +129,7 @@ export function QuickPayDialog() {
         .update({ paystack_transfer_code: transfer.transfer_code })
         .eq('paystack_reference', ref);
       if (updateErr) {
-        console.warn('[QuickPay] could not stamp transfer_code on batch_item:', updateErr.message);
+        console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
       }
 
       // 6. Update batch status.
@@ -172,7 +138,7 @@ export function QuickPayDialog() {
         .update({ status: 'processing' })
         .eq('id', (batch as any).id);
       if (batchUpdErr) {
-        console.warn('[QuickPay] could not update batch status:', batchUpdErr.message);
+        console.warn('[KDOps] could not update batch status:', batchUpdErr.message);
       }
 
       await logAudit(
@@ -295,24 +261,6 @@ export function QuickPayDialog() {
                 <span className="font-semibold">{bank.account_name}</span> ·{' '}
                 {bank.bank_name} · {bank.account_number}
               </p>
-            )}
-            {bank.verified && (
-              <div className="space-y-2 border-t pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestRecipient}
-                  disabled={testingRecipient || processing}
-                >
-                  {testingRecipient && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                  Test Recipient Only
-                </Button>
-                {testResult && (
-                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-48 whitespace-pre-wrap">
-                    {testResult}
-                  </pre>
-                )}
-              </div>
             )}
           </div>
         )}

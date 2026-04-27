@@ -230,12 +230,6 @@ const Expenses = () => {
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
       ]);
-      console.log('[KDOps] expenses fetch:', {
-        count: expensesRes.data?.length,
-        error: expensesRes.error?.message,
-        privileged,
-        userId: currentProfile?.id,
-      });
       if (expensesRes.error) throw expensesRes.error;
       if (budgetsRes.error) throw budgetsRes.error;
 
@@ -541,7 +535,6 @@ const Expenses = () => {
           }
         : {}),
     }).select();
-    console.log('[KDOps] expense insert:', { inserted, error, userId: profile?.id });
     if (error) {
       toast({ title: 'Could not save expense', description: friendlyDbError(error), variant: 'destructive' });
     } else {

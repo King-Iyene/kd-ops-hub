@@ -6,7 +6,7 @@ const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.error('404 Error: route not found:', location.pathname);
+    console.warn('[KDOps] 404:', location.pathname);
   }, [location.pathname]);
 
   return (
