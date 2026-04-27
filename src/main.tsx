@@ -63,4 +63,21 @@ window.addEventListener("unhandledrejection", (e) => {
   sentry()?.captureException?.(e.reason);
 });
 
+// ── Paystack key sanity check ──────────────────────────────────────────
+//
+// Warns loudly if a test key reaches a non-localhost deployment so the
+// issue is visible in Sentry / the browser console before any transfer fails.
+const paystackKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY as string | undefined;
+if (
+  paystackKey?.startsWith("pk_test_") &&
+  !window.location.hostname.includes("localhost")
+) {
+  console.warn(
+    "[KDOps] Paystack test key in production — update VITE_PAYSTACK_PUBLIC_KEY to pk_live_ in Vercel environment variables.",
+  );
+  sentry()?.captureException?.(
+    new Error("Paystack test key detected in non-localhost environment"),
+  );
+}
+
 createRoot(document.getElementById("root")!).render(<App />);
