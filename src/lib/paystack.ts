@@ -8,6 +8,16 @@ import { supabase } from '@/lib/supabase';
 export { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
 export type { NigerianBank as Bank } from '@/lib/nigerian-banks';
 
+/**
+ * Generate a KDOps platform reference that is passed verbatim to Paystack.
+ * Format: kdops_<20 hex chars> — visually distinct in the Paystack dashboard
+ * and short enough to fit Paystack's 100-character reference limit.
+ * Pass the source record's UUID (batch_item.id, batch.id, etc.).
+ */
+export function generateKdopsRef(sourceId: string): string {
+  return `kdops_${sourceId.replace(/-/g, '').slice(0, 20)}`;
+}
+
 export interface ResolveResult {
   account_name: string;
   account_number: string;

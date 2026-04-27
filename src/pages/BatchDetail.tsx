@@ -12,6 +12,7 @@ import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   createTransferRecipient,
   initiateTransfer,
+  generateKdopsRef,
   verifyTransfer,
   getBankCode,
 } from '@/lib/paystack';
@@ -379,7 +380,7 @@ const BatchDetail = () => {
           profile,
         );
       }
-      const ref = `kdops_${it.id.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef(it.id);
       const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
       const transfer = await initiateTransfer({
         recipient_code: recipientCode!,

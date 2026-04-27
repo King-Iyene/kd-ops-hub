@@ -75,6 +75,13 @@ export default function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Skip navigation — visible only on keyboard focus, before anything else */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+      >
+        Skip to main content
+      </a>
       <OfflineBanner />
       <ViewAsBanner />
       <SidebarProvider>
@@ -120,7 +127,7 @@ export default function AppLayout() {
             </div>
           </header>
           {/* ── Main content ────────────────────────────────────────── */}
-          <main className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
+          <main id="main-content" className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
             <div key={location.pathname} className="kd-page-transition">
               {/* key={pathname} resets the boundary on navigation, so a
                   crash on one page doesn't permanently break the next. */}

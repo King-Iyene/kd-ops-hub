@@ -92,7 +92,7 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
-import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
+import { createTransferRecipient, initiateTransfer, getBankCode, generateKdopsRef } from '@/lib/paystack';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
@@ -368,7 +368,7 @@ const Expenses = () => {
         bank_code: bankCode,
       });
 
-      const ref = `kdops_${itemId.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef(itemId);
       const transfer = await initiateTransfer({
         recipient_code: recipient.recipient_code,
         amount_ngn: Number(expense.amount_ngn),

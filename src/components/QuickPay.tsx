@@ -6,6 +6,7 @@ import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
   initiateTransfer,
+  generateKdopsRef,
   getBankCode,
   NIGERIAN_BANKS,
 } from '@/lib/paystack';
@@ -95,7 +96,7 @@ export function QuickPayDialog() {
         bank_code: bankCode,
       });
 
-      const ref = `qp_${(batch as any).id.replace(/-/g, '').slice(0, 20)}`;
+      const ref = generateKdopsRef((batch as any).id);
 
       // 3. Insert the batch item. If this fails, the Paystack transfer must
       // not be initiated — there'd be money on the wire with no DB record
