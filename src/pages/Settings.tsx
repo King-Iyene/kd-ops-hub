@@ -2090,6 +2090,7 @@ function DepartmentsManager() {
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [profileOptions, setProfileOptions] = useState<ProfileOption[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Dept | null>(null);
+  const [deletingDept, setDeletingDept] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2300,9 +2301,12 @@ function DepartmentsManager() {
             <Button variant="outline" onClick={() => setConfirmDelete(null)}>Cancel</Button>
             <Button
               variant="destructive"
+              disabled={deletingDept}
               onClick={async () => {
                 if (confirmDelete) {
+                  setDeletingDept(true);
                   await handleDelete(confirmDelete);
+                  setDeletingDept(false);
                   setConfirmDelete(null);
                 }
               }}
@@ -2343,6 +2347,7 @@ function TagsManager() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Tag | null>(null);
+  const [deletingTagId, setDeletingTagId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [color, setColor] = useState('#6b7280');
   const [module, setModule] = useState<string>('all');
@@ -2446,8 +2451,14 @@ function TagsManager() {
                     <span className="text-[10px] text-muted-foreground capitalize">({t.module})</span>
                   )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(t); }}
-                    className="opacity-0 group-hover:opacity-100 kd-transition ml-1"
+                    disabled={deletingTagId === t.id}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setDeletingTagId(t.id);
+                      await handleDelete(t);
+                      setDeletingTagId(null);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 kd-transition ml-1 disabled:opacity-30"
                   >
                     <Trash2 className="h-3 w-3 text-destructive" />
                   </button>
