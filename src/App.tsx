@@ -53,6 +53,9 @@ const Clients          = lazy(() => import('./pages/Clients'));
 const ClientProfile    = lazy(() => import('./pages/ClientProfile'));
 const VirtualCards     = lazy(() => import('./pages/VirtualCards'));
 const Invoices         = lazy(() => import('./pages/Invoices'));
+const PettyCash        = lazy(() => import('./pages/PettyCash'));
+const Vendors          = lazy(() => import('./pages/Vendors'));
+const Performance      = lazy(() => import('./pages/Performance'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
@@ -354,6 +357,36 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <VirtualCards />
+            </RoleGuard>
+          }
+        />
+
+        {/* Petty Cash — Finance + Admin + Super Admin. */}
+        <Route
+          path="/petty-cash"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <PettyCash />
+            </RoleGuard>
+          }
+        />
+
+        {/* Vendor Registry — Managers (Finance, Ops, Admin). */}
+        <Route
+          path="/vendors"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Vendors />
+            </RoleGuard>
+          }
+        />
+
+        {/* Performance Reviews — Managers. */}
+        <Route
+          path="/performance"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Performance />
             </RoleGuard>
           }
         />
