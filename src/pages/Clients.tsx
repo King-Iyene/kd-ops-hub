@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Building2, Plus, Search, Download, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -108,6 +109,7 @@ const INDUSTRIES = [
 
 const Clients = () => {
   usePageTitle('Clients');
+  const navigate = useNavigate();
   const { profile } = useAuthStore();
   const { toast } = useToast();
 
@@ -356,7 +358,11 @@ const Clients = () => {
                   </TableHeader>
                   <TableBody>
                     {pagination.items.map((c) => (
-                      <TableRow key={c.id}>
+                      <TableRow
+                        key={c.id}
+                        className="cursor-pointer kd-transition"
+                        onClick={() => navigate(`/clients/${c.id}`)}
+                      >
                         <TableCell>
                           <div>
                             <p className="font-medium">{c.name}</p>
@@ -391,7 +397,7 @@ const Clients = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => openEdit(c)}
+                                onClick={(e) => { e.stopPropagation(); openEdit(c); }}
                                 title="Edit"
                                 aria-label={`Edit ${c.name}`}
                               >
@@ -400,7 +406,7 @@ const Clients = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => setPendingDelete(c)}
+                                onClick={(e) => { e.stopPropagation(); setPendingDelete(c); }}
                                 title="Delete"
                                 aria-label={`Delete ${c.name}`}
                               >

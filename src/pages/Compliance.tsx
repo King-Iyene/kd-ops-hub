@@ -642,7 +642,10 @@ const Compliance = () => {
           <DialogHeader>
             <DialogTitle>New statutory filing</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div
+            className="space-y-3"
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFiling(); } }}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Filing</Label>

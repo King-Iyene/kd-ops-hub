@@ -1974,6 +1974,8 @@ function SystemReferencePanel() {
               <p><strong>P1 — Mobile dialogs &amp; date sanity.</strong> Forms on Compliance and Budgets no longer overflow on small screens — they now scroll inside the dialog instead of running off the page. Date inputs (Client start date, Expense date, Budget periods) now reject unrealistic years like 1900 or 9999, and the budget end date can never be set before the start date.</p>
               <p><strong>P1 — Faster client entry.</strong> The "Add Client" form now puts the cursor in the Name field automatically, so you can start typing immediately without clicking. The Compliance page also shows a friendly "No filings yet" message with guidance for new admins instead of an empty table.</p>
               <p><strong>P1 — Dashboard discovery.</strong> The new Clients module now appears in the Dashboard's Quick Actions panel so it's reachable in one click from anywhere in the app.</p>
+              <p><strong>P1 — Client profile pages.</strong> Clicking on any client in the Clients list now opens a dedicated profile page for that client. From there you can edit all details, track contract value, change their status (active / inactive / prospect), and add timestamped notes — the same way you can add notes on a Contact profile. The remove button on the profile also works like the list view: the client is hidden but kept in the database.</p>
+              <p><strong>P1 — Compliance keyboard shortcut.</strong> In the "New statutory filing" form, pressing Enter now saves the filing — just like clicking the "Save filing" button. This saves time when quickly logging multiple filings in a row.</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
               </p>
@@ -2008,6 +2010,9 @@ function SystemReferencePanel() {
                 { a: 'Cleaner dates in CSV exports',         b: 'Contacts, Goals, and Referrals CSV exports show dates like 27/04/2026 instead of raw timestamps like 2026-04-27T14:00:00Z.' },
                 { a: 'Stray spaces auto-stripped',           b: 'Spaces accidentally typed before or after company name, RC number, TIN, website, address, or payment batch name are removed automatically before saving.' },
                 { a: 'No silent page failures',              b: 'If a page can\'t load its data (e.g. brief network issue), you see a red error toast — never a blank screen with no explanation.' },
+                { a: 'Click a client to open its profile',  b: 'Clicking any row in the Clients list opens a full profile page where you can edit details, add notes, and change status — without opening a small dialog.' },
+                { a: 'Notes on client profiles',            b: 'You can add timestamped notes to any client the same way you can for Contacts. Each note shows the date and time it was added, and the full history is visible in one place.' },
+                { a: 'Enter key saves compliance filings',  b: 'In the "New statutory filing" form, pressing Enter submits the form — useful when adding several filings quickly without reaching for the mouse.' },
               ]}
             />
           </RefSection>

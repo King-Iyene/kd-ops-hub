@@ -50,6 +50,7 @@ const Contacts         = lazy(() => import('./pages/Contacts'));
 const ContactProfile   = lazy(() => import('./pages/ContactProfile'));
 const Referrals        = lazy(() => import('./pages/Referrals'));
 const Clients          = lazy(() => import('./pages/Clients'));
+const ClientProfile    = lazy(() => import('./pages/ClientProfile'));
 const VirtualCards     = lazy(() => import('./pages/VirtualCards'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
@@ -400,6 +401,14 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Clients />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/clients/:id"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <ClientProfile />
             </RoleGuard>
           }
         />
