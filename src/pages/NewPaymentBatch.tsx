@@ -347,7 +347,7 @@ const NewPaymentBatch = () => {
     setSaving(true);
     try {
       const batchPayload = {
-        name: batchName,
+        name: batchName.trim(),
         payment_date: paymentDate,
         scheduled_date: scheduledDate ? new Date(scheduledDate).toISOString() : null,
         period,

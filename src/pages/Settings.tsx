@@ -212,11 +212,11 @@ const SettingsPage = () => {
     const { error } = await supabase
       .from('company_settings')
       .update({
-        company_name: settings.company_name,
-        rc_number: settings.rc_number,
-        tin: settings.tin,
-        address: settings.address,
-        website: settings.website,
+        company_name: settings.company_name?.trim() || '',
+        rc_number: settings.rc_number?.trim() || null,
+        tin: settings.tin?.trim() || null,
+        address: settings.address?.trim() || null,
+        website: settings.website?.trim() || null,
         logo_url: settings.logo_url,
         fiscal_year_preset: settings.fiscal_year_preset,
         currency_code: settings.currency_code,
