@@ -53,6 +53,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import {
   MobileCard,
   MobileCardHeader,
@@ -432,6 +433,12 @@ const Compliance = () => {
             <TableSkeleton rows={8} cols={6} />
           ) : error ? (
             <ErrorState message={error} onRetry={load} />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={FileCheck2}
+              title="No filings yet"
+              description={isAdmin ? 'Add your first statutory filing (PAYE, VAT, Pension, etc.) to start tracking deadlines.' : 'No compliance filings have been added yet. Ask an admin to add the first one.'}
+            />
           ) : (
             <>
             <div className="hidden md:block">
@@ -631,7 +638,7 @@ const Compliance = () => {
       </Card>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New statutory filing</DialogTitle>
           </DialogHeader>

@@ -847,7 +847,7 @@ const Budgets = () => {
       </Card>
 
       <Dialog open={!!confirmDelete} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Delete budget</DialogTitle>
             <DialogDescription>
@@ -902,6 +902,8 @@ const Budgets = () => {
                 <Label>Period start</Label>
                 <Input
                   type="date"
+                  min="2020-01-01"
+                  max="2099-12-31"
                   value={form.period_start}
                   onChange={(e) => setForm({ ...form, period_start: e.target.value })}
                 />
@@ -910,6 +912,8 @@ const Budgets = () => {
                 <Label>Period end</Label>
                 <Input
                   type="date"
+                  min={form.period_start || '2020-01-01'}
+                  max="2099-12-31"
                   value={form.period_end}
                   onChange={(e) => setForm({ ...form, period_end: e.target.value })}
                 />

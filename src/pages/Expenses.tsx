@@ -1723,6 +1723,8 @@ const Expenses = () => {
                   <Label>Date</Label>
                   <Input
                     type="date"
+                    min="2020-01-01"
+                    max={toIsoDate(new Date())}
                     value={form.date}
                     onChange={(e) => setForm({ ...form, date: e.target.value })}
                   />
@@ -1734,6 +1736,8 @@ const Expenses = () => {
                 <Label>Date</Label>
                 <Input
                   type="date"
+                  min="2020-01-01"
+                  max={toIsoDate(new Date())}
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                 />

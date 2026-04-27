@@ -29,6 +29,7 @@ import {
   LayoutDashboard,
   AlertTriangle,
   RefreshCw,
+  Building2,
 } from 'lucide-react';
 import {
   PieChart,
@@ -477,6 +478,7 @@ const Dashboard = () => {
             {[
               { label: 'Create Payment Batch', icon: Plus, onClick: () => navigate('/payments/new'), variant: 'default' as const },
               { label: 'Approvals Inbox', icon: CheckCircle, onClick: () => navigate('/approvals'), badge: approvalCounts.total, variant: 'outline' as const },
+              { label: 'Clients', icon: Building2, onClick: () => navigate('/clients'), variant: 'outline' as const },
               { label: 'Subscriptions', icon: CalendarClock, onClick: () => navigate('/subscriptions'), variant: 'outline' as const },
               { label: 'Reports', icon: FileText, onClick: () => navigate('/reports'), variant: 'outline' as const },
               { label: 'Payroll', icon: DollarSign, onClick: () => navigate('/payroll'), variant: 'outline' as const },
