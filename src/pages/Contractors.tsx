@@ -203,7 +203,8 @@ const Contractors = () => {
       .select('*')
       .neq('status', 'deleted')
       .neq('is_anonymised', true)
-      .order('full_name');
+      .order('full_name')
+      .limit(500);
     if (!showInactive) {
       query = query.eq('status', 'active');
     }

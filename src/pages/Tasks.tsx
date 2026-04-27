@@ -164,8 +164,9 @@ const Tasks = () => {
         supabase
           .from('tasks')
           .select('*')
-          .order('due_date', { ascending: true, nullsFirst: false }),
-        supabase.from('profiles').select('id, full_name, email').order('full_name'),
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .limit(200),
+        supabase.from('profiles').select('id, full_name, email').order('full_name').limit(500),
         supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
       ]);
       if (tasksRes.error) throw tasksRes.error;

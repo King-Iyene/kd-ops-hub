@@ -163,7 +163,8 @@ const Employees = () => {
       .from('profiles')
       .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
       .neq('is_anonymised', true)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     if (!showInactive) {
       query = query.eq('status', 'active');
     }

@@ -176,7 +176,8 @@ const Compliance = () => {
     const { data, error } = await supabase
       .from('compliance_filings')
       .select('*')
-      .order('due_date', { ascending: true });
+      .order('due_date', { ascending: true })
+      .limit(200);
     if (error) {
       setError(error.message);
       setLoading(false);

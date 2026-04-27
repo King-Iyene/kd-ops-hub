@@ -145,7 +145,8 @@ const Subscriptions = () => {
     const { data, error } = await supabase
       .from('subscriptions')
       .select('*')
-      .order('next_renewal_date', { ascending: true });
+      .order('next_renewal_date', { ascending: true })
+      .limit(200);
     if (error) {
       setError(error.message);
       setLoading(false);

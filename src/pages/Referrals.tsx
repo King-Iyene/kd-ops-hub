@@ -94,8 +94,9 @@ const Referrals = () => {
       supabase
         .from('referrals')
         .select('*')
-        .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name, email'),
+        .order('created_at', { ascending: false })
+        .limit(200),
+      supabase.from('profiles').select('id, full_name, email').limit(500),
       supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name'),
     ]);
     setReferrals((refRes.data as Referral[]) || []);

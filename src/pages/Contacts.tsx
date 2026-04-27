@@ -136,7 +136,8 @@ const Contacts = () => {
     const { data } = await supabase
       .from('contacts')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
     setContacts((data as Contact[]) || []);
     setLoading(false);
   }, []);
