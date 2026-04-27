@@ -408,6 +408,7 @@ const SettingsPage = () => {
                   <Label>Cash on hand (₦)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={settings.cash_on_hand_ngn || 0}
                     onChange={(e) =>
                       patch({
@@ -451,6 +452,7 @@ const SettingsPage = () => {
                     <Label>External monthly burn (₦)</Label>
                     <Input
                       type="number"
+                      min="0"
                       value={settings.external_monthly_burn_ngn || 0}
                       onChange={(e) =>
                         patch({ external_monthly_burn_ngn: Number(e.target.value) || 0 })
@@ -465,6 +467,7 @@ const SettingsPage = () => {
                     <Label>Monthly revenue estimate (₦)</Label>
                     <Input
                       type="number"
+                      min="0"
                       value={settings.monthly_revenue_estimate_ngn || 0}
                       onChange={(e) =>
                         patch({ monthly_revenue_estimate_ngn: Number(e.target.value) || 0 })
@@ -863,6 +866,7 @@ const SettingsPage = () => {
                 <Label>Dual approval required above (₦) <InfoTip text="Payment batches above this amount need two approvers before processing. Set to 0 to require dual approval for all batches." /></Label>
                 <Input
                   type="number"
+                  min="0"
                   value={settings.dual_approval_threshold_ngn}
                   onChange={(e) =>
                     patch({
@@ -910,6 +914,7 @@ const SettingsPage = () => {
                           <span className="text-xs text-muted-foreground">₦</span>
                           <Input
                             type="number"
+                            min="0"
                             className="w-32 h-8 text-right"
                             value={amount}
                             onChange={(e) =>
@@ -973,6 +978,7 @@ const SettingsPage = () => {
                       <Label className="text-xs text-muted-foreground">Amount (₦)</Label>
                       <Input
                         type="number"
+                        min="0"
                         className="w-36 h-9"
                         value={newLimitAmount}
                         onChange={(e) => setNewLimitAmount(e.target.value)}
@@ -1080,6 +1086,7 @@ const SettingsPage = () => {
                   <Label>Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 60 minutes." /></Label>
                   <Input
                     type="number"
+                    min="1"
                     value={settings.session_timeout_minutes}
                     onChange={(e) =>
                       patch({
@@ -1092,6 +1099,7 @@ const SettingsPage = () => {
                   <Label>Audit log retention (days)</Label>
                   <Input
                     type="number"
+                    min="1"
                     value={settings.audit_log_retention_days}
                     onChange={(e) =>
                       patch({

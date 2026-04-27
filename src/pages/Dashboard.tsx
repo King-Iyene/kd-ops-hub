@@ -27,6 +27,8 @@ import {
   Unlock,
   Sparkles,
   LayoutDashboard,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   PieChart,
@@ -179,6 +181,7 @@ const Dashboard = () => {
   const [upcoming, setUpcoming] = useState<UpcomingSub[]>([]);
   const [budgetUtil, setBudgetUtil] = useState<BudgetUtil[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([]);
 
   const [personalKPIs, setPersonalKPIs] = useState<PersonalKPIs>({
@@ -329,6 +332,7 @@ const Dashboard = () => {
       setBudgetUtil(util);
     } catch (err) {
       console.error('[KDOps] dashboard load failed:', err);
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -356,6 +360,26 @@ const Dashboard = () => {
   };
 
   /* ── Personal / field-staff view ───────────────────────────────── */
+  if (loadError) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 max-w-sm">
+          <AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
+          <h2 className="text-lg font-semibold">Dashboard failed to load</h2>
+          <p className="text-sm text-muted-foreground">
+            There was a problem fetching your data. Check your connection and try again.
+          </p>
+          <button
+            onClick={() => { setLoadError(false); setLoading(true); fetchDashboard(); }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isPersonal) {
     return (
       <div className="space-y-6">

@@ -239,6 +239,7 @@ export function QuickPayDialog() {
                 <Label>Amount (₦)</Label>
                 <Input
                   type="number"
+                  min="0"
                   value={form.amount}
                   onChange={(e) => setForm({ ...form, amount: e.target.value })}
                   placeholder="0.00"

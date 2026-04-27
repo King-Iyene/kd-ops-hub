@@ -60,6 +60,7 @@ const ForgotPassword = () => {
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@kdsquares.com"

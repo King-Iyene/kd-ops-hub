@@ -944,7 +944,7 @@ export function WhatsAppGroupsTab() {
               </div>
               <div className="space-y-1">
                 <Label>Member count</Label>
-                <Input type="number" value={form.member_count} onChange={(e) => setForm({ ...form, member_count: e.target.value })} />
+                <Input type="number" min="0" value={form.member_count} onChange={(e) => setForm({ ...form, member_count: e.target.value })} />
               </div>
             </div>
             <div className="space-y-1">

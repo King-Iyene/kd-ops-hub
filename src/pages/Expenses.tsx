@@ -1569,6 +1569,7 @@ const Expenses = () => {
                   <Label>Distance (km)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.mileage_km}
                     onChange={(e) =>
                       setForm({ ...form, mileage_km: e.target.value })
@@ -1579,6 +1580,7 @@ const Expenses = () => {
                   <Label>Rate (₦/km)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.rate_per_km_ngn}
                     onChange={(e) =>
                       setForm({ ...form, rate_per_km_ngn: e.target.value })
@@ -1598,6 +1600,7 @@ const Expenses = () => {
                   <Label>Amount (₦)</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={form.amount_ngn}
                     onChange={(e) =>
                       setForm({ ...form, amount_ngn: e.target.value })
