@@ -2,25 +2,47 @@ name: Daily Database Backup
 
 # Runs every day at 02:00 WAT (01:00 UTC).
 # Dumps the Supabase Postgres database and uploads it as a GitHub Actions
-# artifact — retained for 90 days (free, no storage cost).
+# artifact — retained for 30 days (free, ~500MB limit on GitHub Free plan).
 #
-# Setup (one-time):
-#   1. Go to your Supabase project → Settings → Database → Connection string
-#      Copy the "URI" string (starts with postgres://...)
-#   2. In GitHub → repo Settings → Secrets → Actions, add:
-#        SUPABASE_DB_URL  =  postgres://postgres.<ref>:<password>@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
-#   3. Done. The workflow runs automatically every night.
+# ─── ONE-TIME SETUP ──────────────────────────────────────────────────────────
 #
-# To restore from a backup:
-#   1. Download the artifact from the Actions tab
-#   2. Extract the .sql.gz file
-#   3. Run: psql "$SUPABASE_DB_URL" < backup.sql
-#      (or use the Supabase SQL editor to paste critical sections)
+# 1. Get your database connection string:
+#    Supabase Dashboard → Settings → Database → scroll to "Connection string"
+#    → click the "URI" tab → copy the string that starts with:
+#      postgresql://postgres.[ref]:[password]@...supabase.com:5432/postgres
+#
+# 2. Add it as a GitHub secret:
+#    GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+#    Name:  SUPABASE_DB_URL
+#    Value: paste the connection string from step 1
+#
+# 3. Done. Backup runs automatically every night. You can also trigger it
+#    manually from the Actions tab → "Daily Database Backup" → Run workflow.
+#
+# ─── STORAGE & LIMITS ────────────────────────────────────────────────────────
+#
+# GitHub Free plan: 500 MB total artifact storage.
+# With 30-day retention and a typical small database:
+#   ~2–5 MB/backup × 30 = 60–150 MB  →  well within free limits.
+# If the platform grows past ~15 MB per backup file, reduce retention_days
+# below or upgrade to GitHub Pro ($4/mo) for 2 GB storage.
+# You can check usage at: github.com/settings/billing → Storage.
+#
+# ─── HOW TO RESTORE ──────────────────────────────────────────────────────────
+#
+# 1. Go to GitHub → Actions → "Daily Database Backup" → click any past run
+# 2. Scroll to "Artifacts" at the bottom → download the zip
+# 3. Unzip it — you get a .sql.gz file
+# 4. Run:  gunzip backup.sql.gz
+# 5. Then: psql "YOUR_SUPABASE_DB_URL" < backup.sql
+#    Or paste sections into the Supabase SQL editor for targeted recovery.
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 on:
   schedule:
-    - cron: '0 1 * * *'   # 01:00 UTC = 02:00 WAT daily
-  workflow_dispatch:       # Allow manual trigger from Actions tab
+    - cron: '0 1 * * *'   # 01:00 UTC = 02:00 WAT every day
+  workflow_dispatch:       # Manual trigger from Actions tab
 
 jobs:
   backup:
@@ -35,12 +57,9 @@ jobs:
           sudo apt-get install -y postgresql-client
 
       - name: Run pg_dump
-        env:
-          PGPASSWORD: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           TIMESTAMP=$(date +%Y-%m-%d)
           pg_dump \
-            --no-password \
             --format=plain \
             --no-owner \
             --no-acl \
@@ -48,15 +67,28 @@ jobs:
             | gzip > "kdops-backup-${TIMESTAMP}.sql.gz"
           echo "BACKUP_FILE=kdops-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
 
+      - name: Check backup size
+        run: |
+          SIZE=$(du -sh "${{ env.BACKUP_FILE }}" | cut -f1)
+          SIZE_BYTES=$(stat -c%s "${{ env.BACKUP_FILE }}")
+          echo "Backup size: $SIZE"
+          if [ "$SIZE_BYTES" -gt 15728640 ]; then
+            echo "⚠️  WARNING: backup is over 15 MB — monitor GitHub storage usage."
+            echo "   Check: github.com/settings/billing → Storage"
+            echo "   Consider reducing retention_days below or upgrading to GitHub Pro."
+          fi
+
       - name: Upload backup artifact
         uses: actions/upload-artifact@v4
         with:
-          name: db-backup-${{ github.run_number }}
+          name: db-backup-${{ github.run_number }}-${{ github.run_attempt }}
           path: ${{ env.BACKUP_FILE }}
-          retention-days: 90   # Keep 90 days of backups — free on GitHub
+          retention-days: 30
 
-      - name: Report size
+      - name: Summary
         run: |
-          SIZE=$(du -sh "${{ env.BACKUP_FILE }}" | cut -f1)
-          echo "Backup size: $SIZE"
-          echo "Retained for 90 days in GitHub Actions artifacts."
+          echo "### ✅ Backup complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "File: \`${{ env.BACKUP_FILE }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Size: $(du -sh ${{ env.BACKUP_FILE }} | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Retained for: 30 days" >> "$GITHUB_STEP_SUMMARY"
+          echo "To restore: download artifact → gunzip → psql DB_URL < backup.sql" >> "$GITHUB_STEP_SUMMARY"

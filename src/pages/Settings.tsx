@@ -2319,6 +2319,62 @@ function SystemReferencePanel() {
 
         {/* ── INFRASTRUCTURE ────────────────────────────────────────────── */}
         <TabsContent value="infra" className="space-y-4">
+
+          {/* ── BACKUP — most prominent section ── */}
+          <Card className="border-2 border-primary/40 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <HardDrive className="h-5 w-5 text-primary" />
+                Database Backup — Daily Automated (Free)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <p>
+                A GitHub Actions workflow (<code>.github/workflows/daily-backup.yml</code>) runs every night
+                at <strong>02:00 WAT</strong> and creates a compressed SQL dump of the entire database.
+                Backups are stored as GitHub Actions artifacts — <strong>completely free, no Pro plan needed</strong>.
+              </p>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="font-semibold text-primary">One-time setup (5 min)</p>
+                  <ol className="space-y-1 list-decimal list-inside text-muted-foreground">
+                    <li>Open Supabase → <strong>Settings → Database</strong></li>
+                    <li>Scroll to <strong>"Connection string"</strong> → click <strong>URI tab</strong></li>
+                    <li>Copy the string that starts with <code>postgresql://postgres...</code></li>
+                    <li>Go to GitHub repo → <strong>Settings → Secrets → Actions</strong></li>
+                    <li>Add secret named <strong><code>SUPABASE_DB_URL</code></strong> and paste the string</li>
+                    <li>Done — backup runs tonight automatically</li>
+                  </ol>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-primary">How to restore a backup</p>
+                  <ol className="space-y-1 list-decimal list-inside text-muted-foreground">
+                    <li>GitHub repo → <strong>Actions tab</strong></li>
+                    <li>Click <strong>"Daily Database Backup"</strong> on the left</li>
+                    <li>Open any past run → scroll to <strong>Artifacts</strong></li>
+                    <li>Download the zip → extract the <code>.sql.gz</code> file</li>
+                    <li>Run: <code>gunzip backup.sql.gz</code></li>
+                    <li>Then: <code>psql "$DB_URL" &lt; backup.sql</code></li>
+                  </ol>
+                </div>
+              </div>
+
+              <RefTable
+                cols={['What', 'Detail']}
+                rows={[
+                  { a: 'Schedule',           b: '02:00 WAT every day (01:00 UTC). Can also be triggered manually from the Actions tab.' },
+                  { a: 'Retention',          b: '30 days of backups kept. Oldest are deleted automatically — no manual cleanup needed.' },
+                  { a: 'Storage used',       b: 'Typical small DB: 2–5 MB compressed per backup × 30 = 60–150 MB. GitHub Free plan gives 500 MB artifact storage.' },
+                  { a: 'When storage fills', b: 'The workflow logs a warning if a single backup exceeds 15 MB. Check usage at github.com/settings/billing → Storage. Fix: reduce retention_days in the workflow file from 30 to 14, or upgrade to GitHub Pro ($4/mo) for 2 GB.' },
+                  { a: 'What is backed up',  b: 'Full logical dump: all tables, data, and indexes. Does NOT include Supabase Edge Function secrets (those live in Supabase Vault — record them separately in a password manager).' },
+                  { a: 'Manual trigger',     b: 'GitHub → Actions → "Daily Database Backup" → "Run workflow" button. Use this before any major migration or data change.' },
+                  { a: 'Verify it is running', b: 'After setup, go to Actions tab — you should see green checkmarks. A red X means the SUPABASE_DB_URL secret is wrong or missing.' },
+                ]}
+              />
+            </CardContent>
+          </Card>
+
           <RefSection icon={HardDrive} title="Supabase capacity (free tier)">
             <RefTable
               cols={['Resource', 'Limit / guidance']}
