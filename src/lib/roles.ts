@@ -26,6 +26,8 @@ export const MANAGER_ROLES: Role[] = [
   'finance',
   'operations',
 ];
+/** Sensitive HR/admin pages visible only to super_admin and admin. */
+export const ADMIN_ONLY_ROLES: Role[] = ['super_admin', 'admin'];
 export const ALL_AUTH_ROLES: Role[] = [
   'super_admin',
   'admin',
