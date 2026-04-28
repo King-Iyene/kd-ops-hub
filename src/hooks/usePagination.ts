@@ -25,6 +25,7 @@ export function usePagination<T>(items: T[], pageSize = 20) {
     totalPages,
     totalItems: items.length,
     slice,
+    items: slice, // alias — some pages use .items, others use .slice
     next,
     prev,
     setPage,

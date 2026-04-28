@@ -17,7 +17,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatNaira, toIsoDate } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -417,7 +417,7 @@ const Transactions = () => {
                         onClick={() => handleRowClick(r)}
                       >
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                          {formatDate(r.created_at)}
+                          {formatDateTime(r.created_at)}
                         </TableCell>
                         <TableCell>
                           <Badge

@@ -52,10 +52,17 @@ export function BankCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[var(--radix-popover-trigger-width)]" align="start">
+      <PopoverContent
+        className="p-0 w-[var(--radix-popover-trigger-width)] overflow-hidden"
+        align="start"
+        onWheel={(e) => e.stopPropagation()}
+      >
         <Command>
           <CommandInput placeholder="Search bank…" className="h-9" />
-          <CommandList className="max-h-64 overflow-y-auto">
+          <CommandList
+            className="max-h-60 overflow-y-scroll"
+            onWheel={(e) => e.stopPropagation()}
+          >
             <CommandEmpty>No bank found.</CommandEmpty>
             <CommandGroup>
               {banks.map((b) => (

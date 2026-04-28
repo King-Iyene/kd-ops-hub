@@ -252,12 +252,25 @@ serve(async (req) => {
   // ------------------------------------------------------------------
 
   if (event === "transfer.success") {
-    // Paystack returns the fee on the transfer object, in kobo (NGN * 100).
-    // Capture it as a structured column so reports can aggregate without
-    // having to JSON-walk paystack_raw.
-    const feeKoboRaw = data?.fee ?? data?.data?.fee ?? 0;
-    const feeKobo = Number(feeKoboRaw) || 0;
-    const feeNgn = feeKobo > 0 ? Math.round(feeKobo) / 100 : 0;
+    // The transfer.success webhook payload does NOT include the fee field.
+    // Fetch it from the verify endpoint so the charge row appears in the
+    // Transactions view. Failure is non-fatal — the transfer still succeeds.
+    let feeNgn = 0;
+    try {
+      const secret = await getPaystackSecret();
+      if (secret) {
+        const feeRes = await fetch(
+          `https://api.paystack.co/transfer/verify/${encodeURIComponent(reference)}`,
+          { headers: { Authorization: `Bearer ${secret}` } },
+        );
+        const feeBody = await feeRes.json();
+        const feeKobo = Number(feeBody.data?.fee) || 0;
+        feeNgn = feeKobo > 0 ? feeKobo / 100 : 0;
+        console.log(`[webhook] fee for ref ${reference}: ₦${feeNgn} (raw kobo: ${feeKobo})`);
+      }
+    } catch (feeErr) {
+      console.warn("[webhook] Could not fetch transfer fee:", feeErr);
+    }
 
     const { error: updateErr } = await supabase
       .from("batch_items")
