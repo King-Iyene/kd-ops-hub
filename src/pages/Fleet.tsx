@@ -1168,6 +1168,7 @@ const Fleet = () => {
   const [fuelRequests, setFuelRequests] = useState<FuelRequest[]>([]);
   const [tripLogs, setTripLogs] = useState<TripLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasFetchedRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Fuel request form
@@ -1455,7 +1456,7 @@ const Fleet = () => {
   // `const` arrow functions are not hoisted; function declarations are.
   // (Same crash pattern that took down the Payments page in 4/2026.)
   async function fetchData() {
-    setLoading(true);
+    if (!hasFetchedRef.current) setLoading(true);
     try {
       // Managers (admin/finance/super_admin/operations) see all records.
       // Field staff and drivers only pull their own records from the DB.
@@ -1499,6 +1500,7 @@ const Fleet = () => {
     } catch (err) {
       console.error('[Fleet] fetchData failed:', err);
     } finally {
+      hasFetchedRef.current = true;
       setLoading(false);
     }
   }
