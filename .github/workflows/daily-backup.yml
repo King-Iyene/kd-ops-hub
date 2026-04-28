@@ -50,9 +50,9 @@ jobs:
 
     steps:
       - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://raw.githubusercontent.com/supabase/cli/main/install.sh | sh
-          supabase --version
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
       - name: Dump database
         env:

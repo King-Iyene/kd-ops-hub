@@ -32,6 +32,29 @@ export type PermissionKey =
   | 'employees.edit'
   | 'employees.change_roles'
   | 'employees.manage_permissions'
+  | 'performance.view'
+  | 'performance.manage'
+  | 'training.view'
+  | 'training.manage'
+  | 'benefits.view'
+  | 'benefits.manage'
+  | 'onboarding.view'
+  | 'onboarding.manage'
+  | 'recruitment.view'
+  | 'recruitment.manage'
+  | 'attendance.view'
+  | 'attendance.manage'
+  | 'disciplinary.view'
+  | 'vendors.view'
+  | 'vendors.manage'
+  | 'clients.view'
+  | 'clients.manage'
+  | 'invoices.view'
+  | 'invoices.manage'
+  | 'assets.view'
+  | 'assets.manage'
+  | 'projects.view'
+  | 'projects.manage'
   | 'reports.view'
   | 'reports.export'
   | 'settings.access'
@@ -117,6 +140,69 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'employees.edit', label: 'Edit employees' },
       { key: 'employees.change_roles', label: 'Change roles' },
       { key: 'employees.manage_permissions', label: 'Manage permissions' },
+    ],
+  },
+  {
+    title: 'Performance & Training',
+    permissions: [
+      { key: 'performance.view', label: 'View performance reviews' },
+      { key: 'performance.manage', label: 'Manage performance reviews' },
+      { key: 'training.view', label: 'View training records' },
+      { key: 'training.manage', label: 'Manage training records' },
+    ],
+  },
+  {
+    title: 'Benefits & Onboarding',
+    permissions: [
+      { key: 'benefits.view', label: 'View benefits' },
+      { key: 'benefits.manage', label: 'Manage benefits' },
+      { key: 'onboarding.view', label: 'View onboarding checklists' },
+      { key: 'onboarding.manage', label: 'Manage onboarding checklists' },
+    ],
+  },
+  {
+    title: 'Recruitment',
+    permissions: [
+      { key: 'recruitment.view', label: 'View job openings & applicants' },
+      { key: 'recruitment.manage', label: 'Manage recruitment pipeline' },
+    ],
+  },
+  {
+    title: 'Attendance',
+    permissions: [
+      { key: 'attendance.view', label: 'View attendance records' },
+      { key: 'attendance.manage', label: 'Record & edit attendance' },
+    ],
+  },
+  {
+    title: 'Disciplinary',
+    permissions: [
+      { key: 'disciplinary.view', label: 'View & manage disciplinary records' },
+    ],
+  },
+  {
+    title: 'Vendors & Clients',
+    permissions: [
+      { key: 'vendors.view', label: 'View vendors' },
+      { key: 'vendors.manage', label: 'Manage vendors' },
+      { key: 'clients.view', label: 'View clients' },
+      { key: 'clients.manage', label: 'Manage clients' },
+    ],
+  },
+  {
+    title: 'Invoices & Assets',
+    permissions: [
+      { key: 'invoices.view', label: 'View invoices' },
+      { key: 'invoices.manage', label: 'Manage invoices' },
+      { key: 'assets.view', label: 'View assets' },
+      { key: 'assets.manage', label: 'Manage assets' },
+    ],
+  },
+  {
+    title: 'Projects',
+    permissions: [
+      { key: 'projects.view', label: 'View projects' },
+      { key: 'projects.manage', label: 'Manage projects & milestones' },
     ],
   },
   {
@@ -225,8 +311,20 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'leave.view_all', 'leave.approve',
     'contractors.view', 'contractors.add', 'contractors.edit', 'contractors.delete',
     'employees.view', 'employees.invite', 'employees.edit', 'employees.change_roles',
+    'performance.view', 'performance.manage',
+    'training.view', 'training.manage',
+    'benefits.view', 'benefits.manage',
+    'onboarding.view', 'onboarding.manage',
+    'recruitment.view', 'recruitment.manage',
+    'attendance.view', 'attendance.manage',
+    'disciplinary.view',
+    'vendors.view', 'vendors.manage',
+    'clients.view', 'clients.manage',
+    'invoices.view', 'invoices.manage',
+    'assets.view', 'assets.manage',
+    'projects.view', 'projects.manage',
     'reports.view', 'reports.export',
-    'settings.access', 'settings.manage_integrations',
+    // Settings is super_admin only at the route level — admin cannot access /settings
   ],
   finance: [
     'dashboard.view_kpis', 'dashboard.view_audit_log',
@@ -237,6 +335,17 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'leave.view_all',
     'contractors.view', 'contractors.add', 'contractors.edit',
     'employees.view',
+    'performance.view', 'performance.manage',
+    'training.view', 'training.manage',
+    'benefits.view', 'benefits.manage',
+    'onboarding.view', 'onboarding.manage',
+    'recruitment.view', 'recruitment.manage',
+    'attendance.view', 'attendance.manage',
+    'vendors.view', 'vendors.manage',
+    'clients.view', 'clients.manage',
+    'invoices.view', 'invoices.manage',
+    'assets.view', 'assets.manage',
+    'projects.view', 'projects.manage',
     'reports.view', 'reports.export',
   ],
   operations: [
@@ -246,6 +355,15 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'leave.view_all', 'leave.approve',
     'contractors.view',
     'employees.view',
+    'performance.view', 'performance.manage',
+    'training.view', 'training.manage',
+    'benefits.view', 'benefits.manage',
+    'onboarding.view', 'onboarding.manage',
+    'recruitment.view', 'recruitment.manage',
+    'attendance.view', 'attendance.manage',
+    'vendors.view', 'vendors.manage',
+    'clients.view', 'clients.manage',
+    'projects.view', 'projects.manage',
   ],
   field_staff: [
     'expenses.submit',
