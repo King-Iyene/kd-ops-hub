@@ -4361,10 +4361,15 @@ const Fleet = () => {
                   )}
                 </div>
 
-                {/* Privacy notice */}
-                <div className="flex items-start gap-2 rounded-md bg-muted/50 border px-3 py-2 text-xs text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                  <p>Your location is recorded at trip start and end only — not tracked continuously.</p>
+                {/* Privacy notice — accurate disclosure of continuous tracking */}
+                <div className="flex items-start gap-2 rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2 text-xs text-blue-900 dark:text-blue-200">
+                  <Radio className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-semibold">Live tracking will be active during this trip</p>
+                    <p className="opacity-90">
+                      Your GPS position is sent every few seconds while the trip is in progress and stops the moment you tap End Trip. Visible to managers (Admin, Super Admin, Operations) only.
+                    </p>
+                  </div>
                 </div>
               </div>
 
