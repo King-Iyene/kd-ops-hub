@@ -56,7 +56,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, reverseGeocode as googleReverseGeocode } from '@/lib/maps';
@@ -90,6 +90,19 @@ interface VehicleSummary {
   home_base_lat: number | null;
   home_base_lng: number | null;
   out_of_service_until: string | null;
+}
+
+interface Geofence {
+  id: string;
+  name: string;
+  center_lat: number;
+  center_lng: number;
+  radius_meters: number;
+  color: string;
+  description: string | null;
+  active: boolean;
+  created_by: string | null;
+  created_at: string;
 }
 
 interface FuelRequest {
@@ -337,11 +350,26 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 
 const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
-function TripGoogleMap({ trail, startPos, endPos, events }: {
+function computeIdleMinutes(breadcrumbs: BreadcrumbRow[]): number {
+  if (breadcrumbs.length < 2) return 0;
+  let idleMs = 0;
+  for (let i = 1; i < breadcrumbs.length; i++) {
+    const prev = breadcrumbs[i - 1];
+    const curr = breadcrumbs[i];
+    const speed = curr.speed_kmh ?? prev.speed_kmh ?? null;
+    if (speed !== null && speed < 3) {
+      idleMs += Date.parse(curr.recorded_at) - Date.parse(prev.recorded_at);
+    }
+  }
+  return Math.round(idleMs / 60000);
+}
+
+function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
   trail: [number, number][];
   startPos: [number, number] | null;
   endPos: [number, number] | null;
   events: { id: string; lat: number; lng: number; event_type: string; details: string; recorded_at: string }[];
+  replayStep?: number | null;
 }) {
   const { isLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [gmap, setGmap] = useState<google.maps.Map | null>(null);
@@ -415,6 +443,22 @@ function TripGoogleMap({ trail, startPos, endPos, events }: {
           <div className="kd-trip-marker-event" style={{ transform: 'translate(-50%, -50%)' }} title={EVENT_LABEL[ev.event_type] || ev.event_type} />
         </OverlayView>
       ))}
+      {replayStep !== null && trail[replayStep] && (
+        <OverlayView
+          position={{ lat: trail[replayStep][0], lng: trail[replayStep][1] }}
+          mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+        >
+          <div style={{
+            transform: 'translate(-50%, -50%)',
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: '#f59e0b',
+            border: '3px solid #fff',
+            boxShadow: '0 0 0 3px #f59e0b55, 0 2px 6px rgba(0,0,0,.4)',
+          }} />
+        </OverlayView>
+      )}
     </GoogleMap>
   );
 }
@@ -446,14 +490,37 @@ interface TripMapModalProps {
 }
 
 function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapModalProps) {
-  const [activeTab, setActiveTab] = useState<'map' | 'events'>('map');
+  const [activeTab, setActiveTab] = useState<'map' | 'replay' | 'events'>('map');
+  const [replayPlaying, setReplayPlaying] = useState(false);
+  const [replayStep, setReplayStep] = useState(0);
+  const [replaySpeed, setReplaySpeed] = useState(4);
+  const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
+  const totalSteps = trail.length;
+
+  useEffect(() => {
+    if (replayPlaying && totalSteps > 0) {
+      replayRef.current = setInterval(() => {
+        setReplayStep((s) => {
+          if (s >= totalSteps - 1) {
+            setReplayPlaying(false);
+            return totalSteps - 1;
+          }
+          return s + 1;
+        });
+      }, Math.max(50, 300 / replaySpeed));
+    } else {
+      if (replayRef.current) clearInterval(replayRef.current);
+    }
+    return () => { if (replayRef.current) clearInterval(replayRef.current); };
+  }, [replayPlaying, replaySpeed, totalSteps]);
 
   const startPos: [number, number] | null =
     trip.start_lat != null && trip.start_lng != null ? [trip.start_lat, trip.start_lng] : null;
   const endPos: [number, number] | null =
     trip.end_lat != null && trip.end_lng != null ? [trip.end_lat, trip.end_lng] : null;
 
-  const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
   const mapEvents = events.filter((ev) => ev.lat != null && ev.lng != null) as (TripEvent & { lat: number; lng: number })[];
 
   const hasGps = startPos != null || endPos != null;
@@ -465,6 +532,8 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
   const avgSpeedKph = distanceKm != null && durationMin != null && durationMin > 0
     ? Math.round((distanceKm / (durationMin / 60)) * 10) / 10
     : null;
+  const idleMinutes = loading ? null : computeIdleMinutes(breadcrumbs);
+  const extStops = events.filter((ev) => ev.event_type === 'extended_stop').length;
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
@@ -486,7 +555,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
         </DialogHeader>
 
         {/* Telemetry strip */}
-        <div className="px-6 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 shrink-0 border-b border-border/60">
+        <div className="px-6 pt-4 pb-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 shrink-0 border-b border-border/60">
           <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Distance</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
@@ -511,32 +580,44 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
               {litres != null ? `${litres} L` : '—'}
             </p>
           </div>
-          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 col-span-2 sm:col-span-1">
+          <div className={`rounded-lg border px-3 py-2 ${idleMinutes != null && idleMinutes > 30 ? 'border-amber-300 bg-amber-50/40 dark:bg-amber-950/20' : 'border-border/50 bg-muted/30'}`}>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Idle time</p>
+            <p className={`kd-stat-number text-base font-bold leading-tight ${idleMinutes != null && idleMinutes > 30 ? 'text-amber-600' : ''}`}>
+              {idleMinutes != null ? `${idleMinutes} min` : '—'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Telemetry</p>
             <p className="kd-stat-number text-base font-bold leading-tight">
-              {breadcrumbs.length} ping{breadcrumbs.length === 1 ? '' : 's'} · {events.length} event{events.length === 1 ? '' : 's'}
+              {breadcrumbs.length} ping{breadcrumbs.length === 1 ? '' : 's'} · {extStops} stop{extStops !== 1 ? 's' : ''}
             </p>
           </div>
         </div>
 
         {/* Tab bar */}
-        <div className="px-6 pt-3 flex gap-1 shrink-0">
-          {(['map', 'events'] as const).map((t) => (
+        <div className="px-6 pt-3 flex gap-1 shrink-0 flex-wrap">
+          {([
+            { key: 'map', label: 'Map', icon: <MapIcon className="h-3.5 w-3.5" /> },
+            { key: 'replay', label: 'Replay', icon: <Play className="h-3.5 w-3.5" />, disabled: trail.length < 2 },
+            { key: 'events', label: 'Events', icon: <AlertTriangle className="h-3.5 w-3.5" />, badge: events.length > 0 ? events.length : 0 },
+          ] as const).map(({ key, label, icon, disabled, badge }: any) => (
             <button
-              key={t}
-              onClick={() => setActiveTab(t)}
+              key={key}
+              onClick={() => !disabled && setActiveTab(key)}
+              disabled={disabled}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium kd-transition',
-                activeTab === t
+                activeTab === key
                   ? 'bg-primary/10 text-primary border-b-2 border-primary rounded-b-none'
                   : 'text-muted-foreground hover:bg-muted',
+                disabled && 'opacity-40 cursor-not-allowed',
               )}
             >
-              {t === 'map' ? <MapIcon className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-              {t === 'map' ? 'Map' : 'Events'}
-              {t === 'events' && events.length > 0 && (
+              {icon}
+              {label}
+              {badge > 0 && (
                 <span className="bg-destructive text-destructive-foreground text-[10px] rounded-full px-1.5 leading-none kd-status-live-danger">
-                  {events.length}
+                  {badge}
                 </span>
               )}
             </button>
@@ -573,6 +654,55 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive inline-block shrink-0" /> End</span>
                 <span className="flex items-center gap-1.5"><span className="w-6 h-0.5 bg-primary inline-block shrink-0" /> Route</span>
                 <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-warning inline-block shrink-0 kd-status-live-warning" /> Event</span>
+              </div>
+            </>
+          ) : activeTab === 'replay' ? (
+            <>
+              <div className="rounded-xl overflow-hidden border border-border/60 shadow-sm" style={{ height: 400 }}>
+                <TripGoogleMap trail={trail} startPos={startPos} endPos={endPos} events={mapEvents} replayStep={replayStep} />
+              </div>
+              {/* Replay controls */}
+              <div className="mt-3 flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setReplayStep(0); setReplayPlaying(false); }}>
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="sm" onClick={() => setReplayPlaying((p) => !p)}>
+                    {replayPlaying ? <Pause className="h-3.5 w-3.5 mr-1" /> : <Play className="h-3.5 w-3.5 mr-1" />}
+                    {replayPlaying ? 'Pause' : 'Play'}
+                  </Button>
+                  <div className="flex items-center gap-1.5 ml-2 text-xs text-muted-foreground">
+                    Speed:
+                    {[1, 2, 4, 8].map((s) => (
+                      <button key={s} onClick={() => setReplaySpeed(s)}
+                        className={cn('px-2 py-0.5 rounded border text-xs', replaySpeed === s ? 'bg-primary text-primary-foreground border-primary' : 'border-border hover:bg-muted')}>
+                        {s}×
+                      </button>
+                    ))}
+                  </div>
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                    {replayStep + 1} / {totalSteps}
+                    {breadcrumbs[replayStep]?.recorded_at && (
+                      <> · {new Date(breadcrumbs[replayStep].recorded_at).toLocaleTimeString('en-GB')}</>
+                    )}
+                    {breadcrumbs[replayStep]?.speed_kmh != null && (
+                      <> · {Math.round(breadcrumbs[replayStep].speed_kmh!)} km/h</>
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0, totalSteps - 1)}
+                  value={replayStep}
+                  onChange={(e) => { setReplayPlaying(false); setReplayStep(Number(e.target.value)); }}
+                  className="w-full accent-primary"
+                />
+              </div>
+              <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground flex-wrap">
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success inline-block shrink-0 kd-status-live-success" /> Start</span>
+                <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive inline-block shrink-0" /> End</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full" style={{ background: '#f59e0b' }} /> Current position</span>
               </div>
             </>
           ) : (
@@ -1161,7 +1291,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies'>('fuel');
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences'>('fuel');
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -2909,16 +3039,7 @@ const Fleet = () => {
         </div>
       </AuroraHero>
 
-      {/* Fleet analytics — admins / finance only */}
-      {isAdmin && (
-        <FleetAnalyticsDashboard
-          vehicles={vehicles}
-          staff={staff}
-          onNavigateToVehicles={() => setTab('vehicles')}
-        />
-      )}
-
-      {/* Phase 4 — service / compliance alerts */}
+      {/* Service alerts shown as a compact banner outside of tabs for quick visibility */}
       {serviceAlerts.length > 0 && (
         <div className="flex flex-col gap-2">
           {serviceAlerts.map((v) => (
@@ -2931,6 +3052,11 @@ const Fleet = () => {
         {/* Mobile: horizontal scroll lets tabs stay readable instead of clipping */}
         <div className="overflow-x-auto kd-mobile-snap-x -mx-1 sm:mx-0 px-1 sm:px-0">
           <TabsList className="w-max sm:w-full">
+            {isAdmin && (
+              <TabsTrigger value="dashboard" className="shrink-0">
+                <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+              </TabsTrigger>
+            )}
             <TabsTrigger value="fuel" className="shrink-0">
               <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
             </TabsTrigger>
@@ -2956,8 +3082,32 @@ const Fleet = () => {
                 )}
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="geofences" className="shrink-0">
+                <Shield className="mr-2 h-4 w-4" /> Geofences
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
+
+        {/* DASHBOARD */}
+        {isAdmin && (
+          <TabsContent value="dashboard" className="mt-4 space-y-4">
+            <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
+            {serviceAlerts.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold mb-2 flex items-center gap-2 text-amber-600">
+                  <AlertTriangle className="h-4 w-4" /> Document Expiry Alerts
+                </h2>
+                <div className="flex flex-col gap-2">
+                  {serviceAlerts.map((v) => (
+                    <ServiceAlert key={v.id} v={v} todayStr={todayStr} in30Str={in30Str} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+        )}
 
         {/* FUEL */}
         <TabsContent value="fuel" className="mt-4 space-y-4">
@@ -3948,6 +4098,13 @@ const Fleet = () => {
                 </Card>
               )}
             </div>
+          </TabsContent>
+        )}
+
+        {/* GEOFENCES */}
+        {isAdmin && (
+          <TabsContent value="geofences" className="mt-4">
+            <GeofencesTab />
           </TabsContent>
         )}
       </Tabs>
@@ -5490,6 +5647,231 @@ const emptyVehicleForm = {
   next_service_date: '',
   notes: '',
 };
+
+// ---------------------------------------------------------------------------
+// GeofencesTab
+// ---------------------------------------------------------------------------
+
+const GEOFENCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+function GeofencesTab() {
+  const { toast } = useToast();
+  const { profile } = useAuthStore();
+  const [geofences, setGeofences] = useState<Geofence[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState({ name: '', center_lat: '', center_lng: '', radius_meters: '500', color: '#3b82f6', description: '' });
+  const [pickingOnMap, setPickingOnMap] = useState(false);
+  const { isLoaded: mapsLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const [gmap, setGmap] = useState<google.maps.Map | null>(null);
+  const circlesRef = useRef<Map<string, google.maps.Circle>>(new Map());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('geofences').select('*').order('created_at', { ascending: false });
+    setGeofences((data as Geofence[]) || []);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
+    if (!pickingOnMap || !e.latLng) return;
+    setForm((f) => ({ ...f, center_lat: e.latLng!.lat().toFixed(6), center_lng: e.latLng!.lng().toFixed(6) }));
+    setPickingOnMap(false);
+  }, [pickingOnMap]);
+
+  // Update circle overlays when geofences change
+  useEffect(() => {
+    if (!gmap) return;
+    // Remove stale circles
+    for (const [id, c] of circlesRef.current) {
+      if (!geofences.find((g) => g.id === id)) { c.setMap(null); circlesRef.current.delete(id); }
+    }
+    // Add / update circles
+    for (const g of geofences) {
+      if (circlesRef.current.has(g.id)) {
+        const c = circlesRef.current.get(g.id)!;
+        c.setCenter({ lat: g.center_lat, lng: g.center_lng });
+        c.setRadius(g.radius_meters);
+      } else {
+        const c = new google.maps.Circle({
+          map: gmap,
+          center: { lat: g.center_lat, lng: g.center_lng },
+          radius: g.radius_meters,
+          strokeColor: g.color,
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: g.color,
+          fillOpacity: 0.15,
+        });
+        circlesRef.current.set(g.id, c);
+      }
+    }
+  }, [gmap, geofences]);
+
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.center_lat || !form.center_lng) {
+      toast({ title: 'Required', description: 'Name and map location are required.', variant: 'destructive' }); return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.from('geofences').insert({
+      name: form.name.trim(),
+      center_lat: parseFloat(form.center_lat),
+      center_lng: parseFloat(form.center_lng),
+      radius_meters: Math.max(50, parseInt(form.radius_meters) || 500),
+      color: form.color,
+      description: form.description.trim() || null,
+      created_by: profile?.id,
+    });
+    setSubmitting(false);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Geofence created' });
+    setShowForm(false);
+    setForm({ name: '', center_lat: '', center_lng: '', radius_meters: '500', color: '#3b82f6', description: '' });
+    load();
+  };
+
+  const handleDelete = async (id: string) => {
+    await supabase.from('geofences').delete().eq('id', id);
+    circlesRef.current.get(id)?.setMap(null);
+    circlesRef.current.delete(id);
+    setGeofences((prev) => prev.filter((g) => g.id !== id));
+    toast({ title: 'Geofence removed' });
+  };
+
+  const LAGOS_CTR: google.maps.LatLngLiteral = { lat: 6.5244, lng: 3.3792 };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{geofences.length} zone{geofences.length !== 1 ? 's' : ''} defined</p>
+        </div>
+        <Button onClick={() => setShowForm((v) => !v)}>
+          <Plus className="mr-2 h-4 w-4" /> Add Zone
+        </Button>
+      </div>
+
+      {showForm && (
+        <Card className="border-primary/20">
+          <CardContent className="pt-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Zone name *</Label>
+                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Head Office" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Radius (meters)</Label>
+                <Input type="number" min={50} value={form.radius_meters} onChange={(e) => setForm((f) => ({ ...f, radius_meters: e.target.value }))} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Latitude</Label>
+                <Input value={form.center_lat} onChange={(e) => setForm((f) => ({ ...f, center_lat: e.target.value }))} placeholder="Click map to fill" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Longitude</Label>
+                <Input value={form.center_lng} onChange={(e) => setForm((f) => ({ ...f, center_lng: e.target.value }))} placeholder="Click map to fill" className="mt-1" />
+              </div>
+              <div className="sm:col-span-2">
+                <Label className="text-xs">Description</Label>
+                <Input value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="Optional notes" className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">Color</Label>
+                <div className="flex gap-1.5 mt-1 flex-wrap">
+                  {GEOFENCE_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => setForm((f) => ({ ...f, color: c }))}
+                      className={cn('w-6 h-6 rounded-full border-2 transition-all', form.color === c ? 'border-foreground scale-110' : 'border-transparent')}
+                      style={{ background: c }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" type="button" onClick={() => setPickingOnMap(true)} className={cn(pickingOnMap && 'border-primary text-primary')}>
+                <MapPin className="mr-1.5 h-3.5 w-3.5" /> {pickingOnMap ? 'Click map to place…' : 'Pick on map'}
+              </Button>
+              <Button size="sm" onClick={handleSubmit} disabled={submitting}>{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Zone'}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {!GOOGLE_MAPS_API_KEY ? (
+        <Card><CardContent className="flex flex-col items-center justify-center py-12 gap-3 text-sm text-muted-foreground">
+          <MapIcon className="h-8 w-8 opacity-30" />
+          <p>Add <code className="bg-muted px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> to enable maps</p>
+        </CardContent></Card>
+      ) : !mapsLoaded ? (
+        <Card><CardContent className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></CardContent></Card>
+      ) : (
+        <div className="rounded-xl overflow-hidden border border-border/60 shadow-sm" style={{ height: 460 }}>
+          <GoogleMap
+            center={LAGOS_CTR}
+            zoom={11}
+            mapContainerStyle={{ width: '100%', height: '100%' }}
+            options={{ ...MAP_OPTIONS, fullscreenControl: true }}
+            onLoad={(map) => setGmap(map)}
+            onClick={handleMapClick}
+          />
+        </div>
+      )}
+
+      {loading ? (
+        <TableSkeleton rows={3} />
+      ) : geofences.length === 0 ? (
+        <Card><CardContent className="p-0">
+          <EmptyState illustration="radar" title="No geofences defined" description="Add a zone to start monitoring vehicle entry and exit points." />
+        </CardContent></Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Zone</TableHead>
+                  <TableHead>Center</TableHead>
+                  <TableHead>Radius</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {geofences.map((g) => (
+                  <TableRow key={g.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ background: g.color }} />
+                        <span className="font-medium">{g.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {g.center_lat.toFixed(4)}, {g.center_lng.toFixed(4)}
+                    </TableCell>
+                    <TableCell className="text-sm">{g.radius_meters.toLocaleString()} m</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{g.description || '—'}</TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="ghost" onClick={() => handleDelete(g.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// VehiclesTab
+// ---------------------------------------------------------------------------
 
 function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const { toast } = useToast();
