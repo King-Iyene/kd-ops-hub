@@ -17,7 +17,7 @@ interface AutoRefreshResult {
 
 /**
  * Automatically re-fetches data when:
- *  - The window regains focus (user switches back from another tab/app)
+ *  - The window regains focus, but only if data is stale (older than focusThresholdSec)
  *  - Every `intervalSec` seconds while the page is visible (default 60 s)
  *
  * Pass any stable or unstable reload function — it is captured via ref so
@@ -26,23 +26,34 @@ interface AutoRefreshResult {
 export function useAutoRefresh(
   reload: () => Promise<void> | void,
   intervalSec = 60,
+  focusThresholdSec = 30,
 ): AutoRefreshResult {
   const [lastUpdated, setLastUpdated] = useState<Date>(() => new Date());
   const [lastUpdatedLabel, setLastUpdatedLabel] = useState('just now');
   const reloadRef = useRef(reload);
+  const lastUpdatedRef = useRef(lastUpdated);
   reloadRef.current = reload;
+  lastUpdatedRef.current = lastUpdated;
 
   const refresh = useCallback(() => {
     void reloadRef.current();
-    setLastUpdated(new Date());
+    const now = new Date();
+    setLastUpdated(now);
+    lastUpdatedRef.current = now;
   }, []);
 
-  // Re-fetch when the window/tab becomes active again.
+  // Re-fetch when the window/tab becomes active again, but only if data is stale.
+  // This prevents constant reloads when the user briefly alt-tabs or switches windows.
   useEffect(() => {
-    const onFocus = () => refresh();
+    const onFocus = () => {
+      const staleSecs = (Date.now() - lastUpdatedRef.current.getTime()) / 1000;
+      if (staleSecs >= focusThresholdSec) {
+        refresh();
+      }
+    };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [refresh]);
+  }, [refresh, focusThresholdSec]);
 
   // Periodic background refresh while visible.
   useEffect(() => {

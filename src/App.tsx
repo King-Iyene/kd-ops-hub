@@ -264,11 +264,11 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
-        {/* Live Tracking — managers only (super_admin / admin / operations). */}
+        {/* Live Tracking — admin only (super_admin / admin). */}
         <Route
           path="/fleet/live"
           element={
-            <RoleGuard roles={['super_admin', 'admin', 'operations']}>
+            <RoleGuard roles={['super_admin', 'admin']}>
               <LiveTracking />
             </RoleGuard>
           }

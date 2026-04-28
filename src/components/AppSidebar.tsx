@@ -84,7 +84,7 @@ const ALL_NAV: NavItem[] = [
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'] },
-  { title: 'Live Tracking',    url: '/fleet/live',        icon: Radio,           roles: ['super_admin', 'admin', 'operations'] },
+  { title: 'Live Tracking',    url: '/fleet/live',        icon: Radio,           roles: ['super_admin', 'admin'] },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Employees',        url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',            url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
