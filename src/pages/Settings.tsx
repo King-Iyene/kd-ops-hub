@@ -53,7 +53,7 @@ import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } 
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
-import { formatNaira } from '@/lib/format';
+import { formatNaira, setTimezoneCache } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InfoTip } from '@/components/ui-kit/InfoTip';
 import { Button } from '@/components/ui/button';
@@ -126,6 +126,7 @@ interface CompanySettings {
   instagram_url: string | null;
   facebook_url: string | null;
   twitter_url: string | null;
+  timezone: string;
 }
 
 const EXPENSE_CATEGORIES = EXPENSE_CATEGORY_KEYS;
@@ -172,7 +173,9 @@ const SettingsPage = () => {
             .maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
-    setSettings((settingsRes.data as CompanySettings) || null);
+    const s = (settingsRes.data as CompanySettings) || null;
+    setSettings(s);
+    if (s?.timezone) setTimezoneCache(s.timezone);
     if ((notifRes as any).data) {
       const d = (notifRes as any).data;
       const prefs: Record<string, boolean> = {};
@@ -269,6 +272,7 @@ const SettingsPage = () => {
         instagram_url: settings.instagram_url || null,
         facebook_url: settings.facebook_url || null,
         twitter_url: settings.twitter_url || null,
+        timezone: settings.timezone || 'Africa/Lagos',
         updated_at: new Date().toISOString(),
       })
       .eq('id', SINGLETON_ID);
@@ -277,6 +281,7 @@ const SettingsPage = () => {
       setSaving(false);
       return;
     }
+    if (settings.timezone) setTimezoneCache(settings.timezone);
     await logAudit('company_settings_saved', 'Company settings saved', profile);
     toast({ title: 'Settings saved' });
     setSaving(false);
@@ -429,6 +434,29 @@ const SettingsPage = () => {
                     <SelectContent>
                       <SelectItem value="jan_dec">January – December</SelectItem>
                       <SelectItem value="apr_mar">April – March</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Platform timezone <InfoTip text="All dates and times across the platform — audit logs, transactions, approvals — display in this timezone. Default: Africa/Lagos (WAT, UTC+1)." /></Label>
+                  <Select
+                    value={settings.timezone || 'Africa/Lagos'}
+                    onValueChange={(v) => patch({ timezone: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Africa/Lagos">Africa/Lagos — WAT (UTC+1) 🇳🇬</SelectItem>
+                      <SelectItem value="UTC">UTC — Coordinated Universal Time (UTC+0)</SelectItem>
+                      <SelectItem value="Africa/Accra">Africa/Accra — GMT (UTC+0) 🇬🇭</SelectItem>
+                      <SelectItem value="Africa/Nairobi">Africa/Nairobi — EAT (UTC+3) 🇰🇪</SelectItem>
+                      <SelectItem value="Africa/Johannesburg">Africa/Johannesburg — SAST (UTC+2) 🇿🇦</SelectItem>
+                      <SelectItem value="Africa/Cairo">Africa/Cairo — EET (UTC+2) 🇪🇬</SelectItem>
+                      <SelectItem value="Europe/London">Europe/London — GMT/BST (UTC+0/+1) 🇬🇧</SelectItem>
+                      <SelectItem value="Europe/Paris">Europe/Paris — CET/CEST (UTC+1/+2) 🇪🇺</SelectItem>
+                      <SelectItem value="America/New_York">America/New_York — EST/EDT (UTC-5/-4) 🇺🇸</SelectItem>
+                      <SelectItem value="Asia/Dubai">Asia/Dubai — GST (UTC+4) 🇦🇪</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

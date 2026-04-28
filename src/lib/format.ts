@@ -1,3 +1,14 @@
+const TZ_KEY = 'kdops_timezone';
+const DEFAULT_TZ = 'Africa/Lagos';
+
+/** Read the company timezone from localStorage (written by Settings on load/save). */
+export const getTimezone = (): string =>
+  localStorage.getItem(TZ_KEY) || DEFAULT_TZ;
+
+/** Called by Settings whenever timezone is loaded or saved — keeps format.ts in sync. */
+export const setTimezoneCache = (tz: string): void =>
+  localStorage.setItem(TZ_KEY, tz || DEFAULT_TZ);
+
 export const formatNaira = (amount: number | null | undefined): string => {
   const n = amount ?? 0;
   return `₦${n.toLocaleString('en-NG', {
@@ -6,7 +17,7 @@ export const formatNaira = (amount: number | null | undefined): string => {
   })}`;
 };
 
-/** DD/MM/YYYY (en-GB). */
+/** DD/MM/YYYY — date only, no time, no timezone. */
 export const formatDate = (date: string | Date | null | undefined): string => {
   if (!date) return '—';
   try {
@@ -20,19 +31,34 @@ export const formatDate = (date: string | Date | null | undefined): string => {
   }
 };
 
-/** DD/MM/YYYY HH:mm. */
+/**
+ * "27 Apr 2026, 3:45 PM (WAT)" — date + 12-hour time + timezone abbreviation.
+ * Reads timezone from localStorage (set by Settings on load/save).
+ * Falls back to Africa/Lagos if not set.
+ */
 export const formatDateTime = (
   date: string | Date | null | undefined,
 ): string => {
   if (!date) return '—';
   try {
-    return new Date(date).toLocaleString('en-GB', {
+    const tz = getTimezone();
+    const d = new Date(date);
+    // Get the formatted date+time
+    const base = new Intl.DateTimeFormat('en-GB', {
       day: '2-digit',
-      month: '2-digit',
+      month: 'short',
       year: 'numeric',
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
-    });
+      hour12: true,
+      timeZone: tz,
+    }).format(d);
+    // Get short timezone abbreviation (e.g. WAT, GMT, EST)
+    const tzAbbr = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'short',
+    }).formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    return tzAbbr ? `${base} (${tzAbbr})` : base;
   } catch {
     return '—';
   }
@@ -55,7 +81,6 @@ export const daysUntil = (d: string | Date | null | undefined): number | null =>
   if (!d) return null;
   const target = new Date(d);
   if (Number.isNaN(target.getTime())) return null;
-  // Normalise to midnight so "days" is an integer count of calendar days.
   const today = new Date();
   const a = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const b = new Date(target.getFullYear(), target.getMonth(), target.getDate());

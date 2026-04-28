@@ -5,7 +5,7 @@
 
 import { supabase } from '@/lib/supabase';
 
-export { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
+export { NIGERIAN_BANKS, fetchBanks, getBankCode, clearBankCache } from '@/lib/nigerian-banks';
 export type { NigerianBank as Bank } from '@/lib/nigerian-banks';
 
 /**

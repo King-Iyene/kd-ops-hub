@@ -108,6 +108,24 @@ serve(async (req) => {
     console.log("[paystack-transfer] action:", action);
 
     // ---------------------------------------------------------------
+    // list_banks: open to unauthenticated callers.
+    // Returns the full Paystack-supported bank list for Nigeria (~300+).
+    // The secret key is used only on the server — never reaches the client.
+    // ---------------------------------------------------------------
+    if (action === "list_banks") {
+      const body = await paystackFetch(
+        "/bank?currency=NGN&use_cursor=false&perPage=300&country=nigeria",
+      );
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: (body.data || []).map((b: any) => ({ code: b.code, name: b.name })),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ---------------------------------------------------------------
     // resolve_account: open to unauthenticated callers (public /join form).
     // Account-name lookup is not sensitive — secret key stays server-side.
     // ---------------------------------------------------------------

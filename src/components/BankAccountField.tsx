@@ -11,9 +11,11 @@ import {
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   NIGERIAN_BANKS,
+  fetchBanks,
   getBankCode,
   resolveAccount,
 } from '@/lib/paystack';
+import type { NigerianBank } from '@/lib/nigerian-banks';
 
 export interface BankAccountValue {
   bank_name: string;
@@ -49,6 +51,11 @@ export function BankAccountField({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastKeyRef = useRef<string>('');
+  // Start with static list immediately; fetch full list (~300+ banks) in background.
+  const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
+  useEffect(() => {
+    fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
+  }, []);
 
   const setVerifiedState = (next: BankAccountValue) => {
     onChange(next);
@@ -134,7 +141,7 @@ export function BankAccountField({
               <SelectValue placeholder="Select bank" />
             </SelectTrigger>
             <SelectContent>
-              {NIGERIAN_BANKS.map((b) => (
+              {banks.map((b) => (
                 <SelectItem key={b.code} value={b.name}>
                   {b.name}
                 </SelectItem>
