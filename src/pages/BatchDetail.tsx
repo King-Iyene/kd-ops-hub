@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import {
   writeRejectionNotification,
@@ -150,7 +150,7 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
     <div class="details">
       <div class="row"><span class="lbl">Recipient</span><span class="val">${escapeHtml(item.full_name || '—')}</span></div>
       <div class="row"><span class="lbl">Bank</span><span class="val">${escapeHtml(item.bank_name || '—')}</span></div>
-      <div class="row"><span class="lbl">Account</span><span class="val mono">${escapeHtml(item.account_number || '—')}</span></div>
+      <div class="row"><span class="lbl">Account</span><span class="val mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span></div>
       <div class="row"><span class="lbl">Paystack ref</span><span class="val mono">${escapeHtml(item.paystack_reference || '—')}</span></div>
       <div class="row"><span class="lbl">Transaction date</span><span class="val">${escapeHtml(txnDateStr)}</span></div>
       <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')}</span></div>
@@ -806,7 +806,7 @@ const BatchDetail = () => {
             <td>${i + 1}</td>
             <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
-            <td>${escapeHtml(it.account_number)}</td>
+            <td>${escapeHtml(maskAccountNumber(it.account_number))}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
             <td class="mono">${truncRef(it.paystack_reference)}</td>
             <td><span class="pill ${it.status === 'succeeded' ? 'success' : it.status === 'failed' ? 'failed' : 'pending'}">${escapeHtml(it.status)}</span></td>
@@ -841,7 +841,7 @@ const BatchDetail = () => {
           <tr>
             <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
-            <td>${escapeHtml(it.account_number)}</td>
+            <td>${escapeHtml(maskAccountNumber(it.account_number))}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
             <td style="color:#b22222">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</td>
           </tr>
@@ -1175,7 +1175,7 @@ const BatchDetail = () => {
                       )}
                     </TableCell>
                     <TableCell>{item.bank_name}</TableCell>
-                    <TableCell>{item.account_number}</TableCell>
+                    <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
                     <TableCell className="text-right">
                       <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
                     </TableCell>

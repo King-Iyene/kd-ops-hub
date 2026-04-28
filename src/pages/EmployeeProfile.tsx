@@ -10,7 +10,7 @@ import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
-import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { openPayslipPrintWindow } from '@/lib/payslip';
 import { displayName, initialsOf } from '@/lib/name';
 import { calculatePAYE } from '@/lib/tax';
@@ -1152,7 +1152,7 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account number</dt>
-                        <dd className="font-medium font-mono">{employee.bank_account_number}</dd>
+                        <dd className="font-medium font-mono">{maskAccountNumber(employee.bank_account_number)}</dd>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account name</dt>

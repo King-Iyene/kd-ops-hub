@@ -17,7 +17,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { formatDate, formatDateTime, formatNaira, toIsoDate } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, toIsoDate, maskAccountNumber } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -207,7 +207,7 @@ const Transactions = () => {
       statusLabel(r.status),
       r.reference,
       r.bank_name || '',
-      r.account_number || '',
+      maskAccountNumber(r.account_number) || '',
       r.account_name || '',
       r.receipt_url || '',
     ]);

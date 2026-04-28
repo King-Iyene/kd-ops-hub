@@ -87,6 +87,19 @@ export const daysUntil = (d: string | Date | null | undefined): number | null =>
   return Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
 };
 
+/**
+ * Mask a bank account number for display: show only the last 4 digits.
+ * "0123456789" → "******6789"
+ * Already-masked strings (contain *) or empty values are returned as-is.
+ */
+export const maskAccountNumber = (acct: string | null | undefined): string => {
+  if (!acct) return '—';
+  if (acct.includes('*') || acct === '—') return acct;
+  const digits = acct.replace(/\D/g, '');
+  if (digits.length === 0) return acct;
+  return '*'.repeat(Math.max(0, digits.length - 4)) + digits.slice(-4);
+};
+
 /** Convert bytes to a short human-readable label (1.2 MB). */
 export const formatBytes = (bytes: number | null | undefined): string => {
   if (!bytes && bytes !== 0) return '—';
