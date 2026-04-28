@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
-import { ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES } from '@/lib/roles';
+import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES } from '@/lib/roles';
 import { Loader as Loader2 } from 'lucide-react';
 
 // Eagerly loaded — shown before auth resolves or needed for public routes.
@@ -459,11 +459,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Disciplinary Records — Admin + Super Admin (sensitive HR data). */}
+        {/* Disciplinary Records — Admin + Super Admin only (sensitive HR data). */}
         <Route
           path="/disciplinary"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Disciplinary />
             </RoleGuard>
           }

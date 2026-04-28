@@ -1146,6 +1146,78 @@ const SettingsPage = () => {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" />
+                Module access by role
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                Access is enforced at both the route level (UI) and the database layer (RLS policies).
+                Roles not listed for a module are blocked on both layers — they cannot see the page
+                or read/write any data even via direct API calls.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left pb-2 pr-4 font-medium text-muted-foreground w-44">Module</th>
+                      {(['super_admin','admin','finance','operations','field_staff / driver'] as const).map(r => (
+                        <th key={r} className="text-center pb-2 px-2 font-medium text-muted-foreground capitalize">{r.replace('_',' ')}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {[
+                      { module: 'Dashboard',             sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+                      { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+                      { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: false, fs: false },
+                      { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
+                      { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Performance Reviews',   sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Training Records',      sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Benefits',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Onboarding',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Recruitment',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Attendance',            sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Disciplinary',          sa: true,  ad: true,  fi: false, op: false, fs: false },
+                      { module: 'Vendors',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Clients / CRM',         sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Invoices',              sa: true,  ad: true,  fi: true,  op: false, fs: false },
+                      { module: 'Assets',                sa: true,  ad: true,  fi: true,  op: false, fs: false },
+                      { module: 'Projects',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Tasks',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
+                      { module: 'Settings',              sa: true,  ad: false, fi: false, op: false, fs: false },
+                    ].map(({ module, sa, ad, fi, op, fs }) => (
+                      <tr key={module} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-1.5 pr-4 font-medium">{module}</td>
+                        {[sa, ad, fi, op, fs].map((allowed, i) => (
+                          <td key={i} className="py-1.5 px-2 text-center">
+                            <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${allowed ? 'bg-emerald-100 text-emerald-700' : 'bg-red-50 text-red-400'}`}>
+                              {allowed ? '✓' : '✕'}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 border-t pt-2">
+                Role changes are applied by editing the employee's profile in the <strong>Employees</strong> page.
+                Changes take effect on the employee's next page load (no restart required).
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Data export</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -1886,9 +1958,10 @@ function ConfigureRetentionDialog({
 // System Reference panel — tabbed by module
 // ---------------------------------------------------------------------------
 
-interface RefRow { a: string; b: string; c?: string; }
+interface RefRow { a: string; b: string; c?: string; d?: string; e?: string; f?: string; }
 
 function RefTable({ rows, cols }: { rows: RefRow[]; cols: string[] }) {
+  const keys: (keyof RefRow)[] = ['a', 'b', 'c', 'd', 'e', 'f'];
   return (
     <div className="overflow-x-auto rounded-md border">
       <table className="w-full text-sm">
@@ -1904,11 +1977,11 @@ function RefTable({ rows, cols }: { rows: RefRow[]; cols: string[] }) {
         <tbody className="divide-y divide-border/40">
           {rows.map((r, i) => (
             <tr key={i} className="hover:bg-muted/20">
-              <td className="px-3 py-2 align-top font-medium">{r.a}</td>
-              <td className="px-3 py-2 align-top text-muted-foreground">{r.b}</td>
-              {cols.length === 3 && (
-                <td className="px-3 py-2 align-top text-muted-foreground">{r.c ?? ''}</td>
-              )}
+              {cols.map((_, ci) => (
+                <td key={ci} className={`px-3 py-2 align-top ${ci === 0 ? 'font-medium' : 'text-muted-foreground'}`}>
+                  {r[keys[ci]] ?? ''}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -2516,18 +2589,52 @@ function SystemReferencePanel() {
 
           <RefSection icon={Shield} title="Access control (role matrix)">
             <RefTable
-              cols={['Resource', 'Who can access']}
+              cols={['Module / Resource', 'super_admin', 'admin', 'finance', 'operations', 'field_staff / driver']}
               rows={[
-                { a: 'Settings page',            b: 'super_admin only' },
-                { a: 'Audit Log page',           b: 'super_admin / admin only' },
-                { a: 'Employees page',           b: 'super_admin / admin only' },
-                { a: 'Audit log read',           b: 'super_admin / admin / finance / operations' },
+                { a: 'Dashboard',           b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
+                { a: 'Expenses',            b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
+                { a: 'Payroll / Payslips',  b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Budgets',             b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Fleet',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Contractors',         b: '✓', c: '✓', d: '✓', e: '—', f: '—' },
+                { a: 'Employees (HR)',       b: '✓', c: '✓', d: '—', e: '—', f: '—' },
+                { a: 'Leave',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Performance Reviews', b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Training Records',    b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Benefits',            b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Onboarding',          b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Recruitment',         b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Attendance',          b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Disciplinary',        b: '✓', c: '✓', d: '—', e: '—', f: '—' },
+                { a: 'Vendors',             b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Clients / CRM',       b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Invoices',            b: '✓', c: '✓', d: '✓', e: '—', f: '—' },
+                { a: 'Assets',              b: '✓', c: '✓', d: '✓', e: '—', f: '—' },
+                { a: 'Projects',            b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Tasks',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Goals',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Documents',           b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Audit Log',           b: '✓', c: '✓', d: '—', e: '—', f: '—' },
+                { a: 'Settings',            b: '✓', c: '—', d: '—', e: '—', f: '—' },
+              ]}
+            />
+            <p className="text-[11px] text-muted-foreground mt-2">✓ = can access · — = blocked at route and database level. Role changes take effect on the employee's next page load.</p>
+          </RefSection>
+
+          <RefSection icon={Shield} title="Fine-grained write permissions">
+            <RefTable
+              cols={['Resource', 'Who can write']}
+              rows={[
                 { a: 'Audit log write',          b: 'INSERT only — performed_by must equal your own user_id' },
                 { a: 'Documents bucket write',   b: 'admin / finance / operations / super_admin' },
-                { a: 'Approval actions',         b: 'admin / finance (single items) · admin / finance (bulk)' },
+                { a: 'Expense approval',         b: 'admin / finance (single items) · admin / finance (bulk)' },
                 { a: 'Approval comments',        b: 'admin / finance / operations only' },
                 { a: 'Employee deductions',      b: 'Self only OR admin / finance' },
                 { a: 'Tasks visibility',         b: 'Assignee + creator + admin / operations' },
+                { a: 'Invoices write',           b: 'super_admin / admin / finance only (RLS)' },
+                { a: 'Assets write',             b: 'super_admin / admin / finance only (RLS)' },
+                { a: 'Disciplinary write',       b: 'super_admin / admin only (RLS)' },
+                { a: 'Disciplinary responses',   b: 'super_admin / admin only (RLS)' },
               ]}
             />
           </RefSection>
