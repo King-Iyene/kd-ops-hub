@@ -34,7 +34,6 @@ const Subscriptions    = lazy(() => import('./pages/Subscriptions'));
 const Budgets          = lazy(() => import('./pages/Budgets'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
 const Fleet            = lazy(() => import('./pages/Fleet'));
-const LiveTracking     = lazy(() => import('./pages/LiveTracking'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
@@ -264,15 +263,8 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
-        {/* Live Tracking — admin only (super_admin / admin). */}
-        <Route
-          path="/fleet/live"
-          element={
-            <RoleGuard roles={['super_admin', 'admin']}>
-              <LiveTracking />
-            </RoleGuard>
-          }
-        />
+        {/* /fleet/live redirects to /fleet — Live Tracking is now a tab inside Fleet. */}
+        <Route path="/fleet/live" element={<Navigate to="/fleet" replace />} />
         <Route
           path="/expenses"
           element={

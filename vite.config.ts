@@ -23,22 +23,21 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return;
-          // React must be isolated BEFORE recharts/d3 — recharts pulls in
-          // victory-vendor which bundles d3 alongside CJS React helpers.
-          // If recharts runs first, React's CJS code lands in 'charts' and
-          // every page chunk that needs React imports from 'charts' → cycle.
+          // React core must be isolated so page chunks don't each inline the
+          // React CJS scheduler factory (which causes TDZ crashes when the
+          // factory fires MessagePort callbacks during lazy-chunk init).
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router') || id.includes('/react-is/') || id.includes('/scheduler/')) return 'react-core';
-          // NOTE: recharts + @react-google-maps intentionally left unassigned.
-          // Assigning either to its own chunk causes Rolldown to inline the React CJS
-          // scheduler factory inside that chunk. When LiveTracking (a lazy page chunk)
-          // statically imports from those chunks, the inlined scheduler fires MessagePort
-          // callbacks before LiveTracking's module scope finishes → TDZ crash on `const Z`.
-          // Letting Rolldown place them freely avoids the circular init entirely.
+          // date-fns is large, pure JS, safe to isolate (no React).
           if (id.includes('/date-fns/')) return 'dates';
-          if (id.includes('/@radix-ui/')) return 'radix-ui';
-          // react-redux bundles its own react-is symbols; keep it in data-layer so
-          // charts chunk doesn't carry React-like code that triggers LiveTracking TDZ.
-          if (id.includes('/@supabase/') || id.includes('/@tanstack/') || id.includes('/zustand/') || id.includes('/react-redux/') || id.includes('/use-sync-external-store/') || id.includes('/redux/') || id.includes('/reselect/') || id.includes('/immer/')) return 'data-layer';
+          // NOTE: @radix-ui, @supabase, @tanstack, recharts, @react-google-maps,
+          // react-redux, zustand and all other React-using packages are intentionally
+          // left UNASSIGNED. Giving any of them their own chunk causes Rolldown to
+          // inline the React CJS scheduler factory into that chunk. A lazy page chunk
+          // (Fleet, LiveTracking, etc.) that statically imports from it gets a
+          // circular init: scheduler fires before the page module scope finishes
+          // → Cannot access 'Z' before initialization (TDZ crash).
+          // Rolldown places unassigned modules into the shared index chunk, which
+          // initialises before any lazy page → no TDZ.
         },
       },
     },

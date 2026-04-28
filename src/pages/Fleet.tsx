@@ -58,6 +58,7 @@ import {
 } from '@/components/ui-kit/MobileCard';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
+import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, reverseGeocode as googleReverseGeocode } from '@/lib/maps';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
@@ -1291,7 +1292,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences'>('fuel');
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>('fuel');
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -3087,6 +3088,16 @@ const Fleet = () => {
                 <Shield className="mr-2 h-4 w-4" /> Geofences
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="live" className="shrink-0">
+                <Radio className="mr-2 h-4 w-4" />
+                <span className="relative flex h-2 w-2 mr-1">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                </span>
+                Live
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -4105,6 +4116,13 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="geofences" className="mt-4">
             <GeofencesTab />
+          </TabsContent>
+        )}
+
+        {/* LIVE TRACKING */}
+        {isAdmin && (
+          <TabsContent value="live" className="mt-4">
+            <LiveTrackingTab />
           </TabsContent>
         )}
       </Tabs>
