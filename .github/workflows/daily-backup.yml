@@ -1,0 +1,62 @@
+name: Daily Database Backup
+
+# Runs every day at 02:00 WAT (01:00 UTC).
+# Dumps the Supabase Postgres database and uploads it as a GitHub Actions
+# artifact — retained for 90 days (free, no storage cost).
+#
+# Setup (one-time):
+#   1. Go to your Supabase project → Settings → Database → Connection string
+#      Copy the "URI" string (starts with postgres://...)
+#   2. In GitHub → repo Settings → Secrets → Actions, add:
+#        SUPABASE_DB_URL  =  postgres://postgres.<ref>:<password>@aws-0-eu-west-2.pooler.supabase.com:5432/postgres
+#   3. Done. The workflow runs automatically every night.
+#
+# To restore from a backup:
+#   1. Download the artifact from the Actions tab
+#   2. Extract the .sql.gz file
+#   3. Run: psql "$SUPABASE_DB_URL" < backup.sql
+#      (or use the Supabase SQL editor to paste critical sections)
+
+on:
+  schedule:
+    - cron: '0 1 * * *'   # 01:00 UTC = 02:00 WAT daily
+  workflow_dispatch:       # Allow manual trigger from Actions tab
+
+jobs:
+  backup:
+    name: Dump & upload
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Install pg_dump
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
+
+      - name: Run pg_dump
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          TIMESTAMP=$(date +%Y-%m-%d)
+          pg_dump \
+            --no-password \
+            --format=plain \
+            --no-owner \
+            --no-acl \
+            "${{ secrets.SUPABASE_DB_URL }}" \
+            | gzip > "kdops-backup-${TIMESTAMP}.sql.gz"
+          echo "BACKUP_FILE=kdops-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90   # Keep 90 days of backups — free on GitHub
+
+      - name: Report size
+        run: |
+          SIZE=$(du -sh "${{ env.BACKUP_FILE }}" | cut -f1)
+          echo "Backup size: $SIZE"
+          echo "Retained for 90 days in GitHub Actions artifacts."
