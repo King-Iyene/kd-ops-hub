@@ -101,6 +101,9 @@ serve(async (req) => {
     const runId = (run as any)?.id;
 
     try {
+      const secret = await getPaystackSecret(service);
+
+      // ── Pass 1: resolve stuck items (pending/retry older than threshold) ──
       const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
       const { data: stuckItems, error: fetchErr } = await service
         .from("batch_items")
@@ -113,17 +116,6 @@ serve(async (req) => {
       if (fetchErr) throw fetchErr;
 
       const items = (stuckItems || []) as any[];
-      if (items.length === 0) {
-        await service.from("paystack_reconciliation_runs").update({
-          completed_at: new Date().toISOString(),
-          items_checked: 0,
-          status: "success",
-          notes: "No stuck items.",
-        }).eq("id", runId);
-        return json({ ok: true, items_checked: 0, message: "No stuck items." });
-      }
-
-      const secret = await getPaystackSecret(service);
       let succeeded = 0;
       let failed = 0;
       let unchanged = 0;
@@ -161,7 +153,6 @@ serve(async (req) => {
             }).eq("id", it.id);
             failed++;
           } else {
-            // Still in flight on Paystack's side — leave alone.
             unchanged++;
           }
         } catch (e) {
@@ -171,24 +162,55 @@ serve(async (req) => {
       }
 
       // Recompute parent batch statuses for any batch we touched.
-      const touchedBatches = new Set(items.map((i) => i.batch_id));
+      const touchedBatches = new Set(items.map((i: any) => i.batch_id));
       for (const bid of touchedBatches) {
         const { data: rows } = await service
           .from("batch_items").select("status").eq("batch_id", bid);
         const all = (rows || []) as any[];
         if (all.length === 0) continue;
-        const anyPending = all.some((r) => ["pending", "retry"].includes(r.status));
-        const anyFailed = all.some((r) => r.status === "failed");
-        const allOk = all.every((r) => r.status === "succeeded");
-        const correct = anyPending
-          ? "processing"
-          : allOk
-          ? "processed"
-          : anyFailed
-          ? "partially_processed"
+        const anyPending = all.some((r: any) => ["pending", "retry"].includes(r.status));
+        const anyFailed = all.some((r: any) => r.status === "failed");
+        const allOk = all.every((r: any) => r.status === "succeeded");
+        const correct = anyPending ? "processing"
+          : allOk ? "processed"
+          : anyFailed ? "partially_processed"
           : "processing";
         await service.from("payment_batches").update({ status: correct }).eq("id", bid);
       }
+
+      // ── Pass 2: backfill fees for succeeded items that have fee = 0 ───────
+      // Paystack's transfer.success webhook doesn't include the fee field,
+      // so older rows have paystack_fee_ngn = 0. Fetch the fee from the
+      // verify endpoint and fill it in so charge rows appear in Transactions.
+      const { data: feeItems } = await service
+        .from("batch_items")
+        .select("id, paystack_reference")
+        .eq("status", "succeeded")
+        .eq("paystack_fee_ngn", 0)
+        .not("paystack_reference", "is", null)
+        .limit(200);
+
+      let feesBackfilled = 0;
+      for (const it of (feeItems || []) as any[]) {
+        try {
+          const res = await fetch(
+            `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
+            { headers: { Authorization: `Bearer ${secret}` } },
+          );
+          const body = await res.json();
+          const feeKobo = Number(body.data?.fee) || 0;
+          if (feeKobo > 0) {
+            await service.from("batch_items")
+              .update({ paystack_fee_ngn: feeKobo / 100 })
+              .eq("id", it.id);
+            feesBackfilled++;
+          }
+        } catch {
+          // non-fatal
+        }
+      }
+      console.log(`[reconciliation] fee backfill: ${feesBackfilled} items updated`);
+      // ── End fee backfill ──────────────────────────────────────────────────
 
       await service.from("paystack_reconciliation_runs").update({
         completed_at: new Date().toISOString(),
@@ -197,6 +219,7 @@ serve(async (req) => {
         items_failed: failed,
         items_unchanged: unchanged,
         status: "success",
+        notes: items.length === 0 ? `No stuck items. Fees backfilled: ${feesBackfilled}` : null,
       }).eq("id", runId);
 
       return json({
@@ -205,6 +228,7 @@ serve(async (req) => {
         succeeded,
         failed,
         unchanged,
+        fees_backfilled: feesBackfilled,
       });
     } catch (e: any) {
       await service.from("paystack_reconciliation_runs").update({

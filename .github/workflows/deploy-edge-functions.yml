@@ -1,28 +1,65 @@
 name: Deploy Supabase Edge Functions
 
+# ─── SETUP ───────────────────────────────────────────────────────────────────
+#
+# This workflow deploys edge functions when supabase/functions/** changes.
+#
+# Required GitHub Secrets (repo → Settings → Secrets and variables → Actions):
+#
+#   SUPABASE_ACCESS_TOKEN  — Personal Access Token from:
+#                            https://supabase.com/dashboard/account/tokens
+#                            Must be a PERSONAL ACCESS TOKEN (not the project
+#                            anon key or service_role key — those won't work).
+#                            Create one named "GitHub Actions" with full access.
+#
+#   SUPABASE_PROJECT_REF   — Your project ref (the slug in your Supabase URL).
+#                            e.g. if your URL is:
+#                            https://supabase.com/dashboard/project/abcdefgh
+#                            then SUPABASE_PROJECT_REF = abcdefgh
+#
+# If you see a 403 "account does not have necessary privileges":
+#   → Your token is wrong. It must be a Personal Access Token, not a project key.
+#   → Go to https://supabase.com/dashboard/account/tokens and create a new one.
+#   → Update the SUPABASE_ACCESS_TOKEN secret with the new token.
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches: [main]
     paths:
       - 'supabase/functions/**'
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
+      - name: Install Supabase CLI
+        run: |
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          echo "Installing Supabase CLI v${VERSION}"
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
+          sudo dpkg -i supabase.deb
+          rm -f supabase.deb
+          supabase --version
 
       - name: Deploy paystack-transfer
-        run: supabase functions deploy paystack-transfer --project-ref jsgdueezvrifykrreuun --no-verify-jwt
+        run: supabase functions deploy paystack-transfer --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
       - name: Deploy paystack-webhook
-        run: supabase functions deploy paystack-webhook --project-ref jsgdueezvrifykrreuun --no-verify-jwt
+        run: supabase functions deploy paystack-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy paystack-reconciliation
+        run: supabase functions deploy paystack-reconciliation --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
       - name: Deploy send-email
-        run: supabase functions deploy send-email --project-ref jsgdueezvrifykrreuun --no-verify-jwt
+        run: supabase functions deploy send-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
