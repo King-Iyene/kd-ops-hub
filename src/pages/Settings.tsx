@@ -2337,14 +2337,14 @@ function SystemReferencePanel() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <p className="font-semibold text-primary">One-time setup (5 min)</p>
+                  <p className="font-semibold text-primary">One-time setup (2 min)</p>
                   <ol className="space-y-1 list-decimal list-inside text-muted-foreground">
-                    <li>Open Supabase → <strong>Settings → Database</strong></li>
-                    <li>Scroll to <strong>"Connection string"</strong> → click <strong>URI tab</strong></li>
-                    <li>Copy the string that starts with <code>postgresql://postgres...</code></li>
-                    <li>Go to GitHub repo → <strong>Settings → Secrets → Actions</strong></li>
-                    <li>Add secret named <strong><code>SUPABASE_DB_URL</code></strong> and paste the string</li>
-                    <li>Done — backup runs tonight automatically</li>
+                    <li><strong>SUPABASE_ACCESS_TOKEN</strong> — already in GitHub secrets ✅</li>
+                    <li>Find your project ref: open Supabase → look at the URL:<br />
+                      <code className="text-xs">supabase.com/dashboard/project/<strong>THIS_PART</strong></code></li>
+                    <li>GitHub repo → <strong>Settings → Secrets → Actions → New secret</strong></li>
+                    <li>Name: <strong><code>SUPABASE_PROJECT_REF</code></strong> · Value: paste the ref</li>
+                    <li>Done — backup runs tonight automatically ✅</li>
                   </ol>
                 </div>
                 <div className="space-y-2">
@@ -2369,7 +2369,7 @@ function SystemReferencePanel() {
                   { a: 'When storage fills', b: 'The workflow logs a warning if a single backup exceeds 15 MB. Check usage at github.com/settings/billing → Storage. Fix: reduce retention_days in the workflow file from 30 to 14, or upgrade to GitHub Pro ($4/mo) for 2 GB.' },
                   { a: 'What is backed up',  b: 'Full logical dump: all tables, data, and indexes. Does NOT include Supabase Edge Function secrets (those live in Supabase Vault — record them separately in a password manager).' },
                   { a: 'Manual trigger',     b: 'GitHub → Actions → "Daily Database Backup" → "Run workflow" button. Use this before any major migration or data change.' },
-                  { a: 'Verify it is running', b: 'After setup, go to Actions tab — you should see green checkmarks. A red X means the SUPABASE_DB_URL secret is wrong or missing.' },
+                  { a: 'Verify it is running', b: 'After setup, go to GitHub → Actions tab → "Daily Database Backup" — green checkmarks = working. A red X means SUPABASE_PROJECT_REF secret is wrong or missing.' },
                 ]}
               />
             </CardContent>
