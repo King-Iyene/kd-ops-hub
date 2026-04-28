@@ -4246,12 +4246,11 @@ const Fleet = () => {
                     {isGeoError(startGeoState)     && <LocateOff className="h-3 w-3 shrink-0" />}
                     {startGeoState === 'idle'      && <LocateFixed className="h-3 w-3 shrink-0 opacity-40" />}
                     <span className="flex-1">
-                      {startGeoState === 'acquiring' && 'Detecting GPS… you can type a location above too.'}
+                      {startGeoState === 'acquiring' && 'Detecting GPS…'}
                       {startGeoState === 'ok' && startCoords && (
                         <>GPS detected{startCoords ? ` (±${Math.round(startCoords.accuracy)} m)` : ''} — location filled above.</>
                       )}
                       {isGeoError(startGeoState) && 'GPS unavailable — type your location above to continue.'}
-                      {startGeoState === 'idle' && 'Type your location above, or:'}
                     </span>
                     {(isGeoError(startGeoState) || startGeoState === 'ok' || startGeoState === 'idle') && (
                       <button
@@ -4423,10 +4422,9 @@ const Fleet = () => {
                 {isGeoError(endGeoState)     && <LocateOff className="h-3 w-3 shrink-0" />}
                 {endGeoState === 'idle'      && <LocateFixed className="h-3 w-3 shrink-0 opacity-40" />}
                 <span className="flex-1">
-                  {endGeoState === 'acquiring' && 'Detecting GPS… you can type a location above too.'}
+                  {endGeoState === 'acquiring' && 'Detecting GPS…'}
                   {endGeoState === 'ok' && endCoords && <>GPS detected{endCoords ? ` (±${Math.round(endCoords.accuracy)} m)` : ''} — location filled above.</>}
                   {isGeoError(endGeoState) && 'GPS unavailable — type your location above to continue.'}
-                  {endGeoState === 'idle' && 'Type your location above, or:'}
                 </span>
                 {(isGeoError(endGeoState) || endGeoState === 'ok' || endGeoState === 'idle') && (
                   <button
