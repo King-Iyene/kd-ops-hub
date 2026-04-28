@@ -1670,6 +1670,10 @@ const Fleet = () => {
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
     setLastVehicleOdometer(null);
     setStartGeoState('idle');
+    acquireGeo(setStartGeoState, setStartCoords, (addr) => {
+      setStartAddress(addr);
+      setStartTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
+    });
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
         setStartTripForm((f) => ({ ...f, odometer_start: v })),
@@ -1730,6 +1734,10 @@ const Fleet = () => {
     setEndAddress(null);
     setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
     setEndGeoState('idle');
+    acquireGeo(setEndGeoState, setEndCoords, (addr) => {
+      setEndAddress(addr);
+      setEndTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
+    });
   };
 
   const handleEndTrip = async () => {
