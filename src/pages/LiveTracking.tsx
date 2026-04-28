@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -7,23 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { AuroraHero } from '@/components/AuroraHero';
-import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle } from 'lucide-react';
-import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle, Map as MapIcon } from 'lucide-react';
+import { useJsApiLoader, GoogleMap, Polyline as GPolyline } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
 import { cn } from '@/lib/utils';
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-  iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-  shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-});
-
-const TRAIL_WINDOW_MS = 30 * 60 * 1000;        // last 30 min of pings on map
-const STALE_THRESHOLD_MS = 90 * 1000;          // > 90s without a ping = stale
-const SPEED_THRESHOLD_KMH = 100;               // matches Fleet.tsx
-const LAGOS_CENTER: [number, number] = [6.5244, 3.3792];
+const TRAIL_WINDOW_MS = 30 * 60 * 1000;
+const STALE_THRESHOLD_MS = 90 * 1000;
+const SPEED_THRESHOLD_KMH = 100;
+const LAGOS_CENTER: google.maps.LatLngLiteral = { lat: 6.5244, lng: 3.3792 };
+const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
 type Ping = {
   lat: number;
@@ -109,75 +102,100 @@ const formatPingAge = (ms: number): string => {
   return `${Math.floor(s / 3600)}h ago`;
 };
 
-// ── Custom map icon ──────────────────────────────────────────────────────────
+// ── Driver Overlay ────────────────────────────────────────────────────────────
 //
-// Built as a DivIcon so we can target the inner direction-arrow with a CSS
-// selector and rotate it via the requestAnimationFrame interpolation loop
-// without rebuilding the icon on every frame.
+// A custom google.maps.OverlayView that renders the driver bubble as HTML.
+// The rAF interpolation loop calls .setPosition() and targets the
+// .kd-driver-arrow element for bearing rotation — same approach as the
+// previous Leaflet DivIcon but adapted for the Google Maps overlay API.
 //
-// Layout (44×44 box, anchor 22,22):
-//   • outer pulsing aura (only when fresh)
-//   • directional arrow chevron — rotated to face heading, sits BEHIND the
-//     bubble so it reads as "the bubble is heading that way"
-//   • inner bubble with driver initials
-const driverIcon = (opts: { initials: string; color: string; pulse: boolean; selected: boolean; tripId: string }) =>
-  L.divIcon({
-    className: 'kd-driver-icon',
-    html: `
-      <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
-        ${opts.pulse ? `<div style="position:absolute;inset:6px;border-radius:50%;background:${opts.color};opacity:0.25;animation:kd-live-pulse 1.6s ease-out infinite;pointer-events:none;"></div>` : ''}
-        <div class="kd-driver-arrow" data-trip="${opts.tripId}" style="
-          position:absolute;inset:0;
-          transform:rotate(0deg);
-          transform-origin:50% 50%;
-          pointer-events:none;
-        ">
-          <div style="
-            position:absolute;left:50%;top:-2px;
-            transform:translateX(-50%);
-            width:0;height:0;
-            border-left:7px solid transparent;
-            border-right:7px solid transparent;
-            border-bottom:11px solid ${opts.color};
-            filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));
-          "></div>
-        </div>
-        <div style="
-          position:relative;z-index:2;
-          width:32px;height:32px;border-radius:50%;
-          background:${opts.color};
-          color:white;font-weight:700;font-size:11px;letter-spacing:0.5px;
-          display:flex;align-items:center;justify-content:center;
-          border:${opts.selected ? '3px' : '2.5px'} solid white;
-          box-shadow:0 0 0 ${opts.selected ? '3px' : '1px'} ${opts.color}90,0 6px 14px rgba(0,0,0,0.35);
-        ">${opts.initials}</div>
-      </div>`,
-    iconSize: [48, 48],
-    iconAnchor: [24, 24],
-  });
+// The class is created lazily (inside makeDriverOverlayClass) because
+// google.maps.OverlayView is only available after the Maps JS API loads.
 
-// ── Auto-fit map to all driver positions on first load ──────────────────────
-function FitBoundsToDrivers({ points, version }: { points: [number, number][]; version: number }) {
-  const map = useMap();
-  useEffect(() => {
-    if (points.length === 0) return;
-    if (points.length === 1) {
-      map.setView(points[0], 15, { animate: true });
-      return;
+type DriverOverlayConfig = {
+  initials: string;
+  color: string;
+  pulse: boolean;
+  selected: boolean;
+};
+
+function makeDriverOverlayClass() {
+  return class DriverOverlay extends google.maps.OverlayView {
+    private pos: google.maps.LatLng;
+    private el: HTMLDivElement | null = null;
+    private cfg: DriverOverlayConfig;
+    private clickHandler: (() => void) | null = null;
+
+    constructor(pos: google.maps.LatLngLiteral, cfg: DriverOverlayConfig) {
+      super();
+      this.pos = new google.maps.LatLng(pos);
+      this.cfg = cfg;
     }
-    map.fitBounds(L.latLngBounds(points), { padding: [60, 60], maxZoom: 16, animate: true });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [version]);
-  return null;
-}
 
-function FlyToPoint({ point }: { point: [number, number] | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (point) map.flyTo(point, Math.max(map.getZoom(), 16), { duration: 0.8 });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [point?.[0], point?.[1]]);
-  return null;
+    private html(): string {
+      const { initials, color, pulse, selected } = this.cfg;
+      return `<div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%)">
+        ${pulse ? `<div style="position:absolute;inset:6px;border-radius:50%;background:${color};opacity:0.25;animation:kd-live-pulse 1.6s ease-out infinite;pointer-events:none;"></div>` : ''}
+        <div class="kd-driver-arrow" style="position:absolute;inset:0;transform:rotate(0deg);transform-origin:50% 50%;pointer-events:none;">
+          <div style="position:absolute;left:50%;top:-2px;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:11px solid ${color};filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));"></div>
+        </div>
+        <div style="position:relative;z-index:2;width:32px;height:32px;border-radius:50%;background:${color};color:white;font-weight:700;font-size:11px;letter-spacing:0.5px;display:flex;align-items:center;justify-content:center;border:${selected ? '3px' : '2.5px'} solid white;box-shadow:0 0 0 ${selected ? '3px' : '1px'} ${color}90,0 6px 14px rgba(0,0,0,0.35);">${initials}</div>
+      </div>`;
+    }
+
+    onAdd() {
+      this.el = document.createElement('div');
+      this.el.style.cssText = 'position:absolute;cursor:pointer;user-select:none;';
+      this.el.innerHTML = this.html();
+      if (this.clickHandler) this.el.addEventListener('click', this.clickHandler);
+      this.getPanes()!.overlayMouseTarget.appendChild(this.el);
+    }
+
+    draw() {
+      if (!this.el) return;
+      const proj = this.getProjection();
+      if (!proj) return;
+      const px = proj.fromLatLngToDivPixel(this.pos);
+      if (!px) return;
+      this.el.style.left = `${px.x}px`;
+      this.el.style.top = `${px.y}px`;
+    }
+
+    onRemove() {
+      this.el?.remove();
+      this.el = null;
+    }
+
+    setPosition(lat: number, lng: number) {
+      this.pos = new google.maps.LatLng(lat, lng);
+      this.draw();
+    }
+
+    getArrow(): HTMLElement | null {
+      return this.el?.querySelector<HTMLElement>('.kd-driver-arrow') ?? null;
+    }
+
+    getElement(): HTMLElement | null {
+      return this.el;
+    }
+
+    updateConfig(cfg: Partial<DriverOverlayConfig>) {
+      this.cfg = { ...this.cfg, ...cfg };
+      if (this.el) {
+        const prevArrow = this.getArrow();
+        const prevTransform = prevArrow?.style.transform ?? 'rotate(0deg)';
+        this.el.innerHTML = this.html();
+        // Re-apply bearing so the arrow doesn't reset to 0° after a colour change
+        const nextArrow = this.getArrow();
+        if (nextArrow) nextArrow.style.transform = prevTransform;
+      }
+    }
+
+    onClick(handler: () => void) {
+      this.clickHandler = handler;
+      this.el?.addEventListener('click', handler);
+    }
+  };
 }
 
 export default function LiveTracking() {
@@ -190,6 +208,24 @@ export default function LiveTracking() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [now, setNow] = useState(Date.now());
+
+  // ── Google Maps state ──────────────────────────────────────────────────────
+  const { isLoaded: mapsLoaded } = useJsApiLoader({
+    id: 'kd-gmaps',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: MAPS_LIBRARIES,
+  });
+  const [googleMap, setGoogleMap] = useState<google.maps.Map | null>(null);
+  const onMapLoad = useCallback((map: google.maps.Map) => setGoogleMap(map), []);
+
+  // The DriverOverlay class is only available after the Maps JS API loads.
+  type AnyDriverOverlay = InstanceType<ReturnType<typeof makeDriverOverlayClass>>;
+  const OverlayClassRef = useRef<ReturnType<typeof makeDriverOverlayClass> | null>(null);
+  useEffect(() => {
+    if (mapsLoaded && !OverlayClassRef.current) {
+      OverlayClassRef.current = makeDriverOverlayClass();
+    }
+  }, [mapsLoaded]);
 
   // ── Smooth animation refs ─────────────────────────────────────────────────
   //
@@ -212,7 +248,7 @@ export default function LiveTracking() {
     startTime: number;
     duration: number;
   };
-  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+  const markerRefs = useRef<Map<string, AnyDriverOverlay>>(new Map());
   const animRef = useRef<Map<string, AnimState>>(new Map());
   const displayPosRef = useRef<Map<string, { lat: number; lng: number; bearing: number }>>(new Map());
 
@@ -264,17 +300,18 @@ export default function LiveTracking() {
         const bearing = ((anim.fromBearing + delta * tBear) % 360 + 360) % 360;
 
         const m = markerRefs.current.get(tripId);
-        if (m) m.setLatLng([lat, lng]);
+        if (m) m.setPosition(lat, lng);
         displayPosRef.current.set(tripId, { lat, lng, bearing });
 
         if (tPos >= 1) animRef.current.delete(tripId);
       }
 
-      // Re-apply bearing to every mounted marker (rebuild-proof).
+      // Re-apply bearing to every mounted overlay (rebuild-proof — updateConfig
+      // preserves it, but explicit re-apply costs nearly nothing and is safer).
       for (const [tripId, marker] of markerRefs.current) {
         const display = displayPosRef.current.get(tripId);
         if (!display) continue;
-        const arrow = marker.getElement()?.querySelector('.kd-driver-arrow') as HTMLElement | null;
+        const arrow = marker.getArrow();
         if (!arrow) continue;
         const want = `rotate(${display.bearing}deg)`;
         if (arrow.style.transform !== want) arrow.style.transform = want;
@@ -291,6 +328,69 @@ export default function LiveTracking() {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Overlay lifecycle — syncs tripList with DriverOverlay instances ──────
+  useEffect(() => {
+    if (!googleMap || !OverlayClassRef.current) return;
+    const OverlayClass = OverlayClassRef.current;
+
+    // Remove overlays for trips that have ended
+    for (const [id, overlay] of markerRefs.current) {
+      if (!trips.has(id)) {
+        overlay.setMap(null);
+        markerRefs.current.delete(id);
+      }
+    }
+
+    // Create or update overlays for current trips
+    for (const row of tripList) {
+      if (row.lat == null || row.lng == null) continue;
+      const t = row.trip;
+      const color = row.speeding ? '#dc2626' : row.stale ? '#94a3b8' : '#0ea5e9';
+      const existing = markerRefs.current.get(t.id);
+
+      if (existing) {
+        existing.updateConfig({ color, pulse: !row.stale, selected: selectedId === t.id });
+      } else {
+        const display = displayPosRef.current.get(t.id);
+        const pos = display ? { lat: display.lat, lng: display.lng } : { lat: row.lat, lng: row.lng };
+        const overlay = new OverlayClass(pos, {
+          initials: initialsOf(t.driver_name),
+          color,
+          pulse: !row.stale,
+          selected: selectedId === t.id,
+        });
+        overlay.setMap(googleMap);
+        overlay.onClick(() => setSelectedId(t.id));
+        markerRefs.current.set(t.id, overlay);
+      }
+    }
+  }, [googleMap, tripList, selectedId]);
+
+  // ── Fit bounds when driver set changes (not on every GPS ping) ───────────
+  const lastFitVersion = useRef('');
+  useEffect(() => {
+    if (!googleMap || fitVersion === lastFitVersion.current) return;
+    lastFitVersion.current = fitVersion;
+    const pts = tripList.filter((r) => r.lat != null && r.lng != null);
+    if (pts.length === 0) return;
+    if (pts.length === 1) {
+      googleMap.setCenter({ lat: pts[0].lat!, lng: pts[0].lng! });
+      googleMap.setZoom(15);
+    } else {
+      const bounds = new google.maps.LatLngBounds();
+      pts.forEach((r) => bounds.extend({ lat: r.lat!, lng: r.lng! }));
+      googleMap.fitBounds(bounds, 60);
+    }
+  }, [googleMap, fitVersion, tripList]);
+
+  // ── Fly to selected driver ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!googleMap || !flyTarget) return;
+    googleMap.panTo({ lat: flyTarget[0], lng: flyTarget[1] });
+    if ((googleMap.getZoom() ?? 0) < 16) googleMap.setZoom(16);
+    setFlyTarget(null);
+  }, [googleMap, flyTarget]);
 
   // ── Fetch a single trip with its trail (used on initial load + on new trip) ──
   const fetchTrip = async (tripId: string): Promise<LiveTrip | null> => {
@@ -531,20 +631,23 @@ export default function LiveTracking() {
   }, [trips, search, now]);
 
   const mapPoints = useMemo<[number, number][]>(() =>
-    tripList.filter((r) => r.lat != null && r.lng != null).map((r) => [r.lat as number, r.lng as number]),
+    tripList.filter((r) => r.lat != null && r.lng != null).map((r) => [r.lat as number, r.lng as number] as [number, number]),
   [tripList]);
+  const mapCenter = useMemo<google.maps.LatLngLiteral>(() =>
+    mapPoints.length > 0 ? { lat: mapPoints[0][0], lng: mapPoints[0][1] } : LAGOS_CENTER,
+  [mapPoints]);
 
   // Re-fit bounds whenever the *set* of drivers changes (not on every tick)
   const fitVersion = useMemo(() => Array.from(trips.keys()).sort().join(','), [trips]);
 
   // ── Permission gate ──
-  const allowed = ['super_admin', 'admin', 'operations'].includes(profile?.role ?? '');
+  const allowed = ['super_admin', 'admin'].includes(profile?.role ?? '');
   if (!allowed) {
     return (
       <div className="container mx-auto px-4 py-8">
         <EmptyState
           title="Access denied"
-          description="Live Tracking is available to managers (Super Admin, Admin, Operations)."
+          description="Live Tracking is available to admins only."
         />
       </div>
     );
@@ -717,88 +820,42 @@ export default function LiveTracking() {
 
         {/* Map */}
         <div className="rounded-xl overflow-hidden border border-border/60 shadow-sm bg-muted/30 h-[60vh] lg:h-[calc(100vh-280px)] min-h-[400px]">
-          <MapContainer
-            center={mapPoints[0] ?? LAGOS_CENTER}
-            zoom={mapPoints[0] ? 14 : 11}
-            style={{ height: '100%', width: '100%' }}
-            scrollWheelZoom
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            <FitBoundsToDrivers points={mapPoints} version={fitVersion.length} />
-            <FlyToPoint point={flyTarget} />
-
-            {tripList.map((row) => {
-              const t = row.trip;
-              if (row.lat == null || row.lng == null) return null;
-              const color = row.speeding ? '#dc2626' : row.stale ? '#94a3b8' : '#0ea5e9';
-
-              const trailPositions: [number, number][] = t.trail.map((p) => [p.lat, p.lng]);
-              if (t.start_lat != null && t.start_lng != null) {
-                trailPositions.unshift([t.start_lat, t.start_lng]);
-              }
-
-              // Use the displayed position (rAF-driven) for the marker prop so
-              // that React rerenders (caused by trail/state changes) DON'T jump
-              // the marker — the rAF loop owns visual position.
-              const display = displayPosRef.current.get(t.id);
-              const markerPos: [number, number] = display
-                ? [display.lat, display.lng]
-                : [row.lat, row.lng];
-
-              return (
-                <span key={t.id}>
-                  {trailPositions.length > 1 && (
-                    <>
-                      <Polyline positions={trailPositions} color={color} weight={8} opacity={0.18} />
-                      <Polyline positions={trailPositions} color={color} weight={3} opacity={0.85} />
-                    </>
-                  )}
-                  <Marker
-                    ref={(m) => {
-                      if (m) markerRefs.current.set(t.id, m);
-                      else markerRefs.current.delete(t.id);
-                    }}
-                    position={markerPos}
-                    icon={driverIcon({
-                      initials: initialsOf(t.driver_name),
-                      color,
-                      pulse: !row.stale,
-                      selected: selectedId === t.id,
-                      tripId: t.id,
-                    })}
-                    eventHandlers={{ click: () => setSelectedId(t.id) }}
-                  >
-                    <Popup>
-                      <div className="space-y-0.5 min-w-[200px]">
-                        <strong>{t.driver_name}</strong>
-                        {t.vehicle_plate && <div className="text-xs">{t.vehicle_plate} · {t.vehicle_name ?? ''}</div>}
-                        <div className="text-xs">Elapsed: <strong>{formatElapsed(row.elapsedMs)}</strong></div>
-                        <div className="text-xs">
-                          Speed: <strong>{row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)} km/h` : '—'}</strong>
-                          {row.speeding && <span className="ml-1 text-red-600 font-semibold">⚠ speeding</span>}
-                        </div>
-                        {row.distanceKm > 0 && (
-                          <div className="text-xs">Distance covered: <strong>{row.distanceKm.toFixed(1)} km</strong></div>
-                        )}
-                        {row.maxSpeedKmh > 0 && (
-                          <div className="text-xs">Max speed: <strong>{Math.round(row.maxSpeedKmh)} km/h</strong></div>
-                        )}
-                        {row.lastPingMs != null && (
-                          <div className="text-xs">
-                            Last ping: {formatPingAge(now - row.lastPingMs)}
-                            {row.stale && <span className="ml-1 text-amber-600 font-semibold">(stale)</span>}
-                          </div>
-                        )}
-                      </div>
-                    </Popup>
-                  </Marker>
-                </span>
-              );
-            })}
-          </MapContainer>
+          {!GOOGLE_MAPS_API_KEY ? (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
+              <MapIcon className="h-8 w-8 opacity-30" />
+              <p>Add <code className="bg-muted px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> to enable maps</p>
+            </div>
+          ) : !mapsLoaded ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <GoogleMap
+              center={mapCenter}
+              zoom={mapPoints.length > 0 ? 14 : 11}
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              options={{ ...MAP_OPTIONS, fullscreenControl: true }}
+              onLoad={onMapLoad}
+            >
+              {/* Trail polylines — rendered declaratively; driver positions
+                  managed imperatively by DriverOverlay via the rAF loop */}
+              {tripList.map((row) => {
+                if (row.lat == null || row.lng == null) return null;
+                const t = row.trip;
+                const color = row.speeding ? '#dc2626' : row.stale ? '#94a3b8' : '#0ea5e9';
+                const trail: google.maps.LatLngLiteral[] = [];
+                if (t.start_lat != null && t.start_lng != null) trail.push({ lat: t.start_lat, lng: t.start_lng });
+                t.trail.forEach((p) => trail.push({ lat: p.lat, lng: p.lng }));
+                if (trail.length < 2) return null;
+                return (
+                  <span key={t.id}>
+                    <GPolyline path={trail} options={{ strokeColor: color, strokeWeight: 8, strokeOpacity: 0.18 }} />
+                    <GPolyline path={trail} options={{ strokeColor: color, strokeWeight: 3, strokeOpacity: 0.85 }} />
+                  </span>
+                );
+              })}
+            </GoogleMap>
+          )}
         </div>
       </div>
 

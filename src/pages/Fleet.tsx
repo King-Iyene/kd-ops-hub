@@ -58,16 +58,8 @@ import {
 } from '@/components/ui-kit/MobileCard';
 import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-// Fix Leaflet default marker icons broken by Vite's asset pipeline
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconUrl: new URL('leaflet/dist/images/marker-icon.png', import.meta.url).href,
-  iconRetinaUrl: new URL('leaflet/dist/images/marker-icon-2x.png', import.meta.url).href,
-  shadowUrl: new URL('leaflet/dist/images/marker-shadow.png', import.meta.url).href,
-});
+import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, reverseGeocode as googleReverseGeocode } from '@/lib/maps';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
@@ -333,41 +325,98 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 // Reverse geocoding (Nominatim / OpenStreetMap — free, no API key required)
 // ---------------------------------------------------------------------------
 
-const geocodeCache = new Map<string, string>();
-
+// Thin wrapper: calls Google Geocoding API, falls back to coordinate string.
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  const key = `${lat.toFixed(4)},${lng.toFixed(4)}`;
-  if (geocodeCache.has(key)) return geocodeCache.get(key)!;
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
-      { headers: { 'Accept-Language': 'en-GB', 'User-Agent': 'KD-Ops-Hub-Fleet/1.0' } },
-    );
-    if (!res.ok) throw new Error('geocode_fail');
-    const json = await res.json();
-    const address = (json.display_name as string) || formatCoords(lat, lng);
-    geocodeCache.set(key, address);
-    return address;
-  } catch {
-    return formatCoords(lat, lng);
-  }
+  const result = await googleReverseGeocode(lat, lng);
+  return result ?? formatCoords(lat, lng);
 }
 
 // ---------------------------------------------------------------------------
-// Trip map sub-components (must live before Fleet to satisfy JSX scope)
+// Trip map sub-components (Google Maps — must live before Fleet component)
 // ---------------------------------------------------------------------------
 
-function FitBoundsToRoute({ points }: { points: [number, number][] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (points.length >= 2) {
-      map.fitBounds(points as L.LatLngTuple[], { padding: [32, 32], maxZoom: 15 });
-    } else if (points.length === 1) {
-      map.setView(points[0] as L.LatLngTuple, 14);
+const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
+
+function TripGoogleMap({ trail, startPos, endPos, events }: {
+  trail: [number, number][];
+  startPos: [number, number] | null;
+  endPos: [number, number] | null;
+  events: { id: string; lat: number; lng: number; event_type: string; details: string; recorded_at: string }[];
+}) {
+  const { isLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const [gmap, setGmap] = useState<google.maps.Map | null>(null);
+
+  const center: google.maps.LatLngLiteral = useMemo(() => {
+    if (trail.length > 0) return { lat: trail[Math.floor(trail.length / 2)][0], lng: trail[Math.floor(trail.length / 2)][1] };
+    if (startPos) return { lat: startPos[0], lng: startPos[1] };
+    return { lat: 6.5244, lng: 3.3792 };
+  }, [trail, startPos]);
+
+  const onLoad = useCallback((map: google.maps.Map) => {
+    setGmap(map);
+    const allPoints = [...trail.map(([lat, lng]) => ({ lat, lng }))];
+    if (startPos) allPoints.push({ lat: startPos[0], lng: startPos[1] });
+    if (endPos) allPoints.push({ lat: endPos[0], lng: endPos[1] });
+    if (allPoints.length >= 2) {
+      const bounds = new google.maps.LatLngBounds();
+      allPoints.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds, 32);
+    } else if (allPoints.length === 1) {
+      map.setCenter(allPoints[0]);
+      map.setZoom(14);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
+  }, [trail, startPos, endPos]);
+
+  const trailPath = useMemo(() => trail.map(([lat, lng]) => ({ lat, lng })), [trail]);
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-muted-foreground">
+        <MapIcon className="h-8 w-8 opacity-30" />
+        <p>Add <code className="bg-muted px-1 rounded">VITE_GOOGLE_MAPS_API_KEY</code> to enable maps</p>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <GoogleMap
+      center={center}
+      zoom={13}
+      mapContainerStyle={{ width: '100%', height: '100%' }}
+      options={{ ...MAP_OPTIONS, fullscreenControl: true }}
+      onLoad={onLoad}
+    >
+      {trailPath.length > 1 && (
+        <>
+          <GPolyline path={trailPath} options={{ strokeColor: '#00ECFF', strokeWeight: 8, strokeOpacity: 0.18 }} />
+          <GPolyline path={trailPath} options={{ strokeColor: '#006994', strokeWeight: 3, strokeOpacity: 0.9 }} />
+        </>
+      )}
+      {startPos && (
+        <OverlayView position={{ lat: startPos[0], lng: startPos[1] }} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+          <div className="kd-trip-marker-start" style={{ transform: 'translate(-50%, -50%)' }} />
+        </OverlayView>
+      )}
+      {endPos && (
+        <OverlayView position={{ lat: endPos[0], lng: endPos[1] }} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+          <div className="kd-trip-marker-end" style={{ transform: 'translate(-50%, -50%)' }} />
+        </OverlayView>
+      )}
+      {events.map((ev) => (
+        <OverlayView key={ev.id} position={{ lat: ev.lat, lng: ev.lng }} mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}>
+          <div className="kd-trip-marker-event" style={{ transform: 'translate(-50%, -50%)' }} title={EVENT_LABEL[ev.event_type] || ev.event_type} />
+        </OverlayView>
+      ))}
+    </GoogleMap>
+  );
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -404,34 +453,8 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
   const endPos: [number, number] | null =
     trip.end_lat != null && trip.end_lng != null ? [trip.end_lat, trip.end_lng] : null;
 
-  const center: [number, number] = startPos ?? endPos ?? [6.5244, 3.3792]; // Lagos fallback
   const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
-  const boundsPoints: [number, number][] =
-    trail.length >= 2 ? trail : [startPos, endPos].filter(Boolean) as [number, number][];
-
-  // Custom Leaflet markers — pulse animation comes from CSS classes on the
-  // divIcon. The geometry / coordinates are unchanged; only visuals are
-  // restyled.
-  const startIcon = useMemo(() => L.divIcon({
-    className: '',
-    html: '<div class="kd-trip-marker-start"></div>',
-    iconSize: [18, 18] as L.PointExpression,
-    iconAnchor: [9, 9] as L.PointExpression,
-  }), []);
-
-  const endIcon = useMemo(() => L.divIcon({
-    className: '',
-    html: '<div class="kd-trip-marker-end"></div>',
-    iconSize: [18, 18] as L.PointExpression,
-    iconAnchor: [9, 9] as L.PointExpression,
-  }), []);
-
-  const eventIcon = useMemo(() => L.divIcon({
-    className: '',
-    html: '<div class="kd-trip-marker-event"></div>',
-    iconSize: [12, 12] as L.PointExpression,
-    iconAnchor: [6, 6] as L.PointExpression,
-  }), []);
+  const mapEvents = events.filter((ev) => ev.lat != null && ev.lng != null) as (TripEvent & { lat: number; lng: number })[];
 
   const hasGps = startPos != null || endPos != null;
 
@@ -540,51 +563,8 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                   />
                 </CardContent></Card>
               ) : (
-                <div className="kd-trip-map rounded-xl overflow-hidden border border-border/60 shadow-sm" style={{ height: 440 }}>
-                  <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} scrollWheelZoom>
-                    <TileLayer
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-                    {boundsPoints.length >= 1 && <FitBoundsToRoute points={boundsPoints} />}
-                    {trail.length > 1 && (
-                      <>
-                        {/* Soft glow underlay */}
-                        <Polyline positions={trail} color="#00ECFF" weight={8} opacity={0.18} />
-                        {/* Crisp top stroke */}
-                        <Polyline positions={trail} color="#006994" weight={3} opacity={0.9} />
-                      </>
-                    )}
-                    {startPos && (
-                      <Marker position={startPos} icon={startIcon}>
-                        <Popup>
-                          <strong>Start</strong><br />{trip.start_location || formatCoords(startPos[0], startPos[1])}<br />
-                          {trip.trip_start_time && new Date(trip.trip_start_time).toLocaleTimeString('en-GB')}
-                        </Popup>
-                      </Marker>
-                    )}
-                    {endPos && (
-                      <Marker position={endPos} icon={endIcon}>
-                        <Popup>
-                          <strong>End</strong><br />{trip.end_location || formatCoords(endPos[0], endPos[1])}<br />
-                          {trip.trip_end_time && new Date(trip.trip_end_time).toLocaleTimeString('en-GB')}
-                        </Popup>
-                      </Marker>
-                    )}
-                    {events.map((ev) =>
-                      ev.lat != null && ev.lng != null ? (
-                        <Marker key={ev.id} position={[ev.lat, ev.lng]} icon={eventIcon}>
-                          <Popup>
-                            <strong>{EVENT_LABEL[ev.event_type] || ev.event_type}</strong><br />
-                            {ev.details}<br />
-                            <span style={{ fontSize: '0.7rem', color: '#666' }}>
-                              {new Date(ev.recorded_at).toLocaleTimeString('en-GB')}
-                            </span>
-                          </Popup>
-                        </Marker>
-                      ) : null,
-                    )}
-                  </MapContainer>
+                <div className="rounded-xl overflow-hidden border border-border/60 shadow-sm" style={{ height: 440 }}>
+                  <TripGoogleMap trail={trail} startPos={startPos} endPos={endPos} events={mapEvents} />
                 </div>
               )}
               {/* Legend */}
