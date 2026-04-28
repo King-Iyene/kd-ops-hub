@@ -35,6 +35,18 @@ import {
   Globe,
   CheckCircle2,
   Sparkles,
+  Briefcase,
+  Package,
+  GraduationCap,
+  HeartPulse,
+  Star,
+  UserPlus2,
+  CalendarCheck2,
+  ShieldAlert,
+  FolderKanban,
+  UserCheck,
+  Store,
+  FilePlus2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -1938,9 +1950,11 @@ function SystemReferencePanel() {
         <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1 mb-2">
           <TabsTrigger value="overview"      className="text-xs"><History       className="h-3 w-3 mr-1" />Overview</TabsTrigger>
           <TabsTrigger value="payments"      className="text-xs"><CreditCard    className="h-3 w-3 mr-1" />Payments</TabsTrigger>
+          <TabsTrigger value="finance"       className="text-xs"><Wallet        className="h-3 w-3 mr-1" />Finance Modules</TabsTrigger>
           <TabsTrigger value="expenses"      className="text-xs"><Receipt       className="h-3 w-3 mr-1" />Expenses</TabsTrigger>
           <TabsTrigger value="fleet"         className="text-xs"><Car           className="h-3 w-3 mr-1" />Fleet</TabsTrigger>
           <TabsTrigger value="hr"            className="text-xs"><Users         className="h-3 w-3 mr-1" />HR &amp; Leave</TabsTrigger>
+          <TabsTrigger value="workspace"     className="text-xs"><FolderKanban  className="h-3 w-3 mr-1" />Workspace</TabsTrigger>
           <TabsTrigger value="security"      className="text-xs"><Shield        className="h-3 w-3 mr-1" />Security</TabsTrigger>
           <TabsTrigger value="files"         className="text-xs"><FileWarning   className="h-3 w-3 mr-1" />Files &amp; Data</TabsTrigger>
           <TabsTrigger value="infra"         className="text-xs"><HardDrive     className="h-3 w-3 mr-1" />Infrastructure</TabsTrigger>
@@ -2215,6 +2229,268 @@ function SystemReferencePanel() {
                 { a: 'Soft delete',             b: 'Deleting sets deleted_at — record stays in DB' },
                 { a: 'Query limit',             b: '200 budget rows per load' },
                 { a: 'Approvals page limit',    b: '200 pending budgets' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Star} title="Performance Reviews">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Cycle types',             b: 'annual · mid_year · quarterly · probation' },
+                { a: 'Competency scale',        b: '1–5 stars across 5 competencies (Delivery, Communication, Teamwork, Initiative, Leadership)' },
+                { a: 'Overall rating',          b: 'Computed as the average of the five competency ratings' },
+                { a: 'Status flow',             b: 'draft → submitted → acknowledged' },
+                { a: 'Review types',            b: 'manager · self · peer (each tracked separately)' },
+                { a: 'Who can edit',            b: 'The reviewer (until acknowledged) or any manager role' },
+                { a: 'Overdue cycles',          b: 'Cycles past target_completion_date with incomplete reviews are flagged red' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={GraduationCap} title="Training &amp; Certifications">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Record types',            b: 'training (course completion) · certification (formal credential)' },
+                { a: 'Expiry detection',        b: 'Auto-shows "Expired" when expiry_date &lt; today — no DB job needed' },
+                { a: 'Renewal alert',           b: '30-day amber badge when expiry_date is within 30 days' },
+                { a: 'Categories',              b: 'professional_development · compliance · safety · technical · leadership · software · other' },
+                { a: 'Mandatory flag',          b: 'is_mandatory = true marks compliance/safety training as required' },
+                { a: 'Cost tracking',           b: 'cost_ngn fed into budget analysis (no cap)' },
+                { a: 'Certificate URL',         b: 'Optional link to PDF or external system' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={HeartPulse} title="Employee Benefits">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Benefit types',           b: 'hmo (NHIS) · pension_pfa (PFA) · group_life · other' },
+                { a: 'RSA PIN',                 b: 'Stored only for pension_pfa records — Retirement Savings Account number' },
+                { a: 'Premium frequency',       b: 'monthly · quarterly · annually' },
+                { a: 'Monthly equivalent',      b: 'Computed in-app: quarterly ÷ 3, annually ÷ 12' },
+                { a: 'Status values',           b: 'active · suspended · expired' },
+                { a: 'Expiry alert',            b: '30-day amber badge when expiry_date approaches; red when past' },
+                { a: 'Multiple records',        b: 'Multiple HMO plans per employee allowed (e.g. employee + family plan)' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={UserCheck} title="Onboarding &amp; Offboarding">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Checklist types',         b: 'onboarding (new hires) · offboarding (exits)' },
+                { a: 'Default items seeded',    b: '11 onboarding items · 8 offboarding items (when "Populate defaults" is checked)' },
+                { a: 'Item categories',         b: 'documentation · it_setup · hr_admin · finance · training · equipment · introduction · other' },
+                { a: 'Item delegation',         b: 'Each item can be assigned to a team member (HR, IT, finance, buddy)' },
+                { a: 'Status derivation',       b: 'Computed in-app — pending (0%) · in_progress (1–99%) · completed (100%). No DB trigger.' },
+                { a: 'Item completion',         b: 'Click checkbox — sets completed_at + completed_by. Toggleable.' },
+                { a: 'Sort order',              b: 'sort_order INT — lower numbers appear first within each category' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={UserPlus2} title="Recruitment Pipeline">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Pipeline stages',         b: 'new → screening → interview_1 → interview_2 → offer → hired | rejected' },
+                { a: 'Employment types',        b: 'full_time · part_time · contract · intern' },
+                { a: 'Opening status',          b: 'draft (private) · published · closed (no more applicants) · filled' },
+                { a: 'Application sources',     b: 'job_board · referral · walk_in · internal · linkedin · other' },
+                { a: 'Salary range',            b: 'salary_min_ngn / salary_max_ngn — planning figures, not enforced on offer' },
+                { a: 'Offer amount',            b: 'Recorded only when stage is offer or hired; offered_at auto-stamped' },
+                { a: 'Hire-to-employee',        b: 'Marking "Hired" does NOT auto-create an auth.users row — admin creates the employee manually' },
+                { a: 'Soft delete',             b: 'Job openings use deleted_at; applicants are hard-deleted on removal' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={CalendarCheck2} title="Attendance &amp; Timesheets">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Storage',                 b: 'One row per employee per work_date — UNIQUE constraint at DB level' },
+                { a: 'Conflict handling',       b: 'Insert uses upsert(onConflict=employee_id,work_date) — re-submission updates the existing row' },
+                { a: 'Time storage',            b: 'clock_in / clock_out are TIME (no timezone) — assumes Nigeria WAT (UTC+1)' },
+                { a: 'Status values',           b: 'present · absent · late · half_day · remote · on_leave · public_holiday' },
+                { a: 'Overtime tracking',       b: 'overtime_minutes INT ≥ 0 — totalled per period in the summary card' },
+                { a: 'Month navigation',        b: 'Page loads 1 month at a time; navigator buttons shift the date range' },
+                { a: 'Leave integration',       b: 'on_leave status is set manually; not auto-synced from leave_requests (future)' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={ShieldAlert} title="Disciplinary Records">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Action ladder',           b: 'verbal_warning → written_warning → final_warning → query → suspension → termination' },
+                { a: 'Other types',             b: 'counselling · other (for informal coaching or undefined incidents)' },
+                { a: 'Fair hearing support',    b: 'Employee response thread on each record — required by Nigerian Labour Act before termination' },
+                { a: 'Acknowledgement',         b: 'acknowledged_at / acknowledged_by — confirms employee received the notice' },
+                { a: 'Suspension',              b: 'suspension_days INT > 0 — mandatory when incident_type = suspension' },
+                { a: 'Expunge mechanism',       b: 'is_expunged = true hides record from active history but keeps it in audit trail' },
+                { a: 'Expunge reason',          b: 'Free-text reason captured (e.g. "12 months clean record")' },
+                { a: 'Show expunged toggle',    b: 'Default off — expunged records hidden until "Show expunged" is checked' },
+                { a: 'RLS access',              b: 'super_admin / admin only — finance and operations CANNOT view or edit (sensitive HR data)' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── FINANCE MODULES ────────────────────────────────────────────── */}
+        <TabsContent value="finance" className="space-y-4">
+          <RefSection icon={FilePlus2} title="Invoices">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Default VAT rate',        b: '7.5% — Nigerian standard rate (configurable per invoice)' },
+                { a: 'Status workflow',         b: 'draft → sent → paid · overdue · cancelled' },
+                { a: 'Overdue detection',       b: 'Auto-detected — sent invoices with due_date &lt; today display as overdue' },
+                { a: 'Line items',              b: 'Multiple line items per invoice; quantity × unit_price + VAT = total' },
+                { a: 'Payment terms',           b: 'Stored as days (30/60/90/custom) — used to compute due_date from issue_date' },
+                { a: 'Currency',                b: 'NGN only — multi-currency not supported in this version' },
+                { a: 'Print layout',            b: 'Print-ready CSS — use browser Print to PDF' },
+                { a: 'Soft delete',             b: 'Status="cancelled" preferred over deletion to keep audit trail' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Store} title="Vendors / Suppliers">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Categories',              b: 'utilities · software · services · supplies · logistics · professional · other' },
+                { a: 'Status values',           b: 'active · inactive · blacklisted (last blocks new POs)' },
+                { a: 'Required fields',         b: 'Name + category + status. All other fields optional.' },
+                { a: 'Tax/CAC fields',          b: 'rc_number (CAC) · tin (FIRS) — both 8–14 chars typical' },
+                { a: 'Bank details',            b: 'Stored for direct payment via Paystack transfer recipient flow' },
+                { a: 'Contract expiry',         b: 'contract_end within 30 days surfaces as amber badge' },
+                { a: 'Soft delete',             b: 'deleted_at — record stays in DB' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance / operations' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Package} title="Asset Register">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Asset categories',        b: 'plant_machinery · motor_vehicle · furniture · it_equipment · land_building · leasehold_improvement · other' },
+                { a: 'Depreciation methods',    b: 'straight_line (default) · reducing_balance' },
+                { a: 'Straight-line formula',   b: 'book_value = cost − ((cost − salvage) ÷ useful_life) × years_elapsed' },
+                { a: 'CITA initial allowance',  b: 'Pre-filled per category (plant 50% · vehicle 50% · furniture 25% · IT 50% · land/building 10%)' },
+                { a: 'CITA annual allowance',   b: 'Pre-filled per category (plant 25% · vehicle 25% · furniture 20% · IT 25% · land/building 10%)' },
+                { a: 'Insurance expiry',        b: '30-day amber badge when insurance_expiry approaches' },
+                { a: 'Disposal tracking',       b: 'status: active · disposed · written_off — disposed assets hidden from default view' },
+                { a: 'Assignment',              b: 'Assets can be linked to an employee (assigned_to) and department' },
+                { a: 'RLS write access',        b: 'super_admin / admin / finance only' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Briefcase} title="Subscriptions">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Maximum amount',          b: '₦50,000,000 per subscription (DB CHECK)' },
+                { a: 'Renewal cycles',          b: 'monthly · quarterly · annually · custom' },
+                { a: 'Auto-renewal flag',       b: 'is_auto_renew controls whether system flags upcoming renewals' },
+                { a: 'Soft delete',             b: 'deleted_at — record stays in DB' },
+                { a: 'Categories',              b: 'Linked to global expense categories for budget tracking' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={CreditCard} title="Virtual Cards">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Card lifecycle',          b: 'pending → active → suspended · expired · closed' },
+                { a: 'Daily / monthly caps',    b: 'Stored on the card record; enforced by Paystack at swipe time' },
+                { a: 'Linked employee',         b: 'Each card belongs to one employee (linked profile)' },
+                { a: 'Soft delete',             b: 'Closed cards stay in DB for transaction history' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={ShieldCheck} title="Compliance Filings">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Filing types',            b: 'paye · pension · nhf · nhis · vat · cit · firs_other (Nigerian statutory)' },
+                { a: 'Due-date alerts',         b: '30-day amber badge on Dashboard for filings due soon' },
+                { a: 'Status values',           b: 'pending · submitted · paid · overdue (auto-detected)' },
+                { a: 'Document linking',        b: 'Each filing can be linked to a Documents record (receipt PDF)' },
+                { a: 'RLS read access',         b: 'super_admin / admin / finance only' },
+              ]}
+            />
+          </RefSection>
+        </TabsContent>
+
+        {/* ── WORKSPACE ──────────────────────────────────────────────────── */}
+        <TabsContent value="workspace" className="space-y-4">
+          <RefSection icon={FolderKanban} title="Project Tracker">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Status workflow',         b: 'planning → active → on_hold → completed | cancelled' },
+                { a: 'Priority levels',         b: 'critical · high · normal · low' },
+                { a: 'Date constraint',         b: 'CHECK: end_date must be ≥ start_date when both set' },
+                { a: 'Client linking',          b: 'Optional client_id FK to Clients CRM (sets to NULL on client delete)' },
+                { a: 'Owner / department',      b: 'Each project has one owner (auth user) and an optional department' },
+                { a: 'Milestones',              b: 'Inline list — pending or complete; Enter key adds; sort_order controls display' },
+                { a: 'Linked tasks',            b: 'Tasks gain a project_id FK (added by Phase 5 migration); count shown per project' },
+                { a: 'Overdue detection',       b: 'Active project past end_date displays an Overdue badge' },
+                { a: 'Budget',                  b: 'budget_ngn is a planning figure; actual spend computed from linked expenses (not stored)' },
+                { a: 'Soft delete',             b: 'deleted_at — record stays in DB' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Users} title="Tasks">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Status values',           b: 'open · in_progress · blocked · done' },
+                { a: 'Priority levels',         b: 'critical · high · normal · low' },
+                { a: 'Project linkage',         b: 'project_id FK added in Phase 5 — tasks can belong to a project (or stay standalone)' },
+                { a: 'Assignment',              b: 'One assignee per task; comments thread for collaboration' },
+                { a: 'Soft delete',             b: 'deleted_at — record stays in DB' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={CheckCircle2} title="Goals (OKR)">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Goal types',              b: 'company · department · team · individual' },
+                { a: 'Status values',           b: 'on_track · at_risk · off_track · completed' },
+                { a: 'Progress',                b: '0–100% — entered manually by goal owner' },
+                { a: 'Visibility',              b: 'Each user sees their own goals + their department goals + company goals' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={BookOpen} title="Knowledge Base">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Article statuses',        b: 'draft (only author) · published (all authenticated)' },
+                { a: 'Versioning',              b: 'knowledge_article_versions stores every save — full edit history retained' },
+                { a: 'Search',                  b: 'In-app filtering by title, body, category, tag' },
               ]}
             />
           </RefSection>
