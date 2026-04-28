@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -51,6 +51,47 @@ type LiveTrip = {
 const initialsOf = (name: string) =>
   name.split(' ').filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || '?';
 
+// Bearing (compass heading 0–360°) from point A to B. Used to rotate the
+// driver marker's direction arrow so it always points where the vehicle is
+// headed — same trick the Uber/Bolt rider apps use.
+const bearingDeg = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δλ = toRad(lng2 - lng1);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};
+
+// Great-circle distance in metres (Haversine).
+const haversineMeters = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6_371_000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+};
+
+// Sum trail distance — used for live "distance covered" without waiting for
+// odometer readout at trip end.
+const trailDistanceKm = (pings: Ping[], startLat: number | null, startLng: number | null): number => {
+  if (pings.length === 0) return 0;
+  let m = 0;
+  let prevLat = startLat;
+  let prevLng = startLng;
+  for (const p of pings) {
+    if (prevLat != null && prevLng != null) {
+      m += haversineMeters(prevLat, prevLng, p.lat, p.lng);
+    }
+    prevLat = p.lat; prevLng = p.lng;
+  }
+  return m / 1000;
+};
+
 const formatElapsed = (ms: number): string => {
   const s = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(s / 3600);
@@ -68,15 +109,41 @@ const formatPingAge = (ms: number): string => {
   return `${Math.floor(s / 3600)}h ago`;
 };
 
-// ── Custom map icon (DivIcon, color-coded by state) ──────────────────────────
-const driverIcon = (opts: { initials: string; color: string; pulse: boolean; selected: boolean }) =>
+// ── Custom map icon ──────────────────────────────────────────────────────────
+//
+// Built as a DivIcon so we can target the inner direction-arrow with a CSS
+// selector and rotate it via the requestAnimationFrame interpolation loop
+// without rebuilding the icon on every frame.
+//
+// Layout (44×44 box, anchor 22,22):
+//   • outer pulsing aura (only when fresh)
+//   • directional arrow chevron — rotated to face heading, sits BEHIND the
+//     bubble so it reads as "the bubble is heading that way"
+//   • inner bubble with driver initials
+const driverIcon = (opts: { initials: string; color: string; pulse: boolean; selected: boolean; tripId: string }) =>
   L.divIcon({
-    className: '',
+    className: 'kd-driver-icon',
     html: `
-      <div style="position:relative;width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
-        ${opts.pulse ? `<div style="position:absolute;inset:0;border-radius:50%;background:${opts.color};opacity:0.25;animation:kd-live-pulse 1.6s ease-out infinite;"></div>` : ''}
+      <div style="position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;">
+        ${opts.pulse ? `<div style="position:absolute;inset:6px;border-radius:50%;background:${opts.color};opacity:0.25;animation:kd-live-pulse 1.6s ease-out infinite;pointer-events:none;"></div>` : ''}
+        <div class="kd-driver-arrow" data-trip="${opts.tripId}" style="
+          position:absolute;inset:0;
+          transform:rotate(0deg);
+          transform-origin:50% 50%;
+          pointer-events:none;
+        ">
+          <div style="
+            position:absolute;left:50%;top:-2px;
+            transform:translateX(-50%);
+            width:0;height:0;
+            border-left:7px solid transparent;
+            border-right:7px solid transparent;
+            border-bottom:11px solid ${opts.color};
+            filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));
+          "></div>
+        </div>
         <div style="
-          position:relative;
+          position:relative;z-index:2;
           width:32px;height:32px;border-radius:50%;
           background:${opts.color};
           color:white;font-weight:700;font-size:11px;letter-spacing:0.5px;
@@ -85,8 +152,8 @@ const driverIcon = (opts: { initials: string; color: string; pulse: boolean; sel
           box-shadow:0 0 0 ${opts.selected ? '3px' : '1px'} ${opts.color}90,0 6px 14px rgba(0,0,0,0.35);
         ">${opts.initials}</div>
       </div>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
+    iconSize: [48, 48],
+    iconAnchor: [24, 24],
   });
 
 // ── Auto-fit map to all driver positions on first load ──────────────────────
@@ -123,6 +190,101 @@ export default function LiveTracking() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [now, setNow] = useState(Date.now());
+
+  // ── Smooth animation refs ─────────────────────────────────────────────────
+  //
+  // The marker position and direction-arrow rotation are NOT driven by React
+  // state — that would mean either choppy 1-update-per-ping movement or 60
+  // rerenders/sec per driver. Instead we drive them imperatively from a
+  // single requestAnimationFrame loop:
+  //
+  //   • markerRefs    — Leaflet Marker instances by tripId, set via ref={}.
+  //   • animRef       — current "interpolating from A to B over N ms" state.
+  //   • displayPosRef — last-rendered position; doubles as the "from" for the
+  //                     next animation when a fresh ping arrives.
+  //
+  // This is the pattern Uber's Android client uses with ValueAnimator and
+  // what Mapbox's "animate-marker" example does on the web.
+  type AnimState = {
+    fromLat: number; fromLng: number;
+    toLat: number;   toLng: number;
+    fromBearing: number; toBearing: number;
+    startTime: number;
+    duration: number;
+  };
+  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+  const animRef = useRef<Map<string, AnimState>>(new Map());
+  const displayPosRef = useRef<Map<string, { lat: number; lng: number; bearing: number }>>(new Map());
+
+  // Schedule a new animation toward a fresh GPS fix. Suppresses bearing
+  // updates when movement is < 10 m (GPS jitter while parked) so the
+  // direction arrow doesn't spin randomly at rest.
+  const animateTo = (tripId: string, lat: number, lng: number) => {
+    const current = displayPosRef.current.get(tripId) ?? { lat, lng, bearing: 0 };
+    const distM = haversineMeters(current.lat, current.lng, lat, lng);
+    const newBearing = distM >= 10
+      ? bearingDeg(current.lat, current.lng, lat, lng)
+      : current.bearing;
+    animRef.current.set(tripId, {
+      fromLat: current.lat, fromLng: current.lng,
+      toLat: lat, toLng: lng,
+      fromBearing: current.bearing, toBearing: newBearing,
+      startTime: performance.now(),
+      duration: 1500, // matches typical 1-2s ping cadence at driving speed
+    });
+  };
+
+  // The rAF loop — drives BOTH position and bearing for ALL drivers from a
+  // single frame. Position interpolates linearly over `duration`; bearing
+  // takes a faster 350ms ease so the arrow flicks to the new heading without
+  // lagging the marker.
+  //
+  // We also re-apply bearing every frame to all markers (not just animating
+  // ones). React-Leaflet rebuilds the icon DOM when the icon prop changes
+  // (e.g., color flips on speeding/stale state), which resets the arrow's
+  // inline transform back to rotate(0). Re-applying every frame is cheap
+  // (browser short-circuits same-value style writes) and keeps the arrow
+  // pointing the right way through state changes.
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const t0 = performance.now();
+
+      for (const [tripId, anim] of animRef.current) {
+        const elapsed = t0 - anim.startTime;
+        const tPos = Math.min(1, elapsed / anim.duration);
+        const lat = anim.fromLat + (anim.toLat - anim.fromLat) * tPos;
+        const lng = anim.fromLng + (anim.toLng - anim.fromLng) * tPos;
+
+        // Bearing — shortest-path interpolation over a faster 350ms window.
+        const tBear = Math.min(1, elapsed / 350);
+        let delta = anim.toBearing - anim.fromBearing;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+        const bearing = ((anim.fromBearing + delta * tBear) % 360 + 360) % 360;
+
+        const m = markerRefs.current.get(tripId);
+        if (m) m.setLatLng([lat, lng]);
+        displayPosRef.current.set(tripId, { lat, lng, bearing });
+
+        if (tPos >= 1) animRef.current.delete(tripId);
+      }
+
+      // Re-apply bearing to every mounted marker (rebuild-proof).
+      for (const [tripId, marker] of markerRefs.current) {
+        const display = displayPosRef.current.get(tripId);
+        if (!display) continue;
+        const arrow = marker.getElement()?.querySelector('.kd-driver-arrow') as HTMLElement | null;
+        if (!arrow) continue;
+        const want = `rotate(${display.bearing}deg)`;
+        if (arrow.style.transform !== want) arrow.style.transform = want;
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   // Tick clock for live elapsed / "last ping X ago"
   useEffect(() => {
@@ -211,6 +373,7 @@ export default function LiveTracking() {
 
       const m = new Map<string, LiveTrip>();
       for (const t of tripsData) {
+        const trail = trailByTrip.get(t.id) ?? [];
         m.set(t.id, {
           id: t.id,
           driver_id: t.driver_id,
@@ -222,8 +385,22 @@ export default function LiveTracking() {
           start_location: t.start_location ?? null,
           start_lat: t.start_lat ?? null,
           start_lng: t.start_lng ?? null,
-          trail: trailByTrip.get(t.id) ?? [],
+          trail,
         });
+        // Seed displayPosRef with the latest trail point so the marker mounts
+        // at the right place and the first new ping animates from it.
+        const lastPing = trail[trail.length - 1];
+        const seedLat = lastPing?.lat ?? t.start_lat;
+        const seedLng = lastPing?.lng ?? t.start_lng;
+        if (seedLat != null && seedLng != null) {
+          // Initial bearing: derived from the last two trail points if we have them.
+          let bearing = 0;
+          if (trail.length >= 2) {
+            const prev = trail[trail.length - 2];
+            bearing = bearingDeg(prev.lat, prev.lng, lastPing!.lat, lastPing!.lng);
+          }
+          displayPosRef.current.set(t.id, { lat: seedLat, lng: seedLng, bearing });
+        }
       }
       setTrips(m);
       setLoading(false);
@@ -241,6 +418,10 @@ export default function LiveTracking() {
           if (payload.new?.status !== 'in_progress') return;
           const trip = await fetchTrip(payload.new.id);
           if (!trip) return;
+          // Seed displayPosRef so the marker mounts at the right place.
+          if (trip.start_lat != null && trip.start_lng != null) {
+            displayPosRef.current.set(trip.id, { lat: trip.start_lat, lng: trip.start_lng, bearing: 0 });
+          }
           setTrips((prev) => {
             const m = new Map(prev);
             m.set(trip.id, trip);
@@ -280,6 +461,9 @@ export default function LiveTracking() {
         (payload: any) => {
           const b = payload.new;
           if (!b) return;
+          // Schedule the marker animation BEFORE setState so the rAF loop
+          // starts interpolating on the next frame, before React rerenders.
+          animateTo(b.trip_id, b.lat, b.lng);
           setTrips((prev) => {
             const t = prev.get(b.trip_id);
             if (!t) return prev;
@@ -335,7 +519,10 @@ export default function LiveTracking() {
         const stale = lastPingMs == null || (now - lastPingMs) > STALE_THRESHOLD_MS;
         const speeding = !!last?.is_speeding;
         const elapsedMs = Math.max(0, now - Date.parse(t.trip_start_time));
-        return { trip: t, lat, lng, lastPingMs, stale, speeding, elapsedMs, last };
+        const distanceKm = trailDistanceKm(t.trail, t.start_lat, t.start_lng);
+        const maxSpeedKmh = t.trail.reduce((mx, p) => p.speed_kmh != null && p.speed_kmh > mx ? p.speed_kmh : mx, 0);
+        const avgSpeedKmh = elapsedMs > 0 ? (distanceKm / (elapsedMs / 3_600_000)) : 0;
+        return { trip: t, lat, lng, lastPingMs, stale, speeding, elapsedMs, last, distanceKm, maxSpeedKmh, avgSpeedKmh };
       })
       .filter((row) => !q
         || row.trip.driver_name.toLowerCase().includes(q)
@@ -488,21 +675,31 @@ export default function LiveTracking() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className={cn(
-                        'inline-flex items-center gap-1 font-mono',
-                        row.speeding ? 'text-red-600 font-semibold' : 'text-muted-foreground',
-                      )}>
-                        <Gauge className="h-3 w-3" />
-                        {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)} km/h` : '—'}
-                      </span>
-                      {row.lat != null && row.lng != null ? (
-                        <span className="text-muted-foreground font-mono text-[10px]">
-                          {row.lat.toFixed(4)}, {row.lng.toFixed(4)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground italic text-[10px]">no GPS yet</span>
-                      )}
+                    <div className="grid grid-cols-3 gap-1 text-xs pt-1">
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Speed</p>
+                        <p className={cn(
+                          'font-mono font-semibold',
+                          row.speeding ? 'text-red-600' : 'text-foreground',
+                        )}>
+                          {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)}` : '—'}
+                          <span className="text-[10px] font-normal text-muted-foreground ml-0.5">km/h</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Distance</p>
+                        <p className="font-mono font-semibold text-foreground">
+                          {row.distanceKm.toFixed(1)}
+                          <span className="text-[10px] font-normal text-muted-foreground ml-0.5">km</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Max</p>
+                        <p className="font-mono font-semibold text-foreground">
+                          {row.maxSpeedKmh > 0 ? Math.round(row.maxSpeedKmh) : '—'}
+                          <span className="text-[10px] font-normal text-muted-foreground ml-0.5">km/h</span>
+                        </p>
+                      </div>
                     </div>
 
                     {t.start_location && (
@@ -543,6 +740,14 @@ export default function LiveTracking() {
                 trailPositions.unshift([t.start_lat, t.start_lng]);
               }
 
+              // Use the displayed position (rAF-driven) for the marker prop so
+              // that React rerenders (caused by trail/state changes) DON'T jump
+              // the marker — the rAF loop owns visual position.
+              const display = displayPosRef.current.get(t.id);
+              const markerPos: [number, number] = display
+                ? [display.lat, display.lng]
+                : [row.lat, row.lng];
+
               return (
                 <span key={t.id}>
                   {trailPositions.length > 1 && (
@@ -552,17 +757,22 @@ export default function LiveTracking() {
                     </>
                   )}
                   <Marker
-                    position={[row.lat, row.lng]}
+                    ref={(m) => {
+                      if (m) markerRefs.current.set(t.id, m);
+                      else markerRefs.current.delete(t.id);
+                    }}
+                    position={markerPos}
                     icon={driverIcon({
                       initials: initialsOf(t.driver_name),
                       color,
                       pulse: !row.stale,
                       selected: selectedId === t.id,
+                      tripId: t.id,
                     })}
                     eventHandlers={{ click: () => setSelectedId(t.id) }}
                   >
                     <Popup>
-                      <div className="space-y-0.5 min-w-[180px]">
+                      <div className="space-y-0.5 min-w-[200px]">
                         <strong>{t.driver_name}</strong>
                         {t.vehicle_plate && <div className="text-xs">{t.vehicle_plate} · {t.vehicle_name ?? ''}</div>}
                         <div className="text-xs">Elapsed: <strong>{formatElapsed(row.elapsedMs)}</strong></div>
@@ -570,6 +780,12 @@ export default function LiveTracking() {
                           Speed: <strong>{row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)} km/h` : '—'}</strong>
                           {row.speeding && <span className="ml-1 text-red-600 font-semibold">⚠ speeding</span>}
                         </div>
+                        {row.distanceKm > 0 && (
+                          <div className="text-xs">Distance covered: <strong>{row.distanceKm.toFixed(1)} km</strong></div>
+                        )}
+                        {row.maxSpeedKmh > 0 && (
+                          <div className="text-xs">Max speed: <strong>{Math.round(row.maxSpeedKmh)} km/h</strong></div>
+                        )}
                         {row.lastPingMs != null && (
                           <div className="text-xs">
                             Last ping: {formatPingAge(now - row.lastPingMs)}
