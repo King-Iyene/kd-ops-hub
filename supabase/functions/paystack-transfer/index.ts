@@ -198,6 +198,30 @@ serve(async (req) => {
       }
 
       case "initiate_transfer": {
+        if (!params.reference) {
+          return new Response(
+            JSON.stringify({ error: "reference is required for transfer idempotency" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        // Guard against duplicate submissions: check if this reference was
+        // already sent to Paystack (stored in batch_items.paystack_transfer_code).
+        const serviceClient2 = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        const { data: existing } = await serviceClient2
+          .from("batch_items")
+          .select("id, paystack_transfer_code")
+          .eq("reference", params.reference)
+          .not("paystack_transfer_code", "is", null)
+          .maybeSingle();
+        if (existing?.paystack_transfer_code) {
+          // Already initiated — return the existing transfer code instead of
+          // firing a duplicate. The caller can verify status separately.
+          result = { transfer_code: existing.paystack_transfer_code, duplicate: true };
+          break;
+        }
         const body = await paystackFetch("/transfer", {
           method: "POST",
           body: JSON.stringify({

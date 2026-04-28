@@ -55,6 +55,37 @@ serve(async (req) => {
       );
     }
 
+    // Rate limit: max 10 notifications per user per 60 seconds.
+    // Uses the audit_logs table (already present) for a lightweight count —
+    // no extra table needed. Fails open (allows send) if the check errors.
+    try {
+      const serviceRl = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const since = new Date(Date.now() - 60_000).toISOString();
+      const { count } = await serviceRl
+        .from("audit_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("action", "send_notification")
+        .gte("created_at", since);
+      if ((count ?? 0) >= 10) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Rate limit exceeded — max 10 notifications per minute" }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Log this notification attempt for rate-limit accounting.
+      await serviceRl.from("audit_logs").insert({
+        user_id: user.id,
+        action: "send_notification",
+        table_name: "notifications",
+      });
+    } catch (_) {
+      // Fail open — don't block notification on rate-limit check failure.
+    }
+
     const body = await req.json();
     const channel: string = body.channel ?? "email";
 
