@@ -24,27 +24,13 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Core React runtime — tiny, loads first
-          'react-core': ['react', 'react-dom', 'react-router-dom'],
-          // Data layer — Supabase + React Query + Zustand
-          'data-layer': ['@supabase/supabase-js', '@tanstack/react-query', 'zustand'],
-          // Charts — recharts is large (~500 KB); isolate so other pages don't wait for it
-          'charts': ['recharts'],
-          // Date utilities
-          'dates': ['date-fns'],
-          // Radix UI primitives (shared across all UI components)
-          'radix-ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-select',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip',
-            '@radix-ui/react-popover',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-label',
-          ],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (id.includes('/recharts/') || id.includes('/d3-')) return 'charts';
+          if (id.includes('/date-fns/')) return 'dates';
+          if (id.includes('/@radix-ui/')) return 'radix-ui';
+          if (id.includes('/@supabase/') || id.includes('/@tanstack/') || id.includes('/zustand/')) return 'data-layer';
+          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router')) return 'react-core';
         },
       },
     },
