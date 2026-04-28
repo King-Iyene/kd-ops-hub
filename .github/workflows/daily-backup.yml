@@ -63,13 +63,14 @@ jobs:
           supabase --version
 
       - name: Dump database
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
+          # supabase db dump uses --db-url, not --project-ref.
+          # DB URL format: postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
+          # Add SUPABASE_DB_PASSWORD to GitHub secrets:
+          #   Supabase dashboard → Project Settings → Database → Database password
           TIMESTAMP=$(date +%Y-%m-%d)
-          supabase db dump \
-            --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" \
-            -f "kdops-backup-${TIMESTAMP}.sql"
+          DB_URL="postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
+          supabase db dump --db-url "$DB_URL" -f "kdops-backup-${TIMESTAMP}.sql"
           gzip "kdops-backup-${TIMESTAMP}.sql"
           echo "BACKUP_FILE=kdops-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
 
