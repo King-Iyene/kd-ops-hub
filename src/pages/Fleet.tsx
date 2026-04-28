@@ -2940,11 +2940,9 @@ const Fleet = () => {
             <TabsTrigger value="trips" className="shrink-0">
               <MapPin className="mr-2 h-4 w-4" /> Trip Logs
             </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="vehicles" className="shrink-0">
-                <Car className="mr-2 h-4 w-4" /> Vehicles
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="vehicles" className="shrink-0">
+              <Car className="mr-2 h-4 w-4" /> Vehicles
+            </TabsTrigger>
             <TabsTrigger value="activity" className="shrink-0">
               <History className="mr-2 h-4 w-4" /> Activity
             </TabsTrigger>
@@ -3801,11 +3799,9 @@ const Fleet = () => {
         </TabsContent>
 
         {/* VEHICLES */}
-        {isAdmin && (
-          <TabsContent value="vehicles" className="mt-4">
-            <VehiclesTab staff={staff} />
-          </TabsContent>
-        )}
+        <TabsContent value="vehicles" className="mt-4">
+          <VehiclesTab staff={staff} />
+        </TabsContent>
 
         {/* ANOMALIES */}
         {isAdmin && (
@@ -5498,6 +5494,10 @@ const emptyVehicleForm = {
 function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const { toast } = useToast();
   const { profile } = useAuthStore();
+  const canManageVehicles =
+    profile?.role === 'admin' ||
+    profile?.role === 'finance' ||
+    profile?.role === 'super_admin';
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -5690,9 +5690,11 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           <p className="text-sm text-muted-foreground">
             {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} registered
           </p>
-          <Button onClick={() => { reset(); setShowForm(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> Add Vehicle
-          </Button>
+          {canManageVehicles && (
+            <Button onClick={() => { reset(); setShowForm(true); }}>
+              <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+            </Button>
+          )}
         </div>
 
         <Card>
@@ -5790,10 +5792,10 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                         variant="secondary"
                         className={
                           v.status === 'active'
-                            ? 'bg-success/10 text-success cursor-pointer'
-                            : 'bg-muted text-muted-foreground cursor-pointer'
+                            ? `bg-success/10 text-success${canManageVehicles ? ' cursor-pointer' : ''}`
+                            : `bg-muted text-muted-foreground${canManageVehicles ? ' cursor-pointer' : ''}`
                         }
-                        onClick={() => toggleStatus(v)}
+                        onClick={canManageVehicles ? () => toggleStatus(v) : undefined}
                       >
                         {v.status}
                       </Badge>
@@ -5806,20 +5808,24 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                         <Button size="sm" variant="ghost" title="Maintenance schedule" onClick={() => setViewingMaintenance(v)}>
                           <Wrench className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title={isOutOfService(v) ? 'Return to service' : 'Mark out of service'}
-                          onClick={() => { setSettingOutOfService(v); setOutOfServiceDate(v.out_of_service_until || ''); }}
-                        >
-                          <CalendarOff className={`h-4 w-4 ${isOutOfService(v) ? 'text-destructive' : ''}`} />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {canManageVehicles && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title={isOutOfService(v) ? 'Return to service' : 'Mark out of service'}
+                              onClick={() => { setSettingOutOfService(v); setOutOfServiceDate(v.out_of_service_until || ''); }}
+                            >
+                              <CalendarOff className={`h-4 w-4 ${isOutOfService(v) ? 'text-destructive' : ''}`} />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => openEdit(v)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(v)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
