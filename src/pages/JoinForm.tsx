@@ -14,19 +14,14 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
-import { NIGERIAN_BANKS, getBankCode } from '@/lib/nigerian-banks';
+import { NIGERIAN_BANKS, getBankCode, fetchBanks } from '@/lib/nigerian-banks';
+import type { NigerianBank } from '@/lib/nigerian-banks';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { BankCombobox } from '@/components/BankCombobox';
 import { useToast } from '@/hooks/use-toast';
 
 const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
@@ -68,6 +63,12 @@ const JoinForm = () => {
       .maybeSingle()
       .then(({ data }) => { if (data) setSocialLinks(data as any); })
       .catch(() => { /* social links are cosmetic, non-blocking */ });
+  }, []);
+
+  // Bank list — starts with static fallback, upgraded to 300+ in background
+  const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
+  useEffect(() => {
+    fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
   }, []);
 
   // Bank verification state
@@ -332,16 +333,11 @@ const JoinForm = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Bank *</Label>
-                  <Select value={form.bank_name} onValueChange={handleBankChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {NIGERIAN_BANKS.map((b) => (
-                        <SelectItem key={b.code} value={b.name}>{b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <BankCombobox
+                    value={form.bank_name}
+                    onChange={(name) => handleBankChange(name)}
+                    banks={banks}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label>Account number (10 digits) *</Label>

@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
   NIGERIAN_BANKS,
@@ -16,6 +9,7 @@ import {
   resolveAccount,
 } from '@/lib/paystack';
 import type { NigerianBank } from '@/lib/nigerian-banks';
+import { BankCombobox } from '@/components/BankCombobox';
 
 export interface BankAccountValue {
   bank_name: string;
@@ -132,22 +126,12 @@ export function BankAccountField({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label>Bank</Label>
-          <Select
+          <BankCombobox
             value={value.bank_name}
-            onValueChange={updateBank}
+            onChange={(name) => updateBank(name)}
+            banks={banks}
             disabled={disabled}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select bank" />
-            </SelectTrigger>
-            <SelectContent>
-              {banks.map((b) => (
-                <SelectItem key={b.code} value={b.name}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
         <div className="space-y-1">
           <Label>Account Number</Label>

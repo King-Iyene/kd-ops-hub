@@ -51,15 +51,13 @@ jobs:
     steps:
       - name: Install Supabase CLI
         run: |
-          # Download the .deb directly from GitHub releases — no install.sh required.
-          # The supabase/setup-cli action (v1) uses the same broken install.sh URL,
-          # so we bypass it entirely and fetch the binary from the releases API.
-          DEB_URL=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
-            | grep '"browser_download_url"' \
-            | grep 'linux_amd64\.deb' \
-            | head -1 \
-            | sed 's/.*"\(https[^"]*\)".*/\1/')
-          curl -fsSLo supabase.deb "$DEB_URL"
+          # Fetch the latest release tag via the GitHub API, then construct the
+          # download URL directly — no grep/sed or install.sh required.
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          echo "Installing Supabase CLI v${VERSION}"
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
           sudo dpkg -i supabase.deb
           rm -f supabase.deb
           supabase --version

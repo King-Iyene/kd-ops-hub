@@ -93,6 +93,15 @@ export const NIGERIAN_BANKS: NigerianBank[] = [
 const CACHE_KEY = 'kdops_bank_list';
 const CACHE_TTL = 24 * 60 * 60 * 1000;
 
+// Module-level bank registry — starts with static list, upgraded once dynamic
+// fetch completes. getBankCode searches this, so dynamically-fetched banks are
+// resolved correctly without callers needing to pass the bank code explicitly.
+let _allBanks: NigerianBank[] = NIGERIAN_BANKS;
+
+function _updateRegistry(banks: NigerianBank[]): void {
+  if (banks.length > 0) _allBanks = banks;
+}
+
 export async function fetchBanks(): Promise<NigerianBank[]> {
   // Return cached list if still fresh
   try {
@@ -100,6 +109,7 @@ export async function fetchBanks(): Promise<NigerianBank[]> {
     if (raw) {
       const { data, ts } = JSON.parse(raw) as { data: NigerianBank[]; ts: number };
       if (Date.now() - ts < CACHE_TTL && Array.isArray(data) && data.length > 0) {
+        _updateRegistry(data);
         return data;
       }
     }
@@ -119,6 +129,7 @@ export async function fetchBanks(): Promise<NigerianBank[]> {
         .map((b) => ({ code: b.code, name: b.name }))
         .sort((a, b) => a.name.localeCompare(b.name));
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: banks, ts: Date.now() }));
+      _updateRegistry(banks);
       return banks;
     }
   } catch {
@@ -129,11 +140,16 @@ export async function fetchBanks(): Promise<NigerianBank[]> {
 }
 
 /** Invalidate the bank list cache — call after edge function is redeployed. */
-export const clearBankCache = (): void => localStorage.removeItem(CACHE_KEY);
+export const clearBankCache = (): void => {
+  localStorage.removeItem(CACHE_KEY);
+  _allBanks = NIGERIAN_BANKS;
+};
 
-/** Look up a Paystack bank code by display name (static list only). */
+/** Look up a Paystack bank code by display name. Searches the full dynamic
+ *  list once fetchBanks() has been called; falls back to the static 55-bank
+ *  list before that. */
 export const getBankCode = (bankName: string): string | undefined =>
-  NIGERIAN_BANKS.find(
+  _allBanks.find(
     (b) => b.name === bankName || b.name.toLowerCase() === bankName.toLowerCase(),
   )?.code;
 

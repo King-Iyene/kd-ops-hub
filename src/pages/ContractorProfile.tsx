@@ -46,7 +46,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { NIGERIAN_BANKS } from '@/lib/nigerian-banks';
+import { NIGERIAN_BANKS, fetchBanks } from '@/lib/nigerian-banks';
+import type { NigerianBank } from '@/lib/nigerian-banks';
+import { BankCombobox } from '@/components/BankCombobox';
 
 interface ContractorData {
   id: string;
@@ -98,6 +100,7 @@ const ContractorProfile = () => {
   const [editMode, setEditMode] = useState(false);
   const [showPwdEdit, setShowPwdEdit] = useState(false);
   const [showPwdDisplay, setShowPwdDisplay] = useState(false);
+  const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankForm, setBankForm] = useState({ account_number: '', bank_code: '' });
   const [bankVerifying, setBankVerifying] = useState(false);
@@ -162,6 +165,7 @@ const ContractorProfile = () => {
 
   useEffect(() => {
     load();
+    fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
   }, [load]);
 
   useEffect(() => {
@@ -245,7 +249,7 @@ const ContractorProfile = () => {
   const saveBank = async () => {
     if (!id || !contractor || !bankVerified || !bankVerifiedName) return;
     setBankSaving(true);
-    const selectedBank = NIGERIAN_BANKS.find((b) => b.code === bankForm.bank_code);
+    const selectedBank = banks.find((b) => b.code === bankForm.bank_code);
     const cName = `${contractor.first_name || ''} ${contractor.last_name || ''}`.trim() || contractor.full_name;
     const { error } = await supabase
       .from('contractors')
@@ -745,19 +749,11 @@ const ContractorProfile = () => {
                     </div>
                     <div className="space-y-1">
                       <Label>Bank</Label>
-                      <Select
-                        value={bankForm.bank_code}
-                        onValueChange={(v) => setBankForm((p) => ({ ...p, bank_code: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select bank..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {NIGERIAN_BANKS.map((b) => (
-                            <SelectItem key={b.code + b.name} value={b.code}>{b.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <BankCombobox
+                        value={banks.find((b) => b.code === bankForm.bank_code)?.name || ''}
+                        onChange={(_name, code) => setBankForm((p) => ({ ...p, bank_code: code }))}
+                        banks={banks}
+                      />
                     </div>
                   </div>
 
