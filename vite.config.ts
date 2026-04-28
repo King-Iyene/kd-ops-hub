@@ -12,9 +12,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react()].filter(Boolean),
-  optimizeDeps: {
-    include: ['@react-google-maps/api'],
-  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -31,10 +28,12 @@ export default defineConfig(({ mode }) => ({
           // If recharts runs first, React's CJS code lands in 'charts' and
           // every page chunk that needs React imports from 'charts' → cycle.
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/react-router') || id.includes('/react-is/') || id.includes('/scheduler/')) return 'react-core';
-          // NOTE: recharts intentionally left unassigned — putting it in its own chunk
-          // created a circular dep (LiveTracking → charts → LiveTracking TDZ crash).
-          // Let Rolldown decide where to place it (entry chunk or shared chunk).
-          if (id.includes('@react-google-maps')) return 'google-maps';
+          // NOTE: recharts + @react-google-maps intentionally left unassigned.
+          // Assigning either to its own chunk causes Rolldown to inline the React CJS
+          // scheduler factory inside that chunk. When LiveTracking (a lazy page chunk)
+          // statically imports from those chunks, the inlined scheduler fires MessagePort
+          // callbacks before LiveTracking's module scope finishes → TDZ crash on `const Z`.
+          // Letting Rolldown place them freely avoids the circular init entirely.
           if (id.includes('/date-fns/')) return 'dates';
           if (id.includes('/@radix-ui/')) return 'radix-ui';
           // react-redux bundles its own react-is symbols; keep it in data-layer so
