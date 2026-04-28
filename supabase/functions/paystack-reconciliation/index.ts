@@ -143,11 +143,13 @@ serve(async (req) => {
           const reason = body.data?.failures?.[0]?.reason || body.data?.reason;
 
           if (status === "success") {
+            const feeKobo = Number(body.data?.fee) || 0;
             await service.from("batch_items").update({
               status: "succeeded",
               failure_reason: null,
               processed_at: new Date().toISOString(),
               paystack_raw: body.data,
+              paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : 0,
             }).eq("id", it.id);
             succeeded++;
           } else if (["failed", "reversed"].includes(status as string)) {
