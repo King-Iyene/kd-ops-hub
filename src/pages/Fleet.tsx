@@ -351,12 +351,12 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 
 const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
-// Counts minutes of sustained stopped time (speed < 3 km/h for 2+ consecutive minutes).
-// Requires at least 2 min of continuous low speed before counting, which excludes brief
-// traffic slowdowns. True traffic jams still appear but only after extended standstills.
+// Counts minutes of sustained stopped time (speed < 3 km/h for 5+ consecutive minutes).
+// The 5-minute threshold matches the on-device extended_stop event threshold, filtering
+// out traffic jams and red lights that don't sustain a full standstill.
 function computeIdleMinutes(breadcrumbs: BreadcrumbRow[]): number {
   if (breadcrumbs.length < 2) return 0;
-  const MIN_STOP_MS = 2 * 60_000;
+  const MIN_STOP_MS = 5 * 60_000;
   let stopStartMs: number | null = null;
   let idleMs = 0;
   for (let i = 0; i < breadcrumbs.length; i++) {
@@ -508,6 +508,31 @@ interface TripMapModalProps {
 
 function isCoordString(s: string) {
   return /[°]\s*[NSns]/.test(s);
+}
+
+// Module-level cache — each unique coordinate string is geocoded at most once per session.
+const geocodeResultCache = new Map<string, string>();
+
+function LocationCell({ location, lat, lng }: { location: string; lat: number | null; lng: number | null }) {
+  const { isLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
+  const [resolved, setResolved] = useState<string | null>(() => geocodeResultCache.get(location) ?? null);
+  const [geocoding, setGeocoding] = useState(false);
+  const isCoord = isCoordString(location);
+
+  useEffect(() => {
+    if (!isCoord || !isLoaded || lat == null || lng == null) return;
+    const cached = geocodeResultCache.get(location);
+    if (cached) { setResolved(cached); return; }
+    setGeocoding(true);
+    reverseGeocode(lat, lng)
+      .then((name) => { geocodeResultCache.set(location, name); setResolved(name); })
+      .catch(() => {})
+      .finally(() => setGeocoding(false));
+  }, [isCoord, isLoaded, location, lat, lng]);
+
+  if (!location) return <span>—</span>;
+  if (geocoding) return <span className="text-muted-foreground italic text-xs">Resolving…</span>;
+  return <span title={isCoord && resolved ? location : undefined}>{resolved ?? location}</span>;
 }
 
 function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapModalProps) {
@@ -1845,8 +1870,18 @@ const Fleet = () => {
       return;
     }
     const pinCoords = startPinnedCoords ?? startCoords;
-    const locationStr = pinCoords ? (startAddress || formatCoords(pinCoords.lat, pinCoords.lng)) : '';
     setStartingTrip(true);
+    // If geocoding hasn't resolved yet, wait up to 5 s before falling back to coordinates.
+    let resolvedStartAddr = startAddress;
+    if (!resolvedStartAddr && pinCoords) {
+      try {
+        resolvedStartAddr = await Promise.race<string | null>([
+          reverseGeocode(pinCoords.lat, pinCoords.lng).catch(() => null),
+          new Promise<null>((r) => setTimeout(() => r(null), 5_000)),
+        ]);
+      } catch { resolvedStartAddr = null; }
+    }
+    const locationStr = pinCoords ? (resolvedStartAddr || formatCoords(pinCoords.lat, pinCoords.lng)) : '';
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('trip_logs')
@@ -1901,7 +1936,18 @@ const Fleet = () => {
       toast({ title: 'End odometer reading is required', variant: 'destructive' });
       return;
     }
-    const endLocationStr = endCoords ? (endAddress || formatCoords(endCoords.lat, endCoords.lng)) : '';
+    setEndingTrip(true);
+    // If geocoding hasn't resolved yet, wait up to 5 s before falling back to coordinates.
+    let resolvedEndAddr = endAddress;
+    if (!resolvedEndAddr && endCoords) {
+      try {
+        resolvedEndAddr = await Promise.race<string | null>([
+          reverseGeocode(endCoords.lat, endCoords.lng).catch(() => null),
+          new Promise<null>((r) => setTimeout(() => r(null), 5_000)),
+        ]);
+      } catch { resolvedEndAddr = null; }
+    }
+    const endLocationStr = endCoords ? (resolvedEndAddr || formatCoords(endCoords.lat, endCoords.lng)) : '';
     const now = new Date();
     const startMs = activeTrip.trip_start_time ? Date.parse(activeTrip.trip_start_time) : Date.now();
     const durationMin = Math.max(0, Math.round((now.getTime() - startMs) / 60_000));
@@ -1916,7 +1962,6 @@ const Fleet = () => {
       if (distFromBase > 100) isOutOfArea = true;
     }
 
-    setEndingTrip(true);
     const { error } = await supabase
       .from('trip_logs')
       .update({
@@ -3617,7 +3662,7 @@ const Fleet = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{lv ? `${lv.plate_number} — ${lv.name}` : '—'}</p>
-                        <p className="text-xs text-muted-foreground truncate">From: {t.start_location || '—'}</p>
+                        <p className="text-xs text-muted-foreground truncate">From: <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} /></p>
                       </div>
                     );
                   })}
@@ -3701,11 +3746,13 @@ const Fleet = () => {
                           ? `${Math.floor(t.duration_minutes / 60)}h ${t.duration_minutes % 60}m`
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-xs font-mono max-w-[140px] truncate" title={t.start_location}>
-                        {t.start_location || '—'}
+                      <TableCell className="text-xs max-w-[160px] truncate">
+                        <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} />
                       </TableCell>
-                      <TableCell className="text-xs font-mono max-w-[140px] truncate" title={t.end_location}>
-                        {t.end_location || (t.status === 'in_progress' ? <span className="text-green-600 italic">In progress…</span> : '—')}
+                      <TableCell className="text-xs max-w-[160px] truncate">
+                        {t.end_location
+                          ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
+                          : t.status === 'in_progress' ? <span className="text-green-600 italic">In progress…</span> : '—'}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {t.km_driven != null ? t.km_driven.toLocaleString() : '—'}
@@ -3801,12 +3848,14 @@ const Fleet = () => {
                       <div className="space-y-1 text-xs">
                         <div className="flex items-start gap-2">
                           <span className="text-muted-foreground w-10 shrink-0">From</span>
-                          <span className="font-mono text-[11px] truncate flex-1">{t.start_location || '—'}</span>
+                          <span className="text-[11px] truncate flex-1"><LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} /></span>
                         </div>
                         <div className="flex items-start gap-2">
                           <span className="text-muted-foreground w-10 shrink-0">To</span>
-                          <span className="font-mono text-[11px] truncate flex-1">
-                            {t.end_location || (isLive ? <span className="text-green-600 italic">In progress…</span> : '—')}
+                          <span className="text-[11px] truncate flex-1">
+                            {t.end_location
+                              ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
+                              : isLive ? <span className="text-green-600 italic">In progress…</span> : '—'}
                           </span>
                         </div>
                       </div>
@@ -4030,8 +4079,10 @@ const Fleet = () => {
                             <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
                             <TableCell className="text-xs max-w-[200px]">
-                              <span className="truncate block" title={`${t.start_location} → ${t.end_location}`}>
-                                {t.start_location || '—'} → {t.end_location || '—'}
+                              <span className="truncate block">
+                                <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} />
+                                {' → '}
+                                <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
                               </span>
                             </TableCell>
                             <TableCell className="text-xs">
@@ -4711,26 +4762,43 @@ const Fleet = () => {
             </div>
 
             {/* Optional: fuel this trip */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Fuel Purchased (₦) <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-                <Input
-                  type="number"
-                  value={endTripForm.fuel_amount_ngn}
-                  onChange={(e) => setEndTripForm((f) => ({ ...f, fuel_amount_ngn: e.target.value }))}
-                  placeholder="Optional"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Litres <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-                <Input
-                  type="number"
-                  value={endTripForm.litres}
-                  onChange={(e) => setEndTripForm((f) => ({ ...f, litres: e.target.value }))}
-                  placeholder="Optional"
-                />
-              </div>
-            </div>
+            {(() => {
+              const km = activeTrip?.odometer_start != null && endTripForm.odometer_end
+                ? Math.max(0, parseFloat(endTripForm.odometer_end) - activeTrip.odometer_start) : null;
+              const tripVehForFuel = activeTrip?.vehicle_id ? vehicles.find((v) => v.id === activeTrip.vehicle_id) : null;
+              const estL = km != null && km > 0 && tripVehForFuel?.fuel_consumption_rate_lkm
+                ? Math.round(km * tripVehForFuel.fuel_consumption_rate_lkm * 10) / 10 : null;
+              return (
+                <div className="space-y-2">
+                  {estL != null && (
+                    <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+                      <Fuel className="h-3.5 w-3.5 shrink-0" />
+                      <span>Vehicle spec estimates <strong>{estL} L</strong> consumed this trip ({tripVehForFuel?.fuel_consumption_rate_lkm} L/km × {km?.toLocaleString()} km)</span>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Fuel Purchased (₦) <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Input
+                        type="number"
+                        value={endTripForm.fuel_amount_ngn}
+                        onChange={(e) => setEndTripForm((f) => ({ ...f, fuel_amount_ngn: e.target.value }))}
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Litres Purchased <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Input
+                        type="number"
+                        value={endTripForm.litres}
+                        onChange={(e) => setEndTripForm((f) => ({ ...f, litres: e.target.value }))}
+                        placeholder={estL != null ? `Est. ${estL} L consumed` : 'Optional'}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="space-y-1">
               <Label>Issues to Report <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
@@ -5094,11 +5162,11 @@ const Fleet = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">From</p>
-                  <p className="font-medium">{selectedTrip.start_location || '—'}</p>
+                  <p className="font-medium"><LocationCell location={selectedTrip.start_location} lat={selectedTrip.start_lat} lng={selectedTrip.start_lng} /></p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">To</p>
-                  <p className="font-medium">{selectedTrip.end_location || '—'}</p>
+                  <p className="font-medium"><LocationCell location={selectedTrip.end_location} lat={selectedTrip.end_lat} lng={selectedTrip.end_lng} /></p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 border rounded-lg p-3 bg-muted/30">
