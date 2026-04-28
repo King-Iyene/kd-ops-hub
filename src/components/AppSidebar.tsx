@@ -183,7 +183,11 @@ export function AppSidebar() {
 
   useEffect(() => {
     refreshApprovals();
-  }, [refreshApprovals, location.pathname]);
+    // Refresh every 90 seconds passively — no longer on every navigation.
+    // This cuts 5 DB round-trips per page change down to one every 90 s.
+    const id = setInterval(refreshApprovals, 90_000);
+    return () => clearInterval(id);
+  }, [refreshApprovals]);
 
   // ─── Group collapse state (initialised from localStorage) ─────────────────
 
