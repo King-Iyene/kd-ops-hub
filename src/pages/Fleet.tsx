@@ -351,16 +351,32 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 
 const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
+// Counts minutes of sustained stopped time (speed < 3 km/h for 2+ consecutive minutes).
+// Requires at least 2 min of continuous low speed before counting, which excludes brief
+// traffic slowdowns. True traffic jams still appear but only after extended standstills.
 function computeIdleMinutes(breadcrumbs: BreadcrumbRow[]): number {
   if (breadcrumbs.length < 2) return 0;
+  const MIN_STOP_MS = 2 * 60_000;
+  let stopStartMs: number | null = null;
   let idleMs = 0;
-  for (let i = 1; i < breadcrumbs.length; i++) {
-    const prev = breadcrumbs[i - 1];
-    const curr = breadcrumbs[i];
-    const speed = curr.speed_kmh ?? prev.speed_kmh ?? null;
+  for (let i = 0; i < breadcrumbs.length; i++) {
+    const b = breadcrumbs[i];
+    const speed = b.speed_kmh;
+    const t = Date.parse(b.recorded_at);
     if (speed !== null && speed < 3) {
-      idleMs += Date.parse(curr.recorded_at) - Date.parse(prev.recorded_at);
+      if (stopStartMs === null) stopStartMs = t;
+    } else {
+      if (stopStartMs !== null) {
+        const dur = t - stopStartMs;
+        if (dur >= MIN_STOP_MS) idleMs += dur;
+        stopStartMs = null;
+      }
     }
+  }
+  if (stopStartMs !== null) {
+    const last = breadcrumbs[breadcrumbs.length - 1];
+    const dur = Date.parse(last.recorded_at) - stopStartMs;
+    if (dur >= MIN_STOP_MS) idleMs += dur;
   }
   return Math.round(idleMs / 60000);
 }
@@ -490,12 +506,31 @@ interface TripMapModalProps {
   onClose: () => void;
 }
 
+function isCoordString(s: string) {
+  return /[°]\s*[NSns]/.test(s);
+}
+
 function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapModalProps) {
   const [activeTab, setActiveTab] = useState<'map' | 'replay' | 'events'>('map');
   const [replayPlaying, setReplayPlaying] = useState(false);
   const [replayStep, setReplayStep] = useState(0);
   const [replaySpeed, setReplaySpeed] = useState(4);
   const replayRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [startPlaceName, setStartPlaceName] = useState<string | null>(null);
+  const [endPlaceName, setEndPlaceName]     = useState<string | null>(null);
+
+  useEffect(() => {
+    if (trip.start_lat != null && trip.start_lng != null && isCoordString(trip.start_location)) {
+      reverseGeocode(trip.start_lat, trip.start_lng).then(setStartPlaceName).catch(() => {});
+    }
+    if (trip.end_lat != null && trip.end_lng != null && isCoordString(trip.end_location)) {
+      reverseGeocode(trip.end_lat, trip.end_lng).then(setEndPlaceName).catch(() => {});
+    }
+  }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const displayStart = startPlaceName ?? trip.start_location;
+  const displayEnd   = endPlaceName   ?? trip.end_location;
 
   const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
   const totalSteps = trail.length;
@@ -549,7 +584,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
             <div className="min-w-0">
               <DialogTitle className="kd-display text-lg truncate">Trip Map · {trip.employee_name}</DialogTitle>
               <DialogDescription className="mt-0.5 truncate">
-                {formatDate(trip.date)} · {trip.start_location || '—'} → {trip.end_location || '—'}
+                {formatDate(trip.date)} · {displayStart || '—'} → {displayEnd || '—'}
               </DialogDescription>
             </div>
           </div>
@@ -582,7 +617,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
             </p>
           </div>
           <div className={`rounded-lg border px-3 py-2 ${idleMinutes != null && idleMinutes > 30 ? 'border-amber-300 bg-amber-50/40 dark:bg-amber-950/20' : 'border-border/50 bg-muted/30'}`}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Idle time</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground/80">Stopped</p>
             <p className={`kd-stat-number text-base font-bold leading-tight ${idleMinutes != null && idleMinutes > 30 ? 'text-amber-600' : ''}`}>
               {idleMinutes != null ? `${idleMinutes} min` : '—'}
             </p>
