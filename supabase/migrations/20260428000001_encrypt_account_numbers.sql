@@ -1,42 +1,55 @@
--- Encrypt bank account numbers using pgcrypto.
+-- Encrypt bank account numbers using pgcrypto + private schema key.
 --
 -- NDPR compliance: account numbers are personal financial data and must not
--- be stored in plaintext. This migration adds encrypted shadow columns and
--- a trigger that keeps them in sync automatically.
+-- be stored in plaintext.
 --
--- ─── ONE-TIME SETUP (run in Supabase SQL editor BEFORE applying this migration) ───
+-- ─── NO MANUAL SETUP REQUIRED ────────────────────────────────────────────────
 --
---   1. Generate a strong random key (run locally):
---        python3 -c "import secrets; print(secrets.token_hex(32))"
---      Keep this key in your password manager — it is required to decrypt data.
+-- A 256-bit encryption key is generated automatically on first run and stored
+-- in a locked-down _private schema that only SECURITY DEFINER functions can
+-- reach. No ALTER DATABASE, no secrets in env vars.
 --
---   2. Set the key as a database config variable:
---        ALTER DATABASE postgres SET app.encryption_key TO 'your-64-hex-char-key-here';
---        SELECT pg_reload_conf();
+-- ─── ARCHITECTURE ─────────────────────────────────────────────────────────────
 --
---   3. Apply this migration (it will auto-backfill existing rows if the key is set).
+--   * _private.enc_keys  — holds the auto-generated AES key; inaccessible to
+--                          anon / authenticated roles directly.
+--   * SECURITY DEFINER functions run as postgres (owner) and can read the key.
+--   * Plaintext columns are KEPT so existing app code keeps working; the UI
+--     masks them (****NNNN).
+--   * Encrypted shadow columns (*_enc) store pgcrypto PGP-encrypted values.
+--   * BEFORE INSERT/UPDATE triggers auto-encrypt every write.
+--   * get_decrypted_account_number RPC lets admin/finance decrypt on demand.
 --
--- ─── ARCHITECTURE ─────────────────────────────────────────────────────────────────
---
---   * Plaintext columns (account_number / bank_account_number) are KEPT so that
---     existing application code continues to work. They are shown as masked in
---     the UI (****NNNN).
---   * Encrypted shadow columns (*_enc) store AES/PGP-encrypted values.
---   * A BEFORE INSERT/UPDATE trigger auto-encrypts each write.
---   * An RPC (get_decrypted_account_number) lets admin/finance users decrypt
---     a specific record via a role-checked SECURITY DEFINER function.
---
--- ─── AFFECTED TABLES ──────────────────────────────────────────────────────────────
+-- ─── AFFECTED TABLES ──────────────────────────────────────────────────────────
 --   contractors              → account_number_enc
 --   batch_items              → account_number_enc
 --   profiles                 → bank_account_number_enc
 --   vendors                  → bank_account_number_enc
 --   contractor_applications  → account_number_enc
--- ─────────────────────────────────────────────────────────────────────────────────
+-- ──────────────────────────────────────────────────────────────────────────────
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- ── 1. Add encrypted shadow columns ──────────────────────────────────────────
+-- ── 1. Private schema — inaccessible to app roles ────────────────────────────
+
+CREATE SCHEMA IF NOT EXISTS _private;
+REVOKE ALL  ON SCHEMA _private FROM PUBLIC;
+REVOKE USAGE ON SCHEMA _private FROM anon;
+REVOKE USAGE ON SCHEMA _private FROM authenticated;
+
+CREATE TABLE IF NOT EXISTS _private.enc_keys (
+  name       text        PRIMARY KEY,
+  value      text        NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+REVOKE ALL ON _private.enc_keys FROM PUBLIC, anon, authenticated;
+
+-- Auto-generate a 256-bit key on first run (idempotent).
+INSERT INTO _private.enc_keys (name, value)
+  VALUES ('account_numbers', encode(gen_random_bytes(32), 'hex'))
+  ON CONFLICT (name) DO NOTHING;
+
+-- ── 2. Add encrypted shadow columns ──────────────────────────────────────────
 
 ALTER TABLE public.contractors
   ADD COLUMN IF NOT EXISTS account_number_enc text;
@@ -53,21 +66,21 @@ ALTER TABLE public.vendors
 ALTER TABLE public.contractor_applications
   ADD COLUMN IF NOT EXISTS account_number_enc text;
 
--- ── 2. Encrypt / decrypt helper functions ─────────────────────────────────────
+-- ── 3. Encrypt / decrypt helper functions ─────────────────────────────────────
 --
--- Both functions are SECURITY DEFINER so they can read app.encryption_key
--- without exposing it to callers. REVOKE prevents direct invocation from
--- the anon / authenticated roles.
+-- SECURITY DEFINER + SET search_path = _private, public means the function
+-- runs as postgres (the schema owner) and can read _private.enc_keys.
 
 CREATE OR REPLACE FUNCTION public.encrypt_account_number(plaintext text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = _private, public
 AS $$
 DECLARE
-  k text := current_setting('app.encryption_key', true);
+  k text;
 BEGIN
+  SELECT value INTO k FROM _private.enc_keys WHERE name = 'account_numbers';
   IF k IS NULL OR k = '' THEN RETURN NULL; END IF;
   IF plaintext IS NULL OR plaintext = '' THEN RETURN NULL; END IF;
   RETURN encode(pgp_sym_encrypt(plaintext, k), 'base64');
@@ -78,11 +91,12 @@ CREATE OR REPLACE FUNCTION public.decrypt_account_number(ciphertext text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = _private, public
 AS $$
 DECLARE
-  k text := current_setting('app.encryption_key', true);
+  k text;
 BEGIN
+  SELECT value INTO k FROM _private.enc_keys WHERE name = 'account_numbers';
   IF k IS NULL OR k = '' THEN RETURN NULL; END IF;
   IF ciphertext IS NULL OR ciphertext = '' THEN RETURN NULL; END IF;
   RETURN pgp_sym_decrypt(decode(ciphertext, 'base64'), k);
@@ -91,24 +105,24 @@ EXCEPTION WHEN others THEN
 END;
 $$;
 
--- Prevent direct calls from anon / authenticated — only SECURITY DEFINER
--- callers (triggers, RPCs below) invoke these.
+-- Prevent direct calls from app roles — only SECURITY DEFINER callers use these.
 REVOKE ALL ON FUNCTION public.encrypt_account_number(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.decrypt_account_number(text)  FROM PUBLIC, anon, authenticated;
 
--- ── 3. Auto-encrypt trigger ───────────────────────────────────────────────────
+-- ── 4. Auto-encrypt trigger ───────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.trg_fn_encrypt_account_numbers()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = _private, public
 AS $$
 DECLARE
-  k text := current_setting('app.encryption_key', true);
+  k text;
 BEGIN
+  SELECT value INTO k FROM _private.enc_keys WHERE name = 'account_numbers';
   IF k IS NULL OR k = '' THEN
-    RETURN NEW;  -- key not configured yet; skip silently
+    RETURN NEW;
   END IF;
 
   IF TG_TABLE_NAME IN ('contractors', 'batch_items', 'contractor_applications') THEN
@@ -127,8 +141,6 @@ BEGIN
 END;
 $$;
 
--- Attach to each affected table (idempotent via OR REPLACE on the function;
--- triggers themselves use DROP IF EXISTS to allow re-running the migration).
 DROP TRIGGER IF EXISTS trg_encrypt_acct_contractors ON public.contractors;
 CREATE TRIGGER trg_encrypt_acct_contractors
   BEFORE INSERT OR UPDATE ON public.contractors
@@ -154,14 +166,14 @@ CREATE TRIGGER trg_encrypt_acct_applications
   BEFORE INSERT OR UPDATE ON public.contractor_applications
   FOR EACH ROW EXECUTE FUNCTION public.trg_fn_encrypt_account_numbers();
 
--- ── 4. Privileged RPC — decrypt a single account number ──────────────────────
+-- ── 5. Privileged RPC — decrypt a single account number ──────────────────────
 --
 -- Usage from the frontend:
 --   const { data } = await supabase.rpc('get_decrypted_account_number', {
 --     p_entity_type: 'contractor', p_entity_id: contractor.id
 --   });
 --
--- Only super_admin / admin / finance roles can call this.
+-- Only super_admin / admin / finance roles may call this.
 
 CREATE OR REPLACE FUNCTION public.get_decrypted_account_number(
   p_entity_type text,
@@ -170,11 +182,12 @@ CREATE OR REPLACE FUNCTION public.get_decrypted_account_number(
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = _private, public
 AS $$
 DECLARE
   caller_role text;
   enc_val     text;
+  k           text;
 BEGIN
   SELECT role INTO caller_role
     FROM public.profiles
@@ -204,32 +217,30 @@ BEGIN
       RAISE EXCEPTION 'Unknown entity_type: %', p_entity_type;
   END CASE;
 
-  RETURN public.decrypt_account_number(enc_val);
+  SELECT value INTO k FROM _private.enc_keys WHERE name = 'account_numbers';
+  IF k IS NULL OR k = '' OR enc_val IS NULL OR enc_val = '' THEN
+    RETURN NULL;
+  END IF;
+  RETURN pgp_sym_decrypt(decode(enc_val, 'base64'), k);
+EXCEPTION WHEN others THEN
+  RETURN NULL;
 END;
 $$;
 
--- ── 5. Backfill existing rows ─────────────────────────────────────────────────
+-- ── 6. Backfill existing rows ─────────────────────────────────────────────────
 --
--- Runs only if app.encryption_key is already configured.
--- If the key is not set yet, run this block manually in the SQL editor after
--- setting the key:
---
---   UPDATE public.contractors
---     SET account_number_enc = public.encrypt_account_number(account_number)
---     WHERE account_number IS NOT NULL AND account_number != ''
---       AND account_number_enc IS NULL;
---   (repeat for batch_items, profiles, vendors, contractor_applications)
+-- Reads the auto-generated key directly from _private.enc_keys.
+-- Safe to re-run — only touches rows where *_enc IS NULL.
 
 DO $$
 DECLARE
-  k text := current_setting('app.encryption_key', true);
+  k text;
   n int;
 BEGIN
+  SELECT value INTO k FROM _private.enc_keys WHERE name = 'account_numbers';
+
   IF k IS NULL OR k = '' THEN
-    RAISE WARNING
-      'app.encryption_key not set — existing rows were NOT backfilled. '
-      'Set the key first (see migration header), then run the backfill '
-      'UPDATE statements from the SQL editor.';
+    RAISE WARNING 'enc_keys row missing — backfill skipped.';
     RETURN;
   END IF;
 

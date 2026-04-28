@@ -1670,11 +1670,6 @@ const Fleet = () => {
     setStartTripForm({ vehicle_id: '', odometer_start: '', manual_location: '' });
     setLastVehicleOdometer(null);
     setStartGeoState('idle');
-    acquireGeo(setStartGeoState, setStartCoords, (addr) => {
-      setStartAddress(addr);
-      // Auto-fill the location field from GPS — user can still override it
-      setStartTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
-    });
     if (profile?.id) {
       fetchLastOdometer(profile.id).then((v) =>
         setStartTripForm((f) => ({ ...f, odometer_start: v })),
@@ -1735,10 +1730,6 @@ const Fleet = () => {
     setEndAddress(null);
     setEndTripForm({ odometer_end: '', fuel_amount_ngn: '', litres: '', issues: '', manual_location: '' });
     setEndGeoState('idle');
-    acquireGeo(setEndGeoState, setEndCoords, (addr) => {
-      setEndAddress(addr);
-      setEndTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
-    });
   };
 
   const handleEndTrip = async () => {
@@ -4260,9 +4251,9 @@ const Fleet = () => {
                         <>GPS detected{startCoords ? ` (±${Math.round(startCoords.accuracy)} m)` : ''} — location filled above.</>
                       )}
                       {isGeoError(startGeoState) && 'GPS unavailable — type your location above to continue.'}
-                      {startGeoState === 'idle' && 'Waiting for GPS…'}
+                      {startGeoState === 'idle' && 'Type your location above, or:'}
                     </span>
-                    {(isGeoError(startGeoState) || startGeoState === 'ok') && (
+                    {(isGeoError(startGeoState) || startGeoState === 'ok' || startGeoState === 'idle') && (
                       <button
                         type="button"
                         className="underline shrink-0 ml-1"
@@ -4271,7 +4262,7 @@ const Fleet = () => {
                           setStartTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
                         })}
                       >
-                        {startGeoState === 'ok' ? 'Re-acquire' : 'Retry GPS'}
+                        {startGeoState === 'ok' ? 'Re-acquire' : startGeoState === 'idle' ? 'Detect Location' : 'Retry GPS'}
                       </button>
                     )}
                   </div>
@@ -4435,9 +4426,9 @@ const Fleet = () => {
                   {endGeoState === 'acquiring' && 'Detecting GPS… you can type a location above too.'}
                   {endGeoState === 'ok' && endCoords && <>GPS detected{endCoords ? ` (±${Math.round(endCoords.accuracy)} m)` : ''} — location filled above.</>}
                   {isGeoError(endGeoState) && 'GPS unavailable — type your location above to continue.'}
-                  {endGeoState === 'idle' && 'Waiting for GPS…'}
+                  {endGeoState === 'idle' && 'Type your location above, or:'}
                 </span>
-                {(isGeoError(endGeoState) || endGeoState === 'ok') && (
+                {(isGeoError(endGeoState) || endGeoState === 'ok' || endGeoState === 'idle') && (
                   <button
                     type="button"
                     className="underline shrink-0 ml-1"
@@ -4446,7 +4437,7 @@ const Fleet = () => {
                       setEndTripForm((f) => ({ ...f, manual_location: f.manual_location || addr }));
                     })}
                   >
-                    {endGeoState === 'ok' ? 'Re-acquire' : 'Retry GPS'}
+                    {endGeoState === 'ok' ? 'Re-acquire' : endGeoState === 'idle' ? 'Detect Location' : 'Retry GPS'}
                   </button>
                 )}
               </div>
