@@ -56,7 +56,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -340,9 +340,8 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 // ---------------------------------------------------------------------------
 
 // Thin wrapper: calls Google Geocoding API, falls back to coordinate string.
-async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  const result = await googleReverseGeocode(lat, lng);
-  return result ?? formatCoords(lat, lng);
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  return await googleReverseGeocode(lat, lng);
 }
 
 // ---------------------------------------------------------------------------
@@ -525,7 +524,7 @@ function LocationCell({ location, lat, lng }: { location: string; lat: number | 
     if (cached) { setResolved(cached); return; }
     setGeocoding(true);
     reverseGeocode(lat, lng)
-      .then((name) => { geocodeResultCache.set(location, name); setResolved(name); })
+      .then((name) => { if (name) { geocodeResultCache.set(location, name); setResolved(name); } })
       .catch(() => {})
       .finally(() => setGeocoding(false));
   }, [isCoord, isLoaded, location, lat, lng]);
@@ -547,10 +546,10 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
 
   useEffect(() => {
     if (trip.start_lat != null && trip.start_lng != null && isCoordString(trip.start_location)) {
-      reverseGeocode(trip.start_lat, trip.start_lng).then(setStartPlaceName).catch(() => {});
+      reverseGeocode(trip.start_lat, trip.start_lng).then((a) => { if (a) setStartPlaceName(a); }).catch(() => {});
     }
     if (trip.end_lat != null && trip.end_lng != null && isCoordString(trip.end_location)) {
-      reverseGeocode(trip.end_lat, trip.end_lng).then(setEndPlaceName).catch(() => {});
+      reverseGeocode(trip.end_lat, trip.end_lng).then((a) => { if (a) setEndPlaceName(a); }).catch(() => {});
     }
   }, [trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1839,7 +1838,7 @@ const Fleet = () => {
         setCoords(c);
         setState('ok');
         if (onAddress) {
-          reverseGeocode(c.lat, c.lng).then(onAddress).catch(() => {});
+          reverseGeocode(c.lat, c.lng).then((a) => { if (a) onAddress(a); }).catch(() => {});
         }
       })
       .catch((code) => { setState(code as GeoState); });
@@ -3031,6 +3030,28 @@ const Fleet = () => {
     fetchData();
   };
 
+  const revertAnomalyReview = async (type: 'trip' | 'fuel', id: string, label: string) => {
+    const table = type === 'trip' ? 'trip_logs' : 'fuel_requests';
+    const { error } = await supabase.from(table).update({
+      anomaly_reviewed_by: null,
+      anomaly_reviewed_at: null,
+      anomaly_review_note: null,
+    }).eq('id', id);
+    if (error) { toast({ title: 'Revert failed', description: error.message, variant: 'destructive' }); return; }
+    await logAudit('anomaly_review_reverted', `Anomaly review reverted for ${type} "${label}"`, profile);
+    toast({ title: 'Review reverted — item marked unreviewed again' });
+    fetchData();
+  };
+
+  const deleteAnomalyRecord = async (type: 'trip' | 'fuel', id: string, label: string) => {
+    const table = type === 'trip' ? 'trip_logs' : 'fuel_requests';
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
+    await logAudit('anomaly_record_deleted', `${type} "${label}" deleted from anomalies`, profile);
+    toast({ title: 'Record deleted' });
+    fetchData();
+  };
+
   if (loading) return <TableSkeleton rows={5} />;
 
   // Phase 4 — service alerts (vehicles with expiries within 30 days)
@@ -4110,16 +4131,23 @@ const Fleet = () => {
                               {t.anomaly_reviewed_at ? formatDate(t.anomaly_reviewed_at.slice(0, 10)) : '—'}
                             </TableCell>
                             <TableCell>
-                              {!t.anomaly_reviewed_at && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs"
-                                  onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}
-                                >
-                                  Review
+                              <div className="flex items-center gap-1.5">
+                                {!t.anomaly_reviewed_at ? (
+                                  <Button size="sm" variant="outline" className="text-xs h-7"
+                                    onClick={() => setReviewingAnomaly({ type: 'trip', id: t.id, label: `${t.start_location} → ${t.end_location}` })}>
+                                    Review
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    onClick={() => revertAnomalyReview('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                                    <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => deleteAnomalyRecord('trip', t.id, `${t.start_location} → ${t.end_location}`)}>
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
-                              )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -4176,16 +4204,23 @@ const Fleet = () => {
                               {r.anomaly_reviewed_at ? formatDate(r.anomaly_reviewed_at.slice(0, 10)) : '—'}
                             </TableCell>
                             <TableCell>
-                              {!r.anomaly_reviewed_at && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs"
-                                  onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}
-                                >
-                                  Review
+                              <div className="flex items-center gap-1.5">
+                                {!r.anomaly_reviewed_at ? (
+                                  <Button size="sm" variant="outline" className="text-xs h-7"
+                                    onClick={() => setReviewingAnomaly({ type: 'fuel', id: r.id, label: `${r.station_name} — ${r.employee_name}` })}>
+                                    Review
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="ghost" className="text-xs h-7 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    onClick={() => revertAnomalyReview('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                                    <RotateCcw className="h-3 w-3 mr-1" /> Revert
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" className="text-xs h-7 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                  onClick={() => deleteAnomalyRecord('fuel', r.id, `${r.station_name} — ${r.employee_name}`)}>
+                                  <Trash2 className="h-3 w-3" />
                                 </Button>
-                              )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -5367,104 +5402,118 @@ const Fleet = () => {
 
       {/* Phase 4 — Repair request dialog */}
       <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); setRepairIsReimbursement(true); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{repairIsReimbursement ? 'Vehicle Repair Reimbursement' : 'Vehicle Repair — Company Charge'}</DialogTitle>
-            <DialogDescription>
-              Submit a repair or maintenance cost. Receipts are required for amounts over ₦10,000.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Employee</Label>
-              <Select
-                value={repairForm.employee_id}
-                onValueChange={(v) => setRepairForm({ ...repairForm, employee_id: v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                <SelectContent>
-                  {staff.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>
-                  ))}
-                  {profile && !staff.find((s) => s.id === profile.id) && (
-                    <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label>Payment type</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
-                  onClick={() => setRepairIsReimbursement(true)}
-                >
-                  <span className="font-medium">Reimbursement</span>
-                  <span className="text-xs mt-0.5 opacity-80">I paid from my own pocket</span>
-                </button>
-                <button
-                  type="button"
-                  className={cn('flex flex-col items-start rounded-lg border p-3 text-sm kd-transition', !repairIsReimbursement ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/40 hover:text-foreground')}
-                  onClick={() => setRepairIsReimbursement(false)}
-                >
-                  <span className="font-medium">Company charge</span>
-                  <span className="text-xs mt-0.5 opacity-80">Direct payment from company</span>
-                </button>
+        <DialogContent className="max-w-lg p-0 max-h-[90vh] flex flex-col gap-0">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 border-b shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center shrink-0">
+                <Wrench className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold kd-display leading-none">Vehicle Repair / Maintenance</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Submit a repair or maintenance cost for reimbursement or direct payment.</p>
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Description of Repair</Label>
-              <Textarea
-                value={repairForm.description}
-                onChange={(e) => setRepairForm({ ...repairForm, description: e.target.value })}
-                placeholder="e.g. Replaced front tyre — Toyota Camry ABC-123-XY"
-                rows={2}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Amount (₦)</Label>
-              <Input
-                type="number"
-                value={repairForm.amount_ngn}
-                onChange={(e) => setRepairForm({ ...repairForm, amount_ngn: e.target.value })}
-              />
-              {parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
-                <p className="text-xs text-amber-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" /> Receipt required for amounts over ₦10,000
-                </p>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label>
-                Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs">(optional)</span>}
-              </Label>
-              <Input
-                type="file"
-                accept="image/*,application/pdf"
-                onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)}
-              />
-              {repairReceipt && <p className="text-xs text-muted-foreground">{repairReceipt.name}</p>}
-            </div>
-            <div className="pt-2 border-t space-y-2">
-              <p className="text-sm font-medium">Bank account <span className="text-muted-foreground font-normal text-xs">(optional)</span></p>
-              <BankAccountField value={repairBank} onChange={setRepairBank} />
-            </div>
           </div>
-          <DialogFooter>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-h-0">
+            {/* Who */}
+            {isAdmin && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Who</Label>
+                <Select value={repairForm.employee_id} onValueChange={(v) => setRepairForm({ ...repairForm, employee_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                  <SelectContent>
+                    {staff.map((s) => (<SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>))}
+                    {profile && !staff.find((s) => s.id === profile.id) && (
+                      <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Payment type */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payment type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { val: true, title: 'Reimbursement', sub: 'I paid from my own pocket', icon: <CreditCard className="h-4 w-4" /> },
+                  { val: false, title: 'Company charge', sub: 'Direct payment from company', icon: <Banknote className="h-4 w-4" /> },
+                ].map(({ val, title, sub, icon }) => (
+                  <button key={String(val)} type="button"
+                    className={cn('flex items-start gap-2.5 rounded-xl border p-3.5 text-sm kd-transition text-left', repairIsReimbursement === val ? 'border-primary bg-primary/5' : 'border-input text-muted-foreground hover:border-primary/30 hover:text-foreground')}
+                    onClick={() => setRepairIsReimbursement(val)}
+                  >
+                    <span className={cn('mt-0.5 shrink-0', repairIsReimbursement === val ? 'text-primary' : 'text-muted-foreground')}>{icon}</span>
+                    <span>
+                      <span className={cn('block font-medium', repairIsReimbursement === val ? 'text-primary' : '')}>{title}</span>
+                      <span className="block text-xs mt-0.5 opacity-70">{sub}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repair details</Label>
+              <div className="space-y-1.5">
+                <Label>Description <span className="text-destructive">*</span></Label>
+                <Textarea
+                  value={repairForm.description}
+                  onChange={(e) => setRepairForm({ ...repairForm, description: e.target.value })}
+                  placeholder="e.g. Replaced front tyre — Toyota Camry ABC-123-XY"
+                  rows={2}
+                  className="resize-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Amount (₦) <span className="text-destructive">*</span></Label>
+                <Input type="number" value={repairForm.amount_ngn}
+                  onChange={(e) => setRepairForm({ ...repairForm, amount_ngn: e.target.value })}
+                  placeholder="0.00"
+                />
+                {parseFloat(repairForm.amount_ngn) > 10000 && !repairReceipt && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> Receipt required for amounts over ₦10,000
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs font-normal">(optional)</span>}
+                </Label>
+                <label className={cn('flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 cursor-pointer kd-transition', repairReceipt ? 'border-green-400 bg-green-50 dark:bg-green-950/20' : 'border-border hover:border-primary/40 hover:bg-muted/30')}>
+                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)} />
+                  {repairReceipt
+                    ? <><CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" /><span className="text-sm text-green-700 dark:text-green-400 truncate">{repairReceipt.name}</span></>
+                    : <><Upload className="h-4 w-4 text-muted-foreground shrink-0" /><span className="text-sm text-muted-foreground">Upload receipt (photo or PDF)</span></>
+                  }
+                </label>
+              </div>
+            </div>
+
+            {/* Bank (reimbursement only) */}
+            {repairIsReimbursement && (
+              <div className="space-y-1.5 border-t pt-4">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank account for reimbursement <span className="font-normal normal-case">(optional)</span></Label>
+                <BankAccountField value={repairBank} onChange={setRepairBank} />
+              </div>
+            )}
+          </div>
+
+          <div className="shrink-0 px-6 pb-6 pt-3 border-t bg-background flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowRepairForm(false)}>Cancel</Button>
             <Button
               onClick={submitRepairRequest}
-              disabled={
-                submitting ||
-                !repairForm.employee_id ||
-                !repairForm.description ||
-                !repairForm.amount_ngn
-              }
+              disabled={submitting || !repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn}
+              className="min-w-[130px]"
             >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Repair
+              {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wrench className="mr-2 h-4 w-4" />}
+              Submit Repair
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -5997,10 +6046,8 @@ function GeofencesTab() {
 function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const { toast } = useToast();
   const { profile } = useAuthStore();
-  const canManageVehicles =
-    profile?.role === 'admin' ||
-    profile?.role === 'finance' ||
-    profile?.role === 'super_admin';
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'finance';
+  const canManageVehicles = isAdmin; // edit / delete require admin
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -6009,6 +6056,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [allEmployees, setAllEmployees] = useState<FieldStaff[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
+  const [showNonAdminSaveWarning, setShowNonAdminSaveWarning] = useState(false);
   const [viewingFuelHistory, setViewingFuelHistory] = useState<Vehicle | null>(null);
   const [viewingMaintenance, setViewingMaintenance] = useState<Vehicle | null>(null);
   const [settingOutOfService, setSettingOutOfService] = useState<Vehicle | null>(null);
@@ -6066,9 +6114,14 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     setShowForm(true);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (skipWarning = false) => {
     if (!form.name.trim() || !form.plate_number.trim()) {
       toast({ title: 'Name and plate number are required', variant: 'destructive' });
+      return;
+    }
+    // Non-admins adding a NEW vehicle: show a one-time confirmation warning.
+    if (!isAdmin && !editing && !skipWarning) {
+      setShowNonAdminSaveWarning(true);
       return;
     }
     setSubmitting(true);
@@ -6193,11 +6246,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           <p className="text-sm text-muted-foreground">
             {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''} registered
           </p>
-          {canManageVehicles && (
-            <Button onClick={() => { reset(); setShowForm(true); }}>
-              <Plus className="mr-2 h-4 w-4" /> Add Vehicle
-            </Button>
-          )}
+          <Button onClick={() => { reset(); setShowForm(true); }}>
+            <Plus className="mr-2 h-4 w-4" /> Add Vehicle
+          </Button>
         </div>
 
         <Card>
@@ -6498,6 +6549,27 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                 {editing ? 'Update vehicle' : 'Add vehicle'}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Non-admin one-time save confirmation */}
+      <Dialog open={showNonAdminSaveWarning} onOpenChange={(v) => { if (!v) setShowNonAdminSaveWarning(false); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" /> Confirm vehicle details
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-1">
+              <span className="block">Please review all the details you've entered carefully.</span>
+              <span className="block font-semibold text-foreground">Once submitted, you will not be able to edit this vehicle record. Any changes will require administrator approval.</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNonAdminSaveWarning(false)}>Go back and check</Button>
+            <Button onClick={() => { setShowNonAdminSaveWarning(false); handleSave(true); }}>
+              I've verified — Submit
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
