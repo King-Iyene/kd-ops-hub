@@ -5,7 +5,7 @@
 //
 // Deploy: supabase functions deploy chatbot-embed --no-verify-jwt
 //
-// Payload: { knowledge_id: uuid }
+// Payload: { knowledge_id: uuid } | { all: true }
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -18,7 +18,17 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 
+// Gemini text-embedding-004 has a ~2048-token limit; truncate to ~7500 chars to be safe.
+const MAX_TEXT_CHARS = 7500;
+
+function truncate(text: string): string {
+  return text.length > MAX_TEXT_CHARS ? text.slice(0, MAX_TEXT_CHARS) : text;
+}
+
 async function embed(text: string): Promise<number[]> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY not configured. Set it in Supabase secrets.");
+  }
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`,
     {
@@ -26,97 +36,133 @@ async function embed(text: string): Promise<number[]> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "models/text-embedding-004",
-        content: { parts: [{ text }] },
+        content: { parts: [{ text: truncate(text) }] },
       }),
     },
   );
-  if (!res.ok) throw new Error(`Gemini embed ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Gemini embed ${res.status}: ${body}`);
+  }
   const data = await res.json();
-  return data?.embedding?.values ?? [];
+  const values: number[] = data?.embedding?.values ?? [];
+  if (values.length === 0) {
+    throw new Error("Gemini returned empty embedding — check your GEMINI_API_KEY.");
+  }
+  return values;
+}
+
+// PostgREST requires vectors as a JSON array of numbers (not a string).
+// Pass the number[] directly — Supabase JS v2 + PostgREST 11+ handles the cast.
+async function updateEmbedding(
+  adminClient: ReturnType<typeof createClient>,
+  id: string,
+  embedding: number[],
+): Promise<void> {
+  const { error } = await adminClient
+    .from("chatbot_knowledge")
+    .update({ embedding })
+    .eq("id", id);
+  if (error) throw new Error(`DB update failed for ${id}: ${error.message}`);
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Always return 200 so the client receives the error body instead of the
+  // generic "Edge Function returned a non-2xx status code" wrapper.
+  const ok = (body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Missing auth" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok({ error: "Missing Authorization header." });
     }
 
     const adminClient = createClient(supabaseUrl, serviceKey);
+
+    // Validate the user JWT via admin client (not anon client — avoids interference)
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authError } = await adminClient.auth.getUser(token);
     if (!userData?.user || authError) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok({ error: "Invalid or expired session. Please log out and back in." });
     }
 
+    // Role check — super_admin only
     const { data: profile } = await adminClient
-      .from("profiles").select("role").eq("id", userData.user.id).single();
+      .from("profiles")
+      .select("role")
+      .eq("id", userData.user.id)
+      .single();
     if (profile?.role !== "super_admin") {
-      return new Response(JSON.stringify({ error: "Super admin only" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok({ error: "Super admin access required." });
     }
 
-    const { knowledge_id, all } = await req.json();
+    const body = await req.json();
+    const { knowledge_id, all } = body as { knowledge_id?: string; all?: boolean };
 
+    // ── Bulk embed all unembedded entries ─────────────────────────────────────
     if (all) {
-      // Re-embed everything missing an embedding
-      const { data: rows } = await adminClient
+      const { data: rows, error: fetchErr } = await adminClient
         .from("chatbot_knowledge")
         .select("id, title, content")
         .is("embedding", null);
-      let count = 0;
-      for (const r of rows ?? []) {
-        const emb = await embed(`${r.title}\n\n${r.content}`);
-        await adminClient
-          .from("chatbot_knowledge")
-          .update({ embedding: emb })
-          .eq("id", r.id);
-        count++;
+
+      if (fetchErr) return ok({ error: `Failed to fetch rows: ${fetchErr.message}` });
+
+      const rowList = rows ?? [];
+      let success = 0;
+      const errors: string[] = [];
+
+      for (const r of rowList) {
+        try {
+          const emb = await embed(`${r.title}\n\n${r.content}`);
+          await updateEmbedding(adminClient, r.id, emb);
+          success++;
+        } catch (rowErr) {
+          errors.push(`Row "${r.title}": ${(rowErr as Error).message}`);
+          console.error("embed row error:", r.id, (rowErr as Error).message);
+        }
       }
-      return new Response(JSON.stringify({ embedded: count }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+
+      return ok({
+        embedded: success,
+        failed: errors.length,
+        errors: errors.length > 0 ? errors : undefined,
       });
     }
 
+    // ── Single row embed ───────────────────────────────────────────────────────
     if (!knowledge_id) {
-      return new Response(JSON.stringify({ error: "knowledge_id required" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return ok({ error: "Provide knowledge_id or all: true." });
     }
 
-    const { data: row } = await adminClient
+    const { data: row, error: rowErr } = await adminClient
       .from("chatbot_knowledge")
       .select("id, title, content")
       .eq("id", knowledge_id)
       .single();
-    if (!row) {
-      return new Response(JSON.stringify({ error: "Not found" }), {
-        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+    if (rowErr || !row) {
+      return ok({ error: `Knowledge entry not found: ${rowErr?.message ?? knowledge_id}` });
     }
 
     const emb = await embed(`${row.title}\n\n${row.content}`);
-    await adminClient
-      .from("chatbot_knowledge")
-      .update({ embedding: emb })
-      .eq("id", row.id);
+    await updateEmbedding(adminClient, row.id, emb);
 
-    return new Response(JSON.stringify({ ok: true, dims: emb.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return ok({ ok: true, dims: emb.length });
+
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // Catch-all — return 200 so the real message reaches the browser
+    const msg = (err as Error).message ?? "Unknown error";
+    console.error("chatbot-embed error:", msg);
+    return ok({ error: msg });
   }
 });

@@ -218,12 +218,14 @@ export default function AssistantAdmin() {
     setEmbedding(knowledgeId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await supabase.functions.invoke('chatbot-embed', {
+      const { data, error } = await supabase.functions.invoke('chatbot-embed', {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
         body: { knowledge_id: knowledgeId },
       });
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast({ title: 'Embedded', description: 'Ready for retrieval.' });
+      fetchAll();
     } catch (err) {
       toast({ title: 'Embedding failed', description: (err as Error).message, variant: 'destructive' });
     } finally {
@@ -241,7 +243,13 @@ export default function AssistantAdmin() {
         body: { all: true },
       });
       if (error) throw error;
-      toast({ title: 'Re-embed complete', description: `${data?.embedded ?? 0} entries refreshed.` });
+      if (data?.error) throw new Error(data.error);
+      const failed = data?.failed ?? 0;
+      toast({
+        title: `Embedded ${data?.embedded ?? 0} of ${(data?.embedded ?? 0) + failed} entries`,
+        description: failed > 0 ? `${failed} failed — check browser console for details.` : 'All entries ready for retrieval.',
+        variant: failed > 0 ? 'destructive' : 'default',
+      });
       fetchAll();
     } catch (err) {
       toast({ title: 'Failed', description: (err as Error).message, variant: 'destructive' });
