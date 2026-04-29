@@ -256,9 +256,28 @@ const BatchDetail = () => {
     const allItems = itemsRes.data || [];
 
     if (b && (b.status === 'processing' || b.status === 'partially_processed') && allItems.length > 0) {
-      const anyPending = allItems.some((r: any) => r.status === 'pending' || r.status === 'retry');
-      const anyFailed = allItems.some((r: any) => r.status === 'failed');
-      const correctStatus = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+      // Distinguish items Paystack has accepted (has reference) from items
+      // never dispatched (no reference). An unstarted-pending item must NOT
+      // keep the batch locked in 'processing' — it needs a recoverable status
+      // so the UI can show a Retry button without Supabase dashboard access.
+      const activePending  = allItems.some((r: any) => (r.status === 'pending' || r.status === 'retry') && r.paystack_reference);
+      const unstarted      = allItems.filter((r: any) => r.status === 'pending' && !r.paystack_reference);
+      const succeededCount = allItems.filter((r: any) => r.status === 'succeeded').length;
+      const anyFailed      = allItems.some((r: any) => r.status === 'failed');
+
+      let correctStatus: string;
+      if (activePending) {
+        correctStatus = 'processing';           // Paystack transfers in-flight
+      } else if (unstarted.length > 0 && succeededCount > 0) {
+        correctStatus = 'partially_processed';  // Some sent, some never started
+      } else if (unstarted.length > 0 && succeededCount === 0) {
+        correctStatus = 'funded';               // Nothing sent — allow full retry
+      } else if (anyFailed) {
+        correctStatus = 'partially_processed';  // All dispatched, some failed
+      } else {
+        correctStatus = 'processed';            // Everything succeeded
+      }
+
       if (correctStatus !== b.status) {
         await supabase.from('payment_batches').update({ status: correctStatus }).eq('id', id);
         b.status = correctStatus;
@@ -394,18 +413,19 @@ const BatchDetail = () => {
    *   3. Store transfer_code + reference so the poller can verify status.
    */
   const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
+    const markFailed = async (reason: string) => {
+      await supabase.from('batch_items')
+        .update({ status: 'failed', failure_reason: reason })
+        .eq('id', it.id);
+      await logAudit('paystack_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
+      return { ok: false, reason };
+    };
     try {
       const amount = Number(it.amount_ngn || 0);
-      if (amount < 1) {
-        return { ok: false, reason: 'Minimum transfer amount is ₦1.' };
-      }
-      if (amount > 5_000_000) {
-        return { ok: false, reason: 'Single transfer limit is ₦5,000,000. For larger amounts contact your bank operations team.' };
-      }
+      if (amount < 1) return markFailed('Minimum transfer amount is ₦1.');
+      if (amount > 5_000_000) return markFailed('Single transfer limit is ₦5,000,000. For larger amounts contact your bank operations team.');
       const bankCode = getBankCode(it.bank_name);
-      if (!bankCode) {
-        return { ok: false, reason: `Unknown bank "${it.bank_name}" — no Paystack bank code` };
-      }
+      if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" — no Paystack bank code`);
       let recipientCode: string | null = it.paystack_recipient_code || null;
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
@@ -445,17 +465,7 @@ const BatchDetail = () => {
       );
       return { ok: true };
     } catch (err: any) {
-      const errorMessage = err?.message || 'Transfer failed';
-      await supabase
-        .from('batch_items')
-        .update({ status: 'failed', failure_reason: errorMessage })
-        .eq('id', it.id);
-      await logAudit(
-        'paystack_transfer_failed',
-        `Transfer failed for ${it.full_name}: ${errorMessage}`,
-        profile,
-      );
-      return { ok: false, reason: errorMessage };
+      return markFailed(err?.message || 'Transfer failed');
     }
   };
 
@@ -1131,20 +1141,24 @@ const BatchDetail = () => {
               <Play className="mr-2 h-4 w-4" /> Process Payments
             </Button>
           )}
-          {batch.status === 'partially_processed' && (failedItems.length > 0 || items.filter(i => i.status === 'pending').length > 0) && (
+          {(['partially_processed', 'failed'].includes(batch.status) ||
+            (batch.status === 'processing' && items.some(i => (i.status === 'failed' || i.status === 'pending') && !i.paystack_reference))) &&
+            items.some(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)) && (
             <Button
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                const toRetry = items.filter(i => i.status === 'failed' || i.status === 'pending');
+                const toRetry = items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference));
                 for (const it of toRetry) {
                   await retryItem(it);
                 }
                 setRetryingAll(false);
+                fetchBatch();
               }}
-              disabled={!!retryingId || retryingAll}
+              disabled={!!retryingId || retryingAll || actionLoading}
             >
-              <RotateCw className="mr-2 h-4 w-4" /> Retry unsent ({items.filter(i => i.status === 'failed' || i.status === 'pending').length})
+              <RotateCw className="mr-2 h-4 w-4" />
+              {retryingAll ? 'Retrying…' : `Retry unsent (${items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)).length})`}
             </Button>
           )}
           {(batch.status === 'processing' || batch.status === 'partially_processed') && (
