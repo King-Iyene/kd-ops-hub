@@ -512,7 +512,9 @@ function isCoordString(s: string) {
 // Module-level cache — each unique coordinate string is geocoded at most once per session.
 const geocodeResultCache = new Map<string, string>();
 
-function LocationCell({ location, lat, lng }: { location: string; lat: number | null; lng: number | null }) {
+function LocationCell({ location, lat, lng, showCoords = false }: {
+  location: string; lat: number | null; lng: number | null; showCoords?: boolean
+}) {
   const { isLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [resolved, setResolved] = useState<string | null>(() => geocodeResultCache.get(location) ?? null);
   const [geocoding, setGeocoding] = useState(false);
@@ -531,7 +533,18 @@ function LocationCell({ location, lat, lng }: { location: string; lat: number | 
 
   if (!location) return <span>—</span>;
   if (geocoding) return <span className="text-muted-foreground italic text-xs">Resolving…</span>;
-  return <span title={isCoord && resolved ? location : undefined}>{resolved ?? location}</span>;
+
+  const displayName = resolved ?? location;
+  const coordText = lat != null && lng != null ? formatCoords(lat, lng) : null;
+
+  return (
+    <span className="block min-w-0">
+      <span className="truncate block" title={resolved && isCoord ? location : displayName}>{displayName}</span>
+      {showCoords && coordText && (
+        <span className="block text-[10px] font-mono text-muted-foreground/55 leading-tight mt-0.5">{coordText}</span>
+      )}
+    </span>
+  );
 }
 
 function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapModalProps) {
@@ -607,8 +620,19 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
             </div>
             <div className="min-w-0">
               <DialogTitle className="kd-display text-lg truncate">Trip Map · {trip.employee_name}</DialogTitle>
-              <DialogDescription className="mt-0.5 truncate">
-                {formatDate(trip.date)} · {displayStart || '—'} → {displayEnd || '—'}
+              <DialogDescription className="mt-0.5 space-y-0.5">
+                <span className="block text-[11px] text-muted-foreground">{formatDate(trip.date)}</span>
+                <span className="block truncate">
+                  {displayStart || '—'}
+                  {trip.start_lat != null && trip.start_lng != null && (
+                    <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{formatCoords(trip.start_lat, trip.start_lng)}</span>
+                  )}
+                  {' → '}
+                  {displayEnd || '—'}
+                  {trip.end_lat != null && trip.end_lng != null && (
+                    <span className="ml-1 font-mono text-[10px] text-muted-foreground/60">{formatCoords(trip.end_lat, trip.end_lng)}</span>
+                  )}
+                </span>
               </DialogDescription>
             </div>
           </div>
@@ -3611,7 +3635,9 @@ const Fleet = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Start Location</p>
-                  <p className="text-xs truncate">{activeTrip.start_location || '—'}</p>
+                  <div className="text-xs">
+                    <LocationCell location={activeTrip.start_location || ''} lat={activeTrip.start_lat} lng={activeTrip.start_lng} showCoords />
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Start Odometer</p>
@@ -3683,7 +3709,7 @@ const Fleet = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">{lv ? `${lv.plate_number} — ${lv.name}` : '—'}</p>
-                        <p className="text-xs text-muted-foreground truncate">From: <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} /></p>
+                        <div className="text-xs text-muted-foreground">From: <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords /></div>
                       </div>
                     );
                   })}
@@ -3767,12 +3793,12 @@ const Fleet = () => {
                           ? `${Math.floor(t.duration_minutes / 60)}h ${t.duration_minutes % 60}m`
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-xs max-w-[160px] truncate">
-                        <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} />
+                      <TableCell className="text-xs max-w-[160px]">
+                        <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords />
                       </TableCell>
-                      <TableCell className="text-xs max-w-[160px] truncate">
+                      <TableCell className="text-xs max-w-[160px]">
                         {t.end_location
-                          ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
+                          ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
                           : t.status === 'in_progress' ? <span className="text-green-600 italic">In progress…</span> : '—'}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -3869,13 +3895,13 @@ const Fleet = () => {
                       <div className="space-y-1 text-xs">
                         <div className="flex items-start gap-2">
                           <span className="text-muted-foreground w-10 shrink-0">From</span>
-                          <span className="text-[11px] truncate flex-1"><LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} /></span>
+                          <span className="text-[11px] flex-1 min-w-0"><LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords /></span>
                         </div>
                         <div className="flex items-start gap-2">
                           <span className="text-muted-foreground w-10 shrink-0">To</span>
-                          <span className="text-[11px] truncate flex-1">
+                          <span className="text-[11px] flex-1 min-w-0">
                             {t.end_location
-                              ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
+                              ? <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
                               : isLive ? <span className="text-green-600 italic">In progress…</span> : '—'}
                           </span>
                         </div>
@@ -4100,11 +4126,11 @@ const Fleet = () => {
                             <TableCell className="font-medium text-sm">{t.employee_name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
                             <TableCell className="text-xs max-w-[200px]">
-                              <span className="truncate block">
-                                <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} />
-                                {' → '}
-                                <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} />
-                              </span>
+                              <div className="space-y-0.5">
+                                <LocationCell location={t.start_location} lat={t.start_lat} lng={t.start_lng} showCoords />
+                                <span className="text-muted-foreground/60">↓</span>
+                                <LocationCell location={t.end_location} lat={t.end_lat} lng={t.end_lng} showCoords />
+                              </div>
                             </TableCell>
                             <TableCell className="text-xs">
                               <div className="flex flex-col gap-0.5">
@@ -4535,9 +4561,16 @@ const Fleet = () => {
                 {startGeoState === 'ok' && startPinnedCoords ? (
                   <div className="flex items-center gap-2.5">
                     <LocateFixed className="h-4 w-4 text-green-500 shrink-0" />
-                    <p className="flex-1 text-sm font-semibold leading-snug truncate">
-                      {startAddress || formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold leading-snug truncate">
+                        {startAddress || formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
+                      </p>
+                      {startAddress && (
+                        <p className="text-[10px] font-mono text-muted-foreground/60 leading-tight mt-0.5">
+                          {formatCoords(startPinnedCoords.lat, startPinnedCoords.lng)}
+                        </p>
+                      )}
+                    </div>
                     <span className="text-[10px] text-muted-foreground shrink-0">
                       ±{Math.round(startCoords?.accuracy ?? 0)} m
                     </span>
@@ -4714,7 +4747,11 @@ const Fleet = () => {
               <div className="rounded-xl bg-muted/40 border px-4 py-3 space-y-1">
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Trip in progress</p>
                 <p className="text-sm font-semibold">{formatDuration(elapsedSeconds)} elapsed</p>
-                <p className="text-xs text-muted-foreground truncate">{activeTrip.start_location || 'Start location not recorded'}</p>
+                <div className="text-xs text-muted-foreground">
+                  {activeTrip.start_location
+                    ? <LocationCell location={activeTrip.start_location} lat={activeTrip.start_lat} lng={activeTrip.start_lng} showCoords />
+                    : 'Start location not recorded'}
+                </div>
               </div>
             )}
 
@@ -4741,6 +4778,11 @@ const Fleet = () => {
                     <p className="text-sm font-medium text-green-800 dark:text-green-200 break-words leading-snug">
                       {endAddress || formatCoords(endCoords.lat, endCoords.lng)}
                     </p>
+                    {endAddress && (
+                      <p className="text-[10px] font-mono text-green-600/70 dark:text-green-400/70 leading-tight mt-0.5">
+                        {formatCoords(endCoords.lat, endCoords.lng)}
+                      </p>
+                    )}
                     <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
                       GPS · ±{Math.round(endCoords.accuracy)} m accuracy
                     </p>
@@ -5197,11 +5239,11 @@ const Fleet = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">From</p>
-                  <p className="font-medium"><LocationCell location={selectedTrip.start_location} lat={selectedTrip.start_lat} lng={selectedTrip.start_lng} /></p>
+                  <p className="font-medium"><LocationCell location={selectedTrip.start_location} lat={selectedTrip.start_lat} lng={selectedTrip.start_lng} showCoords /></p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">To</p>
-                  <p className="font-medium"><LocationCell location={selectedTrip.end_location} lat={selectedTrip.end_lat} lng={selectedTrip.end_lng} /></p>
+                  <p className="font-medium"><LocationCell location={selectedTrip.end_location} lat={selectedTrip.end_lat} lng={selectedTrip.end_lng} showCoords /></p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 border rounded-lg p-3 bg-muted/30">
