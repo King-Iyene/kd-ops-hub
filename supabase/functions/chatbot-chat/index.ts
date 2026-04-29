@@ -87,26 +87,21 @@ async function tavilySearch(query: string, count = 5): Promise<string> {
   }
 }
 
-// ─── RAG: Fetch knowledge from pgvector via embedding similarity ───────────────────────────
-async function embedQuery(text: string): Promise<number[] | null> {
-  if (!GEMINI_API_KEY) return null;
+// ─── RAG: Full-text search against knowledge base (no embedding API needed) ────────────────
+async function searchKnowledge(
+  adminClient: ReturnType<typeof import("https://esm.sh/@supabase/supabase-js@2.39.0").createClient>,
+  query: string,
+  userRole: string,
+): Promise<Array<{ title: string; content: string; source: string | null }>> {
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "models/embedding-001",
-          content: { parts: [{ text }] },
-        }),
-      },
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.embedding?.values ?? null;
+    const { data } = await adminClient.rpc("match_chatbot_knowledge", {
+      query_text: query,
+      match_count: 5,
+      user_role: userRole,
+    });
+    return (data ?? []) as Array<{ title: string; content: string; source: string | null }>;
   } catch {
-    return null;
+    return [];
   }
 }
 
@@ -312,18 +307,13 @@ serve(async (req) => {
     const toolsUsed: string[] = [];
     const contextChunks: string[] = [];
 
-    // RAG: retrieve relevant knowledge
-    const queryEmbed = await embedQuery(body.message);
-    if (queryEmbed) {
-      const { data: matches } = await adminClient.rpc("match_chatbot_knowledge", {
-        query_embedding: queryEmbed,
-        match_count: 5,
-        user_role: userRole,
-      });
-      if (matches && matches.length > 0) {
+    // RAG: full-text search knowledge base (no embedding API required)
+    if (cfg.enable_platform_query) {
+      const matches = await searchKnowledge(adminClient, body.message, userRole);
+      if (matches.length > 0) {
         contextChunks.push(
           "PLATFORM KNOWLEDGE (cite these when relevant):\n" +
-            (matches as Array<{ title: string; content: string; source: string | null }>)
+            matches
               .map((m, i) =>
                 `[KB-${i + 1}] ${m.title}${m.source ? ` (${m.source})` : ""}\n${m.content}`,
               )
