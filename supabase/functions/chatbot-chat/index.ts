@@ -402,7 +402,7 @@ serve(async (req) => {
     }
 
     // ─── Persist messages + bump usage ────────────────────────────────────────────────────
-    await adminClient.from("chatbot_messages").insert([
+    const { error: insertErr } = await adminClient.from("chatbot_messages").insert([
       {
         conversation_id: convId,
         user_id: user.id,
@@ -423,6 +423,13 @@ serve(async (req) => {
         tokens_out: result.tokens_out,
       },
     ]);
+
+    // Log insert errors so they appear in Supabase Function logs.
+    // We do NOT throw here so the user still receives the AI reply —
+    // history just won't persist until the schema issue is resolved.
+    if (insertErr) {
+      console.error("chatbot-chat: failed to persist messages:", JSON.stringify(insertErr));
+    }
 
     // Update conversation title if it's still the default
     if (history.length === 0) {
