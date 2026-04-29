@@ -118,7 +118,7 @@ async function callGemini(
   attachments: Attachment[],
   model: string,
 ): Promise<{ text: string; tokens_in: number; tokens_out: number }> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not set");
+  if (!GEMINI_API_KEY) throw new Error("Vision AI not configured. Please ask your admin to set the GEMINI_API_KEY secret in Supabase.");
 
   const parts: Array<Record<string, unknown>> = [];
   // Inline base64 attachments
@@ -174,7 +174,7 @@ async function callGroq(
   userMessage: string,
   model: string,
 ): Promise<{ text: string; tokens_in: number; tokens_out: number }> {
-  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not set");
+  if (!GROQ_API_KEY) throw new Error("AI service not configured. Please ask your admin to set the GROQ_API_KEY secret in Supabase.");
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -407,6 +407,11 @@ serve(async (req) => {
       } else {
         throw err;
       }
+    }
+
+    // Guard: never persist an empty assistant response
+    if (!result.text?.trim()) {
+      throw new Error("The AI model returned an empty response. Please try again.");
     }
 
     // ─── Persist messages + bump usage ────────────────────────────────────────────────────
