@@ -185,7 +185,11 @@ export default function Assistant() {
     setSending(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('chatbot-chat', {
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : undefined,
         body: {
           conversation_id: activeConvId,
           message: messageText,

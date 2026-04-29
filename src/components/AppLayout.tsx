@@ -6,6 +6,7 @@ import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
+import { ChatWidget } from '@/components/ChatWidget';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
@@ -141,6 +142,7 @@ export default function AppLayout() {
       <CommandPalette />
       <KeyboardShortcuts />
       <MobileNav />
+      <ChatWidget />
       <div className="h-14 md:hidden" />
     </div>
   );
