@@ -217,7 +217,9 @@ export default function AssistantAdmin() {
   const generateEmbedding = async (knowledgeId: string) => {
     setEmbedding(knowledgeId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { error } = await supabase.functions.invoke('chatbot-embed', {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
         body: { knowledge_id: knowledgeId },
       });
       if (error) throw error;
@@ -233,7 +235,9 @@ export default function AssistantAdmin() {
     if (!confirm('Re-embed all knowledge entries? This may take a minute.')) return;
     setEmbedding('all');
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke('chatbot-embed', {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
         body: { all: true },
       });
       if (error) throw error;
