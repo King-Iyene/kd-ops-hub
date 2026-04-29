@@ -496,44 +496,13 @@ const BatchDetail = () => {
         return;
       }
 
-      // Kick the server-side worker. It runs chunked (50 items, concurrency
-      // 8) and returns when its time budget expires or the batch is fully
-      // dispatched. If items remain, the existing poller plus pg_cron will
-      // re-invoke until everything is sent — survives the operator closing
-      // their tab mid-run.
-      const { data: { session } } = await supabase.auth.getSession();
-      let totalDispatched = 0;
-      let totalFailed     = 0;
-      let remaining       = toProcess.length;
-
-      // Loop calls so a 10-minute batch finishes within the same click if
-      // possible. Each call is capped at ~120 s server-side; we re-invoke
-      // until remaining hits 0 or we've exhausted retries.
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const { data, error: workerErr } = await supabase.functions.invoke('batch-worker', {
-          headers: session?.access_token
-            ? { Authorization: `Bearer ${session.access_token}` }
-            : undefined,
-          body: { batch_id: id },
-        });
-        if (workerErr) {
-          toast({ title: 'Worker error', description: workerErr.message, variant: 'destructive' });
-          break;
-        }
-        if (data?.error) {
-          toast({ title: 'Worker error', description: data.error, variant: 'destructive' });
-          break;
-        }
-        totalDispatched += data?.dispatched ?? 0;
-        totalFailed     += data?.failed     ?? 0;
-        remaining        = data?.remaining  ?? 0;
-        // Reflect progress on the UI by re-counting from the DB.
-        const { data: items2 } = await supabase
-          .from('batch_items').select('status').eq('batch_id', id);
-        const succeededLive = (items2 || []).filter((r: any) => r.status === 'succeeded').length;
-        setProcessingIdx(toProcess.length - remaining);
-        setProcessingName(remaining === 0 ? 'finalising…' : `${succeededLive} succeeded so far`);
-        if (remaining === 0) break;
+      // Process each item serially in the browser using the deployed
+      // paystack-transfer edge function. Tab must stay open during processing.
+      for (let i = 0; i < toProcess.length; i++) {
+        const it = toProcess[i];
+        setProcessingIdx(i + 1);
+        setProcessingName(it.full_name);
+        await processOneItem(it);
       }
 
       const { data: refreshed } = await supabase
@@ -558,7 +527,7 @@ const BatchDetail = () => {
         .eq('id', id);
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')} (${totalDispatched} sent, ${totalFailed} failed)`,
+        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')} (${succeededCount} sent, ${failedCount} failed)`,
         profile,
       );
       toast({
@@ -1172,6 +1141,21 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" /> Retry all failed (
               {failedItems.length})
+            </Button>
+          )}
+          {batch.status === 'processing' && items.filter(i => i.status === 'succeeded').length === 0 && (
+            <Button
+              variant="outline"
+              className="text-destructive border-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                if (!confirm('Reset this batch back to "funded" so you can try processing again? Only do this if processing has stalled and no transfers were sent.')) return;
+                await supabase.from('payment_batches').update({ status: 'funded' }).eq('id', id);
+                toast({ title: 'Batch reset to funded — click Process Payments to retry.' });
+                fetchBatch();
+              }}
+              disabled={actionLoading}
+            >
+              <RotateCw className="mr-2 h-4 w-4" /> Reset &amp; Retry
             </Button>
           )}
           {(batch.status === 'processing' || batch.status === 'partially_processed') && (
