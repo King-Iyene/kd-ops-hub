@@ -254,9 +254,8 @@ serve(async (req) => {
       .single();
 
     if (!cfg?.is_enabled) {
-      return new Response(JSON.stringify({ error: "Assistant disabled by admin" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Assistant disabled by admin" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Rate limit check
@@ -270,10 +269,8 @@ serve(async (req) => {
     const currentCount = usage?.message_count ?? 0;
     if (currentCount >= cfg.daily_message_limit) {
       return new Response(
-        JSON.stringify({
-          error: `Daily message limit reached (${cfg.daily_message_limit}). Try again tomorrow.`,
-        }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ error: `Daily limit reached (${cfg.daily_message_limit} messages). Try again tomorrow.` }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
