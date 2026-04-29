@@ -53,6 +53,17 @@ export function ChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Hooks must be declared before any conditional returns (Rules of Hooks)
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    }
+  }, [messages, open]);
+
+  useEffect(() => {
+    if (open) textareaRef.current?.focus();
+  }, [open]);
+
   // Don't render on the full assistant page (redundant there)
   if (location.pathname.startsWith('/assistant')) return null;
   if (!user) return null;
@@ -86,16 +97,6 @@ export function ChatWidget() {
       setOpen(false);
     }
   }
-
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    }
-  }, [messages, open]);
-
-  useEffect(() => {
-    if (open) textareaRef.current?.focus();
-  }, [open]);
 
   async function handleSend() {
     const text = input.trim();

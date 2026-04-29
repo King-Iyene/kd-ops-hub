@@ -213,7 +213,6 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -223,20 +222,19 @@ serve(async (req) => {
       });
     }
 
-    // Authenticate the calling user
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData } = await userClient.auth.getUser();
-    const user = userData?.user;
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Service client — bypasses RLS for system inserts (usage tracking, etc.)
+    // Service client for all DB operations and for validating the user JWT
     const adminClient = createClient(supabaseUrl, serviceKey);
+
+    // Validate the user JWT via the admin client (avoids anon-key interference)
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: authError } = await adminClient.auth.getUser(token);
+    const user = userData?.user;
+    if (!user || authError) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired session. Please log out and log back in." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const body: IncomingMessage = await req.json();
     if (!body.message?.trim() && (!body.attachments || body.attachments.length === 0)) {
