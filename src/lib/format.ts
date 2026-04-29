@@ -64,6 +64,27 @@ export const formatDateTime = (
   }
 };
 
+/**
+ * "9:45 AM" — time only, 12-hour, org timezone, no date.
+ * Used in tables and cards where the date is already shown separately.
+ */
+export const formatTime = (
+  date: string | Date | null | undefined,
+): string => {
+  if (!date) return '—';
+  try {
+    const tz = getTimezone();
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: tz,
+    }).format(new Date(date));
+  } catch {
+    return '—';
+  }
+};
+
 /** Whole-number naira formatter used in chart tooltips etc. */
 export const formatNairaCompact = (amount: number | null | undefined): string => {
   const n = amount ?? 0;

@@ -7,7 +7,7 @@ import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatDate, formatTime } from '@/lib/format';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -767,7 +767,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                   <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                     {replayStep + 1} / {totalSteps}
                     {breadcrumbs[replayStep]?.recorded_at && (
-                      <> · {new Date(breadcrumbs[replayStep].recorded_at).toLocaleTimeString('en-GB')}</>
+                      <> · {formatTime(breadcrumbs[replayStep].recorded_at)}</>
                     )}
                     {breadcrumbs[replayStep]?.speed_kmh != null && (
                       <> · {Math.round(breadcrumbs[replayStep].speed_kmh!)} km/h</>
@@ -814,7 +814,7 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                      {new Date(ev.recorded_at).toLocaleTimeString('en-GB')}
+                      {formatTime(ev.recorded_at)}
                     </span>
                   </div>
                 ))}
@@ -1887,6 +1887,10 @@ const Fleet = () => {
   };
 
   const handleStartTrip = async () => {
+    if (!startTripForm.vehicle_id) {
+      toast({ title: 'Vehicle is required', description: 'Please select a vehicle before starting a trip.', variant: 'destructive' });
+      return;
+    }
     const odoStart = parseFloat(startTripForm.odometer_start);
     if (!Number.isFinite(odoStart) || odoStart < 0) {
       toast({ title: 'Start odometer reading is required', variant: 'destructive' });
@@ -3669,7 +3673,7 @@ const Fleet = () => {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground border-t border-green-200 dark:border-green-800 pt-2">
                   <Radio className="h-3 w-3 text-green-500 animate-pulse shrink-0" />
                   <span>
-                    GPS tracking active · Last ping {lastBreadcrumbAt.toLocaleTimeString('en-GB')} · {breadcrumbCount} pings recorded
+                    GPS tracking active · Last ping {formatTime(lastBreadcrumbAt)} · {breadcrumbCount} pings recorded
                   </span>
                 </div>
               )}
@@ -3779,13 +3783,11 @@ const Fleet = () => {
                       <TableCell className="font-medium">{t.employee_name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDate(t.date)}</TableCell>
                       <TableCell className="text-xs tabular-nums">
-                        {t.trip_start_time
-                          ? new Date(t.trip_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-                          : '—'}
+                        {t.trip_start_time ? formatTime(t.trip_start_time) : '—'}
                       </TableCell>
                       <TableCell className="text-xs tabular-nums">
                         {t.trip_end_time
-                          ? new Date(t.trip_end_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                          ? formatTime(t.trip_end_time)
                           : t.status === 'in_progress' ? <span className="text-green-600 font-medium">Live</span> : '—'}
                       </TableCell>
                       <TableCell className="text-xs tabular-nums">
@@ -3875,7 +3877,7 @@ const Fleet = () => {
                           <MobileCardTitle>{t.employee_name}</MobileCardTitle>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             {formatDate(t.date)}
-                            {t.trip_start_time && ` · ${new Date(t.trip_start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`}
+                            {t.trip_start_time && ` · ${formatTime(t.trip_start_time)}`}
                           </p>
                         </div>
                         <div className="text-right shrink-0">
@@ -4610,17 +4612,16 @@ const Fleet = () => {
               {/* ── Form fields ─────────────────────────────────────── */}
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-0">
 
-                {/* Vehicle selector */}
+                {/* Vehicle selector — required */}
                 {vehicles.length > 0 && (
                   <div className="space-y-1.5">
-                    <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                    <Label>Vehicle <span className="text-destructive">*</span></Label>
                     <Select
-                      value={startTripForm.vehicle_id || '__none__'}
+                      value={startTripForm.vehicle_id || ''}
                       onValueChange={(v) => {
-                        const vid = v === '__none__' ? '' : v;
-                        setStartTripForm((f) => ({ ...f, vehicle_id: vid }));
-                        if (vid) {
-                          supabase.from('trip_logs').select('odometer_end').eq('vehicle_id', vid)
+                        setStartTripForm((f) => ({ ...f, vehicle_id: v }));
+                        if (v) {
+                          supabase.from('trip_logs').select('odometer_end').eq('vehicle_id', v)
                             .not('odometer_end', 'is', null).neq('status', 'in_progress')
                             .order('trip_end_time', { ascending: false }).limit(1).maybeSingle()
                             .then(({ data }) => setLastVehicleOdometer(data?.odometer_end ?? null));
@@ -4629,9 +4630,10 @@ const Fleet = () => {
                         }
                       }}
                     >
-                      <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                      <SelectTrigger className={!startTripForm.vehicle_id ? 'border-amber-400 focus:ring-amber-400' : ''}>
+                        <SelectValue placeholder="Select vehicle (required)" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none__">No vehicle</SelectItem>
                         {vehicles.map((v) => (
                           <SelectItem key={v.id} value={v.id}>
                             {v.name} — {(v as any).plate_number}
