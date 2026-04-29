@@ -134,6 +134,11 @@ interface FuelRequest {
   anomaly_reviewed_by: string | null;
   anomaly_reviewed_at: string | null;
   anomaly_review_note: string | null;
+  // Paystack fee surfaced via the linked batch_item (joined in fetchData).
+  // Null until the batch_item exists; 0 until transfer.success webhook arrives.
+  batch_id?: string | null;
+  paystack_fee_ngn?: number | null;
+  paystack_raw?: any;
 }
 
 interface TripLog {
@@ -193,6 +198,31 @@ interface TripEvent {
 // ---------------------------------------------------------------------------
 // Geolocation & trip-clock helpers (outside component — no hook rules)
 // ---------------------------------------------------------------------------
+
+// Paystack flat-tier transfer fee — used as fallback if the webhook hasn't
+// fired or the structured column hasn't been backfilled yet.
+function paystackFeeForAmount(amountNgn: number): number {
+  if (amountNgn <= 0) return 0;
+  if (amountNgn <= 5_000) return 10;
+  if (amountNgn <= 50_000) return 25;
+  return 50;
+}
+
+// Resolve the Paystack transfer fee for a fuel request with graceful fallback:
+// 1) the structured column from batch_items.paystack_fee_ngn,
+// 2) raw fee (kobo) from paystack_raw if column not yet backfilled,
+// 3) flat-tier estimate for completed reimbursements,
+// 4) zero otherwise.
+function getFuelFee(req: { paystack_fee_ngn?: number | null; paystack_raw?: any; status: string; amount_ngn: number }): number {
+  const direct = Number(req.paystack_fee_ngn || 0);
+  if (direct > 0) return direct;
+  const rawKobo = Number(req.paystack_raw?.fee || 0);
+  if (rawKobo > 0) return rawKobo / 100;
+  if (req.status === 'completed' || req.status === 'payment_sent' || req.status === 'receipt_uploaded') {
+    return paystackFeeForAmount(Number(req.amount_ngn || 0));
+  }
+  return 0;
+}
 
 type GeoCoords = { lat: number; lng: number; accuracy: number };
 type GeoState = 'idle' | 'acquiring' | 'ok' | 'denied' | 'unavailable' | 'timeout' | 'https-required';
@@ -1697,7 +1727,15 @@ const Fleet = () => {
       const canSeeAll = ['admin', 'finance', 'super_admin', 'operations'].includes(profile?.role || '');
       const uid = profile?.id || '';
 
-      const fuelBase = supabase.from('fuel_requests').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(100);
+      // Embed the linked batch_item so the Paystack fee shows on each fuel
+      // request without a second round-trip. Each approved fuel-reimbursement
+      // creates a single-item batch; we read the fee off that item.
+      const fuelBase = supabase
+        .from('fuel_requests')
+        .select('*, batch:payment_batches(batch_items(paystack_fee_ngn, paystack_raw, status))')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(100);
       const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
 
       const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
@@ -1727,7 +1765,17 @@ const Fleet = () => {
       setStaff(fieldStaff);
 
       const lookup = ((profilesRes.data as FieldStaff[]) || []).concat(fieldStaff);
-      setFuelRequests(enrich(fuelRes.data || [], lookup));
+      // Flatten the embedded batch_item.paystack_fee_ngn / paystack_raw onto
+      // each fuel request so getFuelFee() can read it directly.
+      const fuelWithFee = (fuelRes.data || []).map((row: any) => {
+        const item = row?.batch?.batch_items?.[0];
+        return {
+          ...row,
+          paystack_fee_ngn: item?.paystack_fee_ngn ?? null,
+          paystack_raw:     item?.paystack_raw     ?? null,
+        };
+      });
+      setFuelRequests(enrich(fuelWithFee, lookup));
       setTripLogs(enrich(tripRes.data || [], lookup));
       setActivityLogs(activityRes.data || []);
       setVehicles((vehicleRes.data as VehicleSummary[]) || []);
@@ -3315,6 +3363,7 @@ const Fleet = () => {
                     <TableHead>Employee</TableHead>
                     <TableHead>Station</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">Paystack Fee</TableHead>
                     <TableHead className="text-right">Litres</TableHead>
                     <TableHead>Vehicle Fuel</TableHead>
                     <TableHead>Purpose</TableHead>
@@ -3327,7 +3376,7 @@ const Fleet = () => {
                   {visibleFuel.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={isAdmin ? 9 : 8}
+                        colSpan={isAdmin ? 10 : 9}
                         className="text-center text-muted-foreground text-sm py-8"
                       >
                         No fuel requests yet.
@@ -3340,6 +3389,14 @@ const Fleet = () => {
                       <TableCell>{r.station_name}</TableCell>
                       <TableCell className="text-right currency">
                         {formatNaira(r.amount_ngn || 0)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {(() => {
+                          const fee = getFuelFee(r);
+                          if (fee > 0) return <span className="currency">{formatNaira(fee)}</span>;
+                          if (r.status === 'pending' || r.status === 'rejected') return '—';
+                          return <span title="Awaiting Paystack webhook">…</span>;
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
                       <TableCell className="text-xs">

@@ -78,6 +78,29 @@ function paystackFeeForAmount(amountNgn: number): number {
   return 50;
 }
 
+/**
+ * Resolve the Paystack transfer fee for a batch item with graceful fallbacks.
+ * Order of precedence:
+ *   1. The structured `paystack_fee_ngn` column (populated by webhook).
+ *   2. `paystack_raw.fee` (kobo) on the same row, populated by every webhook
+ *      payload — works even before the column-add migration is applied.
+ *   3. The flat-tier estimate for succeeded transfers, so the UI never goes
+ *      blank just because a webhook hasn't fired yet.
+ *   4. Zero for non-succeeded items.
+ */
+function getItemFee(item: any): number {
+  const direct = Number(item?.paystack_fee_ngn || 0);
+  if (direct > 0) return direct;
+
+  const rawFeeKobo = Number(item?.paystack_raw?.fee || 0);
+  if (rawFeeKobo > 0) return rawFeeKobo / 100;
+
+  if (item?.status === 'succeeded') {
+    return paystackFeeForAmount(Number(item?.amount_ngn || 0));
+  }
+  return 0;
+}
+
 const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
   const isFailed = item.status === 'failed';
   const isSucceeded = item.status === 'succeeded';
@@ -670,7 +693,7 @@ const BatchDetail = () => {
       i.bank_name ?? '',
       i.account_number ?? '',
       i.amount_ngn ?? 0,
-      (i as any).paystack_fee_ngn ?? 0,
+      getItemFee(i),
       i.reference ?? '',
       i.status ?? '',
     ]);
@@ -933,10 +956,8 @@ const BatchDetail = () => {
             const succeededAmount = items
               .filter((i) => i.status === 'succeeded')
               .reduce((s, i) => s + Number(i.amount_ngn || 0), 0);
-            const totalFees = items.reduce(
-              (s, i) => s + Number((i as any).paystack_fee_ngn || 0),
-              0,
-            );
+            const totalFees = items.reduce((s, i) => s + getItemFee(i), 0);
+            const succeededCount = items.filter((i) => i.status === 'succeeded').length;
             const totalCost = succeededAmount + totalFees;
             const cells: Array<{ label: string; value: any; bold?: boolean }> = [
               { label: 'Payment Date', value: formatDate(batch.payment_date) },
@@ -944,7 +965,9 @@ const BatchDetail = () => {
               { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
               { label: 'Created', value: formatDate(batch.created_at) },
             ];
-            if (totalFees > 0) {
+            // Show the cost breakdown as soon as anything has succeeded so the
+            // operator sees fees immediately, not only after a webhook backfill.
+            if (succeededCount > 0) {
               cells.push(
                 { label: 'Disbursed (succeeded)', value: formatNaira(succeededAmount) },
                 { label: 'Paystack Fees', value: formatNaira(totalFees) },
@@ -1180,9 +1203,15 @@ const BatchDetail = () => {
                       <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
-                      {(item as any).paystack_fee_ngn > 0
-                        ? <span className="currency">{formatNaira((item as any).paystack_fee_ngn)}</span>
-                        : '—'}
+                      {(() => {
+                        const fee = getItemFee(item);
+                        if (fee > 0) {
+                          return <span className="currency">{formatNaira(fee)}</span>;
+                        }
+                        return item.status === 'succeeded'
+                          ? <span title="Webhook not yet received">…</span>
+                          : '—';
+                      })()}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
