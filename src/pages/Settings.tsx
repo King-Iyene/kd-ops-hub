@@ -2110,6 +2110,7 @@ function SystemReferencePanel() {
               <p><strong>Phase 6 — Recruitment Pipeline.</strong> A Recruitment page (Operations group) manages the full hiring lifecycle: create job openings with title, department, employment type (full-time / part-time / contract / intern), salary range, and closing date. Add applicants to each opening; move them through the pipeline stages: New → Screening → Interview 1 → Interview 2 → Offer → Hired / Rejected. Record interview dates, assigned interviewers, offer amounts, and rejection reasons. Stage-filter buttons on each opening show counts per stage. Summary cards track active openings, total applicants, offers out, and hired count. CSV export included.</p>
               <p><strong>Phase 6 — Attendance &amp; Timesheets.</strong> An Attendance page (Operations group) records daily attendance per employee. Each record captures clock-in and clock-out times (stored as TIME — single-timezone Nigeria WAT), attendance status (present / absent / late / half-day / remote / on-leave / public holiday), and overtime minutes. One record per employee per date is enforced by a UNIQUE constraint — upsert on conflict handles re-submission. The page shows a month navigator with a running summary of present, late, absent, and on-leave counts. Overtime hours are totalled for the period. CSV export per month included.</p>
               <p><strong>Phase 6 — Disciplinary Records.</strong> A Disciplinary page (Admin + Super Admin only) manages formal HR actions per Nigerian Labour Act requirements. Incident types cover the full ladder: verbal warning → written warning → final warning → query / show-cause → suspension → termination, plus counselling and other. Each record stores the subject, incident details, formal outcome, and the number of suspension days (if applicable). Employees can formally respond to queries (show-cause letters) via the built-in response thread. Records can be acknowledged (confirming the employee received the notice — required for fair hearing) and expunged with a reason after a clean-record period. Expunged records remain in the audit trail but are hidden from active history unless "Show expunged" is toggled. CSV export included.</p>
+              <p><strong>Pre-launch hardening (2026-04-29).</strong> Six go-live blockers and four high-priority issues resolved before production launch: (1) Batch payments now run server-side (edge function, 50-item chunks, 8-way concurrency, 120 s budget) — a 1,000-transfer batch completes in ~3.5 min regardless of tab state. A pg_cron watchdog fires every minute to rescue orphaned batches. (2) Optimistic concurrency guard prevents double-payment when two admins click Process simultaneously. (3) Paystack fees now display on batch items and fuel requests with a three-tier fallback (webhook data → raw JSON → tier estimate). (4) Fleet Activity tab restricted to admin/finance/super_admin; PermissionsEditor updated with fleet.view_activity key. (5) Security hardening: BEFORE UPDATE trigger blocks role self-elevation, transactions_view switched to security_invoker, company_settings locked to admin/finance/super_admin, fuel request RLS widened to include finance role. (6) Hot-table indexes added on audit_logs, notifications, and batch_items. Status preconditions added to all state transitions (batch and fuel) to prevent stale-state races. CI workflow added (lint + typecheck + build on every push to main).</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
               </p>
@@ -2189,13 +2190,34 @@ function SystemReferencePanel() {
             <RefTable
               cols={['Setting', 'Value']}
               rows={[
-                { a: 'Low balance warning',         b: 'Below ₦50,000 → orange banner on Payments page' },
-                { a: 'BatchDetail polling interval', b: '15s → 30s → 60s → 120s (exponential backoff)' },
-                { a: 'Polling stops after',         b: '30 minutes of no progress (manual refresh still works)' },
-                { a: 'Polling pauses when',         b: 'Browser tab is hidden' },
-                { a: 'Reconciliation threshold',    b: 'Re-checks any transfer stuck in "pending" for more than 1 hour' },
-                { a: 'Reconciliation cap per run',  b: '200 items (rate-limit guard)' },
-                { a: 'Manual reconcile button',     b: 'Payments page → "Reconcile" (top-right)' },
+                { a: 'Low balance warning',          b: 'Below ₦50,000 → orange banner on Payments page' },
+                { a: 'Batch worker mode',            b: 'Server-side edge function (batch-worker) — not a browser loop. Safe to close the tab.' },
+                { a: 'Chunk size per invocation',    b: '50 items per batch-worker call' },
+                { a: 'Concurrency per chunk',        b: '8 Paystack transfers in parallel' },
+                { a: 'Time budget per call',         b: '120 seconds (edge function cap is 150 s)' },
+                { a: 'Client-side iterations',       b: 'Up to 20 invocations from BatchDetail; each continues until all items done' },
+                { a: 'Orphan watchdog',              b: 'pg_cron fires batch-worker every minute — picks up any batch in processing > 60 s old' },
+                { a: 'Double-payment guard',         b: 'Optimistic concurrency: claim processing only if status IN (funded, partially_processed). Row count 0 → abort.' },
+                { a: 'BatchDetail polling interval', b: '15 s → 30 s → 60 s → 120 s (exponential backoff)' },
+                { a: 'Polling stops after',          b: '30 minutes of no progress (manual refresh still works)' },
+                { a: 'Polling pauses when',          b: 'Browser tab is hidden' },
+                { a: 'Reconciliation threshold',     b: 'Re-checks any transfer stuck in "pending" for more than 1 hour' },
+                { a: 'Reconciliation cap per run',   b: '200 items (rate-limit guard)' },
+                { a: 'Manual reconcile button',      b: 'Payments page → "Reconcile" (top-right)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={CreditCard} title="Paystack fee display">
+            <RefTable
+              cols={['Setting', 'Value']}
+              rows={[
+                { a: 'Fee column on BatchDetail',   b: 'Shown per batch item. Falls back gracefully if webhook has not yet fired.' },
+                { a: 'Fee source 1 (best)',         b: 'paystack_fee_ngn — written by the transfer.success webhook' },
+                { a: 'Fee source 2 (fallback)',     b: 'paystack_raw.fee ÷ 100 — raw Paystack JSON, kobo → naira' },
+                { a: 'Fee source 3 (estimate)',     b: 'Tier estimate for succeeded items: min(₦2,000, max(₦50, amount × 1.5%))' },
+                { a: 'Fee for non-succeeded items', b: '— (dash) — not charged yet' },
+                { a: 'Fee for in-flight items',     b: '... (three dots) — transfer dispatched but webhook pending' },
               ]}
             />
           </RefSection>
@@ -2262,10 +2284,13 @@ function SystemReferencePanel() {
             <RefTable
               cols={['Rule', 'Detail']}
               rows={[
-                { a: 'Maximum single fuel request', b: '₦5,000,000 (DB CHECK constraint)' },
+                { a: 'Maximum single fuel request', b: '₦5,000,000 (DB CHECK constraint + UI validation)' },
+                { a: 'Minimum fuel amount',         b: '₦1 — zero-amount requests are rejected' },
                 { a: 'File size cap',               b: '10 MB per receipt / document' },
-                { a: 'Approval required',           b: 'admin / finance / super_admin' },
+                { a: 'Approval required',           b: 'admin / finance / super_admin (RLS enforced)' },
                 { a: 'Approved → linked expense',   b: 'Approving a fuel request auto-creates a paired expense row' },
+                { a: 'Status preconditions',        b: 'Approve requires status=pending; Mark Sent requires approved; Mark Complete requires sent' },
+                { a: 'Paystack fee column',         b: 'Shown per request; resolved from paystack_fee_ngn → raw JSON → tier estimate' },
                 { a: 'Soft delete',                 b: 'Deleting sets deleted_at — record preserved in DB' },
                 { a: 'Query limit',                 b: '100 fuel requests fetched per load' },
                 { a: 'Trip logs',                   b: 'Hard deleted (no financial value requiring preservation)' },
@@ -2279,8 +2304,23 @@ function SystemReferencePanel() {
               rows={[
                 { a: 'Fuel request query limit',    b: '100 rows (most recent first)' },
                 { a: 'Trip log query limit',        b: '100 rows (most recent first)' },
+                { a: 'Trip date validation',        b: 'Future dates rejected on submission' },
+                { a: 'Odometer validation',         b: 'End reading must be ≥ start reading' },
                 { a: 'Payment type toggle',         b: 'Naming-only — bank fields always visible regardless of toggle' },
                 { a: 'Reimbursement vs company',    b: 'Toggle on fuel & repair forms; stored on expense row (is_reimbursement)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Shield} title="Fleet access control">
+            <RefTable
+              cols={['Tab / feature', 'Who can access']}
+              rows={[
+                { a: 'Fuel Requests tab',           b: 'All authenticated users (submit own; admin/finance approve)' },
+                { a: 'Trip Logs tab',               b: 'All authenticated users' },
+                { a: 'Activity tab',                b: 'admin · finance · super_admin only (hidden from other roles)' },
+                { a: 'fleet.view_activity perm',    b: 'Tracked in PermissionsEditor — default on for admin + finance' },
+                { a: 'Approve / send / complete',   b: 'admin · finance · super_admin only (RLS: current_user_role() IN (…))' },
               ]}
             />
           </RefSection>
@@ -2663,6 +2703,24 @@ function SystemReferencePanel() {
                 { a: 'Assets write',             b: 'super_admin / admin / finance only (RLS)' },
                 { a: 'Disciplinary write',       b: 'super_admin / admin only (RLS)' },
                 { a: 'Disciplinary responses',   b: 'super_admin / admin only (RLS)' },
+                { a: 'Company settings read',    b: 'super_admin / admin / finance only — no longer readable by all authenticated users' },
+                { a: 'Fuel request management',  b: 'super_admin / admin / finance (RLS policy "Staff can manage fuel requests")' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Lock} title="Database-level security hardening">
+            <RefTable
+              cols={['Control', 'Detail']}
+              rows={[
+                { a: 'Role self-elevation blocked',   b: 'BEFORE UPDATE trigger on profiles — prevents any user from changing their own role or status unless super_admin' },
+                { a: 'transactions_view',             b: 'security_invoker = true — view runs with the caller\'s RLS context, not the definer\'s' },
+                { a: 'Notification insert policy',    b: 'Users can only insert notifications for themselves; admin/finance can notify any user' },
+                { a: 'Batch-worker auth (user)',      b: 'JWT must belong to admin / finance / super_admin — checked in edge function' },
+                { a: 'Batch-worker auth (cron)',      b: 'X-Cron-Secret header matched against Vault secret cron_shared_secret' },
+                { a: 'audit_logs indexes',            b: 'created_at DESC · performed_by · action_type — fast dashboard and audit page loads' },
+                { a: 'notifications indexes',         b: '(user_id, created_at DESC) · (user_id) WHERE read=false — unread-count probe is O(1)' },
+                { a: 'batch_items indexes',           b: '(batch_id, status) · (paystack_reference) WHERE NOT NULL — worker pull + webhook lookup' },
               ]}
             />
           </RefSection>

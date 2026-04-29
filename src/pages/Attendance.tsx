@@ -161,6 +161,15 @@ export default function Attendance() {
     setMonthEnd(format(endOfMonth(next), 'yyyy-MM-dd'));
   }
 
+  const filtered = records.filter(r => {
+    const emp = profiles.find(p => p.id === r.employee_id);
+    const term = search.toLowerCase();
+    const matchSearch = !term || (emp?.full_name ?? '').toLowerCase().includes(term);
+    const matchStatus = statusFilter === 'all' || r.status === statusFilter;
+    const matchEmp = empFilter === '__none__' || r.employee_id === empFilter;
+    return matchSearch && matchStatus && matchEmp;
+  });
+
   function exportCSV() {
     const rows = filtered.map(r => {
       const emp = profiles.find(p => p.id === r.employee_id);
@@ -179,15 +188,6 @@ export default function Attendance() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = `attendance-${monthStart.slice(0, 7)}.csv`; a.click();
   }
-
-  const filtered = records.filter(r => {
-    const emp = profiles.find(p => p.id === r.employee_id);
-    const term = search.toLowerCase();
-    const matchSearch = !term || (emp?.full_name ?? '').toLowerCase().includes(term);
-    const matchStatus = statusFilter === 'all' || r.status === statusFilter;
-    const matchEmp = empFilter === '__none__' || r.employee_id === empFilter;
-    return matchSearch && matchStatus && matchEmp;
-  });
 
   const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
 

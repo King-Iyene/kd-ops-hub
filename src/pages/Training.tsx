@@ -165,18 +165,6 @@ export default function Training() {
     load();
   };
 
-  const exportCSV = () => {
-    const header = 'Employee,Type,Title,Provider,Category,Mandatory,Start,Completion,Expiry,Score,Status,Cost (₦)';
-    const rows = filtered.map(r => [
-      nameOf(r.employee_id), r.record_type, r.title, r.provider ?? '', CATEGORY_LABEL[r.category],
-      r.is_mandatory ? 'Yes' : 'No', r.start_date, r.completion_date ?? '', r.expiry_date ?? '',
-      r.score ?? '', effectiveStatus(r), r.cost_ngn ?? '',
-    ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
-    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `training-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
-  };
-
   const filtered = records.filter(r => {
     const eff = effectiveStatus(r);
     if (typeFilter !== 'all' && r.record_type !== typeFilter) return false;
@@ -189,6 +177,18 @@ export default function Training() {
     }
     return true;
   });
+
+  const exportCSV = () => {
+    const header = 'Employee,Type,Title,Provider,Category,Mandatory,Start,Completion,Expiry,Score,Status,Cost (₦)';
+    const rows = filtered.map(r => [
+      nameOf(r.employee_id), r.record_type, r.title, r.provider ?? '', CATEGORY_LABEL[r.category],
+      r.is_mandatory ? 'Yes' : 'No', r.start_date, r.completion_date ?? '', r.expiry_date ?? '',
+      r.score ?? '', effectiveStatus(r), r.cost_ngn ?? '',
+    ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
+    const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `training-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
+  };
 
   const expiring = records.filter(r => r.expiry_date && differenceInDays(parseISO(r.expiry_date), new Date()) <= 30 && differenceInDays(parseISO(r.expiry_date), new Date()) >= 0).length;
   const expired = records.filter(r => effectiveStatus(r) === 'expired').length;

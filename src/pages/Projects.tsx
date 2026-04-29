@@ -204,6 +204,15 @@ export default function Projects() {
     load();
   };
 
+  const filtered = projects.filter(p => {
+    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return p.name.toLowerCase().includes(q) || clientOf(p.client_id).toLowerCase().includes(q) || nameOf(p.owner_id).toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   const exportCSV = () => {
     const header = 'Name,Client,Owner,Status,Priority,Budget,Start,End,Milestones,Tasks';
     const rows = filtered.map(p => {
@@ -217,15 +226,6 @@ export default function Projects() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `projects-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
   };
-
-  const filtered = projects.filter(p => {
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return p.name.toLowerCase().includes(q) || clientOf(p.client_id).toLowerCase().includes(q) || nameOf(p.owner_id).toLowerCase().includes(q);
-    }
-    return true;
-  });
 
   const stats = {
     active:    projects.filter(p => p.status === 'active').length,

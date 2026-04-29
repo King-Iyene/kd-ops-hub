@@ -173,6 +173,18 @@ export default function Vendors() {
     load();
   };
 
+  const filtered = vendors.filter(v => {
+    if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+    if (catFilter !== 'all' && v.category !== catFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return v.name.toLowerCase().includes(q) ||
+        (v.contact_name ?? '').toLowerCase().includes(q) ||
+        (v.contact_email ?? '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   const exportCSV = () => {
     const header = 'Name,Category,Status,Contact,Email,Phone,Payment Terms,Contract Value,Contract End,RC Number,TIN,Bank';
     const rows = filtered.map(v => [
@@ -185,18 +197,6 @@ export default function Vendors() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `vendors-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
   };
-
-  const filtered = vendors.filter(v => {
-    if (statusFilter !== 'all' && v.status !== statusFilter) return false;
-    if (catFilter !== 'all' && v.category !== catFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return v.name.toLowerCase().includes(q) ||
-        (v.contact_name ?? '').toLowerCase().includes(q) ||
-        (v.contact_email ?? '').toLowerCase().includes(q);
-    }
-    return true;
-  });
 
   const expiringCount = vendors.filter(v =>
     v.status === 'active' && v.contract_end &&

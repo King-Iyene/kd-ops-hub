@@ -272,6 +272,15 @@ export default function Onboarding() {
     setAddItemCl(null);
   }
 
+  const filtered = checklists.filter(cl => {
+    const emp = profiles.find(p => p.id === cl.employee_id);
+    const term = search.toLowerCase();
+    const matchSearch = !term || (emp?.full_name ?? '').toLowerCase().includes(term);
+    const matchType = typeFilter === 'all' || cl.checklist_type === typeFilter;
+    const matchEmp = empFilter === '__none__' || cl.employee_id === empFilter;
+    return matchSearch && matchType && matchEmp;
+  });
+
   function exportCSV() {
     const rows: string[] = [];
     for (const cl of filtered) {
@@ -292,15 +301,6 @@ export default function Onboarding() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'onboarding.csv'; a.click();
   }
-
-  const filtered = checklists.filter(cl => {
-    const emp = profiles.find(p => p.id === cl.employee_id);
-    const term = search.toLowerCase();
-    const matchSearch = !term || (emp?.full_name ?? '').toLowerCase().includes(term);
-    const matchType = typeFilter === 'all' || cl.checklist_type === typeFilter;
-    const matchEmp = empFilter === '__none__' || cl.employee_id === empFilter;
-    return matchSearch && matchType && matchEmp;
-  });
 
   const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
 

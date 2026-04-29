@@ -216,6 +216,18 @@ export default function Disciplinary() {
     load();
   }
 
+  const filtered = records.filter(r => {
+    const emp = profiles.find(p => p.id === r.employee_id);
+    const term = search.toLowerCase();
+    const matchSearch = !term ||
+      r.subject.toLowerCase().includes(term) ||
+      (emp?.full_name ?? '').toLowerCase().includes(term);
+    const matchType = typeFilter === 'all' || r.incident_type === typeFilter;
+    const matchEmp = empFilter === '__none__' || r.employee_id === empFilter;
+    const matchExpunged = showExpunged || !r.is_expunged;
+    return matchSearch && matchType && matchEmp && matchExpunged;
+  });
+
   function exportCSV() {
     const rows = filtered.map(r => {
       const emp = profiles.find(p => p.id === r.employee_id);
@@ -234,18 +246,6 @@ export default function Disciplinary() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'disciplinary.csv'; a.click();
   }
-
-  const filtered = records.filter(r => {
-    const emp = profiles.find(p => p.id === r.employee_id);
-    const term = search.toLowerCase();
-    const matchSearch = !term ||
-      r.subject.toLowerCase().includes(term) ||
-      (emp?.full_name ?? '').toLowerCase().includes(term);
-    const matchType = typeFilter === 'all' || r.incident_type === typeFilter;
-    const matchEmp = empFilter === '__none__' || r.employee_id === empFilter;
-    const matchExpunged = showExpunged || !r.is_expunged;
-    return matchSearch && matchType && matchEmp && matchExpunged;
-  });
 
   const empName = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? '—') : '—';
 

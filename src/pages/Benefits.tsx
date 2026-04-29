@@ -186,6 +186,20 @@ export default function Benefits() {
     setDeleteTarget(null);
   }
 
+  const filtered = benefits.filter(b => {
+    const emp = profiles.find(p => p.id === b.employee_id);
+    const term = search.toLowerCase();
+    const matchSearch = !term ||
+      b.provider.toLowerCase().includes(term) ||
+      (b.plan_name ?? '').toLowerCase().includes(term) ||
+      (b.policy_number ?? '').toLowerCase().includes(term) ||
+      (emp?.full_name ?? '').toLowerCase().includes(term);
+    const matchType = typeFilter === 'all' || b.benefit_type === typeFilter;
+    const matchStatus = statusFilter === 'all' || b.status === statusFilter;
+    const matchEmp = empFilter === '__none__' || b.employee_id === empFilter;
+    return matchSearch && matchType && matchStatus && matchEmp;
+  });
+
   function exportCSV() {
     const rows = filtered.map(b => {
       const emp = profiles.find(p => p.id === b.employee_id);
@@ -207,20 +221,6 @@ export default function Benefits() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'benefits.csv'; a.click();
   }
-
-  const filtered = benefits.filter(b => {
-    const emp = profiles.find(p => p.id === b.employee_id);
-    const term = search.toLowerCase();
-    const matchSearch = !term ||
-      b.provider.toLowerCase().includes(term) ||
-      (b.plan_name ?? '').toLowerCase().includes(term) ||
-      (b.policy_number ?? '').toLowerCase().includes(term) ||
-      (emp?.full_name ?? '').toLowerCase().includes(term);
-    const matchType = typeFilter === 'all' || b.benefit_type === typeFilter;
-    const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-    const matchEmp = empFilter === '__none__' || b.employee_id === empFilter;
-    return matchSearch && matchType && matchStatus && matchEmp;
-  });
 
   function expiryBadge(expiry: string | null) {
     if (!expiry) return null;

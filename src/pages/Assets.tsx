@@ -221,6 +221,16 @@ export default function Assets() {
     load();
   };
 
+  const filtered = assets.filter(a => {
+    if (statusFilter !== 'all' && a.status !== statusFilter) return false;
+    if (catFilter !== 'all' && a.category !== catFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      return a.name.toLowerCase().includes(q) || a.asset_number.toLowerCase().includes(q) || (a.location ?? '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
   const exportCSV = () => {
     const header = 'Asset No,Name,Category,Status,Purchase Date,Cost (₦),Book Value (₦),Depreciation (₦),Assigned To,Insurance Expiry';
     const nameOf = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? '') : '';
@@ -233,16 +243,6 @@ export default function Assets() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
     a.download = `assets-${format(new Date(), 'yyyy-MM-dd')}.csv`; a.click();
   };
-
-  const filtered = assets.filter(a => {
-    if (statusFilter !== 'all' && a.status !== statusFilter) return false;
-    if (catFilter !== 'all' && a.category !== catFilter) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return a.name.toLowerCase().includes(q) || a.asset_number.toLowerCase().includes(q) || (a.location ?? '').toLowerCase().includes(q);
-    }
-    return true;
-  });
 
   const totalCost = assets.filter(a => a.status === 'active').reduce((s, a) => s + a.cost_ngn, 0);
   const totalBookValue = assets.filter(a => a.status === 'active').reduce((s, a) => s + bookValue(a), 0);
