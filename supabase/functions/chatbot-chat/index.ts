@@ -3,7 +3,7 @@
 // AI assistant brain for KD-Ops platform.
 //   - Groq (Llama 3.3 70B Versatile) for text-only conversations — fast, free.
 //   - Gemini 1.5 Flash for vision (images) and document (PDF) inputs — free tier.
-//   - Brave Search for web lookups (Naira rates, news, etc.) — free 2k/month.
+//   - Tavily Search for web lookups (Naira rates, news, etc.) — 1k/month free.
 //   - Open ER API for FX rates — no key required.
 //   - pgvector RAG retrieval from chatbot_knowledge for platform-specific answers.
 //   - Per-user daily rate limiting via chatbot_usage.
@@ -14,7 +14,7 @@
 // Secrets:
 //   supabase secrets set GROQ_API_KEY=gsk_...
 //   supabase secrets set GEMINI_API_KEY=AIza...
-//   supabase secrets set BRAVE_API_KEY=BSA...
+//   supabase secrets set TAVILY_API_KEY=tvly-...
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -27,7 +27,7 @@ const corsHeaders = {
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const BRAVE_API_KEY = Deno.env.get("BRAVE_API_KEY") ?? "";
+const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY") ?? "";
 
 interface Attachment {
   name: string;
@@ -55,28 +55,33 @@ async function getFxRate(base = "USD", target = "NGN"): Promise<string> {
   }
 }
 
-// ─── Tool: Brave web search ─────────────────────────────────────────────────────────────────
-async function braveSearch(query: string, count = 5): Promise<string> {
-  if (!BRAVE_API_KEY) return "Web search disabled (no API key configured).";
+// ─── Tool: Tavily web search (AI-optimised, 1k free/month) ─────────────────────────────────
+async function tavilySearch(query: string, count = 5): Promise<string> {
+  if (!TAVILY_API_KEY) return "Web search disabled (no API key configured).";
   try {
-    const url = new URL("https://api.search.brave.com/res/v1/web/search");
-    url.searchParams.set("q", query);
-    url.searchParams.set("count", String(count));
-    const res = await fetch(url, {
-      headers: {
-        "Accept": "application/json",
-        "X-Subscription-Token": BRAVE_API_KEY,
-      },
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query,
+        max_results: count,
+        search_depth: "basic",
+        include_answer: true,
+      }),
     });
     if (!res.ok) return `Web search error: ${res.status}`;
     const data = await res.json();
-    const results = (data?.web?.results ?? []).slice(0, count) as Array<
-      { title: string; url: string; description: string }
+    const lines: string[] = [];
+    if (data?.answer) lines.push(`Summary: ${data.answer}\n`);
+    const results = (data?.results ?? []).slice(0, count) as Array<
+      { title: string; url: string; content: string }
     >;
-    if (results.length === 0) return "No web results found.";
-    return results
-      .map((r, i) => `[${i + 1}] ${r.title}\n${r.description}\nSource: ${r.url}`)
-      .join("\n\n");
+    if (results.length === 0 && !data?.answer) return "No web results found.";
+    results.forEach((r, i) => {
+      lines.push(`[${i + 1}] ${r.title}\n${r.content}\nSource: ${r.url}`);
+    });
+    return lines.join("\n\n");
   } catch (err) {
     return `Web search failed: ${(err as Error).message}`;
   }
@@ -353,7 +358,7 @@ serve(async (req) => {
         /\b(latest|news|today|current|recent|happening|search|google|find online)\b/
           .test(lowerMsg));
     if (wantsSearch) {
-      const results = await braveSearch(body.message);
+      const results = await tavilySearch(body.message);
       contextChunks.push(`WEB SEARCH RESULTS:\n${results}`);
       toolsUsed.push("web_search");
     }
