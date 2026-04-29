@@ -474,13 +474,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
-    console.error("chatbot-chat error:", err);
+    const msg = (err as Error).message ?? "Unknown error";
+    console.error("chatbot-chat error:", msg);
+    // Return 200 so the client receives the error body instead of the generic
+    // "Edge Function returned a non-2xx status code" wrapper message.
     return new Response(
-      JSON.stringify({ error: (err as Error).message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
+      JSON.stringify({ error: msg }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

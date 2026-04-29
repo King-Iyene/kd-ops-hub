@@ -198,7 +198,11 @@ export default function Assistant() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Try to extract the real error from the response body (non-2xx case)
+        const body = await (error as any)?.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? error.message);
+      }
       if (data?.error) throw new Error(data.error);
 
       // If a brand new conversation was created, switch to it

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,6 +42,7 @@ function TypingDots() {
 export function ChatWidget() {
   const location = useLocation();
   const { user } = useAuthStore();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [convId, setConvId] = useState<string | null>(null);
   const [messages, setMessages] = useState<WidgetMessage[]>([]);
@@ -144,6 +146,11 @@ export function ChatWidget() {
     } catch (err) {
       setMessages((m) => m.filter((x) => x.id !== optimistic.id));
       setInput(text);
+      toast({
+        title: 'Message failed',
+        description: (err as Error).message,
+        variant: 'destructive',
+      });
     } finally {
       setSending(false);
     }
