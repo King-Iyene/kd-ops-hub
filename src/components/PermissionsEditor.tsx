@@ -21,6 +21,7 @@ export type PermissionKey =
   | 'fleet.submit'
   | 'fleet.approve_fuel_requests'
   | 'fleet.manage_vehicles'
+  | 'fleet.view_activity'
   | 'leave.view_all'
   | 'leave.approve'
   | 'contractors.view'
@@ -114,6 +115,7 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'fleet.submit', label: 'Submit requests' },
       { key: 'fleet.approve_fuel_requests', label: 'Approve fuel requests' },
       { key: 'fleet.manage_vehicles', label: 'Manage vehicles' },
+      { key: 'fleet.view_activity', label: 'View activity log' },
     ],
   },
   {
@@ -307,7 +309,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
     'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
     'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
-    'fleet.view', 'fleet.submit', 'fleet.approve_fuel_requests', 'fleet.manage_vehicles',
+    'fleet.view', 'fleet.submit', 'fleet.approve_fuel_requests', 'fleet.manage_vehicles', 'fleet.view_activity',
     'leave.view_all', 'leave.approve',
     'contractors.view', 'contractors.add', 'contractors.edit', 'contractors.delete',
     'employees.view', 'employees.invite', 'employees.edit', 'employees.change_roles',
@@ -331,7 +333,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
     'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
     'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
-    'fleet.view', 'fleet.approve_fuel_requests',
+    'fleet.view', 'fleet.approve_fuel_requests', 'fleet.view_activity',
     'leave.view_all',
     'contractors.view', 'contractors.add', 'contractors.edit',
     'employees.view',
