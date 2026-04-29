@@ -80,6 +80,7 @@ export default function Assistant() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const suppressFetchRef = useRef(false);
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const fetchConversations = async () => {
@@ -123,9 +124,13 @@ export default function Assistant() {
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (suppressFetchRef.current) {
+      suppressFetchRef.current = false;
+      return;
+    }
     if (activeConvId) fetchMessages(activeConvId);
     else setMessages([]);
-  }, [activeConvId]);
+  }, [activeConvId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -205,13 +210,37 @@ export default function Assistant() {
       }
       if (data?.error) throw new Error(data.error);
 
-      // If a brand new conversation was created, switch to it
-      if (data.conversation_id && data.conversation_id !== activeConvId) {
-        setActiveConvId(data.conversation_id);
+      const convId: string = data.conversation_id;
+      const isNewConv = convId !== activeConvId;
+
+      // If a brand new conversation was created, switch to it.
+      // Suppress the useEffect-triggered fetchMessages so we don't race.
+      if (isNewConv) {
+        suppressFetchRef.current = true;
+        setActiveConvId(convId);
       }
       setUseWebSearch(false);
-      // Refresh from server (gets real IDs and timestamps)
-      await fetchMessages(data.conversation_id);
+
+      // Show the full exchange immediately using data returned by the edge function.
+      // This avoids a DB round-trip and ensures the conversation is always visible.
+      setMessages((curr) => {
+        const base = curr.filter((m) => m.id !== optimisticUser.id);
+        return [
+          ...base,
+          { ...optimisticUser, id: `u-${Date.now()}`, conversation_id: convId },
+          {
+            id: `a-${Date.now()}`,
+            conversation_id: convId,
+            role: 'assistant' as const,
+            content: data.reply,
+            attachments: [],
+            tools_used: data.tools_used ?? [],
+            model_used: data.model_used ?? null,
+            created_at: new Date().toISOString(),
+          },
+        ];
+      });
+
       await fetchConversations();
       await fetchUsage();
     } catch (err) {
