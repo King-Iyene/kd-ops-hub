@@ -2260,6 +2260,18 @@ const Fleet = () => {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
     }
+    // Validate amount: must be positive and within Paystack single-transfer
+    // ceiling. Catches typos that would otherwise hit RLS / trigger errors
+    // deep in the flow.
+    const amountVal = parseFloat(fuelForm.amount_ngn);
+    if (!Number.isFinite(amountVal) || amountVal <= 0) {
+      toast({ title: 'Enter a valid amount', description: 'Amount must be greater than ₦0.', variant: 'destructive' });
+      return;
+    }
+    if (amountVal > 5_000_000) {
+      toast({ title: 'Amount too high', description: 'Single fuel request cannot exceed ₦5,000,000.', variant: 'destructive' });
+      return;
+    }
 
     // Block fuel requests for vehicles currently out of service
     if (fuelVehicleId) {
@@ -2445,8 +2457,20 @@ const Fleet = () => {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
     }
+    // Block future-dated trip logs — common typo and breaks reporting.
+    if (tripForm.date) {
+      const today = new Date().toISOString().slice(0, 10);
+      if (tripForm.date > today) {
+        toast({ title: 'Trip date cannot be in the future', variant: 'destructive' });
+        return;
+      }
+    }
     const start = parseFloat(tripForm.odometer_start);
     const end = parseFloat(tripForm.odometer_end);
+    if (Number.isFinite(start) && Number.isFinite(end) && end < start) {
+      toast({ title: 'Invalid odometer', description: 'End reading must be ≥ start reading.', variant: 'destructive' });
+      return;
+    }
     const km = Number.isFinite(end - start) && tripForm.odometer_start && tripForm.odometer_end ? end - start : null;
     setSubmitting(true);
     const { error } = await supabase.from('trip_logs').insert({
