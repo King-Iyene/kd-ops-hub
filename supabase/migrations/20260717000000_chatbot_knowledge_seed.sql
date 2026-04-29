@@ -202,11 +202,14 @@ Dual approval for expenses: If a company''s dual_approval_threshold_ngn is set i
 Notifications: Submitters receive an in-app notification (and optionally email) when their item is approved or rejected.',
 ARRAY['super_admin','admin','finance'], ARRAY['approvals','workflow','queue']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- INVOICES, PAYROLL, BUDGETS, SUBSCRIPTIONS, CARDS, EXPENSES
 -- ═══════════════════════════════════════════════════════════════
 
-,('Invoices Module',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Invoices Module',
 'The Invoices page (/invoices) lets finance users create and track outgoing invoices to clients. Accessible to super_admin, admin, finance.
 
 Invoice fields: Invoice number (auto-generated or manual), Client (linked from Clients CRM or free-text name + email), Issue date, Due date, Payment terms (Due on receipt / Net 7 / Net 14 / Net 30 / Net 60), VAT rate (0%, 5%, 7.5%, or 10%), Line items (each with description, quantity, unit price — amount auto-calculates), Notes, Paid date (set when marking as paid.
@@ -380,11 +383,14 @@ After approval, reimbursement expenses can be paid out via Paystack — this cre
 Filters: Status tabs (All/Pending/Approved/Rejected), category filter, search, date range. Export CSV of approved expenses. Trend chart shows 6-month approved spend by category.',
 ARRAY['super_admin','admin','finance','operations','field_staff'], ARRAY['expenses','reimbursement','mileage','approval']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- FLEET, COMPLIANCE, ASSETS, VENDORS
 -- ═══════════════════════════════════════════════════════════════
 
-,('Fleet Management Overview',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Fleet Management Overview',
 'The Fleet page (/fleet) manages company vehicles, trip logs, live GPS tracking, and fuel requests. Accessible to all authenticated roles (field_staff can start/end their own trips; managers see all).
 
 The page has five tabs:
@@ -554,11 +560,14 @@ Filters: Search by name/contact/email, category filter, status filter (active/in
 Delete is soft-delete (sets deleted_at). Blacklisting a vendor does not delete it — it stays visible with a destructive badge as a record that this vendor should not be used.',
 ARRAY['super_admin','admin','finance','operations'], ARRAY['vendors','suppliers','contracts','procurement']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- HR: EMPLOYEES, LEAVE, CONTRACTORS, ATTENDANCE
 -- ═══════════════════════════════════════════════════════════════
 
-,('Employees Module',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Employees Module',
 'The Employees page (/employees) manages all staff profiles and invitations. Accessible to super_admin, admin, operations, field_staff (field_staff have limited view).
 
 Employee statuses: active, inactive, invited (pending first login).
@@ -695,11 +704,14 @@ Stats shown: Present count, Absent count, Late count, Total overtime minutes for
 Actions: Add record (manual entry), Edit record, Delete record. Records can be added retroactively.',
 ARRAY['super_admin','admin','operations'], ARRAY['attendance','timesheets','clock','overtime']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- PERFORMANCE, TRAINING, BENEFITS, ONBOARDING, RECRUITMENT, DISCIPLINARY
 -- ═══════════════════════════════════════════════════════════════
 
-,('Performance Reviews',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Performance Reviews',
 'The Performance page (/performance) manages structured review cycles and individual reviews. Accessible to super_admin, admin, finance, operations.
 
 Review cycles — fields: name, cycle type (annual/mid_year/quarterly/probation), period start, period end, due date, status (active/closed).
@@ -789,11 +801,14 @@ Filters: Search by employee name or subject, filter by incident type, filter by 
 All access to disciplinary records is logged in the audit trail.',
 ARRAY['super_admin','admin'], ARRAY['disciplinary','warnings','hr','confidential','sensitive']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- TASKS, GOALS, KNOWLEDGE BASE, DOCUMENTS, REPORTS
 -- ═══════════════════════════════════════════════════════════════
 
-,('Tasks Module',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Tasks Module',
 'The Tasks page (/tasks) is a shared task management board for all authenticated users. All roles can view and create tasks; each user sees tasks assigned to them or created by them, plus managers see all tasks.
 
 Task fields: Title (required), Description, Assignee (employee dropdown), Due date, Priority, Status, Tags (multi-select from the tags system), Created by.
@@ -888,11 +903,14 @@ The nine report tabs:
 All tabs support CSV export of the underlying data.',
 ARRAY['super_admin','admin','finance'], ARRAY['reports','analytics','pnl','cashflow','finance','fleet']);
 
+
 -- ═══════════════════════════════════════════════════════════════
 -- CRM, PROJECTS, SETTINGS, PROFILE, AUDIT LOG, AI ASSISTANT
 -- ═══════════════════════════════════════════════════════════════
 
-,('Contacts CRM',
+INSERT INTO chatbot_knowledge (title, content, visible_to_roles, tags) VALUES
+
+('Contacts CRM',
 'The Contacts page (/contacts) is a general-purpose contact directory for leads, partners, and external contacts. Accessible to super_admin, admin, finance, operations.
 
 Contact types: lead, student, contact, partner.
