@@ -402,33 +402,40 @@ serve(async (req) => {
     }
 
     // ─── Persist messages + bump usage ────────────────────────────────────────────────────
-    const { error: insertErr } = await adminClient.from("chatbot_messages").insert([
-      {
-        conversation_id: convId,
-        user_id: user.id,
-        role: "user",
-        content: body.message,
-        attachments: (body.attachments ?? []).map((a) => ({
-          name: a.name, mime_type: a.mime_type,
-        })),
-      },
-      {
-        conversation_id: convId,
-        user_id: user.id,
-        role: "assistant",
-        content: result.text,
-        tools_used: toolsUsed,
-        model_used: model,
-        tokens_in: result.tokens_in,
-        tokens_out: result.tokens_out,
-      },
-    ]);
+    // Core rows — always safe columns only
+    const userRow = {
+      conversation_id: convId,
+      user_id: user.id,
+      role: "user",
+      content: body.message,
+      attachments: (body.attachments ?? []).map((a) => ({ name: a.name, mime_type: a.mime_type })),
+    };
+    const assistantRow: Record<string, unknown> = {
+      conversation_id: convId,
+      user_id: user.id,
+      role: "assistant",
+      content: result.text,
+      tools_used: toolsUsed,
+      model_used: model,
+    };
 
-    // Log insert errors so they appear in Supabase Function logs.
-    // We do NOT throw here so the user still receives the AI reply —
-    // history just won't persist until the schema issue is resolved.
+    // Attempt 1: include token counts (present in schema since migration 20260716)
+    let { error: insertErr } = await adminClient
+      .from("chatbot_messages")
+      .insert([
+        userRow,
+        { ...assistantRow, tokens_in: result.tokens_in, tokens_out: result.tokens_out },
+      ]);
+
+    // Attempt 2: fallback without token columns in case they're absent in production
     if (insertErr) {
-      console.error("chatbot-chat: failed to persist messages:", JSON.stringify(insertErr));
+      console.error("chatbot-chat: insert (with tokens) failed:", JSON.stringify(insertErr));
+      ({ error: insertErr } = await adminClient
+        .from("chatbot_messages")
+        .insert([userRow, assistantRow]));
+      if (insertErr) {
+        console.error("chatbot-chat: insert (fallback) also failed:", JSON.stringify(insertErr));
+      }
     }
 
     // Update conversation title if it's still the default
