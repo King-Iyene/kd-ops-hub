@@ -297,7 +297,7 @@ const BatchDetail = () => {
     return null;
   })();
 
-  const updateStatus = async (status: string, extra?: any) => {
+  const updateStatus = async (status: string, extra?: any, expectedFrom?: string | string[]) => {
     setActionLoading(true);
     try {
       if (status === 'approved' || status === 'rejected') {
@@ -319,9 +319,26 @@ const BatchDetail = () => {
 
       const update: any = { status, ...extra };
       if (status === 'approved') update.approved_by = profile?.id;
-      const { error } = await supabase.from('payment_batches').update(update).eq('id', id);
+      // Concurrency guard: only allow the transition if the row is still in
+      // the expected state. Two admins racing on the same batch will both
+      // pass the client check, but only one update will hit a matching row;
+      // the other returns rowcount 0 and we abort with a stale-state toast.
+      let query = supabase.from('payment_batches').update(update).eq('id', id);
+      if (expectedFrom) {
+        query = Array.isArray(expectedFrom)
+          ? query.in('status', expectedFrom)
+          : query.eq('status', expectedFrom);
+      }
+      const { data: updated, error } = await query.select('id, status');
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      } else if (expectedFrom && (!updated || updated.length === 0)) {
+        toast({
+          title: 'Batch state has changed',
+          description: 'Someone else may have just acted on this batch. Refreshing…',
+          variant: 'destructive',
+        });
+        await fetchBatch();
       } else {
         toast({ title: `Batch ${statusLabel(status)?.toLowerCase() || status}` });
 
@@ -450,10 +467,34 @@ const BatchDetail = () => {
     setProcessingIdx(0);
     setProcessingName('');
     try {
-      await supabase
+      // Concurrency guard: only flip to 'processing' if the batch is still
+      // 'funded' or 'partially_processed'. If two admins click Process at
+      // the same time, only the first wins; the loser sees a stale-state
+      // toast instead of dispatching every Paystack transfer a second time.
+      const { data: claimed, error: claimErr } = await supabase
         .from('payment_batches')
         .update({ status: 'processing' })
-        .eq('id', id);
+        .eq('id', id)
+        .in('status', ['funded', 'partially_processed'])
+        .select('id, status');
+
+      if (claimErr) {
+        toast({ title: 'Could not start processing', description: claimErr.message, variant: 'destructive' });
+        setActionLoading(false);
+        setProcessingTotal(0);
+        return;
+      }
+      if (!claimed || claimed.length === 0) {
+        toast({
+          title: 'Batch is no longer ready to process',
+          description: 'It may already be running or have changed state. Refreshing…',
+          variant: 'destructive',
+        });
+        await fetchBatch();
+        setActionLoading(false);
+        setProcessingTotal(0);
+        return;
+      }
 
       // Kick all line items serially (Paystack rate limits burst traffic).
       for (let i = 0; i < toProcess.length; i++) {
@@ -1063,14 +1104,14 @@ const BatchDetail = () => {
               <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
                 Edit Batch
               </Button>
-              <Button onClick={() => updateStatus('pending_approval')} disabled={actionLoading}>
+              <Button onClick={() => updateStatus('pending_approval', undefined, ['draft', 'rejected'])} disabled={actionLoading}>
                 Submit for Approval
               </Button>
             </>
           )}
           {batch.status === 'pending_approval' && canApprove && (
             <>
-              <Button onClick={() => updateStatus('approved')} disabled={actionLoading} size="lg">
+              <Button onClick={() => updateStatus('approved', undefined, 'pending_approval')} disabled={actionLoading} size="lg">
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
               </Button>
@@ -1080,7 +1121,7 @@ const BatchDetail = () => {
             </>
           )}
           {batch.status === 'approved' && (
-            <Button onClick={() => updateStatus('funded')} disabled={actionLoading}>
+            <Button onClick={() => updateStatus('funded', undefined, 'approved')} disabled={actionLoading}>
               <DollarSign className="mr-2 h-4 w-4" /> Confirm Funded
             </Button>
           )}
@@ -1269,7 +1310,7 @@ const BatchDetail = () => {
           <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason.trim() })} disabled={!isValidRejectionReason(rejectReason)}>
+            <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason.trim() }, 'pending_approval')} disabled={!isValidRejectionReason(rejectReason)}>
               Reject Batch
             </Button>
           </DialogFooter>

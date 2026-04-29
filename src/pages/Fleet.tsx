@@ -2624,12 +2624,27 @@ const Fleet = () => {
       return;
     }
     const now = new Date().toISOString();
-    const { error } = await supabase
+    // Concurrency guard: only flip to 'approved' if still 'pending'. Two
+    // admins racing on the same request both pass the client check, but
+    // only one wins the transition — the other gets a stale-state toast
+    // instead of triggering a second Paystack auto-pay block below.
+    const { data: claimed, error } = await supabase
       .from('fuel_requests')
       .update({ status: 'approved' })
-      .eq('id', request.id);
+      .eq('id', request.id)
+      .eq('status', 'pending')
+      .select('id');
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!claimed || claimed.length === 0) {
+      toast({
+        title: 'Request already actioned',
+        description: 'Someone else may have just approved or rejected this. Refreshing…',
+        variant: 'destructive',
+      });
+      await fetchData();
       return;
     }
     // Update the paired expense row (created when the fuel request was
@@ -2844,12 +2859,23 @@ const Fleet = () => {
   };
 
   const handleMarkPaymentSent = async (r: FuelRequest) => {
-    const { error } = await supabase
+    if (!isAdmin) {
+      toast({ title: 'Not authorized', variant: 'destructive' });
+      return;
+    }
+    const { data: claimed, error } = await supabase
       .from('fuel_requests')
       .update({ status: 'payment_sent', payment_sent_at: new Date().toISOString() })
-      .eq('id', r.id);
+      .eq('id', r.id)
+      .eq('status', 'approved')
+      .select('id');
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!claimed || claimed.length === 0) {
+      toast({ title: 'Request is no longer in approved state', variant: 'destructive' });
+      await fetchData();
       return;
     }
     await logAudit(
@@ -2942,12 +2968,23 @@ const Fleet = () => {
   };
 
   const handleMarkComplete = async (r: FuelRequest) => {
-    const { error } = await supabase
+    if (!isAdmin) {
+      toast({ title: 'Not authorized', variant: 'destructive' });
+      return;
+    }
+    const { data: claimed, error } = await supabase
       .from('fuel_requests')
       .update({ status: 'completed' })
-      .eq('id', r.id);
+      .eq('id', r.id)
+      .in('status', ['receipt_uploaded', 'payment_sent'])
+      .select('id');
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!claimed || claimed.length === 0) {
+      toast({ title: 'Request is not ready to complete', variant: 'destructive' });
+      await fetchData();
       return;
     }
     await logAudit('fuel_request_completed', `Fuel request completed for ${r.employee_name} (${formatNaira(r.amount_ngn || 0)})`, profile);
