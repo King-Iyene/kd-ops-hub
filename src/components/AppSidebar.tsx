@@ -39,6 +39,7 @@ import {
   UserPlus2,
   CalendarCheck2,
   ShieldAlert,
+  Bot,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -108,6 +109,8 @@ const ALL_NAV: NavItem[] = [
   // Admin
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
+  // Workspace addition (Assistant)
+  { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
 // ─── Group definitions ────────────────────────────────────────────────────────
@@ -115,7 +118,7 @@ const ALL_NAV: NavItem[] = [
 const GROUPS = [
   { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',  titles: ['Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
+  { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
 ] as const;

@@ -66,6 +66,8 @@ const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
+const Assistant        = lazy(() => import('./pages/Assistant'));
+const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
 
 const queryClient = new QueryClient();
 
@@ -553,6 +555,24 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <ProfilePage />
+            </RoleGuard>
+          }
+        />
+
+        {/* AI Assistant — every signed-in user can chat; super admin manages config + KB. */}
+        <Route
+          path="/assistant"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Assistant />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/assistant/admin"
+          element={
+            <RoleGuard roles={['super_admin']}>
+              <AssistantAdmin />
             </RoleGuard>
           }
         />
