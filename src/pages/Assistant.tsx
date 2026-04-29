@@ -107,6 +107,7 @@ export default function Assistant() {
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [usageToday, setUsageToday] = useState<{ used: number; limit: number } | null>(null);
   const [sidebarSearch, setSidebarSearch] = useState('');
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -310,7 +311,6 @@ export default function Assistant() {
   };
 
   const deleteConversation = async (conv: Conversation) => {
-    if (!confirm(`Delete "${conv.title}"? This cannot be undone.`)) return;
     await supabase.from('chatbot_conversations').delete().eq('id', conv.id);
     cacheDel(conv.id);
     if (activeConvId === conv.id) startNewChat();
@@ -421,9 +421,12 @@ export default function Assistant() {
                       key={c.id}
                       conv={c}
                       active={activeConvId === c.id}
-                      onSelect={() => setActiveConvId(c.id)}
+                      pendingDelete={pendingDeleteId === c.id}
+                      onSelect={() => { setPendingDeleteId(null); setActiveConvId(c.id); }}
                       onPin={() => togglePin(c)}
-                      onDelete={() => deleteConversation(c)}
+                      onRequestDelete={() => setPendingDeleteId(c.id)}
+                      onCancelDelete={() => setPendingDeleteId(null)}
+                      onConfirmDelete={() => { setPendingDeleteId(null); deleteConversation(c); }}
                     />
                   ))}
                 </div>
@@ -442,9 +445,12 @@ export default function Assistant() {
                       key={c.id}
                       conv={c}
                       active={activeConvId === c.id}
-                      onSelect={() => setActiveConvId(c.id)}
+                      pendingDelete={pendingDeleteId === c.id}
+                      onSelect={() => { setPendingDeleteId(null); setActiveConvId(c.id); }}
                       onPin={() => togglePin(c)}
-                      onDelete={() => deleteConversation(c)}
+                      onRequestDelete={() => setPendingDeleteId(c.id)}
+                      onCancelDelete={() => setPendingDeleteId(null)}
+                      onConfirmDelete={() => { setPendingDeleteId(null); deleteConversation(c); }}
                     />
                   ))}
                 </div>
@@ -611,52 +617,88 @@ export default function Assistant() {
 function ConvItem({
   conv,
   active,
+  pendingDelete,
   onSelect,
   onPin,
-  onDelete,
+  onRequestDelete,
+  onCancelDelete,
+  onConfirmDelete,
 }: {
   conv: Conversation;
   active: boolean;
+  pendingDelete: boolean;
   onSelect: () => void;
   onPin: () => void;
-  onDelete: () => void;
+  onRequestDelete: () => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
 }) {
   return (
     <div
       className={`group rounded-lg px-2.5 py-2 cursor-pointer flex items-start gap-2 kd-transition mb-0.5 ${
-        active
-          ? 'bg-primary/10 border border-primary/20'
-          : 'hover:bg-muted/60 border border-transparent'
+        pendingDelete
+          ? 'bg-destructive/8 border border-destructive/25'
+          : active
+            ? 'bg-primary/10 border border-primary/20'
+            : 'hover:bg-muted/60 border border-transparent'
       }`}
-      onClick={onSelect}
+      onClick={() => { if (!pendingDelete) onSelect(); }}
     >
-      <MessageSquare className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground/50'}`} />
+      <MessageSquare className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${
+        pendingDelete ? 'text-destructive/60' : active ? 'text-primary' : 'text-muted-foreground/50'
+      }`} />
       <div className="flex-1 min-w-0">
-        <p className={`text-xs font-medium truncate ${active ? 'text-primary' : 'text-foreground'}`}>
-          {conv.title}
-        </p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {formatDateTime(conv.updated_at)}
-        </p>
+        {pendingDelete ? (
+          <p className="text-xs font-medium text-destructive leading-snug">Delete this chat?</p>
+        ) : (
+          <>
+            <p className={`text-xs font-medium truncate ${active ? 'text-primary' : 'text-foreground'}`}>
+              {conv.title}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {formatDateTime(conv.updated_at)}
+            </p>
+          </>
+        )}
       </div>
-      <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 kd-transition">
-        <button
-          onClick={(e) => { e.stopPropagation(); onPin(); }}
-          className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted kd-transition"
-          title={conv.pinned ? 'Unpin' : 'Pin'}
-        >
-          {conv.pinned
-            ? <PinOff className="h-3 w-3 text-muted-foreground" />
-            : <Pin className="h-3 w-3 text-muted-foreground" />}
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="h-5 w-5 rounded flex items-center justify-center hover:bg-destructive/10 text-destructive/60 hover:text-destructive kd-transition"
-          title="Delete"
-        >
-          <Trash2 className="h-3 w-3" />
-        </button>
-      </div>
+
+      {pendingDelete ? (
+        /* Inline confirmation buttons */
+        <div className="flex gap-1 shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onCancelDelete(); }}
+            className="h-5 rounded px-1.5 text-[10px] font-medium bg-muted hover:bg-muted/80 text-muted-foreground kd-transition"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onConfirmDelete(); }}
+            className="h-5 rounded px-1.5 text-[10px] font-medium bg-destructive/90 hover:bg-destructive text-destructive-foreground kd-transition"
+          >
+            Delete
+          </button>
+        </div>
+      ) : (
+        /* Normal hover actions */
+        <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 kd-transition">
+          <button
+            onClick={(e) => { e.stopPropagation(); onPin(); }}
+            className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted kd-transition"
+            title={conv.pinned ? 'Unpin' : 'Pin'}
+          >
+            {conv.pinned
+              ? <PinOff className="h-3 w-3 text-muted-foreground" />
+              : <Pin className="h-3 w-3 text-muted-foreground" />}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onRequestDelete(); }}
+            className="h-5 w-5 rounded flex items-center justify-center hover:bg-destructive/10 text-destructive/60 hover:text-destructive kd-transition"
+            title="Delete"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
