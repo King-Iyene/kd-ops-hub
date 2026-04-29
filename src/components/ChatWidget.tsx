@@ -125,22 +125,30 @@ export function ChatWidget() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const body = await (error as any)?.context?.json?.().catch(() => null);
+        throw new Error(body?.error ?? error.message);
+      }
       if (data?.error) throw new Error(data.error);
 
-      if (data.conversation_id && data.conversation_id !== convId) {
-        setConvId(data.conversation_id);
-      }
+      const newConvId: string = data.conversation_id;
+      if (newConvId !== convId) setConvId(newConvId);
       setUseWebSearch(false);
 
-      // Reload messages from DB to get real IDs + assistant reply
-      const { data: fresh } = await supabase
-        .from('chatbot_messages')
-        .select('id, role, content, tools_used')
-        .eq('conversation_id', data.conversation_id)
-        .order('created_at', { ascending: true })
-        .limit(20);
-      setMessages((fresh ?? []) as WidgetMessage[]);
+      // Show messages immediately from edge function response — no DB round-trip
+      setMessages((m) => {
+        const base = m.filter((x) => x.id !== optimistic.id);
+        return [
+          ...base,
+          { ...optimistic, id: `u-${Date.now()}` },
+          {
+            id: `a-${Date.now()}`,
+            role: 'assistant' as const,
+            content: data.reply,
+            tools_used: data.tools_used ?? [],
+          },
+        ];
+      });
 
       // If widget is closed, mark unread
       if (!open) setUnread(true);
