@@ -92,12 +92,12 @@ async function embedQuery(text: string): Promise<number[] | null> {
   if (!GEMINI_API_KEY) return null;
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "models/text-embedding-004",
+          model: "models/embedding-001",
           content: { parts: [{ text }] },
         }),
       },

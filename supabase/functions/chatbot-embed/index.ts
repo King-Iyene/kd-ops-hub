@@ -1,6 +1,6 @@
 // supabase/functions/chatbot-embed/index.ts
 //
-// Embeds a chatbot_knowledge row using Gemini text-embedding-004 (768 dims, free).
+// Embeds a chatbot_knowledge row using Gemini embedding-001 (768 dims, free).
 // Called by super admin from the AssistantAdmin page after creating/editing a doc.
 //
 // Deploy: supabase functions deploy chatbot-embed --no-verify-jwt
@@ -18,7 +18,7 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 
-// Gemini text-embedding-004 has a ~2048-token limit; truncate to ~7500 chars to be safe.
+// Gemini embedding-001 has a ~2048-token limit; truncate to ~7500 chars to be safe.
 const MAX_TEXT_CHARS = 7500;
 
 function truncate(text: string): string {
@@ -30,12 +30,12 @@ async function embed(text: string): Promise<number[]> {
     throw new Error("GEMINI_API_KEY not configured. Set it in Supabase secrets.");
   }
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "models/text-embedding-004",
+        model: "models/embedding-001",
         content: { parts: [{ text: truncate(text) }] },
       }),
     },
