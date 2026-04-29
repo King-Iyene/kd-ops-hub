@@ -95,11 +95,15 @@ export default function Assistant() {
 
   const fetchMessages = async (convId: string) => {
     setLoadingHistory(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('chatbot_messages')
       .select('*')
       .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
+    if (error) {
+      console.error('fetchMessages error:', error);
+      toast({ title: 'Could not load messages', description: error.message, variant: 'destructive' });
+    }
     setMessages((data ?? []) as Message[]);
     setLoadingHistory(false);
   };
@@ -119,7 +123,22 @@ export default function Assistant() {
   };
 
   useEffect(() => {
-    fetchConversations();
+    const init = async () => {
+      // Load conversations and auto-select the most recent one so navigating
+      // away and back restores the last active chat instead of showing EmptyState.
+      const { data } = await supabase
+        .from('chatbot_conversations')
+        .select('*')
+        .order('pinned', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(50);
+      const list = (data ?? []) as Conversation[];
+      setConversations(list);
+      if (list.length > 0) {
+        setActiveConvId((prev) => prev ?? list[0].id);
+      }
+    };
+    init();
     fetchUsage();
   }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
