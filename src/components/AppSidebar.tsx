@@ -143,7 +143,7 @@ function loadCollapsed(k: GroupKey): boolean {
 function persistCollapsed(k: GroupKey, v: boolean) {
   try {
     localStorage.setItem(lsKey(k), String(v));
-  } catch {}
+  } catch { /* localStorage unavailable */ }
 }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────

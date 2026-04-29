@@ -329,6 +329,34 @@ export default function LiveTracking() {
     return () => clearInterval(t);
   }, []);
 
+  // ── Derived: enriched trip rows ──
+  const tripList = useMemo(() => {
+    const arr = Array.from(trips.values());
+    arr.sort((a, b) => Date.parse(b.trip_start_time) - Date.parse(a.trip_start_time));
+    const q = search.trim().toLowerCase();
+    return arr
+      .map((t) => {
+        const last = t.trail[t.trail.length - 1];
+        const lat = last?.lat ?? t.start_lat;
+        const lng = last?.lng ?? t.start_lng;
+        const lastPingMs = last ? Date.parse(last.recorded_at) : null;
+        const stale = lastPingMs == null || (now - lastPingMs) > STALE_THRESHOLD_MS;
+        const speeding = !!last?.is_speeding;
+        const elapsedMs = Math.max(0, now - Date.parse(t.trip_start_time));
+        const distanceKm = trailDistanceKm(t.trail, t.start_lat, t.start_lng);
+        const maxSpeedKmh = t.trail.reduce((mx, p) => p.speed_kmh != null && p.speed_kmh > mx ? p.speed_kmh : mx, 0);
+        const avgSpeedKmh = elapsedMs > 0 ? (distanceKm / (elapsedMs / 3_600_000)) : 0;
+        return { trip: t, lat, lng, lastPingMs, stale, speeding, elapsedMs, last, distanceKm, maxSpeedKmh, avgSpeedKmh };
+      })
+      .filter((row) => !q
+        || row.trip.driver_name.toLowerCase().includes(q)
+        || (row.trip.vehicle_plate ?? '').toLowerCase().includes(q)
+        || (row.trip.vehicle_name ?? '').toLowerCase().includes(q));
+  }, [trips, search, now]);
+
+  // Re-fit bounds whenever the *set* of drivers changes (not on every tick)
+  const fitVersion = useMemo(() => Array.from(trips.keys()).sort().join(','), [trips]);
+
   // ── Overlay lifecycle — syncs tripList with DriverOverlay instances ──────
   useEffect(() => {
     if (!googleMap || !OverlayClassRef.current) return;
@@ -605,40 +633,12 @@ export default function LiveTracking() {
     return () => clearInterval(t);
   }, []);
 
-  // ── Derived: enriched trip rows ──
-  const tripList = useMemo(() => {
-    const arr = Array.from(trips.values());
-    arr.sort((a, b) => Date.parse(b.trip_start_time) - Date.parse(a.trip_start_time));
-    const q = search.trim().toLowerCase();
-    return arr
-      .map((t) => {
-        const last = t.trail[t.trail.length - 1];
-        const lat = last?.lat ?? t.start_lat;
-        const lng = last?.lng ?? t.start_lng;
-        const lastPingMs = last ? Date.parse(last.recorded_at) : null;
-        const stale = lastPingMs == null || (now - lastPingMs) > STALE_THRESHOLD_MS;
-        const speeding = !!last?.is_speeding;
-        const elapsedMs = Math.max(0, now - Date.parse(t.trip_start_time));
-        const distanceKm = trailDistanceKm(t.trail, t.start_lat, t.start_lng);
-        const maxSpeedKmh = t.trail.reduce((mx, p) => p.speed_kmh != null && p.speed_kmh > mx ? p.speed_kmh : mx, 0);
-        const avgSpeedKmh = elapsedMs > 0 ? (distanceKm / (elapsedMs / 3_600_000)) : 0;
-        return { trip: t, lat, lng, lastPingMs, stale, speeding, elapsedMs, last, distanceKm, maxSpeedKmh, avgSpeedKmh };
-      })
-      .filter((row) => !q
-        || row.trip.driver_name.toLowerCase().includes(q)
-        || (row.trip.vehicle_plate ?? '').toLowerCase().includes(q)
-        || (row.trip.vehicle_name ?? '').toLowerCase().includes(q));
-  }, [trips, search, now]);
-
   const mapPoints = useMemo<[number, number][]>(() =>
     tripList.filter((r) => r.lat != null && r.lng != null).map((r) => [r.lat as number, r.lng as number] as [number, number]),
   [tripList]);
   const mapCenter = useMemo<google.maps.LatLngLiteral>(() =>
     mapPoints.length > 0 ? { lat: mapPoints[0][0], lng: mapPoints[0][1] } : LAGOS_CENTER,
   [mapPoints]);
-
-  // Re-fit bounds whenever the *set* of drivers changes (not on every tick)
-  const fitVersion = useMemo(() => Array.from(trips.keys()).sort().join(','), [trips]);
 
   // ── Permission gate ──
   const allowed = ['super_admin', 'admin'].includes(profile?.role ?? '');

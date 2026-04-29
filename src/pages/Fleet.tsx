@@ -410,6 +410,12 @@ function computeIdleMinutes(breadcrumbs: BreadcrumbRow[]): number {
   return Math.round(idleMs / 60000);
 }
 
+const EVENT_LABEL: Record<string, string> = {
+  speeding:      'Speeding',
+  hard_braking:  'Hard Braking',
+  extended_stop: 'Extended Stop',
+};
+
 function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
   trail: [number, number][];
   startPos: [number, number] | null;
@@ -508,12 +514,6 @@ function TripGoogleMap({ trail, startPos, endPos, events, replayStep = null }: {
     </GoogleMap>
   );
 }
-
-const EVENT_LABEL: Record<string, string> = {
-  speeding:      'Speeding',
-  hard_braking:  'Hard Braking',
-  extended_stop: 'Extended Stop',
-};
 
 const EVENT_COLOR: Record<string, string> = {
   speeding:      'bg-red-100 text-red-700 border-red-300',

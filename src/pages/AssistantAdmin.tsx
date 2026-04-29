@@ -169,6 +169,25 @@ export default function AssistantAdmin() {
     setShowKbDialog(true);
   };
 
+  const generateEmbedding = async (knowledgeId: string) => {
+    setEmbedding(knowledgeId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('chatbot-embed', {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+        body: { knowledge_id: knowledgeId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Embedded', description: 'Ready for retrieval.' });
+      fetchAll();
+    } catch (err) {
+      toast({ title: 'Embedding failed', description: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setEmbedding(null);
+    }
+  };
+
   const saveKb = async () => {
     if (!editKb || !editKb.title?.trim() || !editKb.content?.trim()) {
       toast({ title: 'Title and content are required', variant: 'destructive' });
@@ -212,25 +231,6 @@ export default function AssistantAdmin() {
     await logAudit('chatbot_kb_deleted', `Knowledge: ${row.title}`, profile);
     toast({ title: 'Deleted' });
     fetchAll();
-  };
-
-  const generateEmbedding = async (knowledgeId: string) => {
-    setEmbedding(knowledgeId);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('chatbot-embed', {
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-        body: { knowledge_id: knowledgeId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: 'Embedded', description: 'Ready for retrieval.' });
-      fetchAll();
-    } catch (err) {
-      toast({ title: 'Embedding failed', description: (err as Error).message, variant: 'destructive' });
-    } finally {
-      setEmbedding(null);
-    }
   };
 
   const reembedAll = async () => {

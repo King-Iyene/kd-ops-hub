@@ -311,6 +311,13 @@ export default function Recruitment() {
     setDeleteApplicant(null);
   }
 
+  const filteredOpenings = openings.filter(o => {
+    const term = search.toLowerCase();
+    const matchSearch = !term || o.title.toLowerCase().includes(term) || (o.location ?? '').toLowerCase().includes(term);
+    const matchStatus = statusFilter === 'all' || o.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
   function exportCSV() {
     const rows: string[] = [];
     for (const o of filteredOpenings) {
@@ -328,13 +335,6 @@ export default function Recruitment() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = 'recruitment.csv'; a.click();
   }
-
-  const filteredOpenings = openings.filter(o => {
-    const term = search.toLowerCase();
-    const matchSearch = !term || o.title.toLowerCase().includes(term) || (o.location ?? '').toLowerCase().includes(term);
-    const matchStatus = statusFilter === 'all' || o.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
 
   const deptName = (id: string | null) => departments.find(d => d.id === id)?.name ?? '—';
   const profileName = (id: string | null) => id ? (profiles.find(p => p.id === id)?.full_name ?? '—') : '—';
