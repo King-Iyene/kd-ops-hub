@@ -132,10 +132,13 @@ serve(async (req) => {
         }
       }
 
+      // When everything fails, surface the first error as the top-level message
+      // so AssistantAdmin's data?.error check can display it directly.
       return ok({
         embedded: success,
         failed: errors.length,
         errors: errors.length > 0 ? errors : undefined,
+        error: success === 0 && errors.length > 0 ? errors[0] : undefined,
       });
     }
 

@@ -245,9 +245,12 @@ export default function AssistantAdmin() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const failed = data?.failed ?? 0;
+      const firstErr = data?.errors?.[0];
       toast({
         title: `Embedded ${data?.embedded ?? 0} of ${(data?.embedded ?? 0) + failed} entries`,
-        description: failed > 0 ? `${failed} failed — check browser console for details.` : 'All entries ready for retrieval.',
+        description: failed > 0
+          ? firstErr ?? `${failed} entries failed.`
+          : 'All entries ready for retrieval.',
         variant: failed > 0 ? 'destructive' : 'default',
       });
       fetchAll();
@@ -385,7 +388,7 @@ export default function AssistantAdmin() {
               <div className="space-y-2 border-t pt-3">
                 <ToggleRow
                   icon={<Globe className="h-4 w-4 text-blue-500" />}
-                  title="Web search (Brave)"
+                  title="Web search (Tavily)"
                   description="Allow the bot to fetch live web results when users ask about news, current events, or hit the search button."
                   checked={config.enable_web_search}
                   onChange={(v) => setConfig({ ...config, enable_web_search: v })}
