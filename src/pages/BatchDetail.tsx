@@ -496,32 +496,60 @@ const BatchDetail = () => {
         return;
       }
 
-      // Kick all line items serially (Paystack rate limits burst traffic).
-      for (let i = 0; i < toProcess.length; i++) {
-        const it = toProcess[i];
-        setProcessingIdx(i + 1);
-        setProcessingName(it.full_name);
-        await processOneItem(it);
+      // Kick the server-side worker. It runs chunked (50 items, concurrency
+      // 8) and returns when its time budget expires or the batch is fully
+      // dispatched. If items remain, the existing poller plus pg_cron will
+      // re-invoke until everything is sent — survives the operator closing
+      // their tab mid-run.
+      const { data: { session } } = await supabase.auth.getSession();
+      let totalDispatched = 0;
+      let totalFailed     = 0;
+      let remaining       = toProcess.length;
+
+      // Loop calls so a 10-minute batch finishes within the same click if
+      // possible. Each call is capped at ~120 s server-side; we re-invoke
+      // until remaining hits 0 or we've exhausted retries.
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const { data, error: workerErr } = await supabase.functions.invoke('batch-worker', {
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+          body: { batch_id: id },
+        });
+        if (workerErr) {
+          toast({ title: 'Worker error', description: workerErr.message, variant: 'destructive' });
+          break;
+        }
+        if (data?.error) {
+          toast({ title: 'Worker error', description: data.error, variant: 'destructive' });
+          break;
+        }
+        totalDispatched += data?.dispatched ?? 0;
+        totalFailed     += data?.failed     ?? 0;
+        remaining        = data?.remaining  ?? 0;
+        // Reflect progress on the UI by re-counting from the DB.
+        const { data: items2 } = await supabase
+          .from('batch_items').select('status').eq('batch_id', id);
+        const succeededLive = (items2 || []).filter((r: any) => r.status === 'succeeded').length;
+        setProcessingIdx(toProcess.length - remaining);
+        setProcessingName(remaining === 0 ? 'finalising…' : `${succeededLive} succeeded so far`);
+        if (remaining === 0) break;
       }
 
-      // Let the poller decide the final status once transfers settle — for
-      // now, reflect the current in-flight state.
       const { data: refreshed } = await supabase
-        .from('batch_items')
-        .select('status')
-        .eq('batch_id', id);
+        .from('batch_items').select('status').eq('batch_id', id);
       const all = refreshed || [];
       const succeededCount = all.filter((r: any) => r.status === 'succeeded').length;
-      const failedCount = all.filter((r: any) => r.status === 'failed').length;
-      const pendingCount = all.filter((r: any) => r.status === 'pending' || r.status === 'processing').length;
+      const failedCount    = all.filter((r: any) => r.status === 'failed').length;
+      const pendingCount   = all.filter((r: any) => r.status === 'pending' || r.status === 'processing').length;
       setProcessResults({ succeeded: succeededCount, failed: failedCount, pending: pendingCount });
       setProcessingIdx(0);
       setProcessingTotal(0);
       setProcessingName('');
 
       let batchStatus = 'processing';
-      if (pendingCount === 0 && failedCount === 0) batchStatus = 'processed';
-      else if (pendingCount === 0 && succeededCount > 0) batchStatus = 'partially_processed';
+      if (pendingCount === 0 && failedCount === 0)         batchStatus = 'processed';
+      else if (pendingCount === 0 && succeededCount > 0)   batchStatus = 'partially_processed';
       else if (pendingCount === 0 && succeededCount === 0) batchStatus = 'failed';
 
       await supabase
@@ -530,7 +558,7 @@ const BatchDetail = () => {
         .eq('id', id);
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')}`,
+        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')} (${totalDispatched} sent, ${totalFailed} failed)`,
         profile,
       );
       toast({
