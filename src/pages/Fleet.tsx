@@ -3219,9 +3219,11 @@ const Fleet = () => {
             <TabsTrigger value="vehicles" className="shrink-0">
               <Car className="mr-2 h-4 w-4" /> Vehicles
             </TabsTrigger>
-            <TabsTrigger value="activity" className="shrink-0">
-              <History className="mr-2 h-4 w-4" /> Activity
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="activity" className="shrink-0">
+                <History className="mr-2 h-4 w-4" /> Activity
+              </TabsTrigger>
+            )}
             {isAdmin && (
               <TabsTrigger value="anomalies" className="relative shrink-0">
                 <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
@@ -4066,8 +4068,8 @@ const Fleet = () => {
           </Card>
         </TabsContent>
 
-        {/* ACTIVITY */}
-        <TabsContent value="activity" className="mt-4 space-y-4">
+        {/* ACTIVITY — admin only */}
+        {isAdmin && <TabsContent value="activity" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fleet Activity Log</CardTitle>
@@ -4110,7 +4112,7 @@ const Fleet = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent>}
 
         {/* VEHICLES */}
         <TabsContent value="vehicles" className="mt-4">
