@@ -569,8 +569,20 @@ function TripMapModal({ trip, breadcrumbs, events, loading, onClose }: TripMapMo
   const displayStart = startPlaceName ?? trip.start_location;
   const displayEnd   = endPlaceName   ?? trip.end_location;
 
-  const trail: [number, number][] = breadcrumbs.map((b) => [b.lat, b.lng]);
-  const totalSteps = trail.length;
+  // Smooth the displayed route: remove consecutive points within 15 m of each other.
+  // This cleans up GPS jitter clusters that slipped through the recording filter
+  // (e.g. older trips recorded before the accuracy gate was added).
+  const trail: [number, number][] = (() => {
+    const pts: [number, number][] = [];
+    for (const b of breadcrumbs) {
+      const prev = pts[pts.length - 1];
+      if (!prev || haversineKm(prev[0], prev[1], b.lat, b.lng) >= 0.015) {
+        pts.push([b.lat, b.lng]);
+      }
+    }
+    return pts;
+  })();
+  const totalSteps = breadcrumbs.length; // replay uses raw breadcrumbs for accurate timestamps
 
   useEffect(() => {
     if (replayPlaying && totalSteps > 0) {
@@ -1571,14 +1583,20 @@ const Fleet = () => {
 
     if (!navigator.geolocation) return;
 
-    const MIN_DIST_KM = 0.020;   // 20 m — suppress tiny GPS jitter
-    const MIN_INTERVAL_MS = 15_000; // 15 s — max breadcrumb rate at rest
+    const MIN_DIST_KM = 0.030;    // 30 m — minimum genuine movement before saving
+    const MAX_ACCURACY_M = 50;    // discard fixes worse than 50 m — pure GPS noise
+    const MIN_INTERVAL_MS = 20_000; // 20 s — max periodic save rate when moving slowly
     const STOP_THRESHOLD_MS = 5 * 60_000; // 5 min — flag as extended stop
     const SPEED_THRESHOLD_KMH = 100;
     const HARD_BRAKE_DROP_KMH = 40;
 
     const onPosition = (pos: GeolocationPosition) => {
       const { latitude: lat, longitude: lng, accuracy, speed, heading } = pos.coords;
+
+      // Drop fixes where the GPS circle is larger than our movement threshold —
+      // any "movement" within that circle is indistinguishable from sensor noise.
+      if (accuracy != null && accuracy > MAX_ACCURACY_M) return;
+
       const speedKmh = speed != null && speed >= 0 ? speed * 3.6 : null;
       setLiveSpeed(speedKmh != null ? Math.round(speedKmh) : null);
 
@@ -1588,7 +1606,9 @@ const Fleet = () => {
       const msSinceLast = now - lastBreadcrumbTimeRef.current;
 
       const hasMovedEnough = distMoved >= MIN_DIST_KM;
-      const timeThresholdMet = msSinceLast >= MIN_INTERVAL_MS;
+      // Periodic save only fires when actually moving — prevents stationary jitter pings.
+      const isActuallyMoving = speedKmh == null || speedKmh > 3;
+      const timeThresholdMet = msSinceLast >= MIN_INTERVAL_MS && isActuallyMoving;
       const isExtendedStop = !hasMovedEnough && msSinceLast >= STOP_THRESHOLD_MS;
 
       if (!hasMovedEnough && !timeThresholdMet) return;
