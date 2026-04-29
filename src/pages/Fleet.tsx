@@ -6056,7 +6056,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [submitting, setSubmitting] = useState(false);
   const [allEmployees, setAllEmployees] = useState<FieldStaff[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<Vehicle | null>(null);
-  const [showNonAdminSaveWarning, setShowNonAdminSaveWarning] = useState(false);
+  const [nonAdminConfirmed, setNonAdminConfirmed] = useState(false);
   const [viewingFuelHistory, setViewingFuelHistory] = useState<Vehicle | null>(null);
   const [viewingMaintenance, setViewingMaintenance] = useState<Vehicle | null>(null);
   const [settingOutOfService, setSettingOutOfService] = useState<Vehicle | null>(null);
@@ -6090,6 +6090,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const reset = () => {
     setEditing(null);
     setForm(emptyVehicleForm);
+    setNonAdminConfirmed(false);
   };
 
   const openEdit = (v: Vehicle) => {
@@ -6114,14 +6115,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     setShowForm(true);
   };
 
-  const handleSave = async (skipWarning = false) => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.plate_number.trim()) {
       toast({ title: 'Name and plate number are required', variant: 'destructive' });
-      return;
-    }
-    // Non-admins adding a NEW vehicle: show a one-time confirmation warning.
-    if (!isAdmin && !editing && !skipWarning) {
-      setShowNonAdminSaveWarning(true);
       return;
     }
     setSubmitting(true);
@@ -6532,44 +6528,50 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
           </div>
 
           {/* Sticky footer */}
-          <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm flex-row items-center sm:justify-between gap-3 mt-0">
-            <p className="text-xs text-muted-foreground hidden sm:block">
-              {(!form.name.trim() || !form.plate_number.trim())
-                ? <><span className="text-destructive">●</span> Fill in name and plate number to save</>
-                : <><span className="text-success">●</span> Ready to save</>}
-            </p>
-            <div className="flex gap-2 ml-auto">
-              <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
-              <Button
-                onClick={handleSave}
-                disabled={submitting || !form.name.trim() || !form.plate_number.trim()}
-                className={(!submitting && form.name.trim() && form.plate_number.trim()) ? 'kd-magnetic' : ''}
-              >
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editing ? 'Update vehicle' : 'Add vehicle'}
-              </Button>
+          <DialogFooter className="px-6 py-4 border-t border-border/60 bg-card/50 backdrop-blur-sm flex-col gap-3 mt-0">
+            {/* Non-admin one-time warning — shown only when adding (not editing) */}
+            {!isAdmin && !editing && (
+              <div className="w-full rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Please verify all details before submitting</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+                      Once saved, you will <strong>not be able to edit</strong> this vehicle record. Any corrections will require an administrator.
+                    </p>
+                  </div>
+                </div>
+                <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={nonAdminConfirmed}
+                    onChange={(e) => setNonAdminConfirmed(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-400 accent-amber-600"
+                  />
+                  <span className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                    I have verified all details and understand they cannot be changed after submission
+                  </span>
+                </label>
+              </div>
+            )}
+            <div className="flex items-center justify-between w-full gap-3">
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                {(!form.name.trim() || !form.plate_number.trim())
+                  ? <><span className="text-destructive">●</span> Fill in name and plate number to save</>
+                  : <><span className="text-success">●</span> Ready to save</>}
+              </p>
+              <div className="flex gap-2 ml-auto">
+                <Button variant="outline" onClick={() => { setShowForm(false); reset(); }}>Cancel</Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={submitting || !form.name.trim() || !form.plate_number.trim() || (!isAdmin && !editing && !nonAdminConfirmed)}
+                  className={(!submitting && form.name.trim() && form.plate_number.trim()) ? 'kd-magnetic' : ''}
+                >
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editing ? 'Update vehicle' : 'Add vehicle'}
+                </Button>
+              </div>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Non-admin one-time save confirmation */}
-      <Dialog open={showNonAdminSaveWarning} onOpenChange={(v) => { if (!v) setShowNonAdminSaveWarning(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" /> Confirm vehicle details
-            </DialogTitle>
-            <DialogDescription className="space-y-2 pt-1">
-              <span className="block">Please review all the details you've entered carefully.</span>
-              <span className="block font-semibold text-foreground">Once submitted, you will not be able to edit this vehicle record. Any changes will require administrator approval.</span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNonAdminSaveWarning(false)}>Go back and check</Button>
-            <Button onClick={() => { setShowNonAdminSaveWarning(false); handleSave(true); }}>
-              I've verified — Submit
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
