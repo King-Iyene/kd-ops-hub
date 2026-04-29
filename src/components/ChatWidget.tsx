@@ -23,6 +23,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// Shared localStorage cache (same prefix as Assistant.tsx so history is unified)
+const CACHE_PREFIX = 'kd_chat_v1_';
+function cacheSet(convId: string, msgs: WidgetMessage[]) {
+  try { localStorage.setItem(CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch { /* quota */ }
+}
+function cacheGet(convId: string): WidgetMessage[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + convId);
+    return raw ? (JSON.parse(raw) as WidgetMessage[]) : null;
+  } catch { return null; }
+}
+
 interface WidgetMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -96,7 +108,13 @@ export function ChatWidget() {
       .eq('conversation_id', id)
       .order('created_at', { ascending: true })
       .limit(30);
-    setMessages((data ?? []) as WidgetMessage[]);
+    const dbMsgs = (data ?? []) as WidgetMessage[];
+    if (dbMsgs.length > 0) {
+      cacheSet(id, dbMsgs);
+      setMessages(dbMsgs);
+    } else {
+      setMessages(cacheGet(id) ?? []);
+    }
     setLoadingHistory(false);
     setView('chat');
   }
@@ -170,7 +188,7 @@ export function ChatWidget() {
 
       setMessages((m) => {
         const base = m.filter((x) => x.id !== optimistic.id);
-        return [
+        const updated: WidgetMessage[] = [
           ...base,
           { ...optimistic, id: `u-${Date.now()}` },
           {
@@ -180,6 +198,8 @@ export function ChatWidget() {
             tools_used: data.tools_used ?? [],
           },
         ];
+        cacheSet(newConvId, updated);
+        return updated;
       });
 
       if (!open) setUnread(true);

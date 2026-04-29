@@ -61,6 +61,22 @@ interface AttachmentDraft {
   size: number;
 }
 
+// localStorage cache — persists messages across tab/page navigation even
+// when the DB insert is failing (e.g. pending migration on production).
+const CACHE_PREFIX = 'kd_chat_v1_';
+function cacheSet(convId: string, msgs: Message[]) {
+  try { localStorage.setItem(CACHE_PREFIX + convId, JSON.stringify(msgs)); } catch { /* quota */ }
+}
+function cacheGet(convId: string): Message[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_PREFIX + convId);
+    return raw ? (JSON.parse(raw) as Message[]) : null;
+  } catch { return null; }
+}
+function cacheDel(convId: string) {
+  try { localStorage.removeItem(CACHE_PREFIX + convId); } catch { /* ignore */ }
+}
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const TOOL_META: Record<string, { label: string; icon: typeof Globe; cls: string }> = {
@@ -118,7 +134,16 @@ export default function Assistant() {
       console.error('fetchMessages error:', error);
       toast({ title: 'Could not load messages', description: error.message, variant: 'destructive' });
     }
-    setMessages((data ?? []) as Message[]);
+    const dbMsgs = (data ?? []) as Message[];
+    if (dbMsgs.length > 0) {
+      // DB has data — use it and refresh the cache
+      cacheSet(convId, dbMsgs);
+      setMessages(dbMsgs);
+    } else {
+      // DB is empty (insert still failing in production) — fall back to local cache
+      const cached = cacheGet(convId);
+      setMessages(cached ?? []);
+    }
     setLoadingHistory(false);
   };
 
@@ -247,7 +272,7 @@ export default function Assistant() {
 
       setMessages((curr) => {
         const base = curr.filter((m) => m.id !== optimisticUser.id);
-        return [
+        const updated: Message[] = [
           ...base,
           { ...optimisticUser, id: `u-${Date.now()}`, conversation_id: convId },
           {
@@ -261,6 +286,10 @@ export default function Assistant() {
             created_at: new Date().toISOString(),
           },
         ];
+        // Persist to localStorage so history survives tab switches even when
+        // the DB insert is failing (pending migration on production).
+        cacheSet(convId, updated);
+        return updated;
       });
 
       await fetchConversations();
@@ -283,6 +312,7 @@ export default function Assistant() {
   const deleteConversation = async (conv: Conversation) => {
     if (!confirm(`Delete "${conv.title}"? This cannot be undone.`)) return;
     await supabase.from('chatbot_conversations').delete().eq('id', conv.id);
+    cacheDel(conv.id);
     if (activeConvId === conv.id) startNewChat();
     fetchConversations();
   };
