@@ -12,23 +12,28 @@ import {
   Pin,
   PinOff,
   Sparkles,
-  AlertCircle,
   Image as ImageIcon,
   FileText,
   Zap,
   Search,
   BookOpen,
   Settings as SettingsIcon,
+  MessageSquare,
+  ChevronRight,
+  Cpu,
+  TrendingUp,
+  HelpCircle,
+  FileSearch,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { formatDateTime } from '@/lib/format';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Conversation {
   id: string;
@@ -56,13 +61,21 @@ interface AttachmentDraft {
   size: number;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-const TOOL_LABELS: Record<string, { label: string; icon: typeof Globe }> = {
-  knowledge_base: { label: 'Knowledge base', icon: BookOpen },
-  web_search:     { label: 'Web search',     icon: Globe },
-  fx_rates:       { label: 'FX rates',       icon: Sparkles },
-  fallback_gemini:{ label: 'Gemini fallback',icon: Zap },
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const TOOL_META: Record<string, { label: string; icon: typeof Globe; cls: string }> = {
+  knowledge_base: { label: 'Knowledge base', icon: BookOpen,  cls: 'kd-badge kd-badge-primary' },
+  web_search:     { label: 'Web search',     icon: Globe,     cls: 'kd-badge kd-badge-muted'   },
+  fx_rates:       { label: 'FX rates',       icon: TrendingUp,cls: 'kd-badge kd-badge-success' },
+  fallback_gemini:{ label: 'Gemini fallback',icon: Zap,       cls: 'kd-badge kd-badge-warning' },
 };
+
+const SUGGESTIONS = [
+  { icon: TrendingUp, text: 'What is the current Naira to Dollar rate?',   cls: 'text-success' },
+  { icon: Cpu,        text: 'Explain how the payroll batch process works',  cls: 'text-primary' },
+  { icon: FileSearch, text: 'Help me draft a fuel expense report',          cls: 'text-accent-foreground' },
+  { icon: HelpCircle, text: 'What permissions does a fleet manager have?',  cls: 'text-muted-foreground' },
+];
 
 export default function Assistant() {
   const { profile } = useAuthStore();
@@ -77,6 +90,7 @@ export default function Assistant() {
   const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [usageToday, setUsageToday] = useState<{ used: number; limit: number } | null>(null);
+  const [sidebarSearch, setSidebarSearch] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -124,8 +138,6 @@ export default function Assistant() {
 
   useEffect(() => {
     const init = async () => {
-      // Load conversations and auto-select the most recent one so navigating
-      // away and back restores the last active chat instead of showing EmptyState.
       const { data } = await supabase
         .from('chatbot_conversations')
         .select('*')
@@ -168,11 +180,7 @@ export default function Assistant() {
     const next: AttachmentDraft[] = [];
     for (const f of Array.from(files)) {
       if (f.size > MAX_FILE_SIZE) {
-        toast({
-          title: 'File too large',
-          description: `${f.name} exceeds 10 MB limit.`,
-          variant: 'destructive',
-        });
+        toast({ title: 'File too large', description: `${f.name} exceeds 10 MB limit.`, variant: 'destructive' });
         continue;
       }
       const reader = new FileReader();
@@ -223,7 +231,6 @@ export default function Assistant() {
       });
 
       if (error) {
-        // Try to extract the real error from the response body (non-2xx case)
         const body = await (error as any)?.context?.json?.().catch(() => null);
         throw new Error(body?.error ?? error.message);
       }
@@ -232,16 +239,12 @@ export default function Assistant() {
       const convId: string = data.conversation_id;
       const isNewConv = convId !== activeConvId;
 
-      // If a brand new conversation was created, switch to it.
-      // Suppress the useEffect-triggered fetchMessages so we don't race.
       if (isNewConv) {
         suppressFetchRef.current = true;
         setActiveConvId(convId);
       }
       setUseWebSearch(false);
 
-      // Show the full exchange immediately using data returned by the edge function.
-      // This avoids a DB round-trip and ensures the conversation is always visible.
       setMessages((curr) => {
         const base = curr.filter((m) => m.id !== optimisticUser.id);
         return [
@@ -263,12 +266,7 @@ export default function Assistant() {
       await fetchConversations();
       await fetchUsage();
     } catch (err) {
-      toast({
-        title: 'Failed to send message',
-        description: (err as Error).message,
-        variant: 'destructive',
-      });
-      // Roll back the optimistic user message
+      toast({ title: 'Failed to send message', description: (err as Error).message, variant: 'destructive' });
       setMessages((curr) => curr.filter((m) => m.id !== optimisticUser.id));
       setAttachments(sentAttachments);
       setInput(messageText);
@@ -278,8 +276,7 @@ export default function Assistant() {
   };
 
   const togglePin = async (conv: Conversation) => {
-    await supabase.from('chatbot_conversations')
-      .update({ pinned: !conv.pinned }).eq('id', conv.id);
+    await supabase.from('chatbot_conversations').update({ pinned: !conv.pinned }).eq('id', conv.id);
     fetchConversations();
   };
 
@@ -295,31 +292,50 @@ export default function Assistant() {
     return Math.max(0, usageToday.limit - usageToday.used);
   }, [usageToday]);
 
+  const filteredConversations = useMemo(() => {
+    if (!sidebarSearch.trim()) return conversations;
+    const q = sidebarSearch.toLowerCase();
+    return conversations.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversations, sidebarSearch]);
+
+  const pinnedConvs  = filteredConversations.filter((c) => c.pinned);
+  const recentConvs  = filteredConversations.filter((c) => !c.pinned);
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] -mx-4 sm:-mx-6 -my-4 sm:-my-6">
-      {/* Header */}
-      <div className="px-4 sm:px-6 py-3 border-b bg-background flex items-center justify-between gap-3 shrink-0">
+
+      {/* ── Page header ─────────────────────────────────────────────── */}
+      <div className="px-4 sm:px-6 py-3 border-b bg-card/80 backdrop-blur-sm flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-md shrink-0">
+          <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-cyan-500 flex items-center justify-center shadow-[var(--shadow-sm)] shrink-0">
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="kd-display text-lg font-semibold truncate">KD-Ops Assistant</h1>
-            <p className="text-xs text-muted-foreground truncate">
-              AI helper for the platform · Powered by Llama 3.3 + Gemini
+            <h1 className="kd-display text-base font-semibold truncate leading-tight">KD-Ops Assistant</h1>
+            <p className="text-[11px] text-muted-foreground truncate">
+              Powered by Llama&nbsp;3.3&nbsp;70B · Gemini Vision · Tavily Search
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {remainingMessages !== null && (
-            <Badge variant="outline" className="hidden sm:inline-flex">
-              {remainingMessages} of {usageToday?.limit} left today
-            </Badge>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {usageToday && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="hidden sm:flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs cursor-default">
+                  <span className={remainingMessages === 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                    {remainingMessages ?? '—'} / {usageToday.limit}
+                  </span>
+                  <span className="text-muted-foreground/50">messages left</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Daily message quota</TooltipContent>
+            </Tooltip>
           )}
           {isSuperAdmin && (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm" className="kd-transition">
               <Link to="/assistant/admin">
-                <SettingsIcon className="h-4 w-4 mr-1.5" />
+                <SettingsIcon className="h-3.5 w-3.5 mr-1.5" />
                 Manage
               </Link>
             </Button>
@@ -328,98 +344,139 @@ export default function Assistant() {
       </div>
 
       <div className="flex-1 flex min-h-0">
-        {/* Conversations sidebar */}
-        <aside className="hidden md:flex flex-col w-64 border-r bg-muted/30 shrink-0">
-          <div className="p-3 border-b">
-            <Button onClick={startNewChat} className="w-full" size="sm">
-              <Plus className="h-4 w-4 mr-1.5" /> New chat
+
+        {/* ── Conversation sidebar ─────────────────────────────────── */}
+        <aside className="hidden md:flex flex-col w-64 border-r bg-muted/20 shrink-0">
+
+          {/* New chat + search */}
+          <div className="p-3 border-b space-y-2">
+            <Button
+              onClick={startNewChat}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground kd-transition"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-1.5" />
+              New chat
             </Button>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {conversations.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-6 px-2">
-                  No conversations yet. Send a message to start.
-                </p>
-              ) : conversations.map((c) => (
-                <div
-                  key={c.id}
-                  className={`group rounded-lg px-2 py-2 cursor-pointer flex items-start gap-2 transition-colors ${
-                    activeConvId === c.id
-                      ? 'bg-violet-100 dark:bg-violet-950/30'
-                      : 'hover:bg-muted'
-                  }`}
-                  onClick={() => setActiveConvId(c.id)}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={sidebarSearch}
+                onChange={(e) => setSidebarSearch(e.target.value)}
+                placeholder="Search conversations…"
+                className="pl-8 h-8 text-xs bg-background/60"
+              />
+              {sidebarSearch && (
+                <button
+                  onClick={() => setSidebarSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground kd-transition"
                 >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate flex items-center gap-1">
-                      {c.pinned && <Pin className="h-3 w-3 shrink-0 text-violet-500" />}
-                      {c.title}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {formatDateTime(c.updated_at)}
-                    </p>
-                  </div>
-                  <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 transition-opacity">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); togglePin(c); }}
-                      className="h-6 w-6 rounded hover:bg-background/80 flex items-center justify-center"
-                      title={c.pinned ? 'Unpin' : 'Pin'}
-                    >
-                      {c.pinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteConversation(c); }}
-                      className="h-6 w-6 rounded hover:bg-red-100 dark:hover:bg-red-950/30 text-red-600 flex items-center justify-center"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-2">
+
+              {/* Pinned */}
+              {pinnedConvs.length > 0 && (
+                <div className="mb-2">
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    Pinned
+                  </p>
+                  {pinnedConvs.map((c) => (
+                    <ConvItem
+                      key={c.id}
+                      conv={c}
+                      active={activeConvId === c.id}
+                      onSelect={() => setActiveConvId(c.id)}
+                      onPin={() => togglePin(c)}
+                      onDelete={() => deleteConversation(c)}
+                    />
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Recent */}
+              {recentConvs.length > 0 && (
+                <div>
+                  {pinnedConvs.length > 0 && (
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                      Recent
+                    </p>
+                  )}
+                  {recentConvs.map((c) => (
+                    <ConvItem
+                      key={c.id}
+                      conv={c}
+                      active={activeConvId === c.id}
+                      onSelect={() => setActiveConvId(c.id)}
+                      onPin={() => togglePin(c)}
+                      onDelete={() => deleteConversation(c)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {filteredConversations.length === 0 && (
+                <div className="py-8 text-center px-3">
+                  <MessageSquare className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {sidebarSearch ? 'No matching conversations' : 'No conversations yet'}
+                  </p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </aside>
 
-        {/* Chat area */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* ── Chat main area ───────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0 bg-background">
           <ScrollArea className="flex-1">
-            <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 space-y-4">
+            <div className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
+
               {loadingHistory ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary/60" />
+                  <p className="text-xs text-muted-foreground">Loading conversation…</p>
                 </div>
+
               ) : messages.length === 0 ? (
-                <EmptyState />
-              ) : messages.map((m) => <MessageBubble key={m.id} message={m} />)}
+                <EmptyState onSuggestion={(text) => { setInput(text); }} />
+
+              ) : (
+                messages.map((m) => <MessageBubble key={m.id} message={m} />)
+              )}
+
               {sending && <TypingIndicator />}
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
-          {/* Composer */}
-          <div className="border-t bg-background px-4 sm:px-6 py-3 shrink-0">
-            <div className="max-w-3xl mx-auto">
+          {/* ── Composer ──────────────────────────────────────────── */}
+          <div className="border-t bg-card px-4 sm:px-6 py-3 shrink-0">
+            <div className="max-w-2xl mx-auto">
+
+              {/* Attachment chips */}
               {attachments.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   {attachments.map((a, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 rounded-lg border bg-muted/50 px-2.5 py-1.5 text-xs"
+                      className="flex items-center gap-1.5 rounded-lg border bg-muted/50 px-2.5 py-1 text-xs kd-transition"
                     >
                       {a.mime_type.startsWith('image/')
-                        ? <ImageIcon className="h-3.5 w-3.5 text-violet-500" />
-                        : <FileText className="h-3.5 w-3.5 text-blue-500" />}
-                      <span className="truncate max-w-[160px]">{a.name}</span>
-                      <span className="text-muted-foreground">
-                        {(a.size / 1024).toFixed(0)} KB
-                      </span>
+                        ? <ImageIcon className="h-3 w-3 text-primary shrink-0" />
+                        : <FileText className="h-3 w-3 text-muted-foreground shrink-0" />}
+                      <span className="truncate max-w-[140px]">{a.name}</span>
+                      <span className="text-muted-foreground/60">{(a.size / 1024).toFixed(0)} KB</span>
                       <button
                         onClick={() => setAttachments((c) => c.filter((_, j) => j !== i))}
-                        className="text-muted-foreground hover:text-foreground"
+                        className="text-muted-foreground hover:text-destructive kd-transition ml-0.5"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
@@ -435,61 +492,83 @@ export default function Assistant() {
                   onChange={(e) => handleFileSelect(e.target.files)}
                   className="hidden"
                 />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-10 w-10 shrink-0"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Attach image or document"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant={useWebSearch ? 'default' : 'outline'}
-                  className={`h-10 w-10 shrink-0 ${
-                    useWebSearch ? 'bg-violet-600 hover:bg-violet-700' : ''
-                  }`}
-                  onClick={() => setUseWebSearch((v) => !v)}
-                  title={useWebSearch ? 'Web search ON for next message' : 'Enable web search'}
-                >
-                  <Globe className="h-4 w-4" />
-                </Button>
+
+                {/* Attach */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-foreground kd-transition"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Attach image or document (max 10 MB)</TooltipContent>
+                </Tooltip>
+
+                {/* Web search toggle */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className={`h-9 w-9 shrink-0 kd-transition ${
+                        useWebSearch
+                          ? 'text-primary bg-primary/10 hover:bg-primary/15'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                      onClick={() => setUseWebSearch((v) => !v)}
+                    >
+                      <Globe className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {useWebSearch ? 'Web search ON for next message' : 'Enable Tavily web search'}
+                  </TooltipContent>
+                </Tooltip>
 
                 <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
+                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
                   }}
                   placeholder={
                     useWebSearch
-                      ? 'Search the web... (e.g. "latest USD/NGN rate")'
-                      : 'Ask about payments, fleet, payroll, or anything else...'
+                      ? 'Search the web… (e.g. "latest USD/NGN rate")'
+                      : 'Ask about payments, fleet, payroll, or anything else…'
                   }
-                  className="min-h-[40px] max-h-32 resize-none flex-1"
+                  className="min-h-[40px] max-h-28 resize-none flex-1 text-sm bg-muted/30 border-muted focus-visible:bg-background"
                   rows={1}
                   disabled={sending}
                 />
+
                 <Button
                   onClick={sendMessage}
                   disabled={sending || (!input.trim() && attachments.length === 0)}
                   size="icon"
-                  className="h-10 w-10 shrink-0 bg-gradient-to-br from-violet-500 to-indigo-600 hover:opacity-90"
+                  className="h-9 w-9 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground kd-transition shadow-[var(--shadow-sm)]"
                 >
                   {sending
                     ? <Loader2 className="h-4 w-4 animate-spin" />
                     : <Send className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground text-center mt-2">
-                Press Enter to send, Shift+Enter for new line · Replies may be inaccurate; verify important info.
-              </p>
+
+              <div className="flex items-center justify-between mt-1.5 px-0.5">
+                <p className="text-[10px] text-muted-foreground/60">
+                  Enter to send · Shift+Enter for new line
+                </p>
+                {useWebSearch && (
+                  <span className="kd-badge kd-badge-primary text-[10px] flex items-center gap-1">
+                    <Globe className="h-2.5 w-2.5" /> Web search active
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -498,90 +577,151 @@ export default function Assistant() {
   );
 }
 
-function EmptyState() {
-  const suggestions = [
-    { icon: '💱', text: 'What is the current Naira to Dollar rate?' },
-    { icon: '🚗', text: 'Show me my vehicle fuel logs from this week' },
-    { icon: '📊', text: 'Help me draft a fuel expense report' },
-    { icon: '📄', text: 'Upload a receipt and I\'ll extract the details' },
-  ];
+/* ── Sidebar conversation item ─────────────────────────────────────── */
+function ConvItem({
+  conv,
+  active,
+  onSelect,
+  onPin,
+  onDelete,
+}: {
+  conv: Conversation;
+  active: boolean;
+  onSelect: () => void;
+  onPin: () => void;
+  onDelete: () => void;
+}) {
   return (
-    <div className="text-center py-12 px-4">
-      <div className="inline-flex h-14 w-14 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 items-center justify-center mb-4 shadow-lg">
-        <Sparkles className="h-7 w-7 text-white" />
+    <div
+      className={`group rounded-lg px-2.5 py-2 cursor-pointer flex items-start gap-2 kd-transition mb-0.5 ${
+        active
+          ? 'bg-primary/10 border border-primary/20'
+          : 'hover:bg-muted/60 border border-transparent'
+      }`}
+      onClick={onSelect}
+    >
+      <MessageSquare className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${active ? 'text-primary' : 'text-muted-foreground/50'}`} />
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-medium truncate ${active ? 'text-primary' : 'text-foreground'}`}>
+          {conv.title}
+        </p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          {formatDateTime(conv.updated_at)}
+        </p>
       </div>
-      <h2 className="kd-display text-2xl font-semibold mb-2">How can I help today?</h2>
-      <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
-        I know about your KD-Ops platform — payments, fleet, payroll, expenses, and more. I can also search the web, check FX rates, and analyse images or PDFs.
+      <div className="opacity-0 group-hover:opacity-100 flex gap-0.5 shrink-0 kd-transition">
+        <button
+          onClick={(e) => { e.stopPropagation(); onPin(); }}
+          className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted kd-transition"
+          title={conv.pinned ? 'Unpin' : 'Pin'}
+        >
+          {conv.pinned
+            ? <PinOff className="h-3 w-3 text-muted-foreground" />
+            : <Pin className="h-3 w-3 text-muted-foreground" />}
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="h-5 w-5 rounded flex items-center justify-center hover:bg-destructive/10 text-destructive/60 hover:text-destructive kd-transition"
+          title="Delete"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Empty state with suggestions ──────────────────────────────────── */
+function EmptyState({ onSuggestion }: { onSuggestion: (text: string) => void }) {
+  return (
+    <div className="flex flex-col items-center text-center py-10 px-4">
+      <div className="kd-animate-float inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-cyan-500 items-center justify-center mb-5 shadow-[var(--shadow-md)]">
+        <Sparkles className="h-8 w-8 text-white" />
+      </div>
+      <h2 className="kd-display text-2xl font-semibold mb-1.5">How can I help today?</h2>
+      <p className="text-sm text-muted-foreground mb-6 max-w-sm leading-relaxed">
+        I know your KD-Ops platform — payments, fleet, payroll, expenses, and more.
+        I can also search the web, check FX rates, and analyse images or PDFs.
       </p>
-      <div className="grid sm:grid-cols-2 gap-2 max-w-xl mx-auto">
-        {suggestions.map((s, i) => (
-          <Card key={i} className="cursor-pointer hover:bg-muted/50 transition-colors">
-            <CardContent className="p-3 flex items-start gap-2 text-left">
-              <span className="text-base shrink-0">{s.icon}</span>
-              <p className="text-xs leading-snug">{s.text}</p>
-            </CardContent>
-          </Card>
+      <div className="grid sm:grid-cols-2 gap-2 w-full max-w-lg">
+        {SUGGESTIONS.map((s, i) => (
+          <button
+            key={i}
+            onClick={() => onSuggestion(s.text)}
+            className="flex items-start gap-3 rounded-xl border bg-card p-3.5 text-left hover:bg-muted/40 hover:border-border/80 kd-transition shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] group"
+          >
+            <span className={`mt-0.5 shrink-0 ${s.cls}`}>
+              <s.icon className="h-4 w-4" />
+            </span>
+            <span className="text-xs text-muted-foreground group-hover:text-foreground kd-transition leading-snug">
+              {s.text}
+            </span>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground mt-0.5 ml-auto shrink-0 kd-transition" />
+          </button>
         ))}
       </div>
     </div>
   );
 }
 
+/* ── Message bubble ─────────────────────────────────────────────────── */
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
   return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex gap-3 kd-animate-fade-in ${isUser ? 'flex-row-reverse' : ''}`}>
+
+      {/* Avatar */}
       <div
-        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 shadow-[var(--shadow-sm)] ${
           isUser
-            ? 'bg-blue-100 dark:bg-blue-950/40'
-            : 'bg-gradient-to-br from-violet-500 to-indigo-600'
+            ? 'bg-muted border'
+            : 'bg-gradient-to-br from-primary to-cyan-500'
         }`}
       >
         {isUser
-          ? <span className="text-xs font-bold text-blue-700">You</span>
+          ? <span className="text-[10px] font-bold text-muted-foreground">You</span>
           : <Bot className="h-4 w-4 text-white" />}
       </div>
-      <div className={`flex-1 min-w-0 ${isUser ? 'text-right' : ''}`}>
+
+      {/* Content */}
+      <div className={`flex-1 min-w-0 space-y-1 ${isUser ? 'items-end flex flex-col' : ''}`}>
         <div
-          className={`inline-block max-w-full rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap break-words ${
+          className={`inline-block max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
             isUser
-              ? 'bg-blue-50 dark:bg-blue-950/30 text-blue-950 dark:text-blue-100'
-              : 'bg-muted/60'
+              ? 'bg-primary text-primary-foreground rounded-br-sm'
+              : 'bg-muted/60 text-foreground rounded-bl-sm'
           }`}
         >
           {message.content}
+
           {message.attachments?.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 flex flex-wrap gap-1">
               {message.attachments.map((a, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded bg-background/80 px-2 py-0.5 text-[10px]"
+                  className="inline-flex items-center gap-1 rounded bg-background/20 px-1.5 py-0.5 text-[10px]"
                 >
                   {a.mime_type.startsWith('image/')
-                    ? <ImageIcon className="h-3 w-3" />
-                    : <FileText className="h-3 w-3" />}
+                    ? <ImageIcon className="h-2.5 w-2.5" />
+                    : <FileText className="h-2.5 w-2.5" />}
                   {a.name}
                 </span>
               ))}
             </div>
           )}
         </div>
-        {message.tools_used?.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1.5">
+
+        {/* Tool badges */}
+        {!isUser && message.tools_used?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pl-0.5">
             {message.tools_used.map((t) => {
-              const meta = TOOL_LABELS[t];
+              const meta = TOOL_META[t];
               const Icon = meta?.icon ?? Search;
               return (
-                <Badge
-                  key={t}
-                  variant="outline"
-                  className="text-[10px] gap-1 font-normal"
-                >
+                <span key={t} className={`${meta?.cls ?? 'kd-badge kd-badge-muted'} flex items-center gap-1 text-[10px]`}>
                   <Icon className="h-2.5 w-2.5" />
                   {meta?.label ?? t}
-                </Badge>
+                </span>
               );
             })}
           </div>
@@ -591,18 +731,21 @@ function MessageBubble({ message }: { message: Message }) {
   );
 }
 
+/* ── Typing indicator ───────────────────────────────────────────────── */
 function TypingIndicator() {
   return (
-    <div className="flex gap-3">
-      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
+    <div className="flex gap-3 kd-animate-fade-in">
+      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-cyan-500 flex items-center justify-center shrink-0 shadow-[var(--shadow-sm)]">
         <Bot className="h-4 w-4 text-white" />
       </div>
-      <div className="bg-muted/60 rounded-2xl px-4 py-3">
-        <div className="flex gap-1">
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce" />
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
-          <span className="h-2 w-2 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
-        </div>
+      <div className="bg-muted/60 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1">
+        {[0, 150, 300].map((delay) => (
+          <span
+            key={delay}
+            className="h-2 w-2 rounded-full bg-muted-foreground/40 animate-bounce"
+            style={{ animationDelay: `${delay}ms` }}
+          />
+        ))}
       </div>
     </div>
   );
