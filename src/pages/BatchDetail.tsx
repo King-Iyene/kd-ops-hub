@@ -520,6 +520,10 @@ const BatchDetail = () => {
       if (pendingCount === 0 && failedCount === 0)         batchStatus = 'processed';
       else if (pendingCount === 0 && succeededCount > 0)   batchStatus = 'partially_processed';
       else if (pendingCount === 0 && succeededCount === 0) batchStatus = 'failed';
+      // If loop was interrupted and items are still pending, set to a
+      // recoverable state so the user can retry without Supabase dashboard access.
+      else if (pendingCount > 0 && succeededCount > 0)    batchStatus = 'partially_processed';
+      else if (pendingCount > 0 && succeededCount === 0)  batchStatus = 'funded';
 
       await supabase
         .from('payment_batches')
@@ -1127,35 +1131,20 @@ const BatchDetail = () => {
               <Play className="mr-2 h-4 w-4" /> Process Payments
             </Button>
           )}
-          {batch.status === 'partially_processed' && failedItems.length > 0 && (
+          {batch.status === 'partially_processed' && (failedItems.length > 0 || items.filter(i => i.status === 'pending').length > 0) && (
             <Button
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                for (const it of failedItems) {
+                const toRetry = items.filter(i => i.status === 'failed' || i.status === 'pending');
+                for (const it of toRetry) {
                   await retryItem(it);
                 }
                 setRetryingAll(false);
               }}
               disabled={!!retryingId || retryingAll}
             >
-              <RotateCw className="mr-2 h-4 w-4" /> Retry all failed (
-              {failedItems.length})
-            </Button>
-          )}
-          {batch.status === 'processing' && items.filter(i => i.status === 'succeeded').length === 0 && (
-            <Button
-              variant="outline"
-              className="text-destructive border-destructive hover:bg-destructive/10"
-              onClick={async () => {
-                if (!confirm('Reset this batch back to "funded" so you can try processing again? Only do this if processing has stalled and no transfers were sent.')) return;
-                await supabase.from('payment_batches').update({ status: 'funded' }).eq('id', id);
-                toast({ title: 'Batch reset to funded — click Process Payments to retry.' });
-                fetchBatch();
-              }}
-              disabled={actionLoading}
-            >
-              <RotateCw className="mr-2 h-4 w-4" /> Reset &amp; Retry
+              <RotateCw className="mr-2 h-4 w-4" /> Retry unsent ({items.filter(i => i.status === 'failed' || i.status === 'pending').length})
             </Button>
           )}
           {(batch.status === 'processing' || batch.status === 'partially_processed') && (
