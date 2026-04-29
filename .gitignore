@@ -33,3 +33,9 @@ tests/.auth/
 
 # Supabase CLI temp files / cache
 supabase/.temp/
+
+# Local environment — never commit. Use .env.example as the tracked template.
+.env
+.env.local
+.env.*.local
+
