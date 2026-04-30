@@ -26,7 +26,8 @@ export type NotificationTemplateKind =
   | 'leave_rejected'
   | 'compliance_due_soon'
   | 'batch_approval_pending'
-  | 'anomaly_detected';
+  | 'anomaly_detected'
+  | 'runway_warning';
 
 export interface RenderedTemplate {
   /** Short title for in-app + email subject. */
@@ -159,6 +160,19 @@ export const NOTIFICATION_TEMPLATES = {
       body: clamp(
         `KD Squares: ${p.count} ${p.severity}-severity anomal${p.count === 1 ? 'y' : 'ies'} ` +
         `flagged in ${p.module}. Review in the Anomalies queue.`,
+      ),
+    };
+  },
+
+  runway_warning: (p: { weeks: number; severity: 'critical' | 'warning' }): RenderedTemplate => {
+    const isCritical = p.severity === 'critical';
+    return {
+      title: isCritical ? 'Runway under 4 weeks' : 'Runway under 12 weeks',
+      body: clamp(
+        `KD Squares: projected runway is ${p.weeks.toFixed(1)} weeks. ` +
+        (isCritical
+          ? 'Cash on hand cannot cover next month\'s obligations. Take action.'
+          : 'Plan for capital injection or expense reduction.'),
       ),
     };
   },

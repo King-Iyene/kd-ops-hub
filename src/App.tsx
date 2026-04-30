@@ -37,6 +37,7 @@ const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
 const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
 const Anomalies        = lazy(() => import('./pages/Anomalies'));
+const CashFlow         = lazy(() => import('./pages/CashFlow'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
 const Contractors      = lazy(() => import('./pages/Contractors'));
@@ -361,6 +362,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Anomalies />
+            </RoleGuard>
+          }
+        />
+
+        {/* Cash Flow — finance / admin only forward forecast. */}
+        <Route
+          path="/cashflow"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <CashFlow />
             </RoleGuard>
           }
         />
