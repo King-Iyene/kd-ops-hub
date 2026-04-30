@@ -407,13 +407,35 @@ const Payroll = () => {
       toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
       return;
     }
+
+    // Compliance Autopilot: writes PAYE / pension / NHF / NSITF rows into
+    // compliance_filings for this period with the actual amounts and a
+    // per-PFA pension breakdown. Never blocks approval if it fails — the
+    // operator can re-trigger from the Compliance page.
+    const { data: autoSummary, error: autoErr } = await supabase.rpc(
+      'auto_populate_filings_from_payroll',
+      { p_payroll_run_id: run.id },
+    );
+    if (autoErr) {
+      toast({
+        title: 'Approved — compliance auto-fill failed',
+        description: `${autoErr.message}. You can refresh the Compliance page to retry.`,
+        variant: 'destructive',
+      });
+    }
+
     await logAudit(
       'payroll_approved',
       `Payroll ${monthLabel(run.period)} approved (${formatNaira(run.total_burn_ngn)})`,
       profile,
     );
     burst({ palette: 'success', count: 70 });
-    toast({ title: 'Payroll approved' });
+    toast({
+      title: 'Payroll approved',
+      description: autoSummary
+        ? `Compliance filings auto-populated for ${run.period}.`
+        : 'Payroll is now ready to disburse.',
+    });
     load();
   };
 
