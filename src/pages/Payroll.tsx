@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Banknote,
   Check,
@@ -78,6 +79,7 @@ import {
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { displayName } from '@/lib/name';
+import { cn } from '@/lib/utils';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -180,6 +182,10 @@ const Payroll = () => {
   usePageTitle('Payroll');
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  // Highlight + scroll to a specific run when arriving from PaymentSchedule.
+  const [highlightedRunId, setHighlightedRunId] = useState<string | null>(null);
+  const runRefs = useRef<Map<string, HTMLElement | null>>(new Map());
 
   const [loading, setLoading] = useState(true);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
@@ -223,6 +229,21 @@ const Payroll = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // After runs load, if the URL has ?run=<id>, scroll to + highlight that row.
+  useEffect(() => {
+    const target = searchParams.get('run');
+    if (!target || runs.length === 0) return;
+    if (!runs.some((r) => r.id === target)) return;
+    setHighlightedRunId(target);
+    requestAnimationFrame(() => {
+      const el = runRefs.current.get(target);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    // Auto-clear the highlight after 6 seconds so the visual doesn't linger.
+    const t = window.setTimeout(() => setHighlightedRunId(null), 6_000);
+    return () => window.clearTimeout(t);
+  }, [searchParams, runs]);
 
   const addBonus = () =>
     setForm((f) => ({ ...f, bonuses: [...f.bonuses, { type: 'Performance Bonus', amount: 0 }] }));
@@ -1159,8 +1180,16 @@ const Payroll = () => {
                   const momPct = prev && prev.total_burn_ngn > 0
                     ? ((r.total_burn_ngn - prev.total_burn_ngn) / prev.total_burn_ngn) * 100
                     : null;
+                  const isHighlighted = highlightedRunId === r.id;
                   return (
-                  <TableRow key={r.id} className="kd-transition">
+                  <TableRow
+                    key={r.id}
+                    ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
+                    className={cn(
+                      'kd-transition',
+                      isHighlighted && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
+                    )}
+                  >
                     <TableCell className="font-medium">{monthLabel(r.period, r.period_type)}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {r.employee_count ?? '—'}
@@ -1268,8 +1297,14 @@ const Payroll = () => {
                   : r.status === 'approved' ? 'bg-emerald-500'
                   : r.status === 'paid' ? 'bg-blue-500'
                   : 'bg-muted-foreground';
+                const isHighlighted = highlightedRunId === r.id;
                 return (
-                  <MobileCard key={r.id} accentClassName={accent}>
+                  <div
+                    key={r.id}
+                    ref={(el) => { if (el) runRefs.current.set(r.id, el); }}
+                    className={cn(isHighlighted && 'rounded-lg ring-2 ring-primary/40')}
+                  >
+                  <MobileCard accentClassName={accent}>
                     <MobileCardHeader>
                       <div className="min-w-0 flex-1">
                         <MobileCardTitle>{monthLabel(r.period, r.period_type)}</MobileCardTitle>
@@ -1333,6 +1368,7 @@ const Payroll = () => {
                       </Button>
                     </MobileCardFooter>
                   </MobileCard>
+                  </div>
                 );
               })}
             </div>

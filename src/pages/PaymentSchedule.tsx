@@ -359,7 +359,7 @@ export default function PaymentSchedule() {
 
   function handleItemClick(item: ScheduledItem) {
     if (item.type === 'batch') navigate(`/payments/${item.id}`);
-    else if (item.type === 'payroll') navigate('/payroll');
+    else if (item.type === 'payroll') navigate(`/payroll?run=${encodeURIComponent(item.id)}`);
     else if (item.type === 'subscription') navigate('/subscriptions');
     else recurringRef.current?.scrollIntoView({ behavior: 'smooth' });
   }
