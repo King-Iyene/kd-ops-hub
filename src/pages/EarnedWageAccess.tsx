@@ -68,6 +68,7 @@ import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { logAudit } from '@/lib/audit';
+import { notifyChannels } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
 const STATUS_TONE: Record<EwaStatus, string> = {
@@ -81,6 +82,7 @@ const STATUS_TONE: Record<EwaStatus, string> = {
 
 interface AdminRequestRow extends EwaRequest {
   full_name?: string | null;
+  phone?: string | null;
 }
 
 export default function EarnedWageAccess() {
@@ -131,12 +133,13 @@ export default function EarnedWageAccess() {
     if (isFinance) {
       const { data: pendings } = await supabase
         .from('ewa_requests')
-        .select('*, profile:profiles!ewa_requests_employee_id_fkey(full_name)')
+        .select('*, profile:profiles!ewa_requests_employee_id_fkey(full_name, phone)')
         .eq('status', 'pending')
         .order('created_at', { ascending: true });
       const enriched = ((pendings as any[]) || []).map((r) => ({
         ...r,
         full_name: r.profile?.full_name ?? null,
+        phone: r.profile?.phone ?? null,
       })) as AdminRequestRow[];
       setPending(enriched);
     }
@@ -200,7 +203,19 @@ export default function EarnedWageAccess() {
         `EWA approved for ${req.full_name || req.employee_id} — ${formatNaira(req.amount_ngn)}`,
         profile,
       );
-      toast({ title: 'Approved' });
+      // Fire-and-forget notification — never blocks the approval if it fails.
+      notifyChannels({
+        user: { id: req.employee_id, full_name: req.full_name, phone: req.phone },
+        category: 'ewa',
+        kind: 'ewa_approved',
+        payload: {
+          name: req.full_name || undefined,
+          amount_ngn: Number(req.amount_ngn),
+          settlement_period: req.settlement_period,
+        },
+        idempotencyKey: `ewa_approved:${req.id}`,
+      });
+      toast({ title: 'Approved', description: 'WhatsApp + in-app notification sent.' });
       load();
     } catch (err: any) {
       toast({ title: 'Approve failed', description: err?.message, variant: 'destructive' });
@@ -223,7 +238,18 @@ export default function EarnedWageAccess() {
         `EWA rejected for ${rejecting.full_name || rejecting.employee_id} — ${rejectReason}`,
         profile,
       );
-      toast({ title: 'Rejected' });
+      notifyChannels({
+        user: { id: rejecting.employee_id, full_name: rejecting.full_name, phone: rejecting.phone },
+        category: 'ewa',
+        kind: 'ewa_rejected',
+        payload: {
+          name: rejecting.full_name || undefined,
+          amount_ngn: Number(rejecting.amount_ngn),
+          reason: rejectReason.trim(),
+        },
+        idempotencyKey: `ewa_rejected:${rejecting.id}`,
+      });
+      toast({ title: 'Rejected', description: 'WhatsApp + in-app notification sent.' });
       setRejecting(null);
       setRejectReason('');
       load();

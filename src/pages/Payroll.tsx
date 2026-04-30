@@ -33,6 +33,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { logAudit } from '@/lib/audit';
+import { notifyChannels } from '@/lib/notify';
 import {
   formatDate,
   formatDateTime,
@@ -619,18 +620,27 @@ const Payroll = () => {
           if (upsertErr) throw upsertErr;
 
           succeeded++;
-          // Best-effort SMS — never blocks if Termii key is missing or phone is null.
-          try {
-            if (e.phone) {
-              await supabase.functions.invoke('send-email', {
-                body: {
-                  channel: 'sms',
-                  to: (e.phone as string).replace(/^\+/, ''),
-                  message: `Your payslip for ${monthLabel(run.period)} is ready. Net pay: ₦${empNet.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Log in to KDOps to view it.`,
-                },
-              });
-            }
-          } catch { /* SMS is best-effort */ }
+          // Multi-channel notification (in-app + WhatsApp + optional SMS).
+          // Respects each user's notification_preferences.whatsapp_payslip /
+          // sms_payslip toggles, validates the NG phone format, and dedups
+          // re-runs via the per-(payroll, employee) idempotency key.
+          notifyChannels({
+            user: {
+              id: e.id,
+              full_name: empName,
+              email: e.email,
+              phone: e.phone,
+            },
+            category: 'payslip',
+            kind: 'payslip_ready',
+            payload: {
+              name: empName,
+              period: monthLabel(run.period),
+              net_ngn: empNet,
+              url: urlData.publicUrl,
+            },
+            idempotencyKey: `payslip_ready:${run.id}:${e.id}`,
+          });
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
