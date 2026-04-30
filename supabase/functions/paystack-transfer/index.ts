@@ -47,6 +47,7 @@ function getCorsHeaders(req: Request) {
 const PRIVILEGED_ACTIONS = new Set([
   "create_recipient",
   "initiate_transfer",
+  "bulk_transfer",
   "verify_transfer",
   "get_balance",
 ]);
@@ -222,33 +223,107 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        // Guard against duplicate submissions: check if this reference was
-        // already sent to Paystack (stored in batch_items.paystack_transfer_code).
         const serviceClient2 = createClient(
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
+        // Pre-flight de-dup: if this reference was already dispatched, return
+        // the existing transfer instead of firing a duplicate. Paystack stores
+        // refs in `paystack_reference`, not `reference` (that column is the
+        // human-facing payment label and may collide).
         const { data: existing } = await serviceClient2
           .from("batch_items")
-          .select("id, paystack_transfer_code")
-          .eq("reference", params.reference)
+          .select("id, paystack_transfer_code, paystack_reference, status")
+          .eq("paystack_reference", params.reference)
           .not("paystack_transfer_code", "is", null)
           .maybeSingle();
         if (existing?.paystack_transfer_code) {
-          // Already initiated — return the existing transfer code instead of
-          // firing a duplicate. The caller can verify status separately.
-          result = { transfer_code: existing.paystack_transfer_code, duplicate: true };
+          // We've seen this ref before — verify Paystack so callers receive
+          // the live status, not a stale pending. Cheap call, ~250ms.
+          let liveStatus = existing.status;
+          try {
+            const verifyBody = await paystackFetch(
+              `/transfer/verify/${encodeURIComponent(params.reference)}`,
+            );
+            liveStatus = verifyBody.data?.status || existing.status;
+          } catch (verifyErr) {
+            console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
+          }
+          result = {
+            transfer_code: existing.paystack_transfer_code,
+            reference: params.reference,
+            status: liveStatus,
+            recovered: true,
+            verified_status: liveStatus,
+          };
           break;
         }
-        const body = await paystackFetch("/transfer", {
-          method: "POST",
-          body: JSON.stringify({
-            source: "balance",
-            reason: params.reason || "KDOps disbursement",
-            amount: Math.round((params.amount_ngn ?? 0) * 100),
-            recipient: params.recipient_code,
+        // Initiate at Paystack. Self-heal if Paystack reports a duplicate ref
+        // we don't have on file (covers cases where the DB write failed after
+        // a successful Paystack call on a prior attempt).
+        try {
+          const body = await paystackFetch("/transfer", {
+            method: "POST",
+            body: JSON.stringify({
+              source: "balance",
+              reason: params.reason || "KDOps disbursement",
+              amount: Math.round((params.amount_ngn ?? 0) * 100),
+              recipient: params.recipient_code,
+              reference: params.reference,
+            }),
+          });
+          result = body.data;
+        } catch (initErr) {
+          const msg = String((initErr as Error)?.message || "").toLowerCase();
+          const isDup =
+            msg.includes("reference already exists") ||
+            msg.includes("unique reference") ||
+            msg.includes("duplicate");
+          if (!isDup) throw initErr;
+          // Recover: query Paystack for the existing transfer state.
+          const verifyBody = await paystackFetch(
+            `/transfer/verify/${encodeURIComponent(params.reference)}`,
+          );
+          result = {
+            transfer_code: verifyBody.data?.transfer_code,
             reference: params.reference,
-          }),
+            status: verifyBody.data?.status,
+            id: verifyBody.data?.id,
+            recovered: true,
+            verified_status: verifyBody.data?.status,
+          };
+        }
+        break;
+      }
+
+      case "bulk_transfer": {
+        // Send up to 100 transfers in a single Paystack API call. Caller is
+        // responsible for chunking larger batches and spacing chunks ≥ 5s
+        // apart (Paystack rate limit on bulk transfers).
+        const transfers = Array.isArray(params.transfers) ? params.transfers : [];
+        if (transfers.length === 0) {
+          return new Response(
+            JSON.stringify({ error: "transfers array is required and non-empty" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (transfers.length > 100) {
+          return new Response(
+            JSON.stringify({ error: "Paystack bulk_transfer max is 100 items per call" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        for (const t of transfers) {
+          if (!t.reference || !t.recipient || t.amount == null) {
+            return new Response(
+              JSON.stringify({ error: "each transfer requires reference, recipient, and amount (kobo)" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+        }
+        const body = await paystackFetch("/transfer/bulk", {
+          method: "POST",
+          body: JSON.stringify({ source: "balance", transfers }),
         });
         result = body.data;
         break;

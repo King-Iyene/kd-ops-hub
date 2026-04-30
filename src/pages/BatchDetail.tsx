@@ -11,10 +11,14 @@ import {
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   createTransferRecipient,
-  initiateTransfer,
+  initiateTransferIdempotent,
   generateKdopsRef,
   verifyTransfer,
   getBankCode,
+  paystackTransferFee,
+  stampDutyFor,
+  buildNarration,
+  type NarrationKind,
 } from '@/lib/paystack';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -71,11 +75,41 @@ const escapeHtml = (v: any): string => {
     .replace(/'/g, '&#039;');
 };
 
-function paystackFeeForAmount(amountNgn: number): number {
-  if (amountNgn <= 0) return 0;
-  if (amountNgn <= 5_000) return 10;
-  if (amountNgn <= 50_000) return 25;
-  return 50;
+/**
+ * Total platform deduction (Paystack fee + stamp duty if applicable) for a
+ * single transfer amount. Stamp duty is ₦50 on transfers ≥ ₦10,000 from
+ * 18 Feb 2026 (Nigeria Tax Act 2025). Payroll merchant exemption is honored
+ * via the `exempt` flag — keep at false unless your Paystack account is
+ * explicitly registered as exempt.
+ */
+function fullChargeForAmount(amountNgn: number): number {
+  return paystackTransferFee(amountNgn) + stampDutyFor(amountNgn);
+}
+
+/**
+ * Map a payment_batches row + batch_item to a NarrationKind so we know what
+ * narration to send. Falls back to "generic" if the type is unknown.
+ */
+function narrationKindForBatch(batch: any): NarrationKind {
+  const t = batch?.batch_type || batch?.payment_category || '';
+  if (batch?.is_quick_pay) return 'quick_pay';
+  if (t === 'employee_salary' || t === 'salary') return 'salary';
+  if (t === 'employee_bonus' || t === 'bonus' || batch?.bonus_type) return 'bonus';
+  if (t === 'employee_advance' || t === 'advance' || batch?.advance_reason) return 'advance';
+  if (t === 'fuel_reimbursement' || t === 'fuel') return 'fuel';
+  if (t === 'expense' || batch?.payment_category === 'expense_reimbursement') return 'expense';
+  if (t === 'contractor' || t === 'contractor_payment') return 'contractor';
+  return 'generic';
+}
+
+/** Build the narration that recipients see on their bank statement. */
+function narrationForBatchItem(batch: any, item: any): string {
+  return buildNarration({
+    kind: narrationKindForBatch(batch),
+    recipientName: item?.full_name || undefined,
+    period: batch?.period || undefined,
+    label: batch?.name || undefined,
+  });
 }
 
 /**
@@ -84,8 +118,9 @@ function paystackFeeForAmount(amountNgn: number): number {
  *   1. The structured `paystack_fee_ngn` column (populated by webhook).
  *   2. `paystack_raw.fee` (kobo) on the same row, populated by every webhook
  *      payload — works even before the column-add migration is applied.
- *   3. The flat-tier estimate for succeeded transfers, so the UI never goes
- *      blank just because a webhook hasn't fired yet.
+ *   3. The full-tier estimate (Paystack fee + stamp duty) for succeeded
+ *      transfers, so the UI never goes blank just because a webhook hasn't
+ *      fired yet.
  *   4. Zero for non-succeeded items.
  */
 function getItemFee(item: any): number {
@@ -96,7 +131,7 @@ function getItemFee(item: any): number {
   if (rawFeeKobo > 0) return rawFeeKobo / 100;
 
   if (item?.status === 'succeeded') {
-    return paystackFeeForAmount(Number(item?.amount_ngn || 0));
+    return fullChargeForAmount(Number(item?.amount_ngn || 0));
   }
   return 0;
 }
@@ -180,14 +215,20 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
       <div class="row"><span class="lbl">Status</span><span class="val" style="color:${statusColor};font-weight:700">${escapeHtml(statusText)}</span></div>
       ${isFailed ? `<div class="row"><span class="lbl">Failure reason</span><span class="val" style="color:#b91c1c">${escapeHtml(item.failure_reason || 'Transfer rejected')}</span></div>` : ''}
       ${isSucceeded ? (() => {
-        const fee = paystackFeeForAmount(Number(item.amount_ngn) || 0);
-        const total = (Number(item.amount_ngn) || 0) + fee;
+        const amount = Number(item.amount_ngn) || 0;
+        const psFee = paystackTransferFee(amount);
+        const duty = stampDutyFor(amount);
+        const total = amount + psFee + duty;
         const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
         return `
       <div class="row" style="background:#fffbeb;border-radius:6px;padding:10px 8px;margin-top:4px;">
         <span class="lbl" style="color:#92400e;">Paystack transfer fee</span>
-        <span class="val" style="color:#b45309;">${fmtNgn(fee)}</span>
+        <span class="val" style="color:#b45309;">${fmtNgn(psFee)}</span>
       </div>
+      ${duty > 0 ? `<div class="row" style="background:#fffbeb;border-radius:6px;padding:10px 8px;">
+        <span class="lbl" style="color:#92400e;">Stamp duty (transfers ≥ ₦10,000)</span>
+        <span class="val" style="color:#b45309;">${fmtNgn(duty)}</span>
+      </div>` : ''}
       <div class="row" style="font-weight:700;font-size:14px;border-top:2px solid #f3f4f6;margin-top:4px;">
         <span class="lbl" style="color:#111827;">Total debited from wallet</span>
         <span class="val">${fmtNgn(total)}</span>
@@ -441,13 +482,41 @@ const BatchDetail = () => {
         );
       }
       const ref = generateKdopsRef(it.id);
-      const amountKobo = Math.round(Number(it.amount_ngn || 0) * 100);
-      const transfer = await initiateTransfer({
+      const transfer = await initiateTransferIdempotent({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
-        reason: `KDOps · ${batch?.name || 'batch'}`,
+        reason: narrationForBatchItem(batch, it),
       });
+
+      // Self-healing path: if Paystack reported a duplicate ref, the helper
+      // verified the existing transfer and returned its current status. Map
+      // that to our state machine so the row reflects what really happened.
+      if (transfer.recovered) {
+        const v = (transfer.verified_status || transfer.status || '').toLowerCase();
+        const mappedStatus =
+          v === 'success' ? 'succeeded'
+          : v === 'failed' || v === 'reversed' ? v
+          : 'pending';
+        await supabase
+          .from('batch_items')
+          .update({
+            status: mappedStatus,
+            paystack_recipient_code: recipientCode,
+            paystack_transfer_code: transfer.transfer_code,
+            paystack_reference: transfer.reference,
+            failure_reason: mappedStatus === 'failed' ? 'Transfer rejected (recovered from duplicate ref)' : null,
+            processed_at: mappedStatus === 'succeeded' ? new Date().toISOString() : null,
+          })
+          .eq('id', it.id);
+        await logAudit(
+          'paystack_transfer_recovered',
+          `Recovered duplicate-ref for ${it.full_name}: Paystack says "${v}" (ref ${transfer.reference})`,
+          profile,
+        );
+        return { ok: mappedStatus !== 'failed' };
+      }
+
       await supabase
         .from('batch_items')
         .update({

@@ -64,7 +64,13 @@ import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, reverseGeocode as googleReverseGeocod
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
-import { getBankCode, createTransferRecipient, initiateTransfer } from '@/lib/paystack';
+import {
+  getBankCode,
+  createTransferRecipient,
+  initiateTransferIdempotent,
+  generateKdopsRef,
+  buildNarration,
+} from '@/lib/paystack';
 import { cn } from '@/lib/utils';
 
 interface FieldStaff {
@@ -2768,22 +2774,32 @@ const Fleet = () => {
           }).select().single();
           await supabase.from('fuel_requests').update({ batch_id: batch.id }).eq('id', request.id);
           const bankCode = await getBankCode(request.bank_name);
+          if (!bankCode) throw new Error(`Unrecognised bank "${request.bank_name}"`);
           const recipient = await createTransferRecipient({
             name: request.account_name,
             account_number: request.account_number,
             bank_code: bankCode,
           });
-          await initiateTransfer({
+          if (!batchItem) throw new Error('Could not create batch_item record');
+          const ref = generateKdopsRef(batchItem.id);
+          const narration = buildNarration({
+            kind: 'fuel',
+            recipientName: request.account_name,
+            label: request.station_name || undefined,
+          });
+          const transfer = await initiateTransferIdempotent({
             recipient_code: recipient.recipient_code,
             amount_ngn: request.amount_ngn,
-            reference: batch.id,
-            reason: `Fuel reimbursement — ${request.station_name}`,
+            reference: ref,
+            reason: narration,
           });
-          if (batchItem) {
-            await supabase.from('batch_items')
-              .update({ paystack_recipient_code: recipient.recipient_code })
-              .eq('id', batchItem.id);
-          }
+          await supabase.from('batch_items')
+            .update({
+              paystack_recipient_code: recipient.recipient_code,
+              paystack_transfer_code: transfer.transfer_code,
+              paystack_reference: transfer.reference,
+            })
+            .eq('id', batchItem.id);
           toast({ title: 'Approved & payment initiated automatically' });
         }
       } catch (autoPayErr) {

@@ -94,7 +94,13 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
-import { createTransferRecipient, initiateTransfer, getBankCode, generateKdopsRef } from '@/lib/paystack';
+import {
+  createTransferRecipient,
+  initiateTransferIdempotent,
+  getBankCode,
+  generateKdopsRef,
+  buildNarration,
+} from '@/lib/paystack';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
@@ -376,19 +382,37 @@ const Expenses = () => {
       });
 
       const ref = generateKdopsRef(itemId);
-      const transfer = await initiateTransfer({
+      const narration = buildNarration({
+        kind: 'expense',
+        recipientName: expense.account_name || undefined,
+        label: expense.category || undefined,
+      });
+      const transfer = await initiateTransferIdempotent({
         recipient_code: recipient.recipient_code,
         amount_ngn: Number(expense.amount_ngn),
         reference: ref,
-        reason: 'KDOps Expense Reimbursement',
+        reason: narration,
       });
+
+      // If the edge function recovered from a duplicate ref, save the live
+      // status from Paystack rather than silently leaving the item pending.
+      const recoveredStatus = transfer.recovered
+        ? (transfer.verified_status || transfer.status || '').toLowerCase()
+        : null;
+      const itemStatus =
+        recoveredStatus === 'success' ? 'succeeded'
+        : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
+        : 'pending';
 
       await supabase
         .from('batch_items')
         .update({
+          status: itemStatus,
           paystack_recipient_code: recipient.recipient_code,
           paystack_transfer_code: transfer.transfer_code,
           paystack_reference: transfer.reference,
+          processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
+          failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
         })
         .eq('id', itemId);
 

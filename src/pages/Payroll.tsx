@@ -68,7 +68,13 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { createTransferRecipient, initiateTransfer, getBankCode } from '@/lib/paystack';
+import {
+  createTransferRecipient,
+  initiateTransferIdempotent,
+  getBankCode,
+  generateKdopsRef,
+  buildNarration,
+} from '@/lib/paystack';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { displayName } from '@/lib/name';
@@ -724,22 +730,39 @@ const Payroll = () => {
             account_number: (emp as any).bank_account_number,
             bank_code: bankCode,
           });
-          const ref = `salary_${(item as any).id.replace(/-/g, '').slice(0, 18)}`;
-          const transfer = await initiateTransfer({
+          const ref = generateKdopsRef((item as any).id);
+          const narration = buildNarration({
+            kind: 'salary',
+            recipientName: empName,
+            period: monthLabel(run.period),
+          });
+          const transfer = await initiateTransferIdempotent({
             recipient_code: recipient.recipient_code,
             amount_ngn: Number(slip.net_ngn || 0),
             reference: ref,
-            reason: `KDOps · Salary ${monthLabel(run.period)}`,
+            reason: narration,
           });
+
+          // Map recovered duplicate-ref into the right batch_item status. If
+          // Paystack already says success, we save the row as succeeded so the
+          // payroll dashboard reflects reality.
+          const recoveredStatus = transfer.recovered
+            ? (transfer.verified_status || transfer.status || '').toLowerCase()
+            : null;
+          const itemStatus =
+            recoveredStatus === 'success' ? 'succeeded'
+            : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
+            : 'pending';
 
           await supabase
             .from('batch_items')
             .update({
-              status: 'pending',
+              status: itemStatus,
               paystack_recipient_code: recipient.recipient_code,
               paystack_transfer_code: transfer.transfer_code,
               paystack_reference: transfer.reference,
-              failure_reason: null,
+              failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
+              processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
             } as any)
             .eq('id', (item as any).id);
 

@@ -5,9 +5,10 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
-  initiateTransfer,
+  initiateTransferIdempotent,
   generateKdopsRef,
   getBankCode,
+  buildNarration,
   NIGERIAN_BANKS,
 } from '@/lib/paystack';
 import { formatNaira } from '@/lib/format';
@@ -96,39 +97,58 @@ export function QuickPayDialog() {
         bank_code: bankCode,
       });
 
-      const ref = generateKdopsRef((batch as any).id);
-
-      // 3. Insert the batch item. If this fails, the Paystack transfer must
-      // not be initiated — there'd be money on the wire with no DB record
-      // tying it back to the batch. Throw to abort the whole flow.
-      const { error: itemErr } = await supabase.from('batch_items').insert({
+      const recipientName = bank.account_name || bank.account_number;
+      // Insert the batch item BEFORE generating a deterministic ref from its
+      // id. The `reference` column holds the operator-supplied label (defaults
+      // to "Quick Pay"); `paystack_reference` is the machine-readable
+      // idempotency key that flows to Paystack.
+      const { data: insertedItem, error: itemErr } = await supabase.from('batch_items').insert({
         batch_id: (batch as any).id,
-        full_name: bank.account_name || bank.account_number,
+        full_name: recipientName,
         bank_name: bank.bank_name,
         account_number: bank.account_number,
         amount_ngn: amount,
-        reference: form.description || 'Quick Pay',
+        reference: 'Quick Pay',
         status: 'pending',
         paystack_recipient_code: recipient.recipient_code,
-        paystack_reference: ref,
-      });
-      if (itemErr) throw new Error(`Could not create payment record: ${itemErr.message}`);
+      }).select('id').single();
+      if (itemErr || !insertedItem) {
+        throw new Error(`Could not create payment record: ${itemErr?.message || 'no item id'}`);
+      }
+      const ref = generateKdopsRef(insertedItem.id);
+      await supabase.from('batch_items').update({ paystack_reference: ref }).eq('id', insertedItem.id);
 
-      // 4. Initiate transfer via Edge Function.
-      const transfer = await initiateTransfer({
+      // Build a clean recipient-facing narration. If the operator typed a
+      // description, prefer it but always prefix with the company short name.
+      const narration = form.description?.trim()
+        ? form.description.trim().slice(0, 60)
+        : buildNarration({ kind: 'quick_pay', recipientName });
+
+      const transfer = await initiateTransferIdempotent({
         recipient_code: recipient.recipient_code,
         amount_ngn: amount,
         reference: ref,
-        reason: form.description || 'KDOps Quick Pay',
+        reason: narration,
       });
 
-      // 5. Update batch_item with transfer code. We can tolerate a failure
-      // here because the transfer is already in flight on Paystack's side
-      // and the webhook will eventually reconcile by paystack_reference.
+      // Map recovered duplicate-ref into the right batch_item status.
+      const recoveredStatus = transfer.recovered
+        ? (transfer.verified_status || transfer.status || '').toLowerCase()
+        : null;
+      const itemStatus =
+        recoveredStatus === 'success' ? 'succeeded'
+        : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
+        : 'pending';
+
       const { error: updateErr } = await supabase
         .from('batch_items')
-        .update({ paystack_transfer_code: transfer.transfer_code })
-        .eq('paystack_reference', ref);
+        .update({
+          status: itemStatus,
+          paystack_transfer_code: transfer.transfer_code,
+          processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
+          failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
+        })
+        .eq('id', insertedItem.id);
       if (updateErr) {
         console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
       }
