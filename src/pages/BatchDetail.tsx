@@ -20,6 +20,7 @@ import {
   buildNarration,
   type NarrationKind,
 } from '@/lib/paystack';
+import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -274,6 +275,7 @@ const BatchDetail = () => {
   const [processingName, setProcessingName] = useState('');
   const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [showProcessConfirm, setShowProcessConfirm] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -538,7 +540,21 @@ const BatchDetail = () => {
     }
   };
 
+  /**
+   * Operator clicked "Process" — open the pre-flight confirmation modal.
+   * The actual dispatch happens in executeProcess() once the operator
+   * confirms with full visibility of cost, fees, balance, and narration.
+   */
   const handleProcess = async () => {
+    if (items.filter((i) => i.status !== 'succeeded').length === 0) {
+      toast({ title: 'Nothing to process', description: 'All beneficiaries are already paid.' });
+      return;
+    }
+    setShowProcessConfirm(true);
+  };
+
+  const executeProcess = async () => {
+    setShowProcessConfirm(false);
     setActionLoading(true);
     setProcessResults(null);
     const toProcess = items.filter((it) => it.status !== 'succeeded');
@@ -1509,6 +1525,19 @@ const BatchDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PaymentSummaryModal
+        open={showProcessConfirm}
+        onOpenChange={setShowProcessConfirm}
+        items={items
+          .filter((i) => i.status !== 'succeeded')
+          .map((i) => ({ full_name: i.full_name, amount_ngn: Number(i.amount_ngn || 0) }))}
+        narrationKind={narrationKindForBatch(batch)}
+        period={batch?.period || undefined}
+        label={batch?.name || undefined}
+        title={`Confirm "${batch?.name || 'batch'}"`}
+        onConfirm={executeProcess}
+      />
     </div>
   );
 };

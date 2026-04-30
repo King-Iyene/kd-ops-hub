@@ -28,6 +28,7 @@ import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 
 const emptyBank: BankAccountValue = {
   bank_name: '',
@@ -50,6 +51,7 @@ export function QuickPayDialog() {
     amount: '',
     description: '',
   });
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const reset = () => {
     setBank(emptyBank);
@@ -57,7 +59,8 @@ export function QuickPayDialog() {
     setResult(null);
   };
 
-  const handlePay = async () => {
+  /** Operator clicked "Send" — open the pre-flight confirmation modal. */
+  const handlePay = () => {
     if (!bank.verified) {
       toast({ title: 'Verify bank account first', variant: 'destructive' });
       return;
@@ -67,7 +70,12 @@ export function QuickPayDialog() {
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
       return;
     }
+    setShowConfirm(true);
+  };
 
+  const executePay = async () => {
+    setShowConfirm(false);
+    const amount = parseFloat(form.amount);
     setProcessing(true);
     try {
       // 1. Create a single-item batch with auto-approval.
@@ -287,6 +295,19 @@ export function QuickPayDialog() {
           </div>
         )}
       </ResponsiveDialog>
+
+      <PaymentSummaryModal
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        items={[{
+          full_name: bank.account_name || bank.account_number || 'recipient',
+          amount_ngn: parseFloat(form.amount) || 0,
+        }]}
+        narrationKind="quick_pay"
+        label={form.description || undefined}
+        title="Confirm Quick Pay"
+        onConfirm={executePay}
+      />
     </>
   );
 }
