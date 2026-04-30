@@ -469,7 +469,7 @@ const BatchDetail = () => {
    *   2. Initiate the transfer with a deterministic reference.
    *   3. Store transfer_code + reference so the poller can verify status.
    */
-  const processOneItem = async (it: any): Promise<{ ok: boolean; reason?: string }> => {
+  const processOneItem = async (it: any, customNarration?: string): Promise<{ ok: boolean; reason?: string }> => {
     const markFailed = async (reason: string) => {
       await supabase.from('batch_items')
         .update({ status: 'failed', failure_reason: reason })
@@ -526,7 +526,7 @@ const BatchDetail = () => {
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
-        reason: narrationForBatchItem(batch, it),
+        reason: customNarration || narrationForBatchItem(batch, it),
       });
 
       // Self-healing path: if Paystack reported a duplicate ref, the helper
@@ -693,7 +693,7 @@ const BatchDetail = () => {
     setShowProcessConfirm(true);
   };
 
-  const executeProcess = async () => {
+  const executeProcess = async (customNarration?: string) => {
     setShowProcessConfirm(false);
     setActionLoading(true);
     setProcessResults(null);
@@ -737,7 +737,7 @@ const BatchDetail = () => {
         const it = toProcess[i];
         setProcessingIdx(i + 1);
         setProcessingName(it.full_name);
-        await processOneItem(it);
+        await processOneItem(it, customNarration);
       }
 
       const { data: refreshed } = await supabase
@@ -1715,7 +1715,7 @@ const BatchDetail = () => {
         period={batch?.period || undefined}
         label={batch?.name || undefined}
         title={`Confirm "${batch?.name || 'batch'}"`}
-        onConfirm={executeProcess}
+        onConfirm={(narration) => executeProcess(narration)}
       />
 
       <Dialog open={showDelete} onOpenChange={(v) => !deleting && setShowDelete(v)}>

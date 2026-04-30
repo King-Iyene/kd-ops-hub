@@ -73,7 +73,7 @@ export function QuickPayDialog() {
     setShowConfirm(true);
   };
 
-  const executePay = async () => {
+  const executePay = async (customNarration?: string) => {
     setShowConfirm(false);
     const amount = parseFloat(form.amount);
     setProcessing(true);
@@ -126,11 +126,11 @@ export function QuickPayDialog() {
       const ref = generateKdopsRef(insertedItem.id);
       await supabase.from('batch_items').update({ paystack_reference: ref }).eq('id', insertedItem.id);
 
-      // Build a clean recipient-facing narration. If the operator typed a
-      // description, prefer it but always prefix with the company short name.
-      const narration = form.description?.trim()
-        ? form.description.trim().slice(0, 60)
-        : buildNarration({ kind: 'quick_pay', recipientName });
+      // Use the operator's custom narration from the pre-flight modal (editable
+      // there), then fall back to the description field, then auto-build.
+      const narration = customNarration?.trim()
+        || (form.description?.trim() ? form.description.trim().slice(0, 60) : '')
+        || buildNarration({ kind: 'quick_pay', recipientName });
 
       const transfer = await initiateTransferIdempotent({
         recipient_code: recipient.recipient_code,
@@ -306,7 +306,7 @@ export function QuickPayDialog() {
         narrationKind="quick_pay"
         label={form.description || undefined}
         title="Confirm Quick Pay"
-        onConfirm={executePay}
+        onConfirm={(narration) => executePay(narration)}
       />
     </>
   );

@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Loader2, AlertTriangle, Info, Receipt, BanknoteIcon } from 'lucide-react';
+import { Loader2, AlertTriangle, Info, Receipt, BanknoteIcon, Pencil } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatNaira } from '@/lib/format';
@@ -67,10 +68,11 @@ export interface PaymentSummaryModalProps {
   /** Optional title override; defaults to "Confirm payment". */
   title?: string;
   /**
-   * Called when the operator confirms. Returning a promise keeps the modal
-   * open and the button disabled until the action resolves.
+   * Called when the operator confirms. Receives the (possibly edited) narration
+   * text so callers can use it as the Paystack transfer `reason`. Returning a
+   * promise keeps the modal open and the button disabled until it resolves.
    */
-  onConfirm: () => void | Promise<void>;
+  onConfirm: (narration: string) => void | Promise<void>;
   /** Stamp-duty exempt (registered payroll merchants only). Default false. */
   exempt?: boolean;
 }
@@ -93,6 +95,7 @@ export function PaymentSummaryModal({
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [customNarration, setCustomNarration] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -120,10 +123,20 @@ export function PaymentSummaryModal({
     label,
   });
 
+  // Initialise (and reset) the editable narration whenever the modal opens or
+  // the auto-generated sample changes (e.g. different batch kind).
+  useEffect(() => {
+    if (open) setCustomNarration(sampleNarration);
+  }, [open, sampleNarration]);
+
+  const narrationLen = customNarration.length;
+  const narrationOverLimit = narrationLen > 60;
+  const narrationNearLimit = narrationLen >= 50 && !narrationOverLimit;
+
   const handleConfirm = async () => {
     setSubmitting(true);
     try {
-      await onConfirm();
+      await onConfirm(customNarration.trim() || sampleNarration);
     } finally {
       setSubmitting(false);
     }
@@ -218,18 +231,40 @@ export function PaymentSummaryModal({
           )}
         </div>
 
-        {/* Narration preview */}
+        {/* Narration — editable */}
         <div className="rounded-lg border p-4 text-sm space-y-2">
           <div className="flex items-center gap-2 font-medium">
-            <Info className="h-4 w-4 text-primary" />
+            <Pencil className="h-4 w-4 text-primary" />
             What recipients will see on their bank statement
           </div>
-          <div className="rounded-md bg-background border p-3 font-mono text-xs">
-            {sampleNarration}
+          <div className="relative">
+            <Input
+              value={customNarration}
+              onChange={(e) => setCustomNarration(e.target.value)}
+              maxLength={100}
+              className={`font-mono text-xs pr-14 ${narrationOverLimit ? 'border-destructive focus-visible:ring-destructive' : ''}`}
+              placeholder={sampleNarration}
+            />
+            <span
+              className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tabular-nums pointer-events-none ${
+                narrationOverLimit
+                  ? 'text-destructive font-semibold'
+                  : narrationNearLimit
+                  ? 'text-yellow-600'
+                  : 'text-muted-foreground'
+              }`}
+            >
+              {narrationLen}/60
+            </span>
           </div>
+          {narrationOverLimit && (
+            <p className="text-xs text-destructive">
+              Over 60 characters — some bank apps may truncate the text. Shorten it if you can.
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
-            Each recipient sees their own name. Capped at 60 characters so it
-            stays readable on every bank app.
+            Edit to customise. For batch payments the same text is sent to every
+            recipient. Capped at 60 characters for full readability on all bank apps.
           </p>
         </div>
 
