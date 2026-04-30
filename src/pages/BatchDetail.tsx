@@ -1161,11 +1161,6 @@ const BatchDetail = () => {
               {retryingAll ? 'Retrying…' : `Retry unsent (${items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)).length})`}
             </Button>
           )}
-          {(batch.status === 'processing' || batch.status === 'partially_processed') && (
-            <Button variant="outline" onClick={fetchBatch} disabled={loading}>
-              <RotateCw className="mr-2 h-4 w-4" /> Refresh
-            </Button>
-          )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
             <Button
               variant="outline"

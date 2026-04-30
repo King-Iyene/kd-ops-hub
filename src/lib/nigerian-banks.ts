@@ -147,11 +147,72 @@ export const clearBankCache = (): void => {
 
 /** Look up a Paystack bank code by display name. Searches the full dynamic
  *  list once fetchBanks() has been called; falls back to the static 55-bank
- *  list before that. */
-export const getBankCode = (bankName: string): string | undefined =>
-  _allBanks.find(
-    (b) => b.name === bankName || b.name.toLowerCase() === bankName.toLowerCase(),
-  )?.code;
+ *  list before that.
+ *
+ *  Matching order:
+ *  1. Alias map — catches short / old names employees may have saved
+ *     (e.g. "OPay", "Union Bank", "UBA", "FCMB")
+ *  2. Exact case-insensitive match against the full dynamic bank list
+ *  3. Prefix match — stored name is an unambiguous prefix of one bank
+ *     (e.g. "OPay" → "OPay Digital Services")
+ */
+
+const BANK_ALIASES: Record<string, string> = {
+  // Short / common names → Paystack code
+  'opay':                '999992',  // OPay Digital Services
+  'union bank':          '032',     // Union Bank of Nigeria
+  'first bank':          '011',     // First Bank of Nigeria
+  'uba':                 '033',     // United Bank for Africa (UBA)
+  'fcmb':                '214',     // First City Monument Bank (FCMB)
+  'gtb':                 '058',     // GTBank (alias)
+  'guaranty trust bank': '058',     // GTBank (old full name)
+  'diamond bank':        '063',     // Access Bank (Diamond) — old name
+  'moniepoint':          '50515',   // Moniepoint MFB
+  'kuda':                '50211',   // Kuda Bank
+  'palmpay':             '999991',  // PalmPay
+  'fairmoney':           '090311',  // FairMoney Microfinance Bank
+  'carbon':              '565',     // Carbon (formerly Paylater)
+  'vfd':                 '566',     // VFD Microfinance Bank
+  'stanbic':             '221',     // Stanbic IBTC Bank
+  'stanbic ibtc':        '221',     // Stanbic IBTC Bank
+  'sterling':            '232',     // Sterling Bank
+  'fidelity':            '070',     // Fidelity Bank
+  'ecobank':             '050',     // Ecobank Nigeria
+  'unity bank':          '215',     // Unity Bank
+  'wema':                '035',     // Wema Bank
+  'keystone':            '082',     // Keystone Bank
+  'providus':            '101',     // Providus Bank
+  'polaris':             '076',     // Polaris Bank
+  'lotus':               '303',     // Lotus Bank
+  'taj':                 '302',     // TAJ Bank
+  'jaiz':                '301',     // Jaiz Bank
+  'citi':                '023',     // Citibank Nigeria
+  'citibank':            '023',     // Citibank Nigeria
+  'rubies':              '125',     // Rubies Bank
+  'sparkle':             '51310',   // Sparkle Microfinance Bank
+  'eyowo':               '50126',   // Eyowo
+  'kuda bank':           '50211',   // Kuda Bank (explicit)
+  'paga':                '100002',  // Paga
+};
+
+export const getBankCode = (bankName: string): string | undefined => {
+  const n = (bankName || '').trim().toLowerCase();
+  if (!n) return undefined;
+
+  // 1. Alias map
+  if (BANK_ALIASES[n]) return BANK_ALIASES[n];
+
+  // 2. Exact match (case-insensitive) against the full dynamic list
+  const exact = _allBanks.find((b) => b.name.toLowerCase() === n);
+  if (exact) return exact.code;
+
+  // 3. Unambiguous prefix — only if exactly one bank starts with this string
+  //    Catches "OPay" → "OPay Digital Services", "Union Bank" → "Union Bank of Nigeria" etc.
+  const prefix = _allBanks.filter((b) => b.name.toLowerCase().startsWith(n));
+  if (prefix.length === 1) return prefix[0].code;
+
+  return undefined;
+};
 
 /** Case-insensitive fuzzy match by name prefix (static list only). */
 export const findBank = (query: string): NigerianBank | undefined => {
