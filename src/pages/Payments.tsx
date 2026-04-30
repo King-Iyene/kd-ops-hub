@@ -118,9 +118,9 @@ const Payments = () => {
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
     const [pendingRes, processingRes, monthRes] = await Promise.all([
-      supabase.from('payment_batches').select('total_amount').eq('status', 'pending_approval'),
-      supabase.from('payment_batches').select('id', { count: 'exact', head: true }).eq('status', 'processing'),
-      supabase.from('payment_batches').select('total_amount').eq('status', 'processed').gte('created_at', monthStart).lte('created_at', monthEnd),
+      supabase.from('payment_batches').select('total_amount').eq('status', 'pending_approval').is('deleted_at', null),
+      supabase.from('payment_batches').select('id', { count: 'exact', head: true }).eq('status', 'processing').is('deleted_at', null),
+      supabase.from('payment_batches').select('total_amount').eq('status', 'processed').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
     ]);
 
     const pendingRows = (pendingRes.data || []) as { total_amount: number }[];
@@ -137,6 +137,7 @@ const Payments = () => {
     let query = supabase
       .from('payment_batches')
       .select('*')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .range(page * 1000, (page + 1) * 1000 - 1);
 

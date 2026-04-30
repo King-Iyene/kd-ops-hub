@@ -208,12 +208,14 @@ export default function PaymentSchedule() {
         .from('payment_batches')
         .select('id, name, total_amount, scheduled_date, status')
         .eq('status', 'scheduled')
+        .is('deleted_at', null)
         .gte('scheduled_date', today)
         .order('scheduled_date', { ascending: true }),
       supabase
         .from('payment_batches')
         .select('id, name, total_amount, scheduled_date, status')
         .eq('status', 'scheduled')
+        .is('deleted_at', null)
         .lt('scheduled_date', today)
         .order('scheduled_date', { ascending: true }),
       supabase

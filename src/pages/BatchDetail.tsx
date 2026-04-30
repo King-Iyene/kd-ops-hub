@@ -54,11 +54,20 @@ import {
   RotateCw,
   AlertTriangle,
   FileText,
+  Trash2,
   CalendarClock,
 } from 'lucide-react';
 
 
 const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
+
+/**
+ * Statuses where the batch can be safely soft-deleted. Anything past 'funded'
+ * means a transfer might be in flight or already settled — never delete those
+ * because the audit chain must be preserved.
+ */
+const DELETABLE_STATUSES = ['draft', 'pending_approval', 'rejected', 'approved', 'funded'] as const;
+const REASON_REQUIRED_STATUSES = new Set(['approved', 'funded']);
 
 const csvEscape = (v: any): string => {
   const s = v === null || v === undefined ? '' : String(v);
@@ -276,6 +285,9 @@ const BatchDetail = () => {
   const [processResults, setProcessResults] = useState<{ succeeded: number; failed: number; pending: number } | null>(null);
   const [showRecurring, setShowRecurring] = useState(false);
   const [showProcessConfirm, setShowProcessConfirm] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -537,6 +549,43 @@ const BatchDetail = () => {
       return { ok: true };
     } catch (err: any) {
       return markFailed(err?.message || 'Transfer failed');
+    }
+  };
+
+  /**
+   * Soft-delete the current batch via the soft_delete_payment_batch RPC.
+   * The RPC enforces role + status rules and writes its own audit row.
+   */
+  const handleDelete = async () => {
+    if (!batch) return;
+    const requiresReason = REASON_REQUIRED_STATUSES.has(batch.status);
+    if (requiresReason && deleteReason.trim().length < 5) {
+      toast({
+        title: 'Reason required',
+        description: 'Approved/funded batches need a reason of at least 5 characters.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { error } = await supabase.rpc('soft_delete_payment_batch', {
+        p_batch_id: id,
+        p_reason: deleteReason.trim() || null,
+      });
+      if (error) throw error;
+      toast({ title: 'Batch deleted', description: `"${batch.name}" was removed.` });
+      navigate('/payments');
+    } catch (err: any) {
+      toast({
+        title: 'Could not delete batch',
+        description: err?.message || 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleting(false);
+      setShowDelete(false);
+      setDeleteReason('');
     }
   };
 
@@ -1255,6 +1304,16 @@ const BatchDetail = () => {
               <CalendarClock className="mr-2 h-4 w-4" /> Make recurring
             </Button>
           )}
+          {DELETABLE_STATUSES.includes(batch.status) && (
+            <Button
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
+              onClick={() => setShowDelete(true)}
+              disabled={actionLoading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Delete batch
+            </Button>
+          )}
         </div>
       )}
 
@@ -1538,6 +1597,55 @@ const BatchDetail = () => {
         title={`Confirm "${batch?.name || 'batch'}"`}
         onConfirm={executeProcess}
       />
+
+      <Dialog open={showDelete} onOpenChange={(v) => !deleting && setShowDelete(v)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete this batch?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              You're about to delete{' '}
+              <span className="font-semibold">"{batch?.name}"</span> (status:{' '}
+              <span className="font-mono">{batch?.status}</span>). The batch will be
+              hidden from all lists. Audit history is preserved.
+            </p>
+            {batch && REASON_REQUIRED_STATUSES.has(batch.status) && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  This batch is {batch.status} — please explain why you're deleting it.
+                </p>
+                <Textarea
+                  placeholder="e.g. Funds returned to wallet — payroll cancelled for April"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                {batch?.status === 'funded'
+                  ? 'Funds are on your Paystack balance. Deleting here does NOT recall them — handle the recall separately.'
+                  : 'This action is logged. Restore is via the database only — ask an engineer if needed.'}
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setShowDelete(false)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {deleting ? 'Deleting…' : 'Delete batch'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
