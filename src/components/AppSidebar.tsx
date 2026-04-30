@@ -40,6 +40,7 @@ import {
   CalendarCheck2,
   ShieldAlert,
   Bot,
+  Wallet,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -75,6 +76,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Transactions',     url: '/transactions',      icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Payroll',          url: '/payroll',           icon: Banknote,        roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Earned Wages',     url: '/ewa',               icon: Wallet,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'hr'] },
   { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',          url: '/budgets',           icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
@@ -116,7 +118,7 @@ const ALL_NAV: NavItem[] = [
 // ─── Group definitions ────────────────────────────────────────────────────────
 
 const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance'] },
+  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },

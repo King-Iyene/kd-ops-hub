@@ -35,6 +35,7 @@ const Budgets          = lazy(() => import('./pages/Budgets'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
 const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
+const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
 const Contractors      = lazy(() => import('./pages/Contractors'));
@@ -338,6 +339,17 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Payroll />
+            </RoleGuard>
+          }
+        />
+
+        {/* Earned Wage Access — every signed-in employee can request a draw;
+            admin / finance see the approval queue inside the page. */}
+        <Route
+          path="/ewa"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <EarnedWageAccess />
             </RoleGuard>
           }
         />
