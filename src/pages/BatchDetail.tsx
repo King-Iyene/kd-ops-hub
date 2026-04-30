@@ -611,6 +611,7 @@ const BatchDetail = () => {
                 failure_reason: null,
                 processed_at: new Date().toISOString(),
                 paystack_raw: res.raw,
+                paystack_fee_ngn: Math.round(Number(res.raw?.fee || 0)) / 100,
               })
               .eq('id', it.id);
             await logAudit(
