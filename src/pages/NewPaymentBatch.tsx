@@ -485,16 +485,35 @@ const NewPaymentBatch = () => {
                     type="button"
                     onClick={() => {
                       setBatchType(t.type);
-                      // auto-fill batch name for salary runs
-                      if (t.type === 'employee_salary' && !batchName) {
+                      // Auto-fill batch name + period + payment date for whichever
+                      // type was picked, so the operator never sees an empty form.
+                      // Only runs when the operator hasn't already started typing.
+                      if (!batchName) {
                         const now = new Date();
-                        const month = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-                        setBatchName(`Salary Run — ${month}`);
-                        setPeriod(month);
-                        setPaymentDate(
-                          new Date(now.getFullYear(), now.getMonth() + 1, 25)
-                            .toISOString().slice(0, 10),
-                        );
+                        const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                        const monthShort = now.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
+                        const next25 = new Date(now.getFullYear(), now.getMonth() + 1, 25)
+                          .toISOString().slice(0, 10);
+                        const today = now.toISOString().slice(0, 10);
+
+                        if (t.type === 'employee_salary') {
+                          setBatchName(`Salary Run — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(next25);
+                        } else if (t.type === 'advance') {
+                          setBatchName(`Salary Advance — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(today);
+                        } else if (t.type === 'prize') {
+                          // 'prize' is the existing key for bonus / one-off awards
+                          setBatchName(`Bonus Run — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(today);
+                        } else if (t.type === 'contractor') {
+                          setBatchName(`Contractor Payment — ${monthLong}`);
+                          setPeriod(monthShort);
+                          setPaymentDate(today);
+                        }
                       }
                     }}
                     className={cn(
