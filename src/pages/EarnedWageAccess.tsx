@@ -69,6 +69,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { logAudit } from '@/lib/audit';
 import { notifyChannels } from '@/lib/notify';
+import { scanEwaAnomaliesSafe } from '@/lib/anomalies';
 import { cn } from '@/lib/utils';
 
 const STATUS_TONE: Record<EwaStatus, string> = {
@@ -215,6 +216,9 @@ export default function EarnedWageAccess() {
         },
         idempotencyKey: `ewa_approved:${req.id}`,
       });
+      // Run anomaly scan — fire-and-forget. Catches velocity / max-eligibility /
+      // inactive-employee patterns. Toast is suppressed; flags surface in /anomalies.
+      scanEwaAnomaliesSafe(req.id);
       toast({ title: 'Approved', description: 'WhatsApp + in-app notification sent.' });
       load();
     } catch (err: any) {

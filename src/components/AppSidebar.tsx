@@ -41,6 +41,7 @@ import {
   ShieldAlert,
   Bot,
   Wallet,
+  Siren,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -65,7 +66,7 @@ type NavItem = {
   url: string;
   icon: typeof LayoutDashboard;
   roles: Role[];
-  badge?: 'approvals';
+  badge?: 'approvals' | 'anomalies';
 };
 
 const ALL_NAV: NavItem[] = [
@@ -83,6 +84,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Assets',           url: '/assets',            icon: Package,         roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'] },
@@ -118,7 +120,7 @@ const ALL_NAV: NavItem[] = [
 // ─── Group definitions ────────────────────────────────────────────────────────
 
 const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance'] },
+  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Anomalies'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
@@ -171,6 +173,7 @@ export function AppSidebar() {
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);
 
   useEffect(() => {
     supabase
@@ -193,6 +196,21 @@ export function AppSidebar() {
     const id = setInterval(refreshApprovals, 90_000);
     return () => clearInterval(id);
   }, [refreshApprovals]);
+
+  // Open critical/high anomaly count drives the "Anomalies" sidebar badge.
+  useEffect(() => {
+    const fetchCount = () => {
+      supabase
+        .from('payment_anomalies')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open')
+        .in('severity', ['critical', 'high'])
+        .then(({ count }) => setAnomalyOpenCount(count ?? 0));
+    };
+    fetchCount();
+    const id = setInterval(fetchCount, 120_000);
+    return () => clearInterval(id);
+  }, []);
 
   // ─── Group collapse state (initialised from localStorage) ─────────────────
 
@@ -245,7 +263,13 @@ export function AppSidebar() {
       ? location.pathname === item.url
       : location.pathname === item.url ||
         (item.url !== '/' && location.pathname.startsWith(item.url));
-    const showBadge = item.badge === 'approvals' && approvalTotal > 0;
+    const badgeCount =
+      item.badge === 'approvals' ? approvalTotal :
+      item.badge === 'anomalies' ? anomalyOpenCount : 0;
+    const showBadge = badgeCount > 0;
+    const badgeTone = item.badge === 'anomalies'
+      ? 'bg-red-500/90 text-white'
+      : 'bg-amber-400/90 text-amber-900';
 
     return (
       <SidebarMenuItem key={item.title} className="list-none">
@@ -280,8 +304,8 @@ export function AppSidebar() {
               <>
                 <span className="flex-1 truncate">{item.title}</span>
                 {showBadge && (
-                  <span className="relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-[10px] font-bold text-amber-900 kd-status-live-warning">
-                    {approvalTotal > 99 ? '99+' : approvalTotal}
+                  <span className={`relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full ${badgeTone} px-1.5 text-[10px] font-bold kd-status-live-warning`}>
+                    {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
                 )}
                 {active && !showBadge && (
@@ -290,7 +314,7 @@ export function AppSidebar() {
               </>
             )}
             {sidebarCollapsed && showBadge && (
-              <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-amber-400 kd-status-live-warning" />
+              <span className={`absolute top-1 right-1 h-2 w-2 rounded-full kd-status-live-warning ${item.badge === 'anomalies' ? 'bg-red-500' : 'bg-amber-400'}`} />
             )}
           </NavLink>
         </SidebarMenuButton>

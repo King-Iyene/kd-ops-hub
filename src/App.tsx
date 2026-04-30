@@ -36,6 +36,7 @@ const Expenses         = lazy(() => import('./pages/Expenses'));
 const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
 const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
+const Anomalies        = lazy(() => import('./pages/Anomalies'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
 const Contractors      = lazy(() => import('./pages/Contractors'));
@@ -350,6 +351,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <EarnedWageAccess />
+            </RoleGuard>
+          }
+        />
+
+        {/* Anomalies — finance / admin only review queue. */}
+        <Route
+          path="/anomalies"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <Anomalies />
             </RoleGuard>
           }
         />
