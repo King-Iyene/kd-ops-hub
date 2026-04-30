@@ -275,7 +275,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('salary_ngn')
+          .select('salary_ngn, pension_enabled, nhf_enabled')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -311,9 +311,12 @@ const Payroll = () => {
       // PAYE, pension and NHF are statutory obligations on employment income only —
       // contractor payments are handled via WHT separately.
       const paye = calculateNigerianPAYE(totalEmployee);
-      const pension = totalEmployee * PENSION_RATE;
-      const nhf = totalEmployee * NHF_RATE;
-      const employerPension = totalEmployee * EMPLOYER_PENSION_RATE;
+      const pension = (employeeRes.data || []).reduce(
+        (s: number, r: any) => s + (r.pension_enabled !== false ? Number(r.salary_ngn || 0) * PENSION_RATE : 0), 0);
+      const nhf = (employeeRes.data || []).reduce(
+        (s: number, r: any) => s + (r.nhf_enabled === true ? Number(r.salary_ngn || 0) * NHF_RATE : 0), 0);
+      const employerPension = (employeeRes.data || []).reduce(
+        (s: number, r: any) => s + (r.pension_enabled !== false ? Number(r.salary_ngn || 0) * EMPLOYER_PENSION_RATE : 0), 0);
       const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
       const transportAllowance = empCount * form.transport_per_emp;
@@ -446,7 +449,7 @@ const Payroll = () => {
     try {
       const { data: employees, error: fetchErr } = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, role, salary_ngn, phone')
+        .select('id, full_name, first_name, last_name, email, role, salary_ngn, phone, pension_enabled, nhf_enabled')
         .eq('status', 'active')
         .neq('role', 'driver')
         .gt('salary_ngn', 0)
@@ -528,8 +531,8 @@ const Payroll = () => {
         try {
           const empGross = Number(e.salary_ngn);
           const empPaye = calculateNigerianPAYE(empGross);
-          const empPension = empGross * PENSION_RATE;
-          const empNhf = empGross * NHF_RATE;
+          const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE : 0;
+          const empNhf = e.nhf_enabled === true ? empGross * NHF_RATE : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
