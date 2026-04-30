@@ -288,6 +288,7 @@ const BatchDetail = () => {
   const [showDelete, setShowDelete] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [reconciling, setReconciling] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
@@ -573,6 +574,71 @@ const BatchDetail = () => {
       return { ok: true };
     } catch (err: any) {
       return markFailed(err?.message || 'Transfer failed');
+    }
+  };
+
+  /**
+   * Reconcile the batch with Paystack. For every batch_item that already has
+   * a paystack_reference, query the live transfer status and patch the row
+   * if the platform's view is out of date. This is the self-healing escape
+   * hatch when the webhook missed an event or when a transfer that was
+   * actually successful is showing as 'failed' in the UI.
+   */
+  const runReconcile = async () => {
+    if (!APPROVER_ROLES.includes(profile?.role as any)) {
+      toast({ title: 'Not authorized', variant: 'destructive' });
+      return;
+    }
+    setReconciling(true);
+    let synced = 0;
+    let unchanged = 0;
+    let errors = 0;
+    try {
+      const dispatched = items.filter((i: any) => i.paystack_reference);
+      for (const it of dispatched) {
+        try {
+          const v = await verifyTransfer(it.paystack_reference);
+          const live = (v.status || '').toLowerCase();
+          const targetStatus =
+            live === 'success' ? 'succeeded'
+            : live === 'failed' || live === 'reversed' ? live
+            : null;
+          if (!targetStatus || targetStatus === it.status) {
+            unchanged++;
+            continue;
+          }
+          const feeKobo = Number(v.raw?.fee || 0);
+          await supabase
+            .from('batch_items')
+            .update({
+              status: targetStatus,
+              processed_at: targetStatus === 'succeeded' ? new Date().toISOString() : it.processed_at || null,
+              paystack_raw: v.raw,
+              paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : it.paystack_fee_ngn || 0,
+              failure_reason: targetStatus === 'failed'
+                ? (v.reason || it.failure_reason || 'Transfer rejected')
+                : targetStatus === 'reversed'
+                ? 'Transfer reversed by Paystack'
+                : null,
+            })
+            .eq('id', it.id);
+          synced++;
+        } catch {
+          errors++;
+        }
+      }
+      await logAudit(
+        'batch_reconciled',
+        `Batch "${batch?.name}" reconciled with Paystack — ${synced} updated, ${unchanged} unchanged, ${errors} errors`,
+        profile,
+      );
+      toast({
+        title: 'Reconcile complete',
+        description: `${synced} updated · ${unchanged} unchanged${errors ? ` · ${errors} errors` : ''}`,
+      });
+      await fetchBatch();
+    } finally {
+      setReconciling(false);
     }
   };
 
@@ -1318,6 +1384,20 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" />
               {retryingAll ? 'Retrying…' : `Retry unsent (${items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)).length})`}
+            </Button>
+          )}
+          {/* Reconcile: ask Paystack for the latest status of every dispatched
+               item and update our records. Lets finance recover items that are
+               'success' on Paystack but stuck on the platform — no SQL needed. */}
+          {items.some((i: any) => i.paystack_reference) && (
+            <Button
+              variant="outline"
+              onClick={runReconcile}
+              disabled={reconciling || actionLoading}
+              title="Re-check every dispatched transfer with Paystack and sync the status"
+            >
+              {reconciling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
+              {reconciling ? 'Reconciling…' : 'Reconcile with Paystack'}
             </Button>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
