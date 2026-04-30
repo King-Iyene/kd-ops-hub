@@ -34,6 +34,7 @@ import { burst } from '@/components/Burst';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { logAudit } from '@/lib/audit';
 import { notifyChannels } from '@/lib/notify';
+import { scanPayrollRunAnomaliesSafe } from '@/lib/anomalies';
 import {
   formatDate,
   formatDateTime,
@@ -434,11 +435,17 @@ const Payroll = () => {
       profile,
     );
     burst({ palette: 'success', count: 70 });
+
+    // Anomaly scan — runs the 7 payroll-level rules. Fire-and-forget; the
+    // safe wrapper swallows errors so a scan failure can't block approval.
+    const anomalyCount = await scanPayrollRunAnomaliesSafe(run.id);
     toast({
       title: 'Payroll approved',
       description: autoSummary
-        ? `Compliance filings auto-populated for ${run.period}.`
-        : 'Payroll is now ready to disburse.',
+        ? `Compliance filings auto-populated for ${run.period}.` +
+          (anomalyCount > 0 ? ` ${anomalyCount} anomal${anomalyCount === 1 ? 'y' : 'ies'} flagged for review.` : '')
+        : 'Payroll is now ready to disburse.' +
+          (anomalyCount > 0 ? ` ${anomalyCount} anomal${anomalyCount === 1 ? 'y' : 'ies'} flagged for review.` : ''),
     });
     load();
   };

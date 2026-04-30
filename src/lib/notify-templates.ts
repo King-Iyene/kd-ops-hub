@@ -25,7 +25,8 @@ export type NotificationTemplateKind =
   | 'leave_approved'
   | 'leave_rejected'
   | 'compliance_due_soon'
-  | 'batch_approval_pending';
+  | 'batch_approval_pending'
+  | 'anomaly_detected';
 
 export interface RenderedTemplate {
   /** Short title for in-app + email subject. */
@@ -148,6 +149,16 @@ export const NOTIFICATION_TEMPLATES = {
       title: `Approval needed: ${p.batch_name}`,
       body: clamp(
         `KD Squares: ${p.batch_name} (${formatNaira(p.total_ngn)}) is awaiting your approval.`,
+      ),
+    };
+  },
+
+  anomaly_detected: (p: { count: number; severity: string; module: string }): RenderedTemplate => {
+    return {
+      title: `${p.count} ${p.severity} anomal${p.count === 1 ? 'y' : 'ies'} detected`,
+      body: clamp(
+        `KD Squares: ${p.count} ${p.severity}-severity anomal${p.count === 1 ? 'y' : 'ies'} ` +
+        `flagged in ${p.module}. Review in the Anomalies queue.`,
       ),
     };
   },
