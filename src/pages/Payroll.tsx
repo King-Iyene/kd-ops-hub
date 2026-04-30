@@ -706,7 +706,7 @@ const Payroll = () => {
         try {
           const { data: emp, error: empErr } = await supabase
             .from('profiles')
-            .select('bank_name, bank_account_number, full_name, first_name, last_name')
+            .select('id, bank_name, bank_account_number, full_name, first_name, last_name, paystack_recipient_code')
             .eq('id', slip.employee_id)
             .single();
           if (empErr || !emp) {
@@ -746,11 +746,27 @@ const Payroll = () => {
             continue;
           }
 
-          const recipient = await createTransferRecipient({
-            name: empName,
-            account_number: (emp as any).bank_account_number,
-            bank_code: bankCode,
-          });
+          // Reuse the cached Paystack recipient code from the employee
+          // profile if we have one — saves a /transferrecipient API call
+          // for every employee on every payroll run. The DB trigger clears
+          // this column whenever bank details change, so a stale recipient
+          // is impossible.
+          let recipientCode: string | null = (emp as any).paystack_recipient_code || null;
+          if (!recipientCode) {
+            const recipient = await createTransferRecipient({
+              name: empName,
+              account_number: (emp as any).bank_account_number,
+              bank_code: bankCode,
+            });
+            recipientCode = recipient.recipient_code;
+            await supabase
+              .from('profiles')
+              .update({
+                paystack_recipient_code: recipientCode,
+                paystack_recipient_verified_at: new Date().toISOString(),
+              })
+              .eq('id', (emp as any).id);
+          }
           const ref = generateKdopsRef((item as any).id);
           const narration = buildNarration({
             kind: 'salary',
@@ -758,7 +774,7 @@ const Payroll = () => {
             period: monthLabel(run.period),
           });
           const transfer = await initiateTransferIdempotent({
-            recipient_code: recipient.recipient_code,
+            recipient_code: recipientCode,
             amount_ngn: Number(slip.net_ngn || 0),
             reference: ref,
             reason: narration,
@@ -779,7 +795,7 @@ const Payroll = () => {
             .from('batch_items')
             .update({
               status: itemStatus,
-              paystack_recipient_code: recipient.recipient_code,
+              paystack_recipient_code: recipientCode,
               paystack_transfer_code: transfer.transfer_code,
               paystack_reference: transfer.reference,
               failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,

@@ -482,6 +482,19 @@ const BatchDetail = () => {
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" — no Paystack bank code`);
       let recipientCode: string | null = it.paystack_recipient_code || null;
+      // Recipient cache: if no code on the batch_item but we have an
+      // employee_id, look up the cached code on profiles. Saves an extra
+      // /transferrecipient round-trip per payment for repeat employees.
+      if (!recipientCode && it.employee_id) {
+        const { data: cachedProfile } = await supabase
+          .from('profiles')
+          .select('paystack_recipient_code')
+          .eq('id', it.employee_id)
+          .maybeSingle();
+        if (cachedProfile?.paystack_recipient_code) {
+          recipientCode = cachedProfile.paystack_recipient_code;
+        }
+      }
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
           name: it.full_name || 'Unknown Recipient',
@@ -489,6 +502,17 @@ const BatchDetail = () => {
           bank_code: bankCode,
         });
         recipientCode = recipient.recipient_code;
+        // Cache on the employee profile so future payments skip recipient
+        // creation. The trigger clears this if bank details change later.
+        if (it.employee_id) {
+          await supabase
+            .from('profiles')
+            .update({
+              paystack_recipient_code: recipientCode,
+              paystack_recipient_verified_at: new Date().toISOString(),
+            })
+            .eq('id', it.employee_id);
+        }
         await logAudit(
           'paystack_recipient_created',
           `Recipient created for ${it.full_name} (${it.bank_name})`,
