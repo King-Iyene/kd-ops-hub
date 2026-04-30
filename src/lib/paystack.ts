@@ -168,6 +168,92 @@ function shortenName(name: string): string {
   return `${parts[0]} ${parts[parts.length - 1]}`;
 }
 
+// ---------------------------------------------------------------------------
+// Friendly error mapper — translates Paystack's raw error strings into
+// plain-English messages with an actionable next step. Designed for users
+// who are NOT engineers and need to know exactly what to do.
+//
+// Usage:
+//   const friendly = friendlyPaystackError(item.failure_reason);
+//   // → { title: 'Account not found', hint: 'The account number does not
+//   //    exist at GTBank. Verify it on the recipient's bank app.' }
+// ---------------------------------------------------------------------------
+
+export interface FriendlyError {
+  title: string;
+  hint: string;
+}
+
+const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
+  {
+    match: /reference already exists|unique reference|duplicate/i,
+    title: 'Already paid',
+    hint: 'Paystack already processed this payment. Click "Reconcile with Paystack" to sync the latest status.',
+  },
+  {
+    match: /balance is not enough|insufficient funds/i,
+    title: 'Wallet balance too low',
+    hint: 'Top up your Paystack balance, then retry. Check Settings → Integrations for the wallet link.',
+  },
+  {
+    match: /account number invalid|invalid account/i,
+    title: 'Bank account number invalid',
+    hint: 'The account number is not valid. Edit the recipient and re-enter it.',
+  },
+  {
+    match: /beneficiary account does not exist|account does not exist|nuban not valid/i,
+    title: 'Account not found at the bank',
+    hint: 'The account number does not exist at the selected bank. Confirm both with the recipient.',
+  },
+  {
+    match: /name mismatch|name does not match/i,
+    title: 'Account name mismatch',
+    hint: 'The account name on the recipient profile does not match the bank record. Update the name to match exactly what the bank has on file.',
+  },
+  {
+    match: /transaction not permitted|account.*restricted|account is dormant|frozen/i,
+    title: 'Bank rejected the transfer',
+    hint: 'The recipient bank blocked this transfer (account may be dormant, restricted, or under review). Ask the recipient to contact their bank.',
+  },
+  {
+    match: /transfer.*timeout|gateway timeout|temporarily unavailable/i,
+    title: 'Bank network timeout',
+    hint: 'The bank did not respond in time. Wait a few minutes and retry — most timeouts recover on the second attempt.',
+  },
+  {
+    match: /unknown bank|no paystack bank code/i,
+    title: 'Bank not recognised',
+    hint: 'The recipient\'s bank is not on the supported list. Open the recipient profile and pick the correct bank from the dropdown.',
+  },
+  {
+    match: /minimum transfer amount/i,
+    title: 'Amount too small',
+    hint: 'Paystack requires at least ₦1 per transfer. Increase the amount.',
+  },
+  {
+    match: /single transfer limit/i,
+    title: 'Amount exceeds the per-transfer cap',
+    hint: 'Single transfers are capped at ₦5,000,000. Split this payment into smaller amounts or contact your bank operations team.',
+  },
+];
+
+export function friendlyPaystackError(raw?: string | null): FriendlyError {
+  const r = (raw || '').trim();
+  if (!r) {
+    return {
+      title: 'Transfer rejected',
+      hint: 'No reason was returned by Paystack. Click "Reconcile with Paystack" to fetch the latest status.',
+    };
+  }
+  for (const entry of ERROR_MAP) {
+    if (entry.match.test(r)) return { title: entry.title, hint: entry.hint };
+  }
+  // Fall back to the raw message — still useful for engineers in the audit
+  // trail, and the title says "Transfer rejected" so the UI has something
+  // friendly to display above the raw text.
+  return { title: 'Transfer rejected', hint: r };
+}
+
 export interface ResolveResult {
   account_name: string;
   account_number: string;

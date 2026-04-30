@@ -18,6 +18,7 @@ import {
   paystackTransferFee,
   stampDutyFor,
   buildNarration,
+  friendlyPaystackError,
   type NarrationKind,
 } from '@/lib/paystack';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
@@ -1448,15 +1449,21 @@ const BatchDetail = () => {
             </span>
           </div>
           {processResults.failed > 0 && items.filter((i) => i.status === 'failed').length > 0 && (
-            <div className="space-y-1 pt-1 border-t border-border/40">
+            <div className="space-y-2 pt-1 border-t border-border/40">
               {items
                 .filter((i) => i.status === 'failed')
-                .map((i) => (
-                  <div key={i.id} className="flex items-start gap-2 text-xs text-destructive">
-                    <span className="font-semibold shrink-0">{i.full_name || 'Unknown'}:</span>
-                    <span>{i.failure_reason || 'Transfer rejected'}</span>
-                  </div>
-                ))}
+                .map((i) => {
+                  const f = friendlyPaystackError(i.failure_reason);
+                  return (
+                    <div key={i.id} className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <span className="font-semibold text-destructive">{i.full_name || 'Unknown'}</span>
+                        <span className="font-medium text-destructive/80">{f.title}</span>
+                      </div>
+                      <p className="text-muted-foreground">{f.hint}</p>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
@@ -1493,9 +1500,18 @@ const BatchDetail = () => {
                   >
                     <TableCell className="font-medium">
                       <div>{item.full_name || 'Unknown Recipient'}</div>
-                      {item.failure_reason && (
-                        <p className="text-[11px] text-destructive mt-0.5">{item.failure_reason}</p>
-                      )}
+                      {item.failure_reason && (() => {
+                        const f = friendlyPaystackError(item.failure_reason);
+                        return (
+                          <p
+                            className="text-[11px] text-destructive mt-0.5"
+                            title={item.failure_reason}
+                          >
+                            <span className="font-semibold">{f.title}.</span>{' '}
+                            <span className="text-muted-foreground">{f.hint}</span>
+                          </p>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
