@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -10,6 +10,8 @@ import {
   Pencil,
   Trash2,
   Info,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -64,7 +66,15 @@ import {
 } from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
 
-type Kind = 'paye' | 'pension' | 'vat' | 'wht' | 'tcc' | 'cac' | 'itf' | 'nsitf';
+type Kind = 'paye' | 'pension' | 'vat' | 'wht' | 'tcc' | 'cac' | 'itf' | 'nsitf' | 'nhf';
+
+interface PensionPfaSlice {
+  pfa: string;
+  rsa_count: number;
+  employee_amount_ngn: number;
+  employer_amount_ngn: number;
+  total_amount_ngn: number;
+}
 
 interface ComplianceFiling {
   id: string;
@@ -77,11 +87,15 @@ interface ComplianceFiling {
   reference: string | null;
   notes: string | null;
   status: 'upcoming' | 'due' | 'overdue' | 'filed';
+  payroll_run_id: string | null;
+  auto_calculated_at: string | null;
+  breakdown_json: PensionPfaSlice[] | any[] | null;
 }
 
 const KIND_LABELS: Record<Kind, string> = {
   paye: 'PAYE',
   pension: 'Pension',
+  nhf: 'NHF',
   vat: 'VAT',
   wht: 'WHT',
   tcc: 'Tax Clearance Certificate',
@@ -93,12 +107,13 @@ const KIND_LABELS: Record<Kind, string> = {
 const KIND_NOTES: Record<Kind, string> = {
   paye: 'File PAYE return for previous month by the 10th',
   pension: 'Remit pension contributions by the 7th',
+  nhf: 'Remit NHF (2.5%) to Federal Mortgage Bank',
   vat: 'File monthly VAT return by the 21st',
   wht: 'Quarterly withholding tax remittance',
   tcc: 'Renew annual Tax Clearance Certificate',
   cac: 'File annual return with CAC',
   itf: 'ITF levy annual contribution',
-  nsitf: 'NSITF monthly contribution',
+  nsitf: 'NSITF monthly contribution (1% of payroll)',
 };
 
 // Compute the default due date for a kind + period (yyyy-mm or yyyy).
@@ -123,6 +138,7 @@ const dueDateFor = (kind: Kind, period: string): string => {
     return toIsoDate(new Date(y, qEndMonth, 21));
   }
   if (kind === 'nsitf') return toIsoDate(new Date(next.getFullYear(), next.getMonth(), 15));
+  if (kind === 'nhf') return toIsoDate(new Date(next.getFullYear(), next.getMonth(), 14));
   return toIsoDate(next);
 };
 
@@ -168,6 +184,7 @@ const Compliance = () => {
   const [editingFiling, setEditingFiling] = useState<ComplianceFiling | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ComplianceFiling | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
@@ -206,7 +223,7 @@ const Compliance = () => {
       const batch: Array<{ kind: Kind; period: string; due_date: string }> = [];
       for (let i = 1; i <= 3; i++) {
         const period = monthOf(i);
-        for (const k of ['paye', 'pension', 'vat', 'nsitf'] as Kind[]) {
+        for (const k of ['paye', 'pension', 'vat', 'nsitf', 'nhf'] as Kind[]) {
           batch.push({ kind: k, period, due_date: dueDateFor(k, period) });
         }
       }
@@ -456,10 +473,45 @@ const Compliance = () => {
               <TableBody>
                 {rows.map((r) => {
                   const d = daysUntil(r.due_date);
+                  const isAuto = !!r.payroll_run_id;
+                  const pfaSlices: PensionPfaSlice[] = (r.kind === 'pension' && Array.isArray(r.breakdown_json))
+                    ? (r.breakdown_json as PensionPfaSlice[])
+                    : [];
+                  const expandable = pfaSlices.length > 0;
+                  const isExpanded = expandedId === r.id;
                   return (
-                    <TableRow key={r.id} className="kd-transition">
+                    <Fragment key={r.id}>
+                    <TableRow className="kd-transition">
                       <TableCell>
-                        <p className="font-medium">{KIND_LABELS[r.kind]}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{KIND_LABELS[r.kind]}</p>
+                          {isAuto && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px] px-1.5 py-0 h-5 gap-1">
+                                  <Sparkles className="h-3 w-3" /> Auto
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                Auto-calculated from approved payroll for {r.period}
+                                {r.auto_calculated_at && (
+                                  <p className="text-[10px] opacity-70 mt-1">Last refreshed {formatDate(r.auto_calculated_at)}</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          {expandable && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 px-1 text-[10px]"
+                              onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                            >
+                              <ChevronDown className={cn('h-3 w-3 transition-transform', isExpanded && 'rotate-180')} />
+                              {pfaSlices.length} PFA{pfaSlices.length === 1 ? '' : 's'}
+                            </Button>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">{KIND_NOTES[r.kind]}</p>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{r.period}</TableCell>
@@ -539,6 +591,42 @@ const Compliance = () => {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {isExpanded && expandable && (
+                      <TableRow className="bg-muted/30">
+                        <TableCell colSpan={6} className="py-3">
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                              Per-PFA breakdown — one remittance per PFA
+                            </p>
+                            <div className="rounded-md border bg-background overflow-hidden">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="text-xs">PFA</TableHead>
+                                    <TableHead className="text-xs text-right">RSAs</TableHead>
+                                    <TableHead className="text-xs text-right">Employee 8%</TableHead>
+                                    <TableHead className="text-xs text-right">Employer 10%</TableHead>
+                                    <TableHead className="text-xs text-right">Total</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {pfaSlices.map((s, i) => (
+                                    <TableRow key={`${r.id}-${i}`}>
+                                      <TableCell className="text-sm font-medium">{s.pfa}</TableCell>
+                                      <TableCell className="text-sm text-right">{s.rsa_count}</TableCell>
+                                      <TableCell className="text-sm text-right currency">{formatNaira(s.employee_amount_ngn)}</TableCell>
+                                      <TableCell className="text-sm text-right currency">{formatNaira(s.employer_amount_ngn)}</TableCell>
+                                      <TableCell className="text-sm text-right currency font-semibold">{formatNaira(s.total_amount_ngn)}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    </Fragment>
                   );
                 })}
               </TableBody>

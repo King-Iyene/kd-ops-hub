@@ -33,6 +33,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { logAudit } from '@/lib/audit';
+import { notifyChannels } from '@/lib/notify';
 import {
   formatDate,
   formatDateTime,
@@ -69,6 +70,14 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+// Statutory rates and PAYE math live in @/lib/tax (Nigeria Tax Act 2025).
+// Aliased to the names already used throughout this file to keep the diff small.
+import {
+  PENSION_EMPLOYEE_RATE as PENSION_RATE,
+  PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE,
+  NHF_RATE,
+  calculatePAYE as calculateNigerianPAYE,
+} from '@/lib/tax';
 import {
   createTransferRecipient,
   initiateTransferIdempotent,
@@ -122,31 +131,6 @@ interface PayrollRun {
   status: 'draft' | 'pending_approval' | 'approved' | 'paid';
   created_at: string;
   approved_by: string | null;
-}
-
-const PENSION_RATE = 0.08;           // 8% employee contribution
-const EMPLOYER_PENSION_RATE = 0.10;  // 10% employer contribution
-const NHF_RATE = 0.025;              // 2.5%
-
-function calculateNigerianPAYE(monthlySalaryNgn: number): number {
-  const annualGross = monthlySalaryNgn * 12;
-  const bands = [
-    { limit: 300_000,   rate: 0.07 },
-    { limit: 300_000,   rate: 0.11 },
-    { limit: 500_000,   rate: 0.15 },
-    { limit: 500_000,   rate: 0.19 },
-    { limit: 1_600_000, rate: 0.21 },
-    { limit: Infinity,  rate: 0.24 },
-  ];
-  let remaining = annualGross;
-  let annualTax = 0;
-  for (const band of bands) {
-    if (remaining <= 0) break;
-    const taxable = Math.min(remaining, band.limit);
-    annualTax += taxable * band.rate;
-    remaining -= taxable;
-  }
-  return annualTax / 12;
 }
 
 const monthLabel = (period: string, periodType?: string): string => {
@@ -424,13 +408,35 @@ const Payroll = () => {
       toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
       return;
     }
+
+    // Compliance Autopilot: writes PAYE / pension / NHF / NSITF rows into
+    // compliance_filings for this period with the actual amounts and a
+    // per-PFA pension breakdown. Never blocks approval if it fails — the
+    // operator can re-trigger from the Compliance page.
+    const { data: autoSummary, error: autoErr } = await supabase.rpc(
+      'auto_populate_filings_from_payroll',
+      { p_payroll_run_id: run.id },
+    );
+    if (autoErr) {
+      toast({
+        title: 'Approved — compliance auto-fill failed',
+        description: `${autoErr.message}. You can refresh the Compliance page to retry.`,
+        variant: 'destructive',
+      });
+    }
+
     await logAudit(
       'payroll_approved',
       `Payroll ${monthLabel(run.period)} approved (${formatNaira(run.total_burn_ngn)})`,
       profile,
     );
     burst({ palette: 'success', count: 70 });
-    toast({ title: 'Payroll approved' });
+    toast({
+      title: 'Payroll approved',
+      description: autoSummary
+        ? `Compliance filings auto-populated for ${run.period}.`
+        : 'Payroll is now ready to disburse.',
+    });
     load();
   };
 
@@ -464,10 +470,11 @@ const Payroll = () => {
         .maybeSingle();
       const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
 
-      // Fetch all active employee deductions and advances for this period in one batch
+      // Fetch all active employee deductions, advances, AND outstanding EWA
+      // requests that need to be settled this period in one batch.
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
-      const [{ data: allDeductions }, { data: allAdvances }] = await Promise.all([
+      const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }] = await Promise.all([
         supabase
           .from('employee_deductions')
           .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
@@ -480,6 +487,11 @@ const Payroll = () => {
           .select('id, employee_id, deduction_per_month, outstanding_ngn')
           .eq('status', 'active')
           .lte('start_period', run.period),
+        supabase
+          .from('ewa_requests')
+          .select('id, employee_id, amount_ngn, status')
+          .eq('settlement_period', run.period)
+          .in('status', ['approved', 'disbursed']),
       ]);
 
       // Group deductions by employee id, excluding capped ones
@@ -496,6 +508,14 @@ const Payroll = () => {
         if (Number(a.outstanding_ngn || 0) <= 0) continue;
         if (!advancesByEmployee.has(a.employee_id)) advancesByEmployee.set(a.employee_id, []);
         advancesByEmployee.get(a.employee_id)!.push(a);
+      }
+
+      // Group outstanding EWA by employee id — these are settled in full
+      // against this payroll run by deducting the amount from net pay.
+      const ewaByEmployee = new Map<string, any[]>();
+      for (const w of (allEwa || [])) {
+        if (!ewaByEmployee.has(w.employee_id)) ewaByEmployee.set(w.employee_id, []);
+        ewaByEmployee.get(w.employee_id)!.push(w);
       }
 
       let succeeded = 0;
@@ -518,15 +538,21 @@ const Payroll = () => {
             (s: number, a: any) => s + Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
             0,
           );
-          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal);
+          const empEwa = ewaByEmployee.get(e.id) || [];
+          const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
+          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal - empEwaTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
-          // Build combined extra_deductions list for payslip (deductions + advance repayments)
+          // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements)
           const allEmpDeductionLines = [
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
               description: 'Salary Advance Repayment',
               amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+            })),
+            ...empEwa.map((w: any) => ({
+              description: 'Earned Wage Access (mid-month draw)',
+              amount_ngn: Number(w.amount_ngn || 0),
             })),
           ];
 
@@ -568,24 +594,23 @@ const Payroll = () => {
               pension_ngn: empPension,
               nhf_ngn: empNhf,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal,
-              deductions_json: [
-                ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
-                ...empAdvances.map((a: any) => ({
-                  advance_id: a.id,
-                  description: 'Salary Advance Repayment',
-                  amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
-                })),
-              ].length > 0
-                ? [
-                    ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
-                    ...empAdvances.map((a: any) => ({
-                      advance_id: a.id,
-                      description: 'Salary Advance Repayment',
-                      amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
-                    })),
-                  ]
-                : null,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal,
+              deductions_json: (() => {
+                const lines = [
+                  ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
+                  ...empAdvances.map((a: any) => ({
+                    advance_id: a.id,
+                    description: 'Salary Advance Repayment',
+                    amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+                  })),
+                  ...empEwa.map((w: any) => ({
+                    ewa_request_id: w.id,
+                    description: 'Earned Wage Access (mid-month draw)',
+                    amount_ngn: Number(w.amount_ngn || 0),
+                  })),
+                ];
+                return lines.length > 0 ? lines : null;
+              })(),
               file_url: urlData.publicUrl,
               storage_path: path,
               generated_by: profile?.id || null,
@@ -595,18 +620,27 @@ const Payroll = () => {
           if (upsertErr) throw upsertErr;
 
           succeeded++;
-          // Best-effort SMS — never blocks if Termii key is missing or phone is null.
-          try {
-            if (e.phone) {
-              await supabase.functions.invoke('send-email', {
-                body: {
-                  channel: 'sms',
-                  to: (e.phone as string).replace(/^\+/, ''),
-                  message: `Your payslip for ${monthLabel(run.period)} is ready. Net pay: ₦${empNet.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Log in to KDOps to view it.`,
-                },
-              });
-            }
-          } catch { /* SMS is best-effort */ }
+          // Multi-channel notification (in-app + WhatsApp + optional SMS).
+          // Respects each user's notification_preferences.whatsapp_payslip /
+          // sms_payslip toggles, validates the NG phone format, and dedups
+          // re-runs via the per-(payroll, employee) idempotency key.
+          notifyChannels({
+            user: {
+              id: e.id,
+              full_name: empName,
+              email: e.email,
+              phone: e.phone,
+            },
+            category: 'payslip',
+            kind: 'payslip_ready',
+            payload: {
+              name: empName,
+              period: monthLabel(run.period),
+              net_ngn: empNet,
+              url: urlData.publicUrl,
+            },
+            idempotencyKey: `payslip_ready:${run.id}:${e.id}`,
+          });
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
@@ -618,6 +652,22 @@ const Payroll = () => {
         `Generated ${succeeded} payslip(s) for ${monthLabel(run.period)}${failed ? ` (${failed} failed)` : ''}`,
         profile,
       );
+
+      // Settle every approved/disbursed EWA request that was deducted above —
+      // flips status to 'settled' so it doesn't get double-deducted next month.
+      if ((allEwa || []).length > 0) {
+        const { error: settleErr } = await supabase.rpc('settle_ewa_for_payroll', {
+          p_payroll_run_id: run.id,
+        });
+        if (settleErr) {
+          console.warn('[KDOps] EWA settlement RPC failed:', settleErr.message);
+          toast({
+            title: 'Payslips generated, but EWA settlement failed',
+            description: `Some EWA requests are still marked unsettled: ${settleErr.message}`,
+            variant: 'destructive',
+          });
+        }
+      }
 
       if (failed > 0) {
         toast({
