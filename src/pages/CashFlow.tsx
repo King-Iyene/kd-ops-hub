@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { Activity, AlertTriangle, Banknote, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
 
-import { PageHeader } from '@/components/PageHeader';
+import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
