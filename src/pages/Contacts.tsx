@@ -13,6 +13,10 @@ import {
   Trash2,
   Link as LinkIcon,
   Info,
+  Send,
+  FlaskConical,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -65,6 +69,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Download } from 'lucide-react';
+import { parseNigerianPhone } from '@/lib/phone';
 
 type ContactType = 'lead' | 'student' | 'contact' | 'partner';
 type ContactStatus = 'new' | 'contacted' | 'qualified' | 'converted' | 'lost';
@@ -370,6 +375,9 @@ const Contacts = () => {
         <TabsList>
           <TabsTrigger value="contacts"><Users className="mr-2 h-4 w-4" /> Contacts</TabsTrigger>
           <TabsTrigger value="whatsapp"><MessageSquare className="mr-2 h-4 w-4" /> WhatsApp Groups</TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="test-notify"><FlaskConical className="mr-2 h-4 w-4" /> Test Notifications</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="contacts" className="mt-4 space-y-4">
@@ -594,6 +602,12 @@ const Contacts = () => {
         <TabsContent value="whatsapp" className="mt-4">
           <WhatsAppGroupsTab />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="test-notify" className="mt-4">
+            <NotifyTestTab contacts={contacts} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={dialog} onOpenChange={(v) => { setDialog(v); if (!v) reset(); }}>
@@ -963,5 +977,189 @@ export function WhatsAppGroupsTab() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Notification Test Panel — temporary tool for verifying Termii / Resend
+// ---------------------------------------------------------------------------
+
+type TestChannel = 'sms' | 'whatsapp' | 'email';
+
+interface TestResult {
+  ok: boolean;
+  message: string;
+}
+
+function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
+  const { toast } = useToast();
+  const [contactId, setContactId] = useState('');
+  const [channel, setChannel] = useState<TestChannel>('whatsapp');
+  const [message, setMessage] = useState('Hi, this is a test message from KD Squares. Please ignore.');
+  const [emailSubject, setEmailSubject] = useState('KD Squares — Test Notification');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<TestResult | null>(null);
+
+  const selected = contacts.find((c) => c.id === contactId) ?? null;
+  const phoneInfo = parseNigerianPhone(selected?.phone);
+  const canSendPhone = channel !== 'email' && phoneInfo.ok;
+  const canSendEmail = channel === 'email' && !!selected?.email;
+  const canSend = selected && (canSendPhone || canSendEmail) && message.trim();
+
+  const handleSend = async () => {
+    if (!canSend || !selected) return;
+    setSending(true);
+    setResult(null);
+    try {
+      let body: Record<string, string>;
+      if (channel === 'email') {
+        body = {
+          channel: 'email',
+          to: selected.email!,
+          subject: emailSubject,
+          html: `<p>${message.replace(/\n/g, '<br/>')}</p><p style="color:#888;font-size:12px">Test sent via KD Ops — Contacts › Test Notifications</p>`,
+        };
+      } else {
+        body = {
+          channel,
+          to: phoneInfo.termii!,
+          message: message.trim(),
+        };
+      }
+
+      const { data, error } = await supabase.functions.invoke('send-email', { body });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.ok === false) throw new Error((data as any)?.error ?? 'Send failed');
+
+      const devSkip = (data as any)?.dev_skip === true;
+      const msgId = (data as any)?.message_id ?? (data as any)?.id ?? null;
+      setResult({
+        ok: true,
+        message: devSkip
+          ? 'DEV MODE: secret not configured — no message sent (function returned dev_skip: true). Set TERMII_API_KEY or RESEND_API_KEY in Supabase secrets.'
+          : `Sent! ${msgId ? `Provider ID: ${msgId}` : ''}`,
+      });
+    } catch (err: any) {
+      setResult({ ok: false, message: err?.message ?? String(err) });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20">
+        <CardContent className="py-3 px-4 flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
+          <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>This panel is a <strong>temporary test tool</strong>. It calls the live <code>send-email</code> edge function directly and will send real messages. Delete the tab once Termii / Resend are confirmed working.</span>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Send a test notification</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1">
+            <Label>Contact</Label>
+            <Select value={contactId} onValueChange={(v) => { setContactId(v); setResult(null); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pick a contact…" />
+              </SelectTrigger>
+              <SelectContent>
+                {contacts.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.full_name} {c.phone ? `· ${c.phone}` : ''} {c.email ? `· ${c.email}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selected && (
+            <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs space-y-0.5">
+              <div><span className="text-muted-foreground">Phone: </span>
+                {selected.phone ? (
+                  phoneInfo.ok
+                    ? <span className="text-emerald-700 font-medium">{phoneInfo.termii} ✓ valid Termii number</span>
+                    : <span className="text-destructive">{selected.phone} — {phoneInfo.reason}</span>
+                ) : <span className="text-muted-foreground">none</span>}
+              </div>
+              <div><span className="text-muted-foreground">Email: </span>
+                {selected.email ?? <span className="text-muted-foreground">none</span>}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>Channel</Label>
+            <Select value={channel} onValueChange={(v) => { setChannel(v as TestChannel); setResult(null); }}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whatsapp">WhatsApp (Termii)</SelectItem>
+                <SelectItem value="sms">SMS (Termii)</SelectItem>
+                <SelectItem value="email">Email (Resend)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {channel === 'email' && (
+            <div className="space-y-1">
+              <Label>Subject</Label>
+              <Input
+                value={emailSubject}
+                onChange={(e) => setEmailSubject(e.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <Label>Message body</Label>
+            <Textarea
+              rows={4}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type your test message…"
+            />
+            {(channel === 'sms' || channel === 'whatsapp') && (
+              <p className="text-xs text-muted-foreground">{message.length} / 280 chars</p>
+            )}
+          </div>
+
+          {selected && !canSendPhone && channel !== 'email' && (
+            <p className="text-xs text-destructive">
+              {!selected.phone
+                ? 'This contact has no phone number.'
+                : phoneInfo.reason ?? 'Invalid phone number.'}
+            </p>
+          )}
+          {selected && channel === 'email' && !selected.email && (
+            <p className="text-xs text-destructive">This contact has no email address.</p>
+          )}
+
+          {result && (
+            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+              result.ok
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                : 'bg-destructive/10 border-destructive/30 text-destructive'
+            }`}>
+              {result.ok
+                ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+              <span className="whitespace-pre-wrap">{result.message}</span>
+            </div>
+          )}
+
+          <Button onClick={handleSend} disabled={!canSend || sending} className="w-full">
+            {sending
+              ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending…</>
+              : <><Send className="mr-2 h-4 w-4" /> Send test {channel === 'email' ? 'email' : channel === 'whatsapp' ? 'WhatsApp' : 'SMS'}</>
+            }
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
