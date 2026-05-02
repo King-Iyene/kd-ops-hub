@@ -125,9 +125,22 @@ serve(async (req) => {
         }),
       });
 
-      const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        // Termii returned non-JSON (e.g. HTML error page)
+        return new Response(
+          JSON.stringify({ ok: false, error: `Termii returned non-JSON response (HTTP ${res.status})` }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       if (!res.ok || data?.code === "error") {
-        throw new Error(data?.message ?? `Termii error (HTTP ${res.status})`);
+        return new Response(
+          JSON.stringify({ ok: false, error: data?.message ?? `Termii error (HTTP ${res.status})`, termii: data }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
 
       return new Response(
@@ -164,9 +177,21 @@ serve(async (req) => {
       body: JSON.stringify({ from, to: [to], subject, html }),
     });
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ ok: false, error: `Resend returned non-JSON response (HTTP ${res.status})` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     if (!res.ok) {
-      throw new Error(data?.message ?? `Resend error (HTTP ${res.status})`);
+      return new Response(
+        JSON.stringify({ ok: false, error: data?.message ?? `Resend error (HTTP ${res.status})`, resend: data }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     return new Response(
