@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
+import { MfaChallengeDialog } from '@/components/MfaChallengeDialog';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
@@ -98,9 +99,35 @@ const PageSpinner = () => (
   </div>
 );
 
+/**
+ * Renders the MFA challenge dialog whenever the auth store has an mfaPending
+ * row. After a successful verify the dialog clears mfaPending and re-fetches
+ * the profile so the rest of the app unlocks.
+ */
+function MfaChallengeGate() {
+  const mfaPending = useAuthStore((s) => s.mfaPending);
+  const setMfaPending = useAuthStore((s) => s.setMfaPending);
+  const setLoading = useAuthStore((s) => s.setLoading);
+  const user = useAuthStore((s) => s.user);
+  const fetchProfile = useAuthStore((s) => s.fetchProfile);
+  if (!mfaPending) return null;
+  return (
+    <MfaChallengeDialog
+      open
+      factorId={mfaPending.factorId}
+      onSuccess={async () => {
+        setMfaPending(null);
+        if (user) await fetchProfile(user.id);
+        setLoading(false);
+      }}
+    />
+  );
+}
+
 function AppRoutes() {
   return (
     <Suspense fallback={<PageSpinner />}>
+    <MfaChallengeGate />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />

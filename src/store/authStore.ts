@@ -45,10 +45,17 @@ interface AuthState {
    * database — only to sessionStorage so a refresh keeps the view.
    */
   viewAsRole: UserRole | null;
+  /**
+   * Set when the user has signed in but still needs to satisfy an MFA
+   * challenge before the app unlocks. Cleared on successful verify or
+   * sign-out. The MfaChallengeDialog watches this to render itself.
+   */
+  mfaPending: { factorId: string } | null;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   setLoading: (loading: boolean) => void;
   setViewAsRole: (role: UserRole | null) => void;
+  setMfaPending: (v: { factorId: string } | null) => void;
   signOut: () => Promise<void>;
   fetchProfile: (userId: string) => Promise<void>;
 }
@@ -59,9 +66,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: true,
   profileLoading: false,
   viewAsRole: loadViewAs(),
+  mfaPending: null,
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   setLoading: (loading) => set({ loading }),
+  setMfaPending: (v) => set({ mfaPending: v }),
   setViewAsRole: (role) => {
     // Only Super Admin can simulate — ignore calls from anyone else.
     const actualRole = get().profile?.role;

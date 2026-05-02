@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { listMfaFactors, isDeviceTrusted } from '@/lib/mfa';
 
 export const useAuth = () => {
   const { user, profile, loading, setUser, setLoading, fetchProfile } =
@@ -17,6 +18,27 @@ export const useAuth = () => {
     const finish = async (userId: string, redirectIfLogin: boolean) => {
       await fetchProfile(userId);
       const fetched = useAuthStore.getState().profile;
+
+      // ── MFA challenge gate ─────────────────────────────────────────────
+      // If the user opted into TOTP and this device isn't trusted, block
+      // the UI on a challenge. The dialog (mounted in App.tsx) clears
+      // mfaPending on success. Failure → user is signed out by the dialog.
+      try {
+        const f = await listMfaFactors();
+        if (f.totpEnrolled && f.factorId) {
+          const trusted = await isDeviceTrusted();
+          if (!trusted) {
+            useAuthStore.getState().setMfaPending({ factorId: f.factorId });
+            // Don't release the loading flag yet — MfaChallengeDialog will
+            // call setMfaPending(null) + setLoading(false) on success.
+            return;
+          }
+        }
+      } catch (e) {
+        // If the MFA check itself errors, fail open: log and continue. The
+        // alternative is locking the user out on a transient network blip.
+        console.warn('[KDOps] MFA check failed:', e);
+      }
 
       // No profile row found. Before rejecting, try the self-healing RPC which
       // creates the profile from pending_invites. This handles cases where the
