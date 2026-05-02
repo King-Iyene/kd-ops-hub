@@ -919,31 +919,6 @@ const SettingsPage = () => {
         <TabsContent value="policy" className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Approval thresholds</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-1">
-                <Label>Dual approval required above (₦) <InfoTip text="Payment batches above this amount need two approvers before processing. Set to 0 to require dual approval for all batches." /></Label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={settings.dual_approval_threshold_ngn}
-                  onChange={(e) =>
-                    patch({
-                      dual_approval_threshold_ngn: Number(e.target.value) || 0,
-                    })
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Payment batches with a total above this amount require a
-                  second approver. Currently {formatNaira(settings.dual_approval_threshold_ngn)}.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-base">Expense category limits</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
                 Per-category caps on what staff can submit. Categories without a

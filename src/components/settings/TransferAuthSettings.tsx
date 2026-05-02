@@ -124,35 +124,50 @@ export default function TransferAuthSettings() {
   // ── Audit ────────────────────────────────────────────────────────────
   const [audit, setAudit] = useState<TransferAuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [limitsError, setLimitsError] = useState<string | null>(null);
+  const [migrationMissing, setMigrationMissing] = useState(false);
 
   const reloadAll = async () => {
     setLimitsLoading(true);
     setAuditLoading(true);
-    try {
-      const [t, l, a, p] = await Promise.all([
-        fetchHighValueThreshold(),
-        listTransferLimits(),
-        fetchRecentTransferAudit(50),
-        supabase
-          .from('profiles')
-          .select('id, full_name, email, role')
-          .in('role', ['super_admin', 'admin', 'finance'])
-          .order('full_name'),
-      ]);
-      setThreshold(t);
-      setLimits(l);
-      setAudit(a);
-      setProfiles(((p as any).data ?? []) as ProfileLite[]);
-    } catch (e: any) {
-      toast({
-        title: 'Failed to load transfer settings',
-        description: e?.message ?? String(e),
-        variant: 'destructive',
-      });
-    } finally {
-      setLimitsLoading(false);
-      setAuditLoading(false);
+    setAuditError(null);
+    setLimitsError(null);
+    setMigrationMissing(false);
+
+    // Run independently so a missing table only breaks its own section.
+    const [tRes, lRes, aRes, pRes] = await Promise.allSettled([
+      fetchHighValueThreshold(),
+      listTransferLimits(),
+      fetchRecentTransferAudit(50),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, role')
+        .in('role', ['super_admin', 'admin', 'finance'])
+        .order('full_name'),
+    ]);
+
+    if (tRes.status === 'fulfilled') setThreshold(tRes.value);
+    if (lRes.status === 'fulfilled') {
+      setLimits(lRes.value);
+    } else {
+      const msg = (lRes.reason as any)?.message ?? String(lRes.reason);
+      setLimitsError(msg);
+      if (/transfer_limits/i.test(msg)) setMigrationMissing(true);
     }
+    if (aRes.status === 'fulfilled') {
+      setAudit(aRes.value);
+    } else {
+      const msg = (aRes.reason as any)?.message ?? String(aRes.reason);
+      setAuditError(msg);
+      if (/transfer_audit/i.test(msg)) setMigrationMissing(true);
+    }
+    if (pRes.status === 'fulfilled') {
+      setProfiles(((pRes.value as any).data ?? []) as ProfileLite[]);
+    }
+
+    setLimitsLoading(false);
+    setAuditLoading(false);
   };
 
   useEffect(() => {
@@ -262,6 +277,20 @@ export default function TransferAuthSettings() {
 
   return (
     <div className="space-y-6">
+      {migrationMissing && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-medium">Migration not yet applied</p>
+            <p className="text-xs">
+              The <code>transfer_limits</code> / <code>transfer_audit</code> tables don't exist in this database yet.
+              Apply migration <code>20260807000000_transfer_safety.sql</code> via Supabase Dashboard → Database →
+              Migrations (or <code>supabase db push</code> in CI). Threshold + role list will work once the migration runs.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Intro */}
       <Card>
         <CardHeader className="pb-3">
@@ -328,6 +357,8 @@ export default function TransferAuthSettings() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading caps…
             </div>
+          ) : limitsError && !migrationMissing ? (
+            <p className="text-sm text-rose-600">{limitsError}</p>
           ) : (
             <Table>
               <TableHeader>
@@ -530,6 +561,8 @@ export default function TransferAuthSettings() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading audit…
             </div>
+          ) : auditError && !migrationMissing ? (
+            <p className="text-sm text-rose-600">{auditError}</p>
           ) : audit.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No transfer activity yet.</p>
           ) : (
