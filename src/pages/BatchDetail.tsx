@@ -298,6 +298,7 @@ const BatchDetail = () => {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [recurDay, setRecurDay] = useState<number>(1);
   const [recurCustomDays, setRecurCustomDays] = useState(30);
+  const [highValueThreshold, setHighValueThreshold] = useState<number | null>(null);
   const itemsRef = useRef<any[]>([]);
 
   useEffect(() => {
@@ -348,12 +349,14 @@ const BatchDetail = () => {
 
   useEffect(() => {
     fetchBatch();
-    supabase.from('company_settings').select('company_name, logo_url')
+    supabase.from('company_settings').select('company_name, logo_url, transfer_high_value_threshold_ngn')
       .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
       .then(({ data: cs }) => {
         if (cs) {
           setCompanyName((cs as any).company_name || 'KD Squares Ltd');
           setLogoUrl((cs as any).logo_url || null);
+          const t = (cs as any).transfer_high_value_threshold_ngn;
+          setHighValueThreshold(typeof t === 'number' ? t : Number(t) || null);
         }
       })
       .catch((err) => console.warn('[KDOps] company settings fetch failed:', err));
@@ -1212,6 +1215,15 @@ const BatchDetail = () => {
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl font-bold tracking-tight truncate">{batch.name}</h1>
                 <StatusBadge status={batch.status} />
+                {highValueThreshold !== null
+                  && Number(batch.total_amount || 0) > highValueThreshold && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400"
+                    title={`Total exceeds the configured high-value threshold of ${formatNaira(highValueThreshold)}. Review carefully before processing.`}
+                  >
+                    ⚠ High value
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">{batch.period || 'No period set'}</p>
             </div>

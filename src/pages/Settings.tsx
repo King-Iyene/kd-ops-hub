@@ -83,6 +83,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -363,6 +364,9 @@ const SettingsPage = () => {
           <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
           <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
+          {profile?.role === 'super_admin' && (
+            <TabsTrigger value="transfer_auth" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Wallet className="mr-2 h-4 w-4" /> Transfer Authorization</TabsTrigger>
+          )}
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
           )}
@@ -1128,6 +1132,19 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* TRANSFER AUTHORIZATION (super admin only) -------------------- */}
+        <TabsContent value="transfer_auth" className="mt-4 space-y-4">
+          {profile?.role === 'super_admin' ? (
+            <TransferAuthSettings />
+          ) : (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">
+                Transfer Authorization is only visible to Super Admins.
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* SECURITY ----------------------------------------------------- */}
