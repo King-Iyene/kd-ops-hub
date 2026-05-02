@@ -24,6 +24,7 @@ import {
   Target,
   Gift,
   Contact2,
+  Mail,
   Building2,
   ArrowUpDown,
   Layers,
@@ -112,6 +113,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
   // Admin
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
@@ -125,7 +127,7 @@ const GROUPS = [
   { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Anomalies', 'Cash Flow'] },
   { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
-  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals'] },
+  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
 ] as const;
 

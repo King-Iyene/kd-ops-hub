@@ -37,6 +37,7 @@ const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
 const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
 const Anomalies        = lazy(() => import('./pages/Anomalies'));
+const Communications   = lazy(() => import('./pages/Communications'));
 const CashFlow         = lazy(() => import('./pages/CashFlow'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
@@ -533,6 +534,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Contacts />
+            </RoleGuard>
+          }
+        />
+
+        {/* Communications composer — admin / super_admin / finance only. */}
+        <Route
+          path="/communications"
+          element={
+            <RoleGuard roles={['super_admin','admin','finance']}>
+              <Communications />
             </RoleGuard>
           }
         />
