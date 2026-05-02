@@ -103,6 +103,67 @@
     --tod-glow:     186 100% 50%;
     --tod-greeting: 'Working late';
   }
+
+  /* ─── Dark mode ─────────────────────────────────────────────────────────
+     Triggered by next-themes writing class="dark" on <html>. ONLY overrides
+     surface / text / border colors — does NOT touch --tod-*, so the
+     time-of-day aurora gradient still works. The aurora is naturally
+     brighter against dark surfaces, so we don't tune those values; if it
+     ever feels too intense, dial down the alphas in the .aurora-bg
+     gradients further down (currently 0.65 / 0.55 / 0.45). */
+  html.dark {
+    --background: 200 30% 8%;          /* near-black with brand teal tint */
+    --foreground: 200 25% 92%;
+
+    --card: 200 30% 11%;
+    --card-foreground: 200 25% 92%;
+
+    --popover: 200 30% 11%;
+    --popover-foreground: 200 25% 92%;
+
+    /* Primary stays brand-true; nudge a touch lighter for contrast on dark. */
+    --primary: 200 80% 55%;
+    --primary-foreground: 201 100% 8%;
+
+    --secondary: 186 80% 45%;
+    --secondary-foreground: 201 100% 8%;
+
+    --muted: 200 25% 15%;
+    --muted-foreground: 200 15% 60%;
+
+    --accent: 41 62% 58%;
+    --accent-foreground: 201 100% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 25% 18%;
+    --input: 200 25% 16%;
+    --ring: 186 100% 55%;
+
+    /* Sidebar in dark mode keeps the dark-on-dark aesthetic with a touch
+       more contrast against the body so navigation always reads. */
+    --sidebar-background: 200 35% 6%;
+    --sidebar-foreground: 200 25% 88%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 200 100% 29%;
+    --sidebar-accent: 200 50% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 200 30% 14%;
+    --sidebar-ring: 186 100% 55%;
+
+    --success: 152 55% 45%;
+    --warning: 38 90% 55%;
+    --info: 200 90% 55%;
+
+    /* Elevation: drop the colored shadows in dark mode — they read as
+       glow, which conflicts with the aurora. Use dark-on-dark instead. */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -1px rgb(0 0 0 / 0.4);
+    --shadow-lg: 0 10px 28px -4px rgb(0 0 0 / 0.6), 0 4px 8px -2px rgb(0 0 0 / 0.4);
+    --shadow-xl: 0 20px 48px -8px rgb(0 0 0 / 0.7), 0 8px 16px -4px rgb(0 0 0 / 0.4);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 4px 16px -2px hsl(var(--primary) / 0.4);
+  }
 }
 
 @layer base {

@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ProfileDropdown } from '@/components/ProfileDropdown';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { ViewAsBanner } from '@/components/ViewAsBanner';
 import { MobileNav } from '@/components/MobileNav';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -123,6 +124,7 @@ export default function AppLayout() {
                 </kbd>
               </button>
               <NotificationBell />
+              <ThemeToggle />
               <div className="w-px h-4 bg-border/60" />
               <ProfileDropdown />
             </div>

@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "next-themes";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -80,4 +81,20 @@ if (
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// ── Theme provider ─────────────────────────────────────────────────────
+//
+// next-themes adds a `class="light|dark"` attribute on <html> based on user
+// choice (or system). It is INDEPENDENT from the `data-tod` attribute used
+// by useTimeOfDay(): time-of-day controls the decorative aurora gradient,
+// theme controls surface colors. The two compose — morning aurora still
+// shines over the dark UI in night mode, just at a tuned-down intensity
+// (see html.dark overrides in index.css).
+//
+// `attribute="class"` matches the Tailwind `darkMode: ["class"]` config.
+// `defaultTheme="system"` honours the OS preference on first load; user
+// pick is then persisted in localStorage by next-themes.
+createRoot(document.getElementById("root")!).render(
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <App />
+  </ThemeProvider>,
+);
