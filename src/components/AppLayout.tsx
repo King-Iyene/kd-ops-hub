@@ -13,6 +13,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 import { Search } from 'lucide-react';
 
 const PORTAL_LABELS: Record<string, { label: string; color: string }> = {
@@ -68,6 +69,8 @@ export default function AppLayout() {
   const pageTitle = getRouteTitle(location.pathname);
   // Sets <html data-tod="…"> so CSS picks up ambient palette shifts.
   useTimeOfDay();
+  // Idle-timeout enforcement (reads company_settings.session_timeout_minutes).
+  useIdleTimeout();
 
   const openCommandPalette = () => {
     window.dispatchEvent(
