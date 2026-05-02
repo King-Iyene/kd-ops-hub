@@ -43,24 +43,6 @@ export interface CapCheckResult {
   used_month_ngn: number;
 }
 
-export async function fetchHighValueThreshold(): Promise<number> {
-  const { data } = await supabase
-    .from('company_settings')
-    .select('transfer_high_value_threshold_ngn')
-    .eq('id', SETTINGS_SINGLETON_ID)
-    .maybeSingle();
-  const v = (data as any)?.transfer_high_value_threshold_ngn;
-  return typeof v === 'number' ? v : Number(v) || 1_000_000;
-}
-
-export async function updateHighValueThreshold(value: number): Promise<void> {
-  const { error } = await supabase
-    .from('company_settings')
-    .update({ transfer_high_value_threshold_ngn: value })
-    .eq('id', SETTINGS_SINGLETON_ID);
-  if (error) throw error;
-}
-
 export async function listTransferLimits(): Promise<TransferLimit[]> {
   const { data, error } = await supabase
     .from('transfer_limits')

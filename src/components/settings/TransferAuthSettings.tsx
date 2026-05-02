@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  Info,
   RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,8 +46,6 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import {
-  fetchHighValueThreshold,
-  updateHighValueThreshold,
   listTransferLimits,
   upsertTransferLimit,
   deleteTransferLimit,
@@ -103,10 +100,6 @@ const outcomeBadge = (outcome: string) => {
 export default function TransferAuthSettings() {
   const { toast } = useToast();
 
-  // ── Threshold ───────────────────────────────────────────────────────
-  const [threshold, setThreshold] = useState<number>(1_000_000);
-  const [thresholdSaving, setThresholdSaving] = useState(false);
-
   // ── Caps ─────────────────────────────────────────────────────────────
   const [limits, setLimits] = useState<TransferLimit[]>([]);
   const [limitsLoading, setLimitsLoading] = useState(true);
@@ -136,8 +129,7 @@ export default function TransferAuthSettings() {
     setMigrationMissing(false);
 
     // Run independently so a missing table only breaks its own section.
-    const [tRes, lRes, aRes, pRes] = await Promise.allSettled([
-      fetchHighValueThreshold(),
+    const [lRes, aRes, pRes] = await Promise.allSettled([
       listTransferLimits(),
       fetchRecentTransferAudit(50),
       supabase
@@ -147,7 +139,6 @@ export default function TransferAuthSettings() {
         .order('full_name'),
     ]);
 
-    if (tRes.status === 'fulfilled') setThreshold(tRes.value);
     if (lRes.status === 'fulfilled') {
       setLimits(lRes.value);
     } else {
@@ -196,18 +187,6 @@ export default function TransferAuthSettings() {
     for (const p of profiles) m.set(p.id, p);
     return m;
   }, [profiles]);
-
-  const handleSaveThreshold = async () => {
-    setThresholdSaving(true);
-    try {
-      await updateHighValueThreshold(threshold);
-      toast({ title: 'Threshold saved', description: `High-value flag triggers above ${formatNaira(threshold)}.` });
-    } catch (e: any) {
-      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
-    } finally {
-      setThresholdSaving(false);
-    }
-  };
 
   const handleSaveRoleLimit = async (role: Role) => {
     const existing = roleRows[role];
@@ -301,46 +280,13 @@ export default function TransferAuthSettings() {
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
           <p>
-            Controls how Paystack transfers are guarded. The <strong>high-value threshold</strong> is a visual
-            warning only — it never blocks. <strong>Caps</strong> are enforced server-side on every transfer
-            attempt and on the bulk-transfer total.
+            Per-role / per-user <strong>caps</strong> are enforced server-side on every transfer attempt and on
+            the bulk-transfer total. User-level overrides win over role defaults.
           </p>
           <p className="text-xs">
-            User-level overrides win over role defaults. Leave any cap blank for "no limit". Set to <code>0</code>{' '}
-            to fully suspend a user from initiating transfers.
+            Leave any cap blank for "no limit". Set to <code>0</code> to fully suspend a user from initiating
+            transfers.
           </p>
-        </CardContent>
-      </Card>
-
-      {/* Threshold */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">High-value threshold</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
-            <div className="space-y-1">
-              <Label htmlFor="threshold-input" className="text-xs">
-                Above this NGN amount, batches are flagged "High value" on the review screen.
-              </Label>
-              <Input
-                id="threshold-input"
-                type="number"
-                min={0}
-                step={10000}
-                value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value) || 0)}
-              />
-            </div>
-            <Button onClick={handleSaveThreshold} disabled={thresholdSaving}>
-              {thresholdSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save threshold
-            </Button>
-          </div>
-          <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground inline-flex items-center gap-2">
-            <Info className="h-3 w-3" />
-            Current: <strong>{formatNaira(threshold)}</strong>
-          </div>
         </CardContent>
       </Card>
 
