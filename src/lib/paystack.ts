@@ -186,6 +186,11 @@ export interface FriendlyError {
 
 const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   {
+    match: /awaiting otp authorization|awaiting otp approval|otp required/i,
+    title: 'Awaiting OTP approval',
+    hint: 'Paystack is holding this transfer pending merchant approval. Sign in to dashboard.paystack.co → Transfers → Pending and approve. Status will update automatically after that.',
+  },
+  {
     match: /reference already exists|unique reference|duplicate/i,
     title: 'Already paid',
     hint: 'Paystack already processed this payment. Click "Reconcile with Paystack" to sync the latest status.',

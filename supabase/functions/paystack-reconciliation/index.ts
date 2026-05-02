@@ -119,6 +119,8 @@ serve(async (req) => {
       let succeeded = 0;
       let failed = 0;
       let unchanged = 0;
+      let otpRequired = 0;
+      const otpItems: { name: string; ref: string }[] = [];
 
       for (const it of items) {
         try {
@@ -144,7 +146,7 @@ serve(async (req) => {
               paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : 0,
             }).eq("id", it.id);
             succeeded++;
-          } else if (["failed", "reversed"].includes(status as string)) {
+          } else if (["failed", "reversed", "abandoned"].includes(status as string)) {
             await service.from("batch_items").update({
               status: "failed",
               failure_reason: reason || `Paystack ${status}`,
@@ -152,12 +154,59 @@ serve(async (req) => {
               paystack_raw: body.data,
             }).eq("id", it.id);
             failed++;
+          } else if (status === "otp") {
+            // Paystack is waiting for merchant OTP confirmation on the
+            // dashboard. Keep the row pending but write a clear note so
+            // finance knows it's a human-action problem, not a system
+            // failure. We avoid re-notifying on every reconciliation run by
+            // only writing the message when it isn't already there.
+            await service.from("batch_items").update({
+              failure_reason:
+                "Awaiting OTP authorization — approve on dashboard.paystack.co (Transfers → pending) to release this transfer.",
+              paystack_raw: body.data,
+            }).eq("id", it.id);
+            otpRequired++;
+            otpItems.push({ name: it.full_name, ref: it.paystack_reference });
+            unchanged++;
           } else {
+            // pending / received / queued — no terminal change yet.
             unchanged++;
           }
         } catch (e) {
           unchanged++;
           console.warn("[paystack-reconciliation] item failed:", it.id, e);
+        }
+      }
+
+      // One consolidated notification per run when items are blocked on OTP,
+      // so finance sees a single actionable card instead of N separate rows.
+      if (otpItems.length > 0) {
+        try {
+          const { data: staff } = await service
+            .from("profiles")
+            .select("id")
+            .in("role", ["super_admin", "admin", "finance"]);
+          const titleSummary = otpItems.length === 1
+            ? `1 transfer awaiting OTP approval on Paystack`
+            : `${otpItems.length} transfers awaiting OTP approval on Paystack`;
+          const bodySummary =
+            otpItems.slice(0, 5).map((o) => `• ${o.name} (${o.ref})`).join("\n")
+            + (otpItems.length > 5 ? `\n… and ${otpItems.length - 5} more` : "")
+            + "\n\nGo to dashboard.paystack.co → Transfers → Pending to approve.";
+          if (staff && staff.length > 0) {
+            await service.from("notifications").insert(
+              (staff as any[]).map((u) => ({
+                user_id: u.id,
+                type: "transfer_otp_required",
+                module: "payments",
+                priority: "high",
+                title: titleSummary,
+                body: bodySummary,
+              })),
+            );
+          }
+        } catch (e) {
+          console.warn("[reconciliation] otp notify failed:", e);
         }
       }
 
@@ -219,7 +268,11 @@ serve(async (req) => {
         items_failed: failed,
         items_unchanged: unchanged,
         status: "success",
-        notes: items.length === 0 ? `No stuck items. Fees backfilled: ${feesBackfilled}` : null,
+        notes: items.length === 0
+          ? `No stuck items. Fees backfilled: ${feesBackfilled}`
+          : (otpRequired > 0
+              ? `${otpRequired} item(s) awaiting OTP approval on Paystack dashboard.`
+              : null),
       }).eq("id", runId);
 
       return json({
@@ -228,6 +281,7 @@ serve(async (req) => {
         succeeded,
         failed,
         unchanged,
+        otp_required: otpRequired,
         fees_backfilled: feesBackfilled,
       });
     } catch (e: any) {

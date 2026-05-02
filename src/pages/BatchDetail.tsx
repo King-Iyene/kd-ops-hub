@@ -567,7 +567,14 @@ const BatchDetail = () => {
           paystack_recipient_code: recipientCode,
           paystack_transfer_code: transfer.transfer_code,
           paystack_reference: transfer.reference,
-          failure_reason: null,
+          // Surface OTP-required state immediately. Paystack puts high-value
+          // transfers into status="otp" and the transfer sits there until a
+          // merchant approves via OTP on dashboard.paystack.co. Without this
+          // signal the row just shows "pending" and finance can't tell that
+          // human action is needed.
+          failure_reason: String(transfer.status || '').toLowerCase() === 'otp'
+            ? 'Awaiting OTP authorization — approve on dashboard.paystack.co (Transfers → pending) to release this transfer.'
+            : null,
         })
         .eq('id', it.id);
       await logAudit(
@@ -1514,9 +1521,10 @@ const BatchDetail = () => {
                       <div>{item.full_name || 'Unknown Recipient'}</div>
                       {item.failure_reason && (() => {
                         const f = friendlyPaystackError(item.failure_reason);
+                        const isOtp = /awaiting otp/i.test(item.failure_reason);
                         return (
                           <p
-                            className="text-[11px] text-destructive mt-0.5"
+                            className={`text-[11px] mt-0.5 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}
                             title={item.failure_reason}
                           >
                             <span className="font-semibold">{f.title}.</span>{' '}
