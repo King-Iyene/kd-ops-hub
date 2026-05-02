@@ -185,15 +185,28 @@ serve(async (req) => {
         // 3. Delete source rows (only if archive_delete and archive succeeded).
         if (archived > 0 && p.mode === "archive_delete" && archivePath) {
           const ids = (rows || []).map((r: any) => r.id);
-          // Chunked delete to avoid query-length limits.
+          // audit_logs / transfer_audit are append-only at the DB level
+          // (immutability trigger). Use the purge RPC, which flips the
+          // session GUC inside a security-definer function so the DELETE
+          // is allowed for this single call.
+          const isAudit = cfg.table === "audit_logs" || cfg.table === "transfer_audit";
           for (let i = 0; i < ids.length; i += 500) {
             const chunk = ids.slice(i, i + 500);
-            const { error: delErr } = await service
-              .from(cfg.table)
-              .delete()
-              .in("id", chunk);
-            if (delErr) throw delErr;
-            deleted += chunk.length;
+            if (isAudit) {
+              const { data: deletedCount, error: rpcErr } = await service.rpc(
+                "purge_audit_rows",
+                { p_table: cfg.table, p_ids: chunk },
+              );
+              if (rpcErr) throw rpcErr;
+              deleted += Number(deletedCount ?? chunk.length);
+            } else {
+              const { error: delErr } = await service
+                .from(cfg.table)
+                .delete()
+                .in("id", chunk);
+              if (delErr) throw delErr;
+              deleted += chunk.length;
+            }
           }
         }
 
