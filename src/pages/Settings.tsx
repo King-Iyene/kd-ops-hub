@@ -84,6 +84,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
+import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -366,6 +367,9 @@ const SettingsPage = () => {
           <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
           {profile?.role === 'super_admin' && (
             <TabsTrigger value="transfer_auth" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Wallet className="mr-2 h-4 w-4" /> Transfer Authorization</TabsTrigger>
+          )}
+          {profile?.role === 'super_admin' && (
+            <TabsTrigger value="email_templates" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Email Templates</TabsTrigger>
           )}
           {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
             <TabsTrigger value="departments" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Network className="mr-2 h-4 w-4" /> Departments</TabsTrigger>
@@ -1117,6 +1121,19 @@ const SettingsPage = () => {
             <Card>
               <CardContent className="py-6 text-sm text-muted-foreground">
                 Transfer Authorization is only visible to Super Admins.
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* EMAIL TEMPLATES (super admin only) --------------------------- */}
+        <TabsContent value="email_templates" className="mt-4 space-y-4">
+          {profile?.role === 'super_admin' ? (
+            <EmailTemplatesSettings />
+          ) : (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">
+                Email Templates is only visible to Super Admins.
               </CardContent>
             </Card>
           )}
