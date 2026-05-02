@@ -54,6 +54,60 @@ const PRIVILEGED_ACTIONS = new Set([
 
 const PRIVILEGED_ROLES = new Set(["super_admin", "admin", "finance"]);
 
+// Actions whose NGN amount counts against the actor's single/daily/monthly cap.
+const CAP_ENFORCED_ACTIONS = new Set(["initiate_transfer", "bulk_transfer"]);
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function getClientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("cf-connecting-ip")
+       ?? req.headers.get("x-real-ip")
+       ?? "unknown";
+}
+
+interface AuditRow {
+  actor_id?: string | null;
+  actor_role?: string | null;
+  action: string;
+  outcome?: "ok" | "denied" | "error";
+  amount_ngn?: number | null;
+  recipient_code?: string | null;
+  reference?: string | null;
+  ip_hash?: string | null;
+  user_agent?: string | null;
+  metadata?: Record<string, unknown>;
+  reason?: string | null;
+}
+
+async function writeTransferAudit(serviceClient: any, row: AuditRow) {
+  try {
+    await serviceClient.from("transfer_audit").insert({
+      actor_id: row.actor_id ?? null,
+      actor_role: row.actor_role ?? null,
+      action: row.action,
+      outcome: row.outcome ?? "ok",
+      amount_ngn: row.amount_ngn ?? null,
+      recipient_code: row.recipient_code ?? null,
+      reference: row.reference ?? null,
+      ip_hash: row.ip_hash ?? null,
+      user_agent: row.user_agent ?? null,
+      metadata: row.metadata ?? {},
+      reason: row.reason ?? null,
+    });
+  } catch (e) {
+    // Never let audit failure block a transfer — log + continue.
+    console.error("[transfer_audit] insert failed:", String(e));
+  }
+}
+
 async function getPaystackSecret(): Promise<string> {
   const envSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
   if (envSecret) return envSecret;
@@ -171,20 +225,36 @@ serve(async (req) => {
 
     // ---------------------------------------------------------------
     // Role gate: privileged actions need admin/finance profile.
-    // Uses service-role client to bypass RLS on profiles.
+    // Uses service-role client to bypass RLS on profiles. Also stash
+    // role + service client + request fingerprint for audit logging.
     // ---------------------------------------------------------------
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    let actorRole: string | null = null;
+    const ipHash = await sha256Hex(getClientIp(req));
+    const userAgent = req.headers.get("user-agent") ?? null;
+
     if (PRIVILEGED_ACTIONS.has(action)) {
-      const serviceClient = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
       const { data: profile } = await serviceClient
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
+      actorRole = profile?.role ?? null;
 
-      if (!profile?.role || !PRIVILEGED_ROLES.has(profile.role)) {
+      if (!actorRole || !PRIVILEGED_ROLES.has(actorRole)) {
+        await writeTransferAudit(serviceClient, {
+          actor_id: user.id,
+          actor_role: actorRole,
+          action,
+          outcome: "denied",
+          ip_hash: ipHash,
+          user_agent: userAgent,
+          reason: "Insufficient permissions",
+          metadata: { params },
+        });
         return new Response(
           JSON.stringify({ error: "Insufficient permissions" }),
           {
@@ -192,6 +262,72 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );
+      }
+    }
+
+    // Cap enforcement for money-moving actions. Fetches the actor's
+    // configured single/daily/monthly limits and checks against rolling
+    // usage. On denial we audit the attempt and return 403 with the reason.
+    if (CAP_ENFORCED_ACTIONS.has(action)) {
+      let amountNgn = 0;
+      if (action === "initiate_transfer") {
+        amountNgn = Number(params.amount_ngn ?? 0);
+      } else if (action === "bulk_transfer") {
+        const transfers = Array.isArray(params.transfers) ? params.transfers : [];
+        // Bulk transfers send Paystack kobo amounts; convert to NGN for cap math.
+        amountNgn = transfers.reduce(
+          (sum: number, t: any) => sum + (Number(t.amount ?? 0) / 100),
+          0,
+        );
+      }
+
+      if (amountNgn > 0) {
+        const { data: capRows, error: capErr } = await serviceClient.rpc(
+          "check_transfer_caps",
+          { p_user_id: user.id, p_amount_ngn: amountNgn },
+        );
+        const cap = Array.isArray(capRows) ? capRows[0] : capRows;
+        if (capErr) {
+          console.error("[caps] check_transfer_caps failed:", capErr);
+          // Fail closed for cap-enforced actions when the check itself errors.
+          await writeTransferAudit(serviceClient, {
+            actor_id: user.id,
+            actor_role: actorRole,
+            action,
+            outcome: "error",
+            amount_ngn: amountNgn,
+            ip_hash: ipHash,
+            user_agent: userAgent,
+            reason: `Cap check failed: ${capErr.message}`,
+          });
+          return new Response(
+            JSON.stringify({ ok: false, error: "Could not verify transfer limits — try again." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (cap && cap.allowed === false) {
+          await writeTransferAudit(serviceClient, {
+            actor_id: user.id,
+            actor_role: actorRole,
+            action: "cap_blocked",
+            outcome: "denied",
+            amount_ngn: amountNgn,
+            ip_hash: ipHash,
+            user_agent: userAgent,
+            reason: cap.reason,
+            metadata: {
+              attempted_action: action,
+              applied_limit_kind: cap.applied_limit_kind,
+              applied_limit_ngn: cap.applied_limit_ngn,
+              used_today_ngn: cap.used_today_ngn,
+              used_month_ngn: cap.used_month_ngn,
+            },
+          });
+          return new Response(
+            JSON.stringify({ ok: false, error: cap.reason, cap_blocked: true }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
       }
     }
 
@@ -223,15 +359,11 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        const serviceClient2 = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        );
         // Pre-flight de-dup: if this reference was already dispatched, return
         // the existing transfer instead of firing a duplicate. Paystack stores
         // refs in `paystack_reference`, not `reference` (that column is the
         // human-facing payment label and may collide).
-        const { data: existing } = await serviceClient2
+        const { data: existing } = await serviceClient
           .from("batch_items")
           .select("id, paystack_transfer_code, paystack_reference, status")
           .eq("paystack_reference", params.reference)
@@ -364,11 +496,60 @@ serve(async (req) => {
         );
     }
 
+    // Audit successful money-moving actions. Amount, recipient, and reference
+    // are pulled from the inbound params so we capture intent even if the
+    // Paystack response shape changes.
+    if (CAP_ENFORCED_ACTIONS.has(action)) {
+      const amountNgn = action === "initiate_transfer"
+        ? Number(params.amount_ngn ?? 0)
+        : (Array.isArray(params.transfers) ? params.transfers : []).reduce(
+            (s: number, t: any) => s + (Number(t.amount ?? 0) / 100), 0,
+          );
+      const recipientCount = Array.isArray(params.transfers)
+        ? params.transfers.length
+        : 1;
+      await writeTransferAudit(serviceClient, {
+        actor_id: user.id,
+        actor_role: actorRole,
+        action,
+        outcome: "ok",
+        amount_ngn: amountNgn,
+        recipient_code: action === "initiate_transfer" ? params.recipient_code ?? null : null,
+        reference: action === "initiate_transfer" ? params.reference ?? null : null,
+        ip_hash: ipHash,
+        user_agent: userAgent,
+        metadata: {
+          recipient_count: recipientCount,
+          recovered: (result as any)?.recovered ?? false,
+          paystack_status: (result as any)?.status ?? null,
+        },
+      });
+    }
+
     return new Response(JSON.stringify({ ok: true, data: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Best-effort error audit for any cap-enforced action that errored mid-flight.
+    try {
+      const reqClone = await Promise.resolve(); // no-op, kept for clarity
+      void reqClone;
+    } catch { /* ignore */ }
+    try {
+      const errClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      // We don't have access to user/actor here without re-parsing; record
+      // a low-detail error row so admins see something failed at this layer.
+      await errClient.from("transfer_audit").insert({
+        action: "edge_error",
+        outcome: "error",
+        reason: message.slice(0, 500),
+        metadata: {},
+      });
+    } catch { /* swallow */ }
     return new Response(JSON.stringify({ ok: false, error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
