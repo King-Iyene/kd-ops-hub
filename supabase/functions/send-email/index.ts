@@ -80,57 +80,64 @@ serve(async (req) => {
   }
 
   try {
-    // Auth gate: require a valid Supabase JWT.
+    // Auth gate: require a valid Supabase JWT, OR the service-role bearer
+    // for server-initiated sends from other edge functions / scheduled jobs.
     // Function is deployed with --no-verify-jwt so the platform doesn't reject
     // before we get here; we validate the token in code so error messages are
     // explicit and so this stays consistent with paystack-transfer.
     const authHeader = req.headers.get("Authorization") ?? "";
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-    );
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ ok: false, error: authError?.message || "Not authenticated" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
+    const bearer = authHeader.replace("Bearer ", "");
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const isServiceRole = bearer && bearer === SERVICE_ROLE;
+    let user: { id: string } | null = null;
+    if (!isServiceRole) {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
       );
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(bearer);
+      if (authError || !authUser) {
+        return new Response(
+          JSON.stringify({ ok: false, error: authError?.message || "Not authenticated" }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      user = authUser;
     }
 
     // Rate limit: max 10 notifications per user per 60 seconds.
-    // Uses the audit_logs table (already present) for a lightweight count —
-    // no extra table needed. Fails open (allows send) if the check errors.
-    try {
-      const serviceRl = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-      const since = new Date(Date.now() - 60_000).toISOString();
-      const { count } = await serviceRl
-        .from("audit_logs")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("action", "send_notification")
-        .gte("created_at", since);
-      if ((count ?? 0) >= 10) {
-        return new Response(
-          JSON.stringify({ ok: false, error: "Rate limit exceeded — max 10 notifications per minute" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    // Service-role calls (server-initiated) skip the rate limit since they
+    // come from trusted backend code (webhooks, schedulers).
+    if (!isServiceRole && user) {
+      try {
+        const serviceRl = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
+        const since = new Date(Date.now() - 60_000).toISOString();
+        const { count } = await serviceRl
+          .from("audit_logs")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("action", "send_notification")
+          .gte("created_at", since);
+        if ((count ?? 0) >= 10) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Rate limit exceeded — max 10 notifications per minute" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        await serviceRl.from("audit_logs").insert({
+          user_id: user.id,
+          action: "send_notification",
+          table_name: "notifications",
+        });
+      } catch (_) {
+        // Fail open — don't block notification on rate-limit check failure.
       }
-      // Log this notification attempt for rate-limit accounting.
-      await serviceRl.from("audit_logs").insert({
-        user_id: user.id,
-        action: "send_notification",
-        table_name: "notifications",
-      });
-    } catch (_) {
-      // Fail open — don't block notification on rate-limit check failure.
     }
 
     const body = await req.json();

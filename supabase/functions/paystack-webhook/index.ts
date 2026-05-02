@@ -157,6 +157,81 @@ async function audit(
   });
 }
 
+/**
+ * Resolve recipient email + name for a batch_item and dispatch the templated
+ * 'payment.completed' email. Tries the employee profile first, then the
+ * contractor row. Silent on any failure — email is informational only.
+ */
+async function sendRecipientPaymentEmail(
+  supabase: Supabase,
+  item: any,
+  reference: string,
+  sentAtIso: string,
+): Promise<void> {
+  try {
+    let recipientEmail: string | null = null;
+    let recipientName: string = item.full_name || "there";
+
+    if (item.employee_id) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", item.employee_id)
+        .maybeSingle();
+      if (data) {
+        recipientEmail = (data as any).email ?? null;
+        recipientName = (data as any).full_name || recipientName;
+      }
+    }
+    if (!recipientEmail && item.contractor_id) {
+      const { data } = await supabase
+        .from("contractors")
+        .select("email, full_name")
+        .eq("id", item.contractor_id)
+        .maybeSingle();
+      if (data) {
+        recipientEmail = (data as any).email ?? null;
+        recipientName = (data as any).full_name || recipientName;
+      }
+    }
+    if (!recipientEmail) return;
+
+    const acct = String(item.account_number || "");
+    const last4 = acct.length >= 4 ? acct.slice(-4) : acct;
+    const formattedAmount = `₦${Number(item.amount_ngn || 0).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    // Call our own send-email edge fn for the templated channel. Use
+    // service-role auth so the fn doesn't need a user JWT for this server-
+    // initiated send.
+    await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        },
+        body: JSON.stringify({
+          channel: "templated",
+          template_key: "payment.completed",
+          to: recipientEmail,
+          vars: {
+            recipient_name: recipientName,
+            amount: formattedAmount,
+            account_last4: last4,
+            bank_name: item.bank_name || "your bank",
+            reference,
+            sent_at: new Date(sentAtIso).toLocaleString(),
+            company_name: "KD Squares",
+          },
+        }),
+      },
+    );
+  } catch (e) {
+    console.warn("[webhook] payment.completed email failed:", e);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main handler
 // ---------------------------------------------------------------------------
@@ -209,7 +284,7 @@ serve(async (req) => {
   // ------------------------------------------------------------------
   const { data: item, error: lookupErr } = await supabase
     .from("batch_items")
-    .select("id, full_name, batch_id")
+    .select("id, full_name, batch_id, account_number, bank_name, amount_ngn, employee_id, contractor_id")
     .eq("paystack_reference", reference)
     .maybeSingle();
 
@@ -299,6 +374,11 @@ serve(async (req) => {
       `Payment to ${item.full_name} succeeded`,
       `Paystack ref: ${reference}`,
     );
+
+    // Best-effort templated email to the recipient (employee or contractor).
+    // The send-email edge fn loads the template, so any subject/body changes
+    // in Settings → Email Templates take effect immediately without redeploys.
+    void sendRecipientPaymentEmail(supabase, item, reference, now);
 
   } else if (event === "transfer.failed") {
     // Prefer gateway_response (human-readable), fall back to other fields.

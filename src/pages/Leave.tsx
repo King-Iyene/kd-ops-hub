@@ -22,6 +22,7 @@ import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
+import { notifyRequestApproved, notifyRequestRejected } from '@/lib/notify-events';
 import { useApprovalStore } from '@/store/approvalStore';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, toIsoDate } from '@/lib/format';
@@ -456,6 +457,16 @@ const Leave = () => {
           });
         }
       } catch { /* SMS is best-effort */ }
+      // Best-effort templated email to the requester.
+      const requesterProfile = profiles.get(req.employee_id);
+      void notifyRequestApproved({
+        requesterEmail: requesterProfile?.email ?? null,
+        requesterName: requesterProfile?.full_name || 'there',
+        kind: `${req.leave_type} leave`,
+        summary: `${req.days_requested} day${req.days_requested === 1 ? '' : 's'} · ${req.start_date} → ${req.end_date}`,
+        approverName: profile?.full_name || 'Manager',
+        link: `${window.location.origin}/leave`,
+      });
       burst({ palette: 'success', count: 50 });
       toast({ title: 'Leave approved' });
       fetchAll();
@@ -507,6 +518,17 @@ const Leave = () => {
           });
         }
       } catch { /* SMS is best-effort */ }
+      // Best-effort templated email to the requester.
+      const rejProfile = profiles.get(showReject.employee_id);
+      void notifyRequestRejected({
+        requesterEmail: rejProfile?.email ?? null,
+        requesterName: rejProfile?.full_name || 'there',
+        kind: `${showReject.leave_type} leave`,
+        summary: `${showReject.days_requested} day${showReject.days_requested === 1 ? '' : 's'} · ${showReject.start_date} → ${showReject.end_date}`,
+        approverName: profile?.full_name || 'Manager',
+        reason: rejectReason.trim(),
+        link: `${window.location.origin}/leave`,
+      });
       toast({ title: 'Leave rejected' });
       setShowReject(null);
       setRejectReason('');
