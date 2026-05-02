@@ -1029,7 +1029,10 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
 
       const { data, error } = await supabase.functions.invoke('send-email', { body });
       if (error) throw new Error(error.message);
-      if ((data as any)?.ok === false) throw new Error((data as any)?.error ?? 'Send failed');
+      if ((data as any)?.ok === false) {
+        const raw = (data as any)?.termii_raw ? `\n\nTermii raw response:\n${(data as any).termii_raw}` : '';
+        throw new Error(((data as any)?.error ?? 'Send failed') + raw);
+      }
 
       const devSkip = (data as any)?.dev_skip === true;
       const msgId = (data as any)?.message_id ?? (data as any)?.id ?? null;

@@ -125,13 +125,18 @@ serve(async (req) => {
         }),
       });
 
+      const rawText = await res.text();
       let data: any;
       try {
-        data = await res.json();
+        data = JSON.parse(rawText);
       } catch {
-        // Termii returned non-JSON (e.g. HTML error page)
+        // Termii returned non-JSON (e.g. HTML error page) — surface the raw body
         return new Response(
-          JSON.stringify({ ok: false, error: `Termii returned non-JSON response (HTTP ${res.status})` }),
+          JSON.stringify({
+            ok: false,
+            error: `Termii returned non-JSON response (HTTP ${res.status})`,
+            termii_raw: rawText.slice(0, 500),
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
