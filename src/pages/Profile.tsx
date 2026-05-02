@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { cn } from '@/lib/utils';
 import MfaSettings from '@/components/settings/MfaSettings';
+import PrivacyPanel from '@/components/PrivacyPanel';
 
 const initialsOf = (name?: string | null, email?: string | null): string => {
   const source = (name || email || '').trim();
@@ -455,6 +456,8 @@ const ProfilePage = () => {
       </Card>
 
       <MfaSettings />
+
+      <PrivacyPanel />
     </div>
   );
 };

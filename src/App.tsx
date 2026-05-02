@@ -19,6 +19,8 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import JoinForm from './pages/JoinForm';
+import Privacy from './pages/legal/Privacy';
+import Terms from './pages/legal/Terms';
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 
@@ -134,6 +136,9 @@ function AppRoutes() {
       {/* Public routes — no auth required. */}
       <Route path="/join" element={<JoinForm />} />
       <Route path="/ref/:code" element={<JoinForm />} />
+      {/* Legal — public, no auth. */}
+      <Route path="/legal/privacy" element={<Privacy />} />
+      <Route path="/legal/terms" element={<Terms />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
