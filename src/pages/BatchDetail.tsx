@@ -10,6 +10,14 @@ import {
 } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
+  approvePaymentBatch,
+  confirmSecondApproval,
+  rejectPaymentBatch,
+  resetBatchToDraft,
+  fetchEligibleApprovers,
+  type EligibleApprover,
+} from '@/lib/transfer-safety';
+import {
   createTransferRecipient,
   initiateTransferIdempotent,
   generateKdopsRef,
@@ -299,6 +307,9 @@ const BatchDetail = () => {
   const [recurDay, setRecurDay] = useState<number>(1);
   const [recurCustomDays, setRecurCustomDays] = useState(30);
   const itemsRef = useRef<any[]>([]);
+  const [secondApprovers, setSecondApprovers] = useState<EligibleApprover[]>([]);
+  const [firstApproverName, setFirstApproverName] = useState<string | null>(null);
+  const [secondApproverName, setSecondApproverName] = useState<string | null>(null);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -344,6 +355,38 @@ const BatchDetail = () => {
     setBatch(b);
     setItems(allItems);
     setLoading(false);
+
+    // Resolve approver names + (when relevant) the eligible second-approver
+    // pool. Failures are silent — the rest of the page renders fine without
+    // them and the RPCs themselves remain authoritative.
+    if (b) {
+      const approverIds = [b.approved_by, b.second_approver_id].filter(Boolean) as string[];
+      if (approverIds.length > 0) {
+        supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', approverIds)
+          .then(({ data: rows }) => {
+            const map = new Map<string, string>();
+            for (const r of (rows ?? []) as any[]) {
+              map.set(r.id, r.full_name || r.email || r.id.slice(0, 8));
+            }
+            setFirstApproverName(b.approved_by ? map.get(b.approved_by) ?? null : null);
+            setSecondApproverName(b.second_approver_id ? map.get(b.second_approver_id) ?? null : null);
+          });
+      } else {
+        setFirstApproverName(null);
+        setSecondApproverName(null);
+      }
+
+      if (b.status === 'pending_second_approval' && b.created_by && b.approved_by) {
+        fetchEligibleApprovers('payment_batch', 'second', b.created_by, b.approved_by)
+          .then(setSecondApprovers)
+          .catch(() => setSecondApprovers([]));
+      } else {
+        setSecondApprovers([]);
+      }
+    }
   };
 
   useEffect(() => {
@@ -373,32 +416,15 @@ const BatchDetail = () => {
     return null;
   })();
 
+  /**
+   * Transition the batch to a non-approval state (submit-for-approval,
+   * mark-funded). Approval/rejection go through the RPC paths
+   * `approveBatch`, `confirmSecondApproveBatch`, and `rejectBatch` below.
+   */
   const updateStatus = async (status: string, extra?: any, expectedFrom?: string | string[]) => {
     setActionLoading(true);
     try {
-      if (status === 'approved' || status === 'rejected') {
-        if (!profile) {
-          toast({ title: 'Not authenticated', variant: 'destructive' });
-          setActionLoading(false);
-          return;
-        }
-        if (!APPROVER_ROLES.includes(profile.role as any)) {
-          toast({
-            title: 'Not authorized',
-            description: 'Only Admin or Finance roles can approve or reject batches.',
-            variant: 'destructive',
-          });
-          setActionLoading(false);
-          return;
-        }
-      }
-
       const update: any = { status, ...extra };
-      if (status === 'approved') update.approved_by = profile?.id;
-      // Concurrency guard: only allow the transition if the row is still in
-      // the expected state. Two admins racing on the same batch will both
-      // pass the client check, but only one update will hit a matching row;
-      // the other returns rowcount 0 and we abort with a stale-state toast.
       let query = supabase.from('payment_batches').update(update).eq('id', id);
       if (expectedFrom) {
         query = Array.isArray(expectedFrom)
@@ -419,30 +445,7 @@ const BatchDetail = () => {
         toast({ title: `Batch ${statusLabel(status)?.toLowerCase() || status}` });
 
         const amountTxt = formatNaira(batch?.total_amount || 0);
-        if (status === 'approved') {
-          burst({ palette: 'success', count: 70 });
-          await logAudit('batch_approved', `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`, profile);
-          if (batch?.created_by) {
-            await notifyUser({
-              userId: batch.created_by,
-              type: 'batch_approved',
-              module: 'payments',
-              title: 'Your batch was approved',
-              body: `"${batch?.name}" — ${amountTxt}`,
-            });
-          }
-        } else if (status === 'rejected') {
-          await writeRejectionNotification({
-            entity: 'batch',
-            entityLabel: 'payment batch',
-            amount: batch?.total_amount,
-            reason: extra?.rejection_reason || '',
-            submitterId: batch?.created_by || null,
-            actor: profile,
-            auditType: 'batch_rejected',
-            auditDescription: `Batch "${batch?.name}" rejected: ${extra?.rejection_reason || ''}`,
-          });
-        } else if (status === 'pending_approval') {
+        if (status === 'pending_approval') {
           await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
           await notifyRoles({
             roles: ['super_admin', 'admin', 'finance'],
@@ -460,6 +463,106 @@ const BatchDetail = () => {
     } finally {
       setActionLoading(false);
       setShowReject(false);
+    }
+  };
+
+  /** First approval — routes through approve_payment_batch RPC. */
+  const approveBatch = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      const result = await approvePaymentBatch(id);
+      const amountTxt = formatNaira(batch?.total_amount || 0);
+      if (result?.status === 'pending_second_approval') {
+        toast({
+          title: 'First approval recorded',
+          description: 'A second approver must confirm this batch before it can proceed.',
+        });
+      } else {
+        burst({ palette: 'success', count: 70 });
+        toast({ title: 'Batch approved' });
+      }
+      await logAudit(
+        result?.status === 'pending_second_approval'
+          ? 'batch_first_approved'
+          : 'batch_approved',
+        `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`,
+        profile,
+      );
+      if (batch?.created_by && result?.status === 'approved') {
+        await notifyUser({
+          userId: batch.created_by,
+          type: 'batch_approved',
+          module: 'payments',
+          title: 'Your batch was approved',
+          body: `"${batch?.name}" — ${amountTxt}`,
+        });
+      }
+      fetchBatch();
+    } catch (err: any) {
+      toast({
+        title: 'Approval failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /** Second approval — routes through confirm_second_approval RPC. */
+  const confirmSecondApproveBatch = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      await confirmSecondApproval(id);
+      burst({ palette: 'success', count: 70 });
+      toast({ title: 'Batch fully approved' });
+      const amountTxt = formatNaira(batch?.total_amount || 0);
+      await logAudit(
+        'batch_second_approved',
+        `Batch "${batch?.name}" second-approved (${amountTxt})`,
+        profile,
+      );
+      fetchBatch();
+    } catch (err: any) {
+      toast({
+        title: 'Second approval failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  /** Rejection — routes through reject_payment_batch RPC. */
+  const rejectBatch = async (reason: string) => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      await rejectPaymentBatch(id, reason);
+      await writeRejectionNotification({
+        entity: 'batch',
+        entityLabel: 'payment batch',
+        amount: batch?.total_amount,
+        reason,
+        submitterId: batch?.created_by || null,
+        actor: profile,
+        auditType: 'batch_rejected',
+        auditDescription: `Batch "${batch?.name}" rejected: ${reason}`,
+      });
+      toast({ title: 'Batch rejected' });
+      setShowReject(false);
+      fetchBatch();
+    } catch (err: any) {
+      toast({
+        title: 'Reject failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1301,18 +1404,23 @@ const BatchDetail = () => {
                   disabled={savingResubmit}
                   onClick={async () => {
                     setSavingResubmit(true);
-                    await supabase
-                      .from('payment_batches')
-                      .update({ status: 'pending_approval', rejection_reason: null })
-                      .eq('id', id);
-                    await logAudit(
-                      'resubmission_created',
-                      `Batch "${batch.name}" re-edited and resubmitted`,
-                      profile,
-                    );
-                    toast({ title: 'Resubmitted for approval' });
-                    fetchBatch();
-                    setSavingResubmit(false);
+                    try {
+                      // Reset clears approval state and lets payload edits
+                      // through again — the payload-lock trigger refuses to
+                      // mutate batch_items while the batch is approved or
+                      // pending_second_approval, so going via draft is the
+                      // only correct path post-rejection.
+                      await resetBatchToDraft(id!);
+                      navigate(`/payments/${id}/edit`);
+                    } catch (err: any) {
+                      toast({
+                        title: 'Could not reset to draft',
+                        description: err?.message || 'Please try again.',
+                        variant: 'destructive',
+                      });
+                    } finally {
+                      setSavingResubmit(false);
+                    }
                   }}
                 >
                   Re-edit & Resubmit
@@ -1328,6 +1436,50 @@ const BatchDetail = () => {
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription>{cannotApproveReason}</AlertDescription>
         </Alert>
+      )}
+
+      {batch.status === 'pending_second_approval' && (
+        <Alert className="border-amber-500/40 bg-amber-500/5">
+          <ShieldAlert className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-sm">
+            <span className="font-semibold">Awaiting second approval.</span>{' '}
+            First approved
+            {firstApproverName ? <> by <span className="font-semibold">{firstApproverName}</span></> : null}
+            {batch.approved_at && (
+              <> on {formatDateTime(batch.approved_at)}</>
+            )}
+            . {secondApprovers.length > 0
+                ? <>{secondApprovers.length} eligible approver{secondApprovers.length === 1 ? '' : 's'} can confirm.</>
+                : <>Waiting for an eligible second approver.</>}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {(batch.status === 'approved' || batch.status === 'funded'
+        || batch.status === 'processing' || batch.status === 'partially_processed'
+        || batch.status === 'processed') && (firstApproverName || secondApproverName) && (
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="pt-3 pb-3 text-sm space-y-1">
+            {firstApproverName && (
+              <p>
+                <span className="text-muted-foreground">First approved by</span>{' '}
+                <span className="font-semibold">{firstApproverName}</span>
+                {batch.approved_at && (
+                  <span className="text-muted-foreground"> · {formatDateTime(batch.approved_at)}</span>
+                )}
+              </p>
+            )}
+            {batch.co_approval_required && secondApproverName && (
+              <p>
+                <span className="text-muted-foreground">Second approved by</span>{' '}
+                <span className="font-semibold">{secondApproverName}</span>
+                {batch.second_approved_at && (
+                  <span className="text-muted-foreground"> · {formatDateTime(batch.second_approved_at)}</span>
+                )}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {failedItems.length > 0 && canApprove && (
@@ -1353,11 +1505,34 @@ const BatchDetail = () => {
               </Button>
             </>
           )}
-          {batch.status === 'pending_approval' && canApprove && (
+          {batch.status === 'pending_approval' && canApprove && batch.created_by !== profile?.id && (
             <>
-              <Button onClick={() => updateStatus('approved', undefined, 'pending_approval')} disabled={actionLoading} size="lg">
+              <Button onClick={approveBatch} disabled={actionLoading} size="lg">
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
+              </Button>
+              <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
+                <X className="mr-2 h-4 w-4" /> Reject
+              </Button>
+            </>
+          )}
+          {/* Self-approval is server-blocked, but we hide the button entirely
+               so submitters get a clear "you can't approve your own batch" hint. */}
+          {batch.status === 'pending_approval' && canApprove && batch.created_by === profile?.id && (
+            <Alert className="border-amber-500/40 bg-amber-500/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                You submitted this batch — another approver must review it.
+              </AlertDescription>
+            </Alert>
+          )}
+          {batch.status === 'pending_second_approval' && canApprove
+            && batch.created_by !== profile?.id
+            && batch.approved_by !== profile?.id && (
+            <>
+              <Button onClick={confirmSecondApproveBatch} disabled={actionLoading} size="lg">
+                {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                Approve as Second
               </Button>
               <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
                 <X className="mr-2 h-4 w-4" /> Reject
@@ -1593,7 +1768,7 @@ const BatchDetail = () => {
           <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => updateStatus('rejected', { rejection_reason: rejectReason.trim() }, 'pending_approval')} disabled={!isValidRejectionReason(rejectReason)}>
+            <Button variant="destructive" onClick={() => rejectBatch(rejectReason.trim())} disabled={!isValidRejectionReason(rejectReason)}>
               Reject Batch
             </Button>
           </DialogFooter>

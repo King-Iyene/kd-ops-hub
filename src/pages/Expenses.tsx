@@ -38,6 +38,11 @@ import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
+import {
+  approveExpense,
+  confirmSecondExpenseApproval,
+  rejectExpense,
+} from '@/lib/transfer-safety';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
 import { EXPENSE_CATEGORY_KEYS, expenseCategoryLabel } from '@/lib/expense-categories';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,13 +99,6 @@ import {
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
-import {
-  createTransferRecipient,
-  initiateTransferIdempotent,
-  getBankCode,
-  generateKdopsRef,
-  buildNarration,
-} from '@/lib/paystack';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 
@@ -334,6 +332,14 @@ const Expenses = () => {
         ? `Reimbursement: ${expense.description || categoryLabel}`
         : expense.description || categoryLabel;
 
+      // Create the underlying batch in 'pending_approval' so the approval
+      // framework sees it. The expense is already fully approved at this
+      // point (otherwise we wouldn't be in processExpensePayment) so an
+      // approver still has to OK the actual payment — this enforces the
+      // "every payment requires its own approval" rule even for already-
+      // approved expense reimbursements. Pre-framework, this code created
+      // batches in 'approved' state which let a single user fund an
+      // expense unilaterally; that's the B-2 / B-6 path the audit flagged.
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
@@ -344,7 +350,7 @@ const Expenses = () => {
           is_quick_pay: true,
           total_amount: expense.amount_ngn,
           beneficiary_count: 1,
-          status: 'approved',
+          status: 'pending_approval',
           created_by: profile?.id,
         })
         .select('id')
@@ -367,79 +373,35 @@ const Expenses = () => {
       if (itemErr) throw new Error(itemErr.message);
       itemId = batchItem.id;
 
+      // Mark the expense as awaiting payment so it won't show "ready to pay"
+      // again. Actual payment dispatch happens after an approver acts on the
+      // pending_approval batch (BatchDetail "Approve Batch" → "Confirm Funded"
+      // → "Process Payments"). This separation is what closes BLOCKER B-2 /
+      // B-6: a single user can no longer create + fund an expense payment.
       await supabase
         .from('expenses')
-        .update({ payment_reference: batchId, payment_status: 'processing' })
+        .update({ payment_reference: batchId, payment_status: 'pending' })
         .eq('id', expense.id);
 
-      const bankCode = getBankCode(expense.bank_name!);
-      if (!bankCode) throw new Error(`Unrecognised bank: ${expense.bank_name}`);
-
-      const recipient = await createTransferRecipient({
-        name: expense.account_name!,
-        account_number: expense.account_number!,
-        bank_code: bankCode,
+      // Notify approvers that a payment batch needs review.
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'batch_submitted',
+        module: 'payments',
+        priority: 'high',
+        title: 'Expense payment batch awaiting approval',
+        body: `${batchName} — ${formatNaira(Number(expense.amount_ngn))}`,
       });
 
-      const ref = generateKdopsRef(itemId);
-      const narration = buildNarration({
-        kind: 'expense',
-        recipientName: expense.account_name || undefined,
-        label: expense.category || undefined,
-      });
-      const transfer = await initiateTransferIdempotent({
-        recipient_code: recipient.recipient_code,
-        amount_ngn: Number(expense.amount_ngn),
-        reference: ref,
-        reason: narration,
-      });
-
-      // If the edge function recovered from a duplicate ref, save the live
-      // status from Paystack rather than silently leaving the item pending.
-      const recoveredStatus = transfer.recovered
-        ? (transfer.verified_status || transfer.status || '').toLowerCase()
-        : null;
-      const itemStatus =
-        recoveredStatus === 'success' ? 'succeeded'
-        : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
-        : 'pending';
-
-      await supabase
-        .from('batch_items')
-        .update({
-          status: itemStatus,
-          paystack_recipient_code: recipient.recipient_code,
-          paystack_transfer_code: transfer.transfer_code,
-          paystack_reference: transfer.reference,
-          processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
-          failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
-        })
-        .eq('id', itemId);
-
-      await supabase
-        .from('payment_batches')
-        .update({ status: 'processing' })
-        .eq('id', batchId);
-
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define -- safe: deferred call inside async handler; syncFuelRequest is initialized before user can trigger this
-      await syncFuelRequest(expense.fuel_request_id, 'paid');
       await logAudit(
-        'expense_payment_initiated',
-        `Expense payment initiated — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))} (ref ${transfer.reference})`,
+        'expense_payment_batched',
+        `Expense payment batched (awaiting approval) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
         profile,
       );
-      if (expense.submitted_by) {
-        await notifyUser({
-          userId: expense.submitted_by,
-          type: 'expense_approved',
-          module: 'expenses',
-          title: 'Your expense payment is being processed',
-          body: `${formatNaira(Number(expense.amount_ngn))} — payment initiated via Paystack`,
-        });
-      }
+
       toast({
-        title: 'Payment initiated',
-        description: `${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}`,
+        title: 'Payment batch created',
+        description: `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
       });
     } catch (err: any) {
       if (batchId) {
@@ -641,6 +603,13 @@ const Expenses = () => {
     await supabase.from('fuel_requests').update({ status }).eq('id', fuelRequestId);
   };
 
+  /**
+   * Approve / reject an expense. All approval state changes go through the
+   * SECURITY DEFINER RPCs which enforce no-self-approval, role pools, transfer
+   * caps, and the dual-approval threshold. The legacy direct-status-write
+   * path was removed in the approval framework migration — direct writes are
+   * now refused by trigger.
+   */
   const handleAction = async (
     expense: Expense,
     status: 'approved' | 'rejected',
@@ -659,129 +628,61 @@ const Expenses = () => {
       return;
     }
 
-    const now = new Date().toISOString();
     const amountNgn = Number(expense.amount_ngn || 0);
     const cat = expense.category.replace(/_/g, ' ');
     const amtStr = formatNaira(amountNgn);
 
-    // --- Second approval (expense is already pending_second_approval) ---
-    if (expense.status === 'pending_second_approval') {
-      if (expense.approved_by === profile?.id) {
+    try {
+      const isSecond = expense.status === 'pending_second_approval';
+      const result = isSecond
+        ? await confirmSecondExpenseApproval(expense.id)
+        : await approveExpense(expense.id);
+
+      if (result?.status === 'pending_second_approval') {
+        await logAudit(
+          'expense_first_approval',
+          `First approval for high-value expense: ${cat} — ${amtStr}`,
+          profile,
+        );
         toast({
-          title: 'Second approval must come from a different approver',
-          description: 'You recorded the first approval on this expense.',
-          variant: 'destructive',
+          title: 'First approval recorded',
+          description: 'A second approver must confirm this expense.',
         });
-        return;
-      }
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          status: 'approved',
-          approved_by_secondary: profile?.id,
-          approved_by_secondary_at: now,
-        })
-        .eq('id', expense.id);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        return;
-      }
-      await logAudit(
-        'expense_approved',
-        `Expense fully approved (2nd approval): ${cat} — ${amtStr}`,
-        profile,
-      );
-      await syncFuelRequest(expense.fuel_request_id, 'approved');
-      if (expense.submitted_by) {
-        await notifyUser({
-          userId: expense.submitted_by,
-          type: 'expense_approved',
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'expense_needs_second_approval',
           module: 'expenses',
-          title: 'Your expense was approved',
+          title: 'High-value expense awaiting second approval',
           body: `${cat} — ${amtStr}`,
         });
+      } else {
+        await logAudit(
+          'expense_approved',
+          isSecond
+            ? `Expense fully approved (2nd approval): ${cat} — ${amtStr}`
+            : `Expense approved: ${cat} — ${amtStr}`,
+          profile,
+        );
+        await syncFuelRequest(expense.fuel_request_id, 'approved');
+        if (expense.submitted_by) {
+          await notifyUser({
+            userId: expense.submitted_by,
+            type: 'expense_approved',
+            module: 'expenses',
+            title: 'Your expense was approved',
+            body: `${cat} — ${amtStr}`,
+          });
+        }
+        burst({ palette: 'success', count: isSecond ? 50 : 40 });
+        toast({ title: isSecond ? 'Expense fully approved' : 'Expense approved' });
       }
-      burst({ palette: 'success', count: 50 });
-      toast({ title: 'Expense fully approved' });
       fetchData();
-      return;
-    }
-
-    // --- Self-approval guard: non-admin roles cannot first-approve their own expense ---
-    const isAdminRole = ['super_admin', 'admin'].includes(profile?.role || '');
-    if (!isAdminRole && expense.submitted_by === profile?.id) {
+    } catch (err: any) {
       toast({
-        title: 'Self-approval not allowed',
-        description: 'You cannot approve an expense you submitted. Ask another approver.',
+        title: 'Approval failed',
+        description: err?.message || 'Please try again.',
         variant: 'destructive',
       });
-      return;
-    }
-
-    // --- First / only approval (expense is pending) ---
-    const needsDual = dualThreshold > 0 && amountNgn >= dualThreshold;
-
-    if (needsDual) {
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          status: 'pending_second_approval',
-          approved_by: profile?.id,
-          approved_at: now,
-        })
-        .eq('id', expense.id);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        return;
-      }
-      await logAudit(
-        'expense_first_approval',
-        `First approval for high-value expense: ${cat} — ${amtStr} (threshold: ${formatNaira(dualThreshold)})`,
-        profile,
-      );
-      await notifyRoles({
-        roles: ['super_admin', 'admin', 'finance'],
-        type: 'expense_needs_second_approval',
-        module: 'expenses',
-        title: 'High-value expense awaiting second approval',
-        body: `${cat} — ${amtStr}`,
-      });
-      toast({
-        title: 'First approval recorded',
-        description: 'A second approver must confirm this high-value expense.',
-      });
-      fetchData();
-    } else {
-      const { error } = await supabase
-        .from('expenses')
-        .update({
-          status: 'approved',
-          approved_by: profile?.id,
-          approved_at: now,
-        })
-        .eq('id', expense.id);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        return;
-      }
-      await logAudit(
-        'expense_approved',
-        `Expense approved: ${cat} — ${amtStr}`,
-        profile,
-      );
-      await syncFuelRequest(expense.fuel_request_id, 'approved');
-      if (expense.submitted_by) {
-        await notifyUser({
-          userId: expense.submitted_by,
-          type: 'expense_approved',
-          module: 'expenses',
-          title: 'Your expense was approved',
-          body: `${cat} — ${amtStr}`,
-        });
-      }
-      burst({ palette: 'success', count: 40 });
-      toast({ title: 'Expense approved' });
-      fetchData();
     }
   };
 
@@ -792,18 +693,14 @@ const Expenses = () => {
       return;
     }
     const e = rejectingExpense;
-    const now = new Date().toISOString();
-    const { error } = await supabase
-      .from('expenses')
-      .update({
-        status: 'rejected',
-        rejection_reason: rejectReason.trim(),
-        approved_by: profile?.id,
-        approved_at: now,
-      })
-      .eq('id', e.id);
-    if (error) {
-      toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
+    try {
+      await rejectExpense(e.id, rejectReason.trim());
+    } catch (err: any) {
+      toast({
+        title: 'Reject failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
       return;
     }
     await syncFuelRequest(e.fuel_request_id, 'rejected');
@@ -886,40 +783,46 @@ const Expenses = () => {
     setBulkApproveConfirm({ count: pending.length, total });
   };
 
+  /** Approve every pending expense in the table — one RPC call per row so a
+   *  single denial (cap blown, role mismatch) doesn't roll the whole bulk back. */
   const doBulkApprove = async () => {
     if (!bulkApproveConfirm) return;
     setBulkApproveConfirm(null);
     setBulkLoading(true);
     const pending = expenses.filter((e) => e.status === 'pending');
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
     try {
-      const ids = pending.map((p) => p.id);
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: 'approved' })
-        .in('id', ids);
-      if (error) {
-        toast({
-          title: 'Bulk approve failed',
-          description: error.message,
-          variant: 'destructive',
-        });
-        return;
+      for (const e of pending) {
+        try {
+          await approveExpense(e.id);
+          succeeded++;
+          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+        } catch (err: any) {
+          failures.push({
+            title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
+            reason: err?.message || 'unknown',
+          });
+        }
       }
       const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
-      // Sync any linked fuel requests to 'approved'.
-      const fuelIds = pending.map((e) => (e as any).fuel_request_id).filter(Boolean);
-      if (fuelIds.length > 0) {
-        await supabase.from('fuel_requests').update({ status: 'approved' }).in('id', fuelIds);
-      }
       await logAudit(
         'bulk_approved',
-        `Bulk approved ${pending.length} expenses (${formatNaira(total)})`,
+        `Bulk approved ${succeeded} of ${pending.length} expenses (${formatNaira(total)})`,
         profile,
       );
-      toast({
-        title: `Approved ${pending.length} expense${pending.length === 1 ? '' : 's'}`,
-        description: `${formatNaira(total)} total`,
-      });
+      if (failures.length === 0) {
+        toast({
+          title: `Approved ${succeeded} expense${succeeded === 1 ? '' : 's'}`,
+          description: `${formatNaira(total)} total`,
+        });
+      } else {
+        toast({
+          title: `Approved ${succeeded} of ${pending.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
       setSelected(new Set());
       fetchData();
     } finally {
@@ -932,32 +835,39 @@ const Expenses = () => {
     const rows = expenses.filter((e) => selected.has(e.id) && e.status === 'pending');
     if (rows.length === 0) return;
     setBulkLoading(true);
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .update({ status: 'approved' })
-        .in('id', rows.map((r) => r.id));
-      if (error) throw error;
-      const fuelIds = rows.map((e) => e.fuel_request_id).filter(Boolean) as string[];
-      if (fuelIds.length > 0) {
-        await supabase.from('fuel_requests').update({ status: 'approved' }).in('id', fuelIds);
+      for (const e of rows) {
+        try {
+          await approveExpense(e.id);
+          succeeded++;
+          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+        } catch (err: any) {
+          failures.push({
+            title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
+            reason: err?.message || 'unknown',
+          });
+        }
       }
       const total = rows.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
       await logAudit(
         'bulk_approved',
-        `Bulk approved ${rows.length} selected expenses (${formatNaira(total)})`,
+        `Bulk approved ${succeeded} of ${rows.length} selected expenses (${formatNaira(total)})`,
         profile,
       );
-      burst({ palette: 'success', count: 70 });
-      toast({ title: `Approved ${rows.length} selected` });
+      if (failures.length === 0) {
+        burst({ palette: 'success', count: 70 });
+        toast({ title: `Approved ${succeeded} selected` });
+      } else {
+        toast({
+          title: `Approved ${succeeded} of ${rows.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
       setSelected(new Set());
       fetchData();
-    } catch (err: any) {
-      toast({
-        title: 'Bulk approve failed',
-        description: err?.message,
-        variant: 'destructive',
-      });
     } finally {
       setBulkLoading(false);
     }
