@@ -22,6 +22,14 @@ import { useApprovalStore } from '@/store/approvalStore';
 import { logAudit, type AuditActionType } from '@/lib/audit';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { APPROVER_ROLES, hasRole } from '@/lib/roles';
+import {
+  approvePaymentBatch,
+  rejectPaymentBatch,
+  approveExpense,
+  confirmSecondApproval,
+  confirmSecondExpenseApproval,
+  rejectExpense,
+} from '@/lib/transfer-safety';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -159,16 +167,19 @@ const Approvals = () => {
     try {
       const [batchRes, expenseRes, fuelRes, budgetRes, profilesRes, leaveRes] =
         await Promise.all([
+          // Pull both pending_approval and pending_second_approval batches —
+          // the second-approval queue is just another flavour of "needs my
+          // attention" and belongs in Mission Control, not behind a hidden tab.
           supabase
             .from('payment_batches')
             .select('*')
-            .eq('status', 'pending_approval')
+            .in('status', ['pending_approval', 'pending_second_approval'])
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
             .from('expenses')
             .select('*')
-            .eq('status', 'pending')
+            .in('status', ['pending', 'pending_second_approval'])
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
@@ -357,6 +368,12 @@ const Approvals = () => {
 
   const rawId = (compoundId: string) => compoundId.split(':')[1];
 
+  /**
+   * Approve a single pending row. Batches and expenses go through the
+   * SECURITY DEFINER RPCs (which enforce no-self-approval, role pools, caps,
+   * and the dual-approval threshold); fuel/budget/leave still flow through
+   * direct status writes because they live outside the new framework.
+   */
   const approveOne = async (it: PendingItem) => {
     if (!canApprove) {
       toast({
@@ -368,8 +385,57 @@ const Approvals = () => {
     }
     setActioning(it.id);
     try {
+      if (it.kind === 'batch') {
+        const isSecond = (it.raw?.status as string) === 'pending_second_approval';
+        const result = isSecond
+          ? await confirmSecondApproval(rawId(it.id))
+          : await approvePaymentBatch(rawId(it.id));
+        await logAudit(
+          isSecond ? 'batch_second_approved' : (result?.status === 'pending_second_approval' ? 'batch_first_approved' : 'batch_approved'),
+          describeApprove(it),
+          profile,
+        );
+        toast({
+          title: isSecond
+            ? 'Batch fully approved'
+            : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
+          description: result?.status === 'pending_second_approval'
+            ? 'A second approver must confirm this batch before it can proceed.'
+            : undefined,
+        });
+        await fetchAll();
+        refreshCounts();
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(it.id);
+          return next;
+        });
+        return;
+      }
+
+      if (it.kind === 'expense') {
+        const isSecond = (it.raw?.status as string) === 'pending_second_approval';
+        const result = isSecond
+          ? await confirmSecondExpenseApproval(rawId(it.id))
+          : await approveExpense(rawId(it.id));
+        await logAudit('expense_approved', describeApprove(it), profile);
+        toast({
+          title: isSecond
+            ? 'Expense fully approved'
+            : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
+        });
+        await fetchAll();
+        refreshCounts();
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(it.id);
+          return next;
+        });
+        return;
+      }
+
       const update: any = { status: PENDING_STATUS[it.kind].approve };
-      if (it.kind === 'batch' || it.kind === 'budget') {
+      if (it.kind === 'budget') {
         update.approved_by = profile?.id;
       }
       const { error } = await supabase
@@ -514,14 +580,22 @@ const Approvals = () => {
     const it = rejectTarget;
     setActioning(it.id);
     try {
-      const patch: any = { status: PENDING_STATUS[it.kind].reject };
-      // Every rejectable entity has rejection_reason after phase 6.
-      patch.rejection_reason = rejectReason.trim();
-      const { error } = await supabase
-        .from(TABLES[it.kind])
-        .update(patch)
-        .eq('id', rawId(it.id));
-      if (error) throw error;
+      // Batches and expenses must go through the RPC so the reject can clear
+      // approval state and write the matching transfer_audit row. Fuel /
+      // budget / leave still use the legacy direct-update path.
+      if (it.kind === 'batch') {
+        await rejectPaymentBatch(rawId(it.id), rejectReason.trim());
+      } else if (it.kind === 'expense') {
+        await rejectExpense(rawId(it.id), rejectReason.trim());
+      } else {
+        const patch: any = { status: PENDING_STATUS[it.kind].reject };
+        patch.rejection_reason = rejectReason.trim();
+        const { error } = await supabase
+          .from(TABLES[it.kind])
+          .update(patch)
+          .eq('id', rawId(it.id));
+        if (error) throw error;
+      }
 
       // If a fuel request is rejected, also mark the paired expense row
       // as rejected so finance no longer sees it as actionable.
@@ -584,6 +658,14 @@ const Approvals = () => {
     }
   };
 
+  /**
+   * Bulk approve. Batches and expenses go one-at-a-time through their RPCs
+   * (which enforce caps, role pools, no-self-approval, and dual-approval
+   * thresholds) so a single bad row doesn't fail the whole batch update;
+   * fuel/budget/leave use the legacy bulk path. Per-row failures are
+   * collected and surfaced in the final toast — silently swallowing them
+   * would let a partial-success bulk look like a full success.
+   */
   const bulkApprove = async () => {
     if (!canApprove) {
       toast({
@@ -598,58 +680,66 @@ const Approvals = () => {
     setBulkLoading(true);
 
     let succeeded = 0;
-    let failed = 0;
-    try {
-      // Group by kind and run one update per group for efficiency.
-      const groups: Record<Kind, PendingItem[]> = {
-        batch: [],
-        expense: [],
-        fuel: [],
-        budget: [],
-        leave: [],
-      };
-      for (const r of rows) groups[r.kind].push(r);
+    const failures: Array<{ title: string; reason: string }> = [];
 
-      for (const kind of Object.keys(groups) as Kind[]) {
-        const group = groups[kind];
-        if (group.length === 0) continue;
-        const update: any = { status: PENDING_STATUS[kind].approve };
-        if (kind === 'batch' || kind === 'budget') {
-          update.approved_by = profile?.id;
-        }
-        const ids = group.map((g) => rawId(g.id));
-        const { error } = await supabase
-          .from(TABLES[kind])
-          .update(update)
-          .in('id', ids);
-        if (error) {
-          failed += group.length;
-        } else {
-          succeeded += group.length;
-          for (const it of group) {
-            await logAudit(AUDIT_APPROVE[kind], describeApprove(it), profile);
+    try {
+      for (const it of rows) {
+        try {
+          if (it.kind === 'batch') {
+            const isSecond = (it.raw?.status as string) === 'pending_second_approval';
+            if (isSecond) await confirmSecondApproval(rawId(it.id));
+            else          await approvePaymentBatch(rawId(it.id));
+            await logAudit(
+              isSecond ? 'batch_second_approved' : 'batch_approved',
+              describeApprove(it),
+              profile,
+            );
+            succeeded++;
+          } else if (it.kind === 'expense') {
+            const isSecond = (it.raw?.status as string) === 'pending_second_approval';
+            if (isSecond) await confirmSecondExpenseApproval(rawId(it.id));
+            else          await approveExpense(rawId(it.id));
+            await logAudit('expense_approved', describeApprove(it), profile);
+            succeeded++;
+          } else {
+            const update: any = { status: PENDING_STATUS[it.kind].approve };
+            if (it.kind === 'budget') update.approved_by = profile?.id;
+            const { error } = await supabase
+              .from(TABLES[it.kind])
+              .update(update)
+              .eq('id', rawId(it.id));
+            if (error) throw error;
+            await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
+            succeeded++;
           }
+        } catch (err: any) {
+          failures.push({
+            title: it.title,
+            reason: err?.message || 'unknown',
+          });
         }
       }
 
       await logAudit(
         'bulk_approved',
-        `Bulk approved ${succeeded} item(s)${failed ? ` (${failed} failed)` : ''}`,
+        `Bulk approved ${succeeded} item(s)${failures.length ? ` (${failures.length} failed)` : ''}`,
         profile,
       );
 
-      if (succeeded > 0) {
+      if (succeeded > 0 && failures.length === 0) {
         toast({
           title: `Approved ${succeeded} item${succeeded === 1 ? '' : 's'}`,
-          description: failed
-            ? `${failed} item(s) could not be approved.`
-            : undefined,
         });
-      }
-      if (failed > 0 && succeeded === 0) {
+      } else if (succeeded > 0 && failures.length > 0) {
+        toast({
+          title: `Approved ${succeeded} of ${succeeded + failures.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      } else if (failures.length > 0) {
         toast({
           title: 'Bulk approval failed',
-          description: `${failed} item(s) could not be approved.`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
           variant: 'destructive',
         });
       }
@@ -893,10 +983,17 @@ const Approvals = () => {
                                 </TableCell>
                               )}
                               <TableCell>
-                                <Badge variant="secondary" className="gap-1">
-                                  <Icon className="h-3 w-3" />
-                                  {KIND_LABELS[it.kind].replace(' Batches', '')}
-                                </Badge>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge variant="secondary" className="gap-1">
+                                    <Icon className="h-3 w-3" />
+                                    {KIND_LABELS[it.kind].replace(' Batches', '')}
+                                  </Badge>
+                                  {(it.raw?.status as string) === 'pending_second_approval' && (
+                                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
+                                      Awaiting 2nd
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <button
@@ -990,10 +1087,17 @@ const Approvals = () => {
                                 className="text-left min-w-0 flex-1"
                                 onClick={() => openItem(it)}
                               >
-                                <Badge variant="secondary" className="gap-1 mb-1">
-                                  <Icon className="h-3 w-3" />
-                                  <span className="text-[10px]">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
-                                </Badge>
+                                <div className="flex flex-wrap items-center gap-1 mb-1">
+                                  <Badge variant="secondary" className="gap-1">
+                                    <Icon className="h-3 w-3" />
+                                    <span className="text-[10px]">{KIND_LABELS[it.kind].replace(' Batches', '')}</span>
+                                  </Badge>
+                                  {(it.raw?.status as string) === 'pending_second_approval' && (
+                                    <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5">
+                                      <span className="text-[10px]">Awaiting 2nd</span>
+                                    </Badge>
+                                  )}
+                                </div>
                                 <MobileCardTitle className="text-sm">{it.title}</MobileCardTitle>
                                 {it.subtitle && (
                                   <p className="text-[11px] text-muted-foreground truncate">
