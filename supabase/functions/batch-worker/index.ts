@@ -215,7 +215,11 @@ async function drainConcurrent<T, R>(
 // ──────────────────────────────────────────────────────────────────────────
 // Main worker — loop until time budget expires or no more pending items.
 // ──────────────────────────────────────────────────────────────────────────
-async function workBatch(svc: SupabaseClient, batchId: string) {
+async function workBatch(
+  svc: SupabaseClient,
+  batchId: string,
+  actorId?: string | null,
+) {
   const startedAt = Date.now();
 
   const { data: batch, error: bErr } = await svc
@@ -226,6 +230,38 @@ async function workBatch(svc: SupabaseClient, batchId: string) {
   if (bErr || !batch) return { ok: false, error: "batch not found" };
   if (batch.status !== "processing" && batch.status !== "partially_processed") {
     return { ok: true, skipped: `batch in ${batch.status}` };
+  }
+
+  // Cap enforcement: when a real user kicks the batch, sum undispatched
+  // amounts and run a single check_transfer_caps call before touching Paystack.
+  // Cron/orphan recovery bypasses this — the batch was already authorised.
+  if (actorId) {
+    const { data: pendingItems } = await svc
+      .from("batch_items")
+      .select("amount_ngn")
+      .eq("batch_id", batchId)
+      .is("paystack_reference", null)
+      .not("status", "in", '("succeeded","failed","rejected")');
+
+    const totalNgn = (pendingItems || []).reduce(
+      (sum: number, it: any) => sum + Number(it.amount_ngn || 0),
+      0,
+    );
+
+    if (totalNgn > 0) {
+      const { data: capRows, error: capErr } = await svc.rpc(
+        "check_transfer_caps",
+        { p_user_id: actorId, p_amount_ngn: totalNgn },
+      );
+      if (capErr) {
+        console.error("[batch-worker] cap check failed:", capErr.message);
+        return { ok: false, error: "Could not verify transfer limits — try again." };
+      }
+      const cap = Array.isArray(capRows) ? capRows[0] : capRows;
+      if (cap && cap.allowed === false) {
+        return { ok: false, error: cap.reason, cap_blocked: true };
+      }
+    }
   }
 
   const secret = await getPaystackSecret(svc);
@@ -317,7 +353,7 @@ serve(async (req) => {
   const expectedCron = Deno.env.get("CRON_SHARED_SECRET");
   if (cronSecret && expectedCron && cronSecret === expectedCron) {
     const result = body?.batch_id
-      ? await workBatch(svc, body.batch_id)
+      ? await workBatch(svc, body.batch_id, null)
       : await workOrphans(svc);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
@@ -359,7 +395,7 @@ serve(async (req) => {
     });
   }
 
-  const result = await workBatch(svc, body.batch_id);
+  const result = await workBatch(svc, body.batch_id, userRes.user.id);
   return new Response(JSON.stringify(result), {
     headers: { ...cors, "Content-Type": "application/json" },
   });
