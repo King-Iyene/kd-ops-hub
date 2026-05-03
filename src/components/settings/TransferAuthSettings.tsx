@@ -21,12 +21,15 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  Users,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -50,8 +53,14 @@ import {
   upsertTransferLimit,
   deleteTransferLimit,
   fetchRecentTransferAudit,
+  listApproverPools,
+  updateApproverPool,
+  APPROVAL_ROLE_OPTIONS,
+  SETTINGS_SINGLETON_ID,
   type TransferLimit,
   type TransferAuditRow,
+  type ApproverPool,
+  type ApprovalRole,
 } from '@/lib/transfer-safety';
 
 type Role = 'super_admin' | 'admin' | 'finance';
@@ -111,8 +120,18 @@ export default function TransferAuthSettings() {
   const [overrideSingle, setOverrideSingle] = useState<string>('');
   const [overrideDaily, setOverrideDaily] = useState<string>('');
   const [overrideMonthly, setOverrideMonthly] = useState<string>('');
+  const [overrideCo, setOverrideCo] = useState<string>('');
   const [overrideNotes, setOverrideNotes] = useState<string>('');
   const [overrideSaving, setOverrideSaving] = useState(false);
+
+  // Approver pools editor.
+  const [pools, setPools] = useState<ApproverPool[]>([]);
+  const [poolDraft, setPoolDraft] = useState<Record<string, string[]>>({});
+  const [poolSaving, setPoolSaving] = useState<string | null>(null);
+
+  // Quick Pay master switch.
+  const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
+  const [quickPaySaving, setQuickPaySaving] = useState(false);
 
   // ── Audit ────────────────────────────────────────────────────────────
   const [audit, setAudit] = useState<TransferAuditRow[]>([]);
@@ -129,7 +148,7 @@ export default function TransferAuthSettings() {
     setMigrationMissing(false);
 
     // Run independently so a missing table only breaks its own section.
-    const [lRes, aRes, pRes] = await Promise.allSettled([
+    const [lRes, aRes, pRes, poolsRes, csRes] = await Promise.allSettled([
       listTransferLimits(),
       fetchRecentTransferAudit(50),
       supabase
@@ -137,6 +156,12 @@ export default function TransferAuthSettings() {
         .select('id, full_name, email, role')
         .in('role', ['super_admin', 'admin', 'finance'])
         .order('full_name'),
+      listApproverPools(),
+      supabase
+        .from('company_settings')
+        .select('quick_pay_enabled')
+        .eq('id', SETTINGS_SINGLETON_ID)
+        .maybeSingle(),
     ]);
 
     if (lRes.status === 'fulfilled') {
@@ -155,6 +180,12 @@ export default function TransferAuthSettings() {
     }
     if (pRes.status === 'fulfilled') {
       setProfiles(((pRes.value as any).data ?? []) as ProfileLite[]);
+    }
+    if (poolsRes.status === 'fulfilled') {
+      setPools(poolsRes.value);
+    }
+    if (csRes.status === 'fulfilled') {
+      setQuickPayEnabled(!!((csRes.value as any).data?.quick_pay_enabled));
     }
 
     setLimitsLoading(false);
@@ -198,10 +229,18 @@ export default function TransferAuthSettings() {
       single_txn_limit_ngn: d.single_txn_limit_ngn ?? existing?.single_txn_limit_ngn ?? null,
       daily_limit_ngn: d.daily_limit_ngn ?? existing?.daily_limit_ngn ?? null,
       monthly_limit_ngn: d.monthly_limit_ngn ?? existing?.monthly_limit_ngn ?? null,
+      co_approval_threshold_ngn: d.co_approval_threshold_ngn ?? existing?.co_approval_threshold_ngn ?? null,
       notes: d.notes ?? existing?.notes ?? null,
     };
     try {
       await upsertTransferLimit(next);
+      // Audit so a super-admin can't quietly widen a co-approval threshold.
+      // The DB-level audit_logs trigger doesn't fire here (we go via the
+      // transfer_limits row, not approver_pools), so log explicitly.
+      await supabase.from('audit_logs').insert({
+        action_type: 'transfer_limit_changed',
+        description: `${roleLabel[role]} caps updated — single=${next.single_txn_limit_ngn ?? '∅'}, daily=${next.daily_limit_ngn ?? '∅'}, monthly=${next.monthly_limit_ngn ?? '∅'}, co_threshold=${next.co_approval_threshold_ngn ?? '∅'}`,
+      });
       toast({ title: `${roleLabel[role]} caps saved` });
       setDraft((prev) => {
         const c = { ...prev };
@@ -227,19 +266,88 @@ export default function TransferAuthSettings() {
         single_txn_limit_ngn: overrideSingle ? Number(overrideSingle) : null,
         daily_limit_ngn: overrideDaily ? Number(overrideDaily) : null,
         monthly_limit_ngn: overrideMonthly ? Number(overrideMonthly) : null,
+        co_approval_threshold_ngn: overrideCo ? Number(overrideCo) : null,
         notes: overrideNotes || null,
+      });
+      await supabase.from('audit_logs').insert({
+        action_type: 'transfer_limit_override_added',
+        description: `Per-user transfer-limit override added for ${overrideUserId}`,
       });
       toast({ title: 'Override saved' });
       setOverrideUserId('');
       setOverrideSingle('');
       setOverrideDaily('');
       setOverrideMonthly('');
+      setOverrideCo('');
       setOverrideNotes('');
       await reloadAll();
     } catch (e: any) {
       toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
     } finally {
       setOverrideSaving(false);
+    }
+  };
+
+  const togglePoolRole = (poolId: string, role: ApprovalRole, on: boolean) => {
+    setPoolDraft((prev) => {
+      const current = prev[poolId] ?? pools.find((p) => p.id === poolId)?.eligible_roles ?? [];
+      const next = on
+        ? Array.from(new Set([...current, role]))
+        : current.filter((r) => r !== role);
+      return { ...prev, [poolId]: next };
+    });
+  };
+
+  const handleSavePool = async (poolId: string) => {
+    const draftRoles = poolDraft[poolId];
+    if (!draftRoles) return;
+    if (draftRoles.length === 0) {
+      toast({
+        title: 'At least one role required',
+        description: 'A pool with no eligible roles would lock approvals — add at least one.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setPoolSaving(poolId);
+    try {
+      await updateApproverPool(poolId, draftRoles);
+      toast({ title: 'Approver pool saved' });
+      setPoolDraft((prev) => {
+        const c = { ...prev };
+        delete c[poolId];
+        return c;
+      });
+      await reloadAll();
+    } catch (e: any) {
+      toast({
+        title: 'Save failed',
+        description: e?.message ?? String(e),
+        variant: 'destructive',
+      });
+    } finally {
+      setPoolSaving(null);
+    }
+  };
+
+  const handleToggleQuickPay = async (next: boolean) => {
+    setQuickPaySaving(true);
+    try {
+      const { error } = await supabase
+        .from('company_settings')
+        .update({ quick_pay_enabled: next })
+        .eq('id', SETTINGS_SINGLETON_ID);
+      if (error) throw error;
+      await supabase.from('audit_logs').insert({
+        action_type: 'quick_pay_toggled',
+        description: `Quick Pay ${next ? 'enabled' : 'disabled'} via Transfer Authorization settings`,
+      });
+      setQuickPayEnabled(next);
+      toast({ title: next ? 'Quick Pay enabled' : 'Quick Pay disabled' });
+    } catch (e: any) {
+      toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setQuickPaySaving(false);
     }
   };
 
@@ -313,6 +421,7 @@ export default function TransferAuthSettings() {
                   <TableHead>Single transfer</TableHead>
                   <TableHead>Daily (rolling 24h)</TableHead>
                   <TableHead>Monthly</TableHead>
+                  <TableHead>Co-approval above</TableHead>
                   <TableHead className="w-[120px] text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -322,7 +431,7 @@ export default function TransferAuthSettings() {
                   const d = draft[role] ?? {};
                   const setField = (k: keyof TransferLimit, v: any) =>
                     setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
-                  const valueOf = (k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn'): string => {
+                  const valueOf = (k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'co_approval_threshold_ngn'): string => {
                     const v = (d as any)[k] ?? row?.[k];
                     return v === null || v === undefined ? '' : String(v);
                   };
@@ -362,6 +471,18 @@ export default function TransferAuthSettings() {
                           }
                         />
                       </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="never"
+                          value={valueOf('co_approval_threshold_ngn')}
+                          onChange={(e) =>
+                            setField('co_approval_threshold_ngn', e.target.value === '' ? null : Number(e.target.value))
+                          }
+                          title="Above this NGN amount, a second approver is required. Empty = never."
+                        />
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => void handleSaveRoleLimit(role)}>
                           <Save className="h-3 w-3 mr-1" /> Save
@@ -382,7 +503,7 @@ export default function TransferAuthSettings() {
           <CardTitle className="text-sm">Per-user overrides</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr_2fr_auto] gap-2 items-end">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_2fr_auto] gap-2 items-end">
             <div className="space-y-1">
               <Label className="text-xs">User</Label>
               <Select value={overrideUserId} onValueChange={setOverrideUserId}>
@@ -431,6 +552,17 @@ export default function TransferAuthSettings() {
               />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs">Co-approval above</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="never"
+                value={overrideCo}
+                onChange={(e) => setOverrideCo(e.target.value)}
+                title="Above this amount, this user's transfer needs a second approver."
+              />
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs">Notes</Label>
               <Input
                 placeholder="optional"
@@ -454,6 +586,7 @@ export default function TransferAuthSettings() {
                   <TableHead>Single</TableHead>
                   <TableHead>Daily</TableHead>
                   <TableHead>Monthly</TableHead>
+                  <TableHead>Co-approval above</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="w-[60px]" />
                 </TableRow>
@@ -472,6 +605,11 @@ export default function TransferAuthSettings() {
                       <TableCell>{fmtCap(o.single_txn_limit_ngn)}</TableCell>
                       <TableCell>{fmtCap(o.daily_limit_ngn)}</TableCell>
                       <TableCell>{fmtCap(o.monthly_limit_ngn)}</TableCell>
+                      <TableCell>
+                        {o.co_approval_threshold_ngn === null || o.co_approval_threshold_ngn === undefined
+                          ? <span className="text-xs text-muted-foreground italic">never</span>
+                          : formatNaira(o.co_approval_threshold_ngn)}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{o.notes ?? ''}</TableCell>
                       <TableCell>
                         <Button
@@ -481,6 +619,115 @@ export default function TransferAuthSettings() {
                           aria-label="Remove override"
                         >
                           <Trash2 className="h-3 w-3 text-rose-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Pay toggle */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Zap className="h-4 w-4 text-accent" /> Quick Pay
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-1 max-w-2xl">
+              <p className="text-sm">
+                Master switch for the one-off Quick Pay flow. While disabled, every operator who opens Quick Pay sees a notice and the dialog won't dispatch a transfer.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Above an operator's co-approval threshold, Quick Pay routes through the standard pending-approval flow rather than auto-funding — even when this switch is on.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={!!quickPayEnabled}
+                disabled={quickPaySaving || quickPayEnabled === null}
+                onCheckedChange={(v) => void handleToggleQuickPay(!!v)}
+                aria-label="Toggle Quick Pay"
+              />
+              <span className="text-sm font-medium">{quickPayEnabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Approver pools */}
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Users className="h-4 w-4" /> Approver pools
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground max-w-2xl">
+            Which roles can act as first or second approver for each action type. When a batch / Quick Pay / expense payment is created by an admin or super admin, the first-approver pool is automatically narrowed to <strong>super_admin only</strong> — the listed roles still apply for everyone else.
+          </p>
+          {pools.length === 0 ? (
+            <p className="text-xs text-muted-foreground italic">No pools loaded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[160px]">Action</TableHead>
+                  <TableHead className="w-[100px]">Tier</TableHead>
+                  <TableHead>Eligible roles</TableHead>
+                  <TableHead className="w-[120px] text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pools.map((pool) => {
+                  const draftRoles = poolDraft[pool.id] ?? pool.eligible_roles;
+                  const dirty = poolDraft[pool.id] !== undefined;
+                  return (
+                    <TableRow key={pool.id}>
+                      <TableCell className="font-medium">
+                        {pool.action_type === 'payment_batch' ? 'Payment Batch'
+                          : pool.action_type === 'quick_pay' ? 'Quick Pay'
+                          : 'Expense Payment'}
+                      </TableCell>
+                      <TableCell className="capitalize">{pool.tier}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {APPROVAL_ROLE_OPTIONS.map((role) => {
+                            const on = draftRoles.includes(role);
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                onClick={() => togglePoolRole(pool.id, role, !on)}
+                                className={`text-xs px-2 py-0.5 rounded-full border kd-transition ${
+                                  on
+                                    ? 'border-primary/50 bg-primary/10 text-primary'
+                                    : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted'
+                                }`}
+                              >
+                                {role.replace(/_/g, ' ')}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          disabled={!dirty || poolSaving === pool.id}
+                          onClick={() => void handleSavePool(pool.id)}
+                        >
+                          {poolSaving === pool.id ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Save className="h-3 w-3 mr-1" />
+                          )}
+                          Save
                         </Button>
                       </TableCell>
                     </TableRow>

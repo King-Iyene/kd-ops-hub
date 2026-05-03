@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Zap, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Zap, Loader2, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -9,9 +9,15 @@ import {
   generateKdopsRef,
   getBankCode,
   buildNarration,
-  NIGERIAN_BANKS,
 } from '@/lib/paystack';
 import { formatNaira } from '@/lib/format';
+import {
+  isQuickPayEnabled,
+  isCoApprovalRequired,
+  previewCapCheck,
+} from '@/lib/transfer-safety';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +48,7 @@ type ResultState = null | { ok: true; ref: string } | { ok: false; reason: strin
 export function QuickPayDialog() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -52,12 +59,53 @@ export function QuickPayDialog() {
     description: '',
   });
   const [showConfirm, setShowConfirm] = useState(false);
+  const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
+  const [coThreshold, setCoThreshold] = useState<number | null>(null);
+
+  // Quick Pay master switch + caller's effective co-approval threshold are
+  // fetched once on mount. The threshold is the amount above which a single
+  // Quick Pay routes through the pending_approval flow instead of executing
+  // the transfer immediately. NULL threshold means "no co-approval ever".
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const enabled = await isQuickPayEnabled();
+      if (cancelled) return;
+      setQuickPayEnabled(enabled);
+      if (profile?.id) {
+        // Re-use the cap-check RPC for the threshold lookup — it doesn't
+        // expose the threshold directly, but we have effective_co_approval_threshold
+        // server-side via the new RPC. Lacking a dedicated wrapper, fall
+        // back to a tiny inline RPC: read transfer_limits.co_approval_threshold_ngn
+        // for the user (override) or their role default. Failure is silent —
+        // the worst case is "we don't show the co-approval notice", and the
+        // server still enforces the threshold on the actual call.
+        try {
+          const { data } = await supabase
+            .from('transfer_limits')
+            .select('co_approval_threshold_ngn, role, user_id')
+            .or(`user_id.eq.${profile.id},and(user_id.is.null,role.eq.${profile.role})`)
+            .order('user_id', { nullsFirst: false })
+            .limit(1)
+            .maybeSingle();
+          if (!cancelled) {
+            const threshold = (data as any)?.co_approval_threshold_ngn ?? null;
+            setCoThreshold(threshold === null ? null : Number(threshold));
+          }
+        } catch { /* keep null — UI degrades gracefully */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [profile?.id, profile?.role]);
 
   const reset = () => {
     setBank(emptyBank);
     setForm({ amount: '', description: '' });
     setResult(null);
   };
+
+  const amountNum = parseFloat(form.amount) || 0;
+  const willRequireCoApproval = isCoApprovalRequired(coThreshold, amountNum);
 
   /** Operator clicked "Send" — open the pre-flight confirmation modal. */
   const handlePay = () => {
@@ -78,7 +126,70 @@ export function QuickPayDialog() {
     const amount = parseFloat(form.amount);
     setProcessing(true);
     try {
-      // 1. Create a single-item batch with auto-approval.
+      // Server-enforced cap preview. The edge fn re-checks this, but failing
+      // fast in the UI means the user doesn't see a generic Paystack error
+      // when the real reason is "your daily cap is blown".
+      if (profile?.id) {
+        const cap = await previewCapCheck(profile.id, amount);
+        if (cap && !cap.allowed) {
+          throw new Error(cap.reason || 'Transfer cap exceeded');
+        }
+      }
+
+      // ABOVE THRESHOLD: do not auto-fund. Create a pending_approval batch
+      // and stop — the operator (or an approver) finalises the payment from
+      // BatchDetail. This is the single-source-of-truth way to enforce
+      // co-approval for high-value Quick Pays without forking the flow.
+      if (isCoApprovalRequired(coThreshold, amount)) {
+        const { data: batch, error: batchErr } = await supabase
+          .from('payment_batches')
+          .insert({
+            name: `Quick Pay — ${bank.account_name || bank.account_number}`,
+            payment_date: new Date().toISOString().slice(0, 10),
+            total_amount: amount,
+            beneficiary_count: 1,
+            status: 'pending_approval',
+            is_quick_pay: true,
+            created_by: profile?.id,
+            payment_description: customNarration?.trim() || form.description?.trim() || null,
+          })
+          .select('id')
+          .single();
+        if (batchErr) throw batchErr;
+        const batchId = (batch as any).id;
+        const { error: itemErr } = await supabase.from('batch_items').insert({
+          batch_id: batchId,
+          full_name: bank.account_name || bank.account_number,
+          bank_name: bank.bank_name,
+          account_number: bank.account_number,
+          amount_ngn: amount,
+          reference: 'Quick Pay',
+          status: 'pending',
+        });
+        if (itemErr) throw itemErr;
+
+        await logAudit(
+          'quick_pay_routed_for_approval',
+          `Quick Pay batched for approval: ${formatNaira(amount)} to ${bank.account_name || bank.account_number} (${bank.bank_name}) — exceeds co-approval threshold`,
+          profile,
+        );
+        toast({
+          title: 'Quick Pay routed for approval',
+          description: `Amount ${formatNaira(amount)} exceeds your co-approval threshold of ${formatNaira(coThreshold ?? 0)}. An approver must review.`,
+        });
+        setOpen(false);
+        reset();
+        navigate(`/payments/${batchId}`);
+        return;
+      }
+
+      // BELOW THRESHOLD: legacy path — create a fully approved batch and
+      // dispatch immediately. Profile.id is recorded as both creator and
+      // first approver because, for sub-threshold quick pays, we treat the
+      // operator's act of clicking "Pay now" as the approval. Self-approval
+      // is technically blocked by the no-self-approval CHECK constraint —
+      // we set approved_by=NULL here because the dispatch path doesn't need
+      // it, and trying to set approved_by=profile.id would violate the CHECK.
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
@@ -89,7 +200,6 @@ export function QuickPayDialog() {
           status: 'funded',
           is_quick_pay: true,
           created_by: profile?.id,
-          approved_by: profile?.id,
         })
         .select()
         .single();
@@ -228,11 +338,12 @@ export function QuickPayDialog() {
               </Button>
               <Button
                 onClick={handlePay}
-                disabled={processing || !bank.verified || !form.amount}
+                disabled={processing || !bank.verified || !form.amount || quickPayEnabled === false}
                 className="kd-mobile-tap"
               >
                 {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <Zap className="mr-2 h-4 w-4" /> Pay now
+                <Zap className="mr-2 h-4 w-4" />
+                {willRequireCoApproval ? 'Submit for Approval' : 'Pay now'}
               </Button>
             </>
           )
@@ -262,6 +373,20 @@ export function QuickPayDialog() {
           </div>
         ) : (
           <div className="space-y-3">
+            {quickPayEnabled === false && (
+              <Alert className="border-amber-500/40 bg-amber-500/5">
+                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-sm">
+                  Quick Pay is disabled.{' '}
+                  <button
+                    onClick={() => { setOpen(false); navigate('/settings'); }}
+                    className="underline font-medium"
+                  >
+                    Enable in Settings → Transfer Authorization.
+                  </button>
+                </AlertDescription>
+              </Alert>
+            )}
             <BankAccountField value={bank} onChange={setBank} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -291,6 +416,14 @@ export function QuickPayDialog() {
                 <span className="font-semibold">{bank.account_name}</span> ·{' '}
                 {bank.bank_name} · {bank.account_number}
               </p>
+            )}
+            {willRequireCoApproval && (
+              <Alert className="border-amber-500/40 bg-amber-500/5">
+                <ShieldAlert className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-sm">
+                  This amount exceeds your co-approval threshold ({formatNaira(coThreshold ?? 0)}). The payment will be created as a pending batch — an approver must review before funds move.
+                </AlertDescription>
+              </Alert>
             )}
           </div>
         )}
