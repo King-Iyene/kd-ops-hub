@@ -259,7 +259,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT encode(
-    digest(
+    sha256(
       COALESCE(
         (SELECT jsonb_agg(jsonb_build_object(
                  'id', id,
@@ -271,8 +271,7 @@ AS $$
            FROM public.batch_items
           WHERE batch_id = p_batch_id),
         '[]'::jsonb
-      )::text,
-      'sha256'
+      )::text::bytea
     ),
     'hex'
   );
@@ -287,7 +286,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT encode(
-    digest(
+    sha256(
       jsonb_build_object(
         'id',             id,
         'amount_ngn',     amount_ngn,
@@ -295,8 +294,7 @@ AS $$
         'account_number', account_number,
         'bank_name',      bank_name,
         'account_name',   account_name
-      )::text,
-      'sha256'
+      )::text::bytea
     ),
     'hex'
   )
