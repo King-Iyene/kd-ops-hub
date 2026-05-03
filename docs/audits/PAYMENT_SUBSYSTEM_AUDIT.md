@@ -747,5 +747,376 @@ how much is sitting in the wallet).
 
 ---
 
-(MEDIUM and LOW findings continue in batch 3.)
+## 4. MEDIUM findings — full detail
+
+### M-1 — Per-user override has no `expires_at`
+
+**Severity:** MEDIUM. *(Brief explicitly asked us to flag this.)*
+
+**Proof.** `migration 20260807000000_transfer_safety.sql:34-47` defines `transfer_limits` with
+`single_txn_limit_ngn`, `daily_limit_ngn`, `monthly_limit_ngn`, `notes`, `created_at`, `updated_at`.
+There is no `expires_at`, no `granted_by`, no `reason_required`. Override = forever.
+
+**Why it matters.** Operationally, "Joseph needs ₦10M today to pay a vendor" turns into a permanent
+override because nobody comes back and removes it. Permanent overrides are how cap regimes erode.
+
+**Recommendation.**
+
+1. Add columns:
+   ```sql
+   ALTER TABLE public.transfer_limits
+     ADD COLUMN expires_at timestamptz,
+     ADD COLUMN granted_by uuid REFERENCES profiles(id),
+     ADD COLUMN granted_reason text;
+   ```
+2. Default `expires_at = now() + interval '30 days'` for any user-level row (`user_id IS NOT NULL`)
+   on insert, hard cap at `now() + interval '90 days'`.
+3. `check_transfer_caps` should ignore expired rows: add `AND (expires_at IS NULL OR expires_at > now())`
+   to the user-level lookup.
+4. Surface a "Expiring in N days" badge in TransferAuthSettings and let super_admin renew with a
+   one-click extension that re-records justification.
+5. Daily cron: notify the cap editor + the affected user 7 days before expiry.
+
+---
+
+### M-2 — No batch-total cap distinct from single/daily/monthly
+
+**Severity:** MEDIUM.
+
+**Proof.** `transfer_limits` has only `single`, `daily`, `monthly`. A 5,000-item batch totalling
+₦150M is a fundamentally different risk profile from 5,000 unrelated transfers across a month,
+but they share the same monthly bucket.
+
+**Recommendation.**
+
+1. Add `single_batch_limit_ngn` to `transfer_limits`.
+2. Enforce in `paystack-transfer/index.ts:271-332` for `bulk_transfer`. (When the batch-worker
+   path is the dispatcher — recommended in H-2 — it should pass the batch's `total_amount` once
+   to a new RPC `check_batch_caps(p_user_id, p_batch_total_ngn)` *before any item is dispatched*.)
+3. Surface in TransferAuthSettings as a fourth column on the role-defaults table, fitting the
+   existing UI grid.
+
+---
+
+### M-3 — Cap relationship not enforced (single ≤ daily ≤ monthly)
+
+**Severity:** MEDIUM.
+
+**Proof.** `TransferAuthSettings.tsx:191-215` accepts any number for any cap. `transfer_limits`
+schema has no CHECK constraint. A super_admin can set `daily=5M` and `monthly=1M` — the cap RPC
+will return `allowed=false` on the first ₦5M transfer because monthly is exceeded, even though
+the row is "valid". Worse, a single=10M with daily=1M is silently inconsistent.
+
+**Recommendation.**
+
+1. Add CHECK:
+   ```sql
+   ALTER TABLE public.transfer_limits ADD CONSTRAINT transfer_limits_cap_ordering CHECK (
+     COALESCE(single_txn_limit_ngn, 0) <= COALESCE(daily_limit_ngn, single_txn_limit_ngn, 0)
+     AND COALESCE(daily_limit_ngn, 0) <= COALESCE(monthly_limit_ngn, daily_limit_ngn, 0)
+   );
+   ```
+2. Mirror the validation in the UI for friendlier errors.
+
+---
+
+### M-4 — A user can edit their own role's cap
+
+**Severity:** MEDIUM.
+
+**Proof.** `transfer_limits` RLS (`20260807000000:58-63`):
+```sql
+CREATE POLICY "Super admin manages transfer_limits" ON public.transfer_limits
+  FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.profiles p
+                  WHERE p.id = auth.uid() AND p.role = 'super_admin'));
+```
+A super_admin can edit any row, including the `super_admin` role-default row, including
+their own user-level override (if one exists).
+
+`TransferAuthSettings.tsx:191-215` (`handleSaveRoleLimit`) and lines 217-244 (`handleAddOverride`)
+do not check `auth.uid()` against the row being edited.
+
+**Recommendation.**
+
+1. Server-side guard in the new RPC `set_transfer_limit` (B-3):
+   ```sql
+   IF p_role = (SELECT role FROM profiles WHERE id = auth.uid())
+      OR p_user_id = auth.uid() THEN
+     RAISE EXCEPTION 'You cannot edit your own role''s cap or your own user override';
+   END IF;
+   ```
+2. UI: hide rows where `role === profile.role` from the editable set. Show them read-only with a
+   tooltip explaining another super_admin must change them.
+3. For a single-super_admin company, document the bootstrap escape: invite a temporary co-admin to
+   change caps, then remove them. (This is unavoidable for any separation-of-duties control.)
+
+---
+
+### M-5 — "Recent transfer audit (last 50)" capped at 50
+
+**Severity:** MEDIUM.
+
+**Proof.** `TransferAuthSettings.tsx:499` and `transfer-safety.ts:89-99` hard-limit the audit
+fetch to 50 rows. There is no pagination, no date filter, no CSV export.
+
+**Why it matters.** Forensics on a high-velocity day can need the last 5,000 rows, not the last 50.
+
+**Recommendation.**
+
+1. Replace the static "last 50" panel with a paginated view (offset or keyset) and date range filter.
+2. Add a CSV export button. Edge function `paystack-transfer` already audits with metadata; the
+   CSV should include actor, action, amount, recipient_code (last 4 only), reference, ip_hash,
+   reason, metadata-json. Put the export button next to "Refresh".
+3. Also link to a full-trail page (`/audit-log` already exists per `pages/AuditLog.tsx`) filtered
+   to action types starting with `paystack_` or `cap_`.
+
+---
+
+### M-6 — Velocity rules absent
+
+**Severity:** MEDIUM.
+
+**Proof.** The brief listed three velocity rules to verify. Of those, *none* exist:
+
+- `>10 transfers in 5 minutes from one user` — not in `payment_anomaly_detection.sql`.
+- `single transfer >3× user's 30-day average` — not present.
+- `first-time recipient above ₦1M` — partial: rule 14 (`new_beneficiary_paid`) flags any new
+  beneficiary, regardless of amount, at MEDIUM severity. No amount threshold.
+
+The existing rules cover ghost workers, salary spikes, off-hours payroll approvals, shared bank
+accounts, account-changed-then-paid, duplicate payments — all good. But the *transfer-velocity*
+ones are missing.
+
+**Recommendation.**
+
+Add to the daily sweep (`scan_daily_anomalies` in `20260805000000`):
+```sql
+-- velocity_burst: >10 transfers in 5 minutes from one approver
+INSERT INTO payment_anomalies (rule_code, severity, module, …)
+SELECT 'velocity_burst', 'high', 'payments', …
+FROM (
+  SELECT actor_id, count(*) AS n,
+         min(created_at) AS first_at, max(created_at) AS last_at
+  FROM transfer_audit
+  WHERE action IN ('initiate_transfer','bulk_transfer')
+    AND outcome = 'ok'
+    AND created_at > now() - interval '24 hours'
+  GROUP BY actor_id, date_trunc('minute', created_at)
+  HAVING count(*) > 10
+    AND max(created_at) - min(created_at) <= interval '5 minutes'
+) v …
+
+-- spike_vs_30d: single transfer > 3× actor's 30-day mean
+-- first_time_recipient_high_value: new recipient + amount ≥ ₦1M
+```
+
+Threshold for `first_time_recipient_high_value` should be configurable in `company_settings`.
+
+---
+
+### M-7 — Reconciliation 1-hour gap
+
+**Severity:** MEDIUM.
+
+**Proof.** `paystack-reconciliation/index.ts:35`:
+```ts
+const STUCK_THRESHOLD_HOURS = 1;
+```
+Items only get re-checked if they've been pending for >1h. A webhook miss on a successful
+transfer keeps the row in `pending` for ≥1h, with no UI signal that recovery is in progress.
+
+**Recommendation.**
+
+1. Drop to 5 minutes for the first-pass scan. Add a separate, daily 24-hour-deep scan for
+   anything still pending.
+2. Surface "Reconciliation pending" inline on the batch detail page so finance knows the
+   platform knows.
+3. Run reconciliation more often during business hours (cron `*/5 9-18 * * 1-5`) and less often
+   off-hours.
+
+---
+
+### M-8 — OTP-required state writes `failure_reason` but doesn't change `status`
+
+**Severity:** MEDIUM.
+
+**Proof.** `paystack-reconciliation/index.ts:163-168`:
+```ts
+await service.from("batch_items").update({
+  failure_reason: "Awaiting OTP authorization — approve on dashboard.paystack.co …",
+  paystack_raw: body.data,
+}).eq("id", it.id);
+otpRequired++;
+otpItems.push({ name: it.full_name, ref: it.paystack_reference });
+unchanged++;
+```
+
+The row stays `pending`. The next reconciliation tick re-flags it as OTP-required and re-notifies.
+The watchdog assumes pending items are dispatch-pending and may try to recreate the recipient on
+retry. It also breaks the simple "anything pending > 24h is stuck" alerting heuristic — half the
+"stuck" rows are actually waiting on a human.
+
+**Recommendation.**
+
+1. Add a new `batch_items.status` value `awaiting_otp` (CHECK constraint update). Existing
+   `'pending' / 'retry'` semantics stay clean.
+2. The state machine trigger from H-6 should allow `pending → awaiting_otp → succeeded | failed`.
+3. UI: dedicated badge and an alert box explaining the operator must approve in Paystack
+   dashboard. Already done in `BatchDetail.tsx:1512-1521`, but the underlying status doesn't
+   match — fix in concert.
+4. Reconciliation should only count `awaiting_otp` against an OTP-aware threshold (e.g. flag if
+   awaiting > 4h during business hours).
+
+---
+
+### M-9 — Approval not invalidated when payload changes
+
+**Severity:** MEDIUM.
+
+**Proof.** Once a batch is `approved`, `BatchDetail.tsx` does not edit-lock items. RLS
+`batch_items_update` allows finance/admin to mutate `amount_ngn`, `account_number`, `bank_name`
+on an approved batch. The next state transition (`funded` → `processing`) reads the *current*
+items, so a finance user can:
+
+1. Submit a batch totalling ₦10M (within their cap) for approval.
+2. Get it approved.
+3. Edit any item's amount upward — now total is ₦80M, but the row is `approved`.
+4. Process — only at *that* point does the cap RPC fire, and it sees ₦80M and rejects.
+5. *Or worse*, the cap RPC is bypassed for a per-item dispatch (see B-5 in-flight gap), and
+   each ₦5M-or-less item slips past the single cap.
+
+`approved_by` is recorded but `approved_payload_hash` is not.
+
+**Recommendation.**
+
+1. On approval, store `payload_hash_at_approval = digest(canonical_json_of_items, 'sha256')`.
+2. BEFORE UPDATE trigger on `payment_batches` and `batch_items` that, when the batch is in
+   `approved | funded | processing | partially_processed | processed`, refuses *any* mutation of
+   `total_amount`, `beneficiary_count`, or `batch_items.amount_ngn / account_number / bank_name`
+   for that batch_id.
+3. To "edit", a user must re-submit the batch as a new draft (via existing
+   `Re-edit & Resubmit` flow already in `BatchDetail.tsx:1297-1320`).
+4. On `Process Payments`, recompute the hash from current items and compare. If it doesn't
+   match, abort and force re-approval.
+
+---
+
+### M-10 — No FX rate capture/lock for USD obligations
+
+**Severity:** MEDIUM. *(Specifically called out in the brief.)*
+
+**Proof.** Schema has `company_settings.usd_rate` (single number, manually edited via Settings).
+No table has `obligation_currency`, `obligation_amount`, `fx_rate_at_obligation`, `fx_rate_locked_at`.
+No code path uses `usd_rate` for anything except a Settings input field. The contractor /
+contractor_application schemas track only `account_number` and `default_amount_ngn`.
+
+The chatbot (`functions/chatbot-chat/index.ts:46`) uses `open.er-api.com` for live FX queries, but
+that's an unauthenticated public API not suitable for actuating real money.
+
+**Why it matters.** The brief says "USD partner obligations". If KDOps owes a partner $X but pays
+in NGN at the day's rate, an unlocked rate exposes the company to FX swings between obligation
+date and payment date. With NGN volatility this can be ±10% over a few weeks.
+
+**Recommendation.**
+
+1. Add an `obligations` table:
+   ```sql
+   CREATE TABLE obligations (
+     id uuid PK,
+     contractor_id uuid,
+     ...
+     obligation_currency text NOT NULL CHECK (obligation_currency IN ('NGN','USD','GBP','EUR')),
+     obligation_amount  numeric NOT NULL,
+     ngn_amount_locked  numeric,
+     fx_rate            numeric,
+     fx_rate_source     text,             -- 'cbn' | 'wise' | 'paystack' | 'manual'
+     fx_rate_locked_at  timestamptz,
+     fx_locked_by       uuid,
+     status             text CHECK (status IN ('open','approved','executed','reconciled','closed'))
+   );
+   ```
+2. Lock FX rate at approval time, not execution time. Re-approval required if execution-time rate
+   has drifted > X% (configurable, default 2%).
+3. Source the rate from a *paid, audited* provider (CBN official, Wise API, or Paystack itself).
+   Don't use open.er-api.com for money decisions.
+4. Add fallback: if rate API is down, refuse to approve (don't silently use the last cached rate
+   for a stale period). Cache lifetime should be measured in minutes, not hours.
+
+---
+
+### M-11 — `duplicate_payment` rule matches succeeded ↔ pending
+
+**Severity:** MEDIUM.
+
+**Proof.** `payment_anomaly_detection.sql:467-485`:
+```sql
+WHERE b1.created_at > now() - INTERVAL '30 days'
+  AND b1.status IN ('succeeded','pending')
+  AND … b2.status IN ('succeeded','pending')
+```
+
+A retry that creates a new `pending` row + the original `failed`-then-`reversed` original row
+will not match (good). But two genuine attempts to the same recipient, one succeeded and one
+still pending, will be flagged as a duplicate even though the pending one might fail. Once a
+flag fingerprint is locked, the row persists even if the "duplicate" later fails — so the
+anomaly queue ends up with stale flags.
+
+**Recommendation.** Tighten to `b2.status = 'succeeded'` only (and re-run nightly when items
+transition). Or accept the false-positive cost and add a UI "auto-clear when subject row is no
+longer succeeded" — but that requires watching the subject lifecycle, which the immutable
+`payment_anomalies` table currently doesn't support cleanly.
+
+---
+
+### M-12 — Bulk-approve in `Approvals.tsx` doesn't notify submitters
+
+**Severity:** MEDIUM.
+
+**Proof.** `Approvals.tsx:587-680` runs the update batch but only logs `bulk_approved` once. No
+per-submitter `notifications` row is inserted (compare with `approveOne()` at lines 454-470 which
+does notify per item). For a bulk approval of 50 expense reimbursements, no contractor finds out.
+
+**Recommendation.** Loop the notification insert per row inside `bulkApprove`, or send a single
+batched notification per submitter (group by submitter, "5 of your expenses approved").
+
+---
+
+## 5. LOW findings — full detail
+
+### L-1 — `console.log` in production edge functions
+
+`paystack-transfer/index.ts:160,163` — see also H-9. The Supabase log explorer collects these.
+At 5,000 transfers × 4 console lines each, the function logs are unscannable noise. Drop the
+informational `console.log`s and keep only `console.error`/`console.warn`.
+
+### L-2 — Bank-code map duplicated between `batch-worker/index.ts:112-128` and `nigerian-banks.ts`
+
+Two sources of truth. If a new bank or a bank-code change happens, one will lag. Lift into a
+shared `_shared/banks.ts` consumable by both Deno (edge) and Node (Vite client) — the existing
+`nigerian-banks.ts` already exists in `src/lib/`, just import a Deno-friendly subset from a
+shared module.
+
+### L-3 — `bulkTransfer()` exported but never called
+
+`src/lib/paystack.ts:444-452`. Either wire it into the dispatcher (preferred — see H-2) or
+delete it. Dead code in a money path is a maintenance hazard.
+
+### L-4 — Unmasked account number on `NewPaymentBatch` review screen
+
+`NewPaymentBatch.tsx:900`: `<TableCell>{item.account_number}</TableCell>` — this is the *review*
+step, viewed only by the operator who composed the batch. Still, the rest of the system masks
+account numbers (`maskAccountNumber()` is used 9 places). Consistency: mask here too.
+
+### L-5 — `reset_transactional_data.sql` has no role gate
+
+`supabase/scripts/reset_transactional_data.sql` exists in the repo. Its content (not read in
+detail here) almost certainly truncates transactional tables. Make sure CI / production access
+is gated and the file ships under a `scripts/` path that is *not* an active migration directory.
+Add a guard: `IF current_user NOT IN ('postgres','supabase_admin') THEN RAISE EXCEPTION …`.
+
+---
+
+(Section 6 — Critical-checks coverage + per-file table + recommended fix order — in the next batch.)
+
 
