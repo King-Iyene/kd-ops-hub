@@ -1394,7 +1394,177 @@ This is a heavily-engineered codebase. Several controls are genuinely well-desig
 
 ---
 
-(Section 10 — TransferAuth UI integration sketch + concluding go/no-go — in the next batch.)
+## 10. How the new controls fit inside TransferAuthSettings
+
+The brief is firm on this: do **not** introduce a parallel approval-rules system. Everything must
+extend the existing `Settings → Transfer Authorization` panel and the existing `transfer_limits`
+table. The good news is that the existing schema is wide enough to absorb the additions cleanly.
+
+### 10.1 Schema additions (one migration)
+
+```sql
+-- transfer_limits — co-approval, batch-total cap, expiry, granted_by/reason.
+ALTER TABLE public.transfer_limits
+  ADD COLUMN co_approval_threshold_ngn numeric,
+  ADD COLUMN single_batch_limit_ngn    numeric,
+  ADD COLUMN expires_at                timestamptz,
+  ADD COLUMN granted_by                uuid REFERENCES public.profiles(id),
+  ADD COLUMN granted_reason            text,
+  ADD CONSTRAINT transfer_limits_cap_ordering CHECK (
+    COALESCE(single_txn_limit_ngn, 0) <= COALESCE(daily_limit_ngn, single_txn_limit_ngn, 0)
+    AND COALESCE(daily_limit_ngn, 0) <= COALESCE(monthly_limit_ngn, daily_limit_ngn, 0)
+    AND COALESCE(single_batch_limit_ngn, 0) <= COALESCE(monthly_limit_ngn, single_batch_limit_ngn, 0)
+  );
+
+-- Reasonable defaults for the seeded role rows.
+UPDATE public.transfer_limits
+   SET co_approval_threshold_ngn = 10000000,        -- 2nd approver above ₦10M
+       single_batch_limit_ngn   = monthly_limit_ngn -- batch ≤ monthly cap
+ WHERE user_id IS NULL;
+
+-- transfer_limits_history — full append-only history (referenced from B-3).
+CREATE TABLE public.transfer_limits_history (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  limit_id        uuid REFERENCES public.transfer_limits(id) ON DELETE SET NULL,
+  changed_by      uuid REFERENCES public.profiles(id),
+  changed_at      timestamptz NOT NULL DEFAULT now(),
+  ip_hash         text,
+  user_agent      text,
+  before_row      jsonb,
+  after_row       jsonb,
+  change_kind     text NOT NULL CHECK (change_kind IN ('insert','update','delete'))
+);
+ALTER TABLE public.transfer_limits_history ENABLE ROW LEVEL SECURITY;
+CREATE POLICY th_read ON public.transfer_limits_history
+  FOR SELECT TO authenticated
+  USING (public.current_user_role() IN ('super_admin','admin','finance'));
+-- writes only via the SECURITY DEFINER set_transfer_limit RPC
+CREATE POLICY th_no_writes ON public.transfer_limits_history
+  FOR INSERT TO authenticated WITH CHECK (false);
+
+-- payment_batches — second approver + payload hash at approval (M-9).
+ALTER TABLE public.payment_batches
+  ADD COLUMN second_approver_id        uuid REFERENCES public.profiles(id),
+  ADD COLUMN second_approved_at        timestamptz,
+  ADD COLUMN payload_hash_at_approval  text,
+  ADD CONSTRAINT batches_no_self_approval
+    CHECK (approved_by IS NULL OR approved_by != created_by),
+  ADD CONSTRAINT batches_distinct_approvers
+    CHECK (second_approver_id IS NULL OR second_approver_id != approved_by);
+```
+
+### 10.2 RPCs — single source of truth
+
+```
+public.set_transfer_limit(
+  p_id uuid,                  -- null = insert
+  p_role text,                -- nullable
+  p_user_id uuid,             -- nullable
+  p_single numeric, p_daily numeric, p_monthly numeric,
+  p_co_approval numeric, p_batch numeric,
+  p_expires_at timestamptz, p_reason text
+) RETURNS transfer_limits SECURITY DEFINER
+
+public.approve_payment_batch(
+  p_batch_id uuid,
+  p_idempotency_key text DEFAULT null
+) RETURNS payment_batches SECURITY DEFINER
+  -- Locks the row, computes payload hash, runs cap RPC,
+  -- enforces self-approval and dual-approval rules,
+  -- transitions to approved | pending_second_approval,
+  -- writes transfer_audit + audit_logs in same transaction.
+
+public.confirm_second_approval(
+  p_batch_id uuid
+) RETURNS payment_batches SECURITY DEFINER
+  -- Same machinery, second approver path.
+```
+
+### 10.3 UI changes inside the existing TransferAuthSettings tab
+
+**Role-defaults card (existing — extend not replace).**
+
+Existing columns: Single transfer · Daily · Monthly · Action. Add:
+
+- "Co-approval above" — text input with a "no co-approval" placeholder.
+- "Max batch total" — text input (sums entire batch's beneficiaries).
+
+Tooltip on each new column with the one-line policy explanation. Save button stays the same.
+
+**Per-user overrides card (existing — extend not replace).**
+
+Add the same two columns plus:
+
+- "Expires" — date picker, defaulting to 30 days out, max 90 days.
+- "Reason" — required textarea (replaces existing `notes` field semantically; keep `notes` for
+  backward compatibility but rename column heading to "Reason").
+
+Show an "Expires in N days" badge with amber treatment when N ≤ 7, red when N ≤ 1 or expired.
+
+**Recent transfer audit (existing — extend not replace).**
+
+- Add a "Cap changes" tab next to "Transfers" so cap-edit rows surface here too. Source is the
+  same `transfer_audit` table — the new RPC writes `action='cap_changed'` rows, so the existing
+  table component shows them with no schema change, just a filter.
+- Add a date-range filter and a CSV export button. Pagination via "Load 50 more" or full table
+  navigation to `/audit-log?source=transfer`.
+
+**New "Co-approval inbox" card.**
+
+A small card on the same screen listing batches in `pending_second_approval` that the current
+user is *eligible* to approve (i.e. not the first approver and not the batch creator). Each row
+shows the batch name, amount, first approver, time waiting, and a one-click *Approve as Second*
+button which calls `confirm_second_approval`.
+
+This avoids a separate Approvals-page surface for the second-approver step and keeps the
+"transfer authorization" mental model in one place.
+
+### 10.4 Backwards compatibility plan
+
+- Existing `transfer_limits` rows continue to work with `co_approval_threshold_ngn = NULL` and
+  `single_batch_limit_ngn = NULL` meaning "no constraint beyond what's already there". The
+  triggers and RPCs treat NULL as "no co-approval needed" / "no batch cap" so no in-flight
+  batches break on migration.
+- The first migration step seeds sensible defaults (₦10M co-approval, batch = monthly) for the
+  three role rows, so the new control is *enforcing* something on day 1, not silently disabled.
+- The `payment_batches` constraints are CHECK-deferrable; existing approved batches continue
+  to satisfy `batches_no_self_approval` (legacy rows where `approved_by = created_by` need a
+  one-time scrub: either invalidate them, or grandfather by setting `approved_by = NULL` and
+  flagging in audit. Recommend the grandfather path with a banner on those batches).
+
+---
+
+## 11. Go / no-go verdict
+
+**No-go for production until B-1 through B-7 are resolved.**
+
+Everything else is recoverable post-launch with monitoring and a fast feedback loop. The
+BLOCKERs are not. Specifically:
+
+- B-1, B-4, B-6 are the difference between "phished single account" and "company-ending event".
+- B-2, B-5 are the difference between "the cap is real" and "the cap is theatre".
+- B-3 is the difference between "we know who edited what" and "every cap edit is plausibly
+  deniable".
+- B-7 is the difference between "Paystack retries make us boring" and "Paystack retries
+  silently fill a database".
+
+Estimated effort to clear: **~7 working days for one focused engineer.** Two weeks calendar
+with code review. None of these require redesigning the Transfer Authorization module — they
+are all extensions of existing tables, existing RLS posture, and the existing UI.
+
+After that, the HIGHs (especially H-1 secret storage, H-2 server-side dispatch, H-3
+encryption-or-not decision, H-5 bank reconciliation) make the next 30 days. The MEDIUMs are
+the polish quarter.
+
+The platform is much closer to ready than the file count suggests. The architectural primitives
+are right; the gaps are surgical.
+
+---
+
+*End of audit. All findings are reproducible from the file paths and line numbers cited.
+This document is the deliverable from the engagement and lives at
+`docs/audits/PAYMENT_SUBSYSTEM_AUDIT.md` on branch `claude/audit-payment-subsystem-CtagQ`.*
+
 
 
 
