@@ -1117,6 +1117,284 @@ Add a guard: `IF current_user NOT IN ('postgres','supabase_admin') THEN RAISE EX
 
 ---
 
-(Section 6 — Critical-checks coverage + per-file table + recommended fix order — in the next batch.)
+## 6. Critical-checks coverage (A through K from the brief)
+
+The brief listed eleven check families and asked for an explicit verdict on each. This section
+gives the verdict, the evidence, and the gaps.
+
+### [A] Idempotency
+
+**Verdict: PARTIAL.** Solid for transfers; weak for batch approval and webhook → DB writes.
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Every payment-creating endpoint accepts/enforces an idempotency key | `paystack-transfer/index.ts:355-428`, `BatchDetail.tsx:524`, `QuickPay.tsx:126`, `batch-worker/index.ts:81` — all derive `kdops_<itemUUID>` deterministically | OK |
+| Mid-flight retry is safe (no double-pay) | `paystack-transfer/index.ts:366-392` checks `paystack_reference` first; `408-427` recovers from Paystack-side dup | OK |
+| Idempotency keys stored, indexed, checked | `batch_items.paystack_reference` is unique-ish; index added in `20260428000002_batch_items_batch_id_index.sql`. `webhook_idempotency` PK on `(reference, event_type)` | OK |
+| TTL on idempotency keys long enough | None (rows live forever) | See B-7 |
+| Approval idempotency | None — re-clicking *Approve* on a `pending_approval` batch from two tabs at once is guarded only by the optimistic concurrency check at `BatchDetail.tsx:402-417`. Bulk approve has no guard | GAP |
+
+**Fixes:** B-7, M-9, plus add an `idempotency_key` column to the new `approve_payment_batch` RPC
+(B-2) so duplicate clicks during slow networks don't double-approve.
+
+### [B] Batch transaction integrity (5,000+ scale)
+
+**Verdict: BLOCKER. The design is not 5,000-ready.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Chunking strategy and Paystack limit | `paystack-transfer/index.ts:443-447` enforces 100 cap on `bulk_transfer`, but the calling code never invokes it. Real path is one-by-one | GAP — H-2 |
+| 153 of 5,000 fail — where do the 153 go? | Marked `failed` with `failure_reason`; UI shows row-level retry. No DLQ | OK-ish |
+| Retry queue with exponential backoff | None at the *batch* level. Polling backoff exists *within* a single browser session at `BatchDetail.tsx:809-882` | GAP |
+| Dead-letter queue for permanent failures | None | GAP |
+| Resume after server crash | `batch-worker` cron (`20260730000005`) with 60s orphan threshold + service-role secret | OK (caveat: H-2) |
+| Batch-level state machine | Yes: `draft → pending_approval → approved → funded → processing → processed | partially_processed | failed | rejected`. Not enforced by trigger; relies on UI + RLS | PARTIAL — H-6 |
+| Item state independent of batch | Yes — `batch_items.status` is independent | OK |
+
+**Fixes:** H-2, H-6, B-5, plus a `payment_dispatch_chunks` audit table.
+
+### [C] Reconciliation
+
+**Verdict: PARTIAL.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Independently verify each transfer landed | `paystack-reconciliation/index.ts` for stuck items + `BatchDetail.tsx:836` polls live | OK for Paystack-side |
+| Scheduled reconciliation against bank statements | None | GAP — H-5 |
+| What if Paystack says success but bank shows nothing | Undetectable today | GAP — H-5 |
+| Unreconciled > X hours flagged to a human | OTP-flagged but not generally surfaced | PARTIAL — M-7, M-8 |
+
+**Fixes:** H-5, M-7, M-8.
+
+### [D] Webhook security
+
+**Verdict: GOOD.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Signature verified on every webhook | `paystack-webhook/index.ts:60-71`, `timingSafeEqual` | OK |
+| Signing secret in env vars, not code | Yes (`PAYSTACK_SECRET_KEY` env, fallback to `company_settings`) | OK (fallback path is H-1) |
+| Duplicate webhook IDs detected and ignored | Yes (`webhook_idempotency` PK on `(reference, event_type)`) | OK |
+| Out-of-order webhooks handled correctly | The handler always patches with the latest payload; `recalculateBatchStatus` is order-independent. Reversal-after-success is correctly handled by writing `status='reversed'` | OK |
+| Webhook replay/audit log | `audit_logs` written per event with `performed_by_name = 'Paystack Webhook'`. `paystack_raw` jsonb stored on each item | OK |
+| Webhook for unknown reference | Logged + 200 ignored (`paystack-webhook/index.ts:296-300`) | OK |
+
+**Fixes:** Mostly already good. H-1 (secret storage), H-8 (error handling), B-7 (retention).
+
+### [E] Approval workflow & Transfer Authorization (the existing module)
+
+**Verdict: HOLES MULTIPLE.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Per-role caps (single/daily/monthly) seeded | `20260807000000:75-80` — super_admin 50M/100M/500M, admin 10M/50M/200M, finance 5M/20M/100M | OK |
+| Per-user overrides win | Yes: `check_transfer_caps` lines 162-176 lookup user-level first | OK |
+| Server-side enforced on every transfer | YES at edge fn (`paystack-transfer:271-332`) and batch-worker (`batch-worker:236-265`) — but BYPASSED in Expenses payment path | GAP — B-2 |
+| Bulk-transfer total enforced against cap | Yes via summing kobo amounts in `paystack-transfer:275-281` | OK |
+| Per-user overrides correctly win in enforcement code (matches UI claim) | Yes | OK |
+| Cap relationship single ≤ daily ≤ monthly | Not enforced | GAP — M-3 |
+| User cannot edit own cap or own role's cap | Not blocked | GAP — M-4 |
+| Cap changes logged immutably with who/when/old/new/IP | NOT LOGGED AT ALL | GAP — B-3 |
+| Per-user override has expiry | No | GAP — M-1 |
+| **Co-approval threshold** above any amount | **None — single-approver authority unbounded** | BLOCKER — B-1 |
+| Approval actions logged with payload | `audit_logs` writes a description string only; no payload hash | PARTIAL — H-4, M-9 |
+| Approval invalidated when payload changes | No | GAP — M-9 |
+| "Recent transfer audit (last 50)" is read-only and immutable | Yes (immutability triggers in `20260810100000`) but capped at 50 | OK with M-5 caveat |
+| Distinct cap for batch totals vs single transfers | No | GAP — M-2 |
+
+**Fixes:** B-1, B-2, B-3, B-4, B-5, M-1, M-2, M-3, M-4, M-5, M-9 — most of the BLOCKERs live here.
+
+### [F] Audit trail & immutability
+
+**Verdict: PARTIAL — append-only enforced, but spoofable inserts.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Payment records append-only | RLS `batches_update` allows update by privileged roles. Backward state transitions not blocked | GAP — H-6 |
+| Separate audit log table | Two: `audit_logs` and `transfer_audit` | OK |
+| Audit log itself protected from modification | Yes: `enforce_audit_immutability` trigger blocks UPDATE always; DELETE blocked unless GUC set; only `purge_audit_rows` RPC bypasses, gated to service_role | OK |
+| Can a DB admin secretly edit a payment? | DB-admin (postgres role) yes — same as any Postgres install. Application-level: no for audit tables, *yes* for `payment_batches` and `batch_items` content (RLS gives finance UPDATE) | PARTIAL — H-6 |
+| Cap changes logged | NO | BLOCKER — B-3 |
+
+**Fixes:** B-3, H-4, H-6.
+
+### [G] FX handling
+
+**Verdict: NOT IMPLEMENTED.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| When is FX rate captured | Nowhere. `usd_rate` is read by Settings only | GAP — M-10 |
+| Rate locked at approval with tolerance band | No | GAP — M-10 |
+| Rate source documented | No | GAP — M-10 |
+| Fallback if rate API down | No | GAP — M-10 |
+
+**Fixes:** M-10. This is whole-feature work, not a fix; treat as a launch blocker only if any
+contractor is paid in non-NGN. If 100% of the 700 contractors are NGN today, defer but document.
+
+### [H] Permissions & access control
+
+**Verdict: MOSTLY OK.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Initiate / approve / cancel / refund role-gated | RLS + edge-function role checks | OK |
+| Roles enforced server-side, not just hidden UI | Yes (RLS + `paystack-transfer:239-265` + `batch-worker:386`) | OK |
+| Break-glass admin override | `purge_audit_rows` is service-role only and logs nothing extra | OK but L-5 reset script is one |
+| Compromised single account drain potential | Yes — capped daily but not capped per-co-approver. ₦50M/day for super_admin = ₦50M loss potential per day per compromised super_admin | DOCUMENT + B-1 |
+| Velocity-based anomaly detection | Partial — see M-6 | GAP |
+
+**Fixes:** B-1, M-6, plus require MFA for approvers (`mfa_trusted_devices` schema exists in
+`20260810000000` but is not required for cap-affecting actions).
+
+### [I] Data security
+
+**Verdict: PARTIAL.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Bank account numbers encrypted at rest | `_enc` shadow column exists; plaintext also present | GAP — H-3 |
+| Masked in UI except authorized | `maskAccountNumber()` used 9 places; one missing (L-4) | OK |
+| Redacted in logs | Webhook handler logs `last4` only (good); edge function audit may persist `account_number` in `params` (H-9) | PARTIAL |
+| Paystack API key in env vars, rotated, restricted | In env *and* DB column (H-1). No documented rotation | GAP — H-1 |
+| Service role keys never exposed to client | `src/` does not reference `SUPABASE_SERVICE_ROLE_KEY`. Vite envs use `VITE_*` prefix only. Confirmed clean | OK |
+
+**Fixes:** H-1, H-3, H-9, L-4.
+
+### [J] Error handling & failure modes
+
+**Verdict: WEAK.**
+
+| Sub-check | Evidence | Verdict |
+|---|---|---|
+| Paystack down 4h during batch | Browser stalls; orphan watchdog resumes; cap usage doesn't release reserved budget | PARTIAL — H-2, B-5 |
+| DB drops mid-batch | Items left in `pending` with no `paystack_reference`; recoverable via watchdog | OK (caveat H-8 if it's the webhook DB write that fails) |
+| Server crash mid-submission | Same — watchdog catches | OK |
+| Errors swallowed silently | Multiple catches log but proceed (`paystack-webhook` lines 313-321, batch updates lines 119-121, 350-364) | GAP — H-8 |
+| Every failure surfaced to a human with actionable detail | "Friendly error" mapping is excellent for individual transfers (`paystack.ts:187-243`); batch-level failures less so | PARTIAL |
+
+**Fixes:** H-2, H-8, B-5.
+
+### [K] Temporary / placeholder code
+
+**Verdict: CLEAN.** Search across the payment path turned up:
+
+- No `TODO`, `FIXME`, `HACK`, or `XXX` markers in payment files.
+- No "for now" or "temporary" comments in payment paths.
+- No hardcoded test account numbers (`0000000000`, `1234567890`, etc.) found.
+- No mock/stub functions in production payment code.
+- A few `console.log` / `console.warn` in payment paths (L-1, H-9). Drop them.
+- A few `placeholder=` strings — all UI input placeholders, all benign.
+
+The codebase is mature; the issues are architectural, not careless leftover code.
+
+---
+
+## 7. Per-file table — files in scope
+
+| File | Purpose in payment path | Severity finding(s) |
+|---|---|---|
+| `supabase/functions/paystack-transfer/index.ts` | Server-to-server Paystack proxy; cap enforcement + audit insertion | B-5, H-9, H-10, L-1 |
+| `supabase/functions/paystack-webhook/index.ts` | Receives transfer events; updates batch_items, batch status, expense status | B-7, H-8 |
+| `supabase/functions/paystack-reconciliation/index.ts` | Hourly stuck-item sweep + fee backfill | M-7, M-8, H-5 |
+| `supabase/functions/batch-worker/index.ts` | Server-side batch dispatcher (cron + JWT) | H-2, H-7, L-2 |
+| `src/lib/paystack.ts` | Client wrapper for the edge function (single, bulk, fees, narration) | L-3 |
+| `src/lib/transfer-safety.ts` | Limits + audit fetch helpers | B-3 |
+| `src/components/settings/TransferAuthSettings.tsx` | Cap editor + last-50 audit panel | B-3, M-4, M-5 |
+| `src/pages/BatchDetail.tsx` | Batch lifecycle UI: review/approve/process/retry/reconcile | B-1, B-2, B-4, H-2, H-6, H-7, M-9 |
+| `src/pages/NewPaymentBatch.tsx` | Batch composition (3-step wizard) | L-4 |
+| `src/pages/Payments.tsx` | Payments index with balance card | H-10 |
+| `src/pages/Approvals.tsx` | Cross-module approval queue + bulk-approve | B-1, B-2, B-4, M-12 |
+| `src/pages/Expenses.tsx` | Expense submit/approve + payment dispatch | B-2, B-4 (partial), M-9 |
+| `src/components/QuickPay.tsx` | One-off transfer with self-approval | B-6 |
+| `src/lib/audit.ts` | Audit log writer | H-4 |
+| `supabase/migrations/20260807000000_transfer_safety.sql` | Defines `transfer_limits`, `transfer_audit`, `check_transfer_caps` | M-1, M-2, M-3 |
+| `supabase/migrations/20260415150000_add_phone_and_audit_logs.sql` | `audit_logs` table + RLS | H-4 |
+| `supabase/migrations/20260503100000_api_key_columns.sql` | API key columns (incl. Paystack secret) | H-1 |
+| `supabase/migrations/20260428000001_encrypt_account_numbers.sql` | Account-number encryption + plaintext kept | H-3 |
+| `supabase/migrations/20260616000000_phase1_security_and_missing_tables.sql` | `webhook_idempotency` + others | B-7 |
+| `supabase/migrations/20260805000000_payment_anomaly_detection.sql` | Anomaly engine | M-6, M-11 |
+| `supabase/migrations/20260810100000_audit_log_immutability.sql` | Append-only triggers | OK (defensive; relies on B-3 to be useful) |
+| `supabase/migrations/20260629000000_transactions_view_charge_rows.sql` | Ledger view | OK with `security_invoker` set in `20260730000004` |
+| `supabase/scripts/reset_transactional_data.sql` | Reset script | L-5 |
+
+(Other migrations referenced in passing through findings; the table covers files where *findings
+land*, not every migration in the repo.)
+
+---
+
+## 8. Recommended fix order
+
+**Pre-launch (must complete before going live):**
+
+1. **B-1** Co-approval threshold for batches + Quick Pay + expense payment.
+   (~1.5 days of schema + RPC + UI + tests.)
+2. **B-2** Move all batch-status mutations behind a SECURITY DEFINER RPC and revoke direct UPDATE.
+   (~1 day, mostly mechanical refactor of the 5 call sites.)
+3. **B-3** Cap-edit audit logging via `set_transfer_limit` RPC + new `transfer_limits_history` table.
+   (~0.5 day.)
+4. **B-4** Self-approval guard server-side + UI hiding.
+   (~3 hours.)
+5. **B-5** Intent-row pattern in `transfer_audit` so cap accounting reflects in-flight money.
+   (~0.5 day.)
+6. **B-6** Quick Pay → `pending_approval` above threshold; off by default.
+   (~3 hours, mostly inside the `executePay` flow.)
+7. **H-1** Move Paystack secret to Vault; remove `paystack_secret_key_enc` plaintext column.
+   (~3 hours + a careful migration.)
+8. **H-2** Switch dispatch to server-side `bulk_transfer` chunks of 100; remove client loop.
+   (~1.5 days end-to-end.)
+9. **H-4** Tighten `audit_logs` INSERT policy + route through RPC.
+   (~3 hours.)
+10. **H-6** State-machine triggers on `payment_batches` and `batch_items`.
+    (~0.5 day.)
+11. **H-8** Webhook handler error handling: distinguish retryable from idempotent dup; move idempotency insert into the same transaction as the update.
+    (~2 hours.)
+
+**Total realistic effort for the BLOCKERs + immediate HIGHs: ~7 working days.** That's
+achievable in two weeks with one focused engineer.
+
+**Post-launch but soon (within 30 days):**
+
+- B-7 Webhook idempotency retention.
+- H-3 Decide on encryption — drop plaintext or drop the encrypted column.
+- H-5 Bank-statement reconciliation.
+- H-7 Remove hardcoded ₦5M ceiling.
+- H-9, H-10 Logging hygiene.
+- M-1 through M-12 — the full polish pass on Transfer Authorization.
+
+**Defer until needed:**
+
+- M-10 FX handling — only if non-NGN obligations are real.
+
+---
+
+## 9. What KDOps already does well — do not break these
+
+This is a heavily-engineered codebase. Several controls are genuinely well-designed:
+
+1. **Webhook signature verification** via `timingSafeEqual` (no subtle timing leaks), with the
+   secret stored in env first and DB only as fallback.
+2. **Webhook idempotency** keyed on `(reference, event_type)` — exactly the right primary key.
+3. **Idempotent Paystack initiation** with both pre-flight de-dup and a self-healing recovery
+   path on Paystack-side duplicate-reference errors.
+4. **Server-side cap enforcement** via a single `check_transfer_caps` RPC with one source of
+   truth (this is the *right* shape for caps, just gated to the wrong call sites — B-2).
+5. **Append-only audit triggers** on `audit_logs` and `transfer_audit` with a single blessed
+   `purge_audit_rows` path for retention.
+6. **Encrypted account number key management** lives in a `_private` schema with
+   SECURITY DEFINER access — that's the right pattern (just not honoured by leaving plaintext
+   columns; H-3).
+7. **Orphan-batch watchdog** with a Vault-stored shared secret, decoupled URL.
+8. **Anomaly engine** is genuinely impressive — payroll-spike, account-changed-then-paid,
+   shared-bank-account, off-hours-approval, fast-approval, dormant-first-payment. Add the
+   transfer-velocity rules (M-6) and it covers most ACFE Report-to-the-Nations categories.
+9. **`security_invoker = true` on `transactions_view`** — the B3 fix was correctly applied.
+10. **Friendly Paystack error mapper** (`paystack.ts:187-260`) is finance-ops-grade and shaves
+    real time off incident response.
+
+---
+
+(Section 10 — TransferAuth UI integration sketch + concluding go/no-go — in the next batch.)
+
 
 
