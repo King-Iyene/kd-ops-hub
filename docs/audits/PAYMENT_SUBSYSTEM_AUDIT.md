@@ -387,4 +387,365 @@ failure mode. Also, after 90 days Paystack guarantees no replays, so older rows 
 
 ---
 
-(Continued in Section 3 — HIGH findings — in the next commit.)
+## 3. HIGH findings — full detail
+
+### H-1 — Paystack secret stored in plaintext under a column named `_enc`
+
+**Severity:** HIGH.
+
+**Proof.**
+- Migration `20260503100000_api_key_columns.sql:1-15`:
+  ```sql
+  -- In production, enable Supabase Vault or pgcrypto for at-rest encryption.
+  -- The application masks these fields in the UI (shows last 4 chars only after save).
+  ALTER TABLE public.company_settings ADD COLUMN IF NOT EXISTS paystack_secret_key_enc text;
+  ```
+  The `_enc` suffix is *naming convention only*. There is no `pgcrypto` wrap, no Vault binding,
+  no application-side encryption. The column is plain `text`.
+- `Settings.tsx:251` writes the raw user input straight in:
+  ```ts
+  paystack_secret_key_enc: (settings as any).paystack_secret_key_enc || null,
+  ```
+- `paystack-transfer/index.ts:124`, `paystack-webhook/index.ts:54`,
+  `paystack-reconciliation/index.ts:48` all read the column and pass it directly as
+  `Authorization: Bearer …`. If the value were truly encrypted, this would not work.
+
+**Why this matters.** RLS `company_settings_read_staff` (migration `20260730000004:76-79`) lets
+**any super_admin / admin / finance** SELECT this column. Any one of those accounts being phished,
+having a leaky session, or being an internal threat = total Paystack secret-key exfiltration.
+Rotating the key is then an operations event (Paystack dashboard + secret update + redeploy).
+
+**Recommendation.**
+1. Move the secret to **Supabase Vault** and have the edge functions read via
+   `vault.decrypted_secrets`. The `tick_batch_worker` function in
+   `20260730000005_batch_worker_cron.sql` already does this for the cron secret — copy that pattern.
+2. Drop the `paystack_secret_key_enc` column once Vault is in place.
+3. If you must keep an in-DB copy as a fallback: encrypt with `pgp_sym_encrypt` keyed off
+   `_private.enc_keys` (already exists in `20260428000001`) and write a SECURITY DEFINER RPC
+   `get_paystack_secret()` that only `service_role` can call. Then RLS on
+   `company_settings.paystack_secret_key_enc` becomes immaterial because the column is unreadable
+   in plaintext.
+4. Set a calendar reminder for Paystack key rotation (90 days max) and document the rotation
+   procedure in `docs/runbooks/`.
+
+---
+
+### H-2 — Browser-driven serial dispatch is not viable at 5,000 items
+
+**Severity:** HIGH.
+
+**Proof.**
+
+`BatchDetail.tsx:743-748`:
+```ts
+for (let i = 0; i < toProcess.length; i++) {
+  const it = toProcess[i];
+  setProcessingIdx(i + 1);
+  setProcessingName(it.full_name);
+  await processOneItem(it, customNarration);
+}
+```
+
+A 5,000-item batch:
+- Each `processOneItem` invocation = 1–3 Paystack edge-function round-trips
+  (`create_recipient` if missing + `initiate_transfer`) + DB writes + audit writes.
+  Mean ~600ms, p95 ~2s.
+- 5,000 × 600ms = **50 minutes** sitting in one browser tab. Closing the tab, network blip, tab
+  throttling, OS sleep — all kill the run.
+- The orphan watchdog (`batch-worker` cron, `20260730000005`) recovers it, but:
+  - It picks up *one* orphan per tick (line 328 of `batch-worker/index.ts`) and tops out at
+    `TIME_BUDGET_MS = 120_000` per tick.
+  - With 5,000 items and 8-way concurrency, ~600 items/min throughput × 120s tick = ~120 items
+    per tick. **5,000 items therefore needs ~42 ticks = 42 minutes** of cron windows after the
+    operator gives up.
+  - During that 42 minutes the *cap usage* is being walked one item at a time. There is no
+    pre-flight reservation that says "this batch will consume ₦80M of the ₦100M daily cap" — the
+    daily cap is consumed by each individual `transfer_audit` row landing.
+
+The `bulk_transfer` action in `paystack-transfer/index.ts:431-462` exists but **is never called by
+the application**. `src/lib/paystack.ts:444 (bulkTransfer)` is exported and orphaned. So the system
+is paying for 5,000 individual `/transfer` calls when it could batch into 50 × `/transfer/bulk` calls.
+
+**Why this matters.** A failure in the middle of a 5,000-item batch leaves 700 contractors paid,
+4,300 not, finance staring at a tab that closed two hours ago, and the orphan watchdog quietly
+churning while the cap RPC concurrently allows another bulk attempt. **This is exactly the
+"silent failure swallows money" scenario the brief warned about.**
+
+**Recommendation.**
+
+1. Move the dispatch loop entirely server-side. The `batch-worker` already does this — wire the UI
+   to call it once with `{batch_id}` and never fall back to client-side dispatch.
+   Remove the loop in `BatchDetail.tsx:741-748`. Remove `processOneItem` from the client.
+2. Switch the batch-worker to use `/transfer/bulk` (max 100 per call, ≥5s spacing per Paystack
+   docs — already noted in `paystack-transfer/index.ts:432-433`):
+   - Group by recipient bank if helpful for failure isolation.
+   - Track `bulk_transfer_id` per chunk so reconciliation can refer to a Paystack-side bulk batch.
+3. Persist a `payment_dispatch_state` row per chunk so resumption after a crash is precise:
+   `(batch_id, chunk_index, started_at, completed_at, items_succeeded, items_failed)`.
+4. Reserve cap usage *up front* on batch approval, not during dispatch (see B-5).
+
+---
+
+### H-3 — Plaintext `account_number` column kept alongside `account_number_enc`
+
+**Severity:** HIGH.
+
+**Proof.** Migration `20260428000001_encrypt_account_numbers.sql:18`:
+> Plaintext columns are KEPT so existing app code keeps working; the UI masks them (****NNNN).
+
+`batch_items.account_number`, `profiles.bank_account_number`, `contractors.account_number`,
+`vendors.bank_account_number`, `contractor_applications.account_number` — all still hold the raw
+account number. Every RLS-permitted SELECT returns plaintext. The encrypted shadow column adds zero
+defensive value.
+
+`paystack-webhook/index.ts:286` literally reads `account_number` plaintext to render emails. The
+fuel anomaly engine (`20260805000000:441-450`) joins on plaintext `bank_account_number`. The whole
+codebase relies on the plaintext column.
+
+**Why this matters.** NDPR (Nigeria Data Protection Regulation) treats bank account numbers as
+personal financial data. A SQL injection, a Supabase service-role leak, a misconfigured RLS policy,
+or a backup snapshot leak exposes ~700 contractors' account numbers in cleartext.
+
+**Recommendation.**
+
+1. Either *commit* to encryption (drop the plaintext column, decrypt on read via the existing
+   `get_decrypted_account_number` RPC, mask everywhere else), *or* drop the encryption migration —
+   don't keep both. Half-encryption is worse than none because it implies a control that doesn't
+   exist.
+2. If you keep the encrypted column, add hash-on-write so anomaly joins (rule 8 + 9 + 10 in
+   `payment_anomaly_detection.sql`) match on a deterministic hash, not plaintext, eliminating
+   the need for plaintext to satisfy joins.
+3. Same applies to `paystack_funding_account_number` in `company_settings` (likely the
+   company's own funding account — not as critical but still PII).
+
+---
+
+### H-4 — `audit_logs` INSERT policy is `WITH CHECK (true)` — any user can spoof rows
+
+**Severity:** HIGH.
+
+**Proof.** Migration `20260415150000_add_phone_and_audit_logs.sql:32-33`:
+```sql
+CREATE POLICY "Authenticated users can create audit logs" ON public.audit_logs
+  FOR INSERT TO authenticated WITH CHECK (true);
+```
+
+`src/lib/audit.ts:117-130` writes:
+```ts
+const { error } = await supabase.from('audit_logs').insert({
+  action_type: actionType,
+  description,
+  performed_by: performedBy,
+  performed_by_name: performedByName,
+});
+```
+
+Both `performed_by` and `performed_by_name` are user-supplied. A driver-role user can:
+```ts
+await supabase.from('audit_logs').insert({
+  action_type: 'batch_approved',
+  description: 'Batch "Q2 Salary Run" approved (₦80,000,000)',
+  performed_by: '<some admin uuid>',
+  performed_by_name: 'Joseph Iyene',
+});
+```
+…and that row is now in the audit trail, indistinguishable from a real one. The
+`enforce_audit_immutability` trigger then *protects* the spoofed row from being deleted.
+
+**Recommendation.**
+
+1. Tighten the INSERT policy to:
+   ```sql
+   CREATE POLICY "audit_logs_insert_self" ON public.audit_logs
+     FOR INSERT TO authenticated
+     WITH CHECK (performed_by = auth.uid() OR performed_by IS NULL);
+   ```
+   And ignore `performed_by_name` from the client — set it server-side from `auth.uid()` via
+   a BEFORE INSERT trigger.
+2. Better yet, route all audit writes through a SECURITY DEFINER RPC `log_audit(action_type, description)`
+   that auto-fills `performed_by = auth.uid()` and the user's stored name. Revoke direct INSERT.
+3. Capture IP and user agent on each row (extra columns: `ip_hash`, `user_agent`,
+   `request_id` — like `transfer_audit` already does).
+
+---
+
+### H-5 — No reconciliation against bank statements; only Paystack-vs-KDOps
+
+**Severity:** HIGH.
+
+**Proof.** `paystack-reconciliation/index.ts` walks rows where `status IN ('pending','retry')` and
+asks **Paystack** what happened. It never reads bank statements, never compares NIBSS settlement
+files, never confirms the funding account was actually debited.
+
+The `payment_batches` schema has no `bank_settlement_status` column. There is no
+`bank_statement_uploaded` table tied to anything (the audit_log type
+`bank_statement_uploaded` exists in `audit.ts:84` but no UI surface uses it).
+
+**Why this matters.** Paystack reporting `success` while the merchant's funding bank rejected the
+debit (insufficient balance, hold, account flag) is a documented edge case. Without a bank-side
+reconciliation, the platform can show ₦80M paid and Finance only finds out when 4,300 contractors
+chase them three days later.
+
+**Recommendation.**
+
+1. Daily cron: pull yesterday's Paystack `Balance History` (`/balance/ledger`) and compare gross
+   sum to internal `succeeded` total. Flag any drift > ₦1.
+2. Weekly: import the funding bank's MT940 statement (or CSV from the bank portal) into a
+   `bank_statements` table. Auto-match by date + amount + narration to `payment_batches` and
+   `batch_items`. Flag unmatched > 24h.
+3. Surface unreconciled items > 6h on the Payments dashboard with a red alert.
+
+---
+
+### H-6 — `processOneItem` writes status updates client-side without RLS row guards on terminal states
+
+**Severity:** HIGH.
+
+**Proof.** `BatchDetail.tsx:472-586` — the client updates `batch_items.status` directly:
+```ts
+await supabase.from('batch_items').update({ status: 'failed', failure_reason: reason }).eq('id', it.id);
+```
+RLS `batch_items_update` (`20260608000000:65-69`) allows any super_admin/admin/finance to UPDATE,
+with **no row-state guard**. So:
+- A finance user can reverse a `succeeded` row to `pending` and "retry" it.
+- A finance user can flip a `failed` row to `succeeded` to silence a complaint.
+- Same for `payment_batches.status`.
+
+Combined with H-4 (audit log spoofing), this is a substantial fraud surface.
+
+**Recommendation.**
+
+1. Add a BEFORE UPDATE trigger on `batch_items` and `payment_batches` that enforces a
+   directed state machine and refuses backward transitions:
+   ```
+   batch_items: pending → succeeded | failed | reversed | retry  (one-way once terminal)
+   payment_batches: draft → pending_approval → approved → funded → processing → processed | partially_processed
+   ```
+2. Restrict the columns each role can update. Finance probably needs no direct write on
+   `payment_batches.status` once approval RPCs (B-1, B-2) exist.
+3. The "Retry" path should not flip `succeeded`/`failed` rows — it should instead create a *new*
+   `batch_items` row pointing at the same recipient with a `retried_from_id` link. Preserves
+   immutability of the original audit chain.
+
+---
+
+### H-7 — Hardcoded ₦5,000,000 single-transfer limit duplicated in three places
+
+**Severity:** HIGH.
+
+**Proof.**
+- `BatchDetail.tsx:483`: `if (amount > 5_000_000) return markFailed('Single transfer limit is ₦5,000,000…');`
+- `batch-worker/index.ts:148`: `if (amount > 5_000_000) return fail('Single transfer limit is ₦5,000,000');`
+- `paystack.ts:241` (error mapper text only).
+
+If finance updates the per-role single cap in TransferAuthSettings, the **client and worker still
+independently reject anything > ₦5M** — the cap UI is a lie above ₦5M.
+
+Conversely, **the client checks fire only in those locations**. There is no central enforcement.
+A future code path that doesn't reproduce the check would silently allow >₦5M.
+
+**Recommendation.**
+
+1. Remove the hardcoded `5_000_000` checks. Rely solely on `check_transfer_caps`.
+2. If a hard ceiling is desired (e.g. NIBSS limit), make it a `company_settings.max_single_transfer_ngn`
+   column with a sensible default and read by *both* the worker and the cap RPC.
+
+---
+
+### H-8 — Webhook handler swallows DB errors silently and always returns 200
+
+**Severity:** HIGH.
+
+**Proof.** `paystack-webhook/index.ts:21` (file header):
+> Error policy: always return 200 OK — throwing causes Paystack to retry indefinitely.
+
+That intent is right for *Paystack-side retry storms*. The implementation is wrong: every DB
+error is `console.error`-only:
+- Lines 119-121: batch status update failure → log only, return 200.
+- Lines 350-364: batch_item update failure → log only, return 200.
+- Lines 401-417: same for transfer.failed branch.
+
+If a transient DB outage hits during the success branch, the platform's batch_item stays
+`pending`, the webhook is marked idempotent-processed, and **the system will never auto-recover
+that row** (the reconciliation job only chases `pending` items, but the next webhook delivery is
+now a 23505 dup → silent skip).
+
+**Recommendation.**
+
+1. Distinguish "Paystack will retry helpfully" from "we want Paystack to stop" semantically. For
+   the former, return 5xx. For the latter (already-processed dup), return 200.
+2. On batch_item update failure: don't insert into `webhook_idempotency` (the order is reversed in
+   the current file — idempotency is inserted at line 311 *before* the update at line 350). Move
+   the idempotency insert into the same transaction as the update so both succeed or both fail.
+3. Add a Sentry breadcrumb on every webhook update failure so you actually see them.
+
+---
+
+### H-9 — Edge function logs the secret-presence boolean and parameters on a denial
+
+**Severity:** HIGH.
+
+**Proof.**
+`paystack-transfer/index.ts:160`:
+```ts
+console.log("[paystack-transfer] env_secret_present:", hasEnvSecret, "| auth_header_present:", hasAuth);
+```
+This is a benign logger but Supabase function logs are persisted and accessible to anyone with
+project Logs read. Fine. But:
+
+`paystack-transfer/index.ts:251-257`:
+```ts
+metadata: { params },
+```
+On a denial-by-permission, the function dumps the inbound `params` object — which for
+`initiate_transfer` includes `recipient_code`, `amount_ngn`, `reference`, and (for
+`create_recipient`) `account_number`. These end up in `transfer_audit.metadata` (jsonb). Any
+admin/finance/super_admin can read that table.
+
+**Recommendation.**
+
+1. Strip sensitive fields from `params` before persisting:
+   ```ts
+   const safeParams = { ...params };
+   delete safeParams.account_number;
+   delete safeParams.recipient_code;
+   ```
+2. Drop the `console.log` that prints request metadata in line 160 — Supabase logs already capture
+   this. (Also see L-1.)
+
+---
+
+### H-10 — `getPaystackBalance` is gated only by JWT, not role
+
+**Severity:** HIGH (information leakage).
+
+**Proof.** `paystack-transfer/index.ts:53`:
+```ts
+const PRIVILEGED_ACTIONS = new Set([
+  "create_recipient", "initiate_transfer", "bulk_transfer", "verify_transfer", "get_balance",
+]);
+```
+…so on paper, `get_balance` is privileged. But look at how it's called:
+`Payments.tsx:97-101` calls `getPaystackBalance()` on every Payments page load. The Payments
+page is reachable by anyone with `payments` access — which by default includes operations in the
+`current_user_role` allowlist (`fix_rls_finance_operations_access.sql:28-31`).
+
+In the edge function, the role gate at line 247 *would* catch operations and reject — except that
+the gate logs the rejection as `outcome: 'denied'` and returns 403. So operations cannot read the
+balance. **However**, the route `/balance` returns the raw NGN-balance number which is also
+displayed in the UI, and the toast on a 403 reveals the failure pattern. Lower-priority but worth
+noting: the balance number is operationally sensitive (a large drain attack benefits from knowing
+how much is sitting in the wallet).
+
+**Recommendation.**
+
+1. Either remove `get_balance` from PRIVILEGED_ACTIONS and let any logged-in admin/finance see it,
+   or restrict the Payments page's *balance card* to the same role list as the edge function and
+   suppress the call entirely for operations.
+2. Throttle `get_balance` to once per 60s per user; right now `Payments.tsx:106` retries on session
+   restore which can create an unbounded retry loop on a misbehaving session.
+
+---
+
+(MEDIUM and LOW findings continue in batch 3.)
+
