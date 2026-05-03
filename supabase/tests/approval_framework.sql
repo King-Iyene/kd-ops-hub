@@ -58,27 +58,32 @@ BEGIN
      SET co_approval_threshold_ngn = 1000000
    WHERE user_id IS NULL AND role = 'super_admin';
 
-  -- ── 1. Self-approval blocked ──────────────────────────────────────────
+  -- ── 1. Admin/super_admin self-approval allowed below threshold ───────
+  -- Policy change: only roles below admin are blocked from self-approval.
   INSERT INTO public.payment_batches (name, payment_date, total_amount, beneficiary_count, status, created_by)
-  VALUES ('TEST-SELF', current_date, 500000, 1, 'pending_approval', v_super_a)
+  VALUES ('TEST-ADMIN-SELF', current_date, 500000, 1, 'pending_approval', v_super_a)
   RETURNING id INTO v_batch_id;
 
   INSERT INTO public.batch_items (batch_id, full_name, bank_name, account_number, amount_ngn, status)
   VALUES (v_batch_id, 'Test Recipient', 'Test Bank', '0000000000', 500000, 'pending');
 
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_super_a)::text, true);
-  v_caught := false;
-  BEGIN
-    PERFORM public.approve_payment_batch(v_batch_id);
-  EXCEPTION WHEN OTHERS THEN
-    v_caught := true;
-    ASSERT SQLERRM ILIKE '%self-approval%' OR SQLERRM ILIKE '%submitter%',
-      format('Test 1 — wrong error message: %s', SQLERRM);
-  END;
-  ASSERT v_caught, 'Test 1 — self-approval was NOT rejected';
-  RAISE NOTICE '✓ Test 1 — self-approval rejected';
+  PERFORM public.approve_payment_batch(v_batch_id); -- must succeed
 
-  -- ── 2. Below-threshold approval goes straight to "approved" ───────────
+  SELECT status INTO v_status FROM public.payment_batches WHERE id = v_batch_id;
+  ASSERT v_status = 'approved',
+    format('Test 1 — expected approved after admin self-approval, got %s', v_status);
+  RAISE NOTICE '✓ Test 1 — admin self-approval (below threshold) → approved';
+
+  -- ── 2. Below-threshold approval by a different approver → "approved" ──
+  -- Fresh batch: finance creates, super_b approves.
+  INSERT INTO public.payment_batches (name, payment_date, total_amount, beneficiary_count, status, created_by)
+  VALUES ('TEST-BELOW', current_date, 500000, 1, 'pending_approval', v_finance)
+  RETURNING id INTO v_batch_id;
+
+  INSERT INTO public.batch_items (batch_id, full_name, bank_name, account_number, amount_ngn, status)
+  VALUES (v_batch_id, 'Test Recipient', 'Test Bank', '0000000000', 500000, 'pending');
+
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_super_b)::text, true);
   PERFORM public.approve_payment_batch(v_batch_id);
 

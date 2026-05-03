@@ -1505,7 +1505,9 @@ const BatchDetail = () => {
               </Button>
             </>
           )}
-          {batch.status === 'pending_approval' && canApprove && batch.created_by !== profile?.id && (
+          {batch.status === 'pending_approval' && canApprove
+            && (batch.created_by !== profile?.id
+                || ['admin', 'super_admin'].includes(profile?.role ?? '')) && (
             <>
               <Button onClick={approveBatch} disabled={actionLoading} size="lg">
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
@@ -1516,9 +1518,10 @@ const BatchDetail = () => {
               </Button>
             </>
           )}
-          {/* Self-approval is server-blocked, but we hide the button entirely
-               so submitters get a clear "you can't approve your own batch" hint. */}
-          {batch.status === 'pending_approval' && canApprove && batch.created_by === profile?.id && (
+          {/* Non-admin submitters cannot approve their own batch. */}
+          {batch.status === 'pending_approval' && canApprove
+            && batch.created_by === profile?.id
+            && !['admin', 'super_admin'].includes(profile?.role ?? '') && (
             <Alert className="border-amber-500/40 bg-amber-500/5 w-full">
               <ShieldAlert className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-sm">
