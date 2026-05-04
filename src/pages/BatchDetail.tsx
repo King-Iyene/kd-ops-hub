@@ -57,6 +57,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { burst } from '@/components/Burst';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
+import { ApprovalConfirmModal, type ApprovalConfirmModalProps } from '@/components/ApprovalConfirmModal';
 import {
   ArrowLeft,
   Check,
@@ -352,9 +353,10 @@ const BatchDetail = () => {
   const [batch, setBatch] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rejectReason, setRejectReason] = useState('');
-  const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [stepUpConfig, setStepUpConfig] = useState<Pick<
+    ApprovalConfirmModalProps, 'purpose' | 'resourceId' | 'description' | 'confirmLabel' | 'onConfirm'
+  > | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
@@ -602,104 +604,96 @@ const BatchDetail = () => {
     }
   };
 
-  /** First approval — routes through approve_payment_batch RPC. */
-  const approveBatch = async () => {
-    if (!id) return;
-    setActionLoading(true);
-    try {
-      const result = await approvePaymentBatch(id);
-      const amountTxt = formatNaira(batch?.total_amount || 0);
-      if (result?.status === 'pending_second_approval') {
-        toast({
-          title: 'First approval recorded',
-          description: 'A second approver must confirm this batch before it can proceed.',
-        });
-      } else {
-        burst({ palette: 'success', count: 70 });
-        toast({ title: 'Batch approved' });
-      }
-      await logAudit(
-        result?.status === 'pending_second_approval'
-          ? 'batch_first_approved'
-          : 'batch_approved',
-        `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`,
-        profile,
-      );
-      if (batch?.created_by && result?.status === 'approved') {
-        await notifyUser({
-          userId: batch.created_by,
-          type: 'batch_approved',
-          module: 'payments',
-          title: 'Your batch was approved',
-          body: `"${batch?.name}" — ${amountTxt}`,
-        });
-      }
-      fetchBatch();
-    } catch (err: any) {
-      toast({
-        title: 'Approval failed',
-        description: err?.message || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
+  /** Open step-up modal for first approval. */
+  const approveBatch = () => {
+    if (!id || !batch) return;
+    setStepUpConfig({
+      purpose: 'approve_batch',
+      resourceId: id,
+      description: `Batch: ${batch.name} — ${formatNaira(batch.total_amount || 0)} (${items.length} recipients)`,
+      onConfirm: async (token) => {
+        setActionLoading(true);
+        try {
+          const result = await approvePaymentBatch(id, token);
+          const amountTxt = formatNaira(batch?.total_amount || 0);
+          if (result?.status === 'pending_second_approval') {
+            toast({ title: 'First approval recorded', description: 'A second approver must confirm this batch.' });
+          } else {
+            burst({ palette: 'success', count: 70 });
+            toast({ title: 'Batch approved' });
+          }
+          await logAudit(
+            result?.status === 'pending_second_approval' ? 'batch_first_approved' : 'batch_approved',
+            `Batch "${batch?.name}" approved (${amountTxt}, ${items.length} beneficiaries)`,
+            profile,
+          );
+          if (batch?.created_by && result?.status === 'approved') {
+            await notifyUser({ userId: batch.created_by, type: 'batch_approved', module: 'payments',
+              title: 'Your batch was approved', body: `"${batch?.name}" — ${amountTxt}` });
+          }
+          fetchBatch();
+        } catch (err: any) {
+          toast({ title: 'Approval failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+        } finally {
+          setActionLoading(false);
+        }
+      },
+    });
   };
 
-  /** Second approval — routes through confirm_second_approval RPC. */
-  const confirmSecondApproveBatch = async () => {
-    if (!id) return;
-    setActionLoading(true);
-    try {
-      await confirmSecondApproval(id);
-      burst({ palette: 'success', count: 70 });
-      toast({ title: 'Batch fully approved' });
-      const amountTxt = formatNaira(batch?.total_amount || 0);
-      await logAudit(
-        'batch_second_approved',
-        `Batch "${batch?.name}" second-approved (${amountTxt})`,
-        profile,
-      );
-      fetchBatch();
-    } catch (err: any) {
-      toast({
-        title: 'Second approval failed',
-        description: err?.message || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
+  /** Open step-up modal for second approval. */
+  const confirmSecondApproveBatch = () => {
+    if (!id || !batch) return;
+    setStepUpConfig({
+      purpose: 'approve_batch',
+      resourceId: id,
+      description: `Second approval — Batch: ${batch.name} — ${formatNaira(batch.total_amount || 0)}`,
+      confirmLabel: 'Confirm Second Approval',
+      onConfirm: async (token) => {
+        setActionLoading(true);
+        try {
+          await confirmSecondApproval(id, token);
+          burst({ palette: 'success', count: 70 });
+          toast({ title: 'Batch fully approved' });
+          await logAudit('batch_second_approved',
+            `Batch "${batch?.name}" second-approved (${formatNaira(batch?.total_amount || 0)})`, profile);
+          fetchBatch();
+        } catch (err: any) {
+          toast({ title: 'Second approval failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+        } finally {
+          setActionLoading(false);
+        }
+      },
+    });
   };
 
-  /** Rejection — routes through reject_payment_batch RPC. */
-  const rejectBatch = async (reason: string) => {
-    if (!id) return;
-    setActionLoading(true);
-    try {
-      await rejectPaymentBatch(id, reason);
-      await writeRejectionNotification({
-        entity: 'batch',
-        entityLabel: 'payment batch',
-        amount: batch?.total_amount,
-        reason,
-        submitterId: batch?.created_by || null,
-        actor: profile,
-        auditType: 'batch_rejected',
-        auditDescription: `Batch "${batch?.name}" rejected: ${reason}`,
-      });
-      toast({ title: 'Batch rejected' });
-      setShowReject(false);
-      fetchBatch();
-    } catch (err: any) {
-      toast({
-        title: 'Reject failed',
-        description: err?.message || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setActionLoading(false);
-    }
+  /** Open step-up modal for rejection (includes rejection reason inside modal). */
+  const openRejectModal = () => {
+    if (!id || !batch) return;
+    setStepUpConfig({
+      purpose: 'reject_batch',
+      resourceId: id,
+      description: `Reject batch: ${batch.name} — ${formatNaira(batch.total_amount || 0)}`,
+      confirmLabel: 'Reject Batch',
+      onConfirm: async (token, reason) => {
+        if (!reason) return;
+        setActionLoading(true);
+        try {
+          await rejectPaymentBatch(id, token, reason);
+          await writeRejectionNotification({
+            entity: 'batch', entityLabel: 'payment batch', amount: batch?.total_amount,
+            reason, submitterId: batch?.created_by || null, actor: profile,
+            auditType: 'batch_rejected', auditDescription: `Batch "${batch?.name}" rejected: ${reason}`,
+          });
+          toast({ title: 'Batch rejected' });
+          fetchBatch();
+        } catch (err: any) {
+          toast({ title: 'Reject failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+        } finally {
+          setActionLoading(false);
+        }
+      },
+    });
   };
 
   /**
@@ -1678,7 +1672,7 @@ const BatchDetail = () => {
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
               </Button>
-              <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
+              <Button variant="destructive" onClick={openRejectModal} disabled={actionLoading}>
                 <X className="mr-2 h-4 w-4" /> Reject
               </Button>
             </>
@@ -1702,7 +1696,7 @@ const BatchDetail = () => {
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve as Second
               </Button>
-              <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
+              <Button variant="destructive" onClick={openRejectModal} disabled={actionLoading}>
                 <X className="mr-2 h-4 w-4" /> Reject
               </Button>
             </>
@@ -1930,18 +1924,15 @@ const BatchDetail = () => {
 
       {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
 
-      <Dialog open={showReject} onOpenChange={setShowReject}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Reject Batch</DialogTitle></DialogHeader>
-          <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={() => rejectBatch(rejectReason.trim())} disabled={!isValidRejectionReason(rejectReason)}>
-              Reject Batch
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ApprovalConfirmModal
+        open={!!stepUpConfig}
+        onOpenChange={(v) => { if (!v) setStepUpConfig(null); }}
+        purpose={stepUpConfig?.purpose ?? 'approve_batch'}
+        resourceId={stepUpConfig?.resourceId}
+        description={stepUpConfig?.description ?? ''}
+        confirmLabel={stepUpConfig?.confirmLabel}
+        onConfirm={stepUpConfig?.onConfirm ?? (async () => {})}
+      />
 
       <Dialog open={showRecurring} onOpenChange={setShowRecurring}>
         <DialogContent>
