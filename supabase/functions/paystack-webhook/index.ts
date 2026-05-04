@@ -11,14 +11,17 @@
 //   transfer.failed   — mark batch_item failed with reason, recalc batch, sync expense
 //   transfer.reversed — mark batch_item reversed, recalc batch, sync expense
 //
-// Operation order per event (must not change):
-//   1. Update batch_item status + paystack_raw
-//   2. Recalculate parent payment_batches.status
-//   3. Sync linked expense.payment_status (if any)
-//   4. Insert notifications
+// Atomic processing (H-8): the idempotency claim and the batch_item update
+// happen inside a single SECURITY DEFINER RPC `process_paystack_webhook` so
+// they succeed or fail together. The webhook then handles the outcome:
+//   outcome=duplicate → 200 (don't retry)
+//   outcome=no_match  → 200 (unrelated reference)
+//   outcome=processed → 200 + run notifications/email outside the txn
+//   any DB error      → 500 so Paystack retries
 //
-// Error policy: always return 200 OK — throwing causes Paystack to retry
-// indefinitely. Log errors via console.error instead.
+// Notifications and the recipient email are best-effort and run AFTER the
+// transactional RPC returns, so a notification failure doesn't roll back the
+// payment-state update or trigger a Paystack retry.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
@@ -68,57 +71,6 @@ async function verifySignature(body: string, signature: string): Promise<boolean
   const isValid = timingSafeEqual(enc.encode(hash), enc.encode(signature));
   if (!isValid) return false;
   return true;
-}
-
-/**
- * Recalculate the parent batch status from current item statuses.
- *
- * Terminal statuses:  succeeded | failed | reversed
- * Non-terminal:       pending   | retry
- *
- * Rules (evaluated in order):
- *   all succeeded                     → processed
- *   all terminal, at least one bad    → partially_processed
- *   some still in-flight              → processing
- */
-async function recalculateBatchStatus(
-  batchId: string,
-  supabase: Supabase,
-): Promise<void> {
-  const { data: items, error } = await supabase
-    .from("batch_items")
-    .select("status")
-    .eq("batch_id", batchId);
-
-  if (error) {
-    console.error("[webhook] recalculate fetch error:", error.message);
-    return;
-  }
-  if (!items || items.length === 0) return;
-
-  const TERMINAL = new Set(["succeeded", "failed", "reversed"]);
-  const allSucceeded = items.every((i: any) => i.status === "succeeded");
-  const allComplete = items.every((i: any) => TERMINAL.has(i.status));
-  const anyBad = items.some(
-    (i: any) => i.status === "failed" || i.status === "reversed",
-  );
-
-  const batchStatus = allSucceeded
-    ? "processed"
-    : allComplete
-    ? "partially_processed"
-    : anyBad
-    ? "partially_processed"
-    : "processing";
-
-  const { error: batchErr } = await supabase
-    .from("payment_batches")
-    .update({ status: batchStatus })
-    .eq("id", batchId);
-
-  if (batchErr) {
-    console.error("[webhook] batch status update error:", batchErr.message);
-  }
 }
 
 async function notifyFinance(
@@ -280,57 +232,11 @@ serve(async (req) => {
   }
 
   // ------------------------------------------------------------------
-  // Step 1: Look up the batch_item by paystack_reference.
+  // H-8: For transfer.success, fetch the fee BEFORE the atomic RPC so
+  // we can pass it in the same DB transaction.
   // ------------------------------------------------------------------
-  const { data: item, error: lookupErr } = await supabase
-    .from("batch_items")
-    .select("id, full_name, batch_id, account_number, bank_name, amount_ngn, employee_id, contractor_id")
-    .eq("paystack_reference", reference)
-    .maybeSingle();
-
-  if (lookupErr) {
-    console.error("[webhook] batch_item lookup error:", lookupErr.message);
-    return new Response("ok", { status: 200, headers: corsHeaders });
-  }
-
-  if (!item) {
-    // Reference not in our DB — unrelated Paystack account transfer, ignore.
-    console.info("[webhook] No batch_item for reference:", reference);
-    return new Response("ok", { status: 200, headers: corsHeaders });
-  }
-
-  // ------------------------------------------------------------------
-  // IDEMPOTENCY GUARD
-  // Paystack retries webhooks on network failure. Without this guard,
-  // duplicate (reference, event) deliveries would update batch_item N
-  // times and flood notifications. The (reference, event_type) pair is
-  // PRIMARY KEY in webhook_idempotency, so a duplicate INSERT raises
-  // 23505 (unique_violation) — we catch that and exit silently with 200.
-  // ------------------------------------------------------------------
-  const { error: dupErr } = await supabase
-    .from("webhook_idempotency")
-    .insert({ reference, event_type: event });
-  if (dupErr) {
-    if (dupErr.code === "23505") {
-      console.info("[webhook] Duplicate delivery — skipping:", event, reference);
-      return new Response("ok (duplicate)", { status: 200, headers: corsHeaders });
-    }
-    // Other errors: log but proceed — better to risk a duplicate than to
-    // block a legitimate event indefinitely.
-    console.warn("[webhook] idempotency insert failed:", dupErr.message);
-  }
-
-  const now = new Date().toISOString();
-
-  // ------------------------------------------------------------------
-  // Step 2: Update batch_item and log audit.
-  // ------------------------------------------------------------------
-
+  let feeNgn = 0;
   if (event === "transfer.success") {
-    // The transfer.success webhook payload does NOT include the fee field.
-    // Fetch it from the verify endpoint so the charge row appears in the
-    // Transactions view. Failure is non-fatal — the transfer still succeeds.
-    let feeNgn = 0;
     try {
       const secret = await getPaystackSecret();
       if (secret) {
@@ -341,27 +247,88 @@ serve(async (req) => {
         const feeBody = await feeRes.json();
         const feeKobo = Number(feeBody.data?.fee) || 0;
         feeNgn = feeKobo > 0 ? feeKobo / 100 : 0;
-        console.log(`[webhook] fee for ref ${reference}: ₦${feeNgn} (raw kobo: ${feeKobo})`);
       }
     } catch (feeErr) {
       console.warn("[webhook] Could not fetch transfer fee:", feeErr);
     }
+  }
 
-    const { error: updateErr } = await supabase
-      .from("batch_items")
-      .update({
-        status: "succeeded",
-        failure_reason: null,
-        processed_at: now,
-        paystack_raw: data,
-        paystack_fee_ngn: feeNgn,
-      })
-      .eq("id", item.id);
+  const now = new Date().toISOString();
 
-    if (updateErr) {
-      console.error("[webhook] batch_item update (success) failed:", updateErr.message);
-    }
+  // Pre-compute the failure reason (used for failed/reversed events).
+  const failureReason =
+    event === "transfer.failed"
+      ? data.gateway_response ||
+        data.message ||
+        data.failures?.[0]?.reason ||
+        "Transfer failed"
+      : event === "transfer.reversed"
+      ? "Transfer reversed by Paystack"
+      : null;
 
+  // ------------------------------------------------------------------
+  // H-8: Atomic processing — idempotency + batch_item update + batch
+  // recalc all happen in ONE transaction inside a SECURITY DEFINER RPC.
+  // On any DB error we return 500 so Paystack retries; on duplicate we
+  // return 200 so it doesn't.
+  // ------------------------------------------------------------------
+  const { data: rpcData, error: rpcErr } = await supabase.rpc(
+    "process_paystack_webhook",
+    {
+      p_event: event,
+      p_reference: reference,
+      p_failure_reason: failureReason,
+      p_paystack_raw: data,
+      p_paystack_fee_ngn: feeNgn,
+      p_processed_at: now,
+    },
+  );
+
+  if (rpcErr) {
+    console.error("[webhook] process_paystack_webhook failed:", rpcErr.message, {
+      reference,
+      event,
+    });
+    return new Response(
+      JSON.stringify({ error: "DB error — please retry", reference, event }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const outcome = (rpcData as any)?.outcome as
+    | "duplicate"
+    | "no_match"
+    | "processed"
+    | undefined;
+
+  if (outcome === "duplicate") {
+    console.info("[webhook] Duplicate delivery — skipping:", event, reference);
+    return new Response("ok (duplicate)", { status: 200, headers: corsHeaders });
+  }
+  if (outcome === "no_match") {
+    console.info("[webhook] No batch_item for reference:", reference);
+    return new Response("ok (no_match)", { status: 200, headers: corsHeaders });
+  }
+
+  // outcome === 'processed' — the transactional update succeeded.
+  const item = {
+    id: (rpcData as any).item_id,
+    batch_id: (rpcData as any).batch_id,
+    full_name: (rpcData as any).full_name,
+    account_number: (rpcData as any).account_number,
+    bank_name: (rpcData as any).bank_name,
+    amount_ngn: (rpcData as any).amount_ngn,
+    employee_id: (rpcData as any).employee_id,
+    contractor_id: (rpcData as any).contractor_id,
+  };
+
+  // ------------------------------------------------------------------
+  // Step 2 (post-txn): notifications, audit, email — best effort.
+  // Failures here MUST NOT cause a 500 because the transactional state
+  // is already committed and Paystack would retry pointlessly.
+  // ------------------------------------------------------------------
+
+  if (event === "transfer.success") {
     await audit(
       supabase,
       "paystack_transfer_succeeded",
@@ -381,27 +348,7 @@ serve(async (req) => {
     void sendRecipientPaymentEmail(supabase, item, reference, now);
 
   } else if (event === "transfer.failed") {
-    // Prefer gateway_response (human-readable), fall back to other fields.
-    const reason =
-      data.gateway_response ||
-      data.message ||
-      data.failures?.[0]?.reason ||
-      "Transfer failed";
-
-    const { error: updateErr } = await supabase
-      .from("batch_items")
-      .update({
-        status: "failed",
-        failure_reason: reason,
-        processed_at: now,
-        paystack_raw: data,
-      })
-      .eq("id", item.id);
-
-    if (updateErr) {
-      console.error("[webhook] batch_item update (failed) error:", updateErr.message);
-    }
-
+    const reason = failureReason ?? "Transfer failed";
     await audit(
       supabase,
       "paystack_transfer_failed",
@@ -417,20 +364,6 @@ serve(async (req) => {
     );
 
   } else if (event === "transfer.reversed") {
-    const { error: updateErr } = await supabase
-      .from("batch_items")
-      .update({
-        status: "reversed",
-        failure_reason: "Transfer reversed by Paystack",
-        processed_at: now,
-        paystack_raw: data,
-      })
-      .eq("id", item.id);
-
-    if (updateErr) {
-      console.error("[webhook] batch_item update (reversed) error:", updateErr.message);
-    }
-
     await audit(
       supabase,
       "paystack_transfer_reversed",
@@ -445,11 +378,6 @@ serve(async (req) => {
       "high",
     );
   }
-
-  // ------------------------------------------------------------------
-  // Step 3: Recalculate parent batch status from all item statuses.
-  // ------------------------------------------------------------------
-  await recalculateBatchStatus(item.batch_id, supabase);
 
   // ------------------------------------------------------------------
   // Step 4: Sync payment_status on any linked expense (expense reimbursement

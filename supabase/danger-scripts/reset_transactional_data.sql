@@ -1,7 +1,14 @@
 -- =============================================================================
--- Reset transactional data — KEEPS master data (employees, contractors,
+-- DANGER: reset_transactional_data — KEEPS master data (employees, contractors,
 -- vehicles, budgets, subscriptions, settings, documents, KB, etc.).
 -- Run this in the Supabase SQL editor.
+--
+-- L-5 GUARD: This script refuses to run unless the caller explicitly opts in
+-- by setting the session-local GUC `kdops.allow_transactional_reset = 'true'`.
+-- The intent is to make accidental "Run all" double-clicks a no-op. Set the
+-- GUC at the top of your editor session, in the same SQL window:
+--
+--     SET kdops.allow_transactional_reset = 'true';
 --
 -- WHAT GETS WIPED (skipped silently if the table doesn't exist):
 --   • Expenses, payment batches + line items, payroll runs + payslips
@@ -27,10 +34,19 @@
 --   • fleet_budget_cycles, referrals
 --
 -- HOW TO RUN:
---   1. Wrap in BEGIN;...ROLLBACK; first to dry-run if you want.
---   2. When ready, run as-is (BEGIN;...COMMIT;).
---   3. Cannot be undone — there is no Free-tier backup to restore from.
+--   1. SET kdops.allow_transactional_reset = 'true';
+--   2. Wrap in BEGIN;...ROLLBACK; first to dry-run if you want.
+--   3. When ready, run as-is (BEGIN;...COMMIT;).
+--   4. Cannot be undone — there is no Free-tier backup to restore from.
 -- =============================================================================
+
+-- L-5: refuse to run unless explicitly authorised in this session.
+DO $$
+BEGIN
+  IF current_setting('kdops.allow_transactional_reset', true) IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'reset_transactional_data: refused. Set kdops.allow_transactional_reset = ''true'' in this session to confirm intent.';
+  END IF;
+END $$;
 
 BEGIN;
 

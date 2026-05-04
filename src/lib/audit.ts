@@ -107,30 +107,28 @@ export interface AuditActor {
 }
 
 /**
- * Write a row to the audit_logs table. Never throws — logs failures to the
- * console so that operational actions are not blocked by audit logging errors.
+ * Write a row to the audit_logs table via the `log_audit` SECURITY DEFINER RPC.
+ *
+ * The RPC enforces `performed_by = auth.uid()` server-side — any client-supplied
+ * actor is ignored. This closes H-4 (audit_logs INSERT spoofing). The legacy
+ * `actor` parameter is retained for source-compat with existing call sites but
+ * is no longer trusted by the database.
  */
 export async function logAudit(
   actionType: AuditActionType,
   description: string,
-  actor?: AuditActor | null
+  actor?: AuditActor | null,
+  metadata?: Record<string, unknown>
 ): Promise<void> {
+  void actor;
   try {
-    const performedBy = actor?.id ?? null;
-    const performedByName =
-      actor?.full_name && actor.full_name.trim()
-        ? actor.full_name
-        : actor?.email ?? null;
-
-    const { error } = await supabase.from('audit_logs').insert({
-      action_type: actionType,
-      description,
-      performed_by: performedBy,
-      performed_by_name: performedByName,
+    const { error } = await supabase.rpc('log_audit', {
+      p_action_type: actionType,
+      p_description: description,
+      p_metadata: metadata ?? {},
     });
-
     if (error) {
-      console.warn('[KDOps] audit log insert failed:', error.message);
+      console.warn('[KDOps] log_audit RPC failed:', error.message);
     }
   } catch (err) {
     console.warn('[KDOps] audit log exception:', err);
