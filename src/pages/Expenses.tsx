@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -166,6 +167,7 @@ const Expenses = () => {
   usePageTitle('Expenses');
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const location = useLocation();
   const canApprovePerm = usePermission('expenses.approve');
   const canProcessPerm = usePermission('expenses.process_payments');
   const isApprover =
@@ -284,6 +286,20 @@ const Expenses = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // When navigated here from Approvals with a specific expense id, auto-open
+  // the detail dialog once the expense list has loaded.
+  const autoOpenHandled = useRef(false);
+  useEffect(() => {
+    if (autoOpenHandled.current) return;
+    const openId = (location.state as any)?.openExpenseId;
+    if (!openId || !expenses.length) return;
+    const target = expenses.find((e) => e.id === openId);
+    if (target) {
+      setDetailExpense(target);
+      autoOpenHandled.current = true;
+    }
+  }, [expenses, location.state]);
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 

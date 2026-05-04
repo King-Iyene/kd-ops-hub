@@ -28,6 +28,7 @@ import {
   Contact2,
   ArrowUpDown,
   Search,
+  ClipboardList,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useEffectiveRole } from '@/store/authStore';
@@ -67,6 +68,7 @@ const GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Operations',
     items: [
+      { title: 'My Requests', url: '/my-requests', icon: ClipboardList, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
       { title: 'Expenses',    url: '/expenses',    icon: Receipt,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
       { title: 'Fleet',       url: '/fleet',       icon: Truck,      roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'] },
       { title: 'Contractors', url: '/contractors', icon: Users,      roles: ['super_admin', 'admin', 'finance', 'operations'] },
