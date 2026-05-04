@@ -145,7 +145,10 @@ async function dispatchItem(
   try {
     const amount = Number(it.amount_ngn || 0);
     if (amount < 1)        return fail("Minimum transfer amount is ₦1");
-    if (amount > 5_000_000) return fail("Single transfer limit is ₦5,000,000");
+    // Single-transfer caps live in check_transfer_caps now (read by the
+    // approve_payment_batch RPC up-front + paystack-transfer at dispatch).
+    // The previous hardcoded ₦5M literal duplicated those caps and silently
+    // diverged when a super_admin raised them — closes H-7.
 
     let recipientCode: string | null = it.paystack_recipient_code || null;
     if (!recipientCode) {
@@ -302,6 +305,19 @@ async function workBatch(
     .eq("batch_id", batchId)
     .is("paystack_reference", null)
     .not("status", "in", '("succeeded","failed","rejected")');
+
+  // When the run completes (no items left to dispatch), ask the database to
+  // finalize the batch status from current item statuses. The RPC is
+  // idempotent and handles all the edge cases (some pending Paystack
+  // verifications, some failed, etc.) — keeping the rule in one place.
+  if ((remaining ?? 0) === 0) {
+    const { error: finalizeErr } = await svc.rpc("finalize_batch", {
+      p_batch_id: batchId,
+    });
+    if (finalizeErr) {
+      console.warn("[batch-worker] finalize_batch failed:", finalizeErr.message);
+    }
+  }
 
   return {
     ok: true,

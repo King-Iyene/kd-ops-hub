@@ -14,6 +14,10 @@ import {
   confirmSecondApproval,
   rejectPaymentBatch,
   resetBatchToDraft,
+  markBatchFunded,
+  startBatchProcessing,
+  finalizeBatch,
+  syncBatchStatusFromItems,
   fetchEligibleApprovers,
   previewCapCheck,
   isCoApprovalRequired,
@@ -414,8 +418,12 @@ const BatchDetail = () => {
       }
 
       if (correctStatus !== b.status) {
-        await supabase.from('payment_batches').update({ status: correctStatus }).eq('id', id);
-        b.status = correctStatus;
+        try {
+          const synced = await syncBatchStatusFromItems(id);
+          if (synced?.status) b.status = synced.status as typeof b.status;
+        } catch (err) {
+          console.warn('[KDOps] sync_batch_status_from_items failed:', err);
+        }
       }
     }
 
@@ -531,24 +539,23 @@ const BatchDetail = () => {
   })();
 
   /**
-   * Transition the batch to a non-approval state (submit-for-approval,
-   * mark-funded). Approval/rejection go through the RPC paths
-   * `approveBatch`, `confirmSecondApproveBatch`, and `rejectBatch` below.
+   * Submit the batch for approval (draft / rejected → pending_approval). This
+   * is the only legal authenticated status transition for batches; all other
+   * lifecycle moves (approve / fund / process / finalize) route through the
+   * SECURITY DEFINER RPCs below so direct cap-bypassing UPDATEs are blocked.
    */
-  const updateStatus = async (status: string, extra?: any, expectedFrom?: string | string[]) => {
+  const submitForApproval = async () => {
     setActionLoading(true);
     try {
-      const update: any = { status, ...extra };
-      let query = supabase.from('payment_batches').update(update).eq('id', id);
-      if (expectedFrom) {
-        query = Array.isArray(expectedFrom)
-          ? query.in('status', expectedFrom)
-          : query.eq('status', expectedFrom);
-      }
-      const { data: updated, error } = await query.select('id, status');
+      const { data: updated, error } = await supabase
+        .from('payment_batches')
+        .update({ status: 'pending_approval' })
+        .eq('id', id)
+        .in('status', ['draft', 'rejected'])
+        .select('id, status');
       if (error) {
         toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else if (expectedFrom && (!updated || updated.length === 0)) {
+      } else if (!updated || updated.length === 0) {
         toast({
           title: 'Batch state has changed',
           description: 'Someone else may have just acted on this batch. Refreshing…',
@@ -556,27 +563,42 @@ const BatchDetail = () => {
         });
         await fetchBatch();
       } else {
-        toast({ title: `Batch ${statusLabel(status)?.toLowerCase() || status}` });
-
         const amountTxt = formatNaira(batch?.total_amount || 0);
-        if (status === 'pending_approval') {
-          await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
-          await notifyRoles({
-            roles: ['super_admin', 'admin', 'finance'],
-            type: 'batch_submitted',
-            module: 'payments',
-            priority: 'high',
-            title: `Batch submitted for approval`,
-            body: `"${batch?.name}" — ${amountTxt}, ${items.length} beneficiaries`,
-          });
-        } else if (status === 'funded') {
-          await logAudit('batch_funded', `Batch "${batch?.name}" marked funded`, profile);
-        }
+        toast({ title: 'Batch submitted for approval' });
+        await logAudit('batch_submitted', `Batch "${batch?.name}" submitted for approval`, profile);
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'batch_submitted',
+          module: 'payments',
+          priority: 'high',
+          title: 'Batch submitted for approval',
+          body: `"${batch?.name}" — ${amountTxt}, ${items.length} beneficiaries`,
+        });
         fetchBatch();
       }
     } finally {
       setActionLoading(false);
       setShowReject(false);
+    }
+  };
+
+  /** Mark Funded — routes through mark_batch_funded RPC. */
+  const markFunded = async () => {
+    if (!id) return;
+    setActionLoading(true);
+    try {
+      await markBatchFunded(id);
+      toast({ title: 'Batch marked funded' });
+      await logAudit('batch_funded', `Batch "${batch?.name}" marked funded`, profile);
+      fetchBatch();
+    } catch (err: any) {
+      toast({
+        title: 'Could not mark funded',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -697,7 +719,10 @@ const BatchDetail = () => {
     try {
       const amount = Number(it.amount_ngn || 0);
       if (amount < 1) return markFailed('Minimum transfer amount is ₦1.');
-      if (amount > 5_000_000) return markFailed('Single transfer limit is ₦5,000,000. For larger amounts contact your bank operations team.');
+      // Per-amount caps live exclusively in check_transfer_caps now (read by
+      // paystack-transfer + batch-worker + the approval RPCs). Removing the
+      // duplicated client-side ₦5M literal closes H-7 — if a NIBSS-style hard
+      // ceiling is needed, set company_settings.max_single_transfer_ngn.
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" — no Paystack bank code`);
       let recipientCode: string | null = it.paystack_recipient_code || null;
@@ -926,27 +951,16 @@ const BatchDetail = () => {
     setProcessingIdx(0);
     setProcessingName('');
     try {
-      // Concurrency guard: only flip to 'processing' if the batch is still
-      // 'funded' or 'partially_processed'. If two admins click Process at
-      // the same time, only the first wins; the loser sees a stale-state
-      // toast instead of dispatching every Paystack transfer a second time.
-      const { data: claimed, error: claimErr } = await supabase
-        .from('payment_batches')
-        .update({ status: 'processing' })
-        .eq('id', id)
-        .in('status', ['funded', 'partially_processed'])
-        .select('id, status');
-
-      if (claimErr) {
-        toast({ title: 'Could not start processing', description: claimErr.message, variant: 'destructive' });
-        setActionLoading(false);
-        setProcessingTotal(0);
-        return;
-      }
-      if (!claimed || claimed.length === 0) {
+      // Concurrency guard: routes through start_batch_processing RPC, which
+      // does FOR UPDATE locking + role check + status whitelist. If two admins
+      // click Process at the same time, only the first reaches 'processing';
+      // the loser raises and falls through to the catch.
+      try {
+        await startBatchProcessing(id!);
+      } catch (claimErr: any) {
         toast({
           title: 'Batch is no longer ready to process',
-          description: 'It may already be running or have changed state. Refreshing…',
+          description: claimErr?.message || 'It may already be running or have changed state. Refreshing…',
           variant: 'destructive',
         });
         await fetchBatch();
@@ -975,19 +989,19 @@ const BatchDetail = () => {
       setProcessingTotal(0);
       setProcessingName('');
 
+      // Server-derived status: finalize_batch reads item statuses inside a
+      // single SECURITY DEFINER transaction, no client-side rule duplication.
       let batchStatus = 'processing';
-      if (pendingCount === 0 && failedCount === 0)         batchStatus = 'processed';
-      else if (pendingCount === 0 && succeededCount > 0)   batchStatus = 'partially_processed';
-      else if (pendingCount === 0 && succeededCount === 0) batchStatus = 'failed';
-      // If loop was interrupted and items are still pending, set to a
-      // recoverable state so the user can retry without Supabase dashboard access.
-      else if (pendingCount > 0 && succeededCount > 0)    batchStatus = 'partially_processed';
-      else if (pendingCount > 0 && succeededCount === 0)  batchStatus = 'funded';
-
-      await supabase
-        .from('payment_batches')
-        .update({ status: batchStatus })
-        .eq('id', id);
+      try {
+        const finalized = await finalizeBatch(id!);
+        batchStatus = finalized?.status || batchStatus;
+      } catch (finErr) {
+        console.warn('[KDOps] finalize_batch failed, falling back to sync:', finErr);
+        try {
+          const synced = await syncBatchStatusFromItems(id!);
+          batchStatus = synced?.status || batchStatus;
+        } catch { /* best-effort */ }
+      }
       await logAudit(
         'batch_processed',
         `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')} (${succeededCount} sent, ${failedCount} failed)`,
@@ -1150,22 +1164,12 @@ const BatchDetail = () => {
         .from('batch_items')
         .select('status')
         .eq('batch_id', id);
-      const anyFailed = (refreshed.data || []).some(
-        (r) => (r as any).status === 'failed',
-      );
-      const allOk = (refreshed.data || []).every(
-        (r) => (r as any).status === 'succeeded',
-      );
-      if (allOk) {
-        await supabase
-          .from('payment_batches')
-          .update({ status: 'processed' })
-          .eq('id', id);
-      } else if (!anyFailed) {
-        await supabase
-          .from('payment_batches')
-          .update({ status: 'processing' })
-          .eq('id', id);
+      // Re-derive batch status server-side; finalize_batch is idempotent and
+      // handles all the (succeeded/failed/pending) permutations in one place.
+      try {
+        await finalizeBatch(id!);
+      } catch {
+        try { await syncBatchStatusFromItems(id!); } catch { /* best-effort */ }
       }
       toast({
         title: result.ok ? 'Retry initiated' : 'Retry failed',
@@ -1625,7 +1629,7 @@ const BatchDetail = () => {
               <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
                 Edit Batch
               </Button>
-              <Button onClick={() => updateStatus('pending_approval', undefined, ['draft', 'rejected'])} disabled={actionLoading}>
+              <Button onClick={submitForApproval} disabled={actionLoading}>
                 Submit for Approval
               </Button>
             </>
@@ -1704,7 +1708,7 @@ const BatchDetail = () => {
             </>
           )}
           {batch.status === 'approved' && (
-            <Button onClick={() => updateStatus('funded', undefined, 'approved')} disabled={actionLoading}>
+            <Button onClick={markFunded} disabled={actionLoading}>
               <DollarSign className="mr-2 h-4 w-4" /> Confirm Funded
             </Button>
           )}

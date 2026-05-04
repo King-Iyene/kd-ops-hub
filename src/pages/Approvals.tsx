@@ -445,28 +445,24 @@ const Approvals = () => {
         .eq('id', rawId(it.id));
       if (error) throw error;
 
-      // When a fuel request is approved, update the paired expense row
-      // (created at submission time, linked by fuel_request_id) to
-      // 'approved'. If no paired row exists (legacy fuel request from
-      // before the link was wired up), insert one as a fallback.
+      // When a fuel request is approved, mirror the approval onto the paired
+      // expense row (created at submission time, linked by fuel_request_id).
+      // The expense.status='approved' flip routes through approve_expense
+      // RPC so cap accounting + audit + co-approval thresholds apply. If
+      // no paired row exists (legacy fuel request pre-link), insert a new
+      // pending one and approve it.
       if (it.kind === 'fuel') {
         const f = it.raw || {};
         const now = new Date().toISOString();
         const { data: existing } = await supabase
           .from('expenses')
-          .select('id')
+          .select('id, status')
           .eq('fuel_request_id', f.id)
           .maybeSingle();
         let expErr: { message: string } | null = null;
-        if (existing?.id) {
-          const { error } = await supabase.from('expenses').update({
-            status: 'approved',
-            approved_by: profile?.id,
-            approved_at: now,
-          }).eq('id', existing.id);
-          expErr = error;
-        } else {
-          const { error } = await supabase.from('expenses').insert({
+        let expenseId: string | undefined = (existing as any)?.id;
+        if (!expenseId) {
+          const { data: inserted, error } = await supabase.from('expenses').insert({
             fuel_request_id: f.id,
             category: 'fuel',
             budget_category: 'fuel',
@@ -474,16 +470,19 @@ const Approvals = () => {
             date: now.slice(0, 10),
             description: `Fuel — ${f.station_name || 'Station'} — ${f.reason || 'Fuel request'}`,
             submitted_by: f.driver_id || f.employee_id,
-            status: 'approved',
-            approved_by: profile?.id,
-            approved_at: now,
+            status: 'pending',
             ...(f.bank_name ? {
               bank_name: f.bank_name,
               account_number: f.account_number,
               account_name: f.account_name,
             } : {}),
-          });
+          }).select('id').single();
           expErr = error;
+          expenseId = (inserted as any)?.id;
+        }
+        if (expenseId && (existing as any)?.status !== 'approved') {
+          try { await approveExpense(expenseId); }
+          catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
         }
         if (expErr) {
           toast({

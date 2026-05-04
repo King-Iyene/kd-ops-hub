@@ -15,6 +15,7 @@ import {
   isQuickPayEnabled,
   isCoApprovalRequired,
   previewCapCheck,
+  startBatchProcessing,
 } from '@/lib/transfer-safety';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
@@ -271,13 +272,14 @@ export function QuickPayDialog() {
         console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
       }
 
-      // 6. Update batch status.
-      const { error: batchUpdErr } = await supabase
-        .from('payment_batches')
-        .update({ status: 'processing' })
-        .eq('id', (batch as any).id);
-      if (batchUpdErr) {
-        console.warn('[KDOps] could not update batch status:', batchUpdErr.message);
+      // 6. Flip batch funded → processing via the SECURITY DEFINER RPC. The
+      // direct status UPDATE used to live here; the new trigger would reject
+      // it from the authenticated role, and the RPC enforces caller role +
+      // status whitelist server-side.
+      try {
+        await startBatchProcessing((batch as any).id);
+      } catch (claimErr: any) {
+        console.warn('[KDOps] start_batch_processing failed:', claimErr?.message || claimErr);
       }
 
       await logAudit(

@@ -236,9 +236,9 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
     hint: 'Paystack requires at least ₦1 per transfer. Increase the amount.',
   },
   {
-    match: /single transfer limit/i,
+    match: /single transfer (limit|cap|exceeds)/i,
     title: 'Amount exceeds the per-transfer cap',
-    hint: 'Single transfers are capped at ₦5,000,000. Split this payment into smaller amounts or contact your bank operations team.',
+    hint: 'This transfer exceeds your configured single-transfer cap. Split the payment, or ask a Super Admin to raise your cap in Settings → Transfer Authorization.',
   },
 ];
 
