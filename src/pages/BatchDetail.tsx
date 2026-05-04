@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
+import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import {
   writeRejectionNotification,
@@ -15,6 +15,8 @@ import {
   rejectPaymentBatch,
   resetBatchToDraft,
   fetchEligibleApprovers,
+  previewCapCheck,
+  isCoApprovalRequired,
   type EligibleApprover,
 } from '@/lib/transfer-safety';
 import {
@@ -159,49 +161,99 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
   const isFailed = item.status === 'failed';
   const isSucceeded = item.status === 'succeeded';
   const txnDateStr = item.processed_at || item.created_at
-    ? new Date(item.processed_at || item.created_at).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    ? formatReceiptDateTime(item.processed_at || item.created_at)
     : '—';
-  const generatedAt = new Date().toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const generatedAt = formatReceiptDateTime(new Date());
   const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
   const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCESSFUL' : (item.status?.toUpperCase() || 'PENDING');
-  const statusBg = isFailed ? '#fef2f2' : isSucceeded ? '#f0fdf4' : '#fffbeb';
-  const statusColor = isFailed ? '#b91c1c' : isSucceeded ? '#15803d' : '#b45309';
-  const accentColor = isFailed ? '#b91c1c' : '#006994';
+  const statusBg = isFailed ? '#fee2e2' : isSucceeded ? '#dcfce7' : '#fef3c7';
+  const statusColor = isFailed ? '#991b1b' : isSucceeded ? '#166534' : '#92400e';
+  const statusIcon = isFailed
+    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+    : isSucceeded
+      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+  const initials = escapeHtml((companyName || 'KD').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
   const logoHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:44px;width:auto;object-fit:contain;border-radius:6px;" />`
-    : `<div style="width:44px;height:44px;border-radius:8px;background:#0a2533;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;">${escapeHtml((companyName || 'KD').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase())}</div>`;
+    ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:42px;width:auto;object-fit:contain;border-radius:8px;background:#fff;padding:4px;" />`
+    : `<div style="width:42px;height:42px;border-radius:10px;background:#fff;color:#0a2533;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;letter-spacing:-0.02em;">${initials}</div>`;
+
+  const internalRef = item.id ? String(item.id).slice(0, 8).toUpperCase() : '—';
+  const batchRef = batch?.id ? String(batch.id).slice(0, 8).toUpperCase() : '—';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Payment Receipt — ${escapeHtml(item.full_name || '')}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, sans-serif; color: #111827; background: #f9fafb; }
-    .page { max-width: 560px; margin: 32px auto; background: #fff; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); overflow: hidden; }
-    .header { background: linear-gradient(135deg, #0a2533 0%, #0d3347 100%); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .company-name { font-size: 17px; font-weight: 700; color: #fff; }
-    .company-sub { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
-    .status-pill { padding: 5px 14px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; }
-    .amount-section { padding: 24px 28px 20px; border-bottom: 1px solid #f3f4f6; }
-    .amount-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 6px; }
-    .amount { font-size: 38px; font-weight: 800; color: ${isFailed ? '#b91c1c' : '#111827'}; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
-    .amount-sub { font-size: 12px; color: #6b7280; margin-top: 4px; }
-    .details { padding: 20px 28px; }
-    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #0f172a; background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%); min-height: 100vh; padding: 24px 16px; }
+    .page { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px -12px rgba(15, 23, 42, 0.18), 0 8px 24px -8px rgba(15, 23, 42, 0.08); overflow: hidden; position: relative; }
+    .header { background: linear-gradient(135deg, #0a2533 0%, #0d3a4f 60%, #114866 100%); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; }
+    .header::after { content: ''; position: absolute; top: -40px; right: -40px; width: 160px; height: 160px; background: radial-gradient(circle, rgba(214,172,80,0.18) 0%, transparent 70%); }
+    .header-left { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+    .company-name { font-size: 17px; font-weight: 700; color: #ffffff; letter-spacing: -0.01em; }
+    .company-sub { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.12em; }
+    .receipt-num { color: rgba(255,255,255,0.4); font-size: 10px; font-family: 'JetBrains Mono', monospace; margin-top: 2px; letter-spacing: 0.05em; }
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; position: relative; z-index: 1; }
+    .status-pill svg { display: block; }
+
+    .amount-section { padding: 28px 28px 22px; text-align: center; border-bottom: 1px dashed #e2e8f0; }
+    .amount-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #94a3b8; margin-bottom: 8px; }
+    .amount { font-size: 40px; font-weight: 800; color: ${isFailed ? '#b91c1c' : '#0f172a'}; letter-spacing: -1.2px; font-variant-numeric: tabular-nums; line-height: 1; }
+    .amount .currency { font-size: 24px; font-weight: 700; color: #475569; vertical-align: super; margin-right: 4px; }
+    ${isFailed ? '.amount { text-decoration: line-through; }' : ''}
+    .amount-sub { font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4; }
+
+    .timestamp { padding: 14px 28px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: center; }
+    .timestamp .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 3px; }
+    .timestamp .val { font-size: 13px; font-weight: 600; color: #1e293b; letter-spacing: -0.01em; }
+
+    .section-grid { padding: 20px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-bottom: 1px solid #f1f5f9; }
+    .party-block { font-size: 12px; }
+    .party-block .lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; margin-bottom: 6px; }
+    .party-block .name { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.3; word-break: break-word; }
+    .party-block .meta { font-size: 11px; color: #64748b; margin-top: 3px; }
+    .party-block .meta .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    .details { padding: 16px 28px 4px; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; }
     .row:last-child { border-bottom: none; }
-    .row .lbl { color: #6b7280; flex-shrink: 0; }
-    .row .val { font-weight: 500; text-align: right; word-break: break-all; }
-    .row .val.mono { font-family: monospace; font-size: 11px; }
-    ${isFailed ? `.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-28deg); font-size: 72px; font-weight: 900; color: rgba(185,28,28,0.06); letter-spacing: 0.1em; pointer-events: none; }` : ''}
-    .alert { margin: 0 28px 20px; padding: 14px 16px; border-radius: 10px; font-size: 12px; }
+    .row .lbl { color: #64748b; font-weight: 500; flex-shrink: 0; }
+    .row .val { font-weight: 600; text-align: right; word-break: break-all; color: #0f172a; }
+    .row .val.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500; }
+
+    .fee-section { background: #fffbeb; border-top: 1px solid #fde68a; border-bottom: 1px solid #fde68a; padding: 14px 28px; margin: 8px 0 0; }
+    .fee-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+    .fee-row .lbl { color: #92400e; font-weight: 500; }
+    .fee-row .val { color: #b45309; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .fee-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 0; margin-top: 6px; border-top: 1px solid #fcd34d; font-size: 13px; font-weight: 700; color: #78350f; }
+    .fee-total .val { font-variant-numeric: tabular-nums; }
+
+    .alert { margin: 16px 28px 0; padding: 14px 16px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
     .alert.failed { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
-    .alert.retry { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; margin-top: -8px; }
-    .footer { padding: 14px 28px; border-top: 1px solid #f3f4f6; font-size: 11px; color: #9ca3af; text-align: center; }
-    @media print { body { background: #fff; } .page { margin: 0; border-radius: 0; box-shadow: none; } .header { background: #0a2533 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    .alert.retry { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; margin-top: 8px; }
+    .alert strong { font-weight: 700; }
+
+    .footer { padding: 18px 28px; border-top: 1px dashed #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6; background: #fafbfc; }
+    .footer .gen { color: #64748b; font-weight: 500; }
+    .footer .nb { color: #cbd5e1; margin-top: 4px; }
+
+    .punch-strip { display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
+    .punch-strip .dot { width: 14px; height: 14px; border-radius: 50%; background: #f1f5f9; margin-top: -7px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); }
+
+    ${isFailed ? '.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-28deg); font-size: 96px; font-weight: 900; color: rgba(185,28,28,0.05); letter-spacing: 0.16em; pointer-events: none; z-index: 0; }' : ''}
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .page { margin: 0; border-radius: 0; box-shadow: none; }
+      .header { background: #0a2533 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .status-pill, .timestamp, .fee-section, .alert.failed, .alert.retry { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+    @media (max-width: 480px) { .section-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -213,55 +265,67 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
         <div>
           <div class="company-name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
           <div class="company-sub">Payment Receipt</div>
+          <div class="receipt-num">No. ${escapeHtml(internalRef)}</div>
         </div>
       </div>
-      <div class="status-pill">${escapeHtml(statusText)}</div>
+      <div class="status-pill">${statusIcon}<span>${escapeHtml(statusText)}</span></div>
     </div>
 
     <div class="amount-section">
       <div class="amount-label">Amount Transferred</div>
-      <div class="amount">${escapeHtml(item.amount_ngn != null ? `₦${Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 })}` : '—')}</div>
+      <div class="amount">${item.amount_ngn != null ? `<span class="currency">₦</span>${escapeHtml(Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 }))}` : '—'}</div>
       <div class="amount-sub">${escapeHtml(narration)}</div>
     </div>
 
+    <div class="timestamp">
+      <div class="label">Transaction Date &amp; Time</div>
+      <div class="val">${escapeHtml(txnDateStr)}</div>
+    </div>
+
+    <div class="section-grid">
+      <div class="party-block">
+        <div class="lbl">From (Sender)</div>
+        <div class="name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
+        <div class="meta">Operations wallet · Paystack</div>
+      </div>
+      <div class="party-block">
+        <div class="lbl">To (Recipient)</div>
+        <div class="name">${escapeHtml(item.full_name || '—')}</div>
+        <div class="meta">${escapeHtml(item.bank_name || '—')}</div>
+        <div class="meta"><span class="mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span></div>
+      </div>
+    </div>
+
     <div class="details">
-      <div class="row"><span class="lbl">Recipient</span><span class="val">${escapeHtml(item.full_name || '—')}</span></div>
-      <div class="row"><span class="lbl">Bank</span><span class="val">${escapeHtml(item.bank_name || '—')}</span></div>
-      <div class="row"><span class="lbl">Account</span><span class="val mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span></div>
-      <div class="row"><span class="lbl">Paystack ref</span><span class="val mono">${escapeHtml(item.paystack_reference || '—')}</span></div>
-      <div class="row"><span class="lbl">Transaction date</span><span class="val">${escapeHtml(txnDateStr)}</span></div>
-      <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')}</span></div>
+      <div class="row"><span class="lbl">Paystack reference</span><span class="val mono">${escapeHtml(item.paystack_reference || '—')}</span></div>
+      <div class="row"><span class="lbl">Internal reference</span><span class="val mono">${escapeHtml(internalRef)}</span></div>
+      <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')} <span class="mono" style="color:#94a3b8;font-size:10px;">(${escapeHtml(batchRef)})</span></span></div>
       <div class="row"><span class="lbl">Status</span><span class="val" style="color:${statusColor};font-weight:700">${escapeHtml(statusText)}</span></div>
       ${isFailed ? `<div class="row"><span class="lbl">Failure reason</span><span class="val" style="color:#b91c1c">${escapeHtml(item.failure_reason || 'Transfer rejected')}</span></div>` : ''}
-      ${isSucceeded ? (() => {
+    </div>
+
+    ${isSucceeded ? (() => {
         const amount = Number(item.amount_ngn) || 0;
         const psFee = paystackTransferFee(amount);
         const duty = stampDutyFor(amount);
         const total = amount + psFee + duty;
         const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
         return `
-      <div class="row" style="background:#fffbeb;border-radius:6px;padding:10px 8px;margin-top:4px;">
-        <span class="lbl" style="color:#92400e;">Paystack transfer fee</span>
-        <span class="val" style="color:#b45309;">${fmtNgn(psFee)}</span>
-      </div>
-      ${duty > 0 ? `<div class="row" style="background:#fffbeb;border-radius:6px;padding:10px 8px;">
-        <span class="lbl" style="color:#92400e;">Stamp duty (transfers ≥ ₦10,000)</span>
-        <span class="val" style="color:#b45309;">${fmtNgn(duty)}</span>
-      </div>` : ''}
-      <div class="row" style="font-weight:700;font-size:14px;border-top:2px solid #f3f4f6;margin-top:4px;">
-        <span class="lbl" style="color:#111827;">Total debited from wallet</span>
-        <span class="val">${fmtNgn(total)}</span>
-      </div>`;
+    <div class="fee-section">
+      <div class="fee-row"><span class="lbl">Paystack transfer fee</span><span class="val">${fmtNgn(psFee)}</span></div>
+      ${duty > 0 ? `<div class="fee-row"><span class="lbl">Stamp duty (≥ ₦10,000)</span><span class="val">${fmtNgn(duty)}</span></div>` : ''}
+      <div class="fee-total"><span>Total debited from wallet</span><span class="val">${fmtNgn(total)}</span></div>
+    </div>`;
       })() : ''}
-    </div>
 
     ${isFailed ? `
     <div class="alert failed"><strong>No funds were debited.</strong> ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</div>
     <div class="alert retry">To retry: return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row.</div>` : ''}
 
     <div class="footer">
-      Generated by KDOps · ${escapeHtml(generatedBy || 'System')} · ${escapeHtml(generatedAt)}<br/>
-      This is a system-generated receipt. No signature required.
+      <div class="gen">Generated by KDOps · ${escapeHtml(generatedBy || 'System')}</div>
+      <div class="gen">${escapeHtml(generatedAt)}</div>
+      <div class="nb">This is a system-generated receipt. No signature required.</div>
     </div>
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
@@ -310,6 +374,9 @@ const BatchDetail = () => {
   const [secondApprovers, setSecondApprovers] = useState<EligibleApprover[]>([]);
   const [firstApproverName, setFirstApproverName] = useState<string | null>(null);
   const [secondApproverName, setSecondApproverName] = useState<string | null>(null);
+  // Pre-flight cap + co-approval preview shown above the Approve button.
+  const [capPreview, setCapPreview] = useState<{ allowed: boolean; reason: string | null; appliedKind: string | null; appliedLimit: number | null } | null>(null);
+  const [coThreshold, setCoThreshold] = useState<number | null>(null);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -385,6 +452,53 @@ const BatchDetail = () => {
           .catch(() => setSecondApprovers([]));
       } else {
         setSecondApprovers([]);
+      }
+
+      // Pre-flight: when the current user can act on this batch, preview cap +
+      // fetch their effective co-approval threshold so we can show "ready to
+      // approve" / "will route to second approver" / "blocked by cap" before
+      // they click.  Also fetched for the submitter on a draft batch so they
+      // know up-front whether dual approval will be needed.
+      const userCanAct =
+        profile?.id
+        && (
+          ((b.status === 'pending_approval' || b.status === 'pending_second_approval')
+            && APPROVER_ROLES.includes(profile.role as any))
+          || (b.status === 'draft' && b.created_by === profile.id)
+        );
+      if (userCanAct && profile?.id) {
+        const total = Number(b.total_amount) || 0;
+        previewCapCheck(profile.id, total)
+          .then((c) => {
+            if (!c) { setCapPreview(null); return; }
+            setCapPreview({
+              allowed: c.allowed,
+              reason: c.reason,
+              appliedKind: c.applied_limit_kind,
+              appliedLimit: c.applied_limit_ngn,
+            });
+          })
+          .catch(() => setCapPreview(null));
+        // Fetch the caller's co-approval threshold (user override → role default).
+        const { data: row } = await supabase
+          .from('transfer_limits')
+          .select('co_approval_threshold_ngn')
+          .eq('user_id', profile.id)
+          .maybeSingle();
+        if (row?.co_approval_threshold_ngn != null) {
+          setCoThreshold(Number(row.co_approval_threshold_ngn));
+        } else {
+          const { data: rdef } = await supabase
+            .from('transfer_limits')
+            .select('co_approval_threshold_ngn')
+            .is('user_id', null)
+            .eq('role', profile.role)
+            .maybeSingle();
+          setCoThreshold(rdef?.co_approval_threshold_ngn != null ? Number(rdef.co_approval_threshold_ngn) : null);
+        }
+      } else {
+        setCapPreview(null);
+        setCoThreshold(null);
       }
     }
   };
@@ -1188,12 +1302,12 @@ const BatchDetail = () => {
   <div class="meta">
     <div><div class="l">Batch</div><div class="v">${escapeHtml(batch.name)}</div></div>
     <div><div class="l">Status</div><div class="v">${escapeHtml(statusLabel(batch.status) || batch.status)}</div></div>
-    <div><div class="l">Transaction Date</div><div class="v">${escapeHtml(formatDateTime(batch.created_at))}</div></div>
+    <div><div class="l">Transaction Date</div><div class="v">${escapeHtml(formatReceiptDateTime(batch.created_at))}</div></div>
     <div><div class="l">Period</div><div class="v">${escapeHtml(batch.period || '—')}</div></div>
     <div><div class="l">Beneficiaries</div><div class="v">${items.length}</div></div>
     <div><div class="l">Total Amount</div><div class="v">${amountDisplay}</div></div>
     ${batch.scheduled_date ? `<div><div class="l">Scheduled</div><div class="v">${escapeHtml(formatDateTime(batch.scheduled_date))}</div></div>` : ''}
-    <div><div class="l">Generated</div><div class="v">${escapeHtml(formatDateTime(new Date()))}</div></div>
+    <div><div class="l">Generated</div><div class="v">${escapeHtml(formatReceiptDateTime(new Date()))}</div></div>
   </div>
 
   <h2>Beneficiaries</h2>
@@ -1497,6 +1611,17 @@ const BatchDetail = () => {
         <div className="flex gap-2 flex-wrap items-center">
           {batch.status === 'draft' && batch.created_by === profile?.id && (
             <>
+              {/* Submitter pre-flight: tell them if this will need dual approval. */}
+              {coThreshold !== null && Number(batch.total_amount) > coThreshold && (
+                <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
+                  <ShieldAlert className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-sm">
+                    <span className="font-semibold">Heads up — dual approval will be required.</span>{' '}
+                    Total {formatNaira(batch.total_amount)} exceeds the co-approval threshold of {formatNaira(coThreshold)}.
+                    After the first approval the batch will wait for a second approver before funds can move.
+                  </AlertDescription>
+                </Alert>
+              )}
               <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
                 Edit Batch
               </Button>
@@ -1505,9 +1630,47 @@ const BatchDetail = () => {
               </Button>
             </>
           )}
-          {batch.status === 'pending_approval' && canApprove && batch.created_by !== profile?.id && (
+          {/* Pre-flight: cap-blocked → red, co-approval needed → amber, ready → green. */}
+          {(batch.status === 'pending_approval' || batch.status === 'pending_second_approval')
+            && canApprove
+            && (batch.created_by !== profile?.id
+                || ['admin', 'super_admin'].includes(profile?.role ?? ''))
+            && capPreview && !capPreview.allowed && (
+            <Alert className="border-rose-500/50 bg-rose-500/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-rose-600" />
+              <AlertDescription className="text-sm">
+                <span className="font-semibold">Cannot approve — cap exceeded.</span>{' '}
+                {capPreview.reason || 'Your transfer cap blocks this amount.'}{' '}
+                {capPreview.appliedKind && capPreview.appliedLimit != null && (
+                  <span className="text-muted-foreground">
+                    ({capPreview.appliedKind.replace(/_/g, ' ')}: {formatNaira(capPreview.appliedLimit)})
+                  </span>
+                )}
+                {' '}Ask a Super Admin to raise your cap in Settings → Transfer Authorization.
+              </AlertDescription>
+            </Alert>
+          )}
+          {batch.status === 'pending_approval'
+            && canApprove
+            && (batch.created_by !== profile?.id
+                || ['admin', 'super_admin'].includes(profile?.role ?? ''))
+            && capPreview?.allowed
+            && isCoApprovalRequired(coThreshold, Number(batch.total_amount) || 0) && (
+            <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                <span className="font-semibold">Two approvals needed.</span>{' '}
+                Total {formatNaira(batch.total_amount)} exceeds your co-approval threshold of {formatNaira(coThreshold ?? 0)}.
+                Approving moves the batch to <span className="font-semibold">awaiting second approval</span>;
+                a different approver must confirm before funds can move.
+              </AlertDescription>
+            </Alert>
+          )}
+          {batch.status === 'pending_approval' && canApprove
+            && (batch.created_by !== profile?.id
+                || ['admin', 'super_admin'].includes(profile?.role ?? '')) && (
             <>
-              <Button onClick={approveBatch} disabled={actionLoading} size="lg">
+              <Button onClick={approveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
               </Button>
@@ -1516,9 +1679,10 @@ const BatchDetail = () => {
               </Button>
             </>
           )}
-          {/* Self-approval is server-blocked, but we hide the button entirely
-               so submitters get a clear "you can't approve your own batch" hint. */}
-          {batch.status === 'pending_approval' && canApprove && batch.created_by === profile?.id && (
+          {/* Non-admin submitters cannot approve their own batch. */}
+          {batch.status === 'pending_approval' && canApprove
+            && batch.created_by === profile?.id
+            && !['admin', 'super_admin'].includes(profile?.role ?? '') && (
             <Alert className="border-amber-500/40 bg-amber-500/5 w-full">
               <ShieldAlert className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-sm">
@@ -1530,7 +1694,7 @@ const BatchDetail = () => {
             && batch.created_by !== profile?.id
             && batch.approved_by !== profile?.id && (
             <>
-              <Button onClick={confirmSecondApproveBatch} disabled={actionLoading} size="lg">
+              <Button onClick={confirmSecondApproveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve as Second
               </Button>

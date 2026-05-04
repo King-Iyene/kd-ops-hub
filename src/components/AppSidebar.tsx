@@ -44,6 +44,7 @@ import {
   Wallet,
   Siren,
   Activity,
+  ClipboardList,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -89,6 +90,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
   { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
   // Operations
+  { title: 'My Requests',      url: '/my-requests',       icon: ClipboardList,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'] },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
@@ -125,7 +127,7 @@ const ALL_NAV: NavItem[] = [
 
 const GROUPS = [
   { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Anomalies', 'Cash Flow'] },
-  { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
+  { key: 'operations', label: 'Operations', titles: ['My Requests', 'Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },

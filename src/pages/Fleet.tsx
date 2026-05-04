@@ -1423,7 +1423,9 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>('fuel');
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>(
+    isAdmin ? 'fuel' : 'my_requests',
+  );
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -2535,6 +2537,8 @@ const Fleet = () => {
 
   const [rejectingFuel, setRejectingFuel] = useState<FuelRequest | null>(null);
   const [fuelRejectReason, setFuelRejectReason] = useState('');
+  const [reRequestTarget, setReRequestTarget] = useState<FuelRequest | null>(null);
+  const [reRequestNote, setReRequestNote] = useState('');
   const [confirmDeleteFuel, setConfirmDeleteFuel] = useState<FuelRequest | null>(null);
   const [confirmDeleteTrip, setConfirmDeleteTrip] = useState<TripLog | null>(null);
 
@@ -2963,6 +2967,12 @@ const Fleet = () => {
         })
         .eq('id', uploadingReceiptFor.id);
       if (error) throw error;
+      // Propagate receipt_url to the linked expense row so finance can see
+      // it on the Expenses page without switching to Fleet.
+      await supabase
+        .from('expenses')
+        .update({ receipt_url: urlData.publicUrl })
+        .eq('fuel_request_id', uploadingReceiptFor.id);
       // CHANGE 2 — bump vehicle fuel level from actual litres filled
       const litresFilledNum = parseFloat(receiptForm.litres_filled) || 0;
       const receiptVehicleId = (uploadingReceiptFor as any).vehicle_id as string | null;
@@ -3042,16 +3052,16 @@ const Fleet = () => {
     fetchData();
   };
 
-  const handleRequestReceiptResubmission = async (r: FuelRequest) => {
+  const handleRequestReceiptResubmission = async (r: FuelRequest, note: string) => {
     const { error } = await supabase
       .from('fuel_requests')
-      .update({ status: 'payment_sent', receipt_url: null })
+      .update({ status: 'payment_sent', receipt_url: null, admin_note: note.trim() || null })
       .eq('id', r.id);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    await logAudit('fuel_receipt_resubmission_requested', `Receipt resubmission requested for ${r.employee_name}`, profile);
+    await logAudit('fuel_receipt_resubmission_requested', `Receipt resubmission requested for ${r.employee_name}${note.trim() ? `: ${note.trim()}` : ''}`, profile);
     const employeeId = (r as any).driver_id || r.employee_id;
     if (employeeId) {
       await notifyUser({
@@ -3059,10 +3069,14 @@ const Fleet = () => {
         type: 'fuel_receipt_resubmission',
         module: 'fleet',
         title: 'Receipt resubmission required',
-        body: 'Admin has requested a new receipt for your fuel payment. Please re-upload.',
+        body: note.trim()
+          ? `Admin note: ${note.trim()}`
+          : 'Admin has requested a new receipt for your fuel payment. Please re-upload.',
       });
     }
     toast({ title: 'Resubmission requested. Employee notified.' });
+    setReRequestTarget(null);
+    setReRequestNote('');
     fetchData();
   };
 
@@ -3332,9 +3346,11 @@ const Fleet = () => {
                 <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
               </TabsTrigger>
             )}
-            <TabsTrigger value="fuel" className="shrink-0">
-              <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="fuel" className="shrink-0">
+                <Fuel className="mr-2 h-4 w-4" /> Fuel &amp; Repair Requests
+              </TabsTrigger>
+            )}
             <TabsTrigger value="my_requests" className="shrink-0">
               <User className="mr-2 h-4 w-4" /> My Requests
             </TabsTrigger>
@@ -3564,7 +3580,7 @@ const Fleet = () => {
                               <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
                                 <Check className="h-3 w-3 mr-1" /> Complete
                               </Button>
-                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleRequestReceiptResubmission(r)}>
+                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setReRequestTarget(r); setReRequestNote(''); }}>
                                 <RotateCcw className="h-3 w-3 mr-1" /> Re-request
                               </Button>
                             </div>
@@ -5292,6 +5308,38 @@ const Fleet = () => {
               }
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Re-request receipt dialog — admin explains why they need a new upload */}
+      <Dialog
+        open={!!reRequestTarget}
+        onOpenChange={(v) => { if (!v) { setReRequestTarget(null); setReRequestNote(''); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Re-request receipt</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The uploaded receipt will be cleared and the employee will be prompted to
+            re-upload. Add a note so they know what to fix (optional but recommended).
+          </p>
+          <Textarea
+            value={reRequestNote}
+            onChange={(e) => setReRequestNote(e.target.value)}
+            placeholder="e.g. Receipt is blurry — please upload a clearer photo."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReRequestTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => reRequestTarget && handleRequestReceiptResubmission(reRequestTarget, reRequestNote)}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" /> Re-request
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -40,6 +41,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   approveExpense,
+  approvePaymentBatch,
   confirmSecondExpenseApproval,
   rejectExpense,
 } from '@/lib/transfer-safety';
@@ -165,6 +167,7 @@ const Expenses = () => {
   usePageTitle('Expenses');
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const location = useLocation();
   const canApprovePerm = usePermission('expenses.approve');
   const canProcessPerm = usePermission('expenses.process_payments');
   const isApprover =
@@ -284,6 +287,20 @@ const Expenses = () => {
     fetchData();
   }, [fetchData]);
 
+  // When navigated here from Approvals with a specific expense id, auto-open
+  // the detail dialog once the expense list has loaded.
+  const autoOpenHandled = useRef(false);
+  useEffect(() => {
+    if (autoOpenHandled.current) return;
+    const openId = (location.state as any)?.openExpenseId;
+    if (!openId || !expenses.length) return;
+    const target = expenses.find((e) => e.id === openId);
+    if (target) {
+      setDetailExpense(target);
+      autoOpenHandled.current = true;
+    }
+  }, [expenses, location.state]);
+
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchData);
 
   // -- Payment helpers -------------------------------------------------------
@@ -383,25 +400,68 @@ const Expenses = () => {
         .update({ payment_reference: batchId, payment_status: 'pending' })
         .eq('id', expense.id);
 
-      // Notify approvers that a payment batch needs review.
+      // For fuel-linked expenses, also flip the parent fuel_request to
+      // 'payment_sent' so the employee sees the "Upload Receipt" prompt and
+      // the admin no longer sees a stale "Mark Payment Sent" / "Pay" button
+      // on the same request. Without this, the same payment shows up as
+      // pending in two places (Expenses + Fleet) until manual intervention.
+      if (expense.fuel_request_id) {
+        await supabase
+          .from('fuel_requests')
+          .update({ status: 'payment_sent', payment_sent_at: new Date().toISOString() })
+          .eq('id', expense.fuel_request_id);
+      }
+
+      // The expense itself is already approved (we wouldn't be here otherwise).
+      // The Pay button is the operator's signal to dispatch — auto-approve the
+      // batch so they don't have to click Approve again.  The RPC enforces the
+      // caller's transfer cap and routes to pending_second_approval if the
+      // amount exceeds the caller's co-approval threshold, so we still get
+      // dual-approval safety on high-value payments.
+      let postApproveStatus: string = 'pending_approval';
+      try {
+        const updated = await approvePaymentBatch(batchId);
+        postApproveStatus = (updated as any)?.status || 'approved';
+      } catch (rpcErr: any) {
+        // Cap-blocked or pool-eligibility error → batch stays in pending_approval.
+        // Surface the reason; the operator can ask a Super Admin to raise their cap.
+        toast({
+          title: 'Auto-approve blocked',
+          description: rpcErr?.message || 'Caps or eligibility prevented auto-approval. Batch left pending for manual approval.',
+          variant: 'destructive',
+        });
+      }
+
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
         type: 'batch_submitted',
         module: 'payments',
-        priority: 'high',
-        title: 'Expense payment batch awaiting approval',
+        priority: postApproveStatus === 'pending_second_approval' ? 'high' : 'normal',
+        title: postApproveStatus === 'pending_second_approval'
+          ? 'Expense payment awaiting second approval'
+          : postApproveStatus === 'approved'
+            ? 'Expense payment approved — fund + process'
+            : 'Expense payment batch awaiting approval',
         body: `${batchName} — ${formatNaira(Number(expense.amount_ngn))}`,
       });
 
       await logAudit(
         'expense_payment_batched',
-        `Expense payment batched (awaiting approval) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
+        `Expense payment dispatched (status: ${postApproveStatus}) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
         profile,
       );
 
       toast({
-        title: 'Payment batch created',
-        description: `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
+        title:
+          postApproveStatus === 'approved' ? 'Payment ready'
+          : postApproveStatus === 'pending_second_approval' ? 'Awaiting second approval'
+          : 'Payment batch created',
+        description:
+          postApproveStatus === 'approved'
+            ? `${formatNaira(Number(expense.amount_ngn))} approved. Open the batch to fund and process.`
+            : postApproveStatus === 'pending_second_approval'
+              ? `${formatNaira(Number(expense.amount_ngn))} exceeds your co-approval threshold. A second approver must confirm.`
+              : `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
       });
     } catch (err: any) {
       if (batchId) {

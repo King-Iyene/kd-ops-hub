@@ -180,6 +180,7 @@ const Approvals = () => {
             .from('expenses')
             .select('*')
             .in('status', ['pending', 'pending_second_approval'])
+            .is('fuel_request_id', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
@@ -753,8 +754,9 @@ const Approvals = () => {
 
   const openItem = (it: PendingItem) => {
     if (it.kind === 'batch') navigate(`/payments/${rawId(it.id)}`);
+    else if (it.kind === 'expense') navigate('/expenses', { state: { openExpenseId: rawId(it.id) } });
+    else if (it.kind === 'fuel') navigate('/fleet');
     else if (it.kind === 'budget') navigate('/budgets');
-    // expense and fuel live inline inside their pages — approve here.
   };
 
   const selectedCount = selected.size;

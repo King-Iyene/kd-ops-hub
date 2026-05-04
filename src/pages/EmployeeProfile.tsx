@@ -330,6 +330,19 @@ const EmployeeProfile = () => {
         employee?.full_name,
       );
     }
+    // Role-escalation guard: strip `role` from the payload if the caller is
+    // not allowed to change it (self-edit, or admin trying to set admin/super_admin).
+    if ('role' in payload) {
+      const isSelf = currentUser?.id === id;
+      const callerIsAdmin = currentUser?.role === 'admin';
+      const targetRoleIsAdminOrAbove = ['admin', 'super_admin'].includes(payload.role as string);
+      if (isSelf || (callerIsAdmin && targetRoleIsAdminOrAbove)) {
+        delete payload.role;
+        toast({ title: 'Role not changed', description: 'You do not have permission to set that role.', variant: 'destructive' });
+        setSectionSaving(false);
+        return;
+      }
+    }
     const { error } = await supabase.from('profiles').update(payload).eq('id', id);
     if (error) {
       toast({ title: `Save failed`, description: error.message, variant: 'destructive' });
@@ -623,6 +636,17 @@ const EmployeeProfile = () => {
   const isSuperAdmin = currentUser?.role === 'super_admin';
   const canFinance   = ['super_admin', 'admin', 'finance'].includes(currentUser?.role ?? '');
 
+  // Role-editing guards.
+  const isSelf = currentUser?.id === id;
+  const targetRoleIsAdminOrAbove = ['admin', 'super_admin'].includes(employee?.role ?? '');
+  // Admins can only set roles strictly below admin; super_admins can set any role.
+  // Neither can change their own role.
+  const canEditRole = !isSelf && (isSuperAdmin || (canManage && !targetRoleIsAdminOrAbove));
+  // Roles that the current user is allowed to assign.
+  const assignableRoles = isSuperAdmin
+    ? ['super_admin', 'admin', 'finance', 'operations', 'field_staff']
+    : ['finance', 'operations', 'field_staff'];
+
   return (
     <div className="max-w-5xl">
       <button
@@ -799,7 +823,7 @@ const EmployeeProfile = () => {
             {`Advances (${advances.filter((a) => a.status === 'active').length})`}
           </button>
         )}
-        {isSuperAdmin && (
+        {canManage && (
           <button
             onClick={() => setActiveTab('permissions')}
             className={cn(
@@ -996,15 +1020,30 @@ const EmployeeProfile = () => {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Role</Label>
-                        <Select value={form.role || ''} onValueChange={(v) => patch({ role: v })}>
+                        <Label className="text-xs">
+                          Role
+                          {!canEditRole && (
+                            <span className="ml-1 text-muted-foreground font-normal">
+                              {isSelf ? '(cannot change your own role)' : '(read-only)'}
+                            </span>
+                          )}
+                        </Label>
+                        <Select
+                          value={form.role || ''}
+                          onValueChange={(v) => patch({ role: v })}
+                          disabled={!canEditRole}
+                        >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="super_admin">Super Admin</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="finance">Finance</SelectItem>
-                            <SelectItem value="operations">Operations</SelectItem>
-                            <SelectItem value="field_staff">Field Staff</SelectItem>
+                            {assignableRoles.map((r) => (
+                              <SelectItem key={r} value={r}>
+                                {r === 'super_admin' ? 'Super Admin'
+                                  : r === 'admin' ? 'Admin'
+                                  : r === 'finance' ? 'Finance'
+                                  : r === 'operations' ? 'Operations'
+                                  : 'Field Staff'}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -2242,7 +2281,7 @@ const EmployeeProfile = () => {
           )}
         </div>
       )}
-      {activeTab === 'permissions' && isSuperAdmin && (
+      {activeTab === 'permissions' && canManage && (
         <div className="mt-4">
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">

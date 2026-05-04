@@ -362,6 +362,15 @@ export default function TransferAuthSettings() {
     }
   };
 
+  const fmtAmt = (v: number | null | undefined): string => {
+    if (v === null || v === undefined) return '';
+    return Number(v).toLocaleString('en-NG');
+  };
+  const parseAmt = (s: string): number | null => {
+    const raw = s.replace(/[^0-9]/g, '');
+    return raw === '' ? null : Number(raw);
+  };
+
   return (
     <div className="space-y-6">
       {migrationMissing && (
@@ -392,8 +401,7 @@ export default function TransferAuthSettings() {
             the bulk-transfer total. User-level overrides win over role defaults.
           </p>
           <p className="text-xs">
-            Leave any cap blank for "no limit". Set to <code>0</code> to fully suspend a user from initiating
-            transfers.
+            Leave any cap blank (empty) for no limit. Amounts are in plain Naira — commas are added automatically.
           </p>
         </CardContent>
       </Card>
@@ -414,15 +422,16 @@ export default function TransferAuthSettings() {
           ) : limitsError && !migrationMissing ? (
             <p className="text-sm text-rose-600">{limitsError}</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[780px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[140px]">Role</TableHead>
-                  <TableHead>Single transfer</TableHead>
-                  <TableHead>Daily (rolling 24h)</TableHead>
-                  <TableHead>Monthly</TableHead>
-                  <TableHead>Co-approval above</TableHead>
-                  <TableHead className="w-[120px] text-right">Action</TableHead>
+                  <TableHead className="w-[130px]">Role</TableHead>
+                  <TableHead className="min-w-[170px]">Single transfer (₦)</TableHead>
+                  <TableHead className="min-w-[170px]">Daily rolling 24h (₦)</TableHead>
+                  <TableHead className="min-w-[170px]">Monthly (₦)</TableHead>
+                  <TableHead className="min-w-[170px]">Co-approval above (₦)</TableHead>
+                  <TableHead className="w-[100px] text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -433,42 +442,50 @@ export default function TransferAuthSettings() {
                     setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
                   const valueOf = (k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'co_approval_threshold_ngn'): string => {
                     const v = (d as any)[k] ?? row?.[k];
-                    return v === null || v === undefined ? '' : String(v);
+                    return fmtAmt(v);
                   };
                   return (
                     <TableRow key={role}>
                       <TableCell className="font-medium">{roleLabel[role]}</TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={0}
-                          placeholder="no cap"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
                           value={valueOf('single_txn_limit_ngn')}
-                          onChange={(e) =>
-                            setField('single_txn_limit_ngn', e.target.value === '' ? null : Number(e.target.value))
-                          }
+                          onChange={(e) => setField('single_txn_limit_ngn', parseAmt(e.target.value))}
+                          className="w-full"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={0}
-                          placeholder="no cap"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
                           value={valueOf('daily_limit_ngn')}
-                          onChange={(e) =>
-                            setField('daily_limit_ngn', e.target.value === '' ? null : Number(e.target.value))
-                          }
+                          onChange={(e) => setField('daily_limit_ngn', parseAmt(e.target.value))}
+                          className="w-full"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={0}
-                          placeholder="no cap"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="no cap (empty)"
                           value={valueOf('monthly_limit_ngn')}
-                          onChange={(e) =>
-                            setField('monthly_limit_ngn', e.target.value === '' ? null : Number(e.target.value))
-                          }
+                          onChange={(e) => setField('monthly_limit_ngn', parseAmt(e.target.value))}
+                          className="w-full"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="never (empty)"
+                          value={valueOf('co_approval_threshold_ngn')}
+                          onChange={(e) => setField('co_approval_threshold_ngn', parseAmt(e.target.value))}
+                          title="Above this ₦ amount a second approver is required. Leave empty = never."
+                          className="w-full"
                         />
                       </TableCell>
                       <TableCell>
@@ -493,6 +510,7 @@ export default function TransferAuthSettings() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -522,33 +540,44 @@ export default function TransferAuthSettings() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Single</Label>
+              <Label className="text-xs">Single (₦)</Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="no cap"
+                type="text"
+                inputMode="numeric"
+                placeholder="no cap (empty)"
                 value={overrideSingle}
-                onChange={(e) => setOverrideSingle(e.target.value)}
+                onChange={(e) => setOverrideSingle(e.target.value.replace(/[^0-9]/g, ''))}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Daily</Label>
+              <Label className="text-xs">Daily (₦)</Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="no cap"
+                type="text"
+                inputMode="numeric"
+                placeholder="no cap (empty)"
                 value={overrideDaily}
-                onChange={(e) => setOverrideDaily(e.target.value)}
+                onChange={(e) => setOverrideDaily(e.target.value.replace(/[^0-9]/g, ''))}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Monthly</Label>
+              <Label className="text-xs">Monthly (₦)</Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="no cap"
+                type="text"
+                inputMode="numeric"
+                placeholder="no cap (empty)"
                 value={overrideMonthly}
-                onChange={(e) => setOverrideMonthly(e.target.value)}
+                onChange={(e) => setOverrideMonthly(e.target.value.replace(/[^0-9]/g, ''))}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Co-approval above (₦)</Label>
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="never (empty)"
+                value={overrideCo}
+                onChange={(e) => setOverrideCo(e.target.value.replace(/[^0-9]/g, ''))}
+                title="Above this ₦ amount this user's transfer needs a second approver."
               />
             </div>
             <div className="space-y-1">
