@@ -488,6 +488,18 @@ export default function TransferAuthSettings() {
                           className="w-full"
                         />
                       </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min={0}
+                          placeholder="never"
+                          value={valueOf('co_approval_threshold_ngn')}
+                          onChange={(e) =>
+                            setField('co_approval_threshold_ngn', e.target.value === '' ? null : Number(e.target.value))
+                          }
+                          title="Above this NGN amount, a second approver is required. Empty = never."
+                        />
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => void handleSaveRoleLimit(role)}>
                           <Save className="h-3 w-3 mr-1" /> Save
@@ -566,6 +578,17 @@ export default function TransferAuthSettings() {
                 value={overrideCo}
                 onChange={(e) => setOverrideCo(e.target.value.replace(/[^0-9]/g, ''))}
                 title="Above this ₦ amount this user's transfer needs a second approver."
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Co-approval above</Label>
+              <Input
+                type="number"
+                min={0}
+                placeholder="never"
+                value={overrideCo}
+                onChange={(e) => setOverrideCo(e.target.value)}
+                title="Above this amount, this user's transfer needs a second approver."
               />
             </div>
             <div className="space-y-1">

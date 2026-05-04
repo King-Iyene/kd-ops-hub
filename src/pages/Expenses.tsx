@@ -390,6 +390,11 @@ const Expenses = () => {
       if (itemErr) throw new Error(itemErr.message);
       itemId = batchItem.id;
 
+      // Mark the expense as awaiting payment so it won't show "ready to pay"
+      // again. Actual payment dispatch happens after an approver acts on the
+      // pending_approval batch (BatchDetail "Approve Batch" → "Confirm Funded"
+      // → "Process Payments"). This separation is what closes BLOCKER B-2 /
+      // B-6: a single user can no longer create + fund an expense payment.
       await supabase
         .from('expenses')
         .update({ payment_reference: batchId, payment_status: 'pending' })
