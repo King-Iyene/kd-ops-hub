@@ -102,6 +102,9 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { CalendarClock } from 'lucide-react';
+import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
 
 interface BonusLine {
   type: string;
@@ -1123,6 +1126,19 @@ const Payroll = () => {
         </div>
       </div>
 
+      <NextPayrollBanner />
+
+      <Tabs defaultValue="runs">
+        <TabsList>
+          <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
+          <TabsTrigger value="schedules">
+            <CalendarClock className="mr-2 h-4 w-4" />
+            Pay Schedules
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="runs" className="space-y-6 mt-6">
+
       {!bannerDismissed && (
         <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-800 dark:text-blue-200">
           <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-500" />
@@ -1452,6 +1468,13 @@ const Payroll = () => {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="schedules" className="mt-6">
+          <PayrollSchedules />
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent>
