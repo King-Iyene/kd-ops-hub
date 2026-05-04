@@ -57,6 +57,12 @@ COMMENT ON COLUMN public.company_settings.max_single_transfer_ngn IS
 -- create_expense_payment_batch) honours it from one place. Replaces the
 -- duplicated 5_000_000 literal that previously lived in the client and the
 -- batch-worker.
+--
+-- DROP first: CREATE OR REPLACE cannot change the return type of an existing
+-- function. The original (20260807000000) returned 6 columns including
+-- used_today_ngn and used_month_ngn, which we keep here for CapCheckResult
+-- compatibility in TypeScript.
+DROP FUNCTION IF EXISTS public.check_transfer_caps(uuid, numeric);
 CREATE OR REPLACE FUNCTION public.check_transfer_caps(
   p_user_id uuid,
   p_amount_ngn numeric
@@ -65,7 +71,9 @@ RETURNS TABLE (
   allowed boolean,
   reason text,
   applied_limit_kind text,
-  applied_limit_ngn numeric
+  applied_limit_ngn numeric,
+  used_today_ngn numeric,
+  used_month_ngn numeric
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -77,11 +85,11 @@ DECLARE
   v_daily  numeric;
   v_monthly numeric;
   v_max_single numeric;
-  v_used_today numeric;
-  v_used_month numeric;
+  v_used_today numeric := 0;
+  v_used_month numeric := 0;
 BEGIN
   IF p_amount_ngn IS NULL OR p_amount_ngn <= 0 THEN
-    RETURN QUERY SELECT false, 'Amount must be positive'::text, NULL::text, NULL::numeric;
+    RETURN QUERY SELECT false, 'Amount must be positive'::text, NULL::text, NULL::numeric, 0::numeric, 0::numeric;
     RETURN;
   END IF;
 
@@ -96,7 +104,9 @@ BEGIN
       format('Single transfer exceeds platform maximum of ₦%s',
              to_char(v_max_single, 'FM999,999,999,999'))::text,
       'platform_single'::text,
-      v_max_single;
+      v_max_single,
+      0::numeric,
+      0::numeric;
     RETURN;
   END IF;
 
@@ -110,7 +120,7 @@ BEGIN
   IF NOT FOUND THEN
     SELECT role INTO v_role FROM public.profiles WHERE id = p_user_id;
     IF v_role IS NULL THEN
-      RETURN QUERY SELECT false, 'No transfer limits configured for this user'::text, NULL::text, NULL::numeric;
+      RETURN QUERY SELECT false, 'No transfer limits configured for this user'::text, NULL::text, NULL::numeric, 0::numeric, 0::numeric;
       RETURN;
     END IF;
     SELECT single_txn_limit_ngn, daily_limit_ngn, monthly_limit_ngn
@@ -119,7 +129,7 @@ BEGIN
      WHERE user_id IS NULL AND role = v_role
      LIMIT 1;
     IF NOT FOUND THEN
-      RETURN QUERY SELECT false, format('No transfer limits configured for role %s', v_role)::text, NULL::text, NULL::numeric;
+      RETURN QUERY SELECT false, format('No transfer limits configured for role %s', v_role)::text, NULL::text, NULL::numeric, 0::numeric, 0::numeric;
       RETURN;
     END IF;
   END IF;
@@ -129,7 +139,9 @@ BEGIN
       false,
       format('Single transfer exceeds your cap of ₦%s', to_char(v_single, 'FM999,999,999,999'))::text,
       'single'::text,
-      v_single;
+      v_single,
+      0::numeric,
+      0::numeric;
     RETURN;
   END IF;
 
@@ -153,7 +165,9 @@ BEGIN
              to_char(v_daily, 'FM999,999,999,999'),
              to_char(v_used_today, 'FM999,999,999,999'))::text,
       'daily'::text,
-      v_daily;
+      v_daily,
+      v_used_today,
+      v_used_month;
     RETURN;
   END IF;
   IF v_monthly IS NOT NULL AND v_used_month + p_amount_ngn > v_monthly THEN
@@ -163,11 +177,13 @@ BEGIN
              to_char(v_monthly, 'FM999,999,999,999'),
              to_char(v_used_month, 'FM999,999,999,999'))::text,
       'monthly'::text,
-      v_monthly;
+      v_monthly,
+      v_used_today,
+      v_used_month;
     RETURN;
   END IF;
 
-  RETURN QUERY SELECT true, NULL::text, 'within_caps'::text, v_single;
+  RETURN QUERY SELECT true, NULL::text, 'within_caps'::text, v_single, v_used_today, v_used_month;
 END;
 $$;
 
