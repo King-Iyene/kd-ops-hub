@@ -71,6 +71,7 @@ import {
   generateKdopsRef,
   buildNarration,
 } from '@/lib/paystack';
+import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
 
 interface FieldStaff {
@@ -2681,24 +2682,19 @@ const Fleet = () => {
       await fetchData();
       return;
     }
-    // Update the paired expense row (created when the fuel request was
-    // submitted) to 'approved'. Fall back to insert if the link is missing
-    // (legacy fuel requests pre-dating the fuel_request_id column).
+    // Mirror approval onto the paired expense row (created when the fuel
+    // request was submitted). The status flip routes through approve_expense
+    // RPC so cap/audit/co-approval rules apply. Insert a fresh pending row
+    // first if the legacy fuel request pre-dates the fuel_request_id link.
     const { data: existingExp } = await supabase
       .from('expenses')
-      .select('id')
+      .select('id, status')
       .eq('fuel_request_id', request.id)
       .maybeSingle();
     let expErr: { message: string } | null = null;
-    if (existingExp?.id) {
-      const { error } = await supabase.from('expenses').update({
-        status: 'approved',
-        approved_by: profile?.id,
-        approved_at: now,
-      }).eq('id', existingExp.id);
-      expErr = error;
-    } else {
-      const { error } = await supabase.from('expenses').insert({
+    let expenseIdForApproval: string | undefined = (existingExp as any)?.id;
+    if (!expenseIdForApproval) {
+      const { data: inserted, error } = await supabase.from('expenses').insert({
         fuel_request_id: request.id,
         category: 'fuel',
         budget_category: 'fuel',
@@ -2706,16 +2702,19 @@ const Fleet = () => {
         date: now.slice(0, 10),
         description: `Fuel — ${request.station_name || 'Station'} — ${request.reason || 'Fuel request'}`,
         submitted_by: (request as any).driver_id || request.employee_id,
-        status: 'approved',
-        approved_by: profile?.id,
-        approved_at: now,
+        status: 'pending',
         ...(request.bank_name ? {
           bank_name: request.bank_name,
           account_number: request.account_number,
           account_name: request.account_name,
         } : {}),
-      });
+      }).select('id').single();
       expErr = error;
+      expenseIdForApproval = (inserted as any)?.id;
+    }
+    if (expenseIdForApproval && (existingExp as any)?.status !== 'approved') {
+      try { await approveExpense(expenseIdForApproval); }
+      catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
     }
     if (expErr) {
       toast({
@@ -2752,7 +2751,11 @@ const Fleet = () => {
       }
     }
 
-    // Phase 2 — auto-pay via Paystack if the employee provided bank details
+    // Phase 2 — fuel-reimbursement batch lands in pending_approval and waits
+    // for an explicit approver action in BatchDetail. Auto-funding here used
+    // to insert the batch in 'approved' (B-2 / B-6 path: cap RPC bypassed +
+    // single-actor approval). The new flow creates the batch + line item +
+    // fuel→batch link and stops, surfacing it on the approver's queue.
     if (request.bank_name && request.account_number && request.account_name) {
       try {
         const { data: batch } = await supabase.from('payment_batches').insert({
@@ -2760,14 +2763,14 @@ const Fleet = () => {
           payment_date: now.slice(0, 10),
           total_amount: request.amount_ngn,
           beneficiary_count: 1,
-          status: 'approved',
+          status: 'pending_approval',
           is_quick_pay: true,
           payment_category: 'fuel_reimbursement',
           batch_type: 'contractor',
-          created_by: profile?.id,
+          created_by: (request as any).driver_id || request.employee_id || profile?.id,
         }).select().single();
         if (batch) {
-          const { data: batchItem } = await supabase.from('batch_items').insert({
+          await supabase.from('batch_items').insert({
             batch_id: batch.id,
             full_name: request.account_name,
             bank_name: request.bank_name,
@@ -2775,40 +2778,24 @@ const Fleet = () => {
             amount_ngn: request.amount_ngn,
             item_type: 'adhoc',
             status: 'pending',
-          }).select().single();
+          });
           await supabase.from('fuel_requests').update({ batch_id: batch.id }).eq('id', request.id);
-          const bankCode = await getBankCode(request.bank_name);
-          if (!bankCode) throw new Error(`Unrecognised bank "${request.bank_name}"`);
-          const recipient = await createTransferRecipient({
-            name: request.account_name,
-            account_number: request.account_number,
-            bank_code: bankCode,
+          await notifyRoles({
+            roles: ['super_admin', 'admin', 'finance'],
+            type: 'batch_submitted',
+            module: 'payments',
+            priority: 'normal',
+            title: 'Fuel reimbursement awaiting approval',
+            body: `${formatNaira(request.amount_ngn || 0)} → ${request.account_name}`,
           });
-          if (!batchItem) throw new Error('Could not create batch_item record');
-          const ref = generateKdopsRef(batchItem.id);
-          const narration = buildNarration({
-            kind: 'fuel',
-            recipientName: request.account_name,
-            label: request.station_name || undefined,
+          toast({
+            title: 'Approved — payment queued',
+            description: 'A fuel-reimbursement batch was created and is awaiting approver dispatch.',
           });
-          const transfer = await initiateTransferIdempotent({
-            recipient_code: recipient.recipient_code,
-            amount_ngn: request.amount_ngn,
-            reference: ref,
-            reason: narration,
-          });
-          await supabase.from('batch_items')
-            .update({
-              paystack_recipient_code: recipient.recipient_code,
-              paystack_transfer_code: transfer.transfer_code,
-              paystack_reference: transfer.reference,
-            })
-            .eq('id', batchItem.id);
-          toast({ title: 'Approved & payment initiated automatically' });
         }
       } catch (autoPayErr) {
-        console.warn('[Fleet] auto-pay failed:', autoPayErr);
-        toast({ title: 'Approved. Bank transfer failed — process manually via Expenses.' });
+        console.warn('[Fleet] auto-pay batch creation failed:', autoPayErr);
+        toast({ title: 'Approved. Could not queue auto-payment — handle from Expenses.' });
       }
     } else {
       toast({ title: 'Fuel request approved' });
@@ -2851,15 +2838,13 @@ const Fleet = () => {
       .select('id')
       .eq('fuel_request_id', r.id)
       .maybeSingle();
-    if (expExisting?.id) {
+    let exceptionExpenseId: string | undefined = (expExisting as any)?.id;
+    if (exceptionExpenseId) {
       await supabase.from('expenses').update({
-        status: 'approved',
-        approved_by: profile.id,
-        approved_at: now,
         description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
-      }).eq('id', expExisting.id);
+      }).eq('id', exceptionExpenseId);
     } else {
-      await supabase.from('expenses').insert({
+      const { data: inserted } = await supabase.from('expenses').insert({
         fuel_request_id: r.id,
         category: 'fuel',
         budget_category: 'fuel',
@@ -2867,15 +2852,18 @@ const Fleet = () => {
         date: now.slice(0, 10),
         description: `Fuel — ${r.station_name || 'Station'} — ${r.reason || 'Fuel request'} [Budget Exception]`,
         submitted_by: (r as any).driver_id || r.employee_id,
-        status: 'approved',
-        approved_by: profile.id,
-        approved_at: now,
+        status: 'pending',
         ...(r.bank_name ? {
           bank_name: r.bank_name,
           account_number: r.account_number,
           account_name: r.account_name,
         } : {}),
-      });
+      }).select('id').single();
+      exceptionExpenseId = (inserted as any)?.id;
+    }
+    if (exceptionExpenseId) {
+      try { await approveExpense(exceptionExpenseId); }
+      catch (err: any) { console.warn('[Fleet] budget-exception approve_expense failed:', err?.message); }
     }
     await logAudit(
       'fuel_budget_exception_approved',
@@ -3100,11 +3088,18 @@ const Fleet = () => {
       return;
     }
     // Mirror the rejection onto the linked expense row so finance no
-    // longer sees it as actionable in Expenses.
-    await supabase
+    // longer sees it as actionable in Expenses. Routes through reject_expense
+    // RPC because direct status flips from authenticated are now blocked by
+    // enforce_expense_approval_state_writes.
+    const { data: pairedExp } = await supabase
       .from('expenses')
-      .update({ status: 'rejected', rejection_reason: fuelRejectReason.trim() })
-      .eq('fuel_request_id', r.id);
+      .select('id, status')
+      .eq('fuel_request_id', r.id)
+      .maybeSingle();
+    if (pairedExp?.id && (pairedExp as any).status !== 'rejected') {
+      try { await rejectExpense((pairedExp as any).id, fuelRejectReason.trim()); }
+      catch (err) { console.warn('[Fleet] reject_expense for paired expense failed:', err); }
+    }
     await writeRejectionNotification({
       entity: 'fuel',
       entityLabel: 'fuel request',

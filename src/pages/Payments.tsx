@@ -170,8 +170,11 @@ const Payments = () => {
         const anyFailed = items.some((r) => r.status === 'failed');
         const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
         if (correct !== b.status) {
+          // Route through the SECURITY DEFINER sync RPC so direct status
+          // writes from authenticated stay blocked. RPC is idempotent and
+          // bounded — only flips processing/partially/funded → derived state.
           updates.push(
-            supabase.from('payment_batches').update({ status: correct }).eq('id', b.id),
+            supabase.rpc('sync_batch_status_from_items', { p_batch_id: b.id }),
           );
           b.status = correct;
         }

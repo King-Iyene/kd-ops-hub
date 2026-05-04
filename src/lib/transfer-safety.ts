@@ -348,6 +348,66 @@ export async function rejectExpense(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// Lifecycle RPCs — funded → processing → finalized (close B-2 / H-7)
+// ──────────────────────────────────────────────────────────────────────────
+
+export async function markBatchFunded(
+  batchId: string,
+  fundingEvidence?: Record<string, unknown> | null
+): Promise<PaymentBatchRow> {
+  const { data, error } = await supabase.rpc('mark_batch_funded', {
+    p_batch_id: batchId,
+    p_funding_evidence: fundingEvidence ?? null,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
+}
+
+export async function startBatchProcessing(batchId: string): Promise<PaymentBatchRow> {
+  const { data, error } = await supabase.rpc('start_batch_processing', {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
+}
+
+export async function finalizeBatch(batchId: string): Promise<PaymentBatchRow> {
+  const { data, error } = await supabase.rpc('finalize_batch', {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
+}
+
+export async function syncBatchStatusFromItems(batchId: string): Promise<PaymentBatchRow> {
+  const { data, error } = await supabase.rpc('sync_batch_status_from_items', {
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
+}
+
+export async function markExpensePaid(
+  expenseId: string,
+  batchId: string
+): Promise<ExpenseRow> {
+  const { data, error } = await supabase.rpc('mark_expense_paid', {
+    p_expense_id: expenseId,
+    p_batch_id: batchId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as ExpenseRow;
+}
+
+export async function createExpensePaymentBatch(expenseId: string): Promise<PaymentBatchRow> {
+  const { data, error } = await supabase.rpc('create_expense_payment_batch', {
+    p_expense_id: expenseId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Quick Pay master switch
 // ──────────────────────────────────────────────────────────────────────────
 

@@ -43,6 +43,7 @@ import {
   approveExpense,
   approvePaymentBatch,
   confirmSecondExpenseApproval,
+  createExpensePaymentBatch,
   rejectExpense,
 } from '@/lib/transfer-safety';
 import { formatNaira, formatNairaCompact, formatDate, toIsoDate } from '@/lib/format';
@@ -338,73 +339,19 @@ const Expenses = () => {
   const processExpensePayment = async (expense: Expense) => {
     setProcessingPayment(true);
     let batchId: string | null = null;
-    let itemId: string | null = null;
     try {
-      const categoryLabel = (expense.category || 'expense').replace(/_/g, ' ');
-      const isReimb = expense.is_reimbursement !== false;
-      const batchName = isReimb
-        ? `${categoryLabel} Reimbursement — ${expense.account_name}`
-        : `${categoryLabel} — ${expense.description || expense.account_name}`;
-      const paymentDesc = isReimb
-        ? `Reimbursement: ${expense.description || categoryLabel}`
-        : expense.description || categoryLabel;
+      // create_expense_payment_batch wraps the four-step expense → batch
+      // creation flow in one SECURITY DEFINER transaction: cap check + batch
+      // INSERT + line-item INSERT + expense link, atomically. Closes B-2:
+      // the previous client-side path could leave an orphan batch on a
+      // network blip and skipped check_transfer_caps entirely.
+      const created = await createExpensePaymentBatch(expense.id);
+      batchId = (created as any)?.id ?? null;
+      if (!batchId) throw new Error('Could not materialize payment batch');
 
-      // Create the underlying batch in 'pending_approval' so the approval
-      // framework sees it. The expense is already fully approved at this
-      // point (otherwise we wouldn't be in processExpensePayment) so an
-      // approver still has to OK the actual payment — this enforces the
-      // "every payment requires its own approval" rule even for already-
-      // approved expense reimbursements. Pre-framework, this code created
-      // batches in 'approved' state which let a single user fund an
-      // expense unilaterally; that's the B-2 / B-6 path the audit flagged.
-      const { data: batch, error: batchErr } = await supabase
-        .from('payment_batches')
-        .insert({
-          name: batchName,
-          payment_description: paymentDesc,
-          payment_category: isReimb ? 'expense_reimbursement' : 'company_charge',
-          payment_date: new Date().toISOString().slice(0, 10),
-          is_quick_pay: true,
-          total_amount: expense.amount_ngn,
-          beneficiary_count: 1,
-          status: 'pending_approval',
-          created_by: profile?.id,
-        })
-        .select('id')
-        .single();
-      if (batchErr) throw new Error(batchErr.message);
-      batchId = batch.id;
-
-      const { data: batchItem, error: itemErr } = await supabase
-        .from('batch_items')
-        .insert({
-          batch_id: batchId,
-          full_name: expense.account_name,
-          bank_name: expense.bank_name,
-          account_number: expense.account_number,
-          amount_ngn: expense.amount_ngn,
-          status: 'pending',
-        })
-        .select('id')
-        .single();
-      if (itemErr) throw new Error(itemErr.message);
-      itemId = batchItem.id;
-
-      // Mark the expense as awaiting payment so it won't show "ready to pay"
-      // again. Actual payment dispatch happens after an approver acts on the
-      // pending_approval batch (BatchDetail "Approve Batch" → "Confirm Funded"
-      // → "Process Payments"). This separation is what closes BLOCKER B-2 /
-      // B-6: a single user can no longer create + fund an expense payment.
-      await supabase
-        .from('expenses')
-        .update({ payment_reference: batchId, payment_status: 'pending' })
-        .eq('id', expense.id);
-
-      // For fuel-linked expenses, also flip the parent fuel_request to
+      // For fuel-linked expenses, flip the parent fuel_request to
       // 'payment_sent' so the employee sees the "Upload Receipt" prompt and
-      // the admin no longer sees a stale "Mark Payment Sent" / "Pay" button
-      // on the same request. Without this, the same payment shows up as
-      // pending in two places (Expenses + Fleet) until manual intervention.
+      // the admin no longer sees a stale "Mark Payment Sent" / "Pay" button.
       if (expense.fuel_request_id) {
         await supabase
           .from('fuel_requests')
@@ -412,25 +359,24 @@ const Expenses = () => {
           .eq('id', expense.fuel_request_id);
       }
 
-      // The expense itself is already approved (we wouldn't be here otherwise).
-      // The Pay button is the operator's signal to dispatch — auto-approve the
-      // batch so they don't have to click Approve again.  The RPC enforces the
-      // caller's transfer cap and routes to pending_second_approval if the
-      // amount exceeds the caller's co-approval threshold, so we still get
-      // dual-approval safety on high-value payments.
+      // Auto-approve the new batch on the operator's behalf — the underlying
+      // expense is already fully approved, so the Pay click stands in for
+      // the batch's first approval. The RPC still enforces caps and routes
+      // to pending_second_approval above the caller's co-approval threshold,
+      // preserving dual-approval on high-value payments.
       let postApproveStatus: string = 'pending_approval';
       try {
         const updated = await approvePaymentBatch(batchId);
         postApproveStatus = (updated as any)?.status || 'approved';
       } catch (rpcErr: any) {
-        // Cap-blocked or pool-eligibility error → batch stays in pending_approval.
-        // Surface the reason; the operator can ask a Super Admin to raise their cap.
         toast({
           title: 'Auto-approve blocked',
           description: rpcErr?.message || 'Caps or eligibility prevented auto-approval. Batch left pending for manual approval.',
           variant: 'destructive',
         });
       }
+
+      const batchName = (created as any)?.name || `Expense — ${expense.account_name}`;
 
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
@@ -464,18 +410,9 @@ const Expenses = () => {
               : `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
       });
     } catch (err: any) {
-      if (batchId) {
-        await supabase
-          .from('expenses')
-          .update({ payment_status: 'failed' })
-          .eq('id', expense.id);
-      }
-      if (itemId) {
-        await supabase
-          .from('batch_items')
-          .update({ status: 'failed', failure_reason: err?.message })
-          .eq('id', itemId);
-      }
+      // The RPC is atomic: a failure means no batch was created, so there is
+      // nothing to compensate for here. The expense.payment_status stays NULL
+      // and the row remains "ready to pay" for the next attempt.
       toast({
         title: 'Payment failed to initiate',
         description: err?.message || 'Unknown error',
