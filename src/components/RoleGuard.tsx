@@ -42,7 +42,7 @@ export function RoleGuard({ roles, children, inline = false, permission }: Props
   }
 
   if (!effectiveRole) {
-    return <Navigate to="/unauthorized" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const perms = (profile as any).permissions as Record<string, boolean> | null | undefined;
@@ -67,7 +67,7 @@ export function RoleGuard({ roles, children, inline = false, permission }: Props
       </div>
     );
   }
-  return <Navigate to="/unauthorized" replace />;
+  return <Navigate to="/dashboard" replace />;
 }
 
 /**

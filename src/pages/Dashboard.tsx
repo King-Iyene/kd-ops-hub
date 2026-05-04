@@ -650,11 +650,13 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* ── 3. Financial Intelligence ─────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <FinancialHealthCard />
-        <CashBurnCard />
-      </div>
+      {/* ── 3. Financial Intelligence — finance/admin/super_admin only ── */}
+      {isFinanceRole && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <FinancialHealthCard />
+          <CashBurnCard />
+        </div>
+      )}
 
       {/* ── 4. Operational monitoring ─────────────────────────────── */}
       <div className={cn('grid grid-cols-1 gap-5', isFinanceRole ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
