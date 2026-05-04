@@ -36,6 +36,7 @@ import {
   type NarrationKind,
 } from '@/lib/paystack';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
+import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -355,6 +356,7 @@ const BatchDetail = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
@@ -1674,7 +1676,14 @@ const BatchDetail = () => {
             && (batch.created_by !== profile?.id
                 || ['admin', 'super_admin'].includes(profile?.role ?? '')) && (
             <>
-              <Button onClick={approveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
+              <div className="w-full">
+                <BatchRiskFlags batchId={id!} onAcknowledgedChange={setRiskFlagsAcknowledged} />
+              </div>
+              <Button
+                onClick={approveBatch}
+                disabled={actionLoading || (capPreview ? !capPreview.allowed : false) || !riskFlagsAcknowledged}
+                size="lg"
+              >
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
               </Button>
@@ -1698,7 +1707,14 @@ const BatchDetail = () => {
             && batch.created_by !== profile?.id
             && batch.approved_by !== profile?.id && (
             <>
-              <Button onClick={confirmSecondApproveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
+              <div className="w-full">
+                <BatchRiskFlags batchId={id!} onAcknowledgedChange={setRiskFlagsAcknowledged} />
+              </div>
+              <Button
+                onClick={confirmSecondApproveBatch}
+                disabled={actionLoading || (capPreview ? !capPreview.allowed : false) || !riskFlagsAcknowledged}
+                size="lg"
+              >
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve as Second
               </Button>
