@@ -80,7 +80,7 @@ BEGIN
     $cron$ SELECT public.purge_old_webhook_idempotency(); $cron$
   );
 EXCEPTION
-  WHEN undefined_function OR undefined_schema OR undefined_table THEN
+  WHEN OTHERS THEN
     RAISE NOTICE 'pg_cron not installed; skipping purge-webhook-idempotency-daily schedule';
 END
 $$;
