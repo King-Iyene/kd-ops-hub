@@ -395,6 +395,18 @@ const Expenses = () => {
         .update({ payment_reference: batchId, payment_status: 'pending' })
         .eq('id', expense.id);
 
+      // For fuel-linked expenses, also flip the parent fuel_request to
+      // 'payment_sent' so the employee sees the "Upload Receipt" prompt and
+      // the admin no longer sees a stale "Mark Payment Sent" / "Pay" button
+      // on the same request. Without this, the same payment shows up as
+      // pending in two places (Expenses + Fleet) until manual intervention.
+      if (expense.fuel_request_id) {
+        await supabase
+          .from('fuel_requests')
+          .update({ status: 'payment_sent', payment_sent_at: new Date().toISOString() })
+          .eq('id', expense.fuel_request_id);
+      }
+
       // The expense itself is already approved (we wouldn't be here otherwise).
       // The Pay button is the operator's signal to dispatch — auto-approve the
       // batch so they don't have to click Approve again.  The RPC enforces the

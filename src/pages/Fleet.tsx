@@ -1423,7 +1423,9 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>('fuel');
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>(
+    isAdmin ? 'fuel' : 'my_requests',
+  );
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -3344,9 +3346,11 @@ const Fleet = () => {
                 <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
               </TabsTrigger>
             )}
-            <TabsTrigger value="fuel" className="shrink-0">
-              <Fuel className="mr-2 h-4 w-4" /> Fuel Requests
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="fuel" className="shrink-0">
+                <Fuel className="mr-2 h-4 w-4" /> Fuel &amp; Repair Requests
+              </TabsTrigger>
+            )}
             <TabsTrigger value="my_requests" className="shrink-0">
               <User className="mr-2 h-4 w-4" /> My Requests
             </TabsTrigger>

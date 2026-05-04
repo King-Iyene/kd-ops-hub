@@ -454,10 +454,13 @@ serve(async (req) => {
   // ------------------------------------------------------------------
   // Step 4: Sync payment_status on any linked expense (expense reimbursement
   // flow). Runs after batch recalc so the batch is already settled first.
+  // For expenses linked to a fuel_request we also propagate the state to
+  // the fuel_request row so Fleet's status matches reality without a
+  // manual "Mark Payment Sent" click.
   // ------------------------------------------------------------------
   const { data: linkedExpense, error: expLookupErr } = await supabase
     .from("expenses")
-    .select("id, submitted_by, amount_ngn")
+    .select("id, submitted_by, amount_ngn, fuel_request_id")
     .eq("payment_reference", item.batch_id)
     .maybeSingle();
 
@@ -466,6 +469,8 @@ serve(async (req) => {
   }
 
   if (linkedExpense) {
+    const fuelRequestId = (linkedExpense as any).fuel_request_id as string | null;
+
     if (event === "transfer.success") {
       await supabase
         .from("expenses")
@@ -480,6 +485,27 @@ serve(async (req) => {
         title: "Expense Reimbursement Processed",
         body: `Your expense of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} has been paid.`,
       });
+
+      // Fuel-linked expense: flip the fuel_request to 'payment_sent' so the
+      // employee sees the "Upload Receipt" prompt automatically. Skip if it
+      // has already moved past payment_sent (e.g. receipt uploaded, completed)
+      // to avoid clobbering a more advanced state on a late retry.
+      if (fuelRequestId) {
+        await supabase
+          .from("fuel_requests")
+          .update({ status: "payment_sent", payment_sent_at: now })
+          .eq("id", fuelRequestId)
+          .in("status", ["pending", "approved"]);
+
+        await supabase.from("notifications").insert({
+          user_id: linkedExpense.submitted_by,
+          type: "fuel_payment_sent",
+          module: "fleet",
+          priority: "normal",
+          title: "Fuel payment sent",
+          body: `₦${Number(linkedExpense.amount_ngn).toLocaleString()} has been sent. Please upload your receipt.`,
+        });
+      }
     } else if (event === "transfer.failed" || event === "transfer.reversed") {
       await supabase
         .from("expenses")
@@ -494,6 +520,16 @@ serve(async (req) => {
         title: "Expense Payment Failed",
         body: `Payment of ₦${Number(linkedExpense.amount_ngn).toLocaleString()} could not be processed. Please contact Finance.`,
       });
+
+      // Roll the fuel_request back to 'approved' so admin can retry without
+      // the request being stuck mid-flow.
+      if (fuelRequestId) {
+        await supabase
+          .from("fuel_requests")
+          .update({ status: "approved" })
+          .eq("id", fuelRequestId)
+          .eq("status", "payment_sent");
+      }
     }
   }
 
