@@ -26,6 +26,14 @@ export interface TransferLimit {
    * a second approver. NULL = co-approval never required for this row.
    */
   co_approval_threshold_ngn: number | null;
+  /** Max total amount for a single payment batch (M-2). NULL = no cap. */
+  single_batch_limit_ngn: number | null;
+  /** Per-user overrides auto-expire at this timestamp (M-1). NULL on role rows. */
+  expires_at: string | null;
+  /** Who granted the per-user override. */
+  granted_by: string | null;
+  /** Required justification for per-user overrides. */
+  granted_reason: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -67,10 +75,33 @@ export interface TransferAuditRow {
 export interface CapCheckResult {
   allowed: boolean;
   reason: string | null;
-  applied_limit_kind: 'single' | 'daily' | 'monthly' | null;
+  applied_limit_kind: 'single' | 'daily' | 'monthly' | 'batch' | 'platform_single' | null;
   applied_limit_ngn: number | null;
   used_today_ngn: number;
   used_month_ngn: number;
+  /** UUID of the intent audit row inserted by the server (B-5). Only set when p_intent=true and allowed=true. */
+  intent_audit_id: string | null;
+}
+
+export interface SetTransferLimitParams {
+  id?: string | null;
+  role?: 'super_admin' | 'admin' | 'finance' | null;
+  user_id?: string | null;
+  single_txn_limit_ngn?: number | null;
+  daily_limit_ngn?: number | null;
+  monthly_limit_ngn?: number | null;
+  co_approval_threshold_ngn?: number | null;
+  single_batch_limit_ngn?: number | null;
+  expires_at?: string | null;
+  granted_reason?: string | null;
+}
+
+export interface TransferAuditFilters {
+  startDate?: string;
+  endDate?: string;
+  actionType?: 'all' | 'transfers' | 'cap_changes' | 'denials';
+  limit?: number;
+  offset?: number;
 }
 
 export async function listTransferLimits(): Promise<TransferLimit[]> {
@@ -83,39 +114,28 @@ export async function listTransferLimits(): Promise<TransferLimit[]> {
   return (data ?? []) as TransferLimit[];
 }
 
-export async function upsertTransferLimit(
-  row: Partial<TransferLimit> & { id?: string }
-): Promise<void> {
-  if (row.id) {
-    const { error } = await supabase
-      .from('transfer_limits')
-      .update({
-        single_txn_limit_ngn: row.single_txn_limit_ngn ?? null,
-        daily_limit_ngn: row.daily_limit_ngn ?? null,
-        monthly_limit_ngn: row.monthly_limit_ngn ?? null,
-        co_approval_threshold_ngn: row.co_approval_threshold_ngn ?? null,
-        notes: row.notes ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', row.id);
-    if (error) throw error;
-    return;
-  }
-  const { error } = await supabase.from('transfer_limits').insert({
-    role: row.role ?? null,
-    user_id: row.user_id ?? null,
-    single_txn_limit_ngn: row.single_txn_limit_ngn ?? null,
-    daily_limit_ngn: row.daily_limit_ngn ?? null,
-    monthly_limit_ngn: row.monthly_limit_ngn ?? null,
-    co_approval_threshold_ngn: row.co_approval_threshold_ngn ?? null,
-    notes: row.notes ?? null,
+/** Route all cap edits through the set_transfer_limit SECURITY DEFINER RPC (B-3, M-4). */
+export async function setTransferLimit(params: SetTransferLimitParams): Promise<TransferLimit> {
+  const { data, error } = await supabase.rpc('set_transfer_limit', {
+    p_id: params.id ?? null,
+    p_role: params.role ?? null,
+    p_user_id: params.user_id ?? null,
+    p_single: params.single_txn_limit_ngn ?? null,
+    p_daily: params.daily_limit_ngn ?? null,
+    p_monthly: params.monthly_limit_ngn ?? null,
+    p_co_approval: params.co_approval_threshold_ngn ?? null,
+    p_batch: params.single_batch_limit_ngn ?? null,
+    p_expires_at: params.expires_at ?? null,
+    p_reason: params.granted_reason ?? null,
   });
   if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as TransferLimit;
 }
 
 export async function deleteTransferLimit(id: string): Promise<void> {
-  const { error } = await supabase.from('transfer_limits').delete().eq('id', id);
+  const { data, error } = await supabase.rpc('delete_transfer_limit', { p_id: id });
   if (error) throw error;
+  void data;
 }
 
 export async function fetchRecentTransferAudit(
@@ -124,10 +144,43 @@ export async function fetchRecentTransferAudit(
   const { data, error } = await supabase
     .from('transfer_audit')
     .select('*')
+    .not('outcome', 'in', '(intent,abandoned)')
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
   return (data ?? []) as TransferAuditRow[];
+}
+
+export async function fetchTransferAuditPaginated(
+  filters: TransferAuditFilters
+): Promise<{ rows: TransferAuditRow[]; total: number }> {
+  let q = supabase
+    .from('transfer_audit')
+    .select('*', { count: 'exact' })
+    .not('outcome', 'in', '(intent,abandoned)')
+    .order('created_at', { ascending: false });
+
+  if (filters.startDate) q = q.gte('created_at', filters.startDate);
+  if (filters.endDate) {
+    const end = new Date(filters.endDate);
+    end.setDate(end.getDate() + 1);
+    q = q.lt('created_at', end.toISOString());
+  }
+  if (filters.actionType === 'transfers') {
+    q = q.in('action', ['initiate_transfer', 'bulk_transfer']);
+  } else if (filters.actionType === 'cap_changes') {
+    q = q.eq('action', 'cap_changed');
+  } else if (filters.actionType === 'denials') {
+    q = q.in('outcome', ['denied', 'error']);
+  }
+
+  const limit = filters.limit ?? 50;
+  const offset = filters.offset ?? 0;
+  q = q.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return { rows: (data ?? []) as TransferAuditRow[], total: count ?? 0 };
 }
 
 /**
@@ -141,6 +194,7 @@ export async function previewCapCheck(
   const { data, error } = await supabase.rpc('check_transfer_caps', {
     p_user_id: userId,
     p_amount_ngn: amountNgn,
+    p_intent: false,   // preview only — never create an intent row
   });
   if (error) return null;
   const row = Array.isArray(data) ? data[0] : data;
@@ -152,6 +206,7 @@ export async function previewCapCheck(
     applied_limit_ngn: row.applied_limit_ngn ?? null,
     used_today_ngn: Number(row.used_today_ngn ?? 0),
     used_month_ngn: Number(row.used_month_ngn ?? 0),
+    intent_audit_id: null,
   };
 }
 

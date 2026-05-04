@@ -2,8 +2,9 @@
 //
 // Super-admin-only panel that controls:
 //   1. The high-value threshold (visual flag, doesn't block).
-//   2. Per-role default caps + per-user overrides (single / daily / monthly).
-//   3. A live view of the last 50 transfer-audit rows for forensics.
+//   2. Per-role default caps + per-user overrides (single / daily / monthly /
+//      co-approval / batch).
+//   3. A paginated, filterable audit panel for forensics.
 //
 // All money math is handled server-side via `check_transfer_caps`; this UI is
 // just a thin editor over the underlying tables. Changes take effect on the
@@ -23,6 +24,10 @@ import {
   RefreshCw,
   Users,
   Zap,
+  Calendar,
+  Download,
+  Filter,
+  Clock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +35,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Table,
   TableBody,
@@ -50,15 +56,16 @@ import { formatNaira } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import {
   listTransferLimits,
-  upsertTransferLimit,
+  setTransferLimit,
   deleteTransferLimit,
-  fetchRecentTransferAudit,
+  fetchTransferAuditPaginated,
   listApproverPools,
   updateApproverPool,
   APPROVAL_ROLE_OPTIONS,
   SETTINGS_SINGLETON_ID,
   type TransferLimit,
   type TransferAuditRow,
+  type TransferAuditFilters,
   type ApproverPool,
   type ApprovalRole,
 } from '@/lib/transfer-safety';
@@ -106,8 +113,56 @@ const outcomeBadge = (outcome: string) => {
   }
 };
 
+/** Returns a colored expiry badge for per-user override rows. */
+const expiryBadge = (expiresAt: string | null) => {
+  if (expiresAt === null) {
+    return <span className="text-xs text-muted-foreground italic">never</span>;
+  }
+  const now = Date.now();
+  const expMs = new Date(expiresAt).getTime();
+  const diffDays = Math.ceil((expMs - now) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) {
+    return (
+      <Badge variant="outline" className="border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-500/5 text-xs">
+        expired
+      </Badge>
+    );
+  }
+  if (diffDays === 1) {
+    return (
+      <Badge variant="outline" className="border-rose-500/40 text-rose-700 dark:text-rose-400 bg-rose-500/5 text-xs">
+        today
+      </Badge>
+    );
+  }
+  if (diffDays <= 7) {
+    return (
+      <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400 bg-amber-500/5 text-xs">
+        in {diffDays} days
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/5 text-xs">
+      in {diffDays} days
+    </Badge>
+  );
+};
+
+/** ISO date string for today + N days, in YYYY-MM-DD format. */
+const isoDatePlusDays = (days: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+};
+
 export default function TransferAuthSettings() {
   const { toast } = useToast();
+
+  // ── Current user context ──────────────────────────────────────────────
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
 
   // ── Caps ─────────────────────────────────────────────────────────────
   const [limits, setLimits] = useState<TransferLimit[]>([]);
@@ -121,7 +176,9 @@ export default function TransferAuthSettings() {
   const [overrideDaily, setOverrideDaily] = useState<string>('');
   const [overrideMonthly, setOverrideMonthly] = useState<string>('');
   const [overrideCo, setOverrideCo] = useState<string>('');
-  const [overrideNotes, setOverrideNotes] = useState<string>('');
+  const [overrideBatch, setOverrideBatch] = useState<string>('');
+  const [overrideExpires, setOverrideExpires] = useState<string>(isoDatePlusDays(30));
+  const [overrideReason, setOverrideReason] = useState<string>('');
   const [overrideSaving, setOverrideSaving] = useState(false);
 
   // Approver pools editor.
@@ -134,11 +191,46 @@ export default function TransferAuthSettings() {
   const [quickPaySaving, setQuickPaySaving] = useState(false);
 
   // ── Audit ────────────────────────────────────────────────────────────
-  const [audit, setAudit] = useState<TransferAuditRow[]>([]);
+  const [auditRows, setAuditRows] = useState<TransferAuditRow[]>([]);
+  const [auditTotal, setAuditTotal] = useState<number>(0);
+  const [auditOffset, setAuditOffset] = useState<number>(0);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditFilterStart, setAuditFilterStart] = useState<string>('');
+  const [auditFilterEnd, setAuditFilterEnd] = useState<string>('');
+  const [auditFilterAction, setAuditFilterAction] = useState<TransferAuditFilters['actionType']>('all');
+  const [csvExporting, setCsvExporting] = useState(false);
+
   const [limitsError, setLimitsError] = useState<string | null>(null);
   const [migrationMissing, setMigrationMissing] = useState(false);
+
+  const loadAudit = async (reset?: boolean) => {
+    setAuditLoading(true);
+    setAuditError(null);
+    const offset = reset ? 0 : auditOffset;
+    try {
+      const { rows, total } = await fetchTransferAuditPaginated({
+        startDate: auditFilterStart || undefined,
+        endDate: auditFilterEnd || undefined,
+        actionType: auditFilterAction,
+        limit: 50,
+        offset,
+      });
+      if (reset) {
+        setAuditRows(rows);
+      } else {
+        setAuditRows((prev) => [...prev, ...rows]);
+      }
+      setAuditTotal(total);
+      setAuditOffset(reset ? 50 : offset + 50);
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      setAuditError(msg);
+      if (/transfer_audit/i.test(msg)) setMigrationMissing(true);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
 
   const reloadAll = async () => {
     setLimitsLoading(true);
@@ -147,10 +239,21 @@ export default function TransferAuthSettings() {
     setLimitsError(null);
     setMigrationMissing(false);
 
+    // Load current user id + role.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setCurrentUserId(user.id);
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profile?.role) setCurrentUserRole(profile.role);
+    }
+
     // Run independently so a missing table only breaks its own section.
-    const [lRes, aRes, pRes, poolsRes, csRes] = await Promise.allSettled([
+    const [lRes, pRes, poolsRes, csRes] = await Promise.allSettled([
       listTransferLimits(),
-      fetchRecentTransferAudit(50),
       supabase
         .from('profiles')
         .select('id, full_name, email, role')
@@ -171,13 +274,6 @@ export default function TransferAuthSettings() {
       setLimitsError(msg);
       if (/transfer_limits/i.test(msg)) setMigrationMissing(true);
     }
-    if (aRes.status === 'fulfilled') {
-      setAudit(aRes.value);
-    } else {
-      const msg = (aRes.reason as any)?.message ?? String(aRes.reason);
-      setAuditError(msg);
-      if (/transfer_audit/i.test(msg)) setMigrationMissing(true);
-    }
     if (pRes.status === 'fulfilled') {
       setProfiles(((pRes.value as any).data ?? []) as ProfileLite[]);
     }
@@ -189,7 +285,9 @@ export default function TransferAuthSettings() {
     }
 
     setLimitsLoading(false);
-    setAuditLoading(false);
+
+    // Load audit separately (has its own reset logic).
+    await loadAudit(true);
   };
 
   useEffect(() => {
@@ -222,24 +320,16 @@ export default function TransferAuthSettings() {
   const handleSaveRoleLimit = async (role: Role) => {
     const existing = roleRows[role];
     const d = draft[role] ?? {};
-    const next: Partial<TransferLimit> = {
-      id: existing?.id,
-      role,
-      user_id: null,
-      single_txn_limit_ngn: d.single_txn_limit_ngn ?? existing?.single_txn_limit_ngn ?? null,
-      daily_limit_ngn: d.daily_limit_ngn ?? existing?.daily_limit_ngn ?? null,
-      monthly_limit_ngn: d.monthly_limit_ngn ?? existing?.monthly_limit_ngn ?? null,
-      co_approval_threshold_ngn: d.co_approval_threshold_ngn ?? existing?.co_approval_threshold_ngn ?? null,
-      notes: d.notes ?? existing?.notes ?? null,
-    };
     try {
-      await upsertTransferLimit(next);
-      // Audit so a super-admin can't quietly widen a co-approval threshold.
-      // The DB-level audit_logs trigger doesn't fire here (we go via the
-      // transfer_limits row, not approver_pools), so log explicitly.
-      await supabase.from('audit_logs').insert({
-        action_type: 'transfer_limit_changed',
-        description: `${roleLabel[role]} caps updated — single=${next.single_txn_limit_ngn ?? '∅'}, daily=${next.daily_limit_ngn ?? '∅'}, monthly=${next.monthly_limit_ngn ?? '∅'}, co_threshold=${next.co_approval_threshold_ngn ?? '∅'}`,
+      await setTransferLimit({
+        id: existing?.id,
+        role,
+        user_id: null,
+        single_txn_limit_ngn: d.single_txn_limit_ngn ?? existing?.single_txn_limit_ngn ?? null,
+        daily_limit_ngn: d.daily_limit_ngn ?? existing?.daily_limit_ngn ?? null,
+        monthly_limit_ngn: d.monthly_limit_ngn ?? existing?.monthly_limit_ngn ?? null,
+        co_approval_threshold_ngn: d.co_approval_threshold_ngn ?? existing?.co_approval_threshold_ngn ?? null,
+        single_batch_limit_ngn: d.single_batch_limit_ngn ?? existing?.single_batch_limit_ngn ?? null,
       });
       toast({ title: `${roleLabel[role]} caps saved` });
       setDraft((prev) => {
@@ -258,20 +348,22 @@ export default function TransferAuthSettings() {
       toast({ title: 'Pick a user first', variant: 'destructive' });
       return;
     }
+    if (!overrideReason || overrideReason.length < 5) {
+      toast({ title: 'Reason required', description: 'Reason must be at least 5 characters.', variant: 'destructive' });
+      return;
+    }
     setOverrideSaving(true);
     try {
-      await upsertTransferLimit({
+      await setTransferLimit({
         user_id: overrideUserId,
         role: null,
         single_txn_limit_ngn: overrideSingle ? Number(overrideSingle) : null,
         daily_limit_ngn: overrideDaily ? Number(overrideDaily) : null,
         monthly_limit_ngn: overrideMonthly ? Number(overrideMonthly) : null,
         co_approval_threshold_ngn: overrideCo ? Number(overrideCo) : null,
-        notes: overrideNotes || null,
-      });
-      await supabase.from('audit_logs').insert({
-        action_type: 'transfer_limit_override_added',
-        description: `Per-user transfer-limit override added for ${overrideUserId}`,
+        single_batch_limit_ngn: overrideBatch ? Number(overrideBatch) : null,
+        expires_at: overrideExpires || null,
+        granted_reason: overrideReason,
       });
       toast({ title: 'Override saved' });
       setOverrideUserId('');
@@ -279,7 +371,9 @@ export default function TransferAuthSettings() {
       setOverrideDaily('');
       setOverrideMonthly('');
       setOverrideCo('');
-      setOverrideNotes('');
+      setOverrideBatch('');
+      setOverrideExpires(isoDatePlusDays(30));
+      setOverrideReason('');
       await reloadAll();
     } catch (e: any) {
       toast({ title: 'Save failed', description: e?.message ?? String(e), variant: 'destructive' });
@@ -362,6 +456,34 @@ export default function TransferAuthSettings() {
     }
   };
 
+  const handleExportCsv = async () => {
+    setCsvExporting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+      const params = new URLSearchParams();
+      if (auditFilterStart) params.set('startDate', auditFilterStart);
+      if (auditFilterEnd) params.set('endDate', auditFilterEnd);
+      if (auditFilterAction && auditFilterAction !== 'all') params.set('actionType', auditFilterAction);
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/export-transfer-audit?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `transfer-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e: any) {
+      toast({ title: 'Export failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setCsvExporting(false);
+    }
+  };
+
   const fmtAmt = (v: number | null | undefined): string => {
     if (v === null || v === undefined) return '';
     return Number(v).toLocaleString('en-NG');
@@ -370,6 +492,14 @@ export default function TransferAuthSettings() {
     const raw = s.replace(/[^0-9]/g, '');
     return raw === '' ? null : Number(raw);
   };
+
+  const tomorrow = isoDatePlusDays(1);
+  const maxExpiry = isoDatePlusDays(90);
+  const addOverrideDisabled =
+    overrideSaving ||
+    !overrideUserId ||
+    !overrideReason ||
+    overrideReason.length < 5;
 
   return (
     <div className="space-y-6">
@@ -423,93 +553,101 @@ export default function TransferAuthSettings() {
             <p className="text-sm text-rose-600">{limitsError}</p>
           ) : (
             <div className="overflow-x-auto">
-            <Table className="min-w-[780px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[130px]">Role</TableHead>
-                  <TableHead className="min-w-[170px]">Single transfer (₦)</TableHead>
-                  <TableHead className="min-w-[170px]">Daily rolling 24h (₦)</TableHead>
-                  <TableHead className="min-w-[170px]">Monthly (₦)</TableHead>
-                  <TableHead className="min-w-[170px]">Co-approval above (₦)</TableHead>
-                  <TableHead className="w-[100px] text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ROLES.map((role) => {
-                  const row = roleRows[role];
-                  const d = draft[role] ?? {};
-                  const setField = (k: keyof TransferLimit, v: any) =>
-                    setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
-                  const valueOf = (k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'co_approval_threshold_ngn'): string => {
-                    const v = (d as any)[k] ?? row?.[k];
-                    return fmtAmt(v);
-                  };
-                  return (
-                    <TableRow key={role}>
-                      <TableCell className="font-medium">{roleLabel[role]}</TableCell>
-                      <TableCell>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="no cap (empty)"
-                          value={valueOf('single_txn_limit_ngn')}
-                          onChange={(e) => setField('single_txn_limit_ngn', parseAmt(e.target.value))}
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="no cap (empty)"
-                          value={valueOf('daily_limit_ngn')}
-                          onChange={(e) => setField('daily_limit_ngn', parseAmt(e.target.value))}
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="no cap (empty)"
-                          value={valueOf('monthly_limit_ngn')}
-                          onChange={(e) => setField('monthly_limit_ngn', parseAmt(e.target.value))}
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="never (empty)"
-                          value={valueOf('co_approval_threshold_ngn')}
-                          onChange={(e) => setField('co_approval_threshold_ngn', parseAmt(e.target.value))}
-                          title="Above this ₦ amount a second approver is required. Leave empty = never."
-                          className="w-full"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min={0}
-                          placeholder="never"
-                          value={valueOf('co_approval_threshold_ngn')}
-                          onChange={(e) =>
-                            setField('co_approval_threshold_ngn', e.target.value === '' ? null : Number(e.target.value))
-                          }
-                          title="Above this NGN amount, a second approver is required. Empty = never."
-                        />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" onClick={() => void handleSaveRoleLimit(role)}>
-                          <Save className="h-3 w-3 mr-1" /> Save
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+              <Table className="min-w-[960px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[130px]">Role</TableHead>
+                    <TableHead className="min-w-[160px]">Single transfer (₦)</TableHead>
+                    <TableHead className="min-w-[160px]">Daily rolling 24h (₦)</TableHead>
+                    <TableHead className="min-w-[160px]">Monthly (₦)</TableHead>
+                    <TableHead className="min-w-[160px]">Co-approval above (₦)</TableHead>
+                    <TableHead className="min-w-[160px]">Max batch total (₦)</TableHead>
+                    <TableHead className="w-[100px] text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ROLES.map((role) => {
+                    const row = roleRows[role];
+                    const d = draft[role] ?? {};
+                    const setField = (k: keyof TransferLimit, v: any) =>
+                      setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
+                    const valueOf = (
+                      k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'co_approval_threshold_ngn' | 'single_batch_limit_ngn'
+                    ): string => {
+                      const v = (d as any)[k] ?? row?.[k];
+                      return fmtAmt(v);
+                    };
+                    const isSelfRole = role === currentUserRole;
+                    return (
+                      <TableRow key={role}>
+                        <TableCell className="font-medium">{roleLabel[role]}</TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="no cap (empty)"
+                            value={valueOf('single_txn_limit_ngn')}
+                            onChange={(e) => setField('single_txn_limit_ngn', parseAmt(e.target.value))}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="no cap (empty)"
+                            value={valueOf('daily_limit_ngn')}
+                            onChange={(e) => setField('daily_limit_ngn', parseAmt(e.target.value))}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="no cap (empty)"
+                            value={valueOf('monthly_limit_ngn')}
+                            onChange={(e) => setField('monthly_limit_ngn', parseAmt(e.target.value))}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="never (empty)"
+                            value={valueOf('co_approval_threshold_ngn')}
+                            onChange={(e) => setField('co_approval_threshold_ngn', parseAmt(e.target.value))}
+                            title="Above this ₦ amount a second approver is required. Leave empty = never."
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="no cap (empty)"
+                            value={valueOf('single_batch_limit_ngn')}
+                            onChange={(e) => setField('single_batch_limit_ngn', parseAmt(e.target.value))}
+                            title="Maximum total amount for a single payment batch. Leave empty = no cap."
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            onClick={() => void handleSaveRoleLimit(role)}
+                            disabled={isSelfRole}
+                            title={isSelfRole ? 'Cannot edit your own role\'s caps' : undefined}
+                          >
+                            <Save className="h-3 w-3 mr-1" /> Save
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
@@ -521,12 +659,13 @@ export default function TransferAuthSettings() {
           <CardTitle className="text-sm">Per-user overrides</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_2fr_auto] gap-2 items-end">
+          {/* Add override form */}
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2">
             <div className="space-y-1">
               <Label className="text-xs">User</Label>
               <Select value={overrideUserId} onValueChange={setOverrideUserId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pick approver…" />
+                  <SelectValue placeholder="Pick user…" />
                 </SelectTrigger>
                 <SelectContent>
                   {profiles
@@ -581,25 +720,47 @@ export default function TransferAuthSettings() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Co-approval above</Label>
+              <Label className="text-xs">Max batch total (₦)</Label>
               <Input
-                type="number"
-                min={0}
-                placeholder="never"
-                value={overrideCo}
-                onChange={(e) => setOverrideCo(e.target.value)}
-                title="Above this amount, this user's transfer needs a second approver."
+                type="text"
+                inputMode="numeric"
+                placeholder="no cap (empty)"
+                value={overrideBatch}
+                onChange={(e) => setOverrideBatch(e.target.value.replace(/[^0-9]/g, ''))}
+                title="Maximum total for a single payment batch initiated by this user."
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_auto] gap-2 items-end">
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Expires at
+              </Label>
+              <Input
+                type="date"
+                value={overrideExpires}
+                min={tomorrow}
+                max={maxExpiry}
+                onChange={(e) => setOverrideExpires(e.target.value)}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Notes</Label>
-              <Input
-                placeholder="optional"
-                value={overrideNotes}
-                onChange={(e) => setOverrideNotes(e.target.value)}
+              <Label className="text-xs flex items-center gap-1">
+                Reason <span className="text-rose-500">*</span>
+                <span className="ml-auto text-muted-foreground font-normal">{overrideReason.length} chars</span>
+              </Label>
+              <Textarea
+                placeholder="Required — min 5 characters. Explain why this user needs a custom cap."
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                className="resize-none h-[38px] min-h-0 py-1.5"
               />
             </div>
-            <Button onClick={handleAddOverride} disabled={overrideSaving || !overrideUserId}>
+            <Button
+              onClick={handleAddOverride}
+              disabled={addOverrideDisabled}
+              className="self-end"
+            >
               {overrideSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
               Add
             </Button>
@@ -608,53 +769,64 @@ export default function TransferAuthSettings() {
           {userOverrides.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No per-user overrides yet — everyone is on their role default.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Single</TableHead>
-                  <TableHead>Daily</TableHead>
-                  <TableHead>Monthly</TableHead>
-                  <TableHead>Co-approval above</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="w-[60px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {userOverrides.map((o) => {
-                  const p = o.user_id ? profilesById.get(o.user_id) : null;
-                  return (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-medium">
-                        {p?.full_name || p?.email || o.user_id}
-                        {p?.role && (
-                          <span className="ml-2 text-xs text-muted-foreground">({p.role})</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{fmtCap(o.single_txn_limit_ngn)}</TableCell>
-                      <TableCell>{fmtCap(o.daily_limit_ngn)}</TableCell>
-                      <TableCell>{fmtCap(o.monthly_limit_ngn)}</TableCell>
-                      <TableCell>
-                        {o.co_approval_threshold_ngn === null || o.co_approval_threshold_ngn === undefined
-                          ? <span className="text-xs text-muted-foreground italic">never</span>
-                          : formatNaira(o.co_approval_threshold_ngn)}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{o.notes ?? ''}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => void handleDeleteOverride(o.id)}
-                          aria-label="Remove override"
-                        >
-                          <Trash2 className="h-3 w-3 text-rose-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[900px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Single</TableHead>
+                    <TableHead>Daily</TableHead>
+                    <TableHead>Monthly</TableHead>
+                    <TableHead>Co-approval above</TableHead>
+                    <TableHead>Max batch</TableHead>
+                    <TableHead>Expires</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="w-[60px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {userOverrides.map((o) => {
+                    const p = o.user_id ? profilesById.get(o.user_id) : null;
+                    const isSelf = o.user_id === currentUserId;
+                    return (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium">
+                          {p?.full_name || p?.email || o.user_id}
+                          {p?.role && (
+                            <span className="ml-2 text-xs text-muted-foreground">({p.role})</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{fmtCap(o.single_txn_limit_ngn)}</TableCell>
+                        <TableCell>{fmtCap(o.daily_limit_ngn)}</TableCell>
+                        <TableCell>{fmtCap(o.monthly_limit_ngn)}</TableCell>
+                        <TableCell>
+                          {o.co_approval_threshold_ngn === null || o.co_approval_threshold_ngn === undefined
+                            ? <span className="text-xs text-muted-foreground italic">never</span>
+                            : formatNaira(o.co_approval_threshold_ngn)}
+                        </TableCell>
+                        <TableCell>{fmtCap(o.single_batch_limit_ngn)}</TableCell>
+                        <TableCell>{expiryBadge(o.expires_at)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={o.granted_reason ?? ''}>
+                          {o.granted_reason ?? ''}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => void handleDeleteOverride(o.id)}
+                            aria-label="Remove override"
+                            disabled={isSelf}
+                            title={isSelf ? 'Cannot remove your own override' : undefined}
+                          >
+                            <Trash2 className={`h-3 w-3 ${isSelf ? 'text-muted-foreground' : 'text-rose-500'}`} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -768,70 +940,145 @@ export default function TransferAuthSettings() {
         </CardContent>
       </Card>
 
-      {/* Audit log */}
+      {/* Audit log — paginated */}
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
-            <Activity className="h-4 w-4" /> Recent transfer audit (last 50)
+            <Activity className="h-4 w-4" /> Transfer audit
           </CardTitle>
           <Button size="sm" variant="ghost" onClick={() => void reloadAll()}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </CardHeader>
-        <CardContent>
-          {auditLoading ? (
+        <CardContent className="space-y-3">
+          {/* Filters row */}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Date from
+              </Label>
+              <Input
+                type="date"
+                value={auditFilterStart}
+                onChange={(e) => setAuditFilterStart(e.target.value)}
+                className="w-[160px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Date to
+              </Label>
+              <Input
+                type="date"
+                value={auditFilterEnd}
+                onChange={(e) => setAuditFilterEnd(e.target.value)}
+                className="w-[160px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Action type</Label>
+              <Select
+                value={auditFilterAction ?? 'all'}
+                onValueChange={(v) => setAuditFilterAction(v as TransferAuditFilters['actionType'])}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="transfers">Transfers only</SelectItem>
+                  <SelectItem value="cap_changes">Cap changes</SelectItem>
+                  <SelectItem value="denials">Denials &amp; errors</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => void loadAudit(true)}>
+              <Filter className="h-3 w-3 mr-1" /> Apply
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleExportCsv()}
+              disabled={csvExporting}
+            >
+              {csvExporting
+                ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                : <Download className="h-3 w-3 mr-1" />}
+              Export CSV
+            </Button>
+          </div>
+
+          {auditLoading && auditRows.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading audit…
             </div>
           ) : auditError && !migrationMissing ? (
             <p className="text-sm text-rose-600">{auditError}</p>
-          ) : audit.length === 0 ? (
+          ) : auditRows.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No transfer activity yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">When</TableHead>
-                    <TableHead>Actor</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Outcome</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>IP hash</TableHead>
-                    <TableHead>Reason / Reference</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {audit.map((row) => {
-                    const p = row.actor_id ? profilesById.get(row.actor_id) : null;
-                    return (
-                      <TableRow key={row.id}>
-                        <TableCell className="whitespace-nowrap text-xs">
-                          {new Date(row.created_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {p?.full_name || p?.email || row.actor_id?.slice(0, 8) || '—'}
-                          {row.actor_role && (
-                            <span className="ml-1 text-muted-foreground">({row.actor_role})</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono">{row.action}</TableCell>
-                        <TableCell>{outcomeBadge(row.outcome)}</TableCell>
-                        <TableCell className="text-right text-xs whitespace-nowrap">
-                          {row.amount_ngn ? formatNaira(row.amount_ngn) : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-muted-foreground">
-                          {row.ip_hash ? row.ip_hash.slice(0, 10) + '…' : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[280px] truncate" title={row.reason || row.reference || ''}>
-                          {row.reason || row.reference || ''}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">When</TableHead>
+                      <TableHead>Actor</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>IP hash</TableHead>
+                      <TableHead>Reason / Reference</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditRows.map((row) => {
+                      const p = row.actor_id ? profilesById.get(row.actor_id) : null;
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            {new Date(row.created_at).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {p?.full_name || p?.email || row.actor_id?.slice(0, 8) || '—'}
+                            {row.actor_role && (
+                              <span className="ml-1 text-muted-foreground">({row.actor_role})</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono">{row.action}</TableCell>
+                          <TableCell>{outcomeBadge(row.outcome)}</TableCell>
+                          <TableCell className="text-right text-xs whitespace-nowrap">
+                            {row.amount_ngn ? formatNaira(row.amount_ngn) : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-muted-foreground">
+                            {row.ip_hash ? row.ip_hash.slice(-6) : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[280px] truncate" title={row.reason || row.reference || ''}>
+                            {row.reason || row.reference || ''}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Showing {auditRows.length} of {auditTotal}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={auditRows.length >= auditTotal || auditLoading}
+                  onClick={() => void loadAudit(false)}
+                >
+                  {auditLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                  Load more
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
