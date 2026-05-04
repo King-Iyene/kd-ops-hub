@@ -40,6 +40,7 @@ import { writeRejectionNotification, isValidRejectionReason } from '@/lib/reject
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   approveExpense,
+  approvePaymentBatch,
   confirmSecondExpenseApproval,
   rejectExpense,
 } from '@/lib/transfer-safety';
@@ -373,35 +374,61 @@ const Expenses = () => {
       if (itemErr) throw new Error(itemErr.message);
       itemId = batchItem.id;
 
-      // Mark the expense as awaiting payment so it won't show "ready to pay"
-      // again. Actual payment dispatch happens after an approver acts on the
-      // pending_approval batch (BatchDetail "Approve Batch" → "Confirm Funded"
-      // → "Process Payments"). This separation is what closes BLOCKER B-2 /
-      // B-6: a single user can no longer create + fund an expense payment.
       await supabase
         .from('expenses')
         .update({ payment_reference: batchId, payment_status: 'pending' })
         .eq('id', expense.id);
 
-      // Notify approvers that a payment batch needs review.
+      // The expense itself is already approved (we wouldn't be here otherwise).
+      // The Pay button is the operator's signal to dispatch — auto-approve the
+      // batch so they don't have to click Approve again.  The RPC enforces the
+      // caller's transfer cap and routes to pending_second_approval if the
+      // amount exceeds the caller's co-approval threshold, so we still get
+      // dual-approval safety on high-value payments.
+      let postApproveStatus: string = 'pending_approval';
+      try {
+        const updated = await approvePaymentBatch(batchId);
+        postApproveStatus = (updated as any)?.status || 'approved';
+      } catch (rpcErr: any) {
+        // Cap-blocked or pool-eligibility error → batch stays in pending_approval.
+        // Surface the reason; the operator can ask a Super Admin to raise their cap.
+        toast({
+          title: 'Auto-approve blocked',
+          description: rpcErr?.message || 'Caps or eligibility prevented auto-approval. Batch left pending for manual approval.',
+          variant: 'destructive',
+        });
+      }
+
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
         type: 'batch_submitted',
         module: 'payments',
-        priority: 'high',
-        title: 'Expense payment batch awaiting approval',
+        priority: postApproveStatus === 'pending_second_approval' ? 'high' : 'normal',
+        title: postApproveStatus === 'pending_second_approval'
+          ? 'Expense payment awaiting second approval'
+          : postApproveStatus === 'approved'
+            ? 'Expense payment approved — fund + process'
+            : 'Expense payment batch awaiting approval',
         body: `${batchName} — ${formatNaira(Number(expense.amount_ngn))}`,
       });
 
       await logAudit(
         'expense_payment_batched',
-        `Expense payment batched (awaiting approval) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
+        `Expense payment dispatched (status: ${postApproveStatus}) — ${expense.account_name} — ${formatNaira(Number(expense.amount_ngn))}`,
         profile,
       );
 
       toast({
-        title: 'Payment batch created',
-        description: `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
+        title:
+          postApproveStatus === 'approved' ? 'Payment ready'
+          : postApproveStatus === 'pending_second_approval' ? 'Awaiting second approval'
+          : 'Payment batch created',
+        description:
+          postApproveStatus === 'approved'
+            ? `${formatNaira(Number(expense.amount_ngn))} approved. Open the batch to fund and process.`
+            : postApproveStatus === 'pending_second_approval'
+              ? `${formatNaira(Number(expense.amount_ngn))} exceeds your co-approval threshold. A second approver must confirm.`
+              : `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
       });
     } catch (err: any) {
       if (batchId) {

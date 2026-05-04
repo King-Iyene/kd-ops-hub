@@ -823,7 +823,7 @@ const EmployeeProfile = () => {
             {`Advances (${advances.filter((a) => a.status === 'active').length})`}
           </button>
         )}
-        {isSuperAdmin && (
+        {canManage && (
           <button
             onClick={() => setActiveTab('permissions')}
             className={cn(
@@ -2281,7 +2281,7 @@ const EmployeeProfile = () => {
           )}
         </div>
       )}
-      {activeTab === 'permissions' && isSuperAdmin && (
+      {activeTab === 'permissions' && canManage && (
         <div className="mt-4">
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">

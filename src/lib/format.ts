@@ -91,6 +91,42 @@ export const formatNairaCompact = (amount: number | null | undefined): string =>
   return `₦${n.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 };
 
+/**
+ * Receipt-grade timestamp matching CBN/NIBSS practice for transfer
+ * confirmations: weekday, day, month, year, 12-hour clock with seconds and
+ * timezone. Example: "Sunday, 4 May 2026 · 7:44:23 PM (WAT)".
+ */
+export const formatReceiptDateTime = (
+  date: string | Date | null | undefined,
+): string => {
+  if (!date) return '—';
+  try {
+    const tz = getTimezone();
+    const d = new Date(date);
+    const dateParts = new Intl.DateTimeFormat('en-NG', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: tz,
+    }).format(d);
+    const timeParts = new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: tz,
+    }).format(d);
+    const tzAbbr = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      timeZoneName: 'short',
+    }).formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? '';
+    return tzAbbr ? `${dateParts} · ${timeParts} (${tzAbbr})` : `${dateParts} · ${timeParts}`;
+  } catch {
+    return '—';
+  }
+};
+
 /** ISO yyyy-mm-dd, accepting Date or ISO string; used when writing to the DB. */
 export const toIsoDate = (d: Date | string): string => {
   const date = typeof d === 'string' ? new Date(d) : d;
