@@ -154,6 +154,10 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Declared here so both the success and error paths can reference them.
+  let intentAuditId: string | null = null;
+  let serviceClientRef: any = null;
+
   try {
     const hasEnvSecret = !!Deno.env.get("PAYSTACK_SECRET_KEY");
     const hasAuth = !!req.headers.get("Authorization");
@@ -232,6 +236,7 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    serviceClientRef = serviceClient;
     let actorRole: string | null = null;
     const ipHash = await sha256Hex(getClientIp(req));
     const userAgent = req.headers.get("user-agent") ?? null;
@@ -282,14 +287,23 @@ serve(async (req) => {
       }
 
       if (amountNgn > 0) {
+        // B-5: pass p_intent=true so the RPC reserves an 'intent' audit row
+        // that counts against rolling caps for any concurrent requests.
         const { data: capRows, error: capErr } = await serviceClient.rpc(
           "check_transfer_caps",
-          { p_user_id: user.id, p_amount_ngn: amountNgn },
+          {
+            p_user_id: user.id,
+            p_amount_ngn: amountNgn,
+            p_intent: true,
+            p_action: action,
+            p_check_batch_cap: action === "bulk_transfer",
+            p_ip_hash: ipHash,
+            p_user_agent: userAgent,
+          },
         );
         const cap = Array.isArray(capRows) ? capRows[0] : capRows;
         if (capErr) {
           console.error("[caps] check_transfer_caps failed:", capErr);
-          // Fail closed for cap-enforced actions when the check itself errors.
           await writeTransferAudit(serviceClient, {
             actor_id: user.id,
             actor_role: actorRole,
@@ -306,6 +320,7 @@ serve(async (req) => {
           );
         }
         if (cap && cap.allowed === false) {
+          // Cap denied: no intent row was inserted (only inserted on allowed=true).
           await writeTransferAudit(serviceClient, {
             actor_id: user.id,
             actor_role: actorRole,
@@ -328,6 +343,8 @@ serve(async (req) => {
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
+        // Store intent row id so we can update it to 'ok' or 'error' after dispatch.
+        intentAuditId = cap?.intent_audit_id ?? null;
       }
     }
 
@@ -496,18 +513,31 @@ serve(async (req) => {
         );
     }
 
-    // Audit successful money-moving actions. Amount, recipient, and reference
-    // are pulled from the inbound params so we capture intent even if the
-    // Paystack response shape changes.
-    if (CAP_ENFORCED_ACTIONS.has(action)) {
+    // B-5: Update the intent audit row to 'ok' with final Paystack metadata.
+    // This avoids a duplicate INSERT and keeps cap accounting accurate.
+    if (CAP_ENFORCED_ACTIONS.has(action) && intentAuditId) {
+      const recipientCount = Array.isArray(params.transfers) ? params.transfers.length : 1;
+      try {
+        await serviceClient.from("transfer_audit").update({
+          outcome: "ok",
+          recipient_code: action === "initiate_transfer" ? params.recipient_code ?? null : null,
+          reference: action === "initiate_transfer" ? params.reference ?? null : null,
+          metadata: {
+            recipient_count: recipientCount,
+            recovered: (result as any)?.recovered ?? false,
+            paystack_status: (result as any)?.status ?? null,
+          },
+        }).eq("id", intentAuditId);
+      } catch (auditErr) {
+        console.error("[transfer_audit] intent update failed:", String(auditErr));
+      }
+    } else if (CAP_ENFORCED_ACTIONS.has(action) && !intentAuditId) {
+      // No intent row (amount was 0 or p_intent was not set) — fall back to INSERT.
       const amountNgn = action === "initiate_transfer"
         ? Number(params.amount_ngn ?? 0)
         : (Array.isArray(params.transfers) ? params.transfers : []).reduce(
             (s: number, t: any) => s + (Number(t.amount ?? 0) / 100), 0,
           );
-      const recipientCount = Array.isArray(params.transfers)
-        ? params.transfers.length
-        : 1;
       await writeTransferAudit(serviceClient, {
         actor_id: user.id,
         actor_role: actorRole,
@@ -519,7 +549,7 @@ serve(async (req) => {
         ip_hash: ipHash,
         user_agent: userAgent,
         metadata: {
-          recipient_count: recipientCount,
+          recipient_count: Array.isArray(params.transfers) ? params.transfers.length : 1,
           recovered: (result as any)?.recovered ?? false,
           paystack_status: (result as any)?.status ?? null,
         },
@@ -531,24 +561,25 @@ serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // Best-effort error audit for any cap-enforced action that errored mid-flight.
     try {
-      const reqClone = await Promise.resolve(); // no-op, kept for clarity
-      void reqClone;
-    } catch { /* ignore */ }
-    try {
-      const errClient = createClient(
+      const errClient = serviceClientRef ?? createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
-      // We don't have access to user/actor here without re-parsing; record
-      // a low-detail error row so admins see something failed at this layer.
-      await errClient.from("transfer_audit").insert({
-        action: "edge_error",
-        outcome: "error",
-        reason: message.slice(0, 500),
-        metadata: {},
-      });
+      if (intentAuditId) {
+        // B-5: flip the intent row to 'error' so it stops counting against rolling caps.
+        await errClient.from("transfer_audit").update({
+          outcome: "error",
+          reason: message.slice(0, 500),
+        }).eq("id", intentAuditId);
+      } else {
+        await errClient.from("transfer_audit").insert({
+          action: "edge_error",
+          outcome: "error",
+          reason: message.slice(0, 500),
+          metadata: {},
+        });
+      }
     } catch { /* swallow */ }
     return new Response(JSON.stringify({ ok: false, error: message }), {
       status: 500,
