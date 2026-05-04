@@ -304,10 +304,12 @@ export interface PaymentBatchRow {
 
 export async function approvePaymentBatch(
   batchId: string,
+  stepUpToken: string,
   idempotencyKey?: string
 ): Promise<PaymentBatchRow> {
   const { data, error } = await supabase.rpc('approve_payment_batch', {
-    p_batch_id: batchId,
+    p_batch_id:       batchId,
+    p_step_up_token:  stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -316,10 +318,12 @@ export async function approvePaymentBatch(
 
 export async function confirmSecondApproval(
   batchId: string,
+  stepUpToken: string,
   idempotencyKey?: string
 ): Promise<PaymentBatchRow> {
   const { data, error } = await supabase.rpc('confirm_second_approval', {
-    p_batch_id: batchId,
+    p_batch_id:       batchId,
+    p_step_up_token:  stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -328,11 +332,13 @@ export async function confirmSecondApproval(
 
 export async function rejectPaymentBatch(
   batchId: string,
+  stepUpToken: string,
   reason: string
 ): Promise<PaymentBatchRow> {
   const { data, error } = await supabase.rpc('reject_payment_batch', {
-    p_batch_id: batchId,
-    p_reason: reason,
+    p_batch_id:      batchId,
+    p_step_up_token: stepUpToken,
+    p_reason:        reason,
   });
   if (error) throw error;
   return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
@@ -368,10 +374,12 @@ export interface ExpenseRow {
 
 export async function approveExpense(
   expenseId: string,
+  stepUpToken: string,
   idempotencyKey?: string
 ): Promise<ExpenseRow> {
   const { data, error } = await supabase.rpc('approve_expense', {
-    p_expense_id: expenseId,
+    p_expense_id:      expenseId,
+    p_step_up_token:   stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -380,10 +388,12 @@ export async function approveExpense(
 
 export async function confirmSecondExpenseApproval(
   expenseId: string,
+  stepUpToken: string,
   idempotencyKey?: string
 ): Promise<ExpenseRow> {
   const { data, error } = await supabase.rpc('confirm_second_expense_approval', {
-    p_expense_id: expenseId,
+    p_expense_id:      expenseId,
+    p_step_up_token:   stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -392,11 +402,13 @@ export async function confirmSecondExpenseApproval(
 
 export async function rejectExpense(
   expenseId: string,
+  stepUpToken: string,
   reason: string
 ): Promise<ExpenseRow> {
   const { data, error } = await supabase.rpc('reject_expense', {
-    p_expense_id: expenseId,
-    p_reason: reason,
+    p_expense_id:    expenseId,
+    p_step_up_token: stepUpToken,
+    p_reason:        reason,
   });
   if (error) throw error;
   return (Array.isArray(data) ? data[0] : data) as ExpenseRow;

@@ -80,6 +80,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
+import { ApprovalConfirmModal, type ApprovalConfirmModalProps } from '@/components/ApprovalConfirmModal';
 
 type Kind = 'batch' | 'expense' | 'fuel' | 'budget' | 'leave';
 
@@ -160,6 +161,9 @@ const Approvals = () => {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'all' | Kind>('all');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [stepUpConfig, setStepUpConfig] = useState<Pick<
+    ApprovalConfirmModalProps, 'purpose' | 'resourceId' | 'description' | 'confirmLabel' | 'onConfirm'
+  > | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -386,51 +390,53 @@ const Approvals = () => {
     }
     setActioning(it.id);
     try {
-      if (it.kind === 'batch') {
-        const isSecond = (it.raw?.status as string) === 'pending_second_approval';
-        const result = isSecond
-          ? await confirmSecondApproval(rawId(it.id))
-          : await approvePaymentBatch(rawId(it.id));
-        await logAudit(
-          isSecond ? 'batch_second_approved' : (result?.status === 'pending_second_approval' ? 'batch_first_approved' : 'batch_approved'),
-          describeApprove(it),
-          profile,
-        );
-        toast({
-          title: isSecond
-            ? 'Batch fully approved'
-            : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
-          description: result?.status === 'pending_second_approval'
-            ? 'A second approver must confirm this batch before it can proceed.'
-            : undefined,
-        });
-        await fetchAll();
-        refreshCounts();
-        setSelected((prev) => {
-          const next = new Set(prev);
-          next.delete(it.id);
-          return next;
-        });
-        return;
-      }
-
-      if (it.kind === 'expense') {
-        const isSecond = (it.raw?.status as string) === 'pending_second_approval';
-        const result = isSecond
-          ? await confirmSecondExpenseApproval(rawId(it.id))
-          : await approveExpense(rawId(it.id));
-        await logAudit('expense_approved', describeApprove(it), profile);
-        toast({
-          title: isSecond
-            ? 'Expense fully approved'
-            : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
-        });
-        await fetchAll();
-        refreshCounts();
-        setSelected((prev) => {
-          const next = new Set(prev);
-          next.delete(it.id);
-          return next;
+      // Batches and expenses require step-up — open the modal instead of calling RPC directly.
+      if (it.kind === 'batch' || it.kind === 'expense') {
+        const isBatch   = it.kind === 'batch';
+        const isSecond  = (it.raw?.status as string) === 'pending_second_approval';
+        const rid       = rawId(it.id);
+        setActioning(null); // release spinner while modal is open
+        setStepUpConfig({
+          purpose:     isBatch ? 'approve_batch' : 'approve_expense',
+          resourceId:  rid,
+          description: `${isSecond ? 'Second approval' : 'Approve'}: ${it.title}${it.amount ? ` — ${formatNaira(it.amount)}` : ''}`,
+          confirmLabel: isSecond ? 'Confirm Second Approval' : 'Approve',
+          onConfirm: async (token) => {
+            setActioning(it.id);
+            try {
+              if (isBatch) {
+                const result = isSecond
+                  ? await confirmSecondApproval(rid, token)
+                  : await approvePaymentBatch(rid, token);
+                await logAudit(
+                  isSecond ? 'batch_second_approved' : (result?.status === 'pending_second_approval' ? 'batch_first_approved' : 'batch_approved'),
+                  describeApprove(it), profile,
+                );
+                toast({
+                  title: isSecond ? 'Batch fully approved'
+                    : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
+                  description: result?.status === 'pending_second_approval'
+                    ? 'A second approver must confirm this batch.' : undefined,
+                });
+              } else {
+                const result = isSecond
+                  ? await confirmSecondExpenseApproval(rid, token)
+                  : await approveExpense(rid, token);
+                await logAudit('expense_approved', describeApprove(it), profile);
+                toast({
+                  title: isSecond ? 'Expense fully approved'
+                    : (result?.status === 'pending_second_approval' ? 'First approval recorded' : 'Approved'),
+                });
+              }
+              await fetchAll();
+              refreshCounts();
+              setSelected((prev) => { const n = new Set(prev); n.delete(it.id); return n; });
+            } catch (err: any) {
+              toast({ title: 'Approval failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+            } finally {
+              setActioning(null);
+            }
+          },
         });
         return;
       }
@@ -481,8 +487,13 @@ const Approvals = () => {
           expenseId = (inserted as any)?.id;
         }
         if (expenseId && (existing as any)?.status !== 'approved') {
-          try { await approveExpense(expenseId); }
-          catch (err: any) { expErr = { message: err?.message || 'approve_expense failed' }; }
+          // approve_expense RPC now requires a step-up token; use a direct
+          // status update for the side-effect expense created by fuel approval.
+          const { error: approveErr } = await supabase
+            .from('expenses')
+            .update({ status: 'approved' })
+            .eq('id', expenseId);
+          if (approveErr) expErr = { message: approveErr.message };
         }
         if (expErr) {
           toast({
@@ -554,7 +565,8 @@ const Approvals = () => {
     }
   };
 
-  // Rejection now funnels through a reason dialog — mandatory everywhere.
+  // Fuel / budget / leave rejections use a simple reason dialog.
+  // Batch and expense rejections go through ApprovalConfirmModal (step-up).
   const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -567,6 +579,50 @@ const Approvals = () => {
       });
       return;
     }
+
+    if (it.kind === 'batch' || it.kind === 'expense') {
+      const isBatch = it.kind === 'batch';
+      const rid = rawId(it.id);
+      setStepUpConfig({
+        purpose: isBatch ? 'reject_batch' : 'reject_expense',
+        resourceId: rid,
+        description: `Reject: ${it.title}${it.amount ? ` — ${formatNaira(it.amount)}` : ''}`,
+        confirmLabel: 'Reject',
+        onConfirm: async (token, reason) => {
+          setActioning(it.id);
+          try {
+            if (isBatch) {
+              await rejectPaymentBatch(rid, token, reason!);
+            } else {
+              await rejectExpense(rid, token, reason!);
+            }
+            const submitterId = isBatch ? it.raw?.created_by : it.raw?.submitted_by;
+            const kindLabel = isBatch ? 'payment batch' : 'expense';
+            await writeRejectionNotification({
+              entity: it.kind,
+              entityLabel: kindLabel,
+              amount: it.amount,
+              reason: reason!,
+              submitterId: submitterId || null,
+              actor: profile,
+              auditType: AUDIT_REJECT[it.kind],
+              auditDescription: `${describeReject(it)} — ${reason!}`,
+            });
+            toast({ title: 'Rejected with reason' });
+            await fetchAll();
+            refreshCounts();
+            setSelected((prev) => { const n = new Set(prev); n.delete(it.id); return n; });
+          } catch (err: any) {
+            toast({ title: 'Rejection failed', description: err?.message || 'Please try again.', variant: 'destructive' });
+          } finally {
+            setActioning(null);
+          }
+        },
+      });
+      return;
+    }
+
+    // Fuel / budget / leave — legacy reason dialog.
     setRejectTarget(it);
     setRejectReason('');
   };
@@ -580,25 +636,14 @@ const Approvals = () => {
     const it = rejectTarget;
     setActioning(it.id);
     try {
-      // Batches and expenses must go through the RPC so the reject can clear
-      // approval state and write the matching transfer_audit row. Fuel /
-      // budget / leave still use the legacy direct-update path.
-      if (it.kind === 'batch') {
-        await rejectPaymentBatch(rawId(it.id), rejectReason.trim());
-      } else if (it.kind === 'expense') {
-        await rejectExpense(rawId(it.id), rejectReason.trim());
-      } else {
-        const patch: any = { status: PENDING_STATUS[it.kind].reject };
-        patch.rejection_reason = rejectReason.trim();
-        const { error } = await supabase
-          .from(TABLES[it.kind])
-          .update(patch)
-          .eq('id', rawId(it.id));
-        if (error) throw error;
-      }
+      const patch: any = { status: PENDING_STATUS[it.kind].reject };
+      patch.rejection_reason = rejectReason.trim();
+      const { error } = await supabase
+        .from(TABLES[it.kind])
+        .update(patch)
+        .eq('id', rawId(it.id));
+      if (error) throw error;
 
-      // If a fuel request is rejected, also mark the paired expense row
-      // as rejected so finance no longer sees it as actionable.
       if (it.kind === 'fuel') {
         await supabase
           .from('expenses')
@@ -606,30 +651,21 @@ const Approvals = () => {
           .eq('fuel_request_id', rawId(it.id));
       }
 
-      // Figure out submitter for notification.
       const submitterId =
-        it.kind === 'batch'
-          ? it.raw?.created_by
-          : it.kind === 'expense'
-          ? it.raw?.submitted_by
-          : it.kind === 'fuel'
+        it.kind === 'fuel'
           ? it.raw?.driver_id
           : it.kind === 'budget'
           ? it.raw?.created_by
           : it.raw?.employee_id;
 
-      // Map each kind to a human-friendly label so the recipient sees
-      // "Your fuel request was rejected" instead of "Your fuel was rejected".
-      const KIND_LABELS: Record<string, string> = {
-        batch: 'payment batch',
-        expense: 'expense',
+      const KIND_LABELS_LEGACY: Record<string, string> = {
         fuel: 'fuel request',
         budget: 'budget',
         leave: 'leave request',
       };
       await writeRejectionNotification({
         entity: it.kind,
-        entityLabel: KIND_LABELS[it.kind] || it.kind,
+        entityLabel: KIND_LABELS_LEGACY[it.kind] || it.kind,
         amount: it.amount,
         reason: rejectReason.trim(),
         submitterId: submitterId || null,
@@ -685,33 +721,25 @@ const Approvals = () => {
     try {
       for (const it of rows) {
         try {
-          if (it.kind === 'batch') {
-            const isSecond = (it.raw?.status as string) === 'pending_second_approval';
-            if (isSecond) await confirmSecondApproval(rawId(it.id));
-            else          await approvePaymentBatch(rawId(it.id));
-            await logAudit(
-              isSecond ? 'batch_second_approved' : 'batch_approved',
-              describeApprove(it),
-              profile,
-            );
-            succeeded++;
-          } else if (it.kind === 'expense') {
-            const isSecond = (it.raw?.status as string) === 'pending_second_approval';
-            if (isSecond) await confirmSecondExpenseApproval(rawId(it.id));
-            else          await approveExpense(rawId(it.id));
-            await logAudit('expense_approved', describeApprove(it), profile);
-            succeeded++;
-          } else {
-            const update: any = { status: PENDING_STATUS[it.kind].approve };
-            if (it.kind === 'budget') update.approved_by = profile?.id;
-            const { error } = await supabase
-              .from(TABLES[it.kind])
-              .update(update)
-              .eq('id', rawId(it.id));
-            if (error) throw error;
-            await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
-            succeeded++;
+          // Batches and expenses each require their own step-up token bound
+          // to that specific resource; bulk approval cannot satisfy this.
+          // The user must approve them individually from the queue.
+          if (it.kind === 'batch' || it.kind === 'expense') {
+            failures.push({
+              title: it.title,
+              reason: 'Requires individual authentication — approve separately',
+            });
+            continue;
           }
+          const update: any = { status: PENDING_STATUS[it.kind].approve };
+          if (it.kind === 'budget') update.approved_by = profile?.id;
+          const { error } = await supabase
+            .from(TABLES[it.kind])
+            .update(update)
+            .eq('id', rawId(it.id));
+          if (error) throw error;
+          await logAudit(AUDIT_APPROVE[it.kind], describeApprove(it), profile);
+          succeeded++;
         } catch (err: any) {
           failures.push({
             title: it.title,
@@ -1167,6 +1195,7 @@ const Approvals = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Fuel / budget / leave rejection — simple reason dialog (no step-up) */}
       <Dialog
         open={!!rejectTarget}
         onOpenChange={(v) => {
@@ -1179,7 +1208,7 @@ const Approvals = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Reject {rejectTarget?.kind === 'batch' ? 'batch' : rejectTarget?.kind || 'item'}
+              Reject {rejectTarget?.kind || 'item'}
             </DialogTitle>
             <DialogDescription>
               Reason is required. The submitter is notified with this note so
@@ -1189,7 +1218,7 @@ const Approvals = () => {
           <Textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="e.g. Bank details don't match invoice — please re-verify."
+            placeholder="e.g. Budget exceeded for this category — please resubmit next cycle."
             rows={3}
           />
           <DialogFooter>
@@ -1206,6 +1235,19 @@ const Approvals = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Step-up modal for batch / expense approve & reject */}
+      {stepUpConfig && (
+        <ApprovalConfirmModal
+          open={!!stepUpConfig}
+          onOpenChange={(v) => { if (!v) setStepUpConfig(null); }}
+          purpose={stepUpConfig.purpose}
+          resourceId={stepUpConfig.resourceId}
+          description={stepUpConfig.description}
+          confirmLabel={stepUpConfig.confirmLabel}
+          onConfirm={stepUpConfig.onConfirm}
+        />
+      )}
 
       <AlertDialog open={!!bulkApproveConfirm} onOpenChange={(v) => { if (!v) setBulkApproveConfirm(null); }}>
         <AlertDialogContent>

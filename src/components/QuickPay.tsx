@@ -17,6 +17,8 @@ import {
   previewCapCheck,
   startBatchProcessing,
 } from '@/lib/transfer-safety';
+import { consumeStepUpToken } from '@/lib/step-up';
+import { ApprovalConfirmModal } from '@/components/ApprovalConfirmModal';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -59,7 +61,9 @@ export function QuickPayDialog() {
     amount: '',
     description: '',
   });
+  const [showStepUp, setShowStepUp] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [stepUpToken, setStepUpToken] = useState<string | null>(null);
   const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
   const [coThreshold, setCoThreshold] = useState<number | null>(null);
 
@@ -103,12 +107,15 @@ export function QuickPayDialog() {
     setBank(emptyBank);
     setForm({ amount: '', description: '' });
     setResult(null);
+    setStepUpToken(null);
+    setShowStepUp(false);
+    setShowConfirm(false);
   };
 
   const amountNum = parseFloat(form.amount) || 0;
   const willRequireCoApproval = isCoApprovalRequired(coThreshold, amountNum);
 
-  /** Operator clicked "Send" — open the pre-flight confirmation modal. */
+  /** Operator clicked "Send" — step-up auth first, then the summary modal. */
   const handlePay = () => {
     if (!bank.verified) {
       toast({ title: 'Verify bank account first', variant: 'destructive' });
@@ -119,14 +126,23 @@ export function QuickPayDialog() {
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
       return;
     }
-    setShowConfirm(true);
+    setShowStepUp(true);
   };
 
   const executePay = async (customNarration?: string) => {
     setShowConfirm(false);
+    const token = stepUpToken;
+    setStepUpToken(null);
     const amount = parseFloat(form.amount);
     setProcessing(true);
     try {
+      // Consume the step-up token before any funds move. This is a single-use
+      // token bound to purpose='quick_pay'; consuming it here prevents replay.
+      if (token) {
+        const ok = await consumeStepUpToken({ token, purpose: 'quick_pay', resourceId: null });
+        if (!ok) throw new Error('Step-up token expired or already used. Please try again.');
+      }
+
       // Server-enforced cap preview. The edge fn re-checks this, but failing
       // fast in the UI means the user doesn't see a generic Paystack error
       // when the real reason is "your daily cap is blown".
@@ -431,6 +447,22 @@ export function QuickPayDialog() {
         )}
       </ResponsiveDialog>
 
+      {/* Step 1: re-authenticate before the payment summary is shown. */}
+      <ApprovalConfirmModal
+        open={showStepUp}
+        onOpenChange={(v) => { if (!v) setShowStepUp(false); }}
+        purpose="quick_pay"
+        resourceId={null}
+        description={`Quick Pay: ${formatNaira(parseFloat(form.amount) || 0)} to ${bank.account_name || bank.account_number || 'recipient'}`}
+        confirmLabel={willRequireCoApproval ? 'Submit for Approval' : 'Continue to Confirm'}
+        onConfirm={(token) => {
+          setStepUpToken(token);
+          setShowStepUp(false);
+          setShowConfirm(true);
+        }}
+      />
+
+      {/* Step 2: narration / pre-flight summary. */}
       <PaymentSummaryModal
         open={showConfirm}
         onOpenChange={setShowConfirm}
