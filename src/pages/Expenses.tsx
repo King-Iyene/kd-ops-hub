@@ -37,7 +37,7 @@ import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
-import { writeRejectionNotification } from '@/lib/rejections';
+import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import {
   approveExpense,
@@ -55,6 +55,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -103,7 +104,6 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
-import { ApprovalConfirmModal, type ApprovalConfirmModalProps } from '@/components/ApprovalConfirmModal';
 
 const CATEGORIES = EXPENSE_CATEGORY_KEYS;
 
@@ -192,6 +192,8 @@ const Expenses = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const [form, setForm] = useState({
     category: 'other',
@@ -209,10 +211,8 @@ const Expenses = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
   const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<Expense | null>(null);
-  const [stepUpConfig, setStepUpConfig] = useState<Pick<
-    ApprovalConfirmModalProps, 'purpose' | 'resourceId' | 'description' | 'confirmLabel' | 'onConfirm'
-  > | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -587,6 +587,9 @@ const Expenses = () => {
 
   const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
 
+  const [rejectingExpense, setRejectingExpense] = useState<Expense | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
   // When an expense is linked to a fuel request, keep the fuel_request row
   // in sync so the Approvals module and Fleet page reflect the real state.
   const syncFuelRequest = async (
@@ -598,12 +601,16 @@ const Expenses = () => {
   };
 
   /**
-   * Approve or reject an expense. Both paths now require step-up authentication
-   * (password + TOTP) via ApprovalConfirmModal, which calls the SECURITY DEFINER
-   * RPCs that enforce no-self-approval, role pools, caps, and dual-approval
-   * thresholds.
+   * Approve / reject an expense. All approval state changes go through the
+   * SECURITY DEFINER RPCs which enforce no-self-approval, role pools, transfer
+   * caps, and the dual-approval threshold. The legacy direct-status-write
+   * path was removed in the approval framework migration — direct writes are
+   * now refused by trigger.
    */
-  const handleAction = (expense: Expense, status: 'approved' | 'rejected') => {
+  const handleAction = async (
+    expense: Expense,
+    status: 'approved' | 'rejected',
+  ) => {
     if (!isApprover) {
       toast({
         title: 'Not authorized',
@@ -612,70 +619,102 @@ const Expenses = () => {
       });
       return;
     }
+    if (status === 'rejected') {
+      setRejectingExpense(expense);
+      setRejectReason('');
+      return;
+    }
 
     const amountNgn = Number(expense.amount_ngn || 0);
     const cat = expense.category.replace(/_/g, ' ');
     const amtStr = formatNaira(amountNgn);
-    const isSecond = expense.status === 'pending_second_approval';
 
-    if (status === 'approved') {
-      setStepUpConfig({
-        purpose: 'approve_expense',
-        resourceId: expense.id,
-        description: `${isSecond ? 'Second approval' : 'Approve'}: ${cat} — ${amtStr}`,
-        confirmLabel: isSecond ? 'Confirm Second Approval' : 'Approve',
-        onConfirm: async (token) => {
-          try {
-            const result = isSecond
-              ? await confirmSecondExpenseApproval(expense.id, token)
-              : await approveExpense(expense.id, token);
-            if (result?.status === 'pending_second_approval') {
-              await logAudit('expense_first_approval', `First approval for high-value expense: ${cat} — ${amtStr}`, profile);
-              toast({ title: 'First approval recorded', description: 'A second approver must confirm this expense.' });
-              await notifyRoles({ roles: ['super_admin', 'admin', 'finance'], type: 'expense_needs_second_approval', module: 'expenses', title: 'High-value expense awaiting second approval', body: `${cat} — ${amtStr}` });
-            } else {
-              await logAudit('expense_approved', isSecond ? `Expense fully approved (2nd): ${cat} — ${amtStr}` : `Expense approved: ${cat} — ${amtStr}`, profile);
-              await syncFuelRequest(expense.fuel_request_id, 'approved');
-              if (expense.submitted_by) {
-                await notifyUser({ userId: expense.submitted_by, type: 'expense_approved', module: 'expenses', title: 'Your expense was approved', body: `${cat} — ${amtStr}` });
-              }
-              burst({ palette: 'success', count: isSecond ? 50 : 40 });
-              toast({ title: isSecond ? 'Expense fully approved' : 'Expense approved' });
-            }
-            fetchData();
-          } catch (err: any) {
-            toast({ title: 'Approval failed', description: err?.message || 'Please try again.', variant: 'destructive' });
-          }
-        },
-      });
-    } else {
-      setStepUpConfig({
-        purpose: 'reject_expense',
-        resourceId: expense.id,
-        description: `Reject: ${cat} — ${amtStr}`,
-        confirmLabel: 'Reject',
-        onConfirm: async (token, reason) => {
-          try {
-            await rejectExpense(expense.id, token, reason!);
-            await syncFuelRequest(expense.fuel_request_id, 'rejected');
-            await writeRejectionNotification({
-              entity: 'expense',
-              entityLabel: 'expense',
-              amount: expense.amount_ngn,
-              reason: reason!,
-              submitterId: expense.submitted_by || null,
-              actor: profile,
-              auditType: 'expense_rejected',
-              auditDescription: `Expense rejected: ${expense.category} — ${amtStr} — ${reason!}`,
-            });
-            toast({ title: 'Expense rejected' });
-            fetchData();
-          } catch (err: any) {
-            toast({ title: 'Reject failed', description: err?.message || 'Please try again.', variant: 'destructive' });
-          }
-        },
+    try {
+      const isSecond = expense.status === 'pending_second_approval';
+      const result = isSecond
+        ? await confirmSecondExpenseApproval(expense.id)
+        : await approveExpense(expense.id);
+
+      if (result?.status === 'pending_second_approval') {
+        await logAudit(
+          'expense_first_approval',
+          `First approval for high-value expense: ${cat} — ${amtStr}`,
+          profile,
+        );
+        toast({
+          title: 'First approval recorded',
+          description: 'A second approver must confirm this expense.',
+        });
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'expense_needs_second_approval',
+          module: 'expenses',
+          title: 'High-value expense awaiting second approval',
+          body: `${cat} — ${amtStr}`,
+        });
+      } else {
+        await logAudit(
+          'expense_approved',
+          isSecond
+            ? `Expense fully approved (2nd approval): ${cat} — ${amtStr}`
+            : `Expense approved: ${cat} — ${amtStr}`,
+          profile,
+        );
+        await syncFuelRequest(expense.fuel_request_id, 'approved');
+        if (expense.submitted_by) {
+          await notifyUser({
+            userId: expense.submitted_by,
+            type: 'expense_approved',
+            module: 'expenses',
+            title: 'Your expense was approved',
+            body: `${cat} — ${amtStr}`,
+          });
+        }
+        burst({ palette: 'success', count: isSecond ? 50 : 40 });
+        toast({ title: isSecond ? 'Expense fully approved' : 'Expense approved' });
+      }
+      fetchData();
+    } catch (err: any) {
+      toast({
+        title: 'Approval failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
       });
     }
+  };
+
+  const doReject = async () => {
+    if (!rejectingExpense) return;
+    if (!isValidRejectionReason(rejectReason)) {
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
+      return;
+    }
+    const e = rejectingExpense;
+    try {
+      await rejectExpense(e.id, rejectReason.trim());
+    } catch (err: any) {
+      toast({
+        title: 'Reject failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    await syncFuelRequest(e.fuel_request_id, 'rejected');
+    await writeRejectionNotification({
+      entity: 'expense',
+      entityLabel: 'expense',
+      amount: e.amount_ngn,
+      reason: rejectReason.trim(),
+      submitterId: e.submitted_by || null,
+      actor: profile,
+      auditType: 'expense_rejected',
+      auditDescription: `Expense rejected: ${e.category} — ${formatNaira(e.amount_ngn || 0)} — ${rejectReason.trim()}`,
+    });
+    toast({ title: 'Expense rejected' });
+    setRejectingExpense(null);
+    setRejectReason('');
+    fetchData();
   };
 
   /**
@@ -733,6 +772,103 @@ const Expenses = () => {
     fetchData();
   };
 
+  const bulkApproveAll = () => {
+    if (!isApprover) return;
+    const pending = expenses.filter((e) => e.status === 'pending');
+    if (pending.length === 0) return;
+    const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+    setBulkApproveConfirm({ count: pending.length, total });
+  };
+
+  /** Approve every pending expense in the table — one RPC call per row so a
+   *  single denial (cap blown, role mismatch) doesn't roll the whole bulk back. */
+  const doBulkApprove = async () => {
+    if (!bulkApproveConfirm) return;
+    setBulkApproveConfirm(null);
+    setBulkLoading(true);
+    const pending = expenses.filter((e) => e.status === 'pending');
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
+    try {
+      for (const e of pending) {
+        try {
+          await approveExpense(e.id);
+          succeeded++;
+          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+        } catch (err: any) {
+          failures.push({
+            title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
+            reason: err?.message || 'unknown',
+          });
+        }
+      }
+      const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+      await logAudit(
+        'bulk_approved',
+        `Bulk approved ${succeeded} of ${pending.length} expenses (${formatNaira(total)})`,
+        profile,
+      );
+      if (failures.length === 0) {
+        toast({
+          title: `Approved ${succeeded} expense${succeeded === 1 ? '' : 's'}`,
+          description: `${formatNaira(total)} total`,
+        });
+      } else {
+        toast({
+          title: `Approved ${succeeded} of ${pending.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
+      setSelected(new Set());
+      fetchData();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const bulkApproveSelected = async () => {
+    if (!isApprover) return;
+    const rows = expenses.filter((e) => selected.has(e.id) && e.status === 'pending');
+    if (rows.length === 0) return;
+    setBulkLoading(true);
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
+    try {
+      for (const e of rows) {
+        try {
+          await approveExpense(e.id);
+          succeeded++;
+          if (e.fuel_request_id) await syncFuelRequest(e.fuel_request_id, 'approved');
+        } catch (err: any) {
+          failures.push({
+            title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
+            reason: err?.message || 'unknown',
+          });
+        }
+      }
+      const total = rows.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+      await logAudit(
+        'bulk_approved',
+        `Bulk approved ${succeeded} of ${rows.length} selected expenses (${formatNaira(total)})`,
+        profile,
+      );
+      if (failures.length === 0) {
+        burst({ palette: 'success', count: 70 });
+        toast({ title: `Approved ${succeeded} selected` });
+      } else {
+        toast({
+          title: `Approved ${succeeded} of ${rows.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
+      setSelected(new Set());
+      fetchData();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
 
   // -- Filter / paginate ----------------------------------------------------
 
@@ -810,9 +946,33 @@ const Expenses = () => {
     return buckets;
   }, [expenses]);
 
-  // -- Stats ----------------------------------------------------------------
+  // -- Stats / selection ----------------------------------------------------
 
   const pendingCount = expenses.filter((e) => e.status === 'pending').length;
+  const visibleAllChecked =
+    pagination.slice.length > 0 &&
+    pagination.slice
+      .filter((r) => r.status === 'pending')
+      .every((r) => selected.has(r.id));
+
+  const toggleSelected = (id: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+
+  const toggleAllVisible = (on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const r of pagination.slice) {
+        if (r.status !== 'pending') continue;
+        if (on) next.add(r.id);
+        else next.delete(r.id);
+      }
+      return next;
+    });
 
   const exportCSV = () => {
     const approved = expenses.filter((e) => e.status === 'approved');
@@ -879,6 +1039,17 @@ const Expenses = () => {
               disabled={expenses.length === 0}
             >
               <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          )}
+          {isApprover && pendingCount > 0 && (
+            <Button
+              variant="outline"
+              onClick={bulkApproveAll}
+              disabled={bulkLoading}
+            >
+              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Check className="mr-2 h-4 w-4" />
+              Approve all pending ({pendingCount})
             </Button>
           )}
           <Button onClick={() => setShowForm(true)}>
@@ -952,6 +1123,18 @@ const Expenses = () => {
               ))}
             </SelectContent>
           </Select>
+          {isApprover && selected.size > 0 && (
+            <Button
+              size="sm"
+              onClick={bulkApproveSelected}
+              disabled={bulkLoading}
+              className="w-full sm:w-auto h-10 sm:h-9"
+            >
+              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Check className="mr-2 h-4 w-4" />
+              Approve {selected.size} selected
+            </Button>
+          )}
         </div>
 
         <CardContent className="p-0">
@@ -976,6 +1159,15 @@ const Expenses = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {isApprover && (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={visibleAllChecked}
+                          onCheckedChange={(v) => toggleAllVisible(Boolean(v))}
+                          aria-label="Select all pending on this page"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Date</TableHead>
@@ -993,6 +1185,19 @@ const Expenses = () => {
                       className="kd-transition cursor-pointer"
                       onClick={() => setDetailExpense(e)}
                     >
+                      {isApprover && (
+                        <TableCell>
+                          {e.status === 'pending' && (
+                            <Checkbox
+                              checked={selected.has(e.id)}
+                              onCheckedChange={(v) =>
+                                toggleSelected(e.id, Boolean(v))
+                              }
+                              aria-label={`Select ${e.category}`}
+                            />
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="capitalize font-medium">
                         <span className="inline-flex items-center gap-2">
                           {e.category === 'mileage' && (
@@ -1161,14 +1366,25 @@ const Expenses = () => {
                     : isApproved ? 'bg-emerald-500'
                     : isRejected ? 'bg-red-500'
                     : 'bg-muted-foreground';
+                  const isSelected = selected.has(e.id);
                   return (
                     <MobileCard
                       key={e.id}
                       onClick={() => setDetailExpense(e)}
                       accentClassName={accent}
+                      className={isSelected ? 'ring-2 ring-primary/40' : ''}
                     >
                       <MobileCardHeader>
                         <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {isApprover && isPending && (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(v) => toggleSelected(e.id, Boolean(v))}
+                              aria-label={`Select ${e.category}`}
+                              className="shrink-0"
+                              onClick={(evt) => evt.stopPropagation()}
+                            />
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 mb-0.5">
                               {e.category === 'mileage' && (
@@ -1612,18 +1828,43 @@ const Expenses = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Step-up modal for expense approve & reject */}
-      {stepUpConfig && (
-        <ApprovalConfirmModal
-          open={!!stepUpConfig}
-          onOpenChange={(v) => { if (!v) setStepUpConfig(null); }}
-          purpose={stepUpConfig.purpose}
-          resourceId={stepUpConfig.resourceId}
-          description={stepUpConfig.description}
-          confirmLabel={stepUpConfig.confirmLabel}
-          onConfirm={stepUpConfig.onConfirm}
-        />
-      )}
+      <Dialog
+        open={!!rejectingExpense}
+        onOpenChange={(v) => {
+          if (!v) {
+            setRejectingExpense(null);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject expense</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            The submitter will be notified with this reason. They'll see a
+            "Re-edit & Resubmit" button on the row.
+          </p>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason for rejection (required)"
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingExpense(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={doReject}
+              disabled={!isValidRejectionReason(rejectReason)}
+            >
+              Reject with reason
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!detailExpense} onOpenChange={(v) => { if (!v) setDetailExpense(null); }}>
         <DialogContent className="max-w-lg">
@@ -1709,6 +1950,23 @@ const Expenses = () => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!bulkApproveConfirm} onOpenChange={(open) => { if (!open) setBulkApproveConfirm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve all pending expenses?</DialogTitle>
+          </DialogHeader>
+          {bulkApproveConfirm && (
+            <p className="text-sm text-muted-foreground">
+              Approve {bulkApproveConfirm.count} expense claim{bulkApproveConfirm.count === 1 ? '' : 's'} totalling {formatNaira(bulkApproveConfirm.total)}? This cannot be undone.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
+            <Button onClick={doBulkApprove}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
