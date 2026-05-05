@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "next-themes";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import App from "./App.tsx";
 import "./index.css";
 
@@ -96,5 +97,6 @@ if (
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
     <App />
+    <SpeedInsights />
   </ThemeProvider>,
 );
