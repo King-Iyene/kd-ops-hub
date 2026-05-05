@@ -72,6 +72,7 @@ import {
   FileText,
   Trash2,
   CalendarClock,
+  Search,
 } from 'lucide-react';
 
 
@@ -479,6 +480,8 @@ const BatchDetail = () => {
   // Pre-flight cap + co-approval preview shown above the Approve button.
   const [capPreview, setCapPreview] = useState<{ allowed: boolean; reason: string | null; appliedKind: string | null; appliedLimit: number | null } | null>(null);
   const [coThreshold, setCoThreshold] = useState<number | null>(null);
+  const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'pending'>('all');
+  const [itemSearch, setItemSearch] = useState('');
 
   useEffect(() => {
     itemsRef.current = items;
@@ -1524,6 +1527,22 @@ const BatchDetail = () => {
   const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
+  const filteredItems = items.filter((i) => {
+    if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
+    if (itemFilter === 'failed' && i.status !== 'failed') return false;
+    if (itemFilter === 'pending' && (i.status === 'succeeded' || i.status === 'failed')) return false;
+    if (itemSearch) {
+      const s = itemSearch.toLowerCase();
+      return (
+        (i.full_name || '').toLowerCase().includes(s) ||
+        (i.bank_name || '').toLowerCase().includes(s) ||
+        (i.account_number || '').includes(s) ||
+        (i.paystack_reference || '').toLowerCase().includes(s)
+      );
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-5 max-w-5xl">
       {/* Breadcrumb */}
@@ -1939,9 +1958,59 @@ const BatchDetail = () => {
 
       <Card>
         <CardHeader className="border-b border-border/60 pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Beneficiaries</CardTitle>
-            <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'recipient' : 'recipients'}</span>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="text-sm font-semibold">
+              Beneficiaries
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {filteredItems.length === items.length
+                  ? `${items.length} ${items.length === 1 ? 'recipient' : 'recipients'}`
+                  : `${filteredItems.length} of ${items.length}`}
+              </span>
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status filter pills */}
+              <div className="flex gap-1">
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'succeeded', label: 'Completed' },
+                  { key: 'failed', label: 'Failed' },
+                  { key: 'pending', label: 'Pending' },
+                ] as const).map(({ key, label }) => {
+                  const count =
+                    key === 'all' ? items.length :
+                    key === 'succeeded' ? items.filter(i => i.status === 'succeeded').length :
+                    key === 'failed' ? items.filter(i => i.status === 'failed').length :
+                    items.filter(i => i.status !== 'succeeded' && i.status !== 'failed').length;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setItemFilter(key)}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                        itemFilter === key
+                          ? key === 'failed' ? 'bg-destructive text-destructive-foreground'
+                            : key === 'succeeded' ? 'bg-emerald-600 text-white'
+                            : 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                      )}
+                    >
+                      {label}
+                      {count > 0 && <span className="opacity-70">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="pl-7 h-7 text-xs w-36"
+                />
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -1961,7 +2030,14 @@ const BatchDetail = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                      No recipients match this filter.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filteredItems.map((item) => (
                   <TableRow
                     key={item.id}
                     className={item.status === 'failed' ? 'border-l-4 border-l-destructive bg-destructive/5 kd-transition' : 'kd-transition'}
