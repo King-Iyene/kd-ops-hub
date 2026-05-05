@@ -1,28 +1,34 @@
 -- =============================================================================
--- Fix hash-chain digest: replace digest(text, ...) with digest(convert_to(...))
+-- Fix hash-chain digest: schema-qualify pgcrypto + restore broken triggers
 --
--- pgcrypto's digest() requires bytea as the first argument, not text.
--- The previous migration (20260822000000) used text concatenation directly,
--- causing every INSERT into audit_logs to fail with:
---   ERROR 42883: function digest(text, unknown) does not exist
+-- Two related problems with the original 20260822000000 migration:
 --
--- That error propagated as HTTP 404 via PostgREST, breaking:
---   - approve_payment_batch (inserts an audit_logs row)
---   - PATCH /profiles (bank-change trigger inserts an audit_logs row)
---   - Any other action that calls log_audit
+-- 1. digest(text_concat, 'sha256')  — pgcrypto's digest() takes bytea, not
+--    text. Wrapping in convert_to(..., 'UTF8') was the right idea.
 --
--- This migration recreates both functions with convert_to(..., 'UTF8') and
--- re-chains any rows that were hashed incorrectly (or skipped due to the bug).
+-- 2. SET search_path = public — pgcrypto on Supabase lives in the
+--    `extensions` schema, not `public`. The function couldn't see it.
+--    Result was: function digest(bytea, unknown) does not exist
+--
+-- Fix: call extensions.digest() explicitly so it works regardless of the
+-- effective search_path. Also ensure pgcrypto is installed in the right
+-- schema.
+--
+-- This migration is safe to run multiple times. It:
+--   - Re-creates chain_audit_log_row() with the qualified call
+--   - Re-creates verify_audit_chain() with the qualified call
+--   - Re-runs the backfill so any rows hashed under the broken trigger
+--     (or with NULL hashes) get the correct hash
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
--- ── Recreate chain trigger function with correct bytea cast ───────────────────
+-- ── Recreate chain trigger function with qualified digest ─────────────────────
 CREATE OR REPLACE FUNCTION public.chain_audit_log_row()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_prev_hash text;
@@ -37,7 +43,7 @@ BEGIN
 
   NEW.prev_hash := v_prev_hash;
   NEW.row_hash  := encode(
-    digest(
+    extensions.digest(
       convert_to(
         v_prev_hash
         || NEW.id::text
@@ -55,13 +61,13 @@ BEGIN
 END;
 $$;
 
--- Ensure the trigger exists (safe to run even if already present).
+-- Ensure trigger is in place (idempotent).
 DROP TRIGGER IF EXISTS audit_logs_chain ON public.audit_logs;
 CREATE TRIGGER audit_logs_chain
   BEFORE INSERT ON public.audit_logs
   FOR EACH ROW EXECUTE FUNCTION public.chain_audit_log_row();
 
--- ── Recreate verify_audit_chain with correct bytea cast ───────────────────────
+-- ── Recreate verify_audit_chain with qualified digest ─────────────────────────
 CREATE OR REPLACE FUNCTION public.verify_audit_chain()
 RETURNS TABLE (
   seq           bigint,
@@ -74,7 +80,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 STABLE
 AS $$
 DECLARE
@@ -91,7 +97,7 @@ BEGIN
   LOOP
     v_seq := v_seq + 1;
     v_expected := encode(
-      digest(
+      extensions.digest(
         convert_to(
           v_prev_hash
           || r.id::text
@@ -125,7 +131,7 @@ REVOKE EXECUTE ON FUNCTION public.verify_audit_chain() FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.verify_audit_chain()
   TO authenticated, service_role;
 
--- ── Re-backfill any rows that have NULL hashes or wrong hashes ────────────────
+-- ── Re-backfill all rows so the chain is consistent ───────────────────────────
 -- Disable the immutability trigger so we can update existing rows.
 ALTER TABLE public.audit_logs DISABLE TRIGGER audit_logs_immutable_update;
 
@@ -141,7 +147,7 @@ BEGIN
      ORDER BY created_at ASC, id ASC
   LOOP
     v_row_hash := encode(
-      digest(
+      extensions.digest(
         convert_to(
           v_prev_hash
           || r.id::text
