@@ -169,7 +169,14 @@ const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyNa
     ? formatReceiptDateTime(item.processed_at || item.created_at)
     : '—';
   const generatedAt = formatReceiptDateTime(new Date());
-  const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
+  // Prefer the per-item narration that was actually sent to Paystack — that's
+  // what the recipient sees on their bank app. Fall back to the batch-level
+  // text only for legacy rows processed before the narration column existed.
+  const narration =
+    item.narration
+    || batch?.description
+    || batch?.notes
+    || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
   const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCESSFUL' : (item.status?.toUpperCase() || 'PENDING');
   const statusBg = isFailed ? '#fee2e2' : isSucceeded ? '#dcfce7' : '#fef3c7';
   const statusColor = isFailed ? '#991b1b' : isSucceeded ? '#166534' : '#92400e';
@@ -772,11 +779,12 @@ const BatchDetail = () => {
         );
       }
       const ref = generateKdopsRef(it.id);
+      const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
       const transfer = await initiateTransferIdempotent({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
-        reason: customNarration || narrationForBatchItem(batch, it),
+        reason: finalNarration,
       });
 
       // Self-healing path: if Paystack reported a duplicate ref, the helper
@@ -795,6 +803,7 @@ const BatchDetail = () => {
             paystack_recipient_code: recipientCode,
             paystack_transfer_code: transfer.transfer_code,
             paystack_reference: transfer.reference,
+            narration: finalNarration,
             failure_reason: mappedStatus === 'failed' ? 'Transfer rejected (recovered from duplicate ref)' : null,
             processed_at: mappedStatus === 'succeeded' ? new Date().toISOString() : null,
           })
@@ -814,6 +823,7 @@ const BatchDetail = () => {
           paystack_recipient_code: recipientCode,
           paystack_transfer_code: transfer.transfer_code,
           paystack_reference: transfer.reference,
+          narration: finalNarration,
           // Surface OTP-required state immediately. Paystack puts high-value
           // transfers into status="otp" and the transfer sits there until a
           // merchant approves via OTP on dashboard.paystack.co. Without this
@@ -1956,7 +1966,12 @@ const BatchDetail = () => {
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reject Batch</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reject Batch</DialogTitle>
+            <DialogDescription>
+              Provide a clear reason — the submitter will see it in their notification.
+            </DialogDescription>
+          </DialogHeader>
           <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
@@ -1969,7 +1984,12 @@ const BatchDetail = () => {
 
       <Dialog open={showRecurring} onOpenChange={setShowRecurring}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Make this batch recurring</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Make this batch recurring</DialogTitle>
+            <DialogDescription>
+              Schedule this batch to repeat automatically on the chosen cadence.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Frequency</Label>
@@ -2160,6 +2180,9 @@ const BatchDetail = () => {
               <Trash2 className="h-5 w-5" />
               Delete this batch?
             </DialogTitle>
+            <DialogDescription>
+              The batch will be hidden from all lists. The audit history stays intact.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p>
