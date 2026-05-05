@@ -17,22 +17,37 @@ export const formatNaira = (amount: number | null | undefined): string => {
   })}`;
 };
 
-/** DD/MM/YYYY — date only, no time, no timezone. */
+/**
+ * Date formatter — adapts to whether the input carries a time component.
+ *
+ * - Pure dates ('YYYY-MM-DD') render as DD/MM/YYYY: birthdays, leave dates,
+ *   payroll periods. Showing a fake midnight time for those would be wrong.
+ * - ISO timestamps with time render as a full timezone-aware date+time
+ *   ("27 Apr 2026, 3:45 PM (WAT)"), so tables across the platform show real
+ *   transaction times instead of bare dates.
+ *
+ * Date objects always render as full date+time since the time is always
+ * meaningful when the value is constructed in JS.
+ */
 export const formatDate = (date: string | Date | null | undefined): string => {
   if (!date) return '—';
   try {
-    return new Date(date).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Pure YYYY-MM-DD with no time — render as date-only.
+      return new Date(date + 'T00:00:00').toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    }
+    return formatDateTime(date);
   } catch {
     return '—';
   }
 };
 
 /**
- * "27 Apr 2026, 3:45 PM (WAT)" — date + 12-hour time + timezone abbreviation.
+ * "27 Apr 2026, 3:45:21 PM (WAT)" — date + 12-hour time with seconds + timezone.
  * Reads timezone from localStorage (set by Settings on load/save).
  * Falls back to Africa/Lagos if not set.
  */
@@ -43,17 +58,16 @@ export const formatDateTime = (
   try {
     const tz = getTimezone();
     const d = new Date(date);
-    // Get the formatted date+time
     const base = new Intl.DateTimeFormat('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true,
       timeZone: tz,
     }).format(d);
-    // Get short timezone abbreviation (e.g. WAT, GMT, EST)
     const tzAbbr = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       timeZoneName: 'short',

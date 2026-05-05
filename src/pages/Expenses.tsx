@@ -310,6 +310,12 @@ const Expenses = () => {
     isApprover &&
     canProcessPerm &&
     e.status === 'approved' &&
+    // Block re-pay: once a payment batch exists for this expense, the Pay
+    // button must hide. The webhook flips payment_status to processed/failed
+    // once Paystack confirms — but if the webhook is delayed, payment_reference
+    // is still our source of truth that "this expense already has a batch in
+    // flight". Only canRetryPayment (payment_status === 'failed') reopens it.
+    !e.payment_reference &&
     (e.payment_status === 'pending' || e.payment_status == null) &&
     !!e.account_number &&
     !!e.bank_name &&

@@ -395,8 +395,8 @@ export default function Communications() {
     <div className="space-y-4">
       <PageHeader
         title="Communications"
-        subtitle="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
-        icon={<Mail className="h-5 w-5" />}
+        description="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
+        icon={Mail}
       />
 
       {/* Composer */}
