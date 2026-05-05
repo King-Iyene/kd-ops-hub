@@ -3,7 +3,18 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  <div
+    ref={ref}
+    className={cn(
+      // Refined base — hairline border, gentler radius, soft elevated shadow,
+      // smooth transitions. Cards now feel like floating panels instead of
+      // hard boxes. Apply `kd-glass` or `kd-glass-dark` to get the frosted
+      // variant where appropriate.
+      "rounded-xl border border-border/60 bg-card text-card-foreground shadow-sm kd-transition",
+      className,
+    )}
+    {...props}
+  />
 ));
 Card.displayName = "Card";
 
