@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
-  ChevronDown, AlertTriangle, ExternalLink, Camera,
+  ChevronDown, AlertTriangle, ExternalLink, Camera, History,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
@@ -162,6 +162,9 @@ const EmployeeProfile = () => {
   });
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankSaving, setBankSaving] = useState(false);
+  const [showBankHistory, setShowBankHistory] = useState(false);
+  const [bankHistory, setBankHistory] = useState<any[]>([]);
+  const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
   const [companySetting, setCompanySetting] = useState<{ company_name: string; logo_url: string | null }>({ company_name: 'KD Squares Ltd', logo_url: null });
@@ -296,6 +299,28 @@ const EmployeeProfile = () => {
   }, [id, navigate, toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadBankHistory = async () => {
+    if (!id) return;
+    setBankHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from('audit_logs')
+        .select('id, action_type, description, performed_by_name, metadata, created_at')
+        .like('action_type', 'profile_bank_account_%')
+        .filter('metadata->>subject_user_id', 'eq', id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      setBankHistory(data || []);
+    } finally {
+      setBankHistoryLoading(false);
+    }
+  };
+
+  const openBankHistory = () => {
+    setShowBankHistory(true);
+    loadBankHistory();
+  };
 
   const saveBank = async () => {
     if (!id) return;
@@ -1153,16 +1178,23 @@ const EmployeeProfile = () => {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Payment Method</CardTitle>
-                {canManage && !bankEditMode && (
-                  <Button size="sm" variant="outline" onClick={() => setBankEditMode(true)}>
-                    Edit
-                  </Button>
-                )}
-                {bankEditMode && (
-                  <Button size="sm" variant="ghost" onClick={() => setBankEditMode(false)}>
-                    Cancel
-                  </Button>
-                )}
+                <div className="flex gap-1.5">
+                  {canManage && !bankEditMode && (
+                    <Button size="sm" variant="ghost" onClick={openBankHistory} title="View change history">
+                      <History className="h-3.5 w-3.5 mr-1" /> History
+                    </Button>
+                  )}
+                  {canManage && !bankEditMode && (
+                    <Button size="sm" variant="outline" onClick={() => setBankEditMode(true)}>
+                      Edit
+                    </Button>
+                  )}
+                  {bankEditMode && (
+                    <Button size="sm" variant="ghost" onClick={() => setBankEditMode(false)}>
+                      Cancel
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {bankEditMode ? (
@@ -2524,6 +2556,67 @@ const EmployeeProfile = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bank account change history dialog */}
+      <Dialog open={showBankHistory} onOpenChange={setShowBankHistory}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              Bank account change history
+            </DialogTitle>
+            <DialogDescription>
+              Every change to {employee?.full_name || 'this employee'}'s bank account, oldest at the bottom.
+            </DialogDescription>
+          </DialogHeader>
+          {bankHistoryLoading ? (
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+            </div>
+          ) : bankHistory.length === 0 ? (
+            <p className="py-6 text-sm text-muted-foreground text-center">
+              No bank account changes recorded for this employee.
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+              {bankHistory.map((entry) => {
+                const meta = entry.metadata || {};
+                const kind = meta.kind || (entry.action_type.replace('profile_bank_account_', ''));
+                const kindColor = kind === 'cleared' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : kind === 'set' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : 'bg-blue-50 text-blue-700 border-blue-200';
+                return (
+                  <div key={entry.id} className="rounded-md border p-3 text-sm">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className={`text-[11px] uppercase font-semibold px-2 py-0.5 rounded border ${kindColor}`}>
+                        {kind}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {entry.created_at ? formatDateTime(entry.created_at) : '—'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      by <span className="font-medium text-foreground">{entry.performed_by_name || 'system'}</span>
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide mb-0.5">Before</p>
+                        <p className="font-mono">{meta.old_bank_name || '(none)'}</p>
+                        <p className="font-mono text-muted-foreground">{meta.old_account_mask || '(none)'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-[10px] uppercase tracking-wide mb-0.5">After</p>
+                        <p className="font-mono">{meta.new_bank_name || '(none)'}</p>
+                        <p className="font-mono text-muted-foreground">{meta.new_account_mask || '(none)'}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
