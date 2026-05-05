@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   Plus,
+  Banknote,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -382,6 +383,18 @@ const ContractorProfile = () => {
         >
           {contractor.status}
         </Badge>
+        {canFinance && contractor.status === 'active' && (
+          <Button
+            size="sm"
+            onClick={() =>
+              navigate(
+                `/payments/new?contractor_id=${encodeURIComponent(id!)}&contractor_name=${encodeURIComponent(ctrName)}&contractor_bank=${encodeURIComponent(contractor.bank_name)}&contractor_account=${encodeURIComponent(contractor.account_number)}&contractor_amount=${encodeURIComponent(String(contractor.default_amount_ngn || 0))}`,
+              )
+            }
+          >
+            <Banknote className="mr-2 h-4 w-4" /> Pay
+          </Button>
+        )}
         {(currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
