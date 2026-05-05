@@ -191,8 +191,8 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
     // so when the whole batch fails with this, do not retry — fix the
     // account first on dashboard.paystack.co.
     match: /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled/i,
-    title: 'Paystack account not yet enabled for transfers',
-    hint: 'Your Paystack account has not been approved for outgoing transfers (this is a separate KYC step from collecting payments). Action: (1) Sign in to dashboard.paystack.co, (2) Settings → Business → confirm verification is complete, (3) if it shows "Starter" mode, upgrade business profile and submit KYC docs, (4) if everything looks done, email support@paystack.com — they enable transfers manually within 1 business day. Do NOT retry until enabled — every retry will fail with the same message.',
+    title: 'Paystack account is "Pre-Approved" — transfers not yet unlocked',
+    hint: 'Pre-Approved means Paystack lets you COLLECT payments but not SEND them. To unlock transfers: (1) dashboard.paystack.co → Settings → Compliance — submit any pending KYC docs (CAC, director NIN, proof of address, bank statement, TIN); (2) once Compliance shows "all clear" but transfers still blocked, email support@paystack.com with subject "Approve [merchant ID] for transfers" — reply within 24–48h. Do NOT retry until the dashboard badge says "Approved" instead of "Pre-Approved" — every retry will fail identically.',
   },
   {
     match: /awaiting otp authorization|awaiting otp approval|otp required/i,
