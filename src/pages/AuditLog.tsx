@@ -4,6 +4,7 @@ import {
   Search,
   Download,
   ShieldCheck,
+  ShieldAlert,
   FileText,
   Check,
   XCircle,
@@ -21,6 +22,7 @@ import {
   AlertTriangle,
   ListTodo,
   BookOpen,
+  Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -28,6 +30,8 @@ import { logAudit } from '@/lib/audit';
 import { formatDateTime, toIsoDate } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -139,6 +143,9 @@ const MODULE_OF: Record<string, string> = {
   goal_completed: 'Goals',
   notification_prefs_updated: 'Settings',
   audit_log_exported: 'Audit',
+  profile_bank_account_set: 'Security',
+  profile_bank_account_changed: 'Security',
+  profile_bank_account_cleared: 'Security',
 };
 
 const MODULE_COLOR: Record<string, string> = {
@@ -162,6 +169,7 @@ const MODULE_COLOR: Record<string, string> = {
   Cards: 'bg-primary/10 text-primary border border-primary/30',
   Goals: 'bg-success/10 text-success border border-success/30',
   Audit: 'bg-muted text-muted-foreground border border-border',
+  Security: 'bg-red-50 text-red-700 border border-red-200',
   '—': 'bg-muted text-muted-foreground border border-border',
 };
 
@@ -196,6 +204,16 @@ const ICON_OF: Record<string, typeof FileText> = {
 
 const prettyType = (t: string) => t.replace(/_/g, ' ');
 
+interface ChainBreak {
+  seq: number;
+  id: string;
+  action_type: string;
+  created_at: string;
+  stored_hash: string | null;
+  expected_hash: string;
+  broken: boolean;
+}
+
 const AuditLog = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
@@ -206,6 +224,9 @@ const AuditLog = () => {
   const [moduleFilter, setModuleFilter] = useState<'all' | string>('all');
   const [from, setFrom] = useState<string>('');
   const [to, setTo] = useState<string>('');
+  const [chainVerifying, setChainVerifying] = useState(false);
+  const [chainResult, setChainResult] = useState<ChainBreak[] | null>(null);
+  const [showChainDialog, setShowChainDialog] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -249,6 +270,20 @@ const AuditLog = () => {
 
   const pagination = usePagination(filtered, 20);
 
+  const verifyChain = async () => {
+    setChainVerifying(true);
+    try {
+      const { data, error } = await supabase.rpc('verify_audit_chain');
+      if (error) throw error;
+      setChainResult((data as ChainBreak[]) || []);
+      setShowChainDialog(true);
+    } catch (err: any) {
+      toast({ title: 'Chain verification failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setChainVerifying(false);
+    }
+  };
+
   const exportCsv = async () => {
     const header = ['created_at', 'module', 'action_type', 'description', 'performed_by_name'];
     const data = filtered.map((r) => [
@@ -273,9 +308,19 @@ const AuditLog = () => {
         title="Audit Log"
         description="Every data-changing action is recorded here. Append-only — entries cannot be edited or deleted, even by Super Admin."
         actions={
-          <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
+          <div className="flex gap-2">
+            {(profile?.role === 'super_admin' || profile?.role === 'admin') && (
+              <Button variant="outline" onClick={verifyChain} disabled={chainVerifying}>
+                {chainVerifying
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <ShieldCheck className="mr-2 h-4 w-4" />}
+                Verify Chain
+              </Button>
+            )}
+            <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+          </div>
         }
       />
 
@@ -434,6 +479,67 @@ const AuditLog = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Chain integrity results dialog */}
+      <Dialog open={showChainDialog} onOpenChange={setShowChainDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {chainResult?.length === 0
+                ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                : <ShieldAlert className="h-5 w-5 text-destructive" />}
+              Audit chain integrity
+            </DialogTitle>
+            <DialogDescription>
+              SHA-256 hash chain verification across {rows.length} audit records.
+            </DialogDescription>
+          </DialogHeader>
+
+          {chainResult?.length === 0 ? (
+            <Alert className="border-emerald-500/40 bg-emerald-500/5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+              <AlertDescription className="text-sm font-medium text-emerald-700">
+                Chain intact — {rows.length} records verified. No tampering detected.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-3">
+              <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <strong>{chainResult?.length} broken link{(chainResult?.length ?? 0) > 1 ? 's' : ''} detected.</strong>{' '}
+                  One or more audit records may have been tampered with, deleted, or inserted out of order.
+                  Contact your database administrator immediately.
+                </AlertDescription>
+              </Alert>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30">
+                      <TableHead className="text-xs">Seq</TableHead>
+                      <TableHead className="text-xs">Action</TableHead>
+                      <TableHead className="text-xs">Timestamp</TableHead>
+                      <TableHead className="text-xs font-mono">Stored hash (first 12)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {chainResult?.map((b) => (
+                      <TableRow key={b.id} className="bg-destructive/5 border-l-4 border-l-destructive">
+                        <TableCell className="text-xs">{b.seq}</TableCell>
+                        <TableCell className="text-xs">{b.action_type}</TableCell>
+                        <TableCell className="text-xs">{b.created_at ? formatDateTime(b.created_at) : '—'}</TableCell>
+                        <TableCell className="text-xs font-mono">
+                          {b.stored_hash ? b.stored_hash.slice(0, 12) + '…' : '(null)'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

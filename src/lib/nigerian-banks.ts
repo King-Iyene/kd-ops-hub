@@ -62,9 +62,9 @@ export const NIGERIAN_BANKS: NigerianBank[] = [
   { code: '565',   name: 'Carbon' },
   { code: '50126', name: 'Eyowo' },
   { code: '090311', name: 'FairMoney Microfinance Bank' },
-  { code: '50211', name: 'Kuda Bank' },
-  { code: '50515', name: 'Moniepoint MFB' },
-  { code: '999992', name: 'OPay Digital Services' },
+  { code: '50211', name: 'Kuda Microfinance Bank' },
+  { code: '50515', name: 'Moniepoint Microfinance Bank' },
+  { code: '999992', name: 'OPay Digital Services Limited (OPay)' },
   { code: '999991', name: 'PalmPay' },
   { code: '51310', name: 'Sparkle Microfinance Bank' },
   { code: '566',   name: 'VFD Microfinance Bank' },
@@ -159,55 +159,136 @@ export const clearBankCache = (): void => {
 
 const BANK_ALIASES: Record<string, string> = {
   // Short / common names → Paystack code
-  'opay':                '999992',  // OPay Digital Services
-  'union bank':          '032',     // Union Bank of Nigeria
-  'first bank':          '011',     // First Bank of Nigeria
-  'uba':                 '033',     // United Bank for Africa (UBA)
-  'fcmb':                '214',     // First City Monument Bank (FCMB)
-  'gtb':                 '058',     // GTBank (alias)
-  'guaranty trust bank': '058',     // GTBank (old full name)
-  'diamond bank':        '063',     // Access Bank (Diamond) — old name
-  'moniepoint':          '50515',   // Moniepoint MFB
-  'kuda':                '50211',   // Kuda Bank
-  'palmpay':             '999991',  // PalmPay
-  'fairmoney':           '090311',  // FairMoney Microfinance Bank
-  'carbon':              '565',     // Carbon (formerly Paylater)
-  'vfd':                 '566',     // VFD Microfinance Bank
-  'stanbic':             '221',     // Stanbic IBTC Bank
-  'stanbic ibtc':        '221',     // Stanbic IBTC Bank
-  'sterling':            '232',     // Sterling Bank
-  'fidelity':            '070',     // Fidelity Bank
-  'ecobank':             '050',     // Ecobank Nigeria
-  'unity bank':          '215',     // Unity Bank
-  'wema':                '035',     // Wema Bank
-  'keystone':            '082',     // Keystone Bank
-  'providus':            '101',     // Providus Bank
-  'polaris':             '076',     // Polaris Bank
-  'lotus':               '303',     // Lotus Bank
-  'taj':                 '302',     // TAJ Bank
-  'jaiz':                '301',     // Jaiz Bank
-  'citi':                '023',     // Citibank Nigeria
-  'citibank':            '023',     // Citibank Nigeria
-  'rubies':              '125',     // Rubies Bank
-  'sparkle':             '51310',   // Sparkle Microfinance Bank
-  'eyowo':               '50126',   // Eyowo
-  'kuda bank':           '50211',   // Kuda Bank (explicit)
-  'paga':                '100002',  // Paga
+  'opay':                                    '999992',
+  'opay digital services':                   '999992',
+  'opay digital services limited':           '999992',
+  'opay digital services limited (opay)':    '999992',
+  'union bank':                              '032',
+  'union bank of nigeria':                   '032',
+  'first bank':                              '011',
+  'first bank of nigeria':                   '011',
+  'uba':                                     '033',
+  'united bank for africa':                  '033',
+  'united bank for africa (uba)':            '033',
+  'fcmb':                                    '214',
+  'first city monument bank':                '214',
+  'first city monument bank (fcmb)':         '214',
+  'gtb':                                     '058',
+  'gtbank':                                  '058',
+  'guaranty trust bank':                     '058',
+  'guaranty trust bank plc':                 '058',
+  'diamond bank':                            '063',
+  'access bank (diamond)':                   '063',
+  'moniepoint':                              '50515',
+  'moniepoint mfb':                          '50515',
+  'moniepoint microfinance bank':            '50515',
+  'kuda':                                    '50211',
+  'kuda bank':                               '50211',
+  'kuda microfinance bank':                  '50211',
+  'palmpay':                                 '999991',
+  'palm pay':                                '999991',
+  'fairmoney':                               '090311',
+  'fair money':                              '090311',
+  'fairmoney microfinance bank':             '090311',
+  'carbon':                                  '565',
+  'carbon microfinance bank':                '565',
+  'vfd':                                     '566',
+  'vfd microfinance bank':                   '566',
+  'stanbic':                                 '221',
+  'stanbic ibtc':                            '221',
+  'stanbic ibtc bank':                       '221',
+  'sterling':                                '232',
+  'sterling bank':                           '232',
+  'fidelity':                                '070',
+  'fidelity bank':                           '070',
+  'ecobank':                                 '050',
+  'ecobank nigeria':                         '050',
+  'unity bank':                              '215',
+  'wema':                                    '035',
+  'wema bank':                               '035',
+  'keystone':                                '082',
+  'keystone bank':                           '082',
+  'providus':                                '101',
+  'providus bank':                           '101',
+  'polaris':                                 '076',
+  'polaris bank':                            '076',
+  'lotus':                                   '303',
+  'lotus bank':                              '303',
+  'taj':                                     '302',
+  'taj bank':                                '302',
+  'jaiz':                                    '301',
+  'jaiz bank':                               '301',
+  'citi':                                    '023',
+  'citibank':                                '023',
+  'citibank nigeria':                        '023',
+  'rubies':                                  '125',
+  'rubies bank':                             '125',
+  'sparkle':                                 '51310',
+  'sparkle microfinance bank':               '51310',
+  'eyowo':                                   '50126',
+  'paga':                                    '100002',
+  'access bank':                             '044',
+  'zenith':                                  '057',
+  'zenith bank':                             '057',
+  'zenith bank plc':                         '057',
+  'gtco':                                    '058',
+  'guaranty trust holding company':          '058',
+  'mtn momo':                                '120004',
+  'mtn momo psb':                            '120004',
+  'airtel smartcash':                        '120003',
+  'airtel smartcash psb':                    '120003',
+  '9mobile':                                 '120001',
+  '9mobile 9payment service bank':           '120001',
+  'hope psbank':                             '120002',
+  'hope payment service bank':               '120002',
+  'alat':                                    '035A',
+  'alat by wema':                            '035A',
+  // Less common banks — short names for completeness
+  'standard chartered':                      '068',
+  'standard chartered nigeria':              '068',
+  'coronation':                              '559',
+  'coronation bank':                         '559',
+  'globus':                                  '103',
+  'nova':                                    '060',
+  'nova merchant':                           '060',
+  'parallex':                                '104',
+  'premium trust':                           '105',
+  'suntrust':                                '100',
+  'sun trust':                               '100',
+  'titan':                                   '102',
+  'titan trust':                             '102',
+  'tangerine':                               '090264',
+  'tangerine bank':                          '090264',
+  'lapo':                                    '090177',
+  'renmoney':                                '50200',
+  'ren money':                               '50200',
+  'safe haven':                              '51113',
+  'ibile':                                   '51244',
+  'hasal':                                   '50383',
+  'dot':                                     '50162',
+  'accion':                                  '602',
+  'branch':                                  '50117',
+  'branch international':                    '50117',
 };
 
 export const getBankCode = (bankName: string): string | undefined => {
   const n = (bankName || '').trim().toLowerCase();
   if (!n) return undefined;
 
-  // 1. Alias map
+  // 1. Alias map — catches short names, old names, and full Paystack API names
   if (BANK_ALIASES[n]) return BANK_ALIASES[n];
 
   // 2. Exact match (case-insensitive) against the full dynamic list
   const exact = _allBanks.find((b) => b.name.toLowerCase() === n);
   if (exact) return exact.code;
 
-  // 3. Unambiguous prefix — only if exactly one bank starts with this string
-  //    Catches "OPay" → "OPay Digital Services", "Union Bank" → "Union Bank of Nigeria" etc.
+  // 3. Stored name starts with a known bank name (query is longer than registry
+  //    entry) e.g. "OPay Digital Services Limited (OPay)" contains "OPay Digital Services"
+  const contained = _allBanks.filter((b) => n.includes(b.name.toLowerCase()) && b.name.length >= 4);
+  if (contained.length === 1) return contained[0].code;
+
+  // 4. Known bank name starts with query (query is a prefix of registry entry)
+  //    e.g. "OPay" → "OPay Digital Services Limited (OPay)"
   const prefix = _allBanks.filter((b) => b.name.toLowerCase().startsWith(n));
   if (prefix.length === 1) return prefix[0].code;
 

@@ -1181,6 +1181,8 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
 
+          <FailedLoginPanel />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -1307,6 +1309,103 @@ const SettingsPage = () => {
 };
 
 export default SettingsPage;
+
+// ---------------------------------------------------------------------------
+// Failed Login panel — Security tab
+// ---------------------------------------------------------------------------
+
+interface FailedLogin {
+  id: string;
+  email: string;
+  ip_hash: string | null;
+  reason: string | null;
+  attempted_at: string;
+}
+
+function FailedLoginPanel() {
+  const [rows, setRows] = useState<FailedLogin[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from('failed_login_attempts')
+      .select('id, email, ip_hash, reason, attempted_at')
+      .gte('attempted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .order('attempted_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        setRows((data as FailedLogin[]) || []);
+        setLoading(false);
+      });
+  }, []);
+
+  const maskEmail = (email: string) => {
+    const [local, domain] = email.split('@');
+    if (!domain) return email;
+    return local.slice(0, 2) + '***@' + domain;
+  };
+
+  const relativeTime = (iso: string) => {
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const diffMins = Math.round(diffMs / 60_000);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.round(diffMins / 60);
+    if (diffHrs < 24) return `${diffHrs}h ago`;
+    return `${Math.round(diffHrs / 24)}d ago`;
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-destructive" />
+          Failed login attempts
+          <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">No failed login attempts in the last 30 days.</p>
+        ) : (
+          <>
+            <div className="px-4 py-2 text-xs text-muted-foreground border-b">
+              {rows.length} attempt{rows.length === 1 ? '' : 's'} — email addresses partially masked for privacy.
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b bg-muted/30">
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Email</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">Reason</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">IP (hashed)</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground">When</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {rows.map((r) => (
+                    <tr key={r.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="py-2 px-4 font-mono">{maskEmail(r.email)}</td>
+                      <td className="py-2 px-4 text-muted-foreground">{r.reason || '—'}</td>
+                      <td className="py-2 px-4 font-mono text-muted-foreground">
+                        {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
+                      </td>
+                      <td className="py-2 px-4 text-muted-foreground">{relativeTime(r.attempted_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Data Retention panel — Phase 2 (functional)

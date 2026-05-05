@@ -36,12 +36,13 @@ import {
   type NarrationKind,
 } from '@/lib/paystack';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
+import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -355,6 +356,7 @@ const BatchDetail = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
@@ -369,6 +371,8 @@ const BatchDetail = () => {
   const [savingResubmit, setSavingResubmit] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [showFundedModal, setShowFundedModal] = useState(false);
+  const [fundingRef, setFundingRef] = useState('');
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -583,13 +587,17 @@ const BatchDetail = () => {
   };
 
   /** Mark Funded — routes through mark_batch_funded RPC. */
-  const markFunded = async () => {
+  const markFunded = async (ref?: string) => {
     if (!id) return;
     setActionLoading(true);
     try {
-      await markBatchFunded(id);
+      await markBatchFunded(id, ref ? { reference: ref } : null);
       toast({ title: 'Batch marked funded' });
-      await logAudit('batch_funded', `Batch "${batch?.name}" marked funded`, profile);
+      await logAudit(
+        'batch_funded',
+        `Batch "${batch?.name}" marked funded${ref ? ` (top-up ref: ${ref})` : ''}`,
+        profile,
+      );
       fetchBatch();
     } catch (err: any) {
       toast({
@@ -1417,7 +1425,9 @@ const BatchDetail = () => {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isFinance = profile?.role === 'finance';
-  const canExport = items.length > 0;
+  // Only admin/super_admin/finance see salary amounts — all other roles see ₦ ——
+  const canSeeAmounts = isAdmin || isFinance;
+  const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
   return (
@@ -1468,16 +1478,16 @@ const BatchDetail = () => {
             const cells: Array<{ label: string; value: any; bold?: boolean }> = [
               { label: 'Payment Date', value: formatDate(batch.payment_date) },
               { label: 'Beneficiaries', value: batch.beneficiary_count },
-              { label: 'Total Amount', value: formatNaira(batch.total_amount || 0), bold: true },
+              { label: 'Total Amount', value: canSeeAmounts ? formatNaira(batch.total_amount || 0) : '₦ ——', bold: true },
               { label: 'Created', value: formatDate(batch.created_at) },
             ];
             // Show the cost breakdown as soon as anything has succeeded so the
             // operator sees fees immediately, not only after a webhook backfill.
             if (succeededCount > 0) {
               cells.push(
-                { label: 'Disbursed (succeeded)', value: formatNaira(succeededAmount) },
-                { label: 'Paystack Fees', value: formatNaira(totalFees) },
-                { label: 'Total Cost', value: formatNaira(totalCost), bold: true },
+                { label: 'Disbursed (succeeded)', value: canSeeAmounts ? formatNaira(succeededAmount) : '₦ ——' },
+                { label: 'Paystack Fees', value: canSeeAmounts ? formatNaira(totalFees) : '——' },
+                { label: 'Total Cost', value: canSeeAmounts ? formatNaira(totalCost) : '₦ ——', bold: true },
               );
             }
             return cells.map(({ label, value, bold }) => (
@@ -1674,7 +1684,14 @@ const BatchDetail = () => {
             && (batch.created_by !== profile?.id
                 || ['admin', 'super_admin'].includes(profile?.role ?? '')) && (
             <>
-              <Button onClick={approveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
+              <div className="w-full">
+                <BatchRiskFlags batchId={id!} onAcknowledgedChange={setRiskFlagsAcknowledged} />
+              </div>
+              <Button
+                onClick={approveBatch}
+                disabled={actionLoading || (capPreview ? !capPreview.allowed : false) || !riskFlagsAcknowledged}
+                size="lg"
+              >
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve Batch
               </Button>
@@ -1698,7 +1715,14 @@ const BatchDetail = () => {
             && batch.created_by !== profile?.id
             && batch.approved_by !== profile?.id && (
             <>
-              <Button onClick={confirmSecondApproveBatch} disabled={actionLoading || (capPreview ? !capPreview.allowed : false)} size="lg">
+              <div className="w-full">
+                <BatchRiskFlags batchId={id!} onAcknowledgedChange={setRiskFlagsAcknowledged} />
+              </div>
+              <Button
+                onClick={confirmSecondApproveBatch}
+                disabled={actionLoading || (capPreview ? !capPreview.allowed : false) || !riskFlagsAcknowledged}
+                size="lg"
+              >
                 {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
                 Approve as Second
               </Button>
@@ -1708,7 +1732,7 @@ const BatchDetail = () => {
             </>
           )}
           {batch.status === 'approved' && (
-            <Button onClick={markFunded} disabled={actionLoading}>
+            <Button onClick={() => { setFundingRef(''); setShowFundedModal(true); }} disabled={actionLoading}>
               <DollarSign className="mr-2 h-4 w-4" /> Confirm Funded
             </Button>
           )}
@@ -1867,18 +1891,18 @@ const BatchDetail = () => {
                     <TableCell>{item.bank_name}</TableCell>
                     <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
                     <TableCell className="text-right">
-                      <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                      {canSeeAmounts
+                        ? <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
+                        : <span className="tabular-nums text-muted-foreground select-none">₦ ——</span>}
                     </TableCell>
                     <TableCell className="text-right text-xs text-muted-foreground">
-                      {(() => {
+                      {canSeeAmounts ? (() => {
                         const fee = getItemFee(item);
-                        if (fee > 0) {
-                          return <span className="currency">{formatNaira(fee)}</span>;
-                        }
+                        if (fee > 0) return <span className="currency">{formatNaira(fee)}</span>;
                         return item.status === 'succeeded'
                           ? <span title="Webhook not yet received">…</span>
                           : '—';
-                      })()}
+                      })() : '——'}
                     </TableCell>
                     <TableCell>{item.reference}</TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground">
@@ -2068,6 +2092,66 @@ const BatchDetail = () => {
         title={`Confirm "${batch?.name || 'batch'}"`}
         onConfirm={(narration) => executeProcess(narration)}
       />
+
+      {/* Funding evidence modal — captures optional wallet top-up reference */}
+      <Dialog open={showFundedModal} onOpenChange={(v) => !actionLoading && setShowFundedModal(v)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Confirm batch funded
+            </DialogTitle>
+            <DialogDescription>
+              Confirm your Paystack wallet has been topped up for this batch.
+              Recording the reference creates an audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="funding-ref">
+                Wallet top-up reference
+                <span className="text-muted-foreground text-xs ml-1.5">(optional)</span>
+              </Label>
+              <Input
+                id="funding-ref"
+                placeholder="e.g. TRF-20260501-001234"
+                value={fundingRef}
+                onChange={(e) => setFundingRef(e.target.value)}
+              />
+            </div>
+            <Alert className="border-amber-500/40 bg-amber-500/5">
+              <DollarSign className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                Total to disburse:{' '}
+                <strong>{formatNaira(batch?.total_amount || 0)}</strong>.
+                Ensure your Paystack balance covers this before confirming.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setShowFundedModal(false)}
+              disabled={actionLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                setShowFundedModal(false);
+                await markFunded(fundingRef.trim() || undefined);
+                setFundingRef('');
+              }}
+              disabled={actionLoading}
+            >
+              {actionLoading
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <DollarSign className="mr-2 h-4 w-4" />}
+              Confirm Funded
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDelete} onOpenChange={(v) => !deleting && setShowDelete(v)}>
         <DialogContent>
