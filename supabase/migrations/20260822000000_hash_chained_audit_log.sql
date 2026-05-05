@@ -75,6 +75,12 @@ CREATE TRIGGER audit_logs_chain
   FOR EACH ROW EXECUTE FUNCTION public.chain_audit_log_row();
 
 -- ── Backfill: hash all existing rows in insertion order ───────────────────────
+-- The immutability trigger (20260810100000) blocks ALL UPDATEs on audit_logs.
+-- We disable it transactionally during the one-time backfill, then re-enable it.
+-- Because Supabase runs each migration inside a single transaction, if anything
+-- below errors the trigger is restored automatically by the rollback.
+ALTER TABLE public.audit_logs DISABLE TRIGGER audit_logs_immutable_update;
+
 DO $$
 DECLARE
   r           record;
@@ -108,6 +114,8 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+ALTER TABLE public.audit_logs ENABLE TRIGGER audit_logs_immutable_update;
 
 -- ── Verification RPC ──────────────────────────────────────────────────────────
 -- Returns one row per broken link so finance/audit staff can spot tampering.
