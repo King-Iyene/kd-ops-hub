@@ -397,7 +397,7 @@ const Transactions = () => {
               <div className="hidden md:block">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/30">
+                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                     <TableHead className="text-xs">Date</TableHead>
                     <TableHead className="text-xs">Type</TableHead>
                     <TableHead className="text-xs">Description</TableHead>

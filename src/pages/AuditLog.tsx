@@ -515,7 +515,7 @@ const AuditLog = () => {
               <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/30">
+                    <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                       <TableHead className="text-xs">Seq</TableHead>
                       <TableHead className="text-xs">Action</TableHead>
                       <TableHead className="text-xs">Timestamp</TableHead>

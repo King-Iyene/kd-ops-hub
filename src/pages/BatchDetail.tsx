@@ -2083,7 +2083,7 @@ const BatchDetail = () => {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/30">
+                <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                   <TableHead className="text-xs">Name</TableHead>
                   <TableHead className="text-xs">Bank</TableHead>
                   <TableHead className="text-xs">Account</TableHead>

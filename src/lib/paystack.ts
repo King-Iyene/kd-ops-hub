@@ -213,7 +213,7 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   {
     match: /cannot resolve account|could not resolve account|unable to resolve account|account resolution failed|resolve.*timeout/i,
     title: 'Paystack could not resolve this account',
-    hint: 'Three possible causes — check each in order: (1) wrong account number — verify the digits with the recipient; (2) wrong bank selected — confirm the bank in their app exactly; (3) bank\'s NIBSS resolver is temporarily down — try again in 10 minutes. If Paystack dashboard works for the same details, it is none of the above — share the raw error below with support.',
+    hint: 'Click Diagnose to see why.',
   },
   {
     match: /name mismatch|name does not match/i,
