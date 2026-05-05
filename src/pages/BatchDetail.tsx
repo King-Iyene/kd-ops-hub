@@ -170,7 +170,11 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
   const txnDateStr = item.processed_at || item.created_at
     ? formatReceiptDateTime(item.processed_at || item.created_at)
     : '—';
-  const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
+  const narration =
+    item.narration
+    || batch?.description
+    || batch?.notes
+    || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
   const BRAND = '#006994';
 
@@ -367,7 +371,7 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     </div>
     <div class="row">
       <span class="k">Sent to</span>
-      <span class="v">${escapeHtml(item.full_name || '—')}</span>
+      <span class="v">${escapeHtml(item.account_name || item.full_name || '—')}</span>
     </div>
   </div>
 
@@ -424,10 +428,9 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     </div>
   </div>` : ''}
 
-  <!-- Footer: cert ID + support -->
+  <!-- Footer: cert ID only -->
   <div class="footer">
     <span class="cert">${escapeHtml(certId)}</span>
-    <span class="support"><a href="mailto:support@kdsquares.com">support@kdsquares.com</a></span>
   </div>
 </div>
 <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
@@ -844,6 +847,7 @@ const BatchDetail = () => {
           recipientCode = cachedProfile.paystack_recipient_code;
         }
       }
+      let verifiedAccountName: string | null = null;
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
           name: it.full_name || 'Unknown Recipient',
@@ -851,6 +855,7 @@ const BatchDetail = () => {
           bank_code: bankCode,
         });
         recipientCode = recipient.recipient_code;
+        verifiedAccountName = recipient.details?.account_name || null;
         // Cache on the employee profile so future payments skip recipient
         // creation. The trigger clears this if bank details change later.
         if (it.employee_id) {
@@ -873,8 +878,10 @@ const BatchDetail = () => {
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
-        reason: customNarration || narrationForBatchItem(batch, it),
+        reason: customNarration || it.narration || narrationForBatchItem(batch, it),
       });
+
+      const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
 
       // Self-healing path: if Paystack reported a duplicate ref, the helper
       // verified the existing transfer and returned its current status. Map
@@ -892,6 +899,8 @@ const BatchDetail = () => {
             paystack_recipient_code: recipientCode,
             paystack_transfer_code: transfer.transfer_code,
             paystack_reference: transfer.reference,
+            narration: finalNarration,
+            ...(verifiedAccountName ? { account_name: verifiedAccountName } : {}),
             failure_reason: mappedStatus === 'failed' ? 'Transfer rejected (recovered from duplicate ref)' : null,
             processed_at: mappedStatus === 'succeeded' ? new Date().toISOString() : null,
           })
@@ -911,6 +920,8 @@ const BatchDetail = () => {
           paystack_recipient_code: recipientCode,
           paystack_transfer_code: transfer.transfer_code,
           paystack_reference: transfer.reference,
+          narration: finalNarration,
+          ...(verifiedAccountName ? { account_name: verifiedAccountName } : {}),
           // Surface OTP-required state immediately. Paystack puts high-value
           // transfers into status="otp" and the transfer sits there until a
           // merchant approves via OTP on dashboard.paystack.co. Without this

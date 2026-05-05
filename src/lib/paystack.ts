@@ -332,6 +332,8 @@ export interface PaystackRecipient {
   recipient_code: string;
   id: number;
   type: string;
+  /** Bank-verified account name from Paystack's /transferrecipient response. */
+  details?: { account_name?: string; account_number?: string; bank_name?: string };
 }
 
 export async function createTransferRecipient(params: {
