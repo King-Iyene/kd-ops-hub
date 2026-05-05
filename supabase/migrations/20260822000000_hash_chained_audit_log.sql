@@ -55,11 +55,14 @@ BEGIN
   NEW.prev_hash := v_prev_hash;
   NEW.row_hash  := encode(
     digest(
-      v_prev_hash
-      || NEW.id::text
-      || NEW.action_type
-      || COALESCE(NEW.performed_by::text, '')
-      || to_char(NEW.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+      convert_to(
+        v_prev_hash
+        || NEW.id::text
+        || NEW.action_type
+        || COALESCE(NEW.performed_by::text, '')
+        || to_char(NEW.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        'UTF8'
+      ),
       'sha256'
     ),
     'hex'
@@ -95,11 +98,14 @@ BEGIN
   LOOP
     v_row_hash := encode(
       digest(
-        v_prev_hash
-        || r.id::text
-        || r.action_type
-        || COALESCE(r.performed_by::text, '')
-        || to_char(r.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        convert_to(
+          v_prev_hash
+          || r.id::text
+          || r.action_type
+          || COALESCE(r.performed_by::text, '')
+          || to_char(r.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'UTF8'
+        ),
         'sha256'
       ),
       'hex'
@@ -151,11 +157,14 @@ BEGIN
     v_seq := v_seq + 1;
     v_expected := encode(
       digest(
-        v_prev_hash
-        || r.id::text
-        || r.action_type
-        || COALESCE(r.performed_by::text, '')
-        || to_char(r.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+        convert_to(
+          v_prev_hash
+          || r.id::text
+          || r.action_type
+          || COALESCE(r.performed_by::text, '')
+          || to_char(r.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+          'UTF8'
+        ),
         'sha256'
       ),
       'hex'
