@@ -6,11 +6,11 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   <div
     ref={ref}
     className={cn(
-      // Refined base — hairline border, gentler radius, soft elevated shadow,
-      // smooth transitions. Cards now feel like floating panels instead of
-      // hard boxes. Apply `kd-glass` or `kd-glass-dark` to get the frosted
-      // variant where appropriate.
-      "rounded-xl border border-border/60 bg-card text-card-foreground shadow-sm kd-transition",
+      // SaaS command-panel base — frosted glass surface, hairline gradient
+      // top edge highlight, soft brand-tinted shadow, gentle hover lift.
+      // Defined as `.kd-card-tech` in index.css so every Card across the
+      // platform picks up the same treatment.
+      "kd-card-tech rounded-xl text-card-foreground",
       className,
     )}
     {...props}

@@ -93,7 +93,7 @@ export default function AppLayout() {
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           {/* ── Header ──────────────────────────────────────────────── */}
-          <header className="h-14 flex items-center justify-between border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 sticky top-0 z-20 shadow-[0_1px_0_hsl(var(--border)/0.6),0_2px_8px_-2px_hsl(var(--primary)/0.06)]">
+          <header className="relative h-14 flex items-center justify-between border-b border-border/50 bg-card/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/50 px-4 sticky top-0 z-20 shadow-[0_1px_0_hsl(var(--primary)/0.10)_inset,0_4px_16px_-4px_hsl(var(--primary)/0.10)] before:content-[''] before:absolute before:inset-x-0 before:bottom-[-1px] before:h-px before:bg-gradient-to-r before:from-transparent before:via-[hsl(var(--tod-glow)/0.35)] before:to-transparent before:pointer-events-none">
             <div className="flex items-center gap-3 min-w-0">
               <SidebarTrigger className="shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
               <div className="hidden sm:flex items-center gap-2.5 min-w-0">

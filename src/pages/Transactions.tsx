@@ -29,7 +29,10 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -367,15 +370,19 @@ const Transactions = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Audit groups</div>
-              <SelectItem value="completed">Completed (incl. partial)</SelectItem>
-              <SelectItem value="failed">Failed / rejected</SelectItem>
-              <SelectItem value="in_progress">In progress</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Specific status</div>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
-              ))}
+              <SelectGroup>
+                <SelectLabel className="pl-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Audit groups</SelectLabel>
+                <SelectItem value="completed">Completed (incl. partial)</SelectItem>
+                <SelectItem value="failed">Failed / rejected</SelectItem>
+                <SelectItem value="in_progress">In progress</SelectItem>
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel className="pl-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Specific status</SelectLabel>
+                {STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
+                ))}
+              </SelectGroup>
             </SelectContent>
           </Select>
           <Input
