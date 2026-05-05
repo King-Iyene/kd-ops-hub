@@ -179,3 +179,22 @@ export const formatBytes = (bytes: number | null | undefined): string => {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 };
+
+/** Format a trip/journey elapsed duration from milliseconds: "2h 05m", "14m 30s", "45s". */
+export const formatElapsed = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
+  if (m > 0) return `${m}m ${sec.toString().padStart(2, '0')}s`;
+  return `${sec}s`;
+};
+
+/** Format how long ago a GPS ping was received: "12s ago", "4m ago", "2h ago". */
+export const formatPingAge = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `${Math.floor(s / 3600)}h ago`;
+};
