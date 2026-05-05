@@ -1947,7 +1947,15 @@ const BatchDetail = () => {
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                const toRetry = items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference));
+                // 30-day retry window — anything older is excluded so we
+                // don't accidentally re-fire months-old failed payments.
+                const RETRY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const toRetry = items.filter(i => {
+                  if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
+                  const ageMs = now - new Date(i.updated_at || i.created_at).getTime();
+                  return ageMs <= RETRY_WINDOW_MS;
+                });
                 // Same account-level short-circuit as Process — stop the loop
                 // when Paystack rejects with something that will fail every
                 // subsequent recipient identically.
@@ -1970,7 +1978,15 @@ const BatchDetail = () => {
               disabled={!!retryingId || retryingAll || actionLoading}
             >
               <RotateCw className="mr-2 h-4 w-4" />
-              {retryingAll ? 'Retrying…' : `Retry unsent (${items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)).length})`}
+              {retryingAll ? 'Retrying…' : (() => {
+                const RETRY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const eligible = items.filter(i => {
+                  if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
+                  return (now - new Date(i.updated_at || i.created_at).getTime()) <= RETRY_WINDOW_MS;
+                }).length;
+                return `Retry unsent (${eligible})`;
+              })()}
             </Button>
           )}
           {/* Reconcile: ask Paystack for the latest status of every dispatched
@@ -2202,35 +2218,56 @@ const BatchDetail = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        {item.status === 'failed' && canApprove && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={retryingId === item.id}
-                            onClick={() => retryItem(item)}
-                          >
-                            {retryingId === item.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RotateCw className="h-3.5 w-3.5 mr-1" />
-                            )}
-                            Retry
-                          </Button>
-                        )}
-                        {item.status === 'failed' && canApprove && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={diagnosingId === item.id}
-                            onClick={() => diagnoseItem(item)}
-                            title="Call Paystack /bank/resolve directly with the same parameters and show the verbatim response. Use this to confirm whether Paystack can actually resolve this account."
-                          >
-                            {diagnosingId === item.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : null}
-                            Diagnose
-                          </Button>
-                        )}
+                        {item.status === 'failed' && canApprove && (() => {
+                          // Retry expires after 30 days. Beyond that the bank
+                          // details, narration period and amount may all be
+                          // stale — accidentally re-firing a months-old failed
+                          // payment is a genuine money-loss risk. Operators
+                          // create a fresh batch instead.
+                          const failedAt = new Date(item.updated_at || item.created_at).getTime();
+                          const ageDays = (Date.now() - failedAt) / (1000 * 60 * 60 * 24);
+                          const RETRY_WINDOW_DAYS = 30;
+                          if (ageDays > RETRY_WINDOW_DAYS) {
+                            return (
+                              <span
+                                className="text-[10px] text-muted-foreground italic"
+                                title={`Retry window closed (${Math.round(ageDays)} days old). Create a new batch with this recipient if payment is still owed.`}
+                              >
+                                Retry expired
+                              </span>
+                            );
+                          }
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={retryingId === item.id}
+                                onClick={() => retryItem(item)}
+                                title={`Failed ${Math.round(ageDays)}d ago — retry expires after ${RETRY_WINDOW_DAYS} days`}
+                              >
+                                {retryingId === item.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCw className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Retry
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={diagnosingId === item.id}
+                                onClick={() => diagnoseItem(item)}
+                                title="Call Paystack /bank/resolve directly with the same parameters and show the verbatim response."
+                              >
+                                {diagnosingId === item.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : null}
+                                Diagnose
+                              </Button>
+                            </>
+                          );
+                        })()}
                         {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
                           <Button
                             size="sm"

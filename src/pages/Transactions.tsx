@@ -65,10 +65,11 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'transfer' | 'quick_pay' | 'charge';
+  txn_type: 'transfer' | 'quick_pay';
   description: string;
   category: string;
   amount_ngn: number;
+  paystack_fee_ngn: number | null;
   status: string;
   reference: string;
   created_by: string | null;
@@ -90,42 +91,44 @@ interface Transaction {
 // Item-level ledger types — every row is an actual money movement.
 //   transfer  = a regular batch_item dispatched to Paystack
 //   quick_pay = a quick_pay batch's single item
-//   charge    = a Paystack fee deduction
-type FilterTab = 'all' | 'quick_pay' | 'transfer' | 'charge';
+type FilterTab = 'all' | 'quick_pay' | 'transfer';
 
-// Item-level statuses (per batch_item.status) plus the audit groups.
-// Grouped because "Completed" should match succeeded transfers AND succeeded
-// charges, not the legacy batch-level 'processed'/'partially_processed'.
-const STATUS_GROUPS: Record<string, readonly string[]> = {
-  completed:  ['succeeded', 'processed', 'partially_processed'],
-  failed:     ['failed', 'rejected', 'reversed'],
-  in_progress:['pending', 'processing'],
-};
-
+// Only the four real outcomes a transfer can have. No more
+// draft / approved / funded / partial — those are batch-lifecycle states
+// and live on the Payments module, not in the transaction ledger.
 const STATUS_OPTIONS = [
-  'pending',
-  'processing',
-  'succeeded',
-  'failed',
-  'reversed',
+  { value: 'succeeded', label: 'Successful' },
+  { value: 'pending',   label: 'Pending' },
+  { value: 'failed',    label: 'Failed' },
+  { value: 'reversed',  label: 'Refunded' },
 ] as const;
+
+// Map a raw item status onto one of the four ledger outcomes for filtering.
+const LEDGER_STATUS: Record<string, string> = {
+  succeeded: 'succeeded',
+  processed: 'succeeded',
+  pending:   'pending',
+  processing:'pending',
+  retry:     'pending',
+  failed:    'failed',
+  rejected:  'failed',
+  reversed:  'reversed',
+  refunded:  'reversed',
+};
 
 const TYPE_ICON: Record<string, typeof CreditCard> = {
   transfer: CreditCard,
   quick_pay: Zap,
-  charge: Receipt,
 };
 
 const TYPE_COLOR: Record<string, string> = {
   transfer: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
-  charge: 'bg-warning/10 text-warning border border-warning/30',
 };
 
 const typeLabel = (t: string) => {
   if (t === 'transfer') return 'Transfer';
   if (t === 'quick_pay') return 'Quick Pay';
-  if (t === 'charge') return 'Fee';
   return t.replace(/_/g, ' ');
 };
 
@@ -133,8 +136,12 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'transfer', label: 'Transfers' },
   { value: 'quick_pay', label: 'Quick Pay' },
-  { value: 'charge', label: 'Fees' },
 ];
+
+// VAT on Paystack transfer fees: 7.5% (FIRS standard rate).
+const VAT_RATE = 0.075;
+// Stamp duty: ₦50 on every transfer ≥ ₦10,000 (Nigeria Tax Act 2025).
+const stampDutyForAmount = (n: number) => (n >= 10_000 ? 50 : 0);
 
 const Transactions = () => {
   usePageTitle('Transactions');
@@ -186,15 +193,9 @@ const Transactions = () => {
       if (typeFilter !== 'all' && r.txn_type !== typeFilter) return false;
       if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
       if (statusFilter !== 'all') {
-        // statusFilter is either a group key ("completed", "failed", ...) or a
-        // raw status. Group keys match any status in the group so partial
-        // batches show under "Completed".
-        const group = STATUS_GROUPS[statusFilter];
-        if (group) {
-          if (!group.includes(r.status)) return false;
-        } else if (r.status !== statusFilter) {
-          return false;
-        }
+        // Map raw item status onto its ledger outcome before comparing —
+        // 'processing' filters under 'pending', 'rejected' under 'failed', etc.
+        if (LEDGER_STATUS[r.status] !== statusFilter) return false;
       }
       const t = r.created_at ? new Date(r.created_at).getTime() : 0;
       if (t < fromMs || t > toMs) return false;
@@ -365,24 +366,14 @@ const Transactions = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
-              <SelectGroup>
-                <SelectLabel className="pl-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Audit groups</SelectLabel>
-                <SelectItem value="completed">Completed (incl. partial)</SelectItem>
-                <SelectItem value="failed">Failed / rejected</SelectItem>
-                <SelectItem value="in_progress">In progress</SelectItem>
-              </SelectGroup>
-              <SelectSeparator />
-              <SelectGroup>
-                <SelectLabel className="pl-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Specific status</SelectLabel>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
-                ))}
-              </SelectGroup>
+              {STATUS_OPTIONS.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Input
@@ -433,18 +424,22 @@ const Transactions = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
-                    <TableHead className="text-xs">Date</TableHead>
-                    <TableHead className="text-xs">Type</TableHead>
-                    <TableHead className="text-xs">Recipient</TableHead>
-                    <TableHead className="text-xs">Bank · Account</TableHead>
                     <TableHead className="text-right text-xs">Amount</TableHead>
+                    <TableHead className="text-right text-xs">Transfer fee</TableHead>
+                    <TableHead className="text-right text-xs">VAT</TableHead>
+                    <TableHead className="text-right text-xs">Stamp Duty</TableHead>
+                    <TableHead className="text-xs">Beneficiary</TableHead>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Channel</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs">Reference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
+                    const fee = Number(r.paystack_fee_ngn || 0);
+                    const vat = +(fee * VAT_RATE).toFixed(2);
+                    const stamp = stampDutyForAmount(Number(r.amount_ngn || 0));
+                    const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
                     const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
                       <TableRow
@@ -452,22 +447,22 @@ const Transactions = () => {
                         className="cursor-pointer hover:bg-muted/40 kd-transition"
                         onClick={() => handleRowClick(r)}
                       >
-                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                          {formatDateTime(r.created_at)}
+                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
+                          {formatNaira(r.amount_ngn)}
                         </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
-                          >
-                            <Icon className="h-3 w-3 mr-1" />
-                            {typeLabel(r.txn_type)}
-                          </Badge>
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/40">—</span>}
                         </TableCell>
-                        <TableCell className="text-sm max-w-[200px]">
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {vat > 0 ? formatNaira(vat) : <span className="text-muted-foreground/40">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/40">—</span>}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[220px]">
                           <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-medium truncate">{r.account_name || r.description}</span>
-                            {f && r.status === 'failed' && (
+                            <span className="font-medium truncate uppercase tracking-tight">{r.account_name || r.description}</span>
+                            {f && ledgerStatus === 'failed' && (
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <button
@@ -491,28 +486,20 @@ const Transactions = () => {
                               </Popover>
                             )}
                           </div>
-                          {r.batch_name && r.txn_type !== 'quick_pay' && (
-                            <p className="text-[11px] text-muted-foreground truncate">from {r.batch_name}</p>
+                          {r.bank_name && (
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
+                            </p>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs max-w-[200px]">
-                          {r.bank_name ? (
-                            <>
-                              <p className="truncate">{r.bank_name}</p>
-                              <p className="font-mono text-muted-foreground">{r.account_number || '—'}</p>
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground/40">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className={cn('text-right font-semibold currency whitespace-nowrap text-sm', r.txn_type === 'charge' && 'text-warning')}>
-                          {formatNaira(r.amount_ngn)}
+                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
+                          {formatDateTime(r.created_at)}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={r.status} size="sm" />
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 border border-blue-200/80">WEB</span>
                         </TableCell>
                         <TableCell>
-                          <CopyableRef value={r.reference} />
+                          <LedgerStatusBadge status={ledgerStatus} />
                         </TableCell>
                       </TableRow>
                     );
@@ -613,6 +600,26 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
+// ---------------------------------------------------------------------------
+// Ledger status badge — Paystack-dashboard style: SUCCESSFUL / PENDING /
+// FAILED / REFUNDED. Uppercase pill with high-contrast colour.
+// ---------------------------------------------------------------------------
+
+function LedgerStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; bg: string; text: string; ring: string }> = {
+    succeeded: { label: 'SUCCESSFUL', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-1 ring-inset ring-emerald-300/60' },
+    pending:   { label: 'PENDING',    bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-1 ring-inset ring-amber-300/60' },
+    failed:    { label: 'FAILED',     bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-1 ring-inset ring-red-300/60' },
+    reversed:  { label: 'REFUNDED',   bg: 'bg-slate-100',  text: 'text-slate-600',   ring: 'ring-1 ring-inset ring-slate-300/60' },
+  };
+  const c = config[status] ?? config.pending;
+  return (
+    <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider', c.bg, c.text, c.ring)}>
+      {c.label}
+    </span>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Copyable reference chip

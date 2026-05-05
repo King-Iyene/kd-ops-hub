@@ -1,27 +1,27 @@
--- transactions_view becomes a true item-level ledger.
+-- transactions_view: pure item-level ledger that mirrors Paystack's Transfers view.
 --
 -- Why this changes:
---   The old view emitted one row per payment_batch plus one row per fee. That
---   hid individual transfers behind a batch-level summary, so a 100-recipient
---   payroll batch became one line in Transactions instead of 100 audit-able
---   entries. When a batch was 'partially_processed', the 99 successful
---   transfers were invisible to anyone auditing per-payment activity.
+--   The first version of this view emitted both a transfer row AND a separate
+--   "charge" row for the Paystack fee on each succeeded transfer — so a
+--   100-recipient batch produced ~200 rows in Transactions. Paystack's own
+--   dashboard shows fees as COLUMNS on the transfer row (Amount | Transfer
+--   fee | VAT | Stamp Duty | Beneficiary | Date | Channel | Status). This
+--   matches that exactly.
 --
--- New shape (matches accounting-ledger conventions):
---   * One row per dispatched batch_item — every actual money movement is its
---     own line, with its own status, amount, recipient, and Paystack ref.
---   * One row per Paystack fee charge (unchanged).
---   * No more synthetic batch summary row. Batch-level aggregation lives in
---     the Payments module which queries payment_batches directly.
---
--- "Dispatched" = paystack_reference IS NOT NULL. Items still in draft/pending
--- without a Paystack ref haven't moved money so they don't belong in a ledger.
+--   * One row per dispatched batch_item (paystack_reference IS NOT NULL).
+--   * paystack_fee_ngn surfaced as a column so the UI can show fee + VAT
+--     + stamp duty in the same row as the transfer.
+--   * Statuses limited to what actually happens to a transfer: pending,
+--     processing, succeeded, failed, reversed. No more partial / funded /
+--     approved / draft (those live on payment_batches and are batch-lifecycle,
+--     not transaction-state).
+--   * Charge rows removed entirely — VAT and stamp duty are computed client-
+--     side from amount + paystack_fee_ngn so they stay in sync with the
+--     fee schedule without needing another migration.
 
 DROP VIEW IF EXISTS public.transactions_view;
 
 CREATE VIEW public.transactions_view AS
-
--- ── Transfer rows: one per dispatched batch_item ────────────────────────────
 SELECT
   bi.id,
   COALESCE(bi.processed_at, bi.created_at, pb.created_at)                AS created_at,
@@ -29,6 +29,7 @@ SELECT
   COALESCE(bi.full_name, 'Unknown recipient')                            AS description,
   COALESCE(pb.payment_category, 'transfer')                              AS category,
   bi.amount_ngn                                                          AS amount_ngn,
+  bi.paystack_fee_ngn                                                    AS paystack_fee_ngn,
   bi.status                                                              AS status,
   COALESCE(bi.paystack_reference, bi.id::text)                           AS reference,
   pb.created_by                                                          AS created_by,
@@ -50,46 +51,12 @@ SELECT
 
 FROM  public.batch_items     bi
 JOIN  public.payment_batches pb ON pb.id = bi.batch_id
-WHERE bi.paystack_reference IS NOT NULL
-
-UNION ALL
-
--- ── Charge rows: one per succeeded transfer with a Paystack fee ─────────────
-SELECT
-  bi.id,
-  COALESCE(bi.processed_at, pb.created_at)                               AS created_at,
-  'charge'::text                                                         AS txn_type,
-  'Charge for transfer: ' ||
-    COALESCE(bi.paystack_reference, bi.full_name, bi.id::text)           AS description,
-  'paystack_fee'::text                                                   AS category,
-  bi.paystack_fee_ngn                                                    AS amount_ngn,
-  bi.status                                                              AS status,
-  COALESCE(bi.paystack_reference, bi.id::text)                           AS reference,
-  pb.created_by                                                          AS created_by,
-  bi.contractor_id                                                       AS contractor_id,
-  bi.employee_id                                                         AS employee_id,
-  pb.name                                                                AS batch_name,
-  NULL::integer                                                          AS beneficiary_count,
-  NULL::int                                                              AS succeeded_count,
-  NULL::int                                                              AS failed_count,
-  pb.payment_date                                                        AS payment_date,
-  NULL::uuid                                                             AS approved_by,
-  NULL::text                                                             AS rejection_reason,
-  NULL::text                                                             AS notes,
-  bi.bank_name                                                           AS bank_name,
-  bi.account_number                                                      AS account_number,
-  COALESCE(bi.account_name, bi.full_name)                                AS account_name,
-  NULL::text                                                             AS receipt_url,
-  pb.id                                                                  AS parent_batch_id
-
-FROM  public.batch_items     bi
-JOIN  public.payment_batches pb ON pb.id = bi.batch_id
-WHERE bi.paystack_fee_ngn > 0
-  AND bi.status = 'succeeded';
+WHERE bi.paystack_reference IS NOT NULL;
 
 GRANT SELECT ON public.transactions_view TO authenticated;
 
 COMMENT ON VIEW public.transactions_view IS
-  'Item-level ledger of money movements. One row per dispatched batch_item '
-  '(succeeded, failed, or pending) plus one row per Paystack fee charge. Batch '
-  'summaries live in payment_batches and are surfaced in the Payments module.';
+  'One row per actual money movement (dispatched batch_item). Mirrors '
+  'Paystack''s Transfers view: amount + fee as columns on the same row, '
+  'beneficiary, date, status. Batch-lifecycle states (draft/approved/funded/'
+  'partial) live on payment_batches and are surfaced in the Payments module.';
