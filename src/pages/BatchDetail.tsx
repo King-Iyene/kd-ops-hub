@@ -165,292 +165,370 @@ function getItemFee(item: any): number {
 const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
   const isFailed = item.status === 'failed';
   const isSucceeded = item.status === 'succeeded';
+
   const txnDateStr = item.processed_at || item.created_at
     ? formatReceiptDateTime(item.processed_at || item.created_at)
     : '—';
   const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
-  const statusText = isFailed ? 'Failed' : isSucceeded ? 'Successful' : (item.status?.charAt(0).toUpperCase() + item.status?.slice(1) || 'Pending');
-  const statusColor = isFailed ? '#b91c1c' : isSucceeded ? '#047857' : '#b45309';
-  const accent = isFailed ? '#b91c1c' : '#0a2533';
 
-  // Logo: no white background, no padding — render the brand mark cleanly.
-  // Falls back to a minimal monogram if no logo is configured.
-  const initials = escapeHtml((companyName || 'KD').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
-  const logoHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="" style="height:32px;width:auto;max-width:140px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:18px;font-weight:800;letter-spacing:-0.03em;color:${accent};">${initials}</div>`;
+  // Status theme — bold, colour-coded hero section
+  const theme = isFailed
+    ? {
+        heroGrad: 'linear-gradient(150deg, #450a0a 0%, #7f1d1d 60%, #991b1b 100%)',
+        heroSub: 'rgba(255,255,255,0.55)',
+        iconBg: 'rgba(255,255,255,0.12)',
+        iconColor: '#fca5a5',
+        iconPath: 'M6 18L18 6M6 6l12 12', // X
+        iconStroke: 2,
+        statusLabel: 'Instruction Declined',
+        pill: '#7f1d1d',
+        pillText: '#fecaca',
+        pillBg: 'rgba(239,68,68,0.18)',
+      }
+    : isSucceeded
+    ? {
+        heroGrad: 'linear-gradient(150deg, #022c22 0%, #064e3b 60%, #065f46 100%)',
+        heroSub: 'rgba(255,255,255,0.55)',
+        iconBg: 'rgba(255,255,255,0.12)',
+        iconColor: '#6ee7b7',
+        iconPath: 'M5 13l4 4L19 7', // check
+        iconStroke: 2.5,
+        statusLabel: 'Settlement Confirmed',
+        pill: '#064e3b',
+        pillText: '#6ee7b7',
+        pillBg: 'rgba(16,185,129,0.18)',
+      }
+    : {
+        heroGrad: 'linear-gradient(150deg, #0c1a2e 0%, #1e3a5f 60%, #1e40af 100%)',
+        heroSub: 'rgba(255,255,255,0.55)',
+        iconBg: 'rgba(255,255,255,0.12)',
+        iconColor: '#93c5fd',
+        iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', // clock
+        iconStroke: 1.8,
+        statusLabel: 'Instruction Pending',
+        pill: '#1e3a5f',
+        pillText: '#93c5fd',
+        pillBg: 'rgba(96,165,250,0.18)',
+      };
+
+  const amount = Number(item.amount_ngn) || 0;
+  const psFee = paystackTransferFee(amount);
+  const duty = stampDutyFor(amount);
+  const total = amount + psFee + duty;
+  const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  const amountDisplay = amount > 0 ? fmtNgn(amount) : '₦—';
 
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
-  const docId = `kdops_${internalRef}`;
+  const certId = `kdops_${internalRef}`;
+
+  const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
+  const initials = escapeHtml(shortName.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
+  const logoHtml = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="" style="height:28px;width:auto;max-width:120px;object-fit:contain;display:inline-block;vertical-align:middle;" />`
+    : `<span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#fff;">${initials}</span>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Receipt — ${escapeHtml(item.full_name || '')}</title>
+  <title>Payment Confirmation — ${escapeHtml(item.full_name || '')}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: #1a1a1a;
-      background: #f5f5f4;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f0f2f5;
       min-height: 100vh;
-      padding: 32px 16px;
+      padding: 40px 16px;
       -webkit-font-smoothing: antialiased;
     }
-    .page {
-      max-width: 600px;
+    .doc {
+      max-width: 560px;
       margin: 0 auto;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(15, 23, 42, 0.08);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 16px 48px -8px rgba(0,0,0,0.14);
+    }
+
+    /* ── Identity bar ─────────────────────────────────── */
+    .id-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      background: #fff;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .id-bar-brand { display: flex; align-items: center; gap: 10px; }
+    .id-bar-name { font-size: 13px; font-weight: 700; color: #111; letter-spacing: -0.01em; }
+    .id-bar-type { font-size: 11px; color: #888; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      background: ${theme.heroGrad};
+      padding: 44px 36px 40px;
+      text-align: center;
       position: relative;
       overflow: hidden;
     }
-    .accent-bar { height: 4px; background: ${accent}; }
-
-    .top {
-      padding: 36px 40px 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 24px;
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.08) 0%, transparent 70%);
+      pointer-events: none;
     }
-    .brand { flex: 0 0 auto; }
-    .org-info { text-align: right; font-size: 11px; color: #525252; line-height: 1.7; }
-    .org-info .name { font-weight: 600; color: #1a1a1a; }
-
-    .lede { padding: 0 40px 24px; display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
-    .lede h1 {
-      font-size: 22px;
-      font-weight: 600;
-      color: #1a1a1a;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
+    .hero-icon {
+      width: 64px; height: 64px;
+      background: ${theme.iconBg};
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.15);
     }
-    .lede .when {
-      font-size: 11px;
-      color: #737373;
-      text-align: right;
-      flex-shrink: 0;
-      letter-spacing: 0.01em;
+    .hero-amount {
+      font-size: 46px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 10px;
     }
-
-    .divider { height: 1px; background: #e7e5e4; margin: 0 40px; }
-
-    .section { padding: 24px 40px; }
-    .section h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 600;
-      color: #737373;
-      margin-bottom: 14px;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 24px;
-      padding: 8px 0;
+    .hero-label {
       font-size: 13px;
+      font-weight: 600;
+      color: ${theme.heroSub};
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .hero-when { font-size: 12px; color: rgba(255,255,255,0.45); letter-spacing: 0.01em; }
+
+    /* ── Body ─────────────────────────────────────────── */
+    .body { padding: 0 28px; }
+
+    .section { padding: 24px 0; border-bottom: 1px solid #f0f0f0; }
+    .section:last-child { border-bottom: none; }
+    .section-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #aaa;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .field {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      padding: 7px 0;
+      font-size: 13.5px;
       line-height: 1.5;
     }
-    .row .lbl { color: #525252; flex-shrink: 0; }
-    .row .val { color: #1a1a1a; font-weight: 500; text-align: right; word-break: break-word; }
-    .row .val.mono { font-family: 'JetBrains Mono', ui-monospace, SF Mono, monospace; font-size: 12px; }
-    .row.amount-row .val { font-size: 18px; font-weight: 600; }
+    .field .k { color: #888; font-weight: 400; flex-shrink: 0; }
+    .field .v { color: #111; font-weight: 500; text-align: right; word-break: break-word; max-width: 68%; }
+    .field .v.mono {
+      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
+      font-size: 12.5px;
+      color: #333;
+      letter-spacing: 0.04em;
+    }
+    .field.lg .v { font-size: 16px; font-weight: 700; color: #060606; }
+    .field.total {
+      padding-top: 14px;
+      border-top: 1px solid #e8e8e8;
+      margin-top: 4px;
+    }
+    .field.total .k { color: #444; font-weight: 600; }
+    .field.total .v { font-size: 18px; font-weight: 800; color: #060606; }
 
-    .status-line {
+    .pill {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      color: ${statusColor};
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      background: ${theme.pillBg};
+      color: ${theme.pillText};
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
     }
-    .status-line::before {
-      content: '';
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: ${statusColor};
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* ── Failure callout ────────────────────────────── */
+    .callout {
+      margin: 0 0 24px;
+      padding: 14px 18px;
+      border-radius: 10px;
+      background: #fff5f5;
+      border: 1px solid #fecaca;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #7f1d1d;
+    }
+    .callout strong { font-weight: 700; }
+
+    /* ── Cert strip ─────────────────────────────────── */
+    .cert-strip {
+      background: #fafafa;
+      border-top: 1px solid #f0f0f0;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .cert-id {
+      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
+      font-size: 10.5px;
+      color: #bbb;
+      letter-spacing: 0.02em;
+      word-break: break-all;
+    }
+    .cert-label {
+      font-size: 9.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #ccc;
+      font-weight: 700;
       flex-shrink: 0;
     }
 
-    .breakdown {
-      padding: 24px 40px;
-      background: #fafafa;
-      border-top: 1px solid #e7e5e4;
-      border-bottom: 1px solid #e7e5e4;
-    }
-    .breakdown h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      font-weight: 600;
-      color: #737373;
-      margin-bottom: 14px;
-    }
-    .breakdown .row { padding: 10px 0; border-bottom: 1px solid #e7e5e4; }
-    .breakdown .row:last-child { border-bottom: none; }
-    .breakdown .row.total {
-      font-weight: 700;
-      font-size: 14px;
-      padding-top: 14px;
-      margin-top: 4px;
-      border-top: 1px solid #d6d3d1;
-      border-bottom: none;
-    }
-    .breakdown .row.total .val { font-size: 16px; }
-
-    .alert {
-      margin: 24px 40px 0;
-      padding: 14px 16px;
-      border-left: 3px solid #b91c1c;
-      background: #fef2f2;
-      font-size: 12.5px;
-      line-height: 1.55;
-      color: #7f1d1d;
-    }
-    .alert strong { font-weight: 600; }
-
-    .doc-id {
-      padding: 24px 40px;
-      font-size: 11px;
-      color: #737373;
-      letter-spacing: 0.01em;
-      font-family: 'JetBrains Mono', ui-monospace, monospace;
-    }
-
+    /* ── Footer ─────────────────────────────────────── */
     .foot {
-      padding: 16px 40px 32px;
-      border-top: 1px solid #e7e5e4;
-      font-size: 11px;
-      color: #a8a29e;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 16px;
+      padding: 14px 28px 24px;
+      text-align: center;
+      font-size: 11.5px;
+      color: #bbb;
+      line-height: 1.7;
     }
-    .foot a { color: #525252; text-decoration: underline; text-underline-offset: 2px; }
+    .foot a { color: #888; text-decoration: underline; text-underline-offset: 2px; }
 
     @media print {
       body { background: #fff; padding: 0; }
-      .page { box-shadow: none; max-width: 100%; }
-      .accent-bar, .breakdown, .alert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .doc { border-radius: 0; box-shadow: none; max-width: 100%; }
+      .hero, .callout, .cert-strip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
-    @media (max-width: 520px) {
-      body { padding: 16px 0; }
-      .top, .lede, .section, .breakdown, .doc-id, .foot, .alert { padding-left: 24px; padding-right: 24px; }
-      .alert { margin-left: 0; margin-right: 0; }
-      .divider { margin-left: 24px; margin-right: 24px; }
-      .lede { flex-direction: column; align-items: flex-start; }
-      .lede .when { text-align: left; }
+    @media (max-width: 480px) {
+      body { padding: 0; }
+      .doc { border-radius: 0; box-shadow: none; }
+      .hero { padding: 36px 24px 32px; }
+      .body, .cert-strip, .foot { padding-left: 20px; padding-right: 20px; }
+      .hero-amount { font-size: 36px; }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="accent-bar"></div>
+  <div class="doc">
 
-    <div class="top">
-      <div class="brand">${logoHtml}</div>
-      <div class="org-info">
-        <div class="name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
-        <div>Operations Wallet</div>
-        <div>Bank: Paystack Titan</div>
+    <!-- Identity bar -->
+    <div class="id-bar">
+      <div class="id-bar-brand">
+        ${logoHtml}
+        <div>
+          <div class="id-bar-name">${escapeHtml(companyName || 'KD Squares')}</div>
+          <div class="id-bar-type">Payment Confirmation</div>
+        </div>
       </div>
+      <div class="pill"><span class="pill-dot"></span>${escapeHtml(theme.statusLabel)}</div>
     </div>
 
-    <div class="lede">
-      <h1>Receipt from ${escapeHtml((companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, ''))}.</h1>
-      <div class="when">${escapeHtml(txnDateStr)}</div>
+    <!-- Hero: status icon + amount -->
+    <div class="hero">
+      <div class="hero-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+          stroke="${theme.iconColor}" stroke-width="${theme.iconStroke}"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="${theme.iconPath}" />
+        </svg>
+      </div>
+      <div class="hero-amount">${escapeHtml(amountDisplay)}</div>
+      <div class="hero-label">Settlement Amount</div>
+      <div class="hero-when">${escapeHtml(txnDateStr)}</div>
     </div>
 
-    <div class="divider"></div>
+    <!-- Body -->
+    <div class="body">
 
-    <div class="section">
-      <h2>Bank Transfer</h2>
-      <div class="row amount-row">
-        <span class="lbl">Amount</span>
-        <span class="val">${item.amount_ngn != null ? `₦${escapeHtml(Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 }))}` : '—'}</span>
+      <!-- Beneficiary -->
+      <div class="section">
+        <div class="section-title">Beneficiary</div>
+        <div class="field lg">
+          <span class="k">Account holder</span>
+          <span class="v">${escapeHtml(item.full_name || '—')}</span>
+        </div>
+        <div class="field">
+          <span class="k">Receiving bank</span>
+          <span class="v">${escapeHtml(item.bank_name || '—')}</span>
+        </div>
+        <div class="field">
+          <span class="k">Account number</span>
+          <span class="v mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span>
+        </div>
       </div>
-      <div class="row">
-        <span class="lbl">Status</span>
-        <span class="val"><span class="status-line">${escapeHtml(statusText)}</span></span>
+
+      <!-- Payment reference -->
+      <div class="section">
+        <div class="section-title">Instruction</div>
+        <div class="field">
+          <span class="k">Narration</span>
+          <span class="v">${escapeHtml(narration)}</span>
+        </div>
+        ${item.paystack_reference ? `
+        <div class="field">
+          <span class="k">Provider ref</span>
+          <span class="v mono">${escapeHtml(item.paystack_reference)}</span>
+        </div>` : ''}
       </div>
-      <div class="row">
-        <span class="lbl">Counterparty</span>
-        <span class="val">${escapeHtml(item.full_name || '—')}</span>
-      </div>
+
+      ${isFailed ? `
+      <!-- Failure notice -->
+      <div class="section">
+        <div class="callout">
+          <strong>No funds were debited.</strong>&nbsp;
+          ${escapeHtml(item.failure_reason || 'Transfer declined by the provider or receiving bank.')}
+          Open the batch in KDOps and select <strong>Retry</strong> to re-initiate.
+        </div>
+      </div>` : ''}
+
+      ${isSucceeded ? `
+      <!-- Cost breakdown -->
+      <div class="section">
+        <div class="section-title">Debit Breakdown</div>
+        <div class="field">
+          <span class="k">Principal</span>
+          <span class="v">${fmtNgn(amount)}</span>
+        </div>
+        ${duty > 0 ? `<div class="field"><span class="k">Stamp duty</span><span class="v">${fmtNgn(duty)}</span></div>` : ''}
+        <div class="field">
+          <span class="k">Transfer fee</span>
+          <span class="v">${fmtNgn(psFee)}</span>
+        </div>
+        <div class="field total">
+          <span class="k">Total debit</span>
+          <span class="v">${fmtNgn(total)}</span>
+        </div>
+      </div>` : ''}
+
+    </div><!-- /body -->
+
+    <!-- Transaction certificate -->
+    <div class="cert-strip">
+      <div class="cert-id">${escapeHtml(certId)}</div>
+      <div class="cert-label">Certificate</div>
     </div>
-
-    <div class="divider"></div>
-
-    <div class="section">
-      <h2>Counterparty Details</h2>
-      <div class="row"><span class="lbl">Bank</span><span class="val">${escapeHtml(item.bank_name || '—')}</span></div>
-      <div class="row"><span class="lbl">Account number</span><span class="val mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span></div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="section">
-      <h2>Memo for Recipient</h2>
-      <div class="row">
-        <span class="lbl">Memo</span>
-        <span class="val">${escapeHtml(narration)}${item.paystack_reference ? ` <span style="color:#a8a29e;">(Reference: ${escapeHtml(item.paystack_reference)})</span>` : ''}</span>
-      </div>
-    </div>
-
-    ${isFailed ? `
-    <div class="alert">
-      <strong>No funds were debited.</strong> ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}
-      Return to the batch in KDOps and click <strong>Retry</strong> to reattempt.
-    </div>
-    ` : ''}
-
-    ${isSucceeded ? (() => {
-        const amount = Number(item.amount_ngn) || 0;
-        const psFee = paystackTransferFee(amount);
-        const duty = stampDutyFor(amount);
-        const total = amount + psFee + duty;
-        const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-        return `
-    <div class="breakdown">
-      <h2>Cost breakdown</h2>
-      <div class="row">
-        <span class="lbl">Debit because of ${escapeHtml(item.full_name || 'recipient')}</span>
-        <span class="val">${fmtNgn(amount)}</span>
-      </div>
-      ${duty > 0 ? `
-      <div class="row">
-        <span class="lbl">Stamp duty</span>
-        <span class="val">${fmtNgn(duty)}</span>
-      </div>` : `
-      <div class="row">
-        <span class="lbl">Taxes</span>
-        <span class="val">₦0.00</span>
-      </div>`}
-      <div class="row">
-        <span class="lbl">Transfer fees</span>
-        <span class="val">${fmtNgn(psFee)}</span>
-      </div>
-      <div class="row total">
-        <span class="lbl">Total paid</span>
-        <span class="val">${fmtNgn(total)}</span>
-      </div>
-    </div>` ;
-      })() : ''}
-
-    <div class="doc-id">Document ID: ${escapeHtml(docId)}</div>
 
     <div class="foot">
-      <span>—</span>
-      <span>Need help? Email <a href="mailto:support@kdsquares.com">support@kdsquares.com</a></span>
+      Questions? <a href="mailto:support@kdsquares.com">support@kdsquares.com</a>
     </div>
+
   </div>
   <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
 </body>
@@ -458,7 +536,7 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank', 'noopener,width=640,height=860');
+  const win = window.open(url, '_blank', 'noopener,width=600,height=900');
   if (!win) return;
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };

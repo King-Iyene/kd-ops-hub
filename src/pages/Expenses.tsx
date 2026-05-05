@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
@@ -169,6 +169,7 @@ const Expenses = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const location = useLocation();
+  const navigate = useNavigate();
   const canApprovePerm = usePermission('expenses.approve');
   const canProcessPerm = usePermission('expenses.process_payments');
   const isApprover =
@@ -403,18 +404,9 @@ const Expenses = () => {
         profile,
       );
 
-      toast({
-        title:
-          postApproveStatus === 'approved' ? 'Payment ready'
-          : postApproveStatus === 'pending_second_approval' ? 'Awaiting second approval'
-          : 'Payment batch created',
-        description:
-          postApproveStatus === 'approved'
-            ? `${formatNaira(Number(expense.amount_ngn))} approved. Open the batch to fund and process.`
-            : postApproveStatus === 'pending_second_approval'
-              ? `${formatNaira(Number(expense.amount_ngn))} exceeds your co-approval threshold. A second approver must confirm.`
-              : `Awaiting approval for ${formatNaira(Number(expense.amount_ngn))} to ${expense.account_name}.`,
-      });
+      // Navigate immediately to the batch page so the operator can fund and
+      // process in one flow. The batch is fully created + auto-approved here.
+      navigate(`/payments/${batchId}`);
     } catch (err: any) {
       // The RPC is atomic: a failure means no batch was created, so there is
       // nothing to compensate for here. The expense.payment_status stays NULL
