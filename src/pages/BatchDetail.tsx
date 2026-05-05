@@ -171,52 +171,17 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     : '—';
   const narration = batch?.description || batch?.notes || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
-  // Status theme — bold, colour-coded hero section
-  const theme = isFailed
-    ? {
-        heroGrad: 'linear-gradient(150deg, #450a0a 0%, #7f1d1d 60%, #991b1b 100%)',
-        heroSub: 'rgba(255,255,255,0.55)',
-        iconBg: 'rgba(255,255,255,0.12)',
-        iconColor: '#fca5a5',
-        iconPath: 'M6 18L18 6M6 6l12 12', // X
-        iconStroke: 2,
-        statusLabel: 'Instruction Declined',
-        pill: '#7f1d1d',
-        pillText: '#fecaca',
-        pillBg: 'rgba(239,68,68,0.18)',
-      }
-    : isSucceeded
-    ? {
-        heroGrad: 'linear-gradient(150deg, #022c22 0%, #064e3b 60%, #065f46 100%)',
-        heroSub: 'rgba(255,255,255,0.55)',
-        iconBg: 'rgba(255,255,255,0.12)',
-        iconColor: '#6ee7b7',
-        iconPath: 'M5 13l4 4L19 7', // check
-        iconStroke: 2.5,
-        statusLabel: 'Settlement Confirmed',
-        pill: '#064e3b',
-        pillText: '#6ee7b7',
-        pillBg: 'rgba(16,185,129,0.18)',
-      }
-    : {
-        heroGrad: 'linear-gradient(150deg, #0c1a2e 0%, #1e3a5f 60%, #1e40af 100%)',
-        heroSub: 'rgba(255,255,255,0.55)',
-        iconBg: 'rgba(255,255,255,0.12)',
-        iconColor: '#93c5fd',
-        iconPath: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', // clock
-        iconStroke: 1.8,
-        statusLabel: 'Instruction Pending',
-        pill: '#1e3a5f',
-        pillText: '#93c5fd',
-        pillBg: 'rgba(96,165,250,0.18)',
-      };
+  const BRAND = '#006994';
+
+  // Status dot + label — colour is contained, everything else is white
+  const statusDot = isFailed ? '#dc2626' : isSucceeded ? '#16a34a' : '#d97706';
+  const statusLabel = isFailed ? 'Declined' : isSucceeded ? 'Settled' : 'Pending';
 
   const amount = Number(item.amount_ngn) || 0;
   const psFee = paystackTransferFee(amount);
   const duty = stampDutyFor(amount);
   const total = amount + psFee + duty;
   const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  const amountDisplay = amount > 0 ? fmtNgn(amount) : '₦—';
 
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
   const certId = `kdops_${internalRef}`;
@@ -224,8 +189,8 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
   const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
   const initials = escapeHtml(shortName.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
   const logoHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="" style="height:28px;width:auto;max-width:120px;object-fit:contain;display:inline-block;vertical-align:middle;" />`
-    : `<span style="font-size:16px;font-weight:900;letter-spacing:-0.04em;color:#fff;">${initials}</span>`;
+    ? `<img src="${escapeHtml(logoUrl)}" alt="" style="height:30px;width:auto;max-width:130px;object-fit:contain;display:block;" />`
+    : `<div style="width:36px;height:36px;border-radius:8px;background:${BRAND};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;letter-spacing:-0.02em;flex-shrink:0;">${initials}</div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -234,309 +199,243 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Payment Confirmation — ${escapeHtml(item.full_name || '')}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #f0f2f5;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f4f4f5;
       min-height: 100vh;
       padding: 40px 16px;
       -webkit-font-smoothing: antialiased;
+      color: #18181b;
     }
-    .doc {
-      max-width: 560px;
+    .page {
+      max-width: 580px;
       margin: 0 auto;
-      background: #ffffff;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 16px 48px -8px rgba(0,0,0,0.14);
-    }
-
-    /* ── Identity bar ─────────────────────────────────── */
-    .id-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 28px;
       background: #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px -8px rgba(0,0,0,0.1);
+    }
+    .accent { height: 4px; background: ${BRAND}; }
+
+    /* ── Header ── */
+    .header {
+      padding: 28px 36px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
       border-bottom: 1px solid #f0f0f0;
     }
-    .id-bar-brand { display: flex; align-items: center; gap: 10px; }
-    .id-bar-name { font-size: 13px; font-weight: 700; color: #111; letter-spacing: -0.01em; }
-    .id-bar-type { font-size: 11px; color: #888; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-
-    /* ── Hero ─────────────────────────────────────────── */
-    .hero {
-      background: ${theme.heroGrad};
-      padding: 44px 36px 40px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .hero::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% -20%, rgba(255,255,255,0.08) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .hero-icon {
-      width: 64px; height: 64px;
-      background: ${theme.iconBg};
-      border-radius: 50%;
-      margin: 0 auto 20px;
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border: 1px solid rgba(255,255,255,0.15);
-    }
-    .hero-amount {
-      font-size: 46px;
-      font-weight: 900;
-      color: #fff;
-      letter-spacing: -0.04em;
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .company-name { font-size: 14px; font-weight: 700; color: #111; }
+    .doc-type { font-size: 11px; color: #888; margin-top: 1px; letter-spacing: 0.02em; }
+    .header-right { text-align: right; }
+    .amount-big {
+      font-size: 28px;
+      font-weight: 800;
+      color: #111;
+      letter-spacing: -0.03em;
       line-height: 1;
-      margin-bottom: 10px;
     }
-    .hero-label {
-      font-size: 13px;
-      font-weight: 600;
-      color: ${theme.heroSub};
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 18px;
-    }
-    .hero-when { font-size: 12px; color: rgba(255,255,255,0.45); letter-spacing: 0.01em; }
+    .amount-label { font-size: 11px; color: #aaa; margin-top: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
 
-    /* ── Body ─────────────────────────────────────────── */
-    .body { padding: 0 28px; }
-
-    .section { padding: 24px 0; border-bottom: 1px solid #f0f0f0; }
-    .section:last-child { border-bottom: none; }
+    /* ── Sections ── */
+    .section { padding: 20px 36px; border-bottom: 1px solid #f0f0f0; }
+    .section:last-of-type { border-bottom: none; }
     .section-title {
       font-size: 10px;
       font-weight: 700;
-      color: #aaa;
-      letter-spacing: 0.14em;
+      color: ${BRAND};
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
-
-    .field {
+    .row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
       gap: 16px;
-      padding: 7px 0;
-      font-size: 13.5px;
+      padding: 6px 0;
+      font-size: 13px;
       line-height: 1.5;
+      border-bottom: 1px solid #f8f8f8;
     }
-    .field .k { color: #888; font-weight: 400; flex-shrink: 0; }
-    .field .v { color: #111; font-weight: 500; text-align: right; word-break: break-word; max-width: 68%; }
-    .field .v.mono {
+    .row:last-child { border-bottom: none; }
+    .row .k { color: #71717a; flex-shrink: 0; }
+    .row .v { color: #111; font-weight: 500; text-align: right; word-break: break-word; }
+    .row .v.mono {
       font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
-      font-size: 12.5px;
-      color: #333;
-      letter-spacing: 0.04em;
+      font-size: 12px;
+      letter-spacing: 0.05em;
     }
-    .field.lg .v { font-size: 16px; font-weight: 700; color: #060606; }
-    .field.total {
-      padding-top: 14px;
-      border-top: 1px solid #e8e8e8;
-      margin-top: 4px;
-    }
-    .field.total .k { color: #444; font-weight: 600; }
-    .field.total .v { font-size: 18px; font-weight: 800; color: #060606; }
+    .row.total { border-top: 1px solid #e4e4e7; padding-top: 10px; margin-top: 4px; border-bottom: none; }
+    .row.total .k { font-weight: 600; color: #111; }
+    .row.total .v { font-size: 15px; font-weight: 700; color: #111; }
 
-    .pill {
+    /* Status badge */
+    .status-badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      padding: 3px 10px;
-      border-radius: 100px;
-      background: ${theme.pillBg};
-      color: ${theme.pillText};
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: ${statusDot};
     }
-    .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
-
-    /* ── Failure callout ────────────────────────────── */
-    .callout {
-      margin: 0 0 24px;
-      padding: 14px 18px;
-      border-radius: 10px;
-      background: #fff5f5;
-      border: 1px solid #fecaca;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #7f1d1d;
-    }
-    .callout strong { font-weight: 700; }
-
-    /* ── Cert strip ─────────────────────────────────── */
-    .cert-strip {
-      background: #fafafa;
-      border-top: 1px solid #f0f0f0;
-      padding: 14px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .cert-id {
-      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
-      font-size: 10.5px;
-      color: #bbb;
-      letter-spacing: 0.02em;
-      word-break: break-all;
-    }
-    .cert-label {
-      font-size: 9.5px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #ccc;
-      font-weight: 700;
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: ${statusDot};
       flex-shrink: 0;
     }
 
-    /* ── Footer ─────────────────────────────────────── */
-    .foot {
-      padding: 14px 28px 24px;
-      text-align: center;
-      font-size: 11.5px;
-      color: #bbb;
-      line-height: 1.7;
+    /* ── Failure alert ── */
+    .alert {
+      margin: 0 36px 20px;
+      padding: 12px 16px;
+      border-left: 3px solid #dc2626;
+      background: #fef2f2;
+      font-size: 12.5px;
+      color: #7f1d1d;
+      line-height: 1.6;
     }
-    .foot a { color: #888; text-decoration: underline; text-underline-offset: 2px; }
+    .alert strong { font-weight: 700; }
+
+    /* ── Footer ── */
+    .footer {
+      padding: 14px 36px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid #f0f0f0;
+    }
+    .cert {
+      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
+      font-size: 10px;
+      color: #c4c4c7;
+      letter-spacing: 0.02em;
+      word-break: break-all;
+    }
+    .support { font-size: 11px; color: #a1a1aa; white-space: nowrap; flex-shrink: 0; }
+    .support a { color: #71717a; text-decoration: underline; text-underline-offset: 2px; }
 
     @media print {
       body { background: #fff; padding: 0; }
-      .doc { border-radius: 0; box-shadow: none; max-width: 100%; }
-      .hero, .callout, .cert-strip { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page { box-shadow: none; max-width: 100%; }
+      .accent, .alert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
-    @media (max-width: 480px) {
+    @media (max-width: 500px) {
       body { padding: 0; }
-      .doc { border-radius: 0; box-shadow: none; }
-      .hero { padding: 36px 24px 32px; }
-      .body, .cert-strip, .foot { padding-left: 20px; padding-right: 20px; }
-      .hero-amount { font-size: 36px; }
+      .page { box-shadow: none; }
+      .header, .section, .footer, .alert { padding-left: 20px; padding-right: 20px; }
+      .alert { margin-left: 0; margin-right: 0; }
+      .header { flex-direction: column; gap: 16px; }
+      .header-right { text-align: left; }
     }
   </style>
 </head>
 <body>
-  <div class="doc">
+<div class="page">
+  <div class="accent"></div>
 
-    <!-- Identity bar -->
-    <div class="id-bar">
-      <div class="id-bar-brand">
-        ${logoHtml}
-        <div>
-          <div class="id-bar-name">${escapeHtml(companyName || 'KD Squares')}</div>
-          <div class="id-bar-type">Payment Confirmation</div>
-        </div>
+  <!-- Header: logo/company + amount -->
+  <div class="header">
+    <div class="header-left">
+      ${logoHtml}
+      <div>
+        <div class="company-name">${escapeHtml(shortName)}</div>
+        <div class="doc-type">Payment Confirmation</div>
       </div>
-      <div class="pill"><span class="pill-dot"></span>${escapeHtml(theme.statusLabel)}</div>
     </div>
-
-    <!-- Hero: status icon + amount -->
-    <div class="hero">
-      <div class="hero-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="${theme.iconColor}" stroke-width="${theme.iconStroke}"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="${theme.iconPath}" />
-        </svg>
-      </div>
-      <div class="hero-amount">${escapeHtml(amountDisplay)}</div>
-      <div class="hero-label">Settlement Amount</div>
-      <div class="hero-when">${escapeHtml(txnDateStr)}</div>
+    <div class="header-right">
+      <div class="amount-big">${item.amount_ngn != null ? fmtNgn(amount) : '—'}</div>
+      <div class="amount-label">Settlement amount</div>
     </div>
-
-    <!-- Body -->
-    <div class="body">
-
-      <!-- Beneficiary -->
-      <div class="section">
-        <div class="section-title">Beneficiary</div>
-        <div class="field lg">
-          <span class="k">Account holder</span>
-          <span class="v">${escapeHtml(item.full_name || '—')}</span>
-        </div>
-        <div class="field">
-          <span class="k">Receiving bank</span>
-          <span class="v">${escapeHtml(item.bank_name || '—')}</span>
-        </div>
-        <div class="field">
-          <span class="k">Account number</span>
-          <span class="v mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span>
-        </div>
-      </div>
-
-      <!-- Payment reference -->
-      <div class="section">
-        <div class="section-title">Instruction</div>
-        <div class="field">
-          <span class="k">Narration</span>
-          <span class="v">${escapeHtml(narration)}</span>
-        </div>
-        ${item.paystack_reference ? `
-        <div class="field">
-          <span class="k">Provider ref</span>
-          <span class="v mono">${escapeHtml(item.paystack_reference)}</span>
-        </div>` : ''}
-      </div>
-
-      ${isFailed ? `
-      <!-- Failure notice -->
-      <div class="section">
-        <div class="callout">
-          <strong>No funds were debited.</strong>&nbsp;
-          ${escapeHtml(item.failure_reason || 'Transfer declined by the provider or receiving bank.')}
-          Open the batch in KDOps and select <strong>Retry</strong> to re-initiate.
-        </div>
-      </div>` : ''}
-
-      ${isSucceeded ? `
-      <!-- Cost breakdown -->
-      <div class="section">
-        <div class="section-title">Debit Breakdown</div>
-        <div class="field">
-          <span class="k">Principal</span>
-          <span class="v">${fmtNgn(amount)}</span>
-        </div>
-        ${duty > 0 ? `<div class="field"><span class="k">Stamp duty</span><span class="v">${fmtNgn(duty)}</span></div>` : ''}
-        <div class="field">
-          <span class="k">Transfer fee</span>
-          <span class="v">${fmtNgn(psFee)}</span>
-        </div>
-        <div class="field total">
-          <span class="k">Total debit</span>
-          <span class="v">${fmtNgn(total)}</span>
-        </div>
-      </div>` : ''}
-
-    </div><!-- /body -->
-
-    <!-- Transaction certificate -->
-    <div class="cert-strip">
-      <div class="cert-id">${escapeHtml(certId)}</div>
-      <div class="cert-label">Certificate</div>
-    </div>
-
-    <div class="foot">
-      Questions? <a href="mailto:support@kdsquares.com">support@kdsquares.com</a>
-    </div>
-
   </div>
-  <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+
+  <!-- Transfer details -->
+  <div class="section">
+    <div class="section-title">Transfer Details</div>
+    <div class="row">
+      <span class="k">Status</span>
+      <span class="v"><span class="status-badge"><span class="status-dot"></span>${escapeHtml(statusLabel)}</span></span>
+    </div>
+    <div class="row">
+      <span class="k">Date</span>
+      <span class="v">${escapeHtml(txnDateStr)}</span>
+    </div>
+    <div class="row">
+      <span class="k">Sent to</span>
+      <span class="v">${escapeHtml(item.full_name || '—')}</span>
+    </div>
+  </div>
+
+  <!-- Beneficiary bank details -->
+  <div class="section">
+    <div class="section-title">Beneficiary</div>
+    <div class="row">
+      <span class="k">Bank</span>
+      <span class="v">${escapeHtml(item.bank_name || '—')}</span>
+    </div>
+    <div class="row">
+      <span class="k">Account number</span>
+      <span class="v mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span>
+    </div>
+  </div>
+
+  <!-- Reference / narration -->
+  <div class="section">
+    <div class="section-title">Reference</div>
+    <div class="row">
+      <span class="k">Narration</span>
+      <span class="v">${escapeHtml(narration)}</span>
+    </div>
+    ${item.paystack_reference ? `
+    <div class="row">
+      <span class="k">Provider reference</span>
+      <span class="v mono">${escapeHtml(item.paystack_reference)}</span>
+    </div>` : ''}
+  </div>
+
+  ${isFailed ? `
+  <!-- Failure alert -->
+  <div class="alert">
+    <strong>No funds were debited.</strong>&nbsp;${escapeHtml(item.failure_reason || 'Transfer declined by provider or receiving bank.')}
+    Return to the batch and select <strong>Retry</strong> to reattempt.
+  </div>` : ''}
+
+  ${isSucceeded ? `
+  <!-- Cost breakdown -->
+  <div class="section">
+    <div class="section-title">Debit Breakdown</div>
+    <div class="row">
+      <span class="k">Principal</span>
+      <span class="v">${fmtNgn(amount)}</span>
+    </div>
+    ${duty > 0 ? `<div class="row"><span class="k">Stamp duty</span><span class="v">${fmtNgn(duty)}</span></div>` : ''}
+    <div class="row">
+      <span class="k">Transfer fee</span>
+      <span class="v">${fmtNgn(psFee)}</span>
+    </div>
+    <div class="row total">
+      <span class="k">Total debit</span>
+      <span class="v">${fmtNgn(total)}</span>
+    </div>
+  </div>` : ''}
+
+  <!-- Footer: cert ID + support -->
+  <div class="footer">
+    <span class="cert">${escapeHtml(certId)}</span>
+    <span class="support"><a href="mailto:support@kdsquares.com">support@kdsquares.com</a></span>
+  </div>
+</div>
+<script>window.onload = () => setTimeout(() => window.print(), 300);</script>
 </body>
 </html>`;
 
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank', 'noopener,width=600,height=900');
+  const win = window.open(url, '_blank', 'noopener,width=620,height=860');
   if (!win) return;
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };

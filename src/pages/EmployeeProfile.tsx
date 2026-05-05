@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
-  ChevronDown, AlertTriangle, ExternalLink, Camera, History,
+  ChevronDown, AlertTriangle, ExternalLink, Camera, History, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
@@ -59,6 +59,7 @@ import { getBankCode } from '@/lib/paystack';
 import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { notifyRoles } from '@/lib/notify';
 
 interface EmployeeData {
   id: string;
@@ -164,6 +165,14 @@ const EmployeeProfile = () => {
   const [bankSaving, setBankSaving] = useState(false);
   const [showBankHistory, setShowBankHistory] = useState(false);
   const [bankHistory, setBankHistory] = useState<any[]>([]);
+  // Bank change request workflow (non-admin employees)
+  const [bankRequests, setBankRequests] = useState<any[]>([]);
+  const [showBankRequestForm, setShowBankRequestForm] = useState(false);
+  const [bankRequestDetails, setBankRequestDetails] = useState<BankAccountValue>({ bank_name: '', account_number: '', account_name: '', verified: false });
+  const [bankRequestReason, setBankRequestReason] = useState('');
+  const [submittingBankRequest, setSubmittingBankRequest] = useState(false);
+  const [rejectingBankRequest, setRejectingBankRequest] = useState<string | null>(null);
+  const [bankRejectReason, setBankRejectReason] = useState('');
   const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
@@ -331,6 +340,77 @@ const EmployeeProfile = () => {
   const openBankHistory = () => {
     setShowBankHistory(true);
     loadBankHistory();
+  };
+
+  const loadBankRequests = useCallback(async () => {
+    if (!id) return;
+    const { data } = await supabase
+      .from('bank_account_change_requests')
+      .select('*')
+      .eq('employee_id', id)
+      .order('created_at', { ascending: false });
+    setBankRequests(data || []);
+  }, [id]);
+
+  useEffect(() => { loadBankRequests(); }, [loadBankRequests]);
+
+  const submitBankChangeRequest = async () => {
+    if (!id || !bankRequestDetails.verified) return;
+    setSubmittingBankRequest(true);
+    try {
+      const { error } = await supabase.from('bank_account_change_requests').insert({
+        employee_id: id,
+        new_bank_name: bankRequestDetails.bank_name,
+        new_account_number: bankRequestDetails.account_number,
+        new_account_name: bankRequestDetails.account_name,
+        reason: bankRequestReason.trim() || null,
+      });
+      if (error) throw error;
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'bank_change_requested',
+        module: 'employees',
+        priority: 'high',
+        title: 'Bank account change request',
+        body: `${employee?.full_name || 'An employee'} has requested a bank account change.`,
+      });
+      toast({ title: 'Request submitted', description: 'An admin will review and approve it.' });
+      setShowBankRequestForm(false);
+      setBankRequestDetails({ bank_name: '', account_number: '', account_name: '', verified: false });
+      setBankRequestReason('');
+      loadBankRequests();
+    } catch (e: any) {
+      toast({ title: 'Submission failed', description: e?.message, variant: 'destructive' });
+    } finally {
+      setSubmittingBankRequest(false);
+    }
+  };
+
+  const handleApproveBankRequest = async (reqId: string) => {
+    try {
+      await supabase.rpc('approve_bank_account_change_request', { p_request_id: reqId });
+      toast({ title: 'Bank account change approved and applied.' });
+      loadBankRequests();
+      load();
+    } catch (e: any) {
+      toast({ title: 'Approval failed', description: e?.message, variant: 'destructive' });
+    }
+  };
+
+  const handleRejectBankRequest = async () => {
+    if (!rejectingBankRequest || !bankRejectReason.trim()) return;
+    try {
+      await supabase.rpc('reject_bank_account_change_request', {
+        p_request_id: rejectingBankRequest,
+        p_reason: bankRejectReason.trim(),
+      });
+      toast({ title: 'Bank account change rejected.' });
+      setRejectingBankRequest(null);
+      setBankRejectReason('');
+      loadBankRequests();
+    } catch (e: any) {
+      toast({ title: 'Rejection failed', description: e?.message, variant: 'destructive' });
+    }
   };
 
   const saveBank = async () => {
@@ -1205,27 +1285,29 @@ const EmployeeProfile = () => {
                       Cancel
                     </Button>
                   )}
+                  {isSelf && !canManage && !showBankRequestForm && !bankRequests.some(r => r.status === 'pending') && (
+                    <Button size="sm" variant="outline" onClick={() => setShowBankRequestForm(true)}>
+                      Request change
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
-              <CardContent>
-                {bankEditMode ? (
+              <CardContent className="space-y-4">
+                {/* Admin direct-edit mode */}
+                {bankEditMode && (
                   <div className="space-y-4">
-                    <BankAccountField
-                      value={bankDetails}
-                      onChange={setBankDetails}
-                    />
+                    <BankAccountField value={bankDetails} onChange={setBankDetails} />
                     <div className="flex justify-end">
-                      <Button
-                        size="sm"
-                        onClick={saveBank}
-                        disabled={!bankDetails.verified || bankSaving}
-                      >
+                      <Button size="sm" onClick={saveBank} disabled={!bankDetails.verified || bankSaving}>
                         {bankSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
                         Save Bank Details
                       </Button>
                     </div>
                   </div>
-                ) : employee.bank_name && employee.bank_account_number ? (
+                )}
+
+                {/* Current bank details */}
+                {!bankEditMode && (employee.bank_name && employee.bank_account_number ? (
                   <>
                     <dl className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -1241,7 +1323,7 @@ const EmployeeProfile = () => {
                         <dd className="font-medium">{employee.bank_account_name || '—'}</dd>
                       </div>
                     </dl>
-                    <p className="text-xs text-muted-foreground mt-3 pt-3 border-t">
+                    <p className="text-xs text-muted-foreground pt-3 border-t">
                       Payouts will be made to this account
                     </p>
                   </>
@@ -1249,13 +1331,67 @@ const EmployeeProfile = () => {
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">No payment method on file.</p>
                     {canManage && (
-                      <button
-                        className="text-xs text-primary hover:underline"
-                        onClick={() => setBankEditMode(true)}
-                      >
+                      <button className="text-xs text-primary hover:underline" onClick={() => setBankEditMode(true)}>
                         Add bank account
                       </button>
                     )}
+                  </div>
+                ))}
+
+                {/* Pending change requests (visible to admins reviewing this profile) */}
+                {canManage && bankRequests.filter(r => r.status === 'pending').length > 0 && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-3">
+                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide">Pending bank change request</p>
+                    {bankRequests.filter(r => r.status === 'pending').map((req) => (
+                      <div key={req.id} className="space-y-2">
+                        <div className="text-sm space-y-1">
+                          <div className="flex justify-between"><span className="text-muted-foreground">Bank</span><span className="font-medium">{req.new_bank_name}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Account</span><span className="font-mono text-xs">{req.new_account_number}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium">{req.new_account_name}</span></div>
+                          {req.reason && <div className="flex justify-between"><span className="text-muted-foreground">Reason</span><span className="italic text-xs max-w-[60%] text-right">{req.reason}</span></div>}
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button size="sm" variant="outline" className="flex-1 text-destructive border-destructive/40 hover:bg-destructive/5" onClick={() => { setRejectingBankRequest(req.id); setBankRejectReason(''); }}>
+                            <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                          </Button>
+                          <Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleApproveBankRequest(req.id)}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Employee's own request-change form */}
+                {isSelf && !canManage && showBankRequestForm && (
+                  <div className="rounded-md border p-3 space-y-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Request account change</p>
+                    <BankAccountField value={bankRequestDetails} onChange={setBankRequestDetails} />
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Reason (optional)</label>
+                      <textarea
+                        className="w-full text-xs rounded-md border bg-background px-3 py-2 min-h-[60px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="Why are you changing your bank account?"
+                        value={bankRequestReason}
+                        onChange={(e) => setBankRequestReason(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => setShowBankRequestForm(false)} className="flex-1">Cancel</Button>
+                      <Button size="sm" className="flex-1" onClick={submitBankChangeRequest} disabled={!bankRequestDetails.verified || submittingBankRequest}>
+                        {submittingBankRequest && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                        Submit request
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">An admin will review and apply this change. Your current account stays active until then.</p>
+                  </div>
+                )}
+
+                {/* Pending badge for self */}
+                {isSelf && !canManage && bankRequests.some(r => r.status === 'pending') && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Your bank account change request is <strong>pending admin review</strong>.
                   </div>
                 )}
               </CardContent>
@@ -2626,6 +2762,33 @@ const EmployeeProfile = () => {
               })}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject bank change request dialog */}
+      <Dialog open={!!rejectingBankRequest} onOpenChange={(v) => { if (!v) { setRejectingBankRequest(null); setBankRejectReason(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject bank account change</DialogTitle>
+            <DialogDescription>
+              The employee will be notified. Give a reason so they can resubmit correctly.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Reason for rejection</Label>
+            <textarea
+              className="w-full text-sm rounded-md border bg-background px-3 py-2 min-h-[80px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="e.g. Account name does not match payroll records…"
+              value={bankRejectReason}
+              onChange={(e) => setBankRejectReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectingBankRequest(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleRejectBankRequest} disabled={!bankRejectReason.trim()}>
+              Reject request
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
