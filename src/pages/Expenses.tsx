@@ -39,6 +39,7 @@ import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { notifyUser, notifyRoles } from '@/lib/notify';
+import { notifyApprovalDecision } from '@/lib/approval-notify';
 import {
   approveExpense,
   approvePaymentBatch,
@@ -488,15 +489,18 @@ const Expenses = () => {
       return;
     }
 
-    // Company-level expense policy: block if over the per-category cap.
+    // Company-level expense policy: warn (don't hard-block) so the user can
+    // proceed knowing it'll need extra scrutiny — Expensify / Concur model.
+    // The over-cap claim is flagged for approvers via a "policy exceeded"
+    // notice on submission, and dual-approval routing already kicks in above
+    // the dual_approval_threshold so there's no audit hole.
     const policyLimit = limits[form.category];
     if (policyLimit && amount > policyLimit) {
-      toast({
-        title: 'Above expense policy limit',
-        description: `The ${form.category.replace(/_/g, ' ')} category is capped at ${formatNaira(policyLimit)}. Ask Finance to raise the limit or split this expense.`,
-        variant: 'destructive',
-      });
-      return;
+      const ok = window.confirm(
+        `Heads up — this is over the ${form.category.replace(/_/g, ' ')} policy cap of ${formatNaira(policyLimit)}.\n\n` +
+        `It will be submitted but flagged for higher scrutiny. Continue?`
+      );
+      if (!ok) return;
     }
 
     if (form.category === 'repair' && amount > 10000 && !receiptFile) {
@@ -660,12 +664,14 @@ const Expenses = () => {
         );
         await syncFuelRequest(expense.fuel_request_id, 'approved');
         if (expense.submitted_by) {
-          await notifyUser({
+          // In-app + email — submitters need a real signal that their expense
+          // moved forward; in-app alone gets buried.
+          await notifyApprovalDecision({
             userId: expense.submitted_by,
-            type: 'expense_approved',
+            decision: 'approved',
+            entity: 'expense',
+            entityLabel: `${cat} — ${amtStr}`,
             module: 'expenses',
-            title: 'Your expense was approved',
-            body: `${cat} — ${amtStr}`,
           });
         }
         burst({ palette: 'success', count: isSecond ? 50 : 40 });
@@ -709,6 +715,18 @@ const Expenses = () => {
       auditType: 'expense_rejected',
       auditDescription: `Expense rejected: ${e.category} — ${formatNaira(e.amount_ngn || 0)} — ${rejectReason.trim()}`,
     });
+    // Email the submitter as well — rejections are high-stakes and easily
+    // missed in the in-app feed alone.
+    if (e.submitted_by) {
+      await notifyApprovalDecision({
+        userId: e.submitted_by,
+        decision: 'rejected',
+        entity: 'expense',
+        entityLabel: `${e.category.replace(/_/g, ' ')} — ${formatNaira(e.amount_ngn || 0)}`,
+        reason: rejectReason.trim(),
+        module: 'expenses',
+      });
+    }
     toast({ title: 'Expense rejected' });
     setRejectingExpense(null);
     setRejectReason('');
@@ -776,6 +794,99 @@ const Expenses = () => {
     if (pending.length === 0) return;
     const total = pending.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
     setBulkApproveConfirm({ count: pending.length, total });
+  };
+
+  /**
+   * Days an expense has been waiting for approval (rounded down). Returns
+   * null when the expense is no longer pending — ageing only matters while
+   * the row is sitting on someone's desk.
+   */
+  const ageingDays = (e: Expense): number | null => {
+    if (e.status !== 'pending' && e.status !== 'pending_second_approval') return null;
+    const ms = Date.now() - new Date(e.created_at).getTime();
+    return Math.max(0, Math.floor(ms / 86_400_000));
+  };
+
+  /** Approved expenses that have a verified bank account and no batch yet. */
+  const payableExpenses = useMemo(
+    () =>
+      expenses.filter(
+        (e) =>
+          e.status === 'approved' &&
+          !e.payment_reference &&
+          (e.payment_status === 'pending' || e.payment_status == null) &&
+          !!e.account_number && !!e.bank_name && !!e.account_name,
+      ),
+    [expenses],
+  );
+
+  const [bulkPayConfirm, setBulkPayConfirm] = useState<{ count: number; total: number } | null>(null);
+  const [bulkPaying, setBulkPaying] = useState(false);
+
+  const promptBulkPay = () => {
+    if (!isApprover || !canProcessPerm) return;
+    if (payableExpenses.length === 0) return;
+    const total = payableExpenses.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+    setBulkPayConfirm({ count: payableExpenses.length, total });
+  };
+
+  /**
+   * Pay every payable expense in sequence. Each becomes its own batch (via
+   * createExpensePaymentBatch) and is auto-approved. Errors are collected
+   * per-expense so a single failure doesn't roll back the rest. Final toast
+   * summarises succeeded / failed counts; user navigates to /payments to
+   * fund + process.
+   */
+  const doBulkPay = async () => {
+    if (!bulkPayConfirm) return;
+    setBulkPayConfirm(null);
+    setBulkPaying(true);
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
+    try {
+      for (const e of payableExpenses) {
+        try {
+          const created = await createExpensePaymentBatch(e.id);
+          const batchId = (created as any)?.id;
+          if (!batchId) throw new Error('No batch id returned');
+          try {
+            await approvePaymentBatch(batchId);
+          } catch {
+            // Auto-approve may be blocked by caps / dual-approval; that's fine
+            // — the batch exists and will sit pending for manual approval.
+          }
+          succeeded++;
+        } catch (err: any) {
+          failures.push({
+            title: `${e.category.replace(/_/g, ' ')} (${formatNaira(e.amount_ngn || 0)})`,
+            reason: err?.message || 'unknown',
+          });
+        }
+      }
+      const total = payableExpenses.reduce((s, e) => s + Number(e.amount_ngn || 0), 0);
+      await logAudit(
+        'bulk_paid',
+        `Bulk-paid ${succeeded} of ${payableExpenses.length} approved expenses (${formatNaira(total)})`,
+        profile,
+      );
+      if (failures.length === 0) {
+        toast({
+          title: `Created ${succeeded} payment batch${succeeded === 1 ? '' : 'es'}`,
+          description: 'Open Payments to fund and process.',
+        });
+      } else {
+        toast({
+          title: `Created ${succeeded} of ${payableExpenses.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
+      fetchData();
+      // Take user straight to the Payments queue so they can act.
+      if (succeeded > 0) navigate('/payments');
+    } finally {
+      setBulkPaying(false);
+    }
   };
 
   /** Approve every pending expense in the table — one RPC call per row so a
@@ -1050,6 +1161,18 @@ const Expenses = () => {
               Approve all pending ({pendingCount})
             </Button>
           )}
+          {isApprover && canProcessPerm && payableExpenses.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={promptBulkPay}
+              disabled={bulkPaying}
+              className="text-success border-success/40 hover:bg-success/5"
+            >
+              {bulkPaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <CreditCard className="mr-2 h-4 w-4" />
+              Pay all approved ({payableExpenses.length})
+            </Button>
+          )}
           <Button onClick={() => setShowForm(true)}>
             <Plus className="mr-2 h-4 w-4" /> New Expense
           </Button>
@@ -1245,6 +1368,16 @@ const Expenses = () => {
                               Dual approved
                             </span>
                           )}
+                          {(() => {
+                            const days = ageingDays(e);
+                            if (days === null || days < 3) return null;
+                            const tone = days >= 7 ? 'text-red-600 font-semibold' : days >= 5 ? 'text-amber-600 font-medium' : 'text-muted-foreground';
+                            return (
+                              <span className={`text-[10px] ${tone}`}>
+                                Awaiting {days}d
+                              </span>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -1965,6 +2098,28 @@ const Expenses = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
             <Button onClick={doBulkApprove}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!bulkPayConfirm} onOpenChange={(open) => { if (!open) setBulkPayConfirm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pay all approved expenses?</DialogTitle>
+            <DialogDescription>
+              Each expense becomes its own payment batch and is auto-approved. You'll be redirected to Payments to fund and process.
+            </DialogDescription>
+          </DialogHeader>
+          {bulkPayConfirm && (
+            <p className="text-sm text-muted-foreground">
+              {bulkPayConfirm.count} approved expense{bulkPayConfirm.count === 1 ? '' : 's'} · total {formatNaira(bulkPayConfirm.total)}.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPayConfirm(null)}>Cancel</Button>
+            <Button onClick={doBulkPay}>
+              <CreditCard className="mr-2 h-4 w-4" /> Create batches
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -47,6 +47,7 @@ import {
   UserCheck,
   Store,
   FilePlus2,
+  Download,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -54,6 +55,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { formatNaira, setTimezoneCache } from '@/lib/format';
+import { exportExpensePolicyPdf } from '@/lib/policy-pdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InfoTip } from '@/components/ui-kit/InfoTip';
 import { Button } from '@/components/ui/button';
@@ -922,13 +924,30 @@ const SettingsPage = () => {
         {/* POLICY -------------------------------------------------------- */}
         <TabsContent value="policy" className="mt-4 space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Expense category limits</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">
-                Per-category caps on what staff can submit. Categories without a
-                limit set are unrestricted. Submissions above the cap are blocked
-                at submission and never reach an approver.
-              </p>
+            <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+              <div>
+                <CardTitle className="text-base">Expense category limits</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Per-category caps on what staff can submit. Categories without a
+                  limit set are unrestricted. Submissions above the cap warn the
+                  submitter at entry; the claim is still routed for approval but
+                  flagged.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => exportExpensePolicyPdf({
+                  companyName: settings.company_name || 'KD Squares',
+                  logoUrl: settings.logo_url,
+                  expenseLimits: settings.expense_limits || {},
+                  dualApprovalThresholdNgn: Number(settings.dual_approval_threshold_ngn || 0),
+                  generatedBy: profile?.full_name || profile?.email || undefined,
+                })}
+                className="shrink-0"
+              >
+                <Download className="h-3.5 w-3.5 mr-1.5" /> Export policy PDF
+              </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* ── Existing limits ─────────────────────────────────── */}

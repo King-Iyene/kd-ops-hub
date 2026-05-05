@@ -175,7 +175,7 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
 
   // Status dot + label — colour is contained, everything else is white
   const statusDot = isFailed ? '#dc2626' : isSucceeded ? '#16a34a' : '#d97706';
-  const statusLabel = isFailed ? 'Declined' : isSucceeded ? 'Settled' : 'Pending';
+  const statusLabel = isFailed ? 'Failed' : isSucceeded ? 'Successful' : 'Pending';
 
   const amount = Number(item.amount_ngn) || 0;
   const psFee = paystackTransferFee(amount);
