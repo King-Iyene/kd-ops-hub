@@ -1316,7 +1316,7 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account number</dt>
-                        <dd className="font-medium font-mono">{maskAccountNumber(employee.bank_account_number)}</dd>
+                        <dd className="font-medium font-mono">{employee.bank_account_number || '—'}</dd>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account name</dt>

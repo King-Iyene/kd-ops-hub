@@ -75,7 +75,9 @@ import {
   Trash2,
   CalendarClock,
   Search,
+  Info,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
@@ -2109,30 +2111,38 @@ const BatchDetail = () => {
                     className={item.status === 'failed' ? 'border-l-4 border-l-destructive bg-destructive/5 kd-transition' : 'kd-transition'}
                   >
                     <TableCell className="font-medium">
-                      <div>{item.full_name || 'Unknown Recipient'}</div>
-                      {item.failure_reason && (() => {
-                        const f = friendlyPaystackError(item.failure_reason);
-                        const isOtp = /awaiting otp/i.test(item.failure_reason);
-                        return (
-                          <>
-                            <p
-                              className={`text-[11px] mt-0.5 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}
-                              title={item.failure_reason}
-                            >
-                              <span className="font-semibold">{f.title}.</span>{' '}
-                              <span className="text-muted-foreground">{f.hint}</span>
-                            </p>
-                            {f.hint !== item.failure_reason && (
-                              <p className="font-mono text-[10px] text-muted-foreground/70 mt-0.5 break-all">
-                                <span className="opacity-60">Paystack: </span>{item.failure_reason}
-                              </p>
-                            )}
-                          </>
-                        );
-                      })()}
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{item.full_name || 'Unknown Recipient'}</span>
+                        {item.failure_reason && (() => {
+                          const f = friendlyPaystackError(item.failure_reason);
+                          const isOtp = /awaiting otp/i.test(item.failure_reason);
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="View failure reason"
+                                  className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-amber-700 hover:bg-amber-50 dark:text-amber-400' : 'text-destructive hover:bg-destructive/10'}`}
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent side="right" className="w-72 text-xs">
+                                <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
+                                <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                {f.hint !== item.failure_reason && (
+                                  <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                    <span className="opacity-60">Paystack: </span>{item.failure_reason}
+                                  </p>
+                                )}
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        })()}
+                      </div>
                     </TableCell>
                     <TableCell>{item.bank_name}</TableCell>
-                    <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.account_number || '—'}</TableCell>
                     <TableCell className="text-right">
                       {canSeeAmounts
                         ? <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>

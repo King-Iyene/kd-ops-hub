@@ -745,7 +745,7 @@ const NewPaymentBatch = () => {
                                 {hasBank ? (
                                   <div>
                                     <p className="text-sm">{e.bank_name}</p>
-                                    <p className="font-mono text-xs text-muted-foreground">{maskAccountNumber(e.bank_account_number)}</p>
+                                    <p className="font-mono text-xs text-muted-foreground">{e.bank_account_number || '—'}</p>
                                   </div>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-xs text-amber-600">
@@ -814,7 +814,7 @@ const NewPaymentBatch = () => {
                               </TableCell>
                               <TableCell className="font-medium">{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'}</TableCell>
                               <TableCell>{c.bank_name}</TableCell>
-                              <TableCell>{maskAccountNumber(c.account_number)}</TableCell>
+                              <TableCell className="font-mono text-xs">{c.account_number || '—'}</TableCell>
                               <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
                             </TableRow>
                           );
@@ -860,7 +860,7 @@ const NewPaymentBatch = () => {
                         <TableRow key={item._key}>
                           <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
                           <TableCell>{item.bank_name}</TableCell>
-                          <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
+                          <TableCell className="font-mono text-xs">{item.account_number || '—'}</TableCell>
                           <TableCell>
                             <Input
                               type="number"

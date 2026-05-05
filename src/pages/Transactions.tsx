@@ -13,7 +13,10 @@ import {
   Check,
   Printer,
   FileDown,
+  Info,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { friendlyPaystackError } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -81,46 +84,43 @@ interface Transaction {
   parent_batch_id: string | null;
 }
 
-type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'charge';
+// Item-level ledger types — every row is an actual money movement.
+//   transfer  = a regular batch_item dispatched to Paystack
+//   quick_pay = a quick_pay batch's single item
+//   charge    = a Paystack fee deduction
+type FilterTab = 'all' | 'quick_pay' | 'transfer' | 'charge';
 
-// Audit groups — partial batches contain successful payments, so the
-// "Completed" group includes them so the 99-of-100-succeeded case is not
-// invisible when filtering by completed.
+// Item-level statuses (per batch_item.status) plus the audit groups.
+// Grouped because "Completed" should match succeeded transfers AND succeeded
+// charges, not the legacy batch-level 'processed'/'partially_processed'.
 const STATUS_GROUPS: Record<string, readonly string[]> = {
-  completed:  ['processed', 'partially_processed'],
+  completed:  ['succeeded', 'processed', 'partially_processed'],
   failed:     ['failed', 'rejected', 'reversed'],
-  in_progress:['pending', 'pending_approval', 'approved', 'funded', 'processing'],
-  draft:      ['draft'],
+  in_progress:['pending', 'processing'],
 };
 
 const STATUS_OPTIONS = [
-  'draft',
   'pending',
-  'pending_approval',
-  'approved',
-  'funded',
   'processing',
-  'processed',
-  'partially_processed',
-  'rejected',
+  'succeeded',
   'failed',
   'reversed',
 ] as const;
 
 const TYPE_ICON: Record<string, typeof CreditCard> = {
-  payment_batch: CreditCard,
+  transfer: CreditCard,
   quick_pay: Zap,
   charge: Receipt,
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  payment_batch: 'bg-primary/10 text-primary border border-primary/30',
+  transfer: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
   charge: 'bg-warning/10 text-warning border border-warning/30',
 };
 
 const typeLabel = (t: string) => {
-  if (t === 'payment_batch') return 'Batch';
+  if (t === 'transfer') return 'Transfer';
   if (t === 'quick_pay') return 'Quick Pay';
   if (t === 'charge') return 'Fee';
   return t.replace(/_/g, ' ');
@@ -128,8 +128,8 @@ const typeLabel = (t: string) => {
 
 const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'transfer', label: 'Transfers' },
   { value: 'quick_pay', label: 'Quick Pay' },
-  { value: 'payment_batch', label: 'Batches' },
   { value: 'charge', label: 'Fees' },
 ];
 
@@ -428,16 +428,17 @@ const Transactions = () => {
                   <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                     <TableHead className="text-xs">Date</TableHead>
                     <TableHead className="text-xs">Type</TableHead>
-                    <TableHead className="text-xs">Description</TableHead>
+                    <TableHead className="text-xs">Recipient</TableHead>
+                    <TableHead className="text-xs">Bank · Account</TableHead>
                     <TableHead className="text-right text-xs">Amount</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs">Receipt</TableHead>
                     <TableHead className="text-xs">Reference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
                     const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
+                    const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
                       <TableRow
                         key={`${r.txn_type}-${r.id}`}
@@ -456,28 +457,45 @@ const Transactions = () => {
                             {typeLabel(r.txn_type)}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm max-w-[240px]">
-                          {r.txn_type === 'payment_batch' ? (
-                            <div>
-                              <p className="font-medium truncate">{r.batch_name || r.description}</p>
-                              {r.beneficiary_count != null && (
-                                <p className="text-xs text-muted-foreground">
-                                  {r.succeeded_count != null && r.succeeded_count !== r.beneficiary_count ? (
-                                    <>
-                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">{r.succeeded_count}</span>
-                                      {' of '}
-                                      <span>{r.beneficiary_count}</span>
-                                      {' succeeded'}
-                                      {r.failed_count ? <span className="text-destructive ml-1">· {r.failed_count} failed</span> : null}
-                                    </>
-                                  ) : (
-                                    <>{r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}</>
+                        <TableCell className="text-sm max-w-[200px]">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-medium truncate">{r.account_name || r.description}</span>
+                            {f && r.status === 'failed' && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    aria-label="View failure reason"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Info className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="right" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-semibold mb-1 text-destructive">{f.title}</p>
+                                  <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                  {f.hint !== r.rejection_reason && (
+                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <span className="opacity-60">Paystack: </span>{r.rejection_reason}
+                                    </p>
                                   )}
-                                </p>
-                              )}
-                            </div>
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          {r.batch_name && r.txn_type !== 'quick_pay' && (
+                            <p className="text-[11px] text-muted-foreground truncate">from {r.batch_name}</p>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[200px]">
+                          {r.bank_name ? (
+                            <>
+                              <p className="truncate">{r.bank_name}</p>
+                              <p className="font-mono text-muted-foreground">{r.account_number || '—'}</p>
+                            </>
                           ) : (
-                            <p className="truncate">{r.description}</p>
+                            <span className="text-muted-foreground/40">—</span>
                           )}
                         </TableCell>
                         <TableCell className={cn('text-right font-semibold currency whitespace-nowrap text-sm', r.txn_type === 'charge' && 'text-warning')}>
@@ -485,21 +503,6 @@ const Transactions = () => {
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={r.status} size="sm" />
-                        </TableCell>
-                        <TableCell>
-                          {r.receipt_url ? (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                            >
-                              <FileDown className="h-3.5 w-3.5" /> View
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          )}
                         </TableCell>
                         <TableCell>
                           <CopyableRef value={r.reference} />
@@ -515,14 +518,13 @@ const Transactions = () => {
               <div className="md:hidden p-3 space-y-2">
                 {pagination.slice.map((r) => {
                   const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
-                  const description =
-                    r.txn_type === 'payment_batch' ? (r.batch_name || r.description)
-                    : r.description;
+                  const recipient = r.account_name || r.description || '—';
+                  const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                   return (
                     <MobileCard
                       key={`${r.txn_type}-${r.id}`}
                       onClick={() => handleRowClick(r)}
-                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : 'bg-emerald-500'}
+                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : r.txn_type === 'charge' ? 'bg-amber-500' : 'bg-emerald-500'}
                     >
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">
@@ -530,19 +532,39 @@ const Transactions = () => {
                             <Icon className="h-2.5 w-2.5 mr-1" />
                             {typeLabel(r.txn_type)}
                           </Badge>
-                          <MobileCardTitle className="text-sm capitalize">{description || '—'}</MobileCardTitle>
-                          {r.txn_type === 'payment_batch' && r.beneficiary_count != null && (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <MobileCardTitle className="text-sm capitalize truncate">{recipient}</MobileCardTitle>
+                            {f && r.status === 'failed' && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    aria-label="View failure reason"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Info className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="bottom" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-semibold mb-1 text-destructive">{f.title}</p>
+                                  <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                  {f.hint !== r.rejection_reason && (
+                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <span className="opacity-60">Paystack: </span>{r.rejection_reason}
+                                    </p>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          {r.bank_name && (
                             <p className="text-[11px] text-muted-foreground">
-                              {r.succeeded_count != null && r.succeeded_count !== r.beneficiary_count ? (
-                                <>
-                                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">{r.succeeded_count}</span>
-                                  {' of '}{r.beneficiary_count}{' succeeded'}
-                                  {r.failed_count ? <span className="text-destructive ml-1">· {r.failed_count} failed</span> : null}
-                                </>
-                              ) : (
-                                <>{r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}</>
-                              )}
+                              {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
                             </p>
+                          )}
+                          {r.batch_name && r.txn_type !== 'quick_pay' && (
+                            <p className="text-[11px] text-muted-foreground/80">from {r.batch_name}</p>
                           )}
                         </div>
                         <MobileCardMeta className={cn('currency text-base', r.txn_type === 'charge' && 'text-warning')}>
@@ -559,18 +581,6 @@ const Transactions = () => {
                         <MobileCardRow label="Reference">
                           <CopyableRef value={r.reference} />
                         </MobileCardRow>
-                      )}
-
-                      {r.receipt_url && (
-                        <a
-                          href={r.receipt_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-primary"
-                        >
-                          <FileDown className="h-3 w-3" /> View receipt
-                        </a>
                       )}
                     </MobileCard>
                   );
