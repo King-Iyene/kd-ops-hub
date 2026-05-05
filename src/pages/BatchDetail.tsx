@@ -206,25 +206,58 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Payment Confirmation — ${escapeHtml(item.full_name || '')}</title>
+  <title>${isFailed ? 'Payment Failed' : isSucceeded ? 'Payment Confirmation' : 'Payment Pending'} — ${escapeHtml(item.full_name || '')}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f4f4f5;
+      /* Glassy backdrop — soft brand-tinted dot grid on a near-white wash.
+         Reads classy on screen; print rules below override to plain white. */
+      background:
+        radial-gradient(circle at 20% 10%, rgba(0,105,148,0.08) 0%, transparent 45%),
+        radial-gradient(circle at 80% 90%, rgba(0,236,255,0.06) 0%, transparent 50%),
+        radial-gradient(circle, rgba(0,105,148,0.10) 1px, transparent 1px) 0 0/22px 22px,
+        #f8fafc;
       min-height: 100vh;
       padding: 40px 16px;
       -webkit-font-smoothing: antialiased;
       color: #18181b;
     }
     .page {
+      position: relative;
       max-width: 580px;
       margin: 0 auto;
-      background: #fff;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 32px -8px rgba(0,0,0,0.1);
+      /* Frosted-glass surface — translucent white with backdrop blur on screen */
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(14px) saturate(160%);
+      -webkit-backdrop-filter: blur(14px) saturate(160%);
+      border: 1px solid rgba(0,105,148,0.12);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.6) inset,
+        0 1px 3px rgba(0,0,0,0.04),
+        0 12px 40px -8px rgba(0,105,148,0.18);
     }
-    .accent { height: 4px; background: ${BRAND}; }
+    /* Subtle inner dot pattern — gives the receipt that "engineered paper" feel */
+    .page::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle, rgba(0,105,148,0.04) 1px, transparent 1px) 0 0/16px 16px;
+      pointer-events: none;
+      opacity: 0.6;
+      z-index: 0;
+    }
+    .page > * { position: relative; z-index: 1; }
+    .accent {
+      height: 4px;
+      background: linear-gradient(90deg,
+        ${BRAND} 0%,
+        ${isFailed ? '#dc2626' : isSucceeded ? '#16a34a' : '#d97706'} 50%,
+        ${BRAND} 100%);
+    }
 
     /* ── Header ── */
     .header {
@@ -297,18 +330,6 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
       flex-shrink: 0;
     }
 
-    /* ── Failure alert ── */
-    .alert {
-      margin: 0 36px 20px;
-      padding: 12px 16px;
-      border-left: 3px solid #dc2626;
-      background: #fef2f2;
-      font-size: 12.5px;
-      color: #7f1d1d;
-      line-height: 1.6;
-    }
-    .alert strong { font-weight: 700; }
-
     /* ── Footer ── */
     .footer {
       padding: 14px 36px 28px;
@@ -329,15 +350,26 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     .support a { color: #71717a; text-decoration: underline; text-underline-offset: 2px; }
 
     @media print {
-      body { background: #fff; padding: 0; }
-      .page { box-shadow: none; max-width: 100%; }
-      .accent, .alert { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body {
+        background: #fff;
+        padding: 0;
+      }
+      .page {
+        box-shadow: none;
+        max-width: 100%;
+        background: #fff;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border: none;
+        border-radius: 0;
+      }
+      .page::before { display: none; }
+      .accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
     @media (max-width: 500px) {
       body { padding: 0; }
-      .page { box-shadow: none; }
-      .header, .section, .footer, .alert { padding-left: 20px; padding-right: 20px; }
-      .alert { margin-left: 0; margin-right: 0; }
+      .page { box-shadow: none; border-radius: 0; }
+      .header, .section, .footer { padding-left: 20px; padding-right: 20px; }
       .header { flex-direction: column; gap: 16px; }
       .header-right { text-align: left; }
     }
@@ -353,7 +385,7 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
       ${logoHtml}
       <div>
         <div class="company-name">${escapeHtml(shortName)}</div>
-        <div class="doc-type">Payment Confirmation</div>
+        <div class="doc-type">${isFailed ? 'Payment Failed' : isSucceeded ? 'Payment Confirmation' : 'Payment Pending'}</div>
       </div>
     </div>
     <div class="header-right">
@@ -406,12 +438,6 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     </div>` : ''}
   </div>
 
-  ${isFailed ? `
-  <!-- Failure alert -->
-  <div class="alert">
-    <strong>No funds were debited.</strong>&nbsp;${escapeHtml(item.failure_reason || 'Transfer declined by provider or receiving bank.')}
-    Return to the batch and select <strong>Retry</strong> to reattempt.
-  </div>` : ''}
 
   ${isSucceeded ? `
   <!-- Cost breakdown -->
@@ -1947,9 +1973,10 @@ const BatchDetail = () => {
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                // 30-day retry window — anything older is excluded so we
-                // don't accidentally re-fire months-old failed payments.
-                const RETRY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+                // 48-hour retry window — matches Paystack's transfer reversal
+                // window and NIBSS instant-transfer settlement window. Anything
+                // older is treated as archived; create a fresh batch instead.
+                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
                 const now = Date.now();
                 const toRetry = items.filter(i => {
                   if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
@@ -1979,7 +2006,7 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" />
               {retryingAll ? 'Retrying…' : (() => {
-                const RETRY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
                 const now = Date.now();
                 const eligible = items.filter(i => {
                   if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
@@ -2219,19 +2246,21 @@ const BatchDetail = () => {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
                         {item.status === 'failed' && canApprove && (() => {
-                          // Retry expires after 30 days. Beyond that the bank
-                          // details, narration period and amount may all be
-                          // stale — accidentally re-firing a months-old failed
-                          // payment is a genuine money-loss risk. Operators
-                          // create a fresh batch instead.
+                          // Retry expires after 48 hours — matches Paystack's
+                          // transfer reversal window and NIBSS instant-transfer
+                          // settlement window. Beyond that the bank details,
+                          // narration period and amount may all be stale and
+                          // accidentally re-firing a days-old failed payment is
+                          // a real money-loss risk. Operators create a fresh
+                          // batch instead.
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
-                          const ageDays = (Date.now() - failedAt) / (1000 * 60 * 60 * 24);
-                          const RETRY_WINDOW_DAYS = 30;
-                          if (ageDays > RETRY_WINDOW_DAYS) {
+                          const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
+                          const RETRY_WINDOW_HOURS = 48;
+                          if (ageHours > RETRY_WINDOW_HOURS) {
                             return (
                               <span
                                 className="text-[10px] text-muted-foreground italic"
-                                title={`Retry window closed (${Math.round(ageDays)} days old). Create a new batch with this recipient if payment is still owed.`}
+                                title={`Retry window closed (${Math.round(ageHours)}h old). Create a new batch with this recipient if payment is still owed.`}
                               >
                                 Retry expired
                               </span>
@@ -2244,7 +2273,7 @@ const BatchDetail = () => {
                                 variant="outline"
                                 disabled={retryingId === item.id}
                                 onClick={() => retryItem(item)}
-                                title={`Failed ${Math.round(ageDays)}d ago — retry expires after ${RETRY_WINDOW_DAYS} days`}
+                                title={`Failed ${Math.round(ageHours)}h ago — retry expires after ${RETRY_WINDOW_HOURS} hours`}
                               >
                                 {retryingId === item.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
