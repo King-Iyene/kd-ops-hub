@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate, maskAccountNumber } from '@/lib/format';
@@ -103,6 +103,7 @@ const emptyBank: BankAccountValue = {
 const NewPaymentBatch = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const isEditMode = !!editId && editId !== 'new';
   const { toast } = useToast();
   const { profile } = useAuthStore();
@@ -149,6 +150,36 @@ const NewPaymentBatch = () => {
       .order('full_name')
       .limit(500)
       .then(({ data }) => setEmployees((data as Employee[]) || []));
+  }, []);
+
+  // Pre-populate a single contractor when navigated from ContractorProfile
+  useEffect(() => {
+    if (isEditMode) return;
+    const contractorId = searchParams.get('contractor_id');
+    if (!contractorId) return;
+    const name = decodeURIComponent(searchParams.get('contractor_name') || '');
+    const bank = decodeURIComponent(searchParams.get('contractor_bank') || '');
+    const account = decodeURIComponent(searchParams.get('contractor_account') || '');
+    const amount = Number(searchParams.get('contractor_amount') || 0);
+    setBatchType('contractor');
+    const now = new Date();
+    const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+    const monthShort = now.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
+    setBatchName(`Contractor Payment — ${name}`);
+    setPeriod(monthShort);
+    setPaymentDate(now.toISOString().slice(0, 10));
+    setItems([{
+      _key: crypto.randomUUID(),
+      full_name: name,
+      bank_name: bank,
+      account_number: account,
+      amount_ngn: amount,
+      reference: `${name} — ${monthLong}`,
+      contractor_id: contractorId,
+      item_type: 'contractor',
+    }]);
+    setStep(2);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -268,6 +268,7 @@ const Payroll = () => {
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
+          .eq('batch_type', 'contractor')
           .in('status', ['processed', 'funded'])
           .gte('payment_date', start.toISOString())
           .lte('payment_date', end.toISOString()),
