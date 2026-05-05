@@ -68,6 +68,8 @@ interface Transaction {
   created_by: string | null;
   batch_name: string | null;
   beneficiary_count: number | null;
+  succeeded_count: number | null;
+  failed_count: number | null;
   payment_date: string | null;
   approved_by: string | null;
   rejection_reason: string | null;
@@ -80,6 +82,16 @@ interface Transaction {
 }
 
 type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'charge';
+
+// Audit groups — partial batches contain successful payments, so the
+// "Completed" group includes them so the 99-of-100-succeeded case is not
+// invisible when filtering by completed.
+const STATUS_GROUPS: Record<string, readonly string[]> = {
+  completed:  ['processed', 'partially_processed'],
+  failed:     ['failed', 'rejected', 'reversed'],
+  in_progress:['pending', 'pending_approval', 'approved', 'funded', 'processing'],
+  draft:      ['draft'],
+};
 
 const STATUS_OPTIONS = [
   'draft',
@@ -170,7 +182,17 @@ const Transactions = () => {
     return rows.filter((r) => {
       if (typeFilter !== 'all' && r.txn_type !== typeFilter) return false;
       if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (statusFilter !== 'all') {
+        // statusFilter is either a group key ("completed", "failed", ...) or a
+        // raw status. Group keys match any status in the group so partial
+        // batches show under "Completed".
+        const group = STATUS_GROUPS[statusFilter];
+        if (group) {
+          if (!group.includes(r.status)) return false;
+        } else if (r.status !== statusFilter) {
+          return false;
+        }
+      }
       const t = r.created_at ? new Date(r.created_at).getTime() : 0;
       if (t < fromMs || t > toMs) return false;
       if (!q) return true;
@@ -340,11 +362,17 @@ const Transactions = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
+            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
+              <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Audit groups</div>
+              <SelectItem value="completed">Completed (incl. partial)</SelectItem>
+              <SelectItem value="failed">Failed / rejected</SelectItem>
+              <SelectItem value="in_progress">In progress</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <div className="px-2 pt-1.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Specific status</div>
               {STATUS_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
               ))}
@@ -434,7 +462,17 @@ const Transactions = () => {
                               <p className="font-medium truncate">{r.batch_name || r.description}</p>
                               {r.beneficiary_count != null && (
                                 <p className="text-xs text-muted-foreground">
-                                  {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                                  {r.succeeded_count != null && r.succeeded_count !== r.beneficiary_count ? (
+                                    <>
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">{r.succeeded_count}</span>
+                                      {' of '}
+                                      <span>{r.beneficiary_count}</span>
+                                      {' succeeded'}
+                                      {r.failed_count ? <span className="text-destructive ml-1">· {r.failed_count} failed</span> : null}
+                                    </>
+                                  ) : (
+                                    <>{r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}</>
+                                  )}
                                 </p>
                               )}
                             </div>
@@ -495,7 +533,15 @@ const Transactions = () => {
                           <MobileCardTitle className="text-sm capitalize">{description || '—'}</MobileCardTitle>
                           {r.txn_type === 'payment_batch' && r.beneficiary_count != null && (
                             <p className="text-[11px] text-muted-foreground">
-                              {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                              {r.succeeded_count != null && r.succeeded_count !== r.beneficiary_count ? (
+                                <>
+                                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">{r.succeeded_count}</span>
+                                  {' of '}{r.beneficiary_count}{' succeeded'}
+                                  {r.failed_count ? <span className="text-destructive ml-1">· {r.failed_count} failed</span> : null}
+                                </>
+                              ) : (
+                                <>{r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}</>
+                              )}
                             </p>
                           )}
                         </div>
