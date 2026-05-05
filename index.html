@@ -36,7 +36,18 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="KDOps" />
 
-    <meta name="theme-color" content="#1B4332" />
+    <!-- PWA — installable on iOS/Android/desktop. The manifest link and the
+         /registerSW.js script tag are both injected at build time by
+         vite-plugin-pwa; the meta tags below are what iOS Safari needs to
+         honour the home-screen install (it ignores the manifest icons and
+         uses apple-touch-icon instead). -->
+    <meta name="theme-color" content="#006994" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="KD Ops" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
 
     <link rel="icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

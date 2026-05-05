@@ -212,45 +212,68 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      /* Glassy backdrop — soft brand-tinted dot grid on a near-white wash.
-         Reads classy on screen; print rules below override to plain white. */
+      /* Brand gradient backdrop — deep teal → indigo → violet, mirrors the
+         login screen aesthetic. NO dots here; the dot pattern lives on the
+         CARD so the contrast pops. */
       background:
-        radial-gradient(circle at 20% 10%, rgba(0,105,148,0.08) 0%, transparent 45%),
-        radial-gradient(circle at 80% 90%, rgba(0,236,255,0.06) 0%, transparent 50%),
-        radial-gradient(circle, rgba(0,105,148,0.10) 1px, transparent 1px) 0 0/22px 22px,
-        #f8fafc;
+        radial-gradient(ellipse 60% 50% at 20% 0%,  rgba(99,  102, 241, 0.45) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 40% at 80% 0%,  rgba(168, 85,  247, 0.40) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 50% at 50% 100%,rgba(0,   105, 148, 0.50) 0%, transparent 60%),
+        linear-gradient(180deg, #0b1220 0%, #1e1b4b 50%, #0b1220 100%);
       min-height: 100vh;
-      padding: 40px 16px;
+      padding: 32px 16px 80px;
       -webkit-font-smoothing: antialiased;
       color: #18181b;
     }
+    /* ── Floating action toolbar ── */
+    .toolbar {
+      max-width: 580px;
+      margin: 0 auto 14px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .toolbar button {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #fff;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      backdrop-filter: blur(10px) saturate(160%);
+      -webkit-backdrop-filter: blur(10px) saturate(160%);
+      cursor: pointer;
+      transition: background 160ms ease, transform 120ms ease;
+      font-family: inherit;
+    }
+    .toolbar button:hover { background: rgba(255,255,255,0.18); }
+    .toolbar button:active { transform: scale(0.98); }
+    .toolbar button svg { width: 14px; height: 14px; }
+    .toolbar button.primary {
+      background: linear-gradient(180deg, ${BRAND}, #004e72);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .toolbar button.primary:hover { filter: brightness(1.1); }
+
     .page {
       position: relative;
       max-width: 580px;
       margin: 0 auto;
-      /* Frosted-glass surface — translucent white with backdrop blur on screen */
-      background: rgba(255,255,255,0.92);
-      backdrop-filter: blur(14px) saturate(160%);
-      -webkit-backdrop-filter: blur(14px) saturate(160%);
-      border: 1px solid rgba(0,105,148,0.12);
-      border-radius: 14px;
+      /* White card with subtle internal dot pattern — "engineered paper" */
+      background:
+        radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px,
+        #fff;
+      border: 1px solid rgba(0,105,148,0.10);
+      border-radius: 16px;
       overflow: hidden;
       box-shadow:
         0 1px 0 rgba(255,255,255,0.6) inset,
-        0 1px 3px rgba(0,0,0,0.04),
-        0 12px 40px -8px rgba(0,105,148,0.18);
+        0 1px 3px rgba(0,0,0,0.08),
+        0 24px 60px -12px rgba(0,0,0,0.45);
     }
-    /* Subtle inner dot pattern — gives the receipt that "engineered paper" feel */
-    .page::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(circle, rgba(0,105,148,0.04) 1px, transparent 1px) 0 0/16px 16px;
-      pointer-events: none;
-      opacity: 0.6;
-      z-index: 0;
-    }
-    .page > * { position: relative; z-index: 1; }
     .accent {
       height: 4px;
       background: linear-gradient(90deg,
@@ -354,21 +377,20 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
         background: #fff;
         padding: 0;
       }
+      .toolbar { display: none !important; }
       .page {
         box-shadow: none;
         max-width: 100%;
         background: #fff;
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
         border: none;
         border-radius: 0;
       }
-      .page::before { display: none; }
       .accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
     @media (max-width: 500px) {
-      body { padding: 0; }
-      .page { box-shadow: none; border-radius: 0; }
+      body { padding: 16px 8px 60px; }
+      .page { box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4); border-radius: 12px; }
+      .toolbar { padding-right: 4px; }
       .header, .section, .footer { padding-left: 20px; padding-right: 20px; }
       .header { flex-direction: column; gap: 16px; }
       .header-right { text-align: left; }
@@ -376,7 +398,22 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
   </style>
 </head>
 <body>
-<div class="page">
+<!-- Floating actions: print, download PNG, share. Hidden in @media print. -->
+<div class="toolbar">
+  <button type="button" id="kd-share" title="Share receipt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    Share
+  </button>
+  <button type="button" id="kd-download" title="Download as image">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download
+  </button>
+  <button type="button" id="kd-print" class="primary" title="Print receipt">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    Print
+  </button>
+</div>
+<div class="page" id="kd-receipt">
   <div class="accent"></div>
 
   <!-- Header: logo/company + amount -->
@@ -463,7 +500,78 @@ const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyN
     <span class="cert">${escapeHtml(certId)}</span>
   </div>
 </div>
-<script>window.onload = () => setTimeout(() => window.print(), 300);</script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script>
+  // ── Receipt toolbar wiring ─────────────────────────────────────────────
+  // Print:    native window.print() — user can pick "Save as PDF" too.
+  // Download: html2canvas → PNG file with a sane filename. Works offline
+  //           once html2canvas is cached by the browser.
+  // Share:    Web Share API — falls back to copying the page URL on
+  //           browsers without share support (mostly desktop).
+  const fileSafe = (s) => String(s || 'receipt').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40);
+  const filename = 'kdops_receipt_' + fileSafe(${JSON.stringify(item.full_name || certId)}) + '.png';
+
+  async function renderPng() {
+    const node = document.getElementById('kd-receipt');
+    if (!node || typeof html2canvas !== 'function') return null;
+    const canvas = await html2canvas(node, {
+      backgroundColor: '#ffffff',
+      scale: window.devicePixelRatio > 1 ? 2 : 2,
+      useCORS: true,
+      logging: false,
+    });
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png', 0.96));
+  }
+
+  document.getElementById('kd-print')?.addEventListener('click', () => window.print());
+
+  document.getElementById('kd-download')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const blob = await renderPng();
+      if (!blob) throw new Error('renderer-unavailable');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+      // Fallback: trigger the print dialog so the user can still "Save as PDF".
+      alert('Download not available offline — using Print dialog instead. Pick "Save as PDF".');
+      window.print();
+    } finally { btn.disabled = false; }
+  });
+
+  document.getElementById('kd-share')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const blob = await renderPng();
+      const file = blob ? new File([blob], filename, { type: 'image/png' }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: ${JSON.stringify(`KDOps Receipt — ${item.full_name || ''}`)},
+          text: ${JSON.stringify(`Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)}`)},
+          files: [file],
+        });
+      } else if (navigator.share) {
+        // Older browsers — share text only
+        await navigator.share({
+          title: ${JSON.stringify(`KDOps Receipt — ${item.full_name || ''}`)},
+          text: ${JSON.stringify(`Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)} (${certId})`)},
+        });
+      } else {
+        // Desktop fallback — copy the cert id so the user can paste in WhatsApp/email.
+        await navigator.clipboard.writeText(${JSON.stringify(certId)});
+        alert('Receipt ID copied to clipboard. On mobile you would get a share sheet.');
+      }
+    } catch (err) {
+      // User cancelled or share failed silently — no toast needed.
+    } finally { btn.disabled = false; }
+  });
+</script>
 </body>
 </html>`;
 
