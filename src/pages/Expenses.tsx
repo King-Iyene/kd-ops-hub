@@ -38,6 +38,7 @@ import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
+import { OcrReceiptScanner, OcrResult } from '@/components/OcrReceiptScanner';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { notifyApprovalDecision } from '@/lib/approval-notify';
 import {
@@ -1818,6 +1819,15 @@ const Expenses = () => {
 
             <div className="space-y-1">
               <Label>Receipt (Optional)</Label>
+              <OcrReceiptScanner
+                className="mb-1"
+                onExtracted={(result: OcrResult, file: File) => {
+                  if (result.amount_ngn) setForm((f) => ({ ...f, amount_ngn: result.amount_ngn! }));
+                  if (result.date) setForm((f) => ({ ...f, date: result.date! }));
+                  if (result.description) setForm((f) => ({ ...f, description: f.description || result.description! }));
+                  setReceiptFile(file);
+                }}
+              />
               <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50 kd-transition w-full">
                 <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="flex-1 truncate text-muted-foreground">
