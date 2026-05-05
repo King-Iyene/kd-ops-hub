@@ -14,10 +14,12 @@
 --   - Admins skip no checks here — this is infrastructure, not access control.
 --   - The chain is append-only; the immutability trigger (20260810100000) already
 --     blocks UPDATE/DELETE on audit_logs rows.
---   - pgcrypto is already enabled (see 20260428000001).
+--   - pgcrypto is installed in the `extensions` schema on Supabase, so all
+--     digest() calls are explicitly schema-qualified as extensions.digest()
+--     to avoid search_path issues inside SECURITY DEFINER functions.
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- ── Add columns ───────────────────────────────────────────────────────────────
 ALTER TABLE public.audit_logs
@@ -37,7 +39,7 @@ CREATE OR REPLACE FUNCTION public.chain_audit_log_row()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 DECLARE
   v_prev_hash text;
@@ -54,7 +56,7 @@ BEGIN
 
   NEW.prev_hash := v_prev_hash;
   NEW.row_hash  := encode(
-    digest(
+    extensions.digest(
       convert_to(
         v_prev_hash
         || NEW.id::text
@@ -97,7 +99,7 @@ BEGIN
      ORDER BY created_at ASC, id ASC
   LOOP
     v_row_hash := encode(
-      digest(
+      extensions.digest(
         convert_to(
           v_prev_hash
           || r.id::text
@@ -139,7 +141,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 STABLE
 AS $$
 DECLARE
@@ -156,7 +158,7 @@ BEGIN
   LOOP
     v_seq := v_seq + 1;
     v_expected := encode(
-      digest(
+      extensions.digest(
         convert_to(
           v_prev_hash
           || r.id::text
