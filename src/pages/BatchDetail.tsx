@@ -1103,11 +1103,33 @@ const BatchDetail = () => {
 
       // Process each item serially in the browser using the deployed
       // paystack-transfer edge function. Tab must stay open during processing.
+      // Account-level error short-circuit: if Paystack rejects with an error
+      // that affects the whole account (transfers not enabled, balance too
+      // low, account restricted) every subsequent recipient will fail with
+      // the same message. Abort the batch loop after the first such error
+      // so the operator gets to fix the root cause instead of watching 100
+      // identical failures stream in.
+      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
+      let accountLevelHit = false;
       for (let i = 0; i < toProcess.length; i++) {
         const it = toProcess[i];
         setProcessingIdx(i + 1);
         setProcessingName(it.full_name);
-        await processOneItem(it, customNarration);
+        const result = await processOneItem(it, customNarration);
+        if (!result.ok && result.reason && ACCOUNT_LEVEL_ERR.test(result.reason)) {
+          accountLevelHit = true;
+          toast({
+            title: 'Batch halted — Paystack account issue',
+            description: `${result.reason} — fix on dashboard.paystack.co before retrying any items.`,
+            variant: 'destructive',
+            duration: 12000,
+          });
+          break;
+        }
+      }
+      if (accountLevelHit) {
+        // Mark remaining unprocessed items as still pending — don't burn
+        // their state. The operator retries after fixing Paystack.
       }
 
       const { data: refreshed } = await supabase
@@ -1303,7 +1325,7 @@ const BatchDetail = () => {
     }
   };
 
-  const retryItem = async (item: any) => {
+  const retryItem = async (item: any): Promise<{ ok: boolean; reason?: string } | undefined> => {
     if (!APPROVER_ROLES.includes(profile?.role as any)) {
       toast({
         title: 'Not authorized',
@@ -1347,6 +1369,7 @@ const BatchDetail = () => {
         variant: result.ok ? 'default' : 'destructive',
       });
       fetchBatch();
+      return result;
     } finally {
       setRetryingId(null);
     }
@@ -1925,8 +1948,21 @@ const BatchDetail = () => {
               onClick={async () => {
                 setRetryingAll(true);
                 const toRetry = items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference));
+                // Same account-level short-circuit as Process — stop the loop
+                // when Paystack rejects with something that will fail every
+                // subsequent recipient identically.
+                const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
                 for (const it of toRetry) {
-                  await retryItem(it);
+                  const r = await retryItem(it);
+                  if (r && !r.ok && r.reason && ACCOUNT_LEVEL_ERR.test(r.reason)) {
+                    toast({
+                      title: 'Retry halted — Paystack account issue',
+                      description: `${r.reason} — fix on dashboard.paystack.co before retrying.`,
+                      variant: 'destructive',
+                      duration: 12000,
+                    });
+                    break;
+                  }
                 }
                 setRetryingAll(false);
                 fetchBatch();

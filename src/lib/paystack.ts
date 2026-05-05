@@ -186,6 +186,15 @@ export interface FriendlyError {
 
 const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   {
+    // Paystack account hasn't been activated for transfers (separate from
+    // payment-collection KYC). Returned for EVERY recipient until enabled,
+    // so when the whole batch fails with this, do not retry — fix the
+    // account first on dashboard.paystack.co.
+    match: /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled/i,
+    title: 'Paystack account not yet enabled for transfers',
+    hint: 'Your Paystack account has not been approved for outgoing transfers (this is a separate KYC step from collecting payments). Action: (1) Sign in to dashboard.paystack.co, (2) Settings → Business → confirm verification is complete, (3) if it shows "Starter" mode, upgrade business profile and submit KYC docs, (4) if everything looks done, email support@paystack.com — they enable transfers manually within 1 business day. Do NOT retry until enabled — every retry will fail with the same message.',
+  },
+  {
     match: /awaiting otp authorization|awaiting otp approval|otp required/i,
     title: 'Awaiting OTP approval',
     hint: 'Paystack is holding this transfer pending merchant approval. Sign in to dashboard.paystack.co → Transfers → Pending and approve. Status will update automatically after that.',
