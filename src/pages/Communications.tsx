@@ -741,7 +741,6 @@ export default function Communications() {
           )}
         </CardContent>
       </Card>
-    </div>
 
       {/* Template editor dialog */}
       <Dialog open={!!editingTemplate} onOpenChange={(v) => { if (!v) setEditingTemplate(null); }}>
@@ -800,5 +799,6 @@ export default function Communications() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
   );
 }
