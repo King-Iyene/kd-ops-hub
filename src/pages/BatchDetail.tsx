@@ -30,6 +30,7 @@ import {
   generateKdopsRef,
   verifyTransfer,
   getBankCode,
+  resolveAccount,
   paystackTransferFee,
   stampDutyFor,
   buildNarration,
@@ -459,6 +460,8 @@ const BatchDetail = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [diagnosingId, setDiagnosingId] = useState<string | null>(null);
+  const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string } | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
   const [processingName, setProcessingName] = useState('');
@@ -834,6 +837,16 @@ const BatchDetail = () => {
       // ceiling is needed, set company_settings.max_single_transfer_ngn.
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" — no Paystack bank code`);
+      // Heal whitespace/dashes/unicode garbage in the stored account number so
+      // future retries and the receipt show the clean value. createTransferRecipient
+      // also strips on its way out for a belt-and-braces guarantee.
+      const cleanedAccount = String(it.account_number || '').replace(/\D/g, '');
+      if (!cleanedAccount) return markFailed('Account number is empty after stripping non-digits — re-enter it.');
+      if (cleanedAccount !== String(it.account_number)) {
+        await supabase.from('batch_items')
+          .update({ account_number: cleanedAccount })
+          .eq('id', it.id);
+      }
       let recipientCode: string | null = it.paystack_recipient_code || null;
       // Recipient cache: if no code on the batch_item but we have an
       // employee_id, look up the cached code on profiles. Saves an extra
@@ -852,7 +865,7 @@ const BatchDetail = () => {
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
           name: it.full_name || 'Unknown Recipient',
-          account_number: it.account_number,
+          account_number: cleanedAccount,
           bank_code: bankCode,
         });
         recipientCode = recipient.recipient_code;
@@ -1251,6 +1264,42 @@ const BatchDetail = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.status]);
+
+  /**
+   * Standalone Paystack /bank/resolve diagnostic. Calls the resolve endpoint
+   * with the same bank_code + sanitised account_number we'd send for a real
+   * transfer and shows the verbatim Paystack response. Lets finance compare
+   * against what dashboard.paystack.co returns for the same account so we
+   * can tell whether the failure is on our side or Paystack's.
+   */
+  const diagnoseItem = async (item: any) => {
+    setDiagnosingId(item.id);
+    setDiagnosis(null);
+    const bankCode = getBankCode(item.bank_name) || '(unknown)';
+    const cleaned = String(item.account_number || '').replace(/\D/g, '');
+    try {
+      const r = await resolveAccount(cleaned, bankCode);
+      setDiagnosis({
+        itemId: item.id,
+        ok: true,
+        bankCode,
+        account: cleaned,
+        bank: item.bank_name,
+        result: `Paystack resolved account name: "${r.account_name}" for account ${r.account_number}. The recipient/transfer call should work — if it does not, Paystack's wallet or recipient cache is the issue.`,
+      });
+    } catch (err: any) {
+      setDiagnosis({
+        itemId: item.id,
+        ok: false,
+        bankCode,
+        account: cleaned,
+        bank: item.bank_name,
+        result: err?.message || 'Unknown error',
+      });
+    } finally {
+      setDiagnosingId(null);
+    }
+  };
 
   const retryItem = async (item: any) => {
     if (!APPROVER_ROLES.includes(profile?.role as any)) {
@@ -1959,7 +2008,12 @@ const BatchDetail = () => {
                         <span className="font-semibold text-destructive">{i.full_name || 'Unknown'}</span>
                         <span className="font-medium text-destructive/80">{f.title}</span>
                       </div>
-                      <p className="text-muted-foreground">{f.hint}</p>
+                      <p className="text-muted-foreground mb-1">{f.hint}</p>
+                      {i.failure_reason && f.hint !== i.failure_reason && (
+                        <p className="font-mono text-[10px] text-muted-foreground/80 bg-background/60 rounded px-1.5 py-1 mt-1 break-all">
+                          <span className="opacity-60">Paystack said: </span>{i.failure_reason}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -2060,13 +2114,20 @@ const BatchDetail = () => {
                         const f = friendlyPaystackError(item.failure_reason);
                         const isOtp = /awaiting otp/i.test(item.failure_reason);
                         return (
-                          <p
-                            className={`text-[11px] mt-0.5 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}
-                            title={item.failure_reason}
-                          >
-                            <span className="font-semibold">{f.title}.</span>{' '}
-                            <span className="text-muted-foreground">{f.hint}</span>
-                          </p>
+                          <>
+                            <p
+                              className={`text-[11px] mt-0.5 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}
+                              title={item.failure_reason}
+                            >
+                              <span className="font-semibold">{f.title}.</span>{' '}
+                              <span className="text-muted-foreground">{f.hint}</span>
+                            </p>
+                            {f.hint !== item.failure_reason && (
+                              <p className="font-mono text-[10px] text-muted-foreground/70 mt-0.5 break-all">
+                                <span className="opacity-60">Paystack: </span>{item.failure_reason}
+                              </p>
+                            )}
+                          </>
                         );
                       })()}
                     </TableCell>
@@ -2110,6 +2171,20 @@ const BatchDetail = () => {
                             Retry
                           </Button>
                         )}
+                        {item.status === 'failed' && canApprove && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={diagnosingId === item.id}
+                            onClick={() => diagnoseItem(item)}
+                            title="Call Paystack /bank/resolve directly with the same parameters and show the verbatim response. Use this to confirm whether Paystack can actually resolve this account."
+                          >
+                            {diagnosingId === item.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            Diagnose
+                          </Button>
+                        )}
                         {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
                           <Button
                             size="sm"
@@ -2135,6 +2210,45 @@ const BatchDetail = () => {
       </Card>
 
       {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
+
+      <Dialog open={!!diagnosis} onOpenChange={(v) => { if (!v) setDiagnosis(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Paystack resolve diagnostic</DialogTitle>
+            <DialogDescription>
+              Verbatim response from Paystack's <code className="text-xs">/bank/resolve</code> endpoint
+              for the exact bank code and account number we send. Compare this with what dashboard.paystack.co
+              returns for the same details.
+            </DialogDescription>
+          </DialogHeader>
+          {diagnosis && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+                <span className="text-muted-foreground">Bank:</span>
+                <span className="font-mono">{diagnosis.bank}</span>
+                <span className="text-muted-foreground">Bank code sent:</span>
+                <span className="font-mono">{diagnosis.bankCode}</span>
+                <span className="text-muted-foreground">Account sent:</span>
+                <span className="font-mono">{diagnosis.account} <span className="text-muted-foreground">({diagnosis.account.length} digits)</span></span>
+              </div>
+              <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20' : 'border-destructive/40 bg-destructive/5'}`}>
+                <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                  {diagnosis.ok ? 'Paystack RESOLVED the account ✓' : 'Paystack REJECTED the request ✗'}
+                </p>
+                <p className="font-mono text-xs break-all">{diagnosis.result}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {diagnosis.ok
+                  ? 'If resolve works but the actual transfer fails, the issue is downstream (recipient creation cache, wallet balance, or Paystack rate limits).'
+                  : 'Try the same bank code + account on dashboard.paystack.co. If Paystack dashboard succeeds but this fails, the parameters we send differ — copy this raw error and share with engineering.'}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setDiagnosis(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>

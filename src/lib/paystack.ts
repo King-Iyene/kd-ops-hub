@@ -212,8 +212,8 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   },
   {
     match: /cannot resolve account|could not resolve account|unable to resolve account|account resolution failed|resolve.*timeout/i,
-    title: 'Bank could not verify the account',
-    hint: 'The bank did not respond to the verification check (FCMB, Polaris, and a few smaller banks are flaky on weekends). The account number itself may be correct — wait 10 minutes and click Retry. If it still fails, ask the recipient to confirm the account is active and not dormant.',
+    title: 'Paystack could not resolve this account',
+    hint: 'Three possible causes — check each in order: (1) wrong account number — verify the digits with the recipient; (2) wrong bank selected — confirm the bank in their app exactly; (3) bank\'s NIBSS resolver is temporarily down — try again in 10 minutes. If Paystack dashboard works for the same details, it is none of the above — share the raw error below with support.',
   },
   {
     match: /name mismatch|name does not match/i,
@@ -319,17 +319,27 @@ async function edgeCall<T = any>(
 // Public API — these functions are called by the React UI.
 // ---------------------------------------------------------------------------
 
+/**
+ * Strip everything except ASCII digits from an account number. Paystack's
+ * resolve and recipient endpoints return the generic "Could not resolve
+ * account" if a non-digit slips through (whitespace, em-dash from a copy-
+ * paste, NBSP, full-width digits). Centralised here so every caller benefits.
+ */
+const sanitiseAccountNumber = (raw: string): string =>
+  String(raw || '').replace(/\D/g, '');
+
 export async function resolveAccount(
   accountNumber: string,
   bankCode: string,
 ): Promise<ResolveResult> {
+  const cleaned = sanitiseAccountNumber(accountNumber);
   const data = await edgeCall<ResolveResult>('resolve_account', {
-    account_number: accountNumber,
+    account_number: cleaned,
     bank_code: bankCode,
   });
   return {
     account_name: data?.account_name ?? '',
-    account_number: data?.account_number ?? accountNumber,
+    account_number: data?.account_number ?? cleaned,
   };
 }
 
@@ -346,7 +356,10 @@ export async function createTransferRecipient(params: {
   account_number: string;
   bank_code: string;
 }): Promise<PaystackRecipient> {
-  return edgeCall<PaystackRecipient>('create_recipient', params);
+  return edgeCall<PaystackRecipient>('create_recipient', {
+    ...params,
+    account_number: sanitiseAccountNumber(params.account_number),
+  });
 }
 
 export interface PaystackTransfer {
