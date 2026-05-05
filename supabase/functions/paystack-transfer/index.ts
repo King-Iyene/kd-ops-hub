@@ -143,7 +143,15 @@ async function paystackFetch(path: string, init: RequestInit = {}) {
   const body = await res.json();
   if (!res.ok || body?.status === false) {
     console.error("[paystack] API error:", res.status, JSON.stringify(body));
-    throw new Error(body?.message || `Paystack error (HTTP ${res.status})`);
+    // PaystackRejection signals that Paystack itself rejected the request
+    // (bad account, NUBAN unresolved, etc.) so the outer catch can return
+    // HTTP 422 instead of a misleading 500. The browser console stops
+    // logging Paystack rejections as red 500 errors, while real internal
+    // exceptions still surface as 500.
+    const err: any = new Error(body?.message || `Paystack error (HTTP ${res.status})`);
+    err.isPaystackRejection = true;
+    err.paystackStatus = res.status;
+    throw err;
   }
   return body;
 }
@@ -561,6 +569,7 @@ serve(async (req) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    const isPaystackRejection = (err as any)?.isPaystackRejection === true;
     try {
       const errClient = serviceClientRef ?? createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -574,16 +583,23 @@ serve(async (req) => {
         }).eq("id", intentAuditId);
       } else {
         await errClient.from("transfer_audit").insert({
-          action: "edge_error",
+          action: isPaystackRejection ? "paystack_rejected" : "edge_error",
           outcome: "error",
           reason: message.slice(0, 500),
           metadata: {},
         });
       }
     } catch { /* swallow */ }
-    return new Response(JSON.stringify({ ok: false, error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    // 422 = Paystack rejected (bad account, unresolved NUBAN, etc.) — a
+    // business-logic failure, not an infrastructure problem. 500 = our
+    // edge function actually crashed. Differentiating these stops the
+    // browser from logging legitimate Paystack rejections as red 500s.
+    return new Response(
+      JSON.stringify({ ok: false, error: message, paystack_rejection: isPaystackRejection }),
+      {
+        status: isPaystackRejection ? 422 : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
