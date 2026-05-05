@@ -274,7 +274,7 @@ const EmployeeProfile = () => {
         .order('period', { ascending: false }).limit(24),
       supabase.from('leave_requests').select('*').eq('employee_id', id)
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('tasks').select('*').eq('assigned_to', id)
+      supabase.from('tasks').select('*').eq('assignee_id', id)
         .order('created_at', { ascending: false }).limit(20),
       // Documents tied to this employee. Prefer the employee_id link (set when an
       // admin uploads on behalf of the employee); fall back to uploaded_by for

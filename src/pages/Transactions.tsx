@@ -65,7 +65,7 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay' | 'charge';
+  txn_type: 'transfer' | 'quick_pay' | 'charge';
   description: string;
   category: string;
   amount_ngn: number;
@@ -284,9 +284,9 @@ const Transactions = () => {
 
       {/* Summary strip — single column on phones, 2 cols on desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
-        {(['quick_pay', 'payment_batch'] as const).map((type) => {
+        {(['quick_pay', 'transfer'] as const).map((type) => {
           const count = rows.filter((r) => r.txn_type === type).length;
-          const Icon = TYPE_ICON[type];
+          const Icon = TYPE_ICON[type] || ArrowUpDown;
           return (
             <div
               key={type}
