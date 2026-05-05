@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import {
   writeRejectionNotification,
