@@ -899,37 +899,26 @@
   }
 
   /* ── Receipt print rules ─────────────────────────────────────────────
-   * When the user clicks Print on the in-app ReceiptModal, we add
-   * `kd-receipt-printing` to <body> for the duration of the print
-   * dialog. CSS hides everything except the receipt card so the printer
-   * gets just the white receipt page (no app shell, no backdrop, no
-   * action buttons). */
+   * When the user clicks Print on the in-app ReceiptModal, JS clones the
+   * #kd-receipt-card into a portal div (#kd-print-target) on <body>, then
+   * adds `kd-receipt-printing` to <body> for the duration of the print
+   * dialog. CSS below hides everything else and shows only the cloned
+   * card so the printer outputs a clean white receipt page (no app shell,
+   * no glassy backdrop, no toolbar). */
   @media print {
-    body.kd-receipt-printing > *:not(.kd-receipt-print-portal) {
+    body.kd-receipt-printing > *:not(#kd-print-target) {
       display: none !important;
     }
-    body.kd-receipt-printing .kd-receipt-dialog {
+    body.kd-receipt-printing #kd-print-target {
+      display: block !important;
       position: static !important;
-      transform: none !important;
-      max-width: none !important;
+      margin: 0 auto !important;
+      max-width: 580px !important;
       box-shadow: none !important;
       background: #fff !important;
     }
-    body.kd-receipt-printing .kd-receipt-backdrop {
-      background: #fff !important;
-      padding: 0 !important;
-      border-radius: 0 !important;
-    }
-    /* Hide the watermark, close button and action buttons on paper */
-    body.kd-receipt-printing .kd-receipt-backdrop > div[aria-hidden="true"],
-    body.kd-receipt-printing .kd-receipt-close,
-    body.kd-receipt-printing .kd-receipt-actions {
-      display: none !important;
-    }
-    body.kd-receipt-printing #kd-receipt-card {
+    body.kd-receipt-printing #kd-print-target * {
       box-shadow: none !important;
-      border-radius: 0 !important;
-      max-width: 100% !important;
     }
     @page { margin: 12mm; }
   }

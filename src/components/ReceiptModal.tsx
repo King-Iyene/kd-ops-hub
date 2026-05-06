@@ -99,13 +99,29 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   };
 
   const handlePrint = () => {
+    // Clone the receipt card into a body-level container BEFORE we hide
+    // everything else, because Radix's Dialog portal sits at a different
+    // place in the DOM and our @media print rules can't easily target it.
+    const source = cardRef.current;
+    if (!source) {
+      window.print();
+      return;
+    }
+
+    const target = document.createElement('div');
+    target.id = 'kd-print-target';
+    target.appendChild(source.cloneNode(true));
+    document.body.appendChild(target);
     document.body.classList.add('kd-receipt-printing');
+
     const restore = () => {
       document.body.classList.remove('kd-receipt-printing');
+      target.remove();
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
-    setTimeout(() => window.print(), 50);
+    // Slight delay so the layout settles before the print dialog opens.
+    setTimeout(() => window.print(), 60);
   };
 
   const handleDownload = async () => {

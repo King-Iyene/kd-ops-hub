@@ -169,13 +169,20 @@ function getInitials(name: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const sidebarCollapsed = state === 'collapsed';
   const { profile, signOut } = useAuthStore();
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
+
+  // Close the mobile sidebar automatically whenever the route changes.
+  // The shadcn <Sheet>-based mobile sidebar otherwise stays open after a
+  // user taps a nav link, requiring them to swipe it away — bad mobile UX.
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [location.pathname, isMobile, setOpenMobile]);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);

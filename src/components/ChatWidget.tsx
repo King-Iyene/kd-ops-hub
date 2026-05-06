@@ -465,13 +465,15 @@ export function ChatWidget() {
         type="button"
         onClick={open ? handleClose : handleOpen}
         className={`
-          fixed bottom-5 right-4 z-50 h-14 w-14 rounded-full
+          fixed right-4 z-50 h-14 w-14 rounded-full
           bg-gradient-to-br from-primary to-cyan-500
           text-white shadow-lg shadow-primary/30
           hover:shadow-primary/50 hover:scale-105 active:scale-95
           kd-transition flex items-center justify-center
-          /* Mobile safe area */
-          sm:bottom-6
+          /* Mobile: lift above the bottom-nav (h-14 + safe-area).
+             Desktop: sit at the lower-right with normal margin. */
+          bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))]
+          md:bottom-6
         `}
         aria-label="Open AI assistant"
       >
