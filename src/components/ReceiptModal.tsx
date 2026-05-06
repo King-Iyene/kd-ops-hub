@@ -25,7 +25,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Share2, X } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
-import { paystackTransferFee, stampDutyFor } from '@/lib/paystack';
+import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -339,6 +339,36 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
               )}
             </Section>
 
+            {/* Failure analysis — shown only when the transfer failed.
+                Combines the Paystack-friendly explanation with bank-standard
+                terminology so a finance team can answer the recipient's
+                question "what's wrong with my transfer?" without leaving
+                this screen. The block prints with the receipt. */}
+            {item.status === 'failed' && (() => {
+              const f = friendlyPaystackError(item.failure_reason);
+              const bankPerspective = bankPerspectiveFor(item.failure_reason);
+              const recipientCanFix = recipientCanFixThis(item.failure_reason);
+              return (
+                <Section title="Why this transfer failed">
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', marginBottom: '4px' }}>{f.title}</p>
+                    <p style={{ fontSize: '12px', color: '#7f1d1d', lineHeight: 1.55 }}>{f.hint}</p>
+                  </div>
+                  <Row k="Bank's response" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '11px', color: '#444' }}>{item.failure_reason || 'No reason provided'}</span>} />
+                  {bankPerspective && <Row k="What this means" v={bankPerspective} />}
+                  {recipientCanFix && (
+                    <Row
+                      k="Recipient action"
+                      v={<span style={{ color: '#0369a1' }}>{recipientCanFix}</span>}
+                    />
+                  )}
+                  <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
+                  <Row k="Beneficiary bank" v={item.bank_name || '—'} />
+                  <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px' }}>{item.account_number || '—'}</span>} />
+                </Section>
+              );
+            })()}
+
             {/* Cost breakdown — only on succeeded */}
             {isSucceeded && (
               <Section title="Debit Breakdown">
@@ -407,4 +437,69 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
       <span style={{ color: '#111', fontWeight: 500, textAlign: 'right', wordBreak: 'break-word' }}>{v}</span>
     </div>
   );
+}
+
+// ── Failure interpretation helpers ───────────────────────────────────────────
+//
+// Two layers of explanation on a failed receipt:
+//   bankPerspectiveFor → how a Nigerian bank's customer-service desk would
+//                        describe the failure to the recipient
+//   recipientCanFixThis → the action the recipient (not finance) can take to
+//                          unblock the transfer on their side
+
+function bankPerspectiveFor(raw?: string | null): string | null {
+  const r = (raw || '').toLowerCase();
+  if (!r) return null;
+  if (/cannot resolve|could not resolve|unable to resolve|nuban not valid|account not found|account does not exist/.test(r)) {
+    return 'The recipient bank could not match the account number to a customer record. The account number may be wrong, or the bank chose to block the resolution check.';
+  }
+  if (/account number invalid|invalid account/.test(r)) {
+    return 'The account number is not the correct length or format for this bank. Most Nigerian banks use 10-digit NUBAN numbers.';
+  }
+  if (/name mismatch|name does not match/.test(r)) {
+    return 'The name on the recipient\'s bank record does not match the name we sent. This is a fraud-prevention check by the receiving bank.';
+  }
+  if (/transaction not permitted|account.*restricted|dormant|frozen|account.*suspended/.test(r)) {
+    return 'The recipient\'s account is currently restricted, dormant, or frozen by their bank. This can happen after long inactivity or on regulatory holds.';
+  }
+  if (/insufficient funds|balance.*not enough/.test(r)) {
+    return 'Our Paystack wallet did not have enough funds to cover this transfer plus fees. Top up the wallet, then retry.';
+  }
+  if (/cannot initiate third[\- ]?party payouts|payouts.*not.*enabled/.test(r)) {
+    return 'Our Paystack account has not yet been activated for outgoing transfers. KYC is still in progress with Paystack compliance.';
+  }
+  if (/awaiting otp/.test(r)) {
+    return 'Paystack is holding this transfer until a Super Admin approves it on dashboard.paystack.co. This is a high-value safeguard.';
+  }
+  if (/timeout|gateway timeout|temporarily unavailable/.test(r)) {
+    return 'The recipient bank\'s servers did not respond in time. Most timeouts clear on a retry within 10 minutes.';
+  }
+  if (/duplicate|reference already exists|unique reference/.test(r)) {
+    return 'Paystack already saw this exact transfer reference. The original transfer probably went through — click "Reconcile with Paystack" to confirm.';
+  }
+  if (/unknown bank|no paystack bank code/.test(r)) {
+    return 'The bank selected for the recipient is not on Paystack\'s supported list. Confirm the bank name with the recipient and pick the closest match.';
+  }
+  return null;
+}
+
+function recipientCanFixThis(raw?: string | null): string | null {
+  const r = (raw || '').toLowerCase();
+  if (!r) return null;
+  if (/cannot resolve|could not resolve|account not found|account does not exist|nuban not valid/.test(r)) {
+    return 'Open your bank app, copy the exact 10-digit account number, and confirm the bank name. Send the screenshot to KD Ops finance.';
+  }
+  if (/account number invalid|invalid account/.test(r)) {
+    return 'Send finance your full 10-digit NUBAN account number from your bank app — not your card number.';
+  }
+  if (/name mismatch|name does not match/.test(r)) {
+    return 'Send finance the EXACT name printed on your bank statement (including any middle names or order changes).';
+  }
+  if (/dormant|frozen|account.*restricted|account.*suspended/.test(r)) {
+    return 'Visit your bank or call their customer line to reactivate the account, then ask finance to retry.';
+  }
+  if (/timeout|gateway timeout|temporarily unavailable/.test(r)) {
+    return 'No action — finance will retry within 10 minutes.';
+  }
+  return null;
 }
