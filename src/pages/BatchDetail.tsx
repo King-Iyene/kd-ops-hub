@@ -1534,7 +1534,7 @@ const BatchDetail = () => {
         <Alert className="border-destructive/40 bg-destructive/5">
           <AlertTriangle className="h-4 w-4 text-destructive" />
           <AlertDescription className="text-sm">
-            {failedItems.length} beneficiary{failedItems.length === 1 ? '' : 'ies'} failed
+            {failedItems.length} beneficiar{failedItems.length === 1 ? 'y' : 'ies'} failed
             — retry individually below or escalate to bank ops.
           </AlertDescription>
         </Alert>
@@ -1668,10 +1668,9 @@ const BatchDetail = () => {
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                // 48-hour retry window — matches Paystack's transfer reversal
-                // window and NIBSS instant-transfer settlement window. Anything
-                // older is treated as archived; create a fresh batch instead.
-                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
+                // 5-hour retry window. Same-day retries only — anything
+                // older is archived; create a fresh batch instead.
+                const RETRY_WINDOW_MS = 5 * 60 * 60 * 1000;
                 const now = Date.now();
                 const toRetry = items.filter(i => {
                   if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
@@ -1701,7 +1700,7 @@ const BatchDetail = () => {
             >
               <RotateCw className="mr-2 h-4 w-4" />
               {retryingAll ? 'Retrying…' : (() => {
-                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
+                const RETRY_WINDOW_MS = 5 * 60 * 60 * 1000;
                 const now = Date.now();
                 const eligible = items.filter(i => {
                   if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
@@ -1950,7 +1949,7 @@ const BatchDetail = () => {
                           // batch instead.
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
-                          const RETRY_WINDOW_HOURS = 48;
+                          const RETRY_WINDOW_HOURS = 5;
                           if (ageHours > RETRY_WINDOW_HOURS) {
                             return (
                               <span

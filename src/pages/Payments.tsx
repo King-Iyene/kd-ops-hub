@@ -168,7 +168,13 @@ const Payments = () => {
         if (items.length === 0) continue;
         const anyPending = items.some((r) => r.status === 'pending' || r.status === 'retry');
         const anyFailed = items.some((r) => r.status === 'failed');
-        const correct = anyPending ? 'processing' : anyFailed ? 'partially_processed' : 'processed';
+        const anySucceeded = items.some((r) => r.status === 'succeeded');
+        // 'failed' when EVERY non-pending item failed (no succeeded).
+        // 'partially_processed' when failures coexist with successes.
+        const correct = anyPending ? 'processing'
+          : anyFailed && !anySucceeded ? 'failed'
+          : anyFailed ? 'partially_processed'
+          : 'processed';
         if (correct !== b.status) {
           // Route through the SECURITY DEFINER sync RPC so direct status
           // writes from authenticated stay blocked. RPC is idempotent and
@@ -411,6 +417,7 @@ const Payments = () => {
                   { value: 'processing', label: 'Processing' },
                   { value: 'processed', label: 'Completed' },
                   { value: 'partially_processed', label: 'Partial' },
+                  { value: 'failed', label: 'Failed' },
                   { value: 'rejected', label: 'Rejected' },
                   { value: 'draft', label: 'Draft' },
                 ].map(({ value, label }) => (
