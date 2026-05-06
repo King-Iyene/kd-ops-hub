@@ -66,3 +66,6 @@ jobs:
 
       - name: Deploy send-push
         run: supabase functions deploy send-push --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy vapid-keys
+        run: supabase functions deploy vapid-keys --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt

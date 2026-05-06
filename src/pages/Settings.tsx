@@ -87,6 +87,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
+import { NotificationsCard } from '@/components/settings/NotificationsCard';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -729,6 +730,8 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          <NotificationsCard />
 
           <Card>
             <CardHeader>

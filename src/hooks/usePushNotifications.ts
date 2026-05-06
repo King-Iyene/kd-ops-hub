@@ -60,16 +60,15 @@ export function usePushNotifications(userId: string | null | undefined) {
         return;
       }
 
-      // Pull the VAPID public key from company_settings (single-tenant).
-      const { data: settings, error: settingsErr } = await supabase
-        .from('company_settings')
-        .select('vapid_public_key')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .maybeSingle();
-      if (settingsErr) throw settingsErr;
-      const vapidPublic = (settings as any)?.vapid_public_key;
+      // Pull the VAPID public key via the vapid-keys edge function so the
+      // private key is never exposed even if company_settings RLS slips up.
+      const { data, error: edgeErr } = await supabase.functions.invoke('vapid-keys', {
+        body: { action: 'status' },
+      });
+      if (edgeErr) throw edgeErr;
+      const vapidPublic = (data as any)?.public_key;
       if (!vapidPublic) {
-        throw new Error('Push not configured yet — admin must generate VAPID keys in Settings → Notifications.');
+        throw new Error('Push not configured yet — an Admin needs to click "Generate keys" in Settings → Notifications.');
       }
 
       const reg = await navigator.serviceWorker.ready;
