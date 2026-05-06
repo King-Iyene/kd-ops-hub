@@ -1,54 +1,54 @@
 /// <reference lib="webworker" />
 //
-// Custom service worker for KD Ops PWA — extends the workbox-generated
-// service worker with two things vite-plugin-pwa does not give us:
-//   1. push event handler — shows OS notifications when the server fires.
-//   2. notificationclick handler — opens or focuses the app when tapped.
+// Minimal service worker for KD Ops PWA.
 //
-// vite-plugin-pwa is configured (vite.config.ts → strategies: 'injectManifest')
-// to merge this file with workbox's precache + runtime cache logic before
-// emitting the final dist/sw.js.
+// Why minimal:
+//   The previous version did navigation routing + Google Fonts caching +
+//   navigation fallback. Two things broke: (1) Google Fonts caching is
+//   blocked by our CSP `connect-src` (fonts go via stylesheet, not fetch);
+//   (2) the navigation fallback served stale index.html after a deploy,
+//   which referenced JS bundles that were 404 — and Vercel's catch-all
+//   served index.html for them too, so the browser saw HTML where it
+//   expected modules → blank screen.
+//
+// What this version does:
+//   - skipWaiting + clientsClaim on install/activate so a new deploy
+//     replaces the old SW immediately. No more stale chunks.
+//   - Wipes EVERY workbox/runtime cache from old SW versions on activate.
+//     This unblocks anyone stuck on the broken navigation-fallback build.
+//   - Push event handler — shows the OS notification.
+//   - notificationclick handler — focuses or opens the app.
+//   - Empty fetch handler — required so the SW counts as "installable"
+//     for the PWA install prompt. Browser handles all caching natively.
 
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkOnly } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
+declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST?: unknown };
 
-declare const self: ServiceWorkerGlobalScope;
+// vite-plugin-pwa requires the SW to reference __WB_MANIFEST so it knows
+// where to inject the precache manifest at build time. We deliberately do
+// NOT precache anything (see file header for why) but still reference the
+// global so the build doesn't fail.
+void self.__WB_MANIFEST;
 
-// ── Precache the app shell + static assets ────────────────────────────────
-// __WB_MANIFEST is replaced at build time with the list of files to precache.
-precacheAndRoute(self.__WB_MANIFEST);
-cleanupOutdatedCaches();
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
 
-// SPA navigation fallback — any route returns index.html so React Router
-// can take over. Skip API/auth/function calls so they always go to network.
-registerRoute(
-  new NavigationRoute(
-    async () => (await caches.match('/index.html')) ?? fetch('/index.html'),
-    { denylist: [/^\/api\//, /^\/functions\//, /^\/auth\//, /^\/rest\//] },
-  ),
-);
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      // Wipe every cache the previous SW left behind. Clean slate.
+      const names = await caches.keys();
+      await Promise.all(names.map((n) => caches.delete(n)));
+      await self.clients.claim();
+    })(),
+  );
+});
 
-// Google Fonts — long cache, refresh quietly.
-registerRoute(
-  ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
-  new CacheFirst({
-    cacheName: 'google-fonts',
-    plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 })],
-  }),
-);
-
-// Supabase — never cache. Financial data must always come from the network.
-registerRoute(
-  ({ url }) => /supabase\.co\/(rest|functions|auth|storage)\//.test(url.href),
-  new NetworkOnly(),
-);
+// Empty fetch handler — required for the install prompt criteria. Lets the
+// browser do its normal thing for every request.
+self.addEventListener('fetch', () => undefined);
 
 // ── Push notifications ─────────────────────────────────────────────────────
-// Payload shape from supabase/functions/send-push:
-//   { title, body, url, icon, badge, tag }
-
 self.addEventListener('push', (event) => {
   if (!event.data) return;
   let data: { title?: string; body?: string; url?: string; icon?: string; badge?: string; tag?: string } = {};
@@ -65,7 +65,6 @@ self.addEventListener('push', (event) => {
     badge: data.badge || '/icon-192.png',
     tag: data.tag,
     data: { url: data.url || '/' },
-    // Show on-screen even if the app is in the foreground.
     requireInteraction: false,
   };
 
@@ -80,7 +79,6 @@ self.addEventListener('notificationclick', (event) => {
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        // If a KD Ops window is already open, focus it and navigate.
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
             (client as WindowClient).focus();
@@ -88,15 +86,9 @@ self.addEventListener('notificationclick', (event) => {
             return;
           }
         }
-        // Otherwise open a fresh window.
         if (self.clients.openWindow) {
           return self.clients.openWindow(target);
         }
       }),
   );
-});
-
-// Allow new SW versions to take control immediately on next reload.
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
