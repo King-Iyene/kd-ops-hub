@@ -1352,7 +1352,7 @@ const BatchDetail = () => {
   });
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <button onClick={() => navigate('/payments')} className="hover:text-foreground kd-transition font-medium">Payments</button>

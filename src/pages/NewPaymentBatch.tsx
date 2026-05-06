@@ -485,7 +485,7 @@ const NewPaymentBatch = () => {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => navigate(isEditMode ? `/payments/${editId}` : '/payments')}>
           <ArrowLeft className="h-4 w-4" />
