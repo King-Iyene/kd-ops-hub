@@ -25,7 +25,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Share2, X } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
-import { paystackTransferFee, stampDutyFor } from '@/lib/paystack';
+import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -340,6 +340,26 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             </Section>
 
 
+            {/* Failure details — only on failed transfers */}
+            {item.status === 'failed' && (() => {
+              const f = friendlyPaystackError(item.failure_reason);
+              const bankPerspective = bankPerspectiveFor(item.failure_reason);
+              const recipientCanFix = recipientCanFixThis(item.failure_reason);
+              return (
+                <Section title="Why this transfer failed">
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
+                  </div>
+                  <Row k="Bank's response" v={item.failure_reason || '—'} />
+                  {bankPerspective && <Row k="What this means" v={bankPerspective} />}
+                  {recipientCanFix && <Row k="Recipient action" v={recipientCanFix} />}
+                  <Row k="Beneficiary" v={item.account_name || item.full_name || '—'} />
+                  <Row k="Beneficiary bank" v={item.bank_name || '—'} />
+                  <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
+                </Section>
+              );
+            })()}
+
             {/* Cost breakdown — only on succeeded */}
             {isSucceeded && (
               <Section title="Debit Breakdown">
@@ -384,6 +404,32 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
       </DialogContent>
     </Dialog>
   );
+}
+
+// ── Failure-reason helpers ───────────────────────────────────────────────────
+
+function bankPerspectiveFor(raw?: string | null): string | null {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (/beneficiary account does not exist|account does not exist|nuban not valid/.test(r)) return 'Account does not exist at this bank';
+  if (/account number invalid|invalid account/.test(r)) return 'Account number is invalid';
+  if (/name mismatch|name does not match/.test(r)) return 'Account name does not match bank records';
+  if (/transaction not permitted|account.*restricted|account is dormant|frozen/.test(r)) return 'Account is restricted or dormant';
+  if (/cannot resolve account|could not resolve account|unable to resolve|account resolution failed|resolve.*timeout/.test(r)) return 'Account could not be verified';
+  if (/balance is not enough|insufficient funds/.test(r)) return 'Sender wallet had insufficient balance';
+  return null;
+}
+
+function recipientCanFixThis(raw?: string | null): string | null {
+  if (!raw) return null;
+  const r = raw.toLowerCase();
+  if (/beneficiary account does not exist|account does not exist|nuban not valid|account number invalid|invalid account/.test(r))
+    return 'Confirm account number and bank with the beneficiary';
+  if (/name mismatch|name does not match/.test(r))
+    return 'Ask beneficiary to confirm exact account name with their bank';
+  if (/transaction not permitted|account.*restricted|account is dormant|frozen/.test(r))
+    return 'Beneficiary should contact their bank to unblock the account';
+  return null;
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────

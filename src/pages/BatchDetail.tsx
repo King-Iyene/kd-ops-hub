@@ -1950,16 +1950,7 @@ const BatchDetail = () => {
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
                           const RETRY_WINDOW_HOURS = 5;
-                          if (ageHours > RETRY_WINDOW_HOURS) {
-                            return (
-                              <span
-                                className="text-[10px] text-muted-foreground italic"
-                                title={`Retry window closed (${Math.round(ageHours)}h old). Create a new batch with this recipient if payment is still owed.`}
-                              >
-                                Retry expired
-                              </span>
-                            );
-                          }
+                          if (ageHours > RETRY_WINDOW_HOURS) return null;
                           return (
                             <>
                               <Button
