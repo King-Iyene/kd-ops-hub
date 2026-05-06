@@ -51,53 +51,44 @@ const svgKDFlat = (size) => `
         font-weight="800" fill="#ffffff">KD</text>
 </svg>`;
 
-// Generate one icon. With a real logo: paint brand background, drop the
-// logo on top with padding, then apply rounded corners (or not for
-// maskable). Without a logo: fall back to the gradient-+-"KD" SVG that
-// fills the whole canvas (original look).
-async function makeIcon({ size, padding, rounded, fullBleedBg }) {
-  // No source logo → use the old full-canvas SVG so the fallback still
-  // looks like a proper icon (not a tiny logo on a transparent square).
+// Generate one icon. Pure-logo style — the actual KD logo on a transparent
+// background, no brand-blue surface, no rounded square. The home-screen
+// shows just the logomark like a sticker. Padding is kept minimal so the
+// logo reads as large as possible inside the canvas.
+async function makeIcon({ size, padding }) {
+  // No source logo → fall back to the gradient KD wordmark so the icons
+  // still look intentional.
   if (!logoPath) {
-    const fallback = fullBleedBg ? svgKDFlat(size) : svgKDRound(size);
-    return sharp(Buffer.from(fallback)).resize(size, size).png({ compressionLevel: 9 }).toBuffer();
+    return sharp(Buffer.from(svgKDRound(size))).resize(size, size).png({ compressionLevel: 9 }).toBuffer();
   }
 
-  // With a source logo → composite onto a brand background with padding.
-  // We always use a brand bg behind a real logo so the icon reads clearly
-  // on any home-screen wallpaper. The logo's own colours sit on top.
   const innerSize = Math.round(size * (1 - padding * 2));
   const innerBuf = await sharp(readFileSync(logoPath))
     .resize(innerSize, innerSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer();
 
-  let pipeline = sharp({
-    create: { width: size, height: size, channels: 4, background: { r: 0, g: 105, b: 148, alpha: 1 } },
+  // Transparent canvas, logo composited centered. No background, no mask.
+  return sharp({
+    create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
-    .composite([{ input: innerBuf, top: Math.round((size - innerSize) / 2), left: Math.round((size - innerSize) / 2) }]);
-
-  if (rounded) {
-    const radius = Math.round(size * 0.22);
-    const mask = Buffer.from(
-      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
-         <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#fff"/>
-       </svg>`,
-    );
-    pipeline = pipeline.composite([{ input: mask, blend: 'dest-in' }]);
-  }
-
-  return pipeline.png({ compressionLevel: 9 }).toBuffer();
+    .composite([{ input: innerBuf, top: Math.round((size - innerSize) / 2), left: Math.round((size - innerSize) / 2) }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 const targets = [
-  // "any" purpose — rounded square with the logo on brand bg.
-  { name: 'icon-192.png',          size: 192, padding: 0.10, rounded: true,  fullBleedBg: false },
-  { name: 'icon-512.png',          size: 512, padding: 0.10, rounded: true,  fullBleedBg: false },
-  // "maskable" — full-bleed brand background; OS crops outer 10–18%.
-  { name: 'icon-maskable-512.png', size: 512, padding: 0.20, rounded: false, fullBleedBg: true  },
-  // iOS — square brand background, generous padding.
-  { name: 'apple-touch-icon.png',  size: 180, padding: 0.14, rounded: false, fullBleedBg: true  },
+  // Generous logo size — minimal padding so the mark reads at small sizes.
+  { name: 'icon-192.png',          size: 192, padding: 0.06 },
+  { name: 'icon-512.png',          size: 512, padding: 0.06 },
+  // Maskable on transparent: Android will crop into a shape; the device
+  // wallpaper shows through the transparent area. Keep the logo small so
+  // the OS-applied mask doesn't clip the artwork.
+  { name: 'icon-maskable-512.png', size: 512, padding: 0.18 },
+  // iOS shows a white background under transparent apple-touch icons.
+  // Keep the icon transparent — iOS users will get the logo on a white
+  // tile; matches what the user asked for ("no other background color").
+  { name: 'apple-touch-icon.png',  size: 180, padding: 0.10 },
 ];
 
 for (const t of targets) {
@@ -106,6 +97,6 @@ for (const t of targets) {
   console.log(`wrote ${t.name} (${buf.length} bytes)`);
 }
 
-const favBuf = await makeIcon({ size: 32, padding: 0.06, rounded: true, fullBleedBg: false });
+const favBuf = await makeIcon({ size: 32, padding: 0.04 });
 writeFileSync(join(PUBLIC, 'favicon-32.png'), favBuf);
 console.log(`wrote favicon-32.png`);
