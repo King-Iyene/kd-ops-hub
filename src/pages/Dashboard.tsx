@@ -46,6 +46,7 @@ import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
+import { PushNotificationsBanner } from '@/components/PushNotificationsBanner';
 import { OnboardingChecklist } from '@/components/OnboardingChecklist';
 import { FinancialHealthCard } from '@/components/FinancialHealthCard';
 import { CashBurnCard } from '@/components/CashBurnCard';
@@ -419,7 +420,7 @@ const Dashboard = () => {
     return (
       <div className="space-y-6">
         {/* Greeting */}
-        <AuroraHero className="p-5 sm:p-6">
+        <AuroraHero className="p-5 sm:p-6" brand="KD">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 opacity-80 kd-icon-glow" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Personal Overview</span>
@@ -428,6 +429,7 @@ const Dashboard = () => {
           <p className="text-sm opacity-70 mt-1.5">{todSubtitle[tod]}</p>
         </AuroraHero>
 
+        <PushNotificationsBanner />
         <AnnouncementsBanner />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -449,7 +451,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-5">
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
-      <AuroraHero className="p-5 sm:p-7" scanLine>
+      <AuroraHero className="p-5 sm:p-7" scanLine brand="KD">
         <div className="flex items-center gap-2 mb-1">
           <LayoutDashboard className="h-4 w-4 opacity-80 kd-icon-glow" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Operations Command</span>
@@ -464,6 +466,7 @@ const Dashboard = () => {
       </AuroraHero>
 
       <OnboardingChecklist />
+      <PushNotificationsBanner />
       <AnnouncementsBanner />
 
       {/* ── Expiry alerts — documents and compliance filings due soon ─ */}

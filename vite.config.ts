@@ -19,9 +19,14 @@ export default defineConfig(({ mode }) => ({
     // generateSW with autoUpdate keeps installed users on the latest
     // shipped bundle without manual user action.
     VitePWA({
+      // injectManifest lets us use a custom src/sw.ts that adds push +
+      // notificationclick handlers on top of workbox's precaching.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
       injectRegister: "auto",
-      includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
+      includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
         name: "KD Ops",
         short_name: "KD Ops",
@@ -41,38 +46,9 @@ export default defineConfig(({ mode }) => ({
           { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      workbox: {
-        // Don't precache the JS bundles (they change every deploy and the chunks
-        // are huge). Just cache the shell + static assets, runtime-cache the rest.
+      injectManifest: {
         globPatterns: ["**/*.{html,css,svg,png,ico,woff2}"],
-        // Skip large bundles to keep the SW install size small.
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/functions\//, /^\/auth\//],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-css",
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts-files",
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-          {
-            // Supabase REST + Edge Function calls — never cache responses,
-            // always go to network. Caching financial data is dangerous.
-            urlPattern: /supabase\.co\/(rest|functions|auth|storage)\//,
-            handler: "NetworkOnly",
-          },
-        ],
       },
       devOptions: {
         // Don't run service worker locally — too easy to debug stale chunks.
