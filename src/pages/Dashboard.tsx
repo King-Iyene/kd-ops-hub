@@ -46,6 +46,7 @@ import { useApprovalStore } from '@/store/approvalStore';
 import { daysUntil, formatDate, formatDateTime, formatNaira } from '@/lib/format';
 import ComplianceCard from '@/components/ComplianceCard';
 import { AnnouncementsBanner } from '@/components/AnnouncementsBanner';
+import { PushNotificationsBanner } from '@/components/PushNotificationsBanner';
 import { OnboardingChecklist } from '@/components/OnboardingChecklist';
 import { FinancialHealthCard } from '@/components/FinancialHealthCard';
 import { CashBurnCard } from '@/components/CashBurnCard';
@@ -428,6 +429,7 @@ const Dashboard = () => {
           <p className="text-sm opacity-70 mt-1.5">{todSubtitle[tod]}</p>
         </AuroraHero>
 
+        <PushNotificationsBanner />
         <AnnouncementsBanner />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -464,6 +466,7 @@ const Dashboard = () => {
       </AuroraHero>
 
       <OnboardingChecklist />
+      <PushNotificationsBanner />
       <AnnouncementsBanner />
 
       {/* ── Expiry alerts — documents and compliance filings due soon ─ */}

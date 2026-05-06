@@ -507,9 +507,22 @@
   }
 
   .kd-gradient-mesh {
+    /* Visible aurora canvas — three brand-coloured radials + a faint dot
+     * grid overlay for that "sci-fi command-deck" feel without sacrificing
+     * legibility of content layered on top. */
     background:
-      radial-gradient(ellipse at 20% 20%, hsl(var(--primary) / 0.06) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 80%, hsl(var(--kd-cyan) / 0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 80% 50% at 12% 10%, hsl(var(--primary) / 0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 50% at 92% 18%, hsl(var(--kd-cyan) / 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 60% at 50% 100%, hsl(var(--accent) / 0.06) 0%, transparent 60%),
+      radial-gradient(circle, hsl(var(--foreground) / 0.04) 1px, transparent 1px) 0 0/26px 26px,
+      hsl(var(--background));
+  }
+  html.dark .kd-gradient-mesh {
+    background:
+      radial-gradient(ellipse 80% 50% at 12% 10%, hsl(var(--primary) / 0.18) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 50% at 92% 18%, hsl(var(--kd-cyan) / 0.14) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 60% at 50% 100%, hsl(var(--accent) / 0.10) 0%, transparent 60%),
+      radial-gradient(circle, hsl(var(--foreground) / 0.05) 1px, transparent 1px) 0 0/26px 26px,
       hsl(var(--background));
   }
 
@@ -818,6 +831,96 @@
     box-shadow:
       0 1px 0 hsl(var(--background) / 0.5) inset,
       0 8px 24px -8px hsl(var(--primary) / 0.12);
+  }
+
+  /* Tech card — frosted glass + brand-tinted top edge highlight + soft glow.
+   * Apply in addition to the base Card classes. Reads as a SaaS "command
+   * panel" without overpowering the content inside. */
+  .kd-card-tech {
+    position: relative;
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.92), hsl(var(--card) / 0.78));
+    backdrop-filter: blur(12px) saturate(170%);
+    -webkit-backdrop-filter: blur(12px) saturate(170%);
+    border: 1px solid hsl(var(--border) / 0.5);
+    box-shadow:
+      0 1px 0 hsl(var(--primary) / 0.12) inset,
+      0 1px 0 hsl(var(--background) / 0.6) inset,
+      0 6px 24px -6px hsl(var(--primary) / 0.10),
+      0 2px 6px -2px hsl(0 0% 0% / 0.04);
+    transition: box-shadow 240ms ease, transform 240ms ease, border-color 240ms ease;
+  }
+  .kd-card-tech::before {
+    /* Top-edge gradient highlight — that "powered" feel */
+    content: '';
+    position: absolute;
+    inset: 0 1px auto 1px;
+    height: 1px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      hsl(var(--tod-aurora-1) / 0.5) 30%,
+      hsl(var(--tod-aurora-2) / 0.6) 50%,
+      hsl(var(--tod-aurora-1) / 0.5) 70%,
+      transparent 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .kd-card-tech:hover {
+    border-color: hsl(var(--primary) / 0.25);
+    box-shadow:
+      0 1px 0 hsl(var(--primary) / 0.18) inset,
+      0 1px 0 hsl(var(--background) / 0.6) inset,
+      0 12px 40px -8px hsl(var(--primary) / 0.18),
+      0 4px 10px -2px hsl(0 0% 0% / 0.06);
+    transform: translateY(-1px);
+  }
+
+  /* Stat tile — KPI numbers with a subtle inner glow gradient. Pairs well
+   * with .kd-card-tech for dashboard-style metric tiles. */
+  .kd-stat-tile {
+    background:
+      radial-gradient(circle at 80% 0%, hsl(var(--primary) / 0.10) 0%, transparent 50%),
+      linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.94) 100%);
+    border: 1px solid hsl(var(--border) / 0.55);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px -2px hsl(var(--primary) / 0.06);
+    transition: box-shadow 240ms ease, transform 240ms ease, border-color 240ms ease;
+  }
+  .kd-stat-tile:hover {
+    border-color: hsl(var(--primary) / 0.28);
+    box-shadow: 0 8px 24px -6px hsl(var(--primary) / 0.18), 0 0 0 1px hsl(var(--primary) / 0.12);
+    transform: translateY(-1px);
+  }
+
+  /* Subtle bottom-fade gradient — for sticky bottoms and table footers
+   * that need to feel "anchored" to the surface above without a hard line. */
+  .kd-fade-bottom {
+    background: linear-gradient(180deg, transparent 0%, hsl(var(--card) / 0.6) 100%);
+  }
+
+  /* ── Receipt print rules ─────────────────────────────────────────────
+   * When the user clicks Print on the in-app ReceiptModal, JS clones the
+   * #kd-receipt-card into a portal div (#kd-print-target) on <body>, then
+   * adds `kd-receipt-printing` to <body> for the duration of the print
+   * dialog. CSS below hides everything else and shows only the cloned
+   * card so the printer outputs a clean white receipt page (no app shell,
+   * no glassy backdrop, no toolbar). */
+  @media print {
+    body.kd-receipt-printing > *:not(#kd-print-target) {
+      display: none !important;
+    }
+    body.kd-receipt-printing #kd-print-target {
+      display: block !important;
+      position: static !important;
+      margin: 0 auto !important;
+      max-width: 580px !important;
+      box-shadow: none !important;
+      background: #fff !important;
+    }
+    body.kd-receipt-printing #kd-print-target * {
+      box-shadow: none !important;
+    }
+    @page { margin: 12mm; }
   }
 
   /* ─── Trip Map (Leaflet) custom markers ─────────────────────────── */

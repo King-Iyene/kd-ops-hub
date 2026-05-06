@@ -162,29 +162,68 @@ export function ChatWidget() {
     setInput('');
     setSending(true);
 
+    // ── If an n8n webhook URL is configured, route the chat there.
+    //    Falls back to the existing chatbot-chat edge function when not set,
+    //    so flipping between the two is just a Vercel env-var change.
+    const n8nUrl = import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined;
+    const n8nSecret = import.meta.env.VITE_N8N_CHAT_SECRET as string | undefined;
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('chatbot-chat', {
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : undefined,
-        body: {
-          conversation_id: convId,
-          message: text,
-          attachments: [],
-          use_web_search: useWebSearch,
-        },
-      });
+      let reply: string;
+      let newConvId = convId;
+      let toolsUsed: string[] = [];
 
-      if (error) {
-        const body = await (error as any)?.context?.json?.().catch(() => null);
-        throw new Error(body?.error ?? error.message);
+      if (n8nUrl) {
+        // n8n route — synchronous request/response, secret in header.
+        const { profile } = useAuthStore.getState();
+        const sessionId = convId || `s-${profile?.id || 'anon'}-${Date.now()}`;
+        const resp = await fetch(n8nUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(n8nSecret ? { 'x-kd-secret': n8nSecret } : {}),
+          },
+          body: JSON.stringify({
+            message: text,
+            user_id: profile?.id,
+            session_id: sessionId,
+          }),
+        });
+        if (!resp.ok) {
+          let bodyText = '';
+          try { bodyText = (await resp.json())?.error || ''; } catch { /* ignore */ }
+          throw new Error(bodyText || `n8n returned ${resp.status}`);
+        }
+        const json = await resp.json();
+        if (json?.ok === false) throw new Error(json.error || 'n8n agent error');
+        reply = json.reply || '(empty reply)';
+        newConvId = json.session_id || sessionId;
+      } else {
+        // Legacy route — Supabase edge function chatbot-chat.
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await supabase.functions.invoke('chatbot-chat', {
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+          body: {
+            conversation_id: convId,
+            message: text,
+            attachments: [],
+            use_web_search: useWebSearch,
+          },
+        });
+        if (error) {
+          const body = await (error as any)?.context?.json?.().catch(() => null);
+          throw new Error(body?.error ?? error.message);
+        }
+        if (data?.error) throw new Error(data.error);
+        reply = data.reply;
+        newConvId = data.conversation_id;
+        toolsUsed = data.tools_used ?? [];
+        setUseWebSearch(false);
       }
-      if (data?.error) throw new Error(data.error);
 
-      const newConvId: string = data.conversation_id;
       if (newConvId !== convId) setConvId(newConvId);
-      setUseWebSearch(false);
 
       setMessages((m) => {
         const base = m.filter((x) => x.id !== optimistic.id);
@@ -194,8 +233,8 @@ export function ChatWidget() {
           {
             id: `a-${Date.now()}`,
             role: 'assistant' as const,
-            content: data.reply,
-            tools_used: data.tools_used ?? [],
+            content: reply,
+            tools_used: toolsUsed,
           },
         ];
         cacheSet(newConvId, updated);
@@ -465,13 +504,15 @@ export function ChatWidget() {
         type="button"
         onClick={open ? handleClose : handleOpen}
         className={`
-          fixed bottom-5 right-4 z-50 h-14 w-14 rounded-full
+          fixed right-4 z-50 h-14 w-14 rounded-full
           bg-gradient-to-br from-primary to-cyan-500
           text-white shadow-lg shadow-primary/30
           hover:shadow-primary/50 hover:scale-105 active:scale-95
           kd-transition flex items-center justify-center
-          /* Mobile safe area */
-          sm:bottom-6
+          /* Mobile: lift above the bottom-nav (h-14 + safe-area).
+             Desktop: sit at the lower-right with normal margin. */
+          bottom-[calc(theme(spacing.20)+env(safe-area-inset-bottom))]
+          md:bottom-6
         `}
         aria-label="Open AI assistant"
       >

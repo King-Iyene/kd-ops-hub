@@ -374,7 +374,7 @@ const ContractorProfile = () => {
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{ctrName}</h1>
           <p className="text-muted-foreground text-sm">
-            {contractor.bank_name} · {maskAccountNumber(contractor.account_number)}
+            {contractor.bank_name} · <span className="font-mono">{contractor.account_number || '—'}</span>
           </p>
         </div>
         <Badge
@@ -511,7 +511,7 @@ const ContractorProfile = () => {
             </div>
             <div className="flex-1 min-w-0 space-y-1">
               <p className="text-sm flex items-center gap-2 text-muted-foreground">
-                <Landmark className="h-3.5 w-3.5" /> {contractor.bank_name} — {maskAccountNumber(contractor.account_number)}
+                <Landmark className="h-3.5 w-3.5" /> {contractor.bank_name} — <span className="font-mono">{contractor.account_number || '—'}</span>
               </p>
               {contractor.linkedin_id && (
                 <p className="text-sm flex items-center gap-2 text-muted-foreground">
@@ -808,7 +808,7 @@ const ContractorProfile = () => {
                     </div>
                     <div className="space-y-1">
                       <Label>Account Number</Label>
-                      <p className="text-sm py-2 font-mono">{maskAccountNumber(contractor.account_number) || '—'}</p>
+                      <p className="text-sm py-2 font-mono">{contractor.account_number || '—'}</p>
                     </div>
                     {contractor.account_name && (
                       <div className="space-y-1 sm:col-span-2">

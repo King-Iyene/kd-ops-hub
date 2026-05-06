@@ -37,6 +37,8 @@ import {
   History,
   Trash2,
   RefreshCw,
+  Pencil,
+  RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,9 +75,18 @@ import { useAuthStore } from '@/store/authStore';
 import {
   listEmailTemplates,
   renderTemplate,
+  updateEmailTemplate,
+  resetEmailTemplate,
   wrapEmailHtml,
   type EmailTemplate,
 } from '@/lib/email-templates';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 type RecipientSource = 'manual' | 'contacts' | 'employees' | 'contractors';
 type BodySource = 'template' | 'custom';
@@ -139,6 +150,13 @@ export default function Communications() {
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [activeProgress, setActiveProgress] = useState<CampaignSummary | null>(null);
 
+  // Template editing
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editHtmlBody, setEditHtmlBody] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editResetting, setEditResetting] = useState(false);
+
   // History
   const [history, setHistory] = useState<CampaignSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -177,13 +195,78 @@ export default function Communications() {
     setHistoryLoading(false);
   };
 
+  // ─── Template editing ──────────────────────────────────────────────────
+  const openTemplateEditor = (tpl: EmailTemplate) => {
+    setEditingTemplate(tpl);
+    setEditSubject(tpl.subject);
+    setEditHtmlBody(tpl.html_body);
+  };
+
+  const saveTemplateEdit = async () => {
+    if (!editingTemplate) return;
+    setEditSaving(true);
+    try {
+      await updateEmailTemplate(editingTemplate.id, {
+        subject: editSubject,
+        html_body: editHtmlBody,
+        text_body: editingTemplate.text_body,
+      });
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === editingTemplate.id
+            ? { ...t, subject: editSubject, html_body: editHtmlBody }
+            : t,
+        ),
+      );
+      toast({ title: 'Template saved' });
+      setEditingTemplate(null);
+    } catch (e: any) {
+      toast({ title: 'Save failed', description: e?.message, variant: 'destructive' });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const resetTemplateToDefault = async () => {
+    if (!editingTemplate) return;
+    if (!confirm('Reset this template to its factory default? Your edits will be lost.')) return;
+    setEditResetting(true);
+    try {
+      await resetEmailTemplate(editingTemplate.id);
+      const restored: EmailTemplate = {
+        ...editingTemplate,
+        subject: editingTemplate.default_subject,
+        html_body: editingTemplate.default_html_body,
+        text_body: editingTemplate.default_text_body,
+      };
+      setTemplates((prev) => prev.map((t) => (t.id === editingTemplate.id ? restored : t)));
+      toast({ title: 'Template reset to default' });
+      setEditingTemplate(null);
+    } catch (e: any) {
+      toast({ title: 'Reset failed', description: e?.message, variant: 'destructive' });
+    } finally {
+      setEditResetting(false);
+    }
+  };
+
   // ─── Recipient builder ─────────────────────────────────────────────────
   const manualRecipients: Recipient[] = useMemo(() => {
     return manualText
       .split(/[\n,;]+/)
       .map((s) => s.trim())
-      .filter((s) => EMAIL_RX.test(s))
-      .map((email) => ({ email }));
+      .filter(Boolean)
+      .map((s) => {
+        // "Display Name <email@example.com>" format
+        const m1 = s.match(/^(.+?)\s*<([^\s@]+@[^\s@]+\.[^\s@]+)>\s*$/);
+        if (m1) return { name: m1[1].trim(), email: m1[2].trim() };
+        // "email@example.com (Display Name)" format
+        const m2 = s.match(/^([^\s@]+@[^\s@]+\.[^\s@]+)\s*\((.+?)\)\s*$/);
+        if (m2) return { email: m2[1].trim(), name: m2[2].trim() };
+        // Plain email
+        if (EMAIL_RX.test(s)) return { email: s };
+        return null;
+      })
+      .filter((r): r is Recipient => r !== null && EMAIL_RX.test(r.email));
   }, [manualText]);
 
   const allRecipients = useMemo(
@@ -395,8 +478,8 @@ export default function Communications() {
     <div className="space-y-4">
       <PageHeader
         title="Communications"
-        subtitle="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
-        icon={<Mail className="h-5 w-5" />}
+        description="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
+        icon={Mail}
       />
 
       {/* Composer */}
@@ -419,7 +502,7 @@ export default function Communications() {
             </div>
 
             {bodySource === 'template' ? (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label className="text-xs">Template</Label>
                 <Select value={templateKey} onValueChange={setTemplateKey}>
                   <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
@@ -432,9 +515,17 @@ export default function Communications() {
                   </SelectContent>
                 </Select>
                 {activeTemplate && (
-                  <p className="text-xs text-muted-foreground">
-                    {activeTemplate.description}
-                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-muted-foreground flex-1">{activeTemplate.description}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0 h-7 text-xs"
+                      onClick={() => openTemplateEditor(activeTemplate)}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" /> Edit template
+                    </Button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -516,12 +607,12 @@ export default function Communications() {
 
             {recipientSource === 'manual' ? (
               <div className="space-y-1">
-                <Label className="text-xs">Email addresses (comma or newline separated)</Label>
+                <Label className="text-xs">Addresses — one per line or comma-separated</Label>
                 <Textarea
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
                   className="text-xs min-h-[120px]"
-                  placeholder="bola@example.com, lola@example.com"
+                  placeholder={"bola@example.com\nLola Adeyemi <lola@example.com>"}
                 />
               </div>
             ) : (
@@ -559,7 +650,7 @@ export default function Communications() {
             )}
 
             <p className="text-[10px] text-muted-foreground">
-              Duplicates and invalid addresses are filtered automatically.
+              Supports plain emails and <code className="text-[9px]">Name &lt;email&gt;</code> format. Duplicates filtered automatically.
             </p>
           </CardContent>
         </Card>
@@ -650,6 +741,64 @@ export default function Communications() {
           )}
         </CardContent>
       </Card>
+
+      {/* Template editor dialog */}
+      <Dialog open={!!editingTemplate} onOpenChange={(v) => { if (!v) setEditingTemplate(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4" /> Edit template — {editingTemplate?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 py-1">
+            <div className="space-y-1">
+              <Label className="text-xs">Subject line</Label>
+              <Input
+                value={editSubject}
+                onChange={(e) => setEditSubject(e.target.value)}
+                placeholder="Email subject…"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">HTML body</Label>
+              <Textarea
+                value={editHtmlBody}
+                onChange={(e) => setEditHtmlBody(e.target.value)}
+                className="font-mono text-xs min-h-[320px]"
+              />
+              {editingTemplate?.variables && editingTemplate.variables.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Available variables:{' '}
+                  {editingTemplate.variables.map((v) => (
+                    <code key={v.name} className="mr-1">{`{{${v.name}}}`}</code>
+                  ))}
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={resetTemplateToDefault}
+              disabled={editResetting || editSaving}
+              className="text-muted-foreground"
+            >
+              {editResetting && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+              <RotateCcw className="h-3 w-3 mr-1" /> Reset to default
+            </Button>
+            <div className="flex gap-2 sm:ml-auto">
+              <Button variant="outline" onClick={() => setEditingTemplate(null)} disabled={editSaving}>
+                Cancel
+              </Button>
+              <Button onClick={saveTemplateEdit} disabled={editSaving || !editSubject.trim()}>
+                {editSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save template
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

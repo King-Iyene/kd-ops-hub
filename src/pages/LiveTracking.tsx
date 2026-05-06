@@ -11,6 +11,7 @@ import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle, Map
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
 import { cn } from '@/lib/utils';
+import { formatElapsed, formatPingAge } from '@/lib/format';
 
 const TRAIL_WINDOW_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 90 * 1000;
@@ -83,23 +84,6 @@ const trailDistanceKm = (pings: Ping[], startLat: number | null, startLng: numbe
     prevLat = p.lat; prevLng = p.lng;
   }
   return m / 1000;
-};
-
-const formatElapsed = (ms: number): string => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
-  if (m > 0) return `${m}m ${sec.toString().padStart(2, '0')}s`;
-  return `${sec}s`;
-};
-
-const formatPingAge = (ms: number): string => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  return `${Math.floor(s / 3600)}h ago`;
 };
 
 // ── Driver Overlay ────────────────────────────────────────────────────────────

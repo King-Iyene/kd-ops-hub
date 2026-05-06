@@ -90,7 +90,6 @@ const ALL_NAV: NavItem[] = [
   { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
   { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
   // Operations
-  { title: 'My Requests',      url: '/my-requests',       icon: ClipboardList,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'] },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
@@ -170,13 +169,20 @@ function getInitials(name: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const sidebarCollapsed = state === 'collapsed';
   const { profile, signOut } = useAuthStore();
   const effectiveRole = useEffectiveRole();
   const location = useLocation();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
+
+  // Close the mobile sidebar automatically whenever the route changes.
+  // The shadcn <Sheet>-based mobile sidebar otherwise stays open after a
+  // user taps a nav link, requiring them to swipe it away — bad mobile UX.
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [location.pathname, isMobile, setOpenMobile]);
 
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);

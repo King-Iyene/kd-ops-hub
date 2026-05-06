@@ -34,7 +34,12 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
-      className={cn("border-b transition-colors data-[state=selected]:bg-muted hover:bg-muted/50", className)}
+      className={cn(
+        // Glassy Apple/X-style: hairline border, subtle frost on hover
+        "border-b border-border/40 transition-colors data-[state=selected]:bg-muted/60",
+        "hover:bg-muted/30 hover:backdrop-blur-sm",
+        className,
+      )}
       {...props}
     />
   ),
@@ -46,7 +51,8 @@ const TableHead = React.forwardRef<HTMLTableCellElement, React.ThHTMLAttributes<
     <th
       ref={ref}
       className={cn(
-        "h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        // Slimmer header, uppercase mini-caps for that Apple HIG feel
+        "h-9 px-3 text-left align-middle font-medium text-[11px] uppercase tracking-wider text-muted-foreground/80 [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -57,7 +63,15 @@ TableHead.displayName = "TableHead";
 
 const TableCell = React.forwardRef<HTMLTableCellElement, React.TdHTMLAttributes<HTMLTableCellElement>>(
   ({ className, ...props }, ref) => (
-    <td ref={ref} className={cn("p-4 align-middle [&:has([role=checkbox])]:pr-0", className)} {...props} />
+    <td
+      ref={ref}
+      className={cn(
+        // Thinner rows; no more chunky p-4
+        "px-3 py-2.5 align-middle [&:has([role=checkbox])]:pr-0",
+        className,
+      )}
+      {...props}
+    />
   ),
 );
 TableCell.displayName = "TableCell";

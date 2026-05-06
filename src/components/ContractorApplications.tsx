@@ -346,7 +346,7 @@ export function ContractorApplications() {
                           </TableCell>
                           <TableCell className="text-sm">{a.bank_name}</TableCell>
                           <TableCell>
-                            <p className="font-mono text-sm">{maskAccountNumber(a.account_number)}</p>
+                            <p className="font-mono text-sm">{a.account_number || '—'}</p>
                             {a.account_name && (
                               <p className="text-xs text-muted-foreground">{a.account_name}</p>
                             )}

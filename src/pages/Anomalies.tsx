@@ -289,7 +289,7 @@ export default function Anomalies() {
                         </TableCell>
                       </TableRow>
                       {expanded && (
-                        <TableRow className="bg-muted/30">
+                        <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                           <TableCell colSpan={6} className="py-4">
                             <div className="space-y-2 px-2">
                               <p className="text-sm">{r.description}</p>

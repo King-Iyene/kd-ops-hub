@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import {
   writeRejectionNotification,
@@ -29,6 +30,7 @@ import {
   generateKdopsRef,
   verifyTransfer,
   getBankCode,
+  resolveAccount,
   paystackTransferFee,
   stampDutyFor,
   buildNarration,
@@ -36,6 +38,7 @@ import {
   type NarrationKind,
 } from '@/lib/paystack';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
+import { ReceiptModal } from '@/components/ReceiptModal';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,7 +75,10 @@ import {
   FileText,
   Trash2,
   CalendarClock,
+  Search,
+  Info,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 
 const APPROVER_ROLES = ['admin', 'finance', 'super_admin'] as const;
@@ -162,194 +168,6 @@ function getItemFee(item: any): number {
   return 0;
 }
 
-const printItemReceipt = (item: any, batch: any, generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
-  const isFailed = item.status === 'failed';
-  const isSucceeded = item.status === 'succeeded';
-  const txnDateStr = item.processed_at || item.created_at
-    ? formatReceiptDateTime(item.processed_at || item.created_at)
-    : '—';
-  const generatedAt = formatReceiptDateTime(new Date());
-  // Prefer the per-item narration that was actually sent to Paystack — that's
-  // what the recipient sees on their bank app. Fall back to the batch-level
-  // text only for legacy rows processed before the narration column existed.
-  const narration =
-    item.narration
-    || batch?.description
-    || batch?.notes
-    || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
-  const statusText = isFailed ? 'FAILED' : isSucceeded ? 'SUCCESSFUL' : (item.status?.toUpperCase() || 'PENDING');
-  const statusBg = isFailed ? '#fee2e2' : isSucceeded ? '#dcfce7' : '#fef3c7';
-  const statusColor = isFailed ? '#991b1b' : isSucceeded ? '#166534' : '#92400e';
-  const statusIcon = isFailed
-    ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-    : isSucceeded
-      ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
-      : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-  const initials = escapeHtml((companyName || 'KD').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
-  const logoHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:42px;width:auto;object-fit:contain;border-radius:8px;background:#fff;padding:4px;" />`
-    : `<div style="width:42px;height:42px;border-radius:10px;background:#fff;color:#0a2533;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;letter-spacing:-0.02em;">${initials}</div>`;
-
-  const internalRef = item.id ? String(item.id).slice(0, 8).toUpperCase() : '—';
-  const batchRef = batch?.id ? String(batch.id).slice(0, 8).toUpperCase() : '—';
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Payment Receipt — ${escapeHtml(item.full_name || '')}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #0f172a; background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%); min-height: 100vh; padding: 24px 16px; }
-    .page { max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 20px; box-shadow: 0 20px 60px -12px rgba(15, 23, 42, 0.18), 0 8px 24px -8px rgba(15, 23, 42, 0.08); overflow: hidden; position: relative; }
-    .header { background: linear-gradient(135deg, #0a2533 0%, #0d3a4f 60%, #114866 100%); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; position: relative; overflow: hidden; }
-    .header::after { content: ''; position: absolute; top: -40px; right: -40px; width: 160px; height: 160px; background: radial-gradient(circle, rgba(214,172,80,0.18) 0%, transparent 70%); }
-    .header-left { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
-    .company-name { font-size: 17px; font-weight: 700; color: #ffffff; letter-spacing: -0.01em; }
-    .company-sub { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.55); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.12em; }
-    .receipt-num { color: rgba(255,255,255,0.4); font-size: 10px; font-family: 'JetBrains Mono', monospace; margin-top: 2px; letter-spacing: 0.05em; }
-    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; background: ${statusBg}; color: ${statusColor}; position: relative; z-index: 1; }
-    .status-pill svg { display: block; }
-
-    .amount-section { padding: 28px 28px 22px; text-align: center; border-bottom: 1px dashed #e2e8f0; }
-    .amount-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: #94a3b8; margin-bottom: 8px; }
-    .amount { font-size: 40px; font-weight: 800; color: ${isFailed ? '#b91c1c' : '#0f172a'}; letter-spacing: -1.2px; font-variant-numeric: tabular-nums; line-height: 1; }
-    .amount .currency { font-size: 24px; font-weight: 700; color: #475569; vertical-align: super; margin-right: 4px; }
-    ${isFailed ? '.amount { text-decoration: line-through; }' : ''}
-    .amount-sub { font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.4; }
-
-    .timestamp { padding: 14px 28px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: center; }
-    .timestamp .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; margin-bottom: 3px; }
-    .timestamp .val { font-size: 13px; font-weight: 600; color: #1e293b; letter-spacing: -0.01em; }
-
-    .section-grid { padding: 20px 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-bottom: 1px solid #f1f5f9; }
-    .party-block { font-size: 12px; }
-    .party-block .lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; margin-bottom: 6px; }
-    .party-block .name { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.3; word-break: break-word; }
-    .party-block .meta { font-size: 11px; color: #64748b; margin-top: 3px; }
-    .party-block .meta .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-
-    .details { padding: 16px 28px 4px; }
-    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; }
-    .row:last-child { border-bottom: none; }
-    .row .lbl { color: #64748b; font-weight: 500; flex-shrink: 0; }
-    .row .val { font-weight: 600; text-align: right; word-break: break-all; color: #0f172a; }
-    .row .val.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500; }
-
-    .fee-section { background: #fffbeb; border-top: 1px solid #fde68a; border-bottom: 1px solid #fde68a; padding: 14px 28px; margin: 8px 0 0; }
-    .fee-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
-    .fee-row .lbl { color: #92400e; font-weight: 500; }
-    .fee-row .val { color: #b45309; font-weight: 600; font-variant-numeric: tabular-nums; }
-    .fee-total { display: flex; justify-content: space-between; align-items: center; padding: 10px 0 0; margin-top: 6px; border-top: 1px solid #fcd34d; font-size: 13px; font-weight: 700; color: #78350f; }
-    .fee-total .val { font-variant-numeric: tabular-nums; }
-
-    .alert { margin: 16px 28px 0; padding: 14px 16px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
-    .alert.failed { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
-    .alert.retry { background: #fffbeb; border: 1px solid #fde68a; color: #78350f; margin-top: 8px; }
-    .alert strong { font-weight: 700; }
-
-    .footer { padding: 18px 28px; border-top: 1px dashed #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6; background: #fafbfc; }
-    .footer .gen { color: #64748b; font-weight: 500; }
-    .footer .nb { color: #cbd5e1; margin-top: 4px; }
-
-    .punch-strip { display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
-    .punch-strip .dot { width: 14px; height: 14px; border-radius: 50%; background: #f1f5f9; margin-top: -7px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.06); }
-
-    ${isFailed ? '.watermark { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) rotate(-28deg); font-size: 96px; font-weight: 900; color: rgba(185,28,28,0.05); letter-spacing: 0.16em; pointer-events: none; z-index: 0; }' : ''}
-
-    @media print {
-      body { background: #fff; padding: 0; }
-      .page { margin: 0; border-radius: 0; box-shadow: none; }
-      .header { background: #0a2533 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .status-pill, .timestamp, .fee-section, .alert.failed, .alert.retry { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-    @media (max-width: 480px) { .section-grid { grid-template-columns: 1fr; } }
-  </style>
-</head>
-<body>
-  ${isFailed ? '<div class="watermark">FAILED</div>' : ''}
-  <div class="page">
-    <div class="header">
-      <div class="header-left">
-        ${logoHtml}
-        <div>
-          <div class="company-name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
-          <div class="company-sub">Payment Receipt</div>
-          <div class="receipt-num">No. ${escapeHtml(internalRef)}</div>
-        </div>
-      </div>
-      <div class="status-pill">${statusIcon}<span>${escapeHtml(statusText)}</span></div>
-    </div>
-
-    <div class="amount-section">
-      <div class="amount-label">Amount Transferred</div>
-      <div class="amount">${item.amount_ngn != null ? `<span class="currency">₦</span>${escapeHtml(Number(item.amount_ngn).toLocaleString('en-NG', { minimumFractionDigits: 2 }))}` : '—'}</div>
-      <div class="amount-sub">${escapeHtml(narration)}</div>
-    </div>
-
-    <div class="timestamp">
-      <div class="label">Transaction Date &amp; Time</div>
-      <div class="val">${escapeHtml(txnDateStr)}</div>
-    </div>
-
-    <div class="section-grid">
-      <div class="party-block">
-        <div class="lbl">From (Sender)</div>
-        <div class="name">${escapeHtml(companyName || 'KD Squares Ltd')}</div>
-        <div class="meta">Operations wallet · Paystack</div>
-      </div>
-      <div class="party-block">
-        <div class="lbl">To (Recipient)</div>
-        <div class="name">${escapeHtml(item.full_name || '—')}</div>
-        <div class="meta">${escapeHtml(item.bank_name || '—')}</div>
-        <div class="meta"><span class="mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span></div>
-      </div>
-    </div>
-
-    <div class="details">
-      <div class="row"><span class="lbl">Paystack reference</span><span class="val mono">${escapeHtml(item.paystack_reference || '—')}</span></div>
-      <div class="row"><span class="lbl">Internal reference</span><span class="val mono">${escapeHtml(internalRef)}</span></div>
-      <div class="row"><span class="lbl">Batch</span><span class="val">${escapeHtml(batch?.name || '—')} <span class="mono" style="color:#94a3b8;font-size:10px;">(${escapeHtml(batchRef)})</span></span></div>
-      <div class="row"><span class="lbl">Status</span><span class="val" style="color:${statusColor};font-weight:700">${escapeHtml(statusText)}</span></div>
-      ${isFailed ? `<div class="row"><span class="lbl">Failure reason</span><span class="val" style="color:#b91c1c">${escapeHtml(item.failure_reason || 'Transfer rejected')}</span></div>` : ''}
-    </div>
-
-    ${isSucceeded ? (() => {
-        const amount = Number(item.amount_ngn) || 0;
-        const psFee = paystackTransferFee(amount);
-        const duty = stampDutyFor(amount);
-        const total = amount + psFee + duty;
-        const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-        return `
-    <div class="fee-section">
-      <div class="fee-row"><span class="lbl">Paystack transfer fee</span><span class="val">${fmtNgn(psFee)}</span></div>
-      ${duty > 0 ? `<div class="fee-row"><span class="lbl">Stamp duty (≥ ₦10,000)</span><span class="val">${fmtNgn(duty)}</span></div>` : ''}
-      <div class="fee-total"><span>Total debited from wallet</span><span class="val">${fmtNgn(total)}</span></div>
-    </div>`;
-      })() : ''}
-
-    ${isFailed ? `
-    <div class="alert failed"><strong>No funds were debited.</strong> ${escapeHtml(item.failure_reason || 'Transfer rejected by Paystack or the recipient bank.')}</div>
-    <div class="alert retry">To retry: return to the Payment Batch in KDOps and click <strong>Retry</strong> on this beneficiary row.</div>` : ''}
-
-    <div class="footer">
-      <div class="gen">Generated by KDOps · ${escapeHtml(generatedBy || 'System')}</div>
-      <div class="gen">${escapeHtml(generatedAt)}</div>
-      <div class="nb">This is a system-generated receipt. No signature required.</div>
-    </div>
-  </div>
-  <script>window.onload = () => setTimeout(() => window.print(), 300);</script>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank', 'noopener,width=640,height=860');
-  if (!win) return;
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-};
 
 const BatchDetail = () => {
   const { id } = useParams();
@@ -358,6 +176,7 @@ const BatchDetail = () => {
   const { profile } = useAuthStore();
   const canApprovePerm = usePermission('payments.approve_batches');
   const [batch, setBatch] = useState<any>(null);
+  const [receiptItem, setReceiptItem] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState('');
@@ -365,6 +184,8 @@ const BatchDetail = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [diagnosingId, setDiagnosingId] = useState<string | null>(null);
+  const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string } | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
   const [processingName, setProcessingName] = useState('');
@@ -378,8 +199,6 @@ const BatchDetail = () => {
   const [savingResubmit, setSavingResubmit] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
-  const [showFundedModal, setShowFundedModal] = useState(false);
-  const [fundingRef, setFundingRef] = useState('');
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -392,6 +211,8 @@ const BatchDetail = () => {
   // Pre-flight cap + co-approval preview shown above the Approve button.
   const [capPreview, setCapPreview] = useState<{ allowed: boolean; reason: string | null; appliedKind: string | null; appliedLimit: number | null } | null>(null);
   const [coThreshold, setCoThreshold] = useState<number | null>(null);
+  const [itemFilter, setItemFilter] = useState<'all' | 'succeeded' | 'failed' | 'pending'>('all');
+  const [itemSearch, setItemSearch] = useState('');
 
   useEffect(() => {
     itemsRef.current = items;
@@ -740,6 +561,16 @@ const BatchDetail = () => {
       // ceiling is needed, set company_settings.max_single_transfer_ngn.
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" — no Paystack bank code`);
+      // Heal whitespace/dashes/unicode garbage in the stored account number so
+      // future retries and the receipt show the clean value. createTransferRecipient
+      // also strips on its way out for a belt-and-braces guarantee.
+      const cleanedAccount = String(it.account_number || '').replace(/\D/g, '');
+      if (!cleanedAccount) return markFailed('Account number is empty after stripping non-digits — re-enter it.');
+      if (cleanedAccount !== String(it.account_number)) {
+        await supabase.from('batch_items')
+          .update({ account_number: cleanedAccount })
+          .eq('id', it.id);
+      }
       let recipientCode: string | null = it.paystack_recipient_code || null;
       // Recipient cache: if no code on the batch_item but we have an
       // employee_id, look up the cached code on profiles. Saves an extra
@@ -754,13 +585,15 @@ const BatchDetail = () => {
           recipientCode = cachedProfile.paystack_recipient_code;
         }
       }
+      let verifiedAccountName: string | null = null;
       if (!recipientCode) {
         const recipient = await createTransferRecipient({
           name: it.full_name || 'Unknown Recipient',
-          account_number: it.account_number,
+          account_number: cleanedAccount,
           bank_code: bankCode,
         });
         recipientCode = recipient.recipient_code;
+        verifiedAccountName = recipient.details?.account_name || null;
         // Cache on the employee profile so future payments skip recipient
         // creation. The trigger clears this if bank details change later.
         if (it.employee_id) {
@@ -804,6 +637,7 @@ const BatchDetail = () => {
             paystack_transfer_code: transfer.transfer_code,
             paystack_reference: transfer.reference,
             narration: finalNarration,
+            ...(verifiedAccountName ? { account_name: verifiedAccountName } : {}),
             failure_reason: mappedStatus === 'failed' ? 'Transfer rejected (recovered from duplicate ref)' : null,
             processed_at: mappedStatus === 'succeeded' ? new Date().toISOString() : null,
           })
@@ -824,6 +658,7 @@ const BatchDetail = () => {
           paystack_transfer_code: transfer.transfer_code,
           paystack_reference: transfer.reference,
           narration: finalNarration,
+          ...(verifiedAccountName ? { account_name: verifiedAccountName } : {}),
           // Surface OTP-required state immediately. Paystack puts high-value
           // transfers into status="otp" and the transfer sits there until a
           // merchant approves via OTP on dashboard.paystack.co. Without this
@@ -989,11 +824,33 @@ const BatchDetail = () => {
 
       // Process each item serially in the browser using the deployed
       // paystack-transfer edge function. Tab must stay open during processing.
+      // Account-level error short-circuit: if Paystack rejects with an error
+      // that affects the whole account (transfers not enabled, balance too
+      // low, account restricted) every subsequent recipient will fail with
+      // the same message. Abort the batch loop after the first such error
+      // so the operator gets to fix the root cause instead of watching 100
+      // identical failures stream in.
+      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
+      let accountLevelHit = false;
       for (let i = 0; i < toProcess.length; i++) {
         const it = toProcess[i];
         setProcessingIdx(i + 1);
         setProcessingName(it.full_name);
-        await processOneItem(it, customNarration);
+        const result = await processOneItem(it, customNarration);
+        if (!result.ok && result.reason && ACCOUNT_LEVEL_ERR.test(result.reason)) {
+          accountLevelHit = true;
+          toast({
+            title: 'Batch halted — Paystack account issue',
+            description: `${result.reason} — fix on dashboard.paystack.co before retrying any items.`,
+            variant: 'destructive',
+            duration: 12000,
+          });
+          break;
+        }
+      }
+      if (accountLevelHit) {
+        // Mark remaining unprocessed items as still pending — don't burn
+        // their state. The operator retries after fixing Paystack.
       }
 
       const { data: refreshed } = await supabase
@@ -1153,7 +1010,43 @@ const BatchDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batch?.status]);
 
-  const retryItem = async (item: any) => {
+  /**
+   * Standalone Paystack /bank/resolve diagnostic. Calls the resolve endpoint
+   * with the same bank_code + sanitised account_number we'd send for a real
+   * transfer and shows the verbatim Paystack response. Lets finance compare
+   * against what dashboard.paystack.co returns for the same account so we
+   * can tell whether the failure is on our side or Paystack's.
+   */
+  const diagnoseItem = async (item: any) => {
+    setDiagnosingId(item.id);
+    setDiagnosis(null);
+    const bankCode = getBankCode(item.bank_name) || '(unknown)';
+    const cleaned = String(item.account_number || '').replace(/\D/g, '');
+    try {
+      const r = await resolveAccount(cleaned, bankCode);
+      setDiagnosis({
+        itemId: item.id,
+        ok: true,
+        bankCode,
+        account: cleaned,
+        bank: item.bank_name,
+        result: `Paystack resolved account name: "${r.account_name}" for account ${r.account_number}. The recipient/transfer call should work — if it does not, Paystack's wallet or recipient cache is the issue.`,
+      });
+    } catch (err: any) {
+      setDiagnosis({
+        itemId: item.id,
+        ok: false,
+        bankCode,
+        account: cleaned,
+        bank: item.bank_name,
+        result: err?.message || 'Unknown error',
+      });
+    } finally {
+      setDiagnosingId(null);
+    }
+  };
+
+  const retryItem = async (item: any): Promise<{ ok: boolean; reason?: string } | undefined> => {
     if (!APPROVER_ROLES.includes(profile?.role as any)) {
       toast({
         title: 'Not authorized',
@@ -1197,6 +1090,7 @@ const BatchDetail = () => {
         variant: result.ok ? 'default' : 'destructive',
       });
       fetchBatch();
+      return result;
     } finally {
       setRetryingId(null);
     }
@@ -1440,8 +1334,24 @@ const BatchDetail = () => {
   const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
+  const filteredItems = items.filter((i) => {
+    if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
+    if (itemFilter === 'failed' && i.status !== 'failed') return false;
+    if (itemFilter === 'pending' && (i.status === 'succeeded' || i.status === 'failed')) return false;
+    if (itemSearch) {
+      const s = itemSearch.toLowerCase();
+      return (
+        (i.full_name || '').toLowerCase().includes(s) ||
+        (i.bank_name || '').toLowerCase().includes(s) ||
+        (i.account_number || '').includes(s) ||
+        (i.paystack_reference || '').toLowerCase().includes(s)
+      );
+    }
+    return true;
+  });
+
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 max-w-7xl mx-auto">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <button onClick={() => navigate('/payments')} className="hover:text-foreground kd-transition font-medium">Payments</button>
@@ -1742,7 +1652,7 @@ const BatchDetail = () => {
             </>
           )}
           {batch.status === 'approved' && (
-            <Button onClick={() => { setFundingRef(''); setShowFundedModal(true); }} disabled={actionLoading}>
+            <Button onClick={() => markFunded()} disabled={actionLoading}>
               <DollarSign className="mr-2 h-4 w-4" /> Confirm Funded
             </Button>
           )}
@@ -1758,9 +1668,31 @@ const BatchDetail = () => {
               variant="outline"
               onClick={async () => {
                 setRetryingAll(true);
-                const toRetry = items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference));
+                // 48-hour retry window — matches Paystack's transfer reversal
+                // window and NIBSS instant-transfer settlement window. Anything
+                // older is treated as archived; create a fresh batch instead.
+                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
+                const now = Date.now();
+                const toRetry = items.filter(i => {
+                  if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
+                  const ageMs = now - new Date(i.updated_at || i.created_at).getTime();
+                  return ageMs <= RETRY_WINDOW_MS;
+                });
+                // Same account-level short-circuit as Process — stop the loop
+                // when Paystack rejects with something that will fail every
+                // subsequent recipient identically.
+                const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
                 for (const it of toRetry) {
-                  await retryItem(it);
+                  const r = await retryItem(it);
+                  if (r && !r.ok && r.reason && ACCOUNT_LEVEL_ERR.test(r.reason)) {
+                    toast({
+                      title: 'Retry halted — Paystack account issue',
+                      description: `${r.reason} — fix on dashboard.paystack.co before retrying.`,
+                      variant: 'destructive',
+                      duration: 12000,
+                    });
+                    break;
+                  }
                 }
                 setRetryingAll(false);
                 fetchBatch();
@@ -1768,7 +1700,15 @@ const BatchDetail = () => {
               disabled={!!retryingId || retryingAll || actionLoading}
             >
               <RotateCw className="mr-2 h-4 w-4" />
-              {retryingAll ? 'Retrying…' : `Retry unsent (${items.filter(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)).length})`}
+              {retryingAll ? 'Retrying…' : (() => {
+                const RETRY_WINDOW_MS = 48 * 60 * 60 * 1000;
+                const now = Date.now();
+                const eligible = items.filter(i => {
+                  if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
+                  return (now - new Date(i.updated_at || i.created_at).getTime()) <= RETRY_WINDOW_MS;
+                }).length;
+                return `Retry unsent (${eligible})`;
+              })()}
             </Button>
           )}
           {/* Reconcile: ask Paystack for the latest status of every dispatched
@@ -1844,7 +1784,12 @@ const BatchDetail = () => {
                         <span className="font-semibold text-destructive">{i.full_name || 'Unknown'}</span>
                         <span className="font-medium text-destructive/80">{f.title}</span>
                       </div>
-                      <p className="text-muted-foreground">{f.hint}</p>
+                      <p className="text-muted-foreground mb-1">{f.hint}</p>
+                      {i.failure_reason && f.hint !== i.failure_reason && (
+                        <p className="font-mono text-[10px] text-muted-foreground/80 bg-background/60 rounded px-1.5 py-1 mt-1 break-all">
+                          <span className="opacity-60">Paystack said: </span>{i.failure_reason}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -1855,16 +1800,66 @@ const BatchDetail = () => {
 
       <Card>
         <CardHeader className="border-b border-border/60 pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Beneficiaries</CardTitle>
-            <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'recipient' : 'recipients'}</span>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="text-sm font-semibold">
+              Beneficiaries
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {filteredItems.length === items.length
+                  ? `${items.length} ${items.length === 1 ? 'recipient' : 'recipients'}`
+                  : `${filteredItems.length} of ${items.length}`}
+              </span>
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status filter pills */}
+              <div className="flex gap-1">
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'succeeded', label: 'Completed' },
+                  { key: 'failed', label: 'Failed' },
+                  { key: 'pending', label: 'Pending' },
+                ] as const).map(({ key, label }) => {
+                  const count =
+                    key === 'all' ? items.length :
+                    key === 'succeeded' ? items.filter(i => i.status === 'succeeded').length :
+                    key === 'failed' ? items.filter(i => i.status === 'failed').length :
+                    items.filter(i => i.status !== 'succeeded' && i.status !== 'failed').length;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setItemFilter(key)}
+                      className={cn(
+                        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                        itemFilter === key
+                          ? key === 'failed' ? 'bg-destructive text-destructive-foreground'
+                            : key === 'succeeded' ? 'bg-emerald-600 text-white'
+                            : 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80',
+                      )}
+                    >
+                      {label}
+                      {count > 0 && <span className="opacity-70">{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  value={itemSearch}
+                  onChange={(e) => setItemSearch(e.target.value)}
+                  placeholder="Search…"
+                  className="pl-7 h-7 text-xs w-36"
+                />
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/30">
+                <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                   <TableHead className="text-xs">Name</TableHead>
                   <TableHead className="text-xs">Bank</TableHead>
                   <TableHead className="text-xs">Account</TableHead>
@@ -1877,29 +1872,51 @@ const BatchDetail = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                      No recipients match this filter.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {filteredItems.map((item) => (
                   <TableRow
                     key={item.id}
                     className={item.status === 'failed' ? 'border-l-4 border-l-destructive bg-destructive/5 kd-transition' : 'kd-transition'}
                   >
                     <TableCell className="font-medium">
-                      <div>{item.full_name || 'Unknown Recipient'}</div>
-                      {item.failure_reason && (() => {
-                        const f = friendlyPaystackError(item.failure_reason);
-                        const isOtp = /awaiting otp/i.test(item.failure_reason);
-                        return (
-                          <p
-                            className={`text-[11px] mt-0.5 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}
-                            title={item.failure_reason}
-                          >
-                            <span className="font-semibold">{f.title}.</span>{' '}
-                            <span className="text-muted-foreground">{f.hint}</span>
-                          </p>
-                        );
-                      })()}
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{item.full_name || 'Unknown Recipient'}</span>
+                        {item.failure_reason && (() => {
+                          const f = friendlyPaystackError(item.failure_reason);
+                          const isOtp = /awaiting otp/i.test(item.failure_reason);
+                          return (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="View failure reason"
+                                  className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-amber-700 hover:bg-amber-50 dark:text-amber-400' : 'text-destructive hover:bg-destructive/10'}`}
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent side="right" className="w-72 text-xs">
+                                <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
+                                <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                {f.hint !== item.failure_reason && (
+                                  <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                    <span className="opacity-60">Paystack: </span>{item.failure_reason}
+                                  </p>
+                                )}
+                              </PopoverContent>
+                            </Popover>
+                          );
+                        })()}
+                      </div>
                     </TableCell>
                     <TableCell>{item.bank_name}</TableCell>
-                    <TableCell>{maskAccountNumber(item.account_number)}</TableCell>
+                    <TableCell className="font-mono text-xs">{item.account_number || '—'}</TableCell>
                     <TableCell className="text-right">
                       {canSeeAmounts
                         ? <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
@@ -1922,28 +1939,65 @@ const BatchDetail = () => {
                       <StatusBadge status={item.status} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        {item.status === 'failed' && canApprove && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={retryingId === item.id}
-                            onClick={() => retryItem(item)}
-                          >
-                            {retryingId === item.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <RotateCw className="h-3.5 w-3.5 mr-1" />
-                            )}
-                            Retry
-                          </Button>
-                        )}
+                      <div className="flex justify-end gap-1 flex-wrap">
+                        {item.status === 'failed' && canApprove && (() => {
+                          // Retry expires after 48 hours — matches Paystack's
+                          // transfer reversal window and NIBSS instant-transfer
+                          // settlement window. Beyond that the bank details,
+                          // narration period and amount may all be stale and
+                          // accidentally re-firing a days-old failed payment is
+                          // a real money-loss risk. Operators create a fresh
+                          // batch instead.
+                          const failedAt = new Date(item.updated_at || item.created_at).getTime();
+                          const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
+                          const RETRY_WINDOW_HOURS = 48;
+                          if (ageHours > RETRY_WINDOW_HOURS) {
+                            return (
+                              <span
+                                className="text-[10px] text-muted-foreground italic"
+                                title={`Retry window closed (${Math.round(ageHours)}h old). Create a new batch with this recipient if payment is still owed.`}
+                              >
+                                Retry expired
+                              </span>
+                            );
+                          }
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={retryingId === item.id}
+                                onClick={() => retryItem(item)}
+                                title={`Failed ${Math.round(ageHours)}h ago — retry expires after ${RETRY_WINDOW_HOURS} hours`}
+                              >
+                                {retryingId === item.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCw className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Retry
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={diagnosingId === item.id}
+                                onClick={() => diagnoseItem(item)}
+                                title="Call Paystack /bank/resolve directly with the same parameters and show the verbatim response."
+                              >
+                                {diagnosingId === item.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : null}
+                                Diagnose
+                              </Button>
+                            </>
+                          );
+                        })()}
                         {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email, companyName, logoUrl)}
-                            title="Print receipt"
+                            onClick={() => setReceiptItem(item)}
+                            title="View receipt"
                           >
                             <Download className="h-3.5 w-3.5 mr-1" />
                             Receipt
@@ -1963,6 +2017,45 @@ const BatchDetail = () => {
       </Card>
 
       {id && <ApprovalCommentThread entityType="batch" entityId={id} title="Batch discussion" />}
+
+      <Dialog open={!!diagnosis} onOpenChange={(v) => { if (!v) setDiagnosis(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Paystack resolve diagnostic</DialogTitle>
+            <DialogDescription>
+              Verbatim response from Paystack's <code className="text-xs">/bank/resolve</code> endpoint
+              for the exact bank code and account number we send. Compare this with what dashboard.paystack.co
+              returns for the same details.
+            </DialogDescription>
+          </DialogHeader>
+          {diagnosis && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+                <span className="text-muted-foreground">Bank:</span>
+                <span className="font-mono">{diagnosis.bank}</span>
+                <span className="text-muted-foreground">Bank code sent:</span>
+                <span className="font-mono">{diagnosis.bankCode}</span>
+                <span className="text-muted-foreground">Account sent:</span>
+                <span className="font-mono">{diagnosis.account} <span className="text-muted-foreground">({diagnosis.account.length} digits)</span></span>
+              </div>
+              <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20' : 'border-destructive/40 bg-destructive/5'}`}>
+                <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
+                  {diagnosis.ok ? 'Paystack RESOLVED the account ✓' : 'Paystack REJECTED the request ✗'}
+                </p>
+                <p className="font-mono text-xs break-all">{diagnosis.result}</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {diagnosis.ok
+                  ? 'If resolve works but the actual transfer fails, the issue is downstream (recipient creation cache, wallet balance, or Paystack rate limits).'
+                  : 'Try the same bank code + account on dashboard.paystack.co. If Paystack dashboard succeeds but this fails, the parameters we send differ — copy this raw error and share with engineering.'}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setDiagnosis(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>
@@ -2100,6 +2193,15 @@ const BatchDetail = () => {
         </DialogContent>
       </Dialog>
 
+      <ReceiptModal
+        open={!!receiptItem}
+        onClose={() => setReceiptItem(null)}
+        item={receiptItem}
+        batch={batch}
+        companyName={companyName}
+        logoUrl={logoUrl}
+      />
+
       <PaymentSummaryModal
         open={showProcessConfirm}
         onOpenChange={setShowProcessConfirm}
@@ -2112,66 +2214,6 @@ const BatchDetail = () => {
         title={`Confirm "${batch?.name || 'batch'}"`}
         onConfirm={(narration) => executeProcess(narration)}
       />
-
-      {/* Funding evidence modal — captures optional wallet top-up reference */}
-      <Dialog open={showFundedModal} onOpenChange={(v) => !actionLoading && setShowFundedModal(v)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Confirm batch funded
-            </DialogTitle>
-            <DialogDescription>
-              Confirm your Paystack wallet has been topped up for this batch.
-              Recording the reference creates an audit trail.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="funding-ref">
-                Wallet top-up reference
-                <span className="text-muted-foreground text-xs ml-1.5">(optional)</span>
-              </Label>
-              <Input
-                id="funding-ref"
-                placeholder="e.g. TRF-20260501-001234"
-                value={fundingRef}
-                onChange={(e) => setFundingRef(e.target.value)}
-              />
-            </div>
-            <Alert className="border-amber-500/40 bg-amber-500/5">
-              <DollarSign className="h-4 w-4 text-amber-600" />
-              <AlertDescription className="text-sm">
-                Total to disburse:{' '}
-                <strong>{formatNaira(batch?.total_amount || 0)}</strong>.
-                Ensure your Paystack balance covers this before confirming.
-              </AlertDescription>
-            </Alert>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setShowFundedModal(false)}
-              disabled={actionLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={async () => {
-                setShowFundedModal(false);
-                await markFunded(fundingRef.trim() || undefined);
-                setFundingRef('');
-              }}
-              disabled={actionLoading}
-            >
-              {actionLoading
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <DollarSign className="mr-2 h-4 w-4" />}
-              Confirm Funded
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showDelete} onOpenChange={(v) => !deleting && setShowDelete(v)}>
         <DialogContent>

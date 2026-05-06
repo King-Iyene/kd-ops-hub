@@ -36,7 +36,6 @@ const PaymentSchedule  = lazy(() => import('./pages/PaymentSchedule'));
 const Subscriptions    = lazy(() => import('./pages/Subscriptions'));
 const Budgets          = lazy(() => import('./pages/Budgets'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
-const MyRequests       = lazy(() => import('./pages/MyRequests'));
 const Fleet            = lazy(() => import('./pages/Fleet'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
 const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
@@ -312,14 +311,8 @@ function AppRoutes() {
             </RoleGuard>
           }
         />
-        <Route
-          path="/my-requests"
-          element={
-            <RoleGuard roles={ALL_AUTH_ROLES}>
-              <MyRequests />
-            </RoleGuard>
-          }
-        />
+        {/* /my-requests was merged into /expenses — redirect to keep old links working. */}
+        <Route path="/my-requests" element={<Navigate to="/expenses" replace />} />
 
         {/* Contractors — all managers. */}
         <Route

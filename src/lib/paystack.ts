@@ -186,6 +186,15 @@ export interface FriendlyError {
 
 const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   {
+    // Paystack account hasn't been activated for transfers (separate from
+    // payment-collection KYC). Returned for EVERY recipient until enabled,
+    // so when the whole batch fails with this, do not retry — fix the
+    // account first on dashboard.paystack.co.
+    match: /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled/i,
+    title: 'Paystack account is "Pre-Approved" — transfers not yet unlocked',
+    hint: 'Pre-Approved means Paystack lets you COLLECT payments but not SEND them. To unlock transfers: (1) dashboard.paystack.co → Settings → Compliance — submit any pending KYC docs (CAC, director NIN, proof of address, bank statement, TIN); (2) once Compliance shows "all clear" but transfers still blocked, email support@paystack.com with subject "Approve [merchant ID] for transfers" — reply within 24–48h. Do NOT retry until the dashboard badge says "Approved" instead of "Pre-Approved" — every retry will fail identically.',
+  },
+  {
     match: /awaiting otp authorization|awaiting otp approval|otp required/i,
     title: 'Awaiting OTP approval',
     hint: 'Paystack is holding this transfer pending merchant approval. Sign in to dashboard.paystack.co → Transfers → Pending and approve. Status will update automatically after that.',
@@ -319,17 +328,27 @@ async function edgeCall<T = any>(
 // Public API — these functions are called by the React UI.
 // ---------------------------------------------------------------------------
 
+/**
+ * Strip everything except ASCII digits from an account number. Paystack's
+ * resolve and recipient endpoints return the generic "Could not resolve
+ * account" if a non-digit slips through (whitespace, em-dash from a copy-
+ * paste, NBSP, full-width digits). Centralised here so every caller benefits.
+ */
+const sanitiseAccountNumber = (raw: string): string =>
+  String(raw || '').replace(/\D/g, '');
+
 export async function resolveAccount(
   accountNumber: string,
   bankCode: string,
 ): Promise<ResolveResult> {
+  const cleaned = sanitiseAccountNumber(accountNumber);
   const data = await edgeCall<ResolveResult>('resolve_account', {
-    account_number: accountNumber,
+    account_number: cleaned,
     bank_code: bankCode,
   });
   return {
     account_name: data?.account_name ?? '',
-    account_number: data?.account_number ?? accountNumber,
+    account_number: data?.account_number ?? cleaned,
   };
 }
 
@@ -337,6 +356,8 @@ export interface PaystackRecipient {
   recipient_code: string;
   id: number;
   type: string;
+  /** Bank-verified account name from Paystack's /transferrecipient response. */
+  details?: { account_name?: string; account_number?: string; bank_name?: string };
 }
 
 export async function createTransferRecipient(params: {
@@ -344,7 +365,10 @@ export async function createTransferRecipient(params: {
   account_number: string;
   bank_code: string;
 }): Promise<PaystackRecipient> {
-  return edgeCall<PaystackRecipient>('create_recipient', params);
+  return edgeCall<PaystackRecipient>('create_recipient', {
+    ...params,
+    account_number: sanitiseAccountNumber(params.account_number),
+  });
 }
 
 export interface PaystackTransfer {

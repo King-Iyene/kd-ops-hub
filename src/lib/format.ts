@@ -17,22 +17,37 @@ export const formatNaira = (amount: number | null | undefined): string => {
   })}`;
 };
 
-/** DD/MM/YYYY — date only, no time, no timezone. */
+/**
+ * Date formatter — adapts to whether the input carries a time component.
+ *
+ * - Pure dates ('YYYY-MM-DD') render as DD/MM/YYYY: birthdays, leave dates,
+ *   payroll periods. Showing a fake midnight time for those would be wrong.
+ * - ISO timestamps with time render as a full timezone-aware date+time
+ *   ("27 Apr 2026, 3:45 PM (WAT)"), so tables across the platform show real
+ *   transaction times instead of bare dates.
+ *
+ * Date objects always render as full date+time since the time is always
+ * meaningful when the value is constructed in JS.
+ */
 export const formatDate = (date: string | Date | null | undefined): string => {
   if (!date) return '—';
   try {
-    return new Date(date).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      // Pure YYYY-MM-DD with no time — render as date-only.
+      return new Date(date + 'T00:00:00').toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+    }
+    return formatDateTime(date);
   } catch {
     return '—';
   }
 };
 
 /**
- * "27 Apr 2026, 3:45 PM (WAT)" — date + 12-hour time + timezone abbreviation.
+ * "27 Apr 2026, 3:45:21 PM (WAT)" — date + 12-hour time with seconds + timezone.
  * Reads timezone from localStorage (set by Settings on load/save).
  * Falls back to Africa/Lagos if not set.
  */
@@ -43,17 +58,16 @@ export const formatDateTime = (
   try {
     const tz = getTimezone();
     const d = new Date(date);
-    // Get the formatted date+time
     const base = new Intl.DateTimeFormat('en-GB', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true,
       timeZone: tz,
     }).format(d);
-    // Get short timezone abbreviation (e.g. WAT, GMT, EST)
     const tzAbbr = new Intl.DateTimeFormat('en-US', {
       timeZone: tz,
       timeZoneName: 'short',
@@ -164,4 +178,23 @@ export const formatBytes = (bytes: number | null | undefined): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+};
+
+/** Format a trip/journey elapsed duration from milliseconds: "2h 05m", "14m 30s", "45s". */
+export const formatElapsed = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
+  if (m > 0) return `${m}m ${sec.toString().padStart(2, '0')}s`;
+  return `${sec}s`;
+};
+
+/** Format how long ago a GPS ping was received: "12s ago", "4m ago", "2h ago". */
+export const formatPingAge = (ms: number): string => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  return `${Math.floor(s / 3600)}h ago`;
 };

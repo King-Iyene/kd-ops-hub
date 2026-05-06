@@ -400,22 +400,26 @@ const Payments = () => {
       {/* ── Filters + list ─────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-            <TabsList className="h-8 flex-wrap gap-y-1">
-              {[
-                { value: 'all', label: 'All' },
-                { value: 'pending_approval', label: 'Pending' },
-                { value: 'processing', label: 'Processing' },
-                { value: 'processed', label: 'Completed' },
-                { value: 'partially_processed', label: 'Partial' },
-                { value: 'rejected', label: 'Rejected' },
-                { value: 'draft', label: 'Draft' },
-              ].map(({ value, label }) => (
-                <TabsTrigger key={value} value={value} className="text-xs px-3 h-6">
-                  {label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          {/* Tabs scroll horizontally on mobile so they don't wrap into a
+              second row that pushes the table down. Snap to each pill. */}
+          <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }} className="w-full sm:w-auto">
+            <div className="-mx-1 overflow-x-auto kd-mobile-snap-x sm:overflow-visible">
+              <TabsList className="h-8 inline-flex w-max sm:flex sm:w-auto sm:flex-wrap sm:gap-y-1 px-1">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'pending_approval', label: 'Pending' },
+                  { value: 'processing', label: 'Processing' },
+                  { value: 'processed', label: 'Completed' },
+                  { value: 'partially_processed', label: 'Partial' },
+                  { value: 'rejected', label: 'Rejected' },
+                  { value: 'draft', label: 'Draft' },
+                ].map(({ value, label }) => (
+                  <TabsTrigger key={value} value={value} className="text-xs px-3 h-6 shrink-0">
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
           </Tabs>
           <div className="relative w-full sm:w-60">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />

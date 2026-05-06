@@ -15,18 +15,23 @@ export function PageHeader({ title, description, icon: Icon, actions, badge, cla
     <div className={cn('flex items-start justify-between gap-4 flex-wrap mb-6', className)}>
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
-          <div className="relative h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-            <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-15 blur-md" />
-            <Icon className="relative h-5 w-5 text-primary" />
+          // Tech-tile icon container — gradient surface, hairline border ring,
+          // animated outer glow that breathes with the time-of-day palette.
+          <div className="relative h-11 w-11 shrink-0 mt-0.5">
+            <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-25 blur-lg kd-icon-glow" />
+            <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/15 border border-primary/20 flex items-center justify-center shadow-sm backdrop-blur-sm">
+              <Icon className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.6)]" />
+            </div>
           </div>
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="kd-display text-xl font-bold tracking-tight">{title}</h1>
+            {/* Gradient brand title — visible tech feel without losing legibility */}
+            <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">{title}</h1>
             {badge}
           </div>
           {description && (
-            <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
+            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
           )}
         </div>
       </div>

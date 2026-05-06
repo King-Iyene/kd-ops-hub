@@ -13,7 +13,10 @@ import {
   Check,
   Printer,
   FileDown,
+  Info,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { friendlyPaystackError } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -26,7 +29,10 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -59,15 +65,18 @@ import { statusLabel } from '@/components/ui-kit/StatusBadge';
 interface Transaction {
   id: string;
   created_at: string;
-  txn_type: 'payment_batch' | 'quick_pay' | 'charge';
+  txn_type: 'transfer' | 'quick_pay';
   description: string;
   category: string;
   amount_ngn: number;
+  paystack_fee_ngn: number | null;
   status: string;
   reference: string;
   created_by: string | null;
   batch_name: string | null;
   beneficiary_count: number | null;
+  succeeded_count: number | null;
+  failed_count: number | null;
   payment_date: string | null;
   approved_by: string | null;
   rejection_reason: string | null;
@@ -79,47 +88,60 @@ interface Transaction {
   parent_batch_id: string | null;
 }
 
-type FilterTab = 'all' | 'quick_pay' | 'payment_batch' | 'charge';
+// Item-level ledger types — every row is an actual money movement.
+//   transfer  = a regular batch_item dispatched to Paystack
+//   quick_pay = a quick_pay batch's single item
+type FilterTab = 'all' | 'quick_pay' | 'transfer';
 
+// Only the four real outcomes a transfer can have. No more
+// draft / approved / funded / partial — those are batch-lifecycle states
+// and live on the Payments module, not in the transaction ledger.
 const STATUS_OPTIONS = [
-  'draft',
-  'pending',
-  'pending_approval',
-  'approved',
-  'funded',
-  'processing',
-  'processed',
-  'partially_processed',
-  'rejected',
-  'failed',
-  'reversed',
+  { value: 'succeeded', label: 'Successful' },
+  { value: 'pending',   label: 'Pending' },
+  { value: 'failed',    label: 'Failed' },
+  { value: 'reversed',  label: 'Refunded' },
 ] as const;
 
+// Map a raw item status onto one of the four ledger outcomes for filtering.
+const LEDGER_STATUS: Record<string, string> = {
+  succeeded: 'succeeded',
+  processed: 'succeeded',
+  pending:   'pending',
+  processing:'pending',
+  retry:     'pending',
+  failed:    'failed',
+  rejected:  'failed',
+  reversed:  'reversed',
+  refunded:  'reversed',
+};
+
 const TYPE_ICON: Record<string, typeof CreditCard> = {
-  payment_batch: CreditCard,
+  transfer: CreditCard,
   quick_pay: Zap,
-  charge: Receipt,
 };
 
 const TYPE_COLOR: Record<string, string> = {
-  payment_batch: 'bg-primary/10 text-primary border border-primary/30',
+  transfer: 'bg-primary/10 text-primary border border-primary/30',
   quick_pay: 'bg-teal-500/10 text-teal-700 border border-teal-500/30',
-  charge: 'bg-warning/10 text-warning border border-warning/30',
 };
 
 const typeLabel = (t: string) => {
-  if (t === 'payment_batch') return 'Batch';
+  if (t === 'transfer') return 'Transfer';
   if (t === 'quick_pay') return 'Quick Pay';
-  if (t === 'charge') return 'Fee';
   return t.replace(/_/g, ' ');
 };
 
 const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'all', label: 'All' },
+  { value: 'transfer', label: 'Transfers' },
   { value: 'quick_pay', label: 'Quick Pay' },
-  { value: 'payment_batch', label: 'Batches' },
-  { value: 'charge', label: 'Fees' },
 ];
+
+// VAT on Paystack transfer fees: 7.5% (FIRS standard rate).
+const VAT_RATE = 0.075;
+// Stamp duty: ₦50 on every transfer ≥ ₦10,000 (Nigeria Tax Act 2025).
+const stampDutyForAmount = (n: number) => (n >= 10_000 ? 50 : 0);
 
 const Transactions = () => {
   usePageTitle('Transactions');
@@ -170,7 +192,11 @@ const Transactions = () => {
     return rows.filter((r) => {
       if (typeFilter !== 'all' && r.txn_type !== typeFilter) return false;
       if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (statusFilter !== 'all') {
+        // Map raw item status onto its ledger outcome before comparing —
+        // 'processing' filters under 'pending', 'rejected' under 'failed', etc.
+        if (LEDGER_STATUS[r.status] !== statusFilter) return false;
+      }
       const t = r.created_at ? new Date(r.created_at).getTime() : 0;
       if (t < fromMs || t > toMs) return false;
       if (!q) return true;
@@ -259,9 +285,9 @@ const Transactions = () => {
 
       {/* Summary strip — single column on phones, 2 cols on desktop */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
-        {(['quick_pay', 'payment_batch'] as const).map((type) => {
+        {(['quick_pay', 'transfer'] as const).map((type) => {
           const count = rows.filter((r) => r.txn_type === type).length;
-          const Icon = TYPE_ICON[type];
+          const Icon = TYPE_ICON[type] || ArrowUpDown;
           return (
             <div
               key={type}
@@ -346,7 +372,7 @@ const Transactions = () => {
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
               {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{statusLabel(s)}</SelectItem>
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -397,74 +423,83 @@ const Transactions = () => {
               <div className="hidden md:block">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/30">
-                    <TableHead className="text-xs">Date</TableHead>
-                    <TableHead className="text-xs">Type</TableHead>
-                    <TableHead className="text-xs">Description</TableHead>
+                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                     <TableHead className="text-right text-xs">Amount</TableHead>
+                    <TableHead className="text-right text-xs">Transfer fee</TableHead>
+                    <TableHead className="text-right text-xs">VAT</TableHead>
+                    <TableHead className="text-right text-xs">Stamp Duty</TableHead>
+                    <TableHead className="text-xs">Beneficiary</TableHead>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Channel</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
-                    <TableHead className="text-xs">Receipt</TableHead>
-                    <TableHead className="text-xs">Reference</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
+                    const fee = Number(r.paystack_fee_ngn || 0);
+                    const vat = +(fee * VAT_RATE).toFixed(2);
+                    const stamp = stampDutyForAmount(Number(r.amount_ngn || 0));
+                    const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
+                    const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
                       <TableRow
                         key={`${r.txn_type}-${r.id}`}
                         className="cursor-pointer hover:bg-muted/40 kd-transition"
                         onClick={() => handleRowClick(r)}
                       >
+                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
+                          {formatNaira(r.amount_ngn)}
+                        </TableCell>
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/40">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {vat > 0 ? formatNaira(vat) : <span className="text-muted-foreground/40">—</span>}
+                        </TableCell>
+                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
+                          {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/40">—</span>}
+                        </TableCell>
+                        <TableCell className="text-sm max-w-[220px]">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-medium truncate uppercase tracking-tight">{r.account_name || r.description}</span>
+                            {f && ledgerStatus === 'failed' && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    aria-label="View failure reason"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Info className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="right" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-semibold mb-1 text-destructive">{f.title}</p>
+                                  <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                  {f.hint !== r.rejection_reason && (
+                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <span className="opacity-60">Paystack: </span>{r.rejection_reason}
+                                    </p>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          {r.bank_name && (
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
+                            </p>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
                           {formatDateTime(r.created_at)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={cn('font-medium text-[11px]', TYPE_COLOR[r.txn_type])}
-                          >
-                            <Icon className="h-3 w-3 mr-1" />
-                            {typeLabel(r.txn_type)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[240px]">
-                          {r.txn_type === 'payment_batch' ? (
-                            <div>
-                              <p className="font-medium truncate">{r.batch_name || r.description}</p>
-                              {r.beneficiary_count != null && (
-                                <p className="text-xs text-muted-foreground">
-                                  {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="truncate">{r.description}</p>
-                          )}
-                        </TableCell>
-                        <TableCell className={cn('text-right font-semibold currency whitespace-nowrap text-sm', r.txn_type === 'charge' && 'text-warning')}>
-                          {formatNaira(r.amount_ngn)}
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 border border-blue-200/80">WEB</span>
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={r.status} size="sm" />
-                        </TableCell>
-                        <TableCell>
-                          {r.receipt_url ? (
-                            <a
-                              href={r.receipt_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                            >
-                              <FileDown className="h-3.5 w-3.5" /> View
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/40">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <CopyableRef value={r.reference} />
+                          <LedgerStatusBadge status={ledgerStatus} />
                         </TableCell>
                       </TableRow>
                     );
@@ -477,14 +512,13 @@ const Transactions = () => {
               <div className="md:hidden p-3 space-y-2">
                 {pagination.slice.map((r) => {
                   const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
-                  const description =
-                    r.txn_type === 'payment_batch' ? (r.batch_name || r.description)
-                    : r.description;
+                  const recipient = r.account_name || r.description || '—';
+                  const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                   return (
                     <MobileCard
                       key={`${r.txn_type}-${r.id}`}
                       onClick={() => handleRowClick(r)}
-                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : 'bg-emerald-500'}
+                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : r.txn_type === 'charge' ? 'bg-amber-500' : 'bg-emerald-500'}
                     >
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">
@@ -492,11 +526,39 @@ const Transactions = () => {
                             <Icon className="h-2.5 w-2.5 mr-1" />
                             {typeLabel(r.txn_type)}
                           </Badge>
-                          <MobileCardTitle className="text-sm capitalize">{description || '—'}</MobileCardTitle>
-                          {r.txn_type === 'payment_batch' && r.beneficiary_count != null && (
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <MobileCardTitle className="text-sm capitalize truncate">{recipient}</MobileCardTitle>
+                            {f && r.status === 'failed' && (
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button
+                                    type="button"
+                                    aria-label="View failure reason"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Info className="h-3.5 w-3.5" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="bottom" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
+                                  <p className="font-semibold mb-1 text-destructive">{f.title}</p>
+                                  <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                  {f.hint !== r.rejection_reason && (
+                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                      <span className="opacity-60">Paystack: </span>{r.rejection_reason}
+                                    </p>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                            )}
+                          </div>
+                          {r.bank_name && (
                             <p className="text-[11px] text-muted-foreground">
-                              {r.beneficiary_count} recipient{r.beneficiary_count !== 1 ? 's' : ''}
+                              {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
                             </p>
+                          )}
+                          {r.batch_name && r.txn_type !== 'quick_pay' && (
+                            <p className="text-[11px] text-muted-foreground/80">from {r.batch_name}</p>
                           )}
                         </div>
                         <MobileCardMeta className={cn('currency text-base', r.txn_type === 'charge' && 'text-warning')}>
@@ -513,18 +575,6 @@ const Transactions = () => {
                         <MobileCardRow label="Reference">
                           <CopyableRef value={r.reference} />
                         </MobileCardRow>
-                      )}
-
-                      {r.receipt_url && (
-                        <a
-                          href={r.receipt_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-primary"
-                        >
-                          <FileDown className="h-3 w-3" /> View receipt
-                        </a>
                       )}
                     </MobileCard>
                   );
@@ -550,6 +600,26 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
+// ---------------------------------------------------------------------------
+// Ledger status badge — Paystack-dashboard style: SUCCESSFUL / PENDING /
+// FAILED / REFUNDED. Uppercase pill with high-contrast colour.
+// ---------------------------------------------------------------------------
+
+function LedgerStatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; bg: string; text: string; ring: string }> = {
+    succeeded: { label: 'SUCCESSFUL', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-1 ring-inset ring-emerald-300/60' },
+    pending:   { label: 'PENDING',    bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-1 ring-inset ring-amber-300/60' },
+    failed:    { label: 'FAILED',     bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-1 ring-inset ring-red-300/60' },
+    reversed:  { label: 'REFUNDED',   bg: 'bg-slate-100',  text: 'text-slate-600',   ring: 'ring-1 ring-inset ring-slate-300/60' },
+  };
+  const c = config[status] ?? config.pending;
+  return (
+    <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider', c.bg, c.text, c.ring)}>
+      {c.label}
+    </span>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Copyable reference chip
