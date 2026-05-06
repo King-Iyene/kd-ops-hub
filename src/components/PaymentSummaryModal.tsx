@@ -263,8 +263,10 @@ export function PaymentSummaryModal({
             </p>
           )}
           <p className="text-xs text-muted-foreground">
-            Edit to customise. For batch payments the same text is sent to every
-            recipient. Capped at 60 characters for full readability on all bank apps.
+            Edit to customise. The same text is sent to every recipient in this
+            batch (≤ 60 chars for full readability). Paystack appends "KD
+            Squares" automatically as the sender — you don't need to repeat it
+            in the narration.
           </p>
         </div>
 

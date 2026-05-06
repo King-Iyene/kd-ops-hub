@@ -221,8 +221,8 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
   },
   {
     match: /cannot resolve account|could not resolve account|unable to resolve account|account resolution failed|resolve.*timeout/i,
-    title: 'Paystack could not resolve this account',
-    hint: 'Click Diagnose to see why.',
+    title: 'Bank could not verify the account',
+    hint: 'The bank did not respond to the verification check (FCMB, Polaris, and a few smaller banks are flaky on weekends). The account number itself may be correct — wait 10 minutes and click Retry. If it still fails, ask the recipient to confirm the account is active and not dormant.',
   },
   {
     match: /name mismatch|name does not match/i,

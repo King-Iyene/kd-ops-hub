@@ -862,6 +862,7 @@ const Payroll = () => {
               paystack_recipient_code: recipientCode,
               paystack_transfer_code: transfer.transfer_code,
               paystack_reference: transfer.reference,
+              narration,
               failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
               processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
             } as any)

@@ -612,14 +612,13 @@ const BatchDetail = () => {
         );
       }
       const ref = generateKdopsRef(it.id);
+      const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
       const transfer = await initiateTransferIdempotent({
         recipient_code: recipientCode!,
         amount_ngn: Number(it.amount_ngn || 0),
         reference: ref,
-        reason: customNarration || it.narration || narrationForBatchItem(batch, it),
+        reason: finalNarration,
       });
-
-      const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
 
       // Self-healing path: if Paystack reported a duplicate ref, the helper
       // verified the existing transfer and returned its current status. Map
@@ -2060,7 +2059,12 @@ const BatchDetail = () => {
 
       <Dialog open={showReject} onOpenChange={setShowReject}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reject Batch</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reject Batch</DialogTitle>
+            <DialogDescription>
+              Provide a clear reason — the submitter will see it in their notification.
+            </DialogDescription>
+          </DialogHeader>
           <Textarea placeholder="Reason for rejection..." value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowReject(false)}>Cancel</Button>
@@ -2073,7 +2077,12 @@ const BatchDetail = () => {
 
       <Dialog open={showRecurring} onOpenChange={setShowRecurring}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Make this batch recurring</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Make this batch recurring</DialogTitle>
+            <DialogDescription>
+              Schedule this batch to repeat automatically on the chosen cadence.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Frequency</Label>
@@ -2213,6 +2222,9 @@ const BatchDetail = () => {
               <Trash2 className="h-5 w-5" />
               Delete this batch?
             </DialogTitle>
+            <DialogDescription>
+              The batch will be hidden from all lists. The audit history stays intact.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p>

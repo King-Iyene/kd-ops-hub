@@ -264,6 +264,7 @@ export function QuickPayDialog() {
         .update({
           status: itemStatus,
           paystack_transfer_code: transfer.transfer_code,
+          narration,
           processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
           failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
         })
