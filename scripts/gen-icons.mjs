@@ -1,15 +1,35 @@
-// Generate KD-branded PWA icons (192, 512, maskable 512) plus apple-touch-icon.
-// Brand colour #006994 background, white "KD" wordmark, rounded corners on
-// non-maskable variants.
+// Generate KD Squares branded PWA icons.
+//
+// Two modes:
+//   1. If `public/logo-source.{png,svg,jpg,webp}` exists, USE that file —
+//      the actual KD Squares logo. It's composited on a brand background
+//      for the maskable + apple variants (Android/iOS need full-bleed)
+//      and on a transparent rounded square for the regular variants.
+//   2. Otherwise fall back to the "KD" text wordmark on a brand gradient.
+//
+// Run: `node scripts/gen-icons.mjs` from the repo root.
 
 import sharp from 'sharp';
-import { writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
+const PUBLIC = join(process.cwd(), 'public');
 const BRAND = '#006994';
 const BRAND_LIGHT = '#0090c8';
 
-// SVG for the "any" variant — has a rounded square + KD text.
-const svgRound = (size) => `
+// Look for an actual logo file the user dropped into public/.
+const LOGO_CANDIDATES = ['logo-source.png', 'logo-source.svg', 'logo-source.jpg', 'logo-source.webp'];
+const logoPath = LOGO_CANDIDATES.map((n) => join(PUBLIC, n)).find(existsSync);
+
+if (logoPath) {
+  console.log(`Using real logo: ${logoPath}`);
+} else {
+  console.log('No public/logo-source.{png,svg,jpg,webp} found — using "KD" wordmark fallback.');
+  console.log('Drop your real logo at public/logo-source.png to use it instead.');
+}
+
+// Fallback SVGs when no logo file is present.
+const svgKDRound = (size) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <defs>
     <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -18,53 +38,74 @@ const svgRound = (size) => `
     </linearGradient>
   </defs>
   <rect width="${size}" height="${size}" rx="${Math.round(size * 0.22)}" fill="url(#g)"/>
-  <text
-    x="50%" y="50%"
-    text-anchor="middle"
-    dominant-baseline="central"
-    font-family="Inter, Arial, sans-serif"
-    font-size="${Math.round(size * 0.42)}"
-    font-weight="800"
-    fill="#ffffff"
-    letter-spacing="-${Math.round(size * 0.012)}"
-  >KD</text>
-</svg>
-`;
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Inter, Arial, sans-serif" font-size="${Math.round(size * 0.42)}"
+        font-weight="800" fill="#ffffff">KD</text>
+</svg>`;
 
-// Maskable: full-bleed brand background with the logo in the inner safe zone
-// (~64% — Android crops outer ~18% per spec). No rounded corners.
-const svgMaskable = (size) => `
+const svgKDFlat = (size) => `
 <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" fill="${BRAND}"/>
-  <text
-    x="50%" y="50%"
-    text-anchor="middle"
-    dominant-baseline="central"
-    font-family="Inter, Arial, sans-serif"
-    font-size="${Math.round(size * 0.32)}"
-    font-weight="800"
-    fill="#ffffff"
-  >KD</text>
-</svg>
-`;
+  <text x="50%" y="50%" text-anchor="middle" dominant-baseline="central"
+        font-family="Inter, Arial, sans-serif" font-size="${Math.round(size * 0.32)}"
+        font-weight="800" fill="#ffffff">KD</text>
+</svg>`;
+
+// Generate one icon. With a real logo: paint brand background, drop the
+// logo on top with padding, then apply rounded corners (or not for
+// maskable). Without a logo: fall back to the gradient-+-"KD" SVG that
+// fills the whole canvas (original look).
+async function makeIcon({ size, padding, rounded, fullBleedBg }) {
+  // No source logo → use the old full-canvas SVG so the fallback still
+  // looks like a proper icon (not a tiny logo on a transparent square).
+  if (!logoPath) {
+    const fallback = fullBleedBg ? svgKDFlat(size) : svgKDRound(size);
+    return sharp(Buffer.from(fallback)).resize(size, size).png({ compressionLevel: 9 }).toBuffer();
+  }
+
+  // With a source logo → composite onto a brand background with padding.
+  // We always use a brand bg behind a real logo so the icon reads clearly
+  // on any home-screen wallpaper. The logo's own colours sit on top.
+  const innerSize = Math.round(size * (1 - padding * 2));
+  const innerBuf = await sharp(readFileSync(logoPath))
+    .resize(innerSize, innerSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
+
+  let pipeline = sharp({
+    create: { width: size, height: size, channels: 4, background: { r: 0, g: 105, b: 148, alpha: 1 } },
+  })
+    .composite([{ input: innerBuf, top: Math.round((size - innerSize) / 2), left: Math.round((size - innerSize) / 2) }]);
+
+  if (rounded) {
+    const radius = Math.round(size * 0.22);
+    const mask = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
+         <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#fff"/>
+       </svg>`,
+    );
+    pipeline = pipeline.composite([{ input: mask, blend: 'dest-in' }]);
+  }
+
+  return pipeline.png({ compressionLevel: 9 }).toBuffer();
+}
 
 const targets = [
-  { name: 'icon-192.png', svg: svgRound(192), size: 192 },
-  { name: 'icon-512.png', svg: svgRound(512), size: 512 },
-  { name: 'icon-maskable-512.png', svg: svgMaskable(512), size: 512 },
-  { name: 'apple-touch-icon.png', svg: svgRound(180), size: 180 },
+  // "any" purpose — rounded square with the logo on brand bg.
+  { name: 'icon-192.png',          size: 192, padding: 0.10, rounded: true,  fullBleedBg: false },
+  { name: 'icon-512.png',          size: 512, padding: 0.10, rounded: true,  fullBleedBg: false },
+  // "maskable" — full-bleed brand background; OS crops outer 10–18%.
+  { name: 'icon-maskable-512.png', size: 512, padding: 0.20, rounded: false, fullBleedBg: true  },
+  // iOS — square brand background, generous padding.
+  { name: 'apple-touch-icon.png',  size: 180, padding: 0.14, rounded: false, fullBleedBg: true  },
 ];
 
 for (const t of targets) {
-  const buf = await sharp(Buffer.from(t.svg))
-    .resize(t.size, t.size)
-    .png({ compressionLevel: 9 })
-    .toBuffer();
-  writeFileSync(`/home/user/kd-ops-hub/public/${t.name}`, buf);
+  const buf = await makeIcon(t);
+  writeFileSync(join(PUBLIC, t.name), buf);
   console.log(`wrote ${t.name} (${buf.length} bytes)`);
 }
 
-// Favicon — 32x32 ICO (single-resolution, browser scales as needed).
-const favBuf = await sharp(Buffer.from(svgRound(64))).resize(32, 32).png().toBuffer();
-writeFileSync('/home/user/kd-ops-hub/public/favicon-32.png', favBuf);
+const favBuf = await makeIcon({ size: 32, padding: 0.06, rounded: true, fullBleedBg: false });
+writeFileSync(join(PUBLIC, 'favicon-32.png'), favBuf);
 console.log(`wrote favicon-32.png`);
