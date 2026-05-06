@@ -231,7 +231,9 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
               position: 'relative',
               maxWidth: '560px',
               margin: '0 auto',
-              background: '#fff',
+              // Subtle brand-tinted dot pattern on the white card —
+              // "engineered paper" feel without overpowering content.
+              background: `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -240,11 +242,40 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
               zIndex: 1,
             }}
           >
+            {/* In-card status watermark — faded "SUCCESSFUL" / "FAILED" /
+                "REVERSED" / "PENDING" stamp diagonally across the card body.
+                Sits behind the content (z-index 0) so the receipt rows still
+                read crisply on top. Coloured by the outcome so a glance
+                tells you whether this transfer worked or not. */}
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                transform: 'rotate(-18deg)',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                fontWeight: 900,
+                fontSize: 'clamp(64px, 11vw, 100px)',
+                letterSpacing: '0.05em',
+                color: s.dot,
+                opacity: 0.07,
+                whiteSpace: 'nowrap',
+                zIndex: 0,
+                filter: 'blur(0.5px)',
+              }}
+            >
+              {s.label}
+            </div>
+
             {/* Top accent bar */}
-            <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)` }} />
+            <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
 
             {/* Header */}
-            <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 {logoUrl ? (
                   <img src={logoUrl} alt="" style={{ height: '30px', width: 'auto', maxWidth: '120px', objectFit: 'contain' }} />
@@ -295,7 +326,11 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             {/* Cost breakdown — only on succeeded */}
             {isSucceeded && (
               <Section title="Debit Breakdown">
-                <Row k="Principal" v={fmtNgn(amount)} />
+                {/* "Transfer amount" matches CBN bank-statement terminology
+                    — the principal sum being moved. "Principal" was the
+                    word a developer would use; "Transfer amount" is what
+                    every Nigerian bank prints on a real statement. */}
+                <Row k="Transfer amount" v={fmtNgn(amount)} />
                 {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
                 <Row k="Transfer fee" v={fmtNgn(psFee)} />
                 <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
@@ -306,7 +341,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             )}
 
             {/* Footer cert ID */}
-            <div style={{ padding: '14px 28px 22px', borderTop: '1px solid #f0f0f0' }}>
+            <div style={{ padding: '14px 28px 22px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
               <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
                 {certId}
               </span>
@@ -338,7 +373,9 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0' }}>
+    // position: relative + zIndex: 1 so the section content sits above the
+    // status watermark that lives at z-index 0 on the white card.
+    <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
       <div style={{ fontSize: '10px', fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
         {title}
       </div>
