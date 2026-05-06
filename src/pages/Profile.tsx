@@ -9,6 +9,7 @@ import { openPayslipPrintWindow } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PushNotificationsToggle } from '@/components/profile/PushNotificationsToggle';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -347,6 +348,8 @@ const ProfilePage = () => {
           </div>
         </CardContent>
       </Card>
+
+      <PushNotificationsToggle />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

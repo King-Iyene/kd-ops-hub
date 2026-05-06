@@ -420,7 +420,7 @@ const Dashboard = () => {
     return (
       <div className="space-y-6">
         {/* Greeting */}
-        <AuroraHero className="p-5 sm:p-6" brand="KD">
+        <AuroraHero className="p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 opacity-80 kd-icon-glow" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Personal Overview</span>
@@ -451,7 +451,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-5">
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
-      <AuroraHero className="p-5 sm:p-7" scanLine brand="KD">
+      <AuroraHero className="p-5 sm:p-7" scanLine>
         <div className="flex items-center gap-2 mb-1">
           <LayoutDashboard className="h-4 w-4 opacity-80 kd-icon-glow" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Operations Command</span>
