@@ -38,6 +38,7 @@ import {
   type NarrationKind,
 } from '@/lib/paystack';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
+import { ReceiptModal } from '@/components/ReceiptModal';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -167,420 +168,6 @@ function getItemFee(item: any): number {
   return 0;
 }
 
-const printItemReceipt = (item: any, batch: any, _generatedBy?: string, companyName?: string, logoUrl?: string | null) => {
-  const isFailed = item.status === 'failed';
-  const isSucceeded = item.status === 'succeeded';
-
-  const txnDateStr = item.processed_at || item.created_at
-    ? formatReceiptDateTime(item.processed_at || item.created_at)
-    : '—';
-  const narration =
-    item.narration
-    || batch?.description
-    || batch?.notes
-    || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
-
-  const BRAND = '#006994';
-
-  // Status dot + label — colour is contained, everything else is white
-  const statusDot = isFailed ? '#dc2626' : isSucceeded ? '#16a34a' : '#d97706';
-  const statusLabel = isFailed ? 'Failed' : isSucceeded ? 'Successful' : 'Pending';
-
-  const amount = Number(item.amount_ngn) || 0;
-  const psFee = paystackTransferFee(amount);
-  const duty = stampDutyFor(amount);
-  const total = amount + psFee + duty;
-  const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-
-  const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
-  const certId = `kdops_${internalRef}`;
-
-  const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
-  const initials = escapeHtml(shortName.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
-  const logoHtml = logoUrl
-    ? `<img src="${escapeHtml(logoUrl)}" alt="" style="height:30px;width:auto;max-width:130px;object-fit:contain;display:block;" />`
-    : `<div style="width:36px;height:36px;border-radius:8px;background:${BRAND};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;letter-spacing:-0.02em;flex-shrink:0;">${initials}</div>`;
-
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>${isFailed ? 'Payment Failed' : isSucceeded ? 'Payment Confirmation' : 'Payment Pending'} — ${escapeHtml(item.full_name || '')}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      /* Brand gradient backdrop — deep teal → indigo → violet, mirrors the
-         login screen aesthetic. NO dots here; the dot pattern lives on the
-         CARD so the contrast pops. */
-      background:
-        radial-gradient(ellipse 60% 50% at 20% 0%,  rgba(99,  102, 241, 0.45) 0%, transparent 55%),
-        radial-gradient(ellipse 50% 40% at 80% 0%,  rgba(168, 85,  247, 0.40) 0%, transparent 55%),
-        radial-gradient(ellipse 70% 50% at 50% 100%,rgba(0,   105, 148, 0.50) 0%, transparent 60%),
-        linear-gradient(180deg, #0b1220 0%, #1e1b4b 50%, #0b1220 100%);
-      min-height: 100vh;
-      padding: 32px 16px 80px;
-      -webkit-font-smoothing: antialiased;
-      color: #18181b;
-    }
-    /* ── Floating action toolbar ── */
-    .toolbar {
-      max-width: 580px;
-      margin: 0 auto 14px;
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-    .toolbar button {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 14px;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.01em;
-      color: #fff;
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 10px;
-      backdrop-filter: blur(10px) saturate(160%);
-      -webkit-backdrop-filter: blur(10px) saturate(160%);
-      cursor: pointer;
-      transition: background 160ms ease, transform 120ms ease;
-      font-family: inherit;
-    }
-    .toolbar button:hover { background: rgba(255,255,255,0.18); }
-    .toolbar button:active { transform: scale(0.98); }
-    .toolbar button svg { width: 14px; height: 14px; }
-    .toolbar button.primary {
-      background: linear-gradient(180deg, ${BRAND}, #004e72);
-      border-color: rgba(255,255,255,0.25);
-    }
-    .toolbar button.primary:hover { filter: brightness(1.1); }
-
-    .page {
-      position: relative;
-      max-width: 580px;
-      margin: 0 auto;
-      /* White card with subtle internal dot pattern — "engineered paper" */
-      background:
-        radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px,
-        #fff;
-      border: 1px solid rgba(0,105,148,0.10);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow:
-        0 1px 0 rgba(255,255,255,0.6) inset,
-        0 1px 3px rgba(0,0,0,0.08),
-        0 24px 60px -12px rgba(0,0,0,0.45);
-    }
-    .accent {
-      height: 4px;
-      background: linear-gradient(90deg,
-        ${BRAND} 0%,
-        ${isFailed ? '#dc2626' : isSucceeded ? '#16a34a' : '#d97706'} 50%,
-        ${BRAND} 100%);
-    }
-
-    /* ── Header ── */
-    .header {
-      padding: 28px 36px 24px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 20px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .company-name { font-size: 14px; font-weight: 700; color: #111; }
-    .doc-type { font-size: 11px; color: #888; margin-top: 1px; letter-spacing: 0.02em; }
-    .header-right { text-align: right; }
-    .amount-big {
-      font-size: 28px;
-      font-weight: 800;
-      color: #111;
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-    .amount-label { font-size: 11px; color: #aaa; margin-top: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
-
-    /* ── Sections ── */
-    .section { padding: 20px 36px; border-bottom: 1px solid #f0f0f0; }
-    .section:last-of-type { border-bottom: none; }
-    .section-title {
-      font-size: 10px;
-      font-weight: 700;
-      color: ${BRAND};
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 16px;
-      padding: 6px 0;
-      font-size: 13px;
-      line-height: 1.5;
-      border-bottom: 1px solid #f8f8f8;
-    }
-    .row:last-child { border-bottom: none; }
-    .row .k { color: #71717a; flex-shrink: 0; }
-    .row .v { color: #111; font-weight: 500; text-align: right; word-break: break-word; }
-    .row .v.mono {
-      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
-      font-size: 12px;
-      letter-spacing: 0.05em;
-    }
-    .row.total { border-top: 1px solid #e4e4e7; padding-top: 10px; margin-top: 4px; border-bottom: none; }
-    .row.total .k { font-weight: 600; color: #111; }
-    .row.total .v { font-size: 15px; font-weight: 700; color: #111; }
-
-    /* Status badge */
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: ${statusDot};
-    }
-    .status-dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: ${statusDot};
-      flex-shrink: 0;
-    }
-
-    /* ── Footer ── */
-    .footer {
-      padding: 14px 36px 28px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      border-top: 1px solid #f0f0f0;
-    }
-    .cert {
-      font-family: ui-monospace, 'JetBrains Mono', SF Mono, Consolas, monospace;
-      font-size: 10px;
-      color: #c4c4c7;
-      letter-spacing: 0.02em;
-      word-break: break-all;
-    }
-    .support { font-size: 11px; color: #a1a1aa; white-space: nowrap; flex-shrink: 0; }
-    .support a { color: #71717a; text-decoration: underline; text-underline-offset: 2px; }
-
-    @media print {
-      body {
-        background: #fff;
-        padding: 0;
-      }
-      .toolbar { display: none !important; }
-      .page {
-        box-shadow: none;
-        max-width: 100%;
-        background: #fff;
-        border: none;
-        border-radius: 0;
-      }
-      .accent { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-    @media (max-width: 500px) {
-      body { padding: 16px 8px 60px; }
-      .page { box-shadow: 0 8px 24px -8px rgba(0,0,0,0.4); border-radius: 12px; }
-      .toolbar { padding-right: 4px; }
-      .header, .section, .footer { padding-left: 20px; padding-right: 20px; }
-      .header { flex-direction: column; gap: 16px; }
-      .header-right { text-align: left; }
-    }
-  </style>
-</head>
-<body>
-<!-- Floating actions: print, download PNG, share. Hidden in @media print. -->
-<div class="toolbar">
-  <button type="button" id="kd-share" title="Share receipt">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-    Share
-  </button>
-  <button type="button" id="kd-download" title="Download as image">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Download
-  </button>
-  <button type="button" id="kd-print" class="primary" title="Print receipt">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-    Print
-  </button>
-</div>
-<div class="page" id="kd-receipt">
-  <div class="accent"></div>
-
-  <!-- Header: logo/company + amount -->
-  <div class="header">
-    <div class="header-left">
-      ${logoHtml}
-      <div>
-        <div class="company-name">${escapeHtml(shortName)}</div>
-        <div class="doc-type">${isFailed ? 'Payment Failed' : isSucceeded ? 'Payment Confirmation' : 'Payment Pending'}</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div class="amount-big">${item.amount_ngn != null ? fmtNgn(amount) : '—'}</div>
-      <div class="amount-label">Settlement amount</div>
-    </div>
-  </div>
-
-  <!-- Transfer details -->
-  <div class="section">
-    <div class="section-title">Transfer Details</div>
-    <div class="row">
-      <span class="k">Status</span>
-      <span class="v"><span class="status-badge"><span class="status-dot"></span>${escapeHtml(statusLabel)}</span></span>
-    </div>
-    <div class="row">
-      <span class="k">Date</span>
-      <span class="v">${escapeHtml(txnDateStr)}</span>
-    </div>
-    <div class="row">
-      <span class="k">Sent to</span>
-      <span class="v">${escapeHtml(item.account_name || item.full_name || '—')}</span>
-    </div>
-  </div>
-
-  <!-- Beneficiary bank details -->
-  <div class="section">
-    <div class="section-title">Beneficiary</div>
-    <div class="row">
-      <span class="k">Bank</span>
-      <span class="v">${escapeHtml(item.bank_name || '—')}</span>
-    </div>
-    <div class="row">
-      <span class="k">Account number</span>
-      <span class="v mono">${escapeHtml(maskAccountNumber(item.account_number) || '—')}</span>
-    </div>
-  </div>
-
-  <!-- Reference / narration -->
-  <div class="section">
-    <div class="section-title">Reference</div>
-    <div class="row">
-      <span class="k">Narration</span>
-      <span class="v">${escapeHtml(narration)}</span>
-    </div>
-    ${item.paystack_reference ? `
-    <div class="row">
-      <span class="k">Provider reference</span>
-      <span class="v mono">${escapeHtml(item.paystack_reference)}</span>
-    </div>` : ''}
-  </div>
-
-
-  ${isSucceeded ? `
-  <!-- Cost breakdown -->
-  <div class="section">
-    <div class="section-title">Debit Breakdown</div>
-    <div class="row">
-      <span class="k">Principal</span>
-      <span class="v">${fmtNgn(amount)}</span>
-    </div>
-    ${duty > 0 ? `<div class="row"><span class="k">Stamp duty</span><span class="v">${fmtNgn(duty)}</span></div>` : ''}
-    <div class="row">
-      <span class="k">Transfer fee</span>
-      <span class="v">${fmtNgn(psFee)}</span>
-    </div>
-    <div class="row total">
-      <span class="k">Total debit</span>
-      <span class="v">${fmtNgn(total)}</span>
-    </div>
-  </div>` : ''}
-
-  <!-- Footer: cert ID only -->
-  <div class="footer">
-    <span class="cert">${escapeHtml(certId)}</span>
-  </div>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script>
-  // ── Receipt toolbar wiring ─────────────────────────────────────────────
-  // Print:    native window.print() — user can pick "Save as PDF" too.
-  // Download: html2canvas → PNG file with a sane filename. Works offline
-  //           once html2canvas is cached by the browser.
-  // Share:    Web Share API — falls back to copying the page URL on
-  //           browsers without share support (mostly desktop).
-  const fileSafe = (s) => String(s || 'receipt').replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40);
-  const filename = 'kdops_receipt_' + fileSafe(${JSON.stringify(item.full_name || certId)}) + '.png';
-
-  async function renderPng() {
-    const node = document.getElementById('kd-receipt');
-    if (!node || typeof html2canvas !== 'function') return null;
-    const canvas = await html2canvas(node, {
-      backgroundColor: '#ffffff',
-      scale: window.devicePixelRatio > 1 ? 2 : 2,
-      useCORS: true,
-      logging: false,
-    });
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png', 0.96));
-  }
-
-  document.getElementById('kd-print')?.addEventListener('click', () => window.print());
-
-  document.getElementById('kd-download')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    try {
-      const blob = await renderPng();
-      if (!blob) throw new Error('renderer-unavailable');
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    } catch (err) {
-      // Fallback: trigger the print dialog so the user can still "Save as PDF".
-      alert('Download not available offline — using Print dialog instead. Pick "Save as PDF".');
-      window.print();
-    } finally { btn.disabled = false; }
-  });
-
-  document.getElementById('kd-share')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    btn.disabled = true;
-    try {
-      const blob = await renderPng();
-      const file = blob ? new File([blob], filename, { type: 'image/png' }) : null;
-      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: ${JSON.stringify(`KDOps Receipt — ${item.full_name || ''}`)},
-          text: ${JSON.stringify(`Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)}`)},
-          files: [file],
-        });
-      } else if (navigator.share) {
-        // Older browsers — share text only
-        await navigator.share({
-          title: ${JSON.stringify(`KDOps Receipt — ${item.full_name || ''}`)},
-          text: ${JSON.stringify(`Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)} (${certId})`)},
-        });
-      } else {
-        // Desktop fallback — copy the cert id so the user can paste in WhatsApp/email.
-        await navigator.clipboard.writeText(${JSON.stringify(certId)});
-        alert('Receipt ID copied to clipboard. On mobile you would get a share sheet.');
-      }
-    } catch (err) {
-      // User cancelled or share failed silently — no toast needed.
-    } finally { btn.disabled = false; }
-  });
-</script>
-</body>
-</html>`;
-
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, '_blank', 'noopener,width=620,height=860');
-  if (!win) return;
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-};
 
 const BatchDetail = () => {
   const { id } = useParams();
@@ -589,6 +176,7 @@ const BatchDetail = () => {
   const { profile } = useAuthStore();
   const canApprovePerm = usePermission('payments.approve_batches');
   const [batch, setBatch] = useState<any>(null);
+  const [receiptItem, setReceiptItem] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectReason, setRejectReason] = useState('');
@@ -2409,8 +1997,8 @@ const BatchDetail = () => {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => printItemReceipt(item, batch, profile?.full_name || profile?.email, companyName, logoUrl)}
-                            title="Print receipt"
+                            onClick={() => setReceiptItem(item)}
+                            title="View receipt"
                           >
                             <Download className="h-3.5 w-3.5 mr-1" />
                             Receipt
@@ -2595,6 +2183,15 @@ const BatchDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReceiptModal
+        open={!!receiptItem}
+        onClose={() => setReceiptItem(null)}
+        item={receiptItem}
+        batch={batch}
+        companyName={companyName}
+        logoUrl={logoUrl}
+      />
 
       <PaymentSummaryModal
         open={showProcessConfirm}

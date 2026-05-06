@@ -85,5 +85,4 @@ COMMENT ON COLUMN public.company_settings.vapid_public_key IS
 COMMENT ON COLUMN public.company_settings.vapid_private_key IS
   'VAPID private key (base64url, P-256) — held server-side, signs push payloads.';
 COMMENT ON COLUMN public.company_settings.vapid_subject IS
-  'Contact mailto: or https URL — required by RFC 8292 so push services can ' ||
-  'reach the platform owner if a subscription is misbehaving.';
+  'Contact mailto: or https URL required by RFC 8292 so push services can reach the platform owner if a subscription is misbehaving.';

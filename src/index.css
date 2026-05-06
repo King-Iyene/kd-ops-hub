@@ -898,6 +898,42 @@
     background: linear-gradient(180deg, transparent 0%, hsl(var(--card) / 0.6) 100%);
   }
 
+  /* ── Receipt print rules ─────────────────────────────────────────────
+   * When the user clicks Print on the in-app ReceiptModal, we add
+   * `kd-receipt-printing` to <body> for the duration of the print
+   * dialog. CSS hides everything except the receipt card so the printer
+   * gets just the white receipt page (no app shell, no backdrop, no
+   * action buttons). */
+  @media print {
+    body.kd-receipt-printing > *:not(.kd-receipt-print-portal) {
+      display: none !important;
+    }
+    body.kd-receipt-printing .kd-receipt-dialog {
+      position: static !important;
+      transform: none !important;
+      max-width: none !important;
+      box-shadow: none !important;
+      background: #fff !important;
+    }
+    body.kd-receipt-printing .kd-receipt-backdrop {
+      background: #fff !important;
+      padding: 0 !important;
+      border-radius: 0 !important;
+    }
+    /* Hide the watermark, close button and action buttons on paper */
+    body.kd-receipt-printing .kd-receipt-backdrop > div[aria-hidden="true"],
+    body.kd-receipt-printing .kd-receipt-close,
+    body.kd-receipt-printing .kd-receipt-actions {
+      display: none !important;
+    }
+    body.kd-receipt-printing #kd-receipt-card {
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      max-width: 100% !important;
+    }
+    @page { margin: 12mm; }
+  }
+
   /* ─── Trip Map (Leaflet) custom markers ─────────────────────────── */
 
   /* Pulsing start dot */
