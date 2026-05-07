@@ -90,8 +90,8 @@ const ALL_NAV: NavItem[] = [
   { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',          url: '/budgets',           icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'], permission: 'invoices.view' },
-  { title: 'Assets',           url: '/assets',            icon: Package,         roles: ['super_admin', 'admin', 'finance'], permission: 'assets.view' },
+  { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Assets',           url: '/assets',            icon: Package,         roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
   { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
@@ -99,7 +99,13 @@ const ALL_NAV: NavItem[] = [
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], permission: 'expenses.submit' },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'], permission: 'fleet.view' },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'contractors.view' },
-  { title: 'Employees',        url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'], permission: 'employees.view' },
+  // Employees, Disciplinary, Audit Log, Settings — STRICT role only.
+  // These touch HR records, financial audit, and platform configuration;
+  // delegation needs to be deliberate, so the bar is "change the user's
+  // role" rather than "toggle a permission". Without this guard a single
+  // stale `*.access: true` left in a profile from an earlier admin edit
+  // would re-expose the entire admin surface to a downgraded user.
+  { title: 'Employees',        url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'] },
   { title: 'Leave',            url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Performance',      url: '/performance',       icon: Star,            roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'performance.view' },
   { title: 'Training',         url: '/training',          icon: GraduationCap,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'training.view' },
@@ -107,7 +113,7 @@ const ALL_NAV: NavItem[] = [
   { title: 'Onboarding',       url: '/onboarding',        icon: UserCheck,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'onboarding.view' },
   { title: 'Recruitment',      url: '/recruitment',       icon: UserPlus2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'recruitment.view' },
   { title: 'Attendance',       url: '/attendance',        icon: CalendarCheck2,  roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'attendance.view' },
-  { title: 'Disciplinary',     url: '/disciplinary',      icon: ShieldAlert,     roles: ['super_admin', 'admin'], permission: 'disciplinary.view' },
+  { title: 'Disciplinary',     url: '/disciplinary',      icon: ShieldAlert,     roles: ['super_admin', 'admin'] },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'vendors.view' },
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
@@ -121,9 +127,9 @@ const ALL_NAV: NavItem[] = [
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
-  // Admin
+  // Admin — strict role only (see comment block above).
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
-  { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'], permission: 'settings.access' },
+  { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
   // Workspace addition (Assistant)
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
@@ -194,11 +200,15 @@ export function AppSidebar() {
   const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);
 
   useEffect(() => {
+    // .maybeSingle so the request doesn't 406 when the user's role
+    // can't read company_settings (RLS) or when the table is genuinely
+    // empty on a fresh tenant. Either way the sidebar just falls back
+    // to the inline KD logo — no need to surface the error.
     supabase
       .from('company_settings')
       .select('logo_url')
       .limit(1)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data?.logo_url) {
           setLogoUrl(data.logo_url);
@@ -278,9 +288,20 @@ export function AppSidebar() {
   // appears in their sidebar without them needing to know the URL.
   // Explicit denial (`permissions[key] === false`) hides the link even
   // when the role would normally allow.
+  //
+  // View-as mode (super_admin simulating another role) DELIBERATELY
+  // ignores the real user's permissions JSONB. Otherwise the sim leaks
+  // grants from the super_admin's own profile (every key set to true)
+  // back into the lower role being simulated. The simulation has to be
+  // role-pure to be useful — what would `operations` actually see if
+  // they had a clean profile? — so we pass an empty permissions map
+  // for the duration of the view-as.
 
   const role = effectiveRole as Role | undefined;
-  const permissions = (profile as any)?.permissions as Record<string, boolean> | null | undefined;
+  const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
+  const permissions = isViewAs
+    ? null
+    : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
   const navItems = ALL_NAV.filter((n) => {
     const explicitDeny = n.permission && permissions?.[n.permission] === false;
     if (explicitDeny) return false;
