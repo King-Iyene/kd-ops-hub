@@ -87,6 +87,7 @@ interface Employee {
   tags?: string[] | null;
   department_id?: string | null;
   department?: { id: string; name: string } | null;
+  photo_url?: string | null;
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -170,7 +171,7 @@ const Employees = () => {
     setLoading(true);
     let query = supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, department_id, department:departments!department_id(id, name)')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name)')
       .neq('is_anonymised', true)
       .order('created_at', { ascending: false })
       .limit(500);
@@ -551,25 +552,39 @@ const Employees = () => {
                 <TableBody>
                   {pagination.slice.map((e) => (
                     <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}>
+                      {/* Avatar + name in a single cell — gives a face to
+                          the row at a glance without blowing up the
+                          table width with a separate photo column. The
+                          photo falls back to initials on the brand
+                          gradient when an employee hasn't uploaded one
+                          (or for invited rows that haven't accepted). */}
                       <TableCell className="font-medium">
-                        <div>{displayName(e.first_name, e.last_name, e.full_name)}</div>
-                        {e.tags && e.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {e.tags.map((tid) => {
-                              const tag = availableTags.find((t) => t.id === tid);
-                              if (!tag) return null;
-                              return (
-                                <span
-                                  key={tid}
-                                  className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-                                  style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
-                                >
-                                  {tag.name}
-                                </span>
-                              );
-                            })}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <EmployeeAvatar
+                            photoUrl={e.photo_url ?? null}
+                            name={displayName(e.first_name, e.last_name, e.full_name)}
+                          />
+                          <div className="min-w-0">
+                            <div className="truncate">{displayName(e.first_name, e.last_name, e.full_name)}</div>
+                            {e.tags && e.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {e.tags.map((tid) => {
+                                  const tag = availableTags.find((t) => t.id === tid);
+                                  if (!tag) return null;
+                                  return (
+                                    <span
+                                      key={tid}
+                                      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                                      style={tag.color ? { backgroundColor: `${tag.color}25`, color: tag.color } : undefined}
+                                    >
+                                      {tag.name}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </TableCell>
                       <TableCell className="capitalize">{roleLabel(e.role)}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -663,6 +678,11 @@ const Employees = () => {
                       accentClassName={accent}
                     >
                       <MobileCardHeader>
+                        <EmployeeAvatar
+                          photoUrl={e.photo_url ?? null}
+                          name={displayName(e.first_name, e.last_name, e.full_name)}
+                          size={40}
+                        />
                         <div className="min-w-0 flex-1">
                           <MobileCardTitle>{displayName(e.first_name, e.last_name, e.full_name)}</MobileCardTitle>
                           <p className="text-[11px] text-muted-foreground capitalize mt-0.5">{roleLabel(e.role)}</p>
@@ -1006,3 +1026,59 @@ const Employees = () => {
 };
 
 export default Employees;
+
+// Compact avatar bubble for the roster — shows the uploaded photo
+// when available, otherwise initials on the brand gradient. Same
+// rendering recipe as ProfileDropdown's AvatarBubble so the platform
+// presents one consistent face per user across the sidebar, comments,
+// and the employees table. onError falls back to the initials variant
+// if the storage object 403s or 404s.
+function EmployeeAvatar({
+  photoUrl, name, size = 36,
+}: {
+  photoUrl: string | null;
+  name: string;
+  size?: number;
+}) {
+  const initials = (name || '')
+    .split(/\s+/).filter(Boolean).slice(0, 2)
+    .map((w) => w[0].toUpperCase()).join('') || 'U';
+  const fontSize = Math.max(11, Math.round(size * 0.36));
+  if (photoUrl) {
+    return (
+      <img
+        src={photoUrl}
+        alt=""
+        width={size}
+        height={size}
+        className="rounded-full object-cover ring-2 ring-background shadow-sm shrink-0"
+        style={{ height: size, width: size }}
+        onError={(e) => {
+          const t = e.currentTarget as HTMLImageElement;
+          t.replaceWith(makeInitialsBubble(initials, size, fontSize));
+        }}
+      />
+    );
+  }
+  return (
+    <div
+      className="rounded-full kd-gradient-brand flex items-center justify-center ring-2 ring-background shadow-sm shrink-0"
+      style={{ height: size, width: size }}
+    >
+      <span className="font-bold text-white" style={{ fontSize }}>{initials}</span>
+    </div>
+  );
+}
+
+// Imperative fallback used by the onError handler — replaces a broken
+// <img> with the initials bubble inline so the row never shows a
+// broken-image glyph.
+function makeInitialsBubble(initials: string, size: number, fontSize: number): HTMLElement {
+  const div = document.createElement('div');
+  div.className = 'rounded-full flex items-center justify-center ring-2 ring-background shadow-sm shrink-0';
+  div.style.height = `${size}px`;
+  div.style.width = `${size}px`;
+  div.style.background = 'linear-gradient(135deg, #006994 0%, #0481ad 100%)';
+  div.innerHTML = `<span style="font-size:${fontSize}px;font-weight:700;color:#fff;">${initials.replace(/[<>"&]/g, '')}</span>`;
+  return div;
+}
