@@ -153,7 +153,6 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
   const certId = `kdops_${internalRef}`;
   const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
-  const initials = shortName.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const fileSafe = (str: string) => str.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40) || 'receipt';
   const filename = `kdops_receipt_${fileSafe(item.full_name || certId)}.png`;
 
@@ -366,13 +365,18 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             {/* Header */}
             <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                {logoUrl ? (
-                  <img src={logoUrl} alt="" style={{ height: '30px', width: 'auto', maxWidth: '120px', objectFit: 'contain' }} />
-                ) : (
-                  <div style={{ width: '34px', height: '34px', borderRadius: '8px', background: BRAND, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 800 }}>
-                    {initials}
-                  </div>
-                )}
+                {/* Always render the brand emblem — never initials.
+                    The "KS" text fallback was the source of cross-role
+                    inconsistency (one user saw the proper logo, another
+                    saw "KS"). When company_settings.logo_url is empty
+                    or unreadable for the current role, the bundled PWA
+                    icon stands in as a deterministic emblem. */}
+                <img
+                  src={logoUrl || '/icon-192.png'}
+                  alt=""
+                  style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
+                  crossOrigin="anonymous"
+                />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>{shortName}</div>
                   <div style={{ fontSize: '11px', color: '#888', marginTop: '1px' }}>

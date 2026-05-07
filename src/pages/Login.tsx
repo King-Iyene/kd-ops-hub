@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useTimeOfDay, greetingFor } from '@/hooks/useTimeOfDay';
 import { Loader2, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -88,12 +89,15 @@ const Login = () => {
 
       {/* Glass form */}
       <div className="relative z-10 w-full max-w-md">
-        {/* Brand badge */}
+        {/* Brand badge — uses the same logo source the rest of the
+            platform reads from, so the login screen, sidebar header,
+            and receipt all show the same emblem instead of a "KD"
+            text glyph here and a real logo there. */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative mb-4">
             <div className="absolute inset-0 rounded-2xl bg-[hsl(var(--tod-glow))] blur-xl opacity-50 kd-icon-glow" />
-            <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl">
-              <span className="kd-display text-2xl font-bold text-white">KD</span>
+            <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-2xl overflow-hidden">
+              <BrandLogo size={48} className="h-12 w-12 rounded-lg" />
             </div>
           </div>
           <h1 className="kd-display text-3xl font-bold text-white tracking-tight">KDOps</h1>

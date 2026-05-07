@@ -1198,10 +1198,11 @@ const BatchDetail = () => {
 </head>
 <body>
   <div class="brand">
-    ${logoUrl
-      ? `<img src="${escapeHtml(logoUrl)}" alt="logo" style="height:40px;width:auto;object-fit:contain;border-radius:6px;" />`
-      : `<div class="mark">${escapeHtml(companyName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase())}</div>`
-    }
+    <img
+      src="${escapeHtml(logoUrl || '/icon-192.png')}"
+      alt="logo"
+      style="height:40px;width:40px;object-fit:contain;border-radius:6px;"
+    />
     <div>
       <h1>Payment Batch Receipt</h1>
       <div style="font-size:12px;color:#5b6b75">${escapeHtml(companyName)} · KDOps</div>

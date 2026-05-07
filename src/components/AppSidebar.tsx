@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
+import { BrandLogo } from '@/components/BrandLogo';
 import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
 import {
@@ -196,26 +197,10 @@ export function AppSidebar() {
     if (isMobile) setOpenMobile(false);
   }, [location.pathname, isMobile, setOpenMobile]);
 
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  // Logo + name come from useBrand inside <BrandLogo>; no per-component
+  // fetch needed any more (the hook caches and de-duplicates the request
+  // platform-wide).
   const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);
-
-  useEffect(() => {
-    // .maybeSingle so the request doesn't 406 when the user's role
-    // can't read company_settings (RLS) or when the table is genuinely
-    // empty on a fresh tenant. Either way the sidebar just falls back
-    // to the inline KD logo — no need to surface the error.
-    supabase
-      .from('company_settings')
-      .select('logo_url')
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.logo_url) {
-          setLogoUrl(data.logo_url);
-          localStorage.setItem('kdops_logo_url', data.logo_url);
-        }
-      });
-  }, []);
 
   useEffect(() => {
     refreshApprovals();
@@ -386,13 +371,7 @@ export function AppSidebar() {
         {!sidebarCollapsed ? (
           <div className="flex items-center gap-3 px-1">
             <div className="relative shrink-0">
-              {logoUrl ? (
-                <img src={logoUrl} alt="KD" className="h-9 w-9 rounded-xl object-contain ring-2 ring-sidebar-border/40" />
-              ) : (
-                <div className="h-9 w-9 rounded-xl kd-gradient-brand flex items-center justify-center ring-2 ring-white/10">
-                  <span className="text-sm font-bold text-white tracking-tight">KD</span>
-                </div>
-              )}
+              <BrandLogo size={36} className="h-9 w-9 rounded-xl ring-2 ring-sidebar-border/40 bg-white/5" />
               <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar-background" />
             </div>
             <div className="min-w-0">
@@ -402,13 +381,7 @@ export function AppSidebar() {
           </div>
         ) : (
           <div className="flex justify-center">
-            {logoUrl ? (
-              <img src={logoUrl} alt="KD" className="h-8 w-8 rounded-xl object-contain" />
-            ) : (
-              <div className="h-8 w-8 rounded-xl kd-gradient-brand flex items-center justify-center">
-                <span className="text-xs font-bold text-white">KD</span>
-              </div>
-            )}
+            <BrandLogo size={32} className="h-8 w-8 rounded-xl bg-white/5" />
           </div>
         )}
       </div>
