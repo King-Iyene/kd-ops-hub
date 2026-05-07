@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Save, KeyRound, Mail, Phone, CalendarDays, Download,
-  FileText, Camera, Receipt, Truck, Wrench, ChevronRight, Inbox,
+  FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
   CheckCircle2, Clock, XCircle,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +56,7 @@ interface Payslip {
 
 interface RequestRow {
   id: string;
-  kind: 'expense' | 'leave' | 'fuel' | 'repair';
+  kind: 'expense' | 'leave' | 'fuel';
   title: string;
   subtitle: string;
   amountNgn: number | null;
@@ -86,10 +86,9 @@ const monthLabel = (period: string) => {
 };
 
 const REQUEST_META: Record<RequestRow['kind'], { label: string; icon: typeof Receipt; bg: string; fg: string }> = {
-  expense: { label: 'Expense', icon: Receipt,  bg: 'bg-emerald-500/10', fg: 'text-emerald-600 dark:text-emerald-400' },
-  leave:   { label: 'Leave',   icon: CalendarDays, bg: 'bg-violet-500/10', fg: 'text-violet-600 dark:text-violet-400' },
-  fuel:    { label: 'Fuel',    icon: Truck,    bg: 'bg-amber-500/10',  fg: 'text-amber-600 dark:text-amber-400' },
-  repair:  { label: 'Repair',  icon: Wrench,   bg: 'bg-sky-500/10',    fg: 'text-sky-600 dark:text-sky-400' },
+  expense: { label: 'Expense', icon: Receipt,      bg: 'bg-emerald-500/10', fg: 'text-emerald-600 dark:text-emerald-400' },
+  leave:   { label: 'Leave',   icon: CalendarDays, bg: 'bg-violet-500/10',  fg: 'text-violet-600 dark:text-violet-400' },
+  fuel:    { label: 'Fuel',    icon: Truck,        bg: 'bg-amber-500/10',   fg: 'text-amber-600 dark:text-amber-400' },
 };
 
 const STATUS_TONE: Record<string, { Icon: typeof CheckCircle2; bg: string; fg: string; label: string }> = {
@@ -140,23 +139,28 @@ const ProfilePage = () => {
 
     // Pull each request type in parallel. Each query is best-effort —
     // if a table is missing on a tenant or RLS blocks a column the
-    // others still render. Empty results are perfectly fine.
-    const [psRes, exRes, lvRes, flRes, rpRes] = await Promise.all([
+    // others still render. Column names match the canonical schemas
+    // shipped in supabase/migrations:
+    //   • expenses        → submitted_by, category, amount_ngn, date,
+    //                       description, status, created_at
+    //   • leave_requests  → employee_id, leave_type, days_requested,
+    //                       start_date, end_date, reason, status
+    //   • fuel_requests   → driver_id, vehicle_id, amount_ngn,
+    //                       station_name, reason, status
+    //   • vehicle_maintenance is a service-schedule table, not a
+    //     user-raised request, so it isn't pulled here.
+    const [psRes, exRes, lvRes, flRes] = await Promise.all([
       supabase.from('payslips')
         .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
-        .select('id, category, amount_ngn, status, date, created_at, vendor, description')
+        .select('id, category, amount_ngn, status, date, created_at, description')
         .eq('submitted_by', profile.id).order('created_at', { ascending: false }).limit(50),
       supabase.from('leave_requests')
-        .select('id, leave_type, days, status, start_date, end_date, created_at, reason')
+        .select('id, leave_type, days_requested, status, start_date, end_date, created_at, reason')
         .eq('employee_id', profile.id).order('created_at', { ascending: false }).limit(50),
       supabase.from('fuel_requests')
-        .select('id, vehicle_id, amount_ngn, status, created_at, station, notes')
+        .select('id, vehicle_id, amount_ngn, status, created_at, station_name, reason')
         .eq('driver_id', profile.id).order('created_at', { ascending: false }).limit(50),
-      supabase.from('vehicle_maintenance')
-        .select('id, vehicle_id, amount_ngn, status, created_at, description, type')
-        .eq('reported_by', profile.id).order('created_at', { ascending: false }).limit(50)
-        .then((r) => r.error ? { data: [] } : r),
     ]);
 
     setPayslips((psRes.data as Payslip[]) || []);
@@ -165,16 +169,17 @@ const ProfilePage = () => {
     for (const e of (exRes.data ?? []) as any[]) {
       all.push({
         id: `ex-${e.id}`, kind: 'expense',
-        title: `${(e.category || 'Expense').replace(/_/g, ' ')}${e.vendor ? ` · ${e.vendor}` : ''}`,
+        title: (e.category || 'Expense').replace(/_/g, ' '),
         subtitle: e.description || formatDate(e.date),
         amountNgn: Number(e.amount_ngn || 0), status: e.status || 'pending',
         createdAt: e.created_at, href: `/expenses?id=${e.id}`,
       });
     }
     for (const l of (lvRes.data ?? []) as any[]) {
+      const days = Number(l.days_requested || 0);
       all.push({
         id: `lv-${l.id}`, kind: 'leave',
-        title: `${(l.leave_type || 'Leave').replace(/_/g, ' ')} · ${l.days || 0} day${l.days === 1 ? '' : 's'}`,
+        title: `${(l.leave_type || 'Leave').replace(/_/g, ' ')} · ${days} day${days === 1 ? '' : 's'}`,
         subtitle: l.reason || `${formatDate(l.start_date)} → ${formatDate(l.end_date)}`,
         amountNgn: null, status: l.status || 'pending',
         createdAt: l.created_at, href: '/leave',
@@ -183,19 +188,10 @@ const ProfilePage = () => {
     for (const f of (flRes.data ?? []) as any[]) {
       all.push({
         id: `fl-${f.id}`, kind: 'fuel',
-        title: `Fuel${f.station ? ` · ${f.station}` : ''}`,
-        subtitle: f.notes || `Vehicle: ${f.vehicle_id ?? '—'}`,
+        title: `Fuel${f.station_name ? ` · ${f.station_name}` : ''}`,
+        subtitle: f.reason || `Vehicle: ${f.vehicle_id ?? '—'}`,
         amountNgn: Number(f.amount_ngn || 0), status: f.status || 'pending',
         createdAt: f.created_at, href: '/fleet',
-      });
-    }
-    for (const r of (rpRes.data ?? []) as any[]) {
-      all.push({
-        id: `rp-${r.id}`, kind: 'repair',
-        title: `Repair · ${(r.type || 'Maintenance').replace(/_/g, ' ')}`,
-        subtitle: r.description || `Vehicle: ${r.vehicle_id ?? '—'}`,
-        amountNgn: Number(r.amount_ngn || 0), status: r.status || 'pending',
-        createdAt: r.created_at, href: '/fleet',
       });
     }
     all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -498,7 +494,7 @@ const ProfilePage = () => {
                   </div>
                   <p className="text-sm font-medium">Nothing raised yet</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Expenses, leave, fuel and repair requests you submit will land here.
+                    Expenses, leave and fuel requests you submit will land here.
                   </p>
                 </div>
               ) : (
