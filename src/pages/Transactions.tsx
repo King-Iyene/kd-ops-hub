@@ -16,7 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { friendlyPaystackError } from '@/lib/paystack';
+import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -487,18 +487,29 @@ const Transactions = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    // Transfer fee comes straight from Paystack — captured by
-                    // the reconciliation edge function (`fee_charged` in kobo)
-                    // and stored as paystack_fee_ngn. We do NOT calculate
-                    // locally any more: Paystack's fee already includes VAT
-                    // per FIRS rules, so a derived "fee × 7.5%" line was
-                    // double-counting. Stamp duty (₦50 on transfers ≥ ₦10K)
-                    // is a deterministic FIRS pass-through that Paystack
-                    // collects on every successful transfer, so we still
-                    // surface that as its own column.
+                    // Transfer fee resolution mirrors the receipt + BatchDetail:
+                    //   1. paystack_fee_ngn from the view (populated by webhook,
+                    //      reconcile, or our lazy backfill below).
+                    //   2. paystack_raw.fee (kobo) — the same value Paystack
+                    //      sent on every webhook payload, surfaced by the
+                    //      view's paystack_raw column.
+                    //   3. The published Paystack fee schedule for succeeded
+                    //      transfers — keeps the ledger from showing "—" with
+                    //      an underset total below it. Once the lazy-backfill
+                    //      effect fires, step 1 will replace this estimate.
+                    //   4. Zero for non-succeeded items.
+                    // Stamp duty (₦50 on transfers ≥ ₦10K) is a deterministic
+                    // FIRS pass-through Paystack collects on every successful
+                    // transfer.
                     const amount = Number(r.amount_ngn || 0);
                     const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
-                    const fee = Number(r.paystack_fee_ngn || 0);
+                    const directFee = Number(r.paystack_fee_ngn || 0);
+                    const rawFeeKobo = Number((r as any).paystack_raw?.fee || 0);
+                    const fee = directFee > 0
+                      ? directFee
+                      : rawFeeKobo > 0 ? rawFeeKobo / 100
+                      : ledgerStatus === 'succeeded' ? paystackTransferFee(amount)
+                      : 0;
                     const stamp = ledgerStatus === 'succeeded' ? stampDutyForAmount(amount) : 0;
                     const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
