@@ -578,6 +578,15 @@ export default function TransferAuthSettings() {
                       return fmtAmt(v);
                     };
                     const isSelfRole = role === currentUserRole;
+                    // The "can't edit your own role's caps" guard exists to
+                    // stop a finance/admin user lifting their own ceiling
+                    // without a higher-up signing off. But super_admin sits
+                    // at the top of the role chain — there is no "higher up"
+                    // to sign off, so the guard would lock the cap-editor
+                    // entirely whenever the only person logged in is a
+                    // super_admin (i.e. the founder / org owner). Skip the
+                    // guard for super_admin only.
+                    const lockSelf = isSelfRole && role !== 'super_admin';
                     return (
                       <TableRow key={role}>
                         <TableCell className="font-medium">{roleLabel[role]}</TableCell>
@@ -626,8 +635,8 @@ export default function TransferAuthSettings() {
                           <Button
                             size="sm"
                             onClick={() => void handleSaveRoleLimit(role)}
-                            disabled={isSelfRole}
-                            title={isSelfRole ? 'Cannot edit your own role\'s caps' : undefined}
+                            disabled={lockSelf}
+                            title={lockSelf ? 'Cannot edit your own role\'s caps — ask a higher-tier admin to update them' : undefined}
                           >
                             <Save className="h-3 w-3 mr-1" /> Save
                           </Button>

@@ -1347,10 +1347,16 @@ interface FailedLogin {
 }
 
 function FailedLoginPanel() {
+  // This panel is admin-only (gated by the surrounding tab), and the
+  // operator triaging a brute-force attempt needs to see actual email
+  // addresses — patterns (same address hammered, same domain, etc.) are
+  // the whole point of having the panel. Default to unmasked. The Mask
+  // button is still available for screen-share situations where the
+  // operator doesn't want third parties to see the addresses.
   const [rows, setRows] = useState<FailedLogin[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
-  const [unmasked, setUnmasked] = useState(false);
+  const [unmasked, setUnmasked] = useState(true);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -1393,17 +1399,25 @@ function FailedLoginPanel() {
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <CardTitle className="text-base flex items-center gap-2">
-            <ShieldAlert className="h-4 w-4 text-destructive" />
-            Failed login attempts
-            <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
-          </CardTitle>
+          <div className="space-y-1 min-w-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-destructive" />
+              Failed login attempts
+              <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
+            </CardTitle>
+            <p className="text-xs text-muted-foreground max-w-xl">
+              Every wrong password / unknown email hitting the sign-in screen lands here. Use it to
+              spot brute-force attempts (same address hammered repeatedly, same hashed IP across
+              many users), enumeration scans (lots of one-off addresses on the same domain), and to
+              decide when to enable the temporary IP block on the security settings card below.
+            </p>
+          </div>
           {rows.length > 0 && (
             <button
               type="button"
               onClick={() => setUnmasked((v) => !v)}
-              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition"
-              title={unmasked ? 'Hide full email addresses' : 'Show full email addresses (visible to admins only)'}
+              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition shrink-0"
+              title={unmasked ? 'Hide full email addresses (for screen-share)' : 'Show full email addresses'}
             >
               {unmasked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               {unmasked ? 'Mask' : 'Unmask'}

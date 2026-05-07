@@ -476,6 +476,16 @@ const Payments = () => {
                         <Users className="h-3 w-3" />
                         {batch.beneficiary_count} {batch.beneficiary_count === 1 ? 'beneficiary' : 'beneficiaries'}
                       </span>
+                      {/* Show the running total alongside the recipient count.
+                          Operators wanted the figure visible on every card —
+                          including draft / approved / scheduled — so they
+                          can see total exposure without opening each batch.
+                          The big right-aligned amount stays so the page also
+                          reads well at a glance. */}
+                      <span className="flex items-center gap-1 tabular-nums">
+                        <span className="text-muted-foreground/60">·</span>
+                        <span className="font-medium text-foreground/80">{formatNaira(batch.total_amount || 0)}</span>
+                      </span>
                       <span>Pay date: {formatDate(batch.payment_date)}</span>
                       <span className="hidden sm:inline">Created {formatDate(batch.created_at)}</span>
                     </div>
