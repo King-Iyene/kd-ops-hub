@@ -636,7 +636,7 @@ const SettingsPage = () => {
 
         {/* INTEGRATIONS -------------------------------------------------- */}
         <TabsContent value="integrations" className="mt-4 space-y-4">
-          <Card>
+          <Card id="paystack" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="text-base">Paystack</CardTitle>
             </CardHeader>

@@ -19,10 +19,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, AlertTriangle, Wallet, Clock,
-  TrendingUp, Zap, ArrowRight, Users, Info, Eye, EyeOff, Copy, Check,
+  Plus, Search, RefreshCw, Clock,
+  TrendingUp, Zap, ArrowRight, Users, Info,
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
+import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
 import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -64,8 +65,6 @@ interface FundingDetails {
   accountNumber: string | null;
 }
 
-const LOW_BALANCE_THRESHOLD = 50_000;
-
 // Persist the show/hide state across reloads so the choice survives a
 // page refresh — operators who hide the balance for screen-share don't
 // want it flashing back on every navigation.
@@ -100,7 +99,6 @@ const Payments = () => {
     return localStorage.getItem(BALANCE_HIDDEN_KEY) === '1';
   });
   const [funding, setFunding] = useState<FundingDetails | null>(null);
-  const [copied, setCopied] = useState<'bank' | 'name' | 'number' | null>(null);
 
   const toggleBalanceHidden = () => {
     setBalanceHidden((prev) => {
@@ -108,14 +106,6 @@ const Payments = () => {
       try { localStorage.setItem(BALANCE_HIDDEN_KEY, next ? '1' : '0'); } catch { /* ignore */ }
       return next;
     });
-  };
-
-  const copyTo = async (key: 'bank' | 'name' | 'number', value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(key);
-      setTimeout(() => setCopied((c) => (c === key ? null : c)), 1400);
-    } catch { /* ignore */ }
   };
   const [stats, setStats] = useState<BatchStats>({
     pendingCount: 0, pendingAmount: 0, processingCount: 0, thisMonthAmount: 0,
@@ -285,8 +275,6 @@ const Payments = () => {
     return batches.filter((b) => b.name.toLowerCase().includes(s));
   }, [batches, debouncedSearch]);
 
-  const isLowBalance = balance !== null && balance.available < LOW_BALANCE_THRESHOLD;
-
   return (
     <div className="space-y-5">
       {/* ── Header ─────────────────────────────────────────────── */}
@@ -317,125 +305,16 @@ const Payments = () => {
         </div>
 
         <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
-          {/* Paystack Balance Card — full-width on mobile, fixed width on desktop */}
-          <div className={cn(
-            'rounded-xl border bg-card px-4 py-3 w-full sm:w-auto sm:min-w-[260px] shadow-[var(--shadow-sm)]',
-            isLowBalance ? 'border-amber-300 bg-amber-50' : 'border-border',
-          )}>
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-1.5">
-                <Wallet className={cn('h-3.5 w-3.5', isLowBalance ? 'text-amber-600' : 'text-primary')} />
-                <span className={cn('text-[11px] font-semibold uppercase tracking-wider', isLowBalance ? 'text-amber-600' : 'text-muted-foreground')}>
-                  Paystack Balance
-                </span>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <button
-                  onClick={toggleBalanceHidden}
-                  className="text-muted-foreground/60 hover:text-foreground kd-transition rounded p-0.5"
-                  aria-label={balanceHidden ? 'Show balance' : 'Hide balance'}
-                  title={balanceHidden ? 'Show balance' : 'Hide balance'}
-                >
-                  {balanceHidden ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                </button>
-                <button
-                  onClick={fetchBalance}
-                  disabled={balanceLoading}
-                  className="text-muted-foreground/60 hover:text-foreground kd-transition disabled:opacity-40 rounded p-0.5"
-                  aria-label="Refresh balance"
-                  title="Refresh balance"
-                >
-                  <RefreshCw className={cn('h-3 w-3', balanceLoading && 'animate-spin')} />
-                </button>
-              </div>
-            </div>
-
-            {balanceLoading && balance === null ? (
-              <div className="space-y-1.5">
-                <div className="h-7 w-36 kd-skeleton rounded" />
-                <div className="h-2.5 w-24 kd-skeleton rounded" />
-              </div>
-            ) : balanceError ? (
-              <div>
-                <p className="text-sm text-muted-foreground">Could not load balance</p>
-                <button
-                  onClick={() => fetchBalance()}
-                  className="text-[11px] text-primary hover:underline mt-0.5"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className={cn('text-xl font-extrabold tracking-tight kd-stat-number tabular-nums', isLowBalance ? 'text-amber-700' : 'text-foreground')}>
-                  {balanceHidden ? '••••••••' : (balance ? formatNaira(balance.available) : '—')}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <span className={cn('h-1.5 w-1.5 rounded-full', isLowBalance ? 'bg-amber-500' : 'bg-emerald-500')} />
-                  <p className="text-[11px] text-muted-foreground">Available for transfers</p>
-                </div>
-              </>
-            )}
-
-            {balanceUpdatedAt && (
-              <p className="text-[10px] text-muted-foreground/40 mt-1.5">Updated {balanceUpdatedAt}</p>
-            )}
-
-            {isLowBalance && (
-              <div className="flex items-start gap-1.5 mt-2 rounded-lg bg-amber-100 px-2.5 py-2">
-                <AlertTriangle className="h-3 w-3 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-[11px] text-amber-700 leading-snug">
-                  Low balance — fund before processing
-                </p>
-              </div>
-            )}
-
-            {/* Funding details — copy-to-clipboard for each field. Surfaced
-                from company_settings; configure on Settings → Paystack. */}
-            {funding && (funding.bank || funding.accountName || funding.accountNumber) && (
-              <div className="mt-3 pt-2.5 border-t border-border/60 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80 mb-1">
-                  Fund this account
-                </p>
-                {funding.bank && (
-                  <FundingRow
-                    label="Bank"
-                    value={funding.bank}
-                    onCopy={() => copyTo('bank', funding.bank!)}
-                    copied={copied === 'bank'}
-                  />
-                )}
-                {funding.accountName && (
-                  <FundingRow
-                    label="Name"
-                    value={funding.accountName}
-                    onCopy={() => copyTo('name', funding.accountName!)}
-                    copied={copied === 'name'}
-                  />
-                )}
-                {funding.accountNumber && (
-                  <FundingRow
-                    label="Account"
-                    value={funding.accountNumber}
-                    onCopy={() => copyTo('number', funding.accountNumber!)}
-                    copied={copied === 'number'}
-                    mono
-                  />
-                )}
-              </div>
-            )}
-
-            <div className="mt-2.5 flex gap-1.5">
-              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px] px-2"
-                onClick={() => window.open('https://dashboard.paystack.com/#/balance/', '_blank')}>
-                Fund Wallet
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1 h-7 text-[11px] px-2"
-                onClick={() => window.open('https://dashboard.paystack.com/#/transfers', '_blank')}>
-                Transfers →
-              </Button>
-            </div>
-          </div>
+          <PaystackBalanceCard
+            balance={balance}
+            balanceLoading={balanceLoading}
+            balanceError={balanceError}
+            balanceUpdatedAt={balanceUpdatedAt}
+            balanceHidden={balanceHidden}
+            toggleBalanceHidden={toggleBalanceHidden}
+            fetchBalance={fetchBalance}
+            funding={funding}
+          />
 
           {/* Action buttons — full-width row on mobile so taps are easy */}
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
@@ -652,40 +531,3 @@ const Payments = () => {
 };
 
 export default Payments;
-
-// One row of funding-account details with an inline copy button. Click the
-// row OR the icon to copy — the whole row is the affordance, the icon is
-// the visual cue.
-function FundingRow({
-  label, value, onCopy, copied, mono,
-}: {
-  label: string;
-  value: string;
-  onCopy: () => void;
-  copied: boolean;
-  mono?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="w-full flex items-center justify-between gap-2 text-left rounded px-1 -mx-1 py-0.5 hover:bg-muted/50 kd-transition group"
-      title={`Copy ${label.toLowerCase()}`}
-    >
-      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 shrink-0 w-12">
-        {label}
-      </span>
-      <span className={cn(
-        'text-[11px] text-foreground truncate flex-1 text-right',
-        mono && 'font-mono tracking-tight',
-      )}>
-        {value}
-      </span>
-      {copied ? (
-        <Check className="h-3 w-3 text-emerald-600 shrink-0" />
-      ) : (
-        <Copy className="h-3 w-3 text-muted-foreground/50 group-hover:text-foreground shrink-0 kd-transition" />
-      )}
-    </button>
-  );
-}

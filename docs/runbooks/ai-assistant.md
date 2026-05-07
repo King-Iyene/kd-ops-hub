@@ -55,17 +55,20 @@ It runs in three stages. Every chat message flows top-to-bottom through them.
 
 ## "Why didn't Build Context run during my test?"
 
-When n8n shows a node with **"No output data returned"** and the workflow stops
-there, the cause is almost always the same: **a node further upstream returned
-zero rows**, and n8n's default behaviour is to stop the branch.
+Short version: the node *executed successfully* but its **SQL query returned
+zero rows**, and n8n's default rule is "no rows out → stop the chain". The
+green tick means "the database accepted my query"; it does **not** mean
+"there was data". The next node never receives an item to act on, so it
+never starts.
 
-In your specific case the chain is:
+The badge "**2**" on the node means it ran twice during your test session
+(once per `Execute step` click). Both runs returned 0 rows, so both runs
+halted the chain. That's why Build Context, Master Agent, and everything
+downstream sat idle even though the upstream nodes are all green.
 
-```
-Parse & Trim Input → Rate Limit Check → Rate OK? → Load User Profile → Load History → Build Context
-```
+### Why zero rows?
 
-`Load History` runs the SQL:
+`Load History` runs:
 
 ```sql
 SELECT role || ': ' || content AS line
@@ -74,16 +77,21 @@ WHERE  session_id = '{{ $("Parse & Trim Input").item.json.session_id }}'
 ORDER BY created_at DESC LIMIT 10
 ```
 
-If the session is brand-new (which a "test" usually is) there are no prior
-messages, so the query returns **0 rows**. With n8n's default "On execute"
-setting the node emits no items and the chain halts before reaching Build
-Context.
+A test message comes in with a brand-new `session_id` that has never been
+saved to `chat_messages`. The `WHERE` clause matches nothing → 0 rows →
+no output item → n8n stops. This is correct n8n behaviour, not a bug —
+the workflow author has to opt-in to "always emit an item even on empty
+results".
+
+You'd see the same thing on `Load User Profile` if the user_id you sent
+doesn't exist in `profiles` yet.
 
 ### Fix (one of the following)
 
-1. Open `Load History` in n8n → **Settings** tab → set **Always Output Data** to
-   **On**. Now it emits a single empty item even when the SQL returns nothing,
-   and Build Context (plus the rest of the chain) runs.
+1. Open `Load History` in n8n → **Settings** tab → set **Always Output Data**
+   to **On**. Now it emits a single empty item even when the SQL returns
+   nothing, and Build Context (plus the rest of the chain) runs. Repeat for
+   `Load User Profile` for the same reason. This is the recommended fix.
 2. Or: rewrite the SQL to always return at least one row, e.g.
    ```sql
    SELECT COALESCE(string_agg(line, E'\n'), '') AS history
@@ -97,7 +105,44 @@ Context.
    This always returns one row (possibly an empty string), so the chain
    never stops.
 
-Option 1 is the lower-risk fix. Do that first.
+Option 1 is lower-risk and a 5-second toggle. Do that first, then re-run.
+
+## "Is the internal knowledge base useless? Can I delete it?"
+
+**No, don't delete it.** Here's the situation:
+
+The `chatbot_knowledge` Postgres table (with pgvector embeddings) **still
+exists and still works** — it's just not being *queried* right now because
+chat traffic is going to n8n, and the n8n workflow doesn't have a node
+wired to that table. The data is intact. The retrieval function
+`match_chatbot_knowledge` is intact. The admin UI at `/assistant/admin`
+still lets you add, edit, and delete entries.
+
+Your options:
+
+1. **Keep it as-is (recommended for now).** Costs nothing — pgvector data
+   sits in Postgres at near-zero storage cost. If you decide to wire it
+   into n8n later (a Postgres node that calls `match_chatbot_knowledge`
+   before Build Context), the entries are ready.
+2. **Switch back to the legacy edge function.** Blank `VITE_N8N_CHAT_WEBHOOK_URL`
+   on Vercel → redeploy. The edge function reads from `chatbot_knowledge`
+   on every chat. You lose Sonnet 4.6 + structured tool-calling but gain
+   semantic search over your runbooks.
+3. **Both (the proper end-state).** Add a Postgres node in n8n that does
+   a pgvector match against `chatbot_knowledge` and feeds the top hit
+   into Build Context as additional context. About a 30-minute n8n
+   change.
+
+If you delete the table:
+- All curated knowledge entries (whatever you've added under Assistant
+  Admin) are lost.
+- The legacy edge function will throw on its RAG step.
+- You'd need a migration to re-create the table + index + function before
+  re-enabling the legacy path.
+
+So the answer is: **leave it alone**. It's cheap insurance. If you'd like,
+I can wire option 3 — that's the only state where you genuinely use both
+the n8n agent's structured tools *and* the curated KB.
 
 ## Where does the "internal KB" come in?
 
