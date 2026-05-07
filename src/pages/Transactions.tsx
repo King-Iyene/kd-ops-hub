@@ -16,7 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
+import { friendlyPaystackError } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -138,9 +138,9 @@ const FILTER_TABS: { value: FilterTab; label: string }[] = [
   { value: 'quick_pay', label: 'Quick Pay' },
 ];
 
-// VAT on Paystack transfer fees: 7.5% (FIRS standard rate).
-const VAT_RATE = 0.075;
 // Stamp duty: ₦50 on every transfer ≥ ₦10,000 (Nigeria Tax Act 2025).
+// Pass-through to FIRS — Paystack collects this on every successful
+// transfer at this band. Deterministic, so we surface it client-side.
 const stampDutyForAmount = (n: number) => (n >= 10_000 ? 50 : 0);
 
 const Transactions = () => {
@@ -426,7 +426,6 @@ const Transactions = () => {
                   <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
                     <TableHead className="text-right text-xs">Amount</TableHead>
                     <TableHead className="text-right text-xs">Transfer fee</TableHead>
-                    <TableHead className="text-right text-xs">VAT</TableHead>
                     <TableHead className="text-right text-xs">Stamp Duty</TableHead>
                     <TableHead className="text-xs">Beneficiary</TableHead>
                     <TableHead className="text-xs">Date</TableHead>
@@ -436,22 +435,19 @@ const Transactions = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    // Older transfers were dispatched before paystack_fee_ngn was
-                    // captured on batch_items, so the column is NULL on the view.
-                    // Falling back to the published Paystack fee schedule keeps
-                    // the ledger consistent — the schedule is deterministic
-                    // (amount → fee), so the calculated value matches what
-                    // Paystack actually charged unless the merchant has a
-                    // negotiated rate (rare). Only succeeded transfers incur
-                    // the fee; pending/failed ones don't.
+                    // Transfer fee comes straight from Paystack — captured by
+                    // the reconciliation edge function (`fee_charged` in kobo)
+                    // and stored as paystack_fee_ngn. We do NOT calculate
+                    // locally any more: Paystack's fee already includes VAT
+                    // per FIRS rules, so a derived "fee × 7.5%" line was
+                    // double-counting. Stamp duty (₦50 on transfers ≥ ₦10K)
+                    // is a deterministic FIRS pass-through that Paystack
+                    // collects on every successful transfer, so we still
+                    // surface that as its own column.
                     const amount = Number(r.amount_ngn || 0);
                     const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
-                    const dbFee = Number(r.paystack_fee_ngn || 0);
-                    const fee = dbFee > 0
-                      ? dbFee
-                      : (ledgerStatus === 'succeeded' ? paystackTransferFee(amount) : 0);
-                    const vat = +(fee * VAT_RATE).toFixed(2);
-                    const stamp = stampDutyForAmount(amount);
+                    const fee = Number(r.paystack_fee_ngn || 0);
+                    const stamp = ledgerStatus === 'succeeded' ? stampDutyForAmount(amount) : 0;
                     const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
                       <TableRow
@@ -464,9 +460,6 @@ const Transactions = () => {
                         </TableCell>
                         <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
                           {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/40">—</span>}
-                        </TableCell>
-                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
-                          {vat > 0 ? formatNaira(vat) : <span className="text-muted-foreground/40">—</span>}
                         </TableCell>
                         <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
                           {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/40">—</span>}

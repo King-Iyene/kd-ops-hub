@@ -25,18 +25,13 @@ export function AuroraHero({
 }: Props) {
   return (
     <div className={cn('kd-aurora relative rounded-2xl text-white overflow-hidden', className)}>
-      {/* Base gradient floor — uses time-of-day variables so the background
-          actually shifts colour with the hour. Without this, only the
-          radial overlays were TOD-aware and the morning/evening change was
-          easy to miss on mobile where the overlay opacity reads softer. */}
-      <div
-        className="absolute inset-0 -z-10"
-        style={{
-          background:
-            'linear-gradient(135deg, hsl(var(--tod-aurora-3) / 0.85) 0%, hsl(var(--tod-aurora-1) / 0.55) 50%, hsl(var(--tod-aurora-2) / 0.40) 100%), #0b1220',
-          backgroundBlendMode: 'multiply, normal',
-        }}
-      />
+      {/* Base gradient floor — brand teal, the canonical KD-Squares colour
+          spread (deep teal → ocean → cyan-teal). The time-of-day variant
+          is layered on top by the radial overlays inside `.kd-aurora`,
+          so the hue still drifts amber→teal→violet→indigo across the day
+          without the floor going near-black (which made the hero look
+          off-brand on every screen). */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[hsl(201,100%,12%)] via-[hsl(200,100%,20%)] to-[hsl(186,100%,18%)] -z-10" />
 
       {/* Texture overlay */}
       {texture !== 'none' && (

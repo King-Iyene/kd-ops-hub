@@ -25,7 +25,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Share2, X } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
-import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
+import { stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -74,7 +74,10 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
   const amount = Number(item.amount_ngn) || 0;
-  const psFee = paystackTransferFee(amount);
+  // Transfer fee comes from Paystack (paystack_fee_ngn on batch_items).
+  // No client-side calculation — if Paystack hasn't reported a fee yet
+  // the row shows "—" rather than guessing.
+  const psFee = Number(item.paystack_fee_ngn || 0);
   const duty = stampDutyFor(amount);
   const total = amount + psFee + duty;
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
@@ -369,7 +372,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
                     every Nigerian bank prints on a real statement. */}
                 <Row k="Transfer amount" v={fmtNgn(amount)} />
                 {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
-                <Row k="Transfer fee" v={fmtNgn(psFee)} />
+                <Row k="Transfer fee" v={psFee > 0 ? fmtNgn(psFee) : '—'} />
                 <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
                   <span style={{ fontWeight: 600, color: '#111' }}>Total debit</span>
                   <span style={{ fontWeight: 700, color: '#111' }}>{fmtNgn(total)}</span>

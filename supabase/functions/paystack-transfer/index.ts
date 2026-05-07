@@ -490,10 +490,19 @@ serve(async (req) => {
         const body = await paystackFetch(
           `/transfer/verify/${encodeURIComponent(params.reference)}`,
         );
+        // fee_charged comes back in kobo on the transfer object (not on
+        // the inner data wrapper). Older Paystack responses called it
+        // `fee` — fall back to either spelling. Convert to NGN for
+        // consistency with how every other amount is stored on our
+        // side. NULL when Paystack hasn't decided yet (still pending).
+        const feeKobo =
+          body.data?.fee_charged ?? body.data?.fee ?? body.data?.transfer?.fee_charged ?? null;
+        const feeNgn = feeKobo == null ? null : Number(feeKobo) / 100;
         result = {
           status: body.data?.status,
           transfer_code: body.data?.transfer_code,
           reason: body.data?.failures?.[0]?.reason || body.data?.reason,
+          fee_ngn: feeNgn,
           raw: body.data,
         };
         break;

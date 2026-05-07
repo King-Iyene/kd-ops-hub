@@ -100,6 +100,8 @@ interface EmployeeData {
   pension_enabled: boolean | null;
   nhf_enabled: boolean | null;
   nhis_enabled: boolean | null;
+  paye_enabled: boolean | null;
+  tax_id: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -734,11 +736,15 @@ const EmployeeProfile = () => {
   // ── Compensation (derived from monthly gross) ────────────────────────────
   const hasSalary = !!employee.salary_ngn;
   const salary    = employee.salary_ngn || 0;
+  // Each statutory deduction has a per-employee toggle. Defaults match
+  // Nigerian regulatory baseline: PAYE + Pension on, NHF + NHIS off
+  // (NHF and NHIS only become mandatory in specific cases).
+  const payeOn    = employee.paye_enabled !== false;    // default true
   const pensionOn = employee.pension_enabled !== false; // default true
   const nhfOn     = employee.nhf_enabled === true;      // default false
   const nhisOn    = employee.nhis_enabled === true;     // default false
 
-  const payeMonthly            = hasSalary ? calculatePAYE(salary)       : 0;
+  const payeMonthly            = hasSalary && payeOn ? calculatePAYE(salary)       : 0;
   const pensionEmployeeMonthly = hasSalary && pensionOn ? Math.round(salary * 0.08) : 0;
   const pensionEmployerMonthly = hasSalary && pensionOn ? Math.round(salary * 0.10) : 0;
   const nhfMonthly             = hasSalary && nhfOn     ? Math.round(salary * 0.025) : 0;
@@ -1757,6 +1763,8 @@ const EmployeeProfile = () => {
                       nhf_enabled: form.nhf_enabled ?? false,
                       nhis_number: form.nhis_number || null,
                       nhis_enabled: form.nhis_enabled ?? false,
+                      paye_enabled: form.paye_enabled ?? true,
+                      tax_id: form.tax_id || null,
                     })}
                     disabled={sectionSaving}
                   >
@@ -1768,6 +1776,15 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="space-y-5">
               {([
+                {
+                  key: 'paye' as const,
+                  label: 'PAYE Tax',
+                  rate: 'FIRS progressive bands (7–24%)',
+                  numberField: 'tax_id',
+                  flagField: 'paye_enabled',
+                  defaultFlag: true,
+                  placeholder: 'Tax ID / TIN — e.g. 12345678-0001',
+                },
                 {
                   key: 'pension' as const,
                   label: 'Pension (RSA)',
