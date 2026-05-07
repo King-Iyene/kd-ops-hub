@@ -104,7 +104,8 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, CalendarDays } from 'lucide-react';
+import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
 import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
 
 interface BonusLine {
@@ -461,7 +462,13 @@ const Payroll = () => {
     try {
       const { data: employees, error: fetchErr } = await supabase
         .from('profiles')
-        .select('id, full_name, first_name, last_name, email, role, salary_ngn, phone, pension_enabled, nhf_enabled')
+        .select(`
+          id, full_name, first_name, last_name, email, role, salary_ngn, phone,
+          pension_enabled, nhf_enabled, paye_enabled,
+          tax_id, pension_pin, nhf_number,
+          bank_name, bank_account_number, bank_account_name,
+          department:departments!department_id(name)
+        `)
         .eq('status', 'active')
         .neq('role', 'driver')
         .gt('salary_ngn', 0)
@@ -478,12 +485,21 @@ const Payroll = () => {
         return;
       }
 
+      // Pull every field the new Nigerian-standard payslip needs in
+      // one shot — RC + TIN + address + logo from company_settings.
+      // Each field is optional on the payslip (header degrades
+      // gracefully when a tenant hasn't filled in their RC), so an
+      // empty company_settings row still produces a valid payslip.
       const { data: settings } = await supabase
         .from('company_settings')
-        .select('company_name')
+        .select('company_name, rc_number, tin, address, logo_url')
         .eq('id', '00000000-0000-0000-0000-000000000001')
         .maybeSingle();
-      const companyName = (settings as any)?.company_name || 'KD Squares Ltd';
+      const companyName    = (settings as any)?.company_name || 'KD Squares Ltd';
+      const companyRc      = (settings as any)?.rc_number    || null;
+      const companyTin     = (settings as any)?.tin          || null;
+      const companyAddress = (settings as any)?.address      || null;
+      const companyLogo    = (settings as any)?.logo_url     || null;
 
       // Fetch all active employee deductions, advances, AND outstanding EWA
       // requests that need to be settled this period in one batch.
@@ -533,6 +549,39 @@ const Payroll = () => {
         ewaByEmployee.get(w.employee_id)!.push(w);
       }
 
+      // ── YTD aggregation ─────────────────────────────────────────────
+      // Pull every payslip already issued THIS calendar year so each
+      // new payslip can render a "YTD gross / PAYE / pension / net"
+      // summary box. One query for everyone — vastly cheaper than per
+      // employee. Filter by period prefix (e.g. "2026-") rather than
+      // created_at so a back-dated payslip still rolls into the right
+      // year. Excludes the current run so we don't double-count.
+      const yearPrefix = run.period.split('-')[0] + '-';
+      const { data: ytdRows } = await supabase
+        .from('payslips')
+        .select('employee_id, gross_ngn, paye_ngn, pension_ngn, net_ngn, period, payroll_run_id')
+        .like('period', `${yearPrefix}%`)
+        .neq('payroll_run_id', run.id);
+      const ytdByEmployee = new Map<string, { gross: number; paye: number; pension: number; net: number }>();
+      for (const r of (ytdRows || []) as any[]) {
+        if (!r.employee_id) continue;
+        const acc = ytdByEmployee.get(r.employee_id) ?? { gross: 0, paye: 0, pension: 0, net: 0 };
+        acc.gross   += Number(r.gross_ngn   || 0);
+        acc.paye    += Number(r.paye_ngn    || 0);
+        acc.pension += Number(r.pension_ngn || 0);
+        acc.net     += Number(r.net_ngn     || 0);
+        ytdByEmployee.set(r.employee_id, acc);
+      }
+
+      // Period start / end / pay date for the strip on the payslip.
+      // The payroll_runs row already carries a pay_date (added in the
+      // payroll_world_class migration); fall back to the last day of
+      // the period if it's null on older runs.
+      const [y2y, m2m] = run.period.split('-').map(Number);
+      const periodStart = `${run.period}-01`;
+      const periodEnd   = new Date(y2y, m2m, 0).toISOString().slice(0, 10);
+      const payDate     = (run as any).pay_date || periodEnd;
+
       let succeeded = 0;
       let failed = 0;
       for (const e of list) {
@@ -542,9 +591,11 @@ const Payroll = () => {
         });
         try {
           const empGross = Number(e.salary_ngn);
-          const empPaye = calculateNigerianPAYE(empGross);
-          const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE : 0;
-          const empNhf = e.nhf_enabled === true ? empGross * NHF_RATE : 0;
+          // Honour the per-employee statutory toggles. Defaults match
+          // Nigerian regulatory baseline: PAYE + Pension on, NHF off.
+          const empPaye    = e.paye_enabled    !== false ? calculateNigerianPAYE(empGross)        : 0;
+          const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE                : 0;
+          const empNhf     = e.nhf_enabled     === true  ? empGross * NHF_RATE                    : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
@@ -571,19 +622,82 @@ const Payroll = () => {
             })),
           ];
 
+          // Employer contributions — informational on the payslip.
+          // Pension employer (10%) only when the employee opted in;
+          // NSITF (1%) is borne by every employer in the formal
+          // sector regardless of opt-in, so it's always shown.
+          const empPensionEmployer = e.pension_enabled !== false ? empGross * EMPLOYER_PENSION_RATE : 0;
+          const empNsitf           = empGross * 0.01;
+          const ytd                = ytdByEmployee.get(e.id);
+
           const html = renderPayslipHtml({
-            company_name: companyName,
-            employee_name: empName,
-            employee_email: e.email,
-            employee_role: e.role,
-            period: run.period,
-            gross_ngn: empGross,
-            paye_ngn: empPaye,
+            // Company
+            company_name:    companyName,
+            company_address: companyAddress,
+            company_rc:      companyRc,
+            company_tin:     companyTin,
+            logo_url:        companyLogo,
+
+            // Employee
+            employee_name:         empName,
+            employee_email:        e.email,
+            employee_role:         e.role,
+            employee_department:   e.department?.name ?? null,
+            employee_tax_id:       e.tax_id ?? null,
+            employee_pension_pin:  e.pension_pin ?? null,
+            employee_nhf_number:   e.nhf_number ?? null,
+
+            // Period
+            period:       run.period,
+            period_start: periodStart,
+            period_end:   periodEnd,
+            pay_date:     payDate,
+
+            // Earnings — Nigerian convention splits gross into
+            // basic 60% / housing 20% / transport 20% so the
+            // breakdown feels familiar to anyone reading.
+            // Tenants that already store granular earnings can
+            // override this later by adding columns; for now we
+            // surface the standard split.
+            earnings: {
+              basic_ngn:     Math.round(empGross * 0.60),
+              housing_ngn:   Math.round(empGross * 0.20),
+              transport_ngn: Math.round(empGross * 0.20),
+            },
+
+            // Stats
+            gross_ngn:   empGross,
+            paye_ngn:    empPaye,
             pension_ngn: empPension,
-            nhf_ngn: empNhf,
-            net_ngn: empNet,
-            generated_by: profile?.full_name || profile?.email,
+            nhf_ngn:     empNhf,
+            net_ngn:     empNet,
             extra_deductions: allEmpDeductionLines,
+
+            // Employer contributions (informational)
+            employer_contrib: {
+              pension_employer_ngn: empPensionEmployer,
+              nsitf_ngn:            empNsitf,
+              // ITF is annual + conditional (≥ 5 staff or ≥ ₦50M
+              // turnover); leave it off the per-employee payslip
+              // — it shows on the company-level payroll summary.
+            },
+
+            // Year-to-date — only set if the employee has prior
+            // payslips this year, so brand-new hires don't see
+            // an empty YTD box.
+            ytd: ytd ? {
+              gross_ngn:   ytd.gross   + empGross,
+              paye_ngn:    ytd.paye    + empPaye,
+              pension_ngn: ytd.pension + empPension,
+              net_ngn:     ytd.net     + empNet,
+            } : undefined,
+
+            // Bank
+            bank_name:         e.bank_name         ?? null,
+            bank_account:      e.bank_account_number ?? null,
+            bank_account_name: e.bank_account_name ?? null,
+
+            generated_by: profile?.full_name || profile?.email,
           }, { autoPrint: false });
 
           const path = `${e.id}/${run.period}.html`;
@@ -1127,6 +1241,10 @@ const Payroll = () => {
       <Tabs defaultValue="runs">
         <TabsList>
           <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
+          <TabsTrigger value="calendar">
+            <CalendarDays className="mr-2 h-4 w-4" />
+            Calendar
+          </TabsTrigger>
           <TabsTrigger value="schedules">
             <CalendarClock className="mr-2 h-4 w-4" />
             Pay Schedules
@@ -1465,6 +1583,10 @@ const Payroll = () => {
         </CardContent>
       </Card>
 
+        </TabsContent>
+
+        <TabsContent value="calendar" className="mt-6">
+          <PayrollCalendar />
         </TabsContent>
 
         <TabsContent value="schedules" className="mt-6">
