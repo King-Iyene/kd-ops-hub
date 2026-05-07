@@ -45,6 +45,52 @@ interface CalendarEvent {
   detail?: string;    // optional secondary text
 }
 
+// Roll a date backward over weekends and Nigerian public holidays
+// until it lands on a business day. Mirrors the behaviour of the
+// next_pay_dates RPC so the client-side fallback feels identical
+// once a real schedule is configured. holidays is a Set of yyyy-mm-dd.
+function rollBackToBusinessDay(iso: string, holidaySet: Set<string>): { date: string; rolledFrom?: string } {
+  let cur = new Date(iso);
+  const original = iso;
+  let safety = 0;
+  while (safety++ < 31) {
+    const day = cur.getDay(); // 0 = Sun, 6 = Sat
+    const cIso = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`;
+    if (day !== 0 && day !== 6 && !holidaySet.has(cIso)) {
+      return cIso === original ? { date: cIso } : { date: cIso, rolledFrom: original };
+    }
+    cur.setDate(cur.getDate() - 1);
+  }
+  return { date: original };
+}
+
+// Generate "Monthly on the Nth" pay days across a date window using
+// the same holiday-aware rolling the RPC uses. Used as a smart default
+// when the tenant has zero active pay_schedules — operators see what
+// payroll *would* look like for the most common Nigerian SME cadence
+// (5th of the month) before they finish setting up their schedule.
+function generateMonthlyAnchorPayDates(
+  startIso: string,
+  endIso: string,
+  anchorDay: number,
+  holidaySet: Set<string>,
+): { date: string; rolledFrom?: string }[] {
+  const start = new Date(startIso);
+  const end   = new Date(endIso);
+  const out: { date: string; rolledFrom?: string }[] = [];
+  // Walk month-by-month from the start of the window.
+  const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cur <= end) {
+    const candidate = new Date(cur.getFullYear(), cur.getMonth(), anchorDay);
+    if (candidate >= start && candidate <= end) {
+      const iso = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, '0')}-${String(candidate.getDate()).padStart(2, '0')}`;
+      out.push(rollBackToBusinessDay(iso, holidaySet));
+    }
+    cur.setMonth(cur.getMonth() + 1);
+  }
+  return out;
+}
+
 const isoOf = (d: Date) => d.toISOString().slice(0, 10);
 
 // Build a yyyy-mm-dd → events map so the modifier predicate is O(1)
@@ -90,6 +136,9 @@ export function PayrollCalendar() {
   const [month, setMonth] = useState(() => new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  // True when the calendar is showing a preview cadence because
+  // the tenant hasn't configured an active pay_schedule yet.
+  const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,8 +279,46 @@ export function PayrollCalendar() {
         }
       }
 
+      // ── Fallback: no active schedules → preview the most common
+      // Nigerian SME cadence so the calendar isn't empty while the
+      // operator finishes their setup. We surface 5th-of-the-month
+      // pay days, holiday-rolled to the previous business day, plus
+      // a cutoff three business days before each pay day. The banner
+      // below the calendar makes the fallback nature explicit so the
+      // operator doesn't think these are real, configured runs.
+      const hasActiveSchedule = (schedRes.data ?? []).length > 0;
+      const hasAnyPayDay      = out.some((e) => e.kind === 'pay_day');
+      if (!hasActiveSchedule && !hasAnyPayDay) {
+        const holidaySet = new Set<string>();
+        for (const e of out) if (e.kind === 'holiday') holidaySet.add(e.date);
+        const previewDates = generateMonthlyAnchorPayDates(isoOf(start), isoOf(end), 5, holidaySet);
+        for (const p of previewDates) {
+          out.push({
+            date: p.date,
+            kind: 'pay_day',
+            label: 'Pay day · Default (5th)',
+            detail: p.rolledFrom
+              ? `Preview · rolled from ${formatDate(p.rolledFrom)} (weekend / holiday)`
+              : 'Preview · set up a real schedule under Pay Schedules',
+          });
+          // Cutoff three business days before — same rolling logic so
+          // it lands on a working day too.
+          const cutoffCand = new Date(p.date);
+          cutoffCand.setDate(cutoffCand.getDate() - 3);
+          const cutoffIso = `${cutoffCand.getFullYear()}-${String(cutoffCand.getMonth() + 1).padStart(2, '0')}-${String(cutoffCand.getDate()).padStart(2, '0')}`;
+          const cutoff = rollBackToBusinessDay(cutoffIso, holidaySet);
+          out.push({
+            date: cutoff.date,
+            kind: 'cutoff',
+            label: 'Cutoff · Default',
+            detail: 'Lock overtime + variable pay before this date',
+          });
+        }
+      }
+
       if (!cancelled) {
         setEvents(out);
+        setIsPreview(!hasActiveSchedule && !hasAnyPayDay);
         setLoading(false);
       }
     })();
@@ -279,6 +366,23 @@ export function PayrollCalendar() {
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
+        {/* Preview banner — surfaces only while no active schedule
+            exists. Tells the operator what they're looking at and
+            points at the Pay Schedules tab where they apply a real
+            preset. Dismissed automatically the moment a schedule is
+            saved (state will go isPreview=false on next refresh). */}
+        {isPreview && (
+          <div className="mx-4 mt-4 mb-0 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+            <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <p className="leading-snug">
+              <span className="font-semibold">Preview cadence —</span>{' '}
+              showing 5th-of-the-month pay days as a default. Set up a
+              real <span className="font-medium">Pay Schedule</span> to
+              replace this with your actual cadence and unlock auto pay
+              date computation.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_minmax(260px,360px)] gap-4 p-4">
 
           {/* Calendar */}

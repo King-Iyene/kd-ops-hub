@@ -38,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import MfaSettings from '@/components/settings/MfaSettings';
 import PrivacyPanel from '@/components/PrivacyPanel';
+import { StickyActionBar } from '@/components/ui-kit/StickyActionBar';
 import { PushNotificationsToggle } from '@/components/profile/PushNotificationsToggle';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -464,12 +465,23 @@ const ProfilePage = () => {
                   <Input value={roleLabel(profile.role)} disabled />
                 </div>
               </div>
-              <div className="flex justify-end">
-                <Button onClick={saveProfile} disabled={savingProfile || !dirtyAccount || !fullName.trim()}>
+              {/* StickyActionBar pins Save to the bottom of the
+                  viewport on mobile while keeping its in-flow
+                  position on desktop. The Account form is long
+                  enough on phones that the original justify-end
+                  flex row scrolled the Save button out of reach. */}
+              <StickyActionBar
+                status={dirtyAccount ? 'Unsaved changes' : undefined}
+              >
+                <Button
+                  onClick={saveProfile}
+                  disabled={savingProfile || !dirtyAccount || !fullName.trim()}
+                  className="flex-1 md:flex-none h-11 md:h-9"
+                >
                   {savingProfile ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   Save changes
                 </Button>
-              </div>
+              </StickyActionBar>
             </CardContent>
           </Card>
         </TabsContent>

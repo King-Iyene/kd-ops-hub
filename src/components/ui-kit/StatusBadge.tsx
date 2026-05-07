@@ -34,6 +34,41 @@ export function statusLabel(status: string): string {
   return STATUS_CONFIG[status]?.label ?? status.replace(/_/g, ' ');
 }
 
+// ── Reusable tone palette ────────────────────────────────────────
+//
+// Centralised tone classes for any UI surface that wants the same
+// visual vocabulary as StatusBadge but isn't a literal status pill —
+// activity feed entries, KPI deltas, log rows, anomaly chips, etc.
+// Use the keyword shape ("success" / "warning" / etc.) so callers
+// don't have to know the underlying colour stops; tweaking the
+// palette later only happens in one place.
+
+export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+const TONE_CLASS: Record<Tone, string> = {
+  success: 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-500/10',
+  warning: 'text-amber-700   bg-amber-50   dark:text-amber-300   dark:bg-amber-500/10',
+  danger:  'text-red-700     bg-red-50     dark:text-red-300     dark:bg-red-500/10',
+  info:    'text-blue-700    bg-blue-50    dark:text-blue-300    dark:bg-blue-500/10',
+  neutral: 'text-slate-600   bg-slate-100  dark:text-slate-300   dark:bg-slate-500/15',
+};
+
+export function toneClass(tone: Tone): string {
+  return TONE_CLASS[tone] ?? TONE_CLASS.neutral;
+}
+
+// Heuristic that picks a tone from a free-form action / event type.
+// First match wins. Used by activity feeds and anomaly logs so the
+// row tint stays consistent with StatusBadge across the platform.
+export function toneFor(action: string): Tone {
+  const a = (action || '').toLowerCase();
+  if (/(success|approved|paid|completed|processed|succeeded|active|renewed|added|confirmed|received|delivered)/.test(a)) return 'success';
+  if (/(failed|reject|cancel|reverse|denied|deleted|removed|critical|breach|error|expired|overdue|fraud)/.test(a))         return 'danger';
+  if (/(pending|warn|alert|low|stale|stuck|retry|due|expiring|partial)/.test(a))                                            return 'warning';
+  if (/(created|submitted|drafted|edited|updated|invited|funded|processing|recall|view|read)/.test(a))                       return 'info';
+  return 'neutral';
+}
+
 export function StatusBadge({
   status,
   size = 'default',

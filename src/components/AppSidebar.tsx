@@ -137,8 +137,16 @@ const ALL_NAV: NavItem[] = [
 
 // ─── Group definitions ────────────────────────────────────────────────────────
 
+// Finance was a 14-item bucket — biggest in the sidebar by far —
+// which made operators with a fat list scroll past the half they
+// don't use daily. Split into a tight day-to-day "Finance" group
+// (the things finance touches every week) and a "Treasury" group
+// for the assets / compliance / cash-flow surface that's typically
+// reviewed monthly. Both groups individually-collapsible so an
+// admin can hide the half they don't want to look at.
 const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Budgets', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Anomalies', 'Cash Flow'] },
+  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Budgets', 'Anomalies'] },
+  { key: 'treasury',   label: 'Treasury',   titles: ['Subscriptions', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Cash Flow'] },
   { key: 'operations', label: 'Operations', titles: ['My Requests', 'Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
@@ -229,6 +237,7 @@ export function AppSidebar() {
 
   const [groupCollapsed, setGroupCollapsed] = useState<Record<GroupKey, boolean>>(() => ({
     finance:    loadCollapsed('finance'),
+    treasury:   loadCollapsed('treasury'),
     operations: loadCollapsed('operations'),
     workspace:  loadCollapsed('workspace'),
     crm:        loadCollapsed('crm'),

@@ -57,6 +57,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { toneClass, toneFor } from '@/components/ui-kit/StatusBadge';
 import { cn } from '@/lib/utils';
 
 interface DashboardStats {
@@ -142,20 +143,26 @@ const ICONS: Record<string, typeof FileText> = {
   batch_receipt_downloaded: FileText,
 };
 
-const ACTION_TONE: Record<string, string> = {
-  batch_approved: 'text-emerald-600 bg-emerald-50',
-  batch_processed: 'text-emerald-600 bg-emerald-50',
-  subscription_renewed: 'text-emerald-600 bg-emerald-50',
-  budget_approved: 'text-emerald-600 bg-emerald-50',
-  leave_approved: 'text-emerald-600 bg-emerald-50',
-  expense_approved: 'text-emerald-600 bg-emerald-50',
-  batch_rejected: 'text-red-600 bg-red-50',
-  budget_rejected: 'text-red-600 bg-red-50',
-  leave_rejected: 'text-red-600 bg-red-50',
-  expense_rejected: 'text-red-600 bg-red-50',
-  batch_submitted: 'text-amber-600 bg-amber-50',
-  budget_submitted: 'text-amber-600 bg-amber-50',
-  batch_funded: 'text-blue-600 bg-blue-50',
+// Per-action tone class for the audit feed. Derived once via the
+// shared toneFor() heuristic so Dashboard, anomaly cards, and any
+// future activity surfaces stay visually aligned. The map below is
+// just a curated override list for the most common KDOps action
+// types — anything missing falls through to the heuristic, which
+// recognises the standard verb stems (approved / rejected / paid).
+const ACTION_TONE: Record<string, ReturnType<typeof toneClass>> = {
+  batch_approved:        toneClass('success'),
+  batch_processed:       toneClass('success'),
+  subscription_renewed:  toneClass('success'),
+  budget_approved:       toneClass('success'),
+  leave_approved:        toneClass('success'),
+  expense_approved:      toneClass('success'),
+  batch_rejected:        toneClass('danger'),
+  budget_rejected:       toneClass('danger'),
+  leave_rejected:        toneClass('danger'),
+  expense_rejected:      toneClass('danger'),
+  batch_submitted:       toneClass('warning'),
+  budget_submitted:      toneClass('warning'),
+  batch_funded:          toneClass('info'),
 };
 
 const prettyType = (t: string) =>
@@ -781,7 +788,10 @@ const Dashboard = () => {
             <div className="divide-y divide-border/40">
               {activity.map((item, i) => {
                 const Icon = ICONS[item.action_type] || FileText;
-                const toneCls = ACTION_TONE[item.action_type] || 'text-muted-foreground bg-muted';
+                // Curated overrides take precedence; otherwise the
+                // shared toneFor() heuristic guesses from the verb stem
+                // ("approved" → success, "rejected" → danger, etc.).
+                const toneCls = ACTION_TONE[item.action_type] ?? toneClass(toneFor(item.action_type));
                 return (
                   <div
                     key={item.id}
