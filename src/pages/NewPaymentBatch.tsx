@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useFeatureAccess } from '@/hooks/usePermission';
+import { APPROVER_ROLES } from '@/lib/roles';
 import { formatNaira, formatDate, maskAccountNumber } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
 import { cn } from '@/lib/utils';
@@ -111,6 +113,35 @@ const NewPaymentBatch = () => {
   const [saving, setSaving] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(isEditMode);
   const [batchType, setBatchType] = useState<BatchType>('contractor');
+
+  // Per-batch-type permissions. `payments.create` alone gives Contractor
+  // access (default for finance / admin). The HR-tier batches (salary,
+  // advance, bonus) need their own grant — admin / finance have all four
+  // by default; operations / field_staff have none unless an admin
+  // toggles them on. Cards filter against `allowedBatchTypes` below so
+  // a user only sees the types they can actually create.
+  const canContractor = useFeatureAccess('payments.batch.contractor', APPROVER_ROLES);
+  const canSalary     = useFeatureAccess('payments.batch.salary',     APPROVER_ROLES);
+  const canAdvance    = useFeatureAccess('payments.batch.advance',    APPROVER_ROLES);
+  const canBonus      = useFeatureAccess('payments.batch.bonus',      APPROVER_ROLES);
+  const allowedBatchTypes = useMemo<BatchType[]>(() => {
+    const out: BatchType[] = [];
+    if (canContractor) out.push('contractor');
+    if (canSalary)     out.push('employee_salary');
+    if (canAdvance)    out.push('advance');
+    if (canBonus)      out.push('prize');
+    return out;
+  }, [canContractor, canSalary, canAdvance, canBonus]);
+
+  // If the user lands on a type they aren't allowed to create (e.g. via
+  // bookmark, deep link, or because they were just downgraded), pull
+  // them back to the first allowed type. Avoids the silent state where
+  // the form is committed to a type whose card was filtered out.
+  useEffect(() => {
+    if (allowedBatchTypes.length > 0 && !allowedBatchTypes.includes(batchType)) {
+      setBatchType(allowedBatchTypes[0]);
+    }
+  }, [allowedBatchTypes, batchType]);
 
   // Step 1
   const [batchName, setBatchName] = useState('');
@@ -510,7 +541,7 @@ const NewPaymentBatch = () => {
             <div>
               <Label className="text-sm mb-3 block">What type of payment is this?</Label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {BATCH_TYPES.map((t) => (
+                {BATCH_TYPES.filter((t) => allowedBatchTypes.includes(t.type)).map((t) => (
                   <button
                     key={t.type}
                     type="button"
@@ -564,6 +595,16 @@ const NewPaymentBatch = () => {
                   </button>
                 ))}
               </div>
+              {allowedBatchTypes.length === 0 && (
+                <div className="rounded-lg border border-dashed border-amber-500/40 bg-amber-500/5 px-4 py-6 text-center">
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">No batch types unlocked</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ask an admin to grant at least one of <span className="font-mono">payments.batch.contractor</span>,{' '}
+                    <span className="font-mono">.salary</span>, <span className="font-mono">.advance</span> or{' '}
+                    <span className="font-mono">.bonus</span> on your profile.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Advance reason / bonus type */}

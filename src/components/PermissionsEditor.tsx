@@ -9,6 +9,10 @@ export type PermissionKey =
   | 'payments.create'
   | 'payments.approve_batches'
   | 'payments.quick_pay'
+  | 'payments.batch.contractor'
+  | 'payments.batch.salary'
+  | 'payments.batch.advance'
+  | 'payments.batch.bonus'
   | 'payroll.view'
   | 'payroll.create'
   | 'payroll.approve'
@@ -88,6 +92,19 @@ const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: 'payments.create', label: 'Create batches' },
       { key: 'payments.approve_batches', label: 'Approve batches' },
       { key: 'payments.quick_pay', label: 'Quick pay' },
+    ],
+  },
+  {
+    // Sub-permissions for the four batch types on /payments/new. Granting
+    // `payments.create` alone gives a user access to Contractor batches
+    // only — these toggles unlock the three HR-tier batches (salary run,
+    // advance, bonus) which by default are admin / finance only.
+    title: 'Payment batch types',
+    permissions: [
+      { key: 'payments.batch.contractor', label: 'Contractor payment' },
+      { key: 'payments.batch.salary',     label: 'Employee salary run' },
+      { key: 'payments.batch.advance',    label: 'Salary advance' },
+      { key: 'payments.batch.bonus',      label: 'Bonus / prize' },
     ],
   },
   {
@@ -307,6 +324,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
   admin: [
     'dashboard.view_kpis', 'dashboard.view_audit_log',
     'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
+    'payments.batch.contractor', 'payments.batch.salary', 'payments.batch.advance', 'payments.batch.bonus',
     'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
     'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
     'fleet.view', 'fleet.submit', 'fleet.approve_fuel_requests', 'fleet.manage_vehicles', 'fleet.view_activity',
@@ -331,6 +349,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
   finance: [
     'dashboard.view_kpis', 'dashboard.view_audit_log',
     'payments.view', 'payments.create', 'payments.approve_batches', 'payments.quick_pay',
+    'payments.batch.contractor', 'payments.batch.salary', 'payments.batch.advance', 'payments.batch.bonus',
     'payroll.view', 'payroll.create', 'payroll.approve', 'payroll.generate_payslips',
     'expenses.view_all', 'expenses.submit', 'expenses.approve', 'expenses.process_payments',
     'fleet.view', 'fleet.approve_fuel_requests', 'fleet.view_activity',
@@ -350,6 +369,10 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'projects.view', 'projects.manage',
     'reports.view', 'reports.export',
   ],
+  // Operations role — explicitly NO payroll, NO payments, NO payment-batch
+  // creation. Operations runs the people side: contractors, employees,
+  // benefits, training, onboarding, attendance. Financial actions stay
+  // with finance / admin unless granted as a per-user override.
   operations: [
     'dashboard.view_kpis',
     'expenses.view_all', 'expenses.submit',
@@ -367,6 +390,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'clients.view', 'clients.manage',
     'projects.view', 'projects.manage',
   ],
+  // Field staff — submit-only role. Sees expenses they raise + fleet
+  // fuel/trip submissions. No view_all, no approvals, no batch creation.
   field_staff: [
     'expenses.submit',
     'fleet.submit',

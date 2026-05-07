@@ -25,7 +25,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Share2, X } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
-import { stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
+import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
@@ -130,11 +130,24 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
   const amount = Number(item.amount_ngn) || 0;
-  // Transfer fee comes from Paystack (paystack_fee_ngn on batch_items),
-  // with a lazy backfill above if the column is null on first open.
-  // No client-side calculation — if Paystack hasn't reported a fee yet
-  // the row shows "—" rather than guessing.
-  const psFee = feeOverride ?? Number(item.paystack_fee_ngn || 0);
+  // Transfer fee resolution mirrors BatchDetail.getItemFee — same fallback
+  // chain so the receipt and the batch row never disagree:
+  //   1. paystack_fee_ngn column (populated by webhook / reconcile / lazy
+  //      backfill above)
+  //   2. paystack_raw.fee (kobo) on the same row — webhooks write this
+  //      even before any column-add migration, so it's the resilient
+  //      fallback for older deployments
+  //   3. Published Paystack schedule (paystackTransferFee) for succeeded
+  //      transfers, so the row never displays "—" with a bogus total
+  //      below it. Only kicks in if 1 and 2 are both empty.
+  //   4. 0 for non-succeeded items.
+  const directFee = Number(item.paystack_fee_ngn || 0);
+  const rawFeeKobo = Number(item.paystack_raw?.fee || 0);
+  const psFee = feeOverride
+    ?? (directFee > 0 ? directFee
+        : rawFeeKobo > 0 ? rawFeeKobo / 100
+        : isSucceeded ? paystackTransferFee(amount)
+        : 0);
   const duty = stampDutyFor(amount);
   const total = amount + psFee + duty;
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
@@ -429,7 +442,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
                     every Nigerian bank prints on a real statement. */}
                 <Row k="Transfer amount" v={fmtNgn(amount)} />
                 {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
-                <Row k="Transfer fee" v={psFee > 0 ? fmtNgn(psFee) : '—'} />
+                <Row k="Transfer fee" v={fmtNgn(psFee)} />
                 <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
                   <span style={{ fontWeight: 600, color: '#111' }}>Total debit</span>
                   <span style={{ fontWeight: 700, color: '#111' }}>{fmtNgn(total)}</span>

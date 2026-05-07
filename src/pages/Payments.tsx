@@ -83,6 +83,15 @@ const Payments = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const canQuickPay = useFeatureAccess('payments.quick_pay', APPROVER_ROLES);
+  // Wallet balance + funding details are sensitive — only finance-tier
+  // roles see them. A non-finance role with `payments.view` granted as
+  // an exception still gets the page (so they can see batches), but the
+  // wallet card stays hidden because the underlying balance call is
+  // role-gated by the edge function and the funding bank/account is
+  // typically considered confidential. Permission `settings.access`
+  // grants the wallet too — that's the same group of people who'd be
+  // configuring the funding details in Settings.
+  const canSeeWallet = useFeatureAccess('settings.access', APPROVER_ROLES);
   const [batches, setBatches] = useState<PaymentBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -305,7 +314,7 @@ const Payments = () => {
         </div>
 
         <div className="flex items-start gap-3 flex-wrap justify-end w-full sm:w-auto">
-          <PaystackBalanceCard
+          {canSeeWallet && <PaystackBalanceCard
             balance={balance}
             balanceLoading={balanceLoading}
             balanceError={balanceError}

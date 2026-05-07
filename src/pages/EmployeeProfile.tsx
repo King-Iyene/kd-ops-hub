@@ -2535,14 +2535,46 @@ const EmployeeProfile = () => {
       {activeTab === 'permissions' && canManage && (
         <div className="mt-4">
           <Card>
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0 gap-2 flex-wrap">
               <CardTitle className="text-base">Permissions</CardTitle>
-              <Button size="sm" onClick={savePermissions} disabled={savingPermissions}>
-                {savingPermissions && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                Save
-              </Button>
+              <div className="flex gap-2 items-center">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (!confirm('Clear all explicit overrides and fall back to the role defaults?')) return;
+                    // Empty object means: no explicit grants/denies. Every
+                    // toggle goes back to whatever the role default says,
+                    // which is the source of truth in PermissionsEditor's
+                    // `roleDefaults` prop. Quick way to wipe a stale config.
+                    setPermissions({});
+                  }}
+                  title="Clear every explicit grant/deny so the user falls back entirely to their role's default permissions"
+                >
+                  Reset to role defaults
+                </Button>
+                <Button size="sm" onClick={savePermissions} disabled={savingPermissions}>
+                  {savingPermissions && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                  Save
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
+              {/* The yellow banner explains how the toggle states map to
+                  semantics — operators were unsure whether OFF meant "use
+                  role default" or "explicitly denied". Three distinct
+                  states are now spelled out here. */}
+              <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 mb-4 text-xs text-foreground/80 space-y-1">
+                <p>
+                  <span className="font-semibold">ON (no badge)</span> — comes from this user's role default.
+                </p>
+                <p>
+                  <span className="font-semibold">ON · GRANTED</span> — explicitly switched on, even though the role wouldn't normally allow it.
+                </p>
+                <p>
+                  <span className="font-semibold">OFF · DENIED</span> — explicitly switched off, even though the role would normally allow it. Use sparingly — better to change the role.
+                </p>
+              </div>
               <PermissionsEditor
                 value={permissions}
                 onChange={setPermissions}
