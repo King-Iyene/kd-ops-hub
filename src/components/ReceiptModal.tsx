@@ -86,7 +86,17 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             : undefined,
         });
         if (cancelled || error) return;
-        const fee = Number((data as any)?.fee_ngn || 0);
+        // Resilient extraction. The new edge function surfaces fee_ngn
+        // directly; the older deployed version only exposes the raw
+        // Paystack response under `raw`, where the fee lives in kobo
+        // as `data.fee`. Pull from whichever is available so this works
+        // before AND after the edge function is redeployed.
+        const d: any = data;
+        const feeNgnDirect = Number(d?.fee_ngn || 0);
+        const feeKoboRaw   = Number(d?.raw?.fee || 0);
+        const fee = feeNgnDirect > 0
+          ? feeNgnDirect
+          : feeKoboRaw > 0 ? feeKoboRaw / 100 : 0;
         if (fee > 0) {
           setFeeOverride(fee);
           // Persist back so subsequent opens are instant and the

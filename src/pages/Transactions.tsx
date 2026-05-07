@@ -214,6 +214,58 @@ const Transactions = () => {
 
   const pagination = usePagination(filtered, 25);
 
+  // Lazy-backfill paystack_fee_ngn for any succeeded transfer on the
+  // current page that's missing one. Same flow as the receipt's
+  // backfill — calls verify_transfer, persists the fee back to
+  // batch_items. Limited to the visible 25 rows so we don't fan out
+  // hundreds of requests on first load. Fires once per row id; the
+  // ref-set guards against re-firing across re-renders.
+  const backfilledRefs = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const candidates = pagination.slice.filter((r) => {
+      const ledger = LEDGER_STATUS[r.status] || r.status;
+      // Only call verify_transfer with a real Paystack-shaped reference.
+      // The transactions_view falls back to the item UUID when no ref is
+      // recorded — a UUID would 404 and waste the round-trip.
+      const ref = r.reference || '';
+      const looksLikePsRef = /^(kdops_|TRF_)/i.test(ref);
+      return ledger === 'succeeded'
+        && (!r.paystack_fee_ngn || Number(r.paystack_fee_ngn) === 0)
+        && looksLikePsRef
+        && !backfilledRefs.current.has(r.id);
+    });
+    if (candidates.length === 0) return;
+    candidates.forEach((r) => backfilledRefs.current.add(r.id));
+    let cancelled = false;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      // Sequential to avoid hammering Paystack — these are diagnostic
+      // backfills, not on the critical path. Each call ~250ms.
+      for (const r of candidates) {
+        if (cancelled) break;
+        try {
+          const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+            body: { action: 'verify_transfer', reference: r.reference },
+            headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+          });
+          if (error) continue;
+          const d: any = data;
+          const feeNgn = Number(d?.fee_ngn || 0)
+            || (Number(d?.raw?.fee || 0) > 0 ? Number(d.raw.fee) / 100 : 0);
+          if (feeNgn > 0) {
+            await supabase.from('batch_items').update({ paystack_fee_ngn: feeNgn }).eq('id', r.id);
+            if (!cancelled) {
+              setRows((prev) => prev.map((row) =>
+                row.id === r.id ? { ...row, paystack_fee_ngn: feeNgn } : row,
+              ));
+            }
+          }
+        } catch { /* silent */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pagination.slice]);
+
   const totalAmount = useMemo(
     () => filtered.reduce((sum, r) => sum + (r.amount_ngn || 0), 0),
     [filtered],

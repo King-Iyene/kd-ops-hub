@@ -167,5 +167,24 @@ export const useAuth = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Realtime profile listener — when an admin updates this user's row
+  // (permissions, role, status), refetch immediately so the UI reflects
+  // the change without forcing a sign-out/sign-in. Without this, an
+  // operator who's just been granted "payments.create" sees nothing
+  // until their next session.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`profile:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+        () => { void fetchProfile(userId); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [userId, fetchProfile]);
+
   return { user, profile, loading };
 };

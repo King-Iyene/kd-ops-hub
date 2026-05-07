@@ -655,7 +655,15 @@ const EmployeeProfile = () => {
       toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
     } else {
       await logAudit('permissions_updated', `Permissions updated for "${employee?.full_name || id}"`, currentUser);
-      toast({ title: 'Permissions saved' });
+      // Realtime listener in useAuth subscribes to profile updates for the
+      // logged-in user, so the change propagates to their session
+      // automatically — they don't need to sign out. The toast just says
+      // "Permissions saved" so admins don't get the misleading "ask the
+      // user to log out and back in" message any more.
+      toast({
+        title: 'Permissions saved',
+        description: `${employee?.full_name || 'User'}'s session updates within a few seconds — no sign-out needed.`,
+      });
     }
     setSavingPermissions(false);
   };
