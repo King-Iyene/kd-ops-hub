@@ -140,9 +140,24 @@ If you delete the table:
 - You'd need a migration to re-create the table + index + function before
   re-enabling the legacy path.
 
-So the answer is: **leave it alone**. It's cheap insurance. If you'd like,
-I can wire option 3 — that's the only state where you genuinely use both
-the n8n agent's structured tools *and* the curated KB.
+So the answer is: **leave it alone**. It's cheap insurance.
+
+### What about combining n8n + KB?
+
+We considered it (option 3 above) and decided **not** to wire them
+together for now. The agent's existing nine Postgres tools already let
+it answer most platform questions by reading the live database directly
+(payment_batches, batch_items, employees, expenses, etc.), and adding a
+fourth Postgres call per message just to fetch curated text increases
+the workflow's surface area without unlocking new capability. The KB
+stays as searchable archive accessible through `/assistant/admin` and
+the legacy edge function — that path can be revived any time by
+blanking `VITE_N8N_CHAT_WEBHOOK_URL` on Vercel.
+
+If a clear gap shows up later that the live-data tools can't answer (e.g.
+"how do I onboard an approver?" with the answer living in a runbook the
+agent doesn't otherwise see), wiring the KB in is a ~30-minute n8n
+change.
 
 ## Where does the "internal KB" come in?
 
@@ -217,123 +232,13 @@ depends:
 | Chat works locally but not on Vercel | Env vars not set in production | Vercel Project → Settings → Environment Variables → ensure both `VITE_N8N_CHAT_WEBHOOK_URL` and `VITE_N8N_CHAT_SECRET` are set for **Production** and redeploy. |
 | Agent gives stale answers | n8n holds no cache; the issue is your Postgres credential is pointing at a stale replica or the read-only role can't see recent rows | Check the Postgres credential in n8n. |
 
-## Wiring the KB into the n8n workflow (option 3)
-
-Goal: between `Load History` and `Build Context`, add a Postgres node that
-runs full-text search against `chatbot_knowledge` for the user's message,
-then have `Build Context` include the result alongside profile + history.
-End-state: the agent quotes from your curated runbooks instead of just
-guessing, while keeping all the structured Postgres tools it has today.
-
-### Step 1 — Add a `Search KB` node
-
-In the n8n editor, drag a new **Postgres** node onto the canvas between
-`Load History` and `Build Context`. Connect:
-
-```
-Load History → Search KB → Build Context
-```
-
-Configure:
-
-| Field | Value |
-|---|---|
-| Credential | The same **King's Postgres account** you use for the other DB nodes |
-| Operation | **Execute Query** |
-| Settings → **Always Output Data** | **On** (so an empty KB result doesn't halt the chain) |
-
-Query (paste verbatim):
-
-```sql
-SELECT
-  COALESCE(
-    string_agg(
-      '— ' || title || E'\n' || content,
-      E'\n\n'
-      ORDER BY similarity DESC
-    ),
-    ''
-  )                                                                   AS kb_context,
-  COALESCE(count(*), 0)                                                AS kb_match_count
-FROM public.match_chatbot_knowledge(
-  $1::text,
-  3::int,
-  COALESCE($2, 'driver')::text
-);
-```
-
-Then **Add option → Query Parameters**:
-
-| # | Value |
-|---|---|
-| 1 | `={{ $("Parse & Trim Input").item.json.message }}` |
-| 2 | `={{ $("Load User Profile").item.json.role }}` |
-
-Why parameter binding instead of inline templating: the user's message is
-free-form text; an unescaped quote would break the SQL or open injection.
-The existing `Load History` node uses inline templating only because
-session_id is a UUID and can't contain `'`. Free-form messages can't
-make that assumption.
-
-### Step 2 — Update `Build Context` to include the KB result
-
-Open the `Build Context` Set node. It already builds the object the agent
-receives. Add two more assignments:
-
-| Name | Type | Value |
-|---|---|---|
-| `kb_context` | String | `={{ $("Search KB").item.json.kb_context }}` |
-| `kb_match_count` | Number | `={{ $("Search KB").item.json.kb_match_count }}` |
-
-Everything else (profile, history, message) stays as it was.
-
-### Step 3 — Tell the agent how to use it
-
-Open the `Master Agent (Sonnet 4.6)` node and append to the system prompt:
-
-> You have access to a curated knowledge base passed in as `kb_context`.
-> When `kb_match_count` > 0, prefer those answers over your training
-> knowledge — the KB is the canonical source for KD-Ops processes,
-> runbooks, and platform-specific guidance. Cite the matched title in
-> brackets after any KB-sourced fact, e.g. "...as documented in
-> [Approver Onboarding]." When `kb_match_count` is 0, answer from your
-> tools and general knowledge as before.
-
-The agent will now consult the KB on every message. If the FTS query
-returns zero matches the agent gets an empty string and silently falls
-back to its tools — the existing behaviour.
-
-### Step 4 — Test
-
-Pick an entry from `/assistant/admin` whose title contains a distinctive
-phrase. In the chat widget, ask a question that includes that phrase.
-You should see the agent quote the KB entry by title in its answer. Open
-n8n → Executions and confirm `Search KB` returned `kb_match_count > 0`
-and `kb_context` is the entry text.
-
-### Cost note
-
-Postgres full-text search is local — no API call, no token cost. The
-only knock-on cost is that Sonnet receives a slightly longer prompt on
-KB hits (~500 tokens for 3 matches), which is fractions of a cent per
-chat. Misses cost nothing extra.
-
-### Role-visibility reminder
-
-`match_chatbot_knowledge` filters by the user's role against the entry's
-`visible_to_roles` array. The role you pass in must match exactly one of
-the values in the array — if Load User Profile returns `role: 'super_admin'`
-but the entry's `visible_to_roles = '{admin,driver}'`, the entry will
-**not** be returned. Check `/assistant/admin` and confirm the
-visible-to arrays cover the roles you expect to query from.
-
 ## Files of interest
 
 - `src/components/ChatWidget.tsx` — the widget UI and the routing decision
   between n8n and the edge function.
 - `supabase/functions/chatbot-chat/index.ts` — the legacy edge function,
-  including the pgvector RAG against `chatbot_knowledge`.
+  including the FTS RAG against `chatbot_knowledge`.
 - `supabase/migrations/20260730000001_fts_knowledge.sql` — the
-  `match_chatbot_knowledge(query_text, match_count, user_role)` Postgres
-  function the n8n Search-KB node will call.
+  `match_chatbot_knowledge` function (kept available for any future
+  caller; currently used only by the legacy edge function).
 - n8n workspace: **Personal → King Squares ~ Nodes → KD Ops AI Assistant — Advanced**.

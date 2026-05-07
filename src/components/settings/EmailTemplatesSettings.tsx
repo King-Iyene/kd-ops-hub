@@ -17,7 +17,17 @@ import {
   Copy,
   CheckCircle2,
   AlertTriangle,
+  Plus,
+  Trash2,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +41,8 @@ import {
   listEmailTemplates,
   updateEmailTemplate,
   resetEmailTemplate,
+  createEmailTemplate,
+  deleteEmailTemplate,
   renderTemplate,
   wrapEmailHtml,
   sendTemplatedEmail,
@@ -76,6 +88,13 @@ export default function EmailTemplatesSettings() {
   const [view, setView] = useState<'edit' | 'preview' | 'html'>('edit');
   const [companyName, setCompanyName] = useState('KD Squares');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  // "New template" modal state
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const reload = async () => {
     setLoading(true);
@@ -244,6 +263,54 @@ export default function EmailTemplatesSettings() {
     toast({ title: `Copied {{${name}}}` });
   };
 
+  const handleCreateTemplate = async () => {
+    const name = newName.trim();
+    if (!name) {
+      toast({ title: 'Name is required', variant: 'destructive' });
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await createEmailTemplate({
+        name,
+        description: newDescription.trim() || null,
+      });
+      toast({ title: 'Template created', description: `"${created.name}" is ready to edit.` });
+      setShowCreate(false);
+      setNewName('');
+      setNewDescription('');
+      await reload();
+      setSelectedKey(created.key);
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
+      toast({
+        title: 'Create failed',
+        description: /duplicate key/i.test(msg)
+          ? 'A template with this name already exists. Pick another name.'
+          : msg,
+        variant: 'destructive',
+      });
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteTemplate = async () => {
+    if (!selected || selected.is_system) return;
+    if (!confirm(`Delete custom template "${selected.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteEmailTemplate(selected.id);
+      toast({ title: 'Template deleted' });
+      setSelectedKey(null);
+      await reload();
+    } catch (e: any) {
+      toast({ title: 'Delete failed', description: e?.message ?? String(e), variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -279,16 +346,30 @@ export default function EmailTemplatesSettings() {
         <p className="text-sm text-rose-600">{error}</p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4">
         {/* Sidebar list */}
         <Card>
           <CardContent className="p-2 space-y-3">
+            <div className="flex items-center justify-between gap-2 px-2 pt-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Templates
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-[11px] gap-1"
+                onClick={() => setShowCreate(true)}
+                disabled={loading || missingTable}
+              >
+                <Plus className="h-3 w-3" /> New
+              </Button>
+            </div>
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground p-3">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading…
               </div>
             ) : templates.length === 0 && !missingTable ? (
-              <p className="text-xs text-muted-foreground italic p-3">No templates yet.</p>
+              <p className="text-xs text-muted-foreground italic p-3">No templates yet — click "New" to create your first one.</p>
             ) : (
               [...grouped.entries()].map(([cat, items]) => (
                 <div key={cat}>
@@ -335,7 +416,7 @@ export default function EmailTemplatesSettings() {
                   )}
                   <code className="text-[10px] text-muted-foreground">{selected.key}</code>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-2 shrink-0 flex-wrap">
                   <Button size="sm" variant="outline" onClick={handleSendTest} disabled={sendingTest}>
                     {sendingTest ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />}
                     Test to me
@@ -344,6 +425,18 @@ export default function EmailTemplatesSettings() {
                     {resetting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RotateCcw className="h-3 w-3 mr-1" />}
                     Reset
                   </Button>
+                  {!selected.is_system && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleDeleteTemplate}
+                      disabled={deleting}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      {deleting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                      Delete
+                    </Button>
+                  )}
                   <Button size="sm" onClick={handleSave} disabled={saving || !dirty}>
                     {saving ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Save className="h-3 w-3 mr-1" />}
                     Save
@@ -445,11 +538,56 @@ export default function EmailTemplatesSettings() {
         ) : (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">
-              Pick a template from the list to edit.
+              Pick a template from the list to edit, or click <strong>New</strong> to create one from scratch.
             </CardContent>
           </Card>
         )}
       </div>
+
+      {/* New template dialog — minimal up-front fields; the editor lets
+          the operator fill in subject + body once the template exists. */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New email template</DialogTitle>
+            <DialogDescription>
+              Lands in the Custom category. You can edit subject, body, and variables right after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="e.g. Welcome onboard"
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Internal key will be <code>custom.{newName ? newName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') : 'your_name'}</code>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Description (optional)</Label>
+              <Textarea
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="What is this template used for?"
+                className="min-h-[60px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTemplate} disabled={creating || !newName.trim()}>
+              {creating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              Create template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

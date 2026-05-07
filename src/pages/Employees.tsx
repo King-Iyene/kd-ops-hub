@@ -84,6 +84,8 @@ interface Employee {
   status: 'active' | 'inactive' | 'invited' | string;
   created_at?: string;
   tags?: string[] | null;
+  department_id?: string | null;
+  department?: { id: string; name: string } | null;
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -101,7 +103,12 @@ const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: 'intern', label: 'Intern' },
 ];
 
-const DEPARTMENTS = [
+// DEPARTMENTS used to be a hardcoded list — now sourced from the
+// public.departments table so HR/admin can manage it from
+// Settings → Departments and the change reflects everywhere.
+interface DeptOption { id: string; name: string }
+
+const FALLBACK_DEPARTMENTS = [
   'Finance',
   'Operations',
   'Engineering',
@@ -138,7 +145,7 @@ const Employees = () => {
     email: '',
     phone: '',
     role: 'field_staff' as Role,
-    department: 'Operations',
+    department_id: '',
     employment_type: 'full_time' as EmploymentType,
     start_date: new Date().toISOString().slice(0, 10),
   });
@@ -147,6 +154,7 @@ const Employees = () => {
   const [confirmReactivate, setConfirmReactivate] = useState<Employee | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<DeptOption[]>([]);
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
@@ -161,22 +169,24 @@ const Employees = () => {
     setLoading(true);
     let query = supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, department_id, department:departments!department_id(id, name)')
       .neq('is_anonymised', true)
       .order('created_at', { ascending: false })
       .limit(500);
     if (!showInactive) {
       query = query.eq('status', 'active');
     }
-    const [employeesRes, tagsRes] = await Promise.all([
+    const [employeesRes, tagsRes, deptsRes] = await Promise.all([
       query,
       supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
+      supabase.from('departments').select('id, name').order('name'),
     ]);
     if (employeesRes.error) {
       toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
     }
     setEmployees((employeesRes.data as Employee[]) || []);
     setAvailableTags((tagsRes.data as Tag[]) || []);
+    setDepartments((deptsRes.data as DeptOption[]) || []);
     setLoading(false);
   }, [showInactive, toast]);
 
@@ -192,7 +202,7 @@ const Employees = () => {
       email: '',
       phone: '',
       role: 'field_staff',
-      department: 'Operations',
+      department_id: '',
       employment_type: 'full_time',
       start_date: new Date().toISOString().slice(0, 10),
     });
@@ -207,7 +217,7 @@ const Employees = () => {
       email: e.email,
       phone: e.phone || '',
       role: (e.role as Role) || 'field_staff',
-      department: 'Operations',
+      department_id: e.department_id || '',
       employment_type: 'full_time',
       start_date: new Date().toISOString().slice(0, 10),
     });
@@ -351,6 +361,7 @@ const Employees = () => {
           phone: form.phone || null,
           role: form.role,
           tags: selectedTagIds,
+          department_id: form.department_id || null,
         })
         .eq('id', editing.id);
       if (error) throw error;
@@ -811,26 +822,37 @@ const Employees = () => {
                   <p className="text-xs text-muted-foreground">Only admins can change roles.</p>
                 )}
               </div>
-              {!editing && (
-                <>
-                  <div className="space-y-1">
-                    <Label>Department</Label>
-                    <Select
-                      value={form.department}
-                      onValueChange={(v) => setForm({ ...form, department: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTMENTS.map((d) => (
-                          <SelectItem key={d} value={d}>
-                            {d}
+              {/* Department + Employment type were create-only — now also
+                  shown on edit so HR can re-assign without leaving the
+                  employee row. Departments come from the live table so
+                  Settings → Departments controls the list everywhere. */}
+              <div className="space-y-1">
+                <Label>Department</Label>
+                <Select
+                  value={form.department_id || 'none'}
+                  onValueChange={(v) => setForm({ ...form, department_id: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Unassigned —</SelectItem>
+                    {departments.length === 0
+                      ? FALLBACK_DEPARTMENTS.map((d) => (
+                          <SelectItem key={d} value={d} disabled>
+                            {d} (add via Settings)
+                          </SelectItem>
+                        ))
+                      : departments.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            {d.name}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  </SelectContent>
+                </Select>
+              </div>
+              {!editing && (
+                <>
                   <div className="space-y-1">
                     <Label>Employment Type</Label>
                     <Select

@@ -59,6 +59,67 @@ export async function updateEmailTemplate(
   if (error) throw error;
 }
 
+// Create a brand-new custom template. Always lands in the 'custom'
+// category and is_system=false — system templates are seeded at migration
+// time and operators shouldn't be able to mint new ones from the UI.
+//
+// `key` becomes the stable identifier the rest of the platform uses to
+// look up this template; we slugify the user-supplied name so they don't
+// have to think about it. Failures on duplicate-key bubble up as a
+// readable Postgres error.
+export async function createEmailTemplate(input: {
+  name: string;
+  description?: string | null;
+  subject?: string;
+  html_body?: string;
+  text_body?: string | null;
+}): Promise<EmailTemplate> {
+  const slug = input.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 60) || 'custom_template';
+  const key = `custom.${slug}`;
+
+  const subject  = input.subject  ?? `${input.name} — {{company_name}}`;
+  const htmlBody = input.html_body
+    ?? `<p>Hello {{recipient_name}},</p>\n<p>This is a new template. Edit me in Settings → Email Templates.</p>\n<p>Regards,<br/>{{company_name}}</p>`;
+  const textBody = input.text_body ?? null;
+
+  const { data, error } = await supabase
+    .from('email_templates')
+    .insert({
+      key,
+      name: input.name,
+      description: input.description ?? null,
+      category: 'custom',
+      subject,
+      html_body: htmlBody,
+      text_body: textBody,
+      // Default the "factory copy" to whatever the user is creating with —
+      // Reset becomes a no-op until the operator edits and saves again,
+      // which is the correct semantics for a self-authored template.
+      default_subject: subject,
+      default_html_body: htmlBody,
+      default_text_body: textBody,
+      is_system: false,
+      variables: [],
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as EmailTemplate;
+}
+
+export async function deleteEmailTemplate(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('email_templates')
+    .delete()
+    .eq('id', id)
+    .eq('is_system', false); // Defensive — RLS already blocks system rows.
+  if (error) throw error;
+}
+
 export async function resetEmailTemplate(id: string): Promise<void> {
   // Server-side update reverts the editable fields to the frozen defaults.
   const { data: row, error: fetchErr } = await supabase

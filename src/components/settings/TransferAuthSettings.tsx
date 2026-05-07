@@ -175,7 +175,9 @@ export default function TransferAuthSettings() {
   const [overrideSingle, setOverrideSingle] = useState<string>('');
   const [overrideDaily, setOverrideDaily] = useState<string>('');
   const [overrideMonthly, setOverrideMonthly] = useState<string>('');
-  const [overrideCo, setOverrideCo] = useState<string>('');
+  // Co-approval feature removed — threshold is always written as null on
+  // save so no new batches enter the second-approval flow. The DB column
+  // stays so historical batches keep their audit trail.
   const [overrideBatch, setOverrideBatch] = useState<string>('');
   const [overrideExpires, setOverrideExpires] = useState<string>(isoDatePlusDays(30));
   const [overrideReason, setOverrideReason] = useState<string>('');
@@ -328,7 +330,7 @@ export default function TransferAuthSettings() {
         single_txn_limit_ngn: d.single_txn_limit_ngn ?? existing?.single_txn_limit_ngn ?? null,
         daily_limit_ngn: d.daily_limit_ngn ?? existing?.daily_limit_ngn ?? null,
         monthly_limit_ngn: d.monthly_limit_ngn ?? existing?.monthly_limit_ngn ?? null,
-        co_approval_threshold_ngn: d.co_approval_threshold_ngn ?? existing?.co_approval_threshold_ngn ?? null,
+        co_approval_threshold_ngn: null,
         single_batch_limit_ngn: d.single_batch_limit_ngn ?? existing?.single_batch_limit_ngn ?? null,
       });
       toast({ title: `${roleLabel[role]} caps saved` });
@@ -360,7 +362,7 @@ export default function TransferAuthSettings() {
         single_txn_limit_ngn: overrideSingle ? Number(overrideSingle) : null,
         daily_limit_ngn: overrideDaily ? Number(overrideDaily) : null,
         monthly_limit_ngn: overrideMonthly ? Number(overrideMonthly) : null,
-        co_approval_threshold_ngn: overrideCo ? Number(overrideCo) : null,
+        co_approval_threshold_ngn: null,
         single_batch_limit_ngn: overrideBatch ? Number(overrideBatch) : null,
         expires_at: overrideExpires || null,
         granted_reason: overrideReason,
@@ -370,7 +372,6 @@ export default function TransferAuthSettings() {
       setOverrideSingle('');
       setOverrideDaily('');
       setOverrideMonthly('');
-      setOverrideCo('');
       setOverrideBatch('');
       setOverrideExpires(isoDatePlusDays(30));
       setOverrideReason('');
@@ -560,7 +561,6 @@ export default function TransferAuthSettings() {
                     <TableHead className="min-w-[160px]">Single transfer (₦)</TableHead>
                     <TableHead className="min-w-[160px]">Daily rolling 24h (₦)</TableHead>
                     <TableHead className="min-w-[160px]">Monthly (₦)</TableHead>
-                    <TableHead className="min-w-[160px]">Co-approval above (₦)</TableHead>
                     <TableHead className="min-w-[160px]">Max batch total (₦)</TableHead>
                     <TableHead className="w-[100px] text-right">Action</TableHead>
                   </TableRow>
@@ -572,7 +572,7 @@ export default function TransferAuthSettings() {
                     const setField = (k: keyof TransferLimit, v: any) =>
                       setDraft((prev) => ({ ...prev, [role]: { ...(prev[role] ?? {}), [k]: v } }));
                     const valueOf = (
-                      k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'co_approval_threshold_ngn' | 'single_batch_limit_ngn'
+                      k: 'single_txn_limit_ngn' | 'daily_limit_ngn' | 'monthly_limit_ngn' | 'single_batch_limit_ngn'
                     ): string => {
                       const v = (d as any)[k] ?? row?.[k];
                       return fmtAmt(v);
@@ -588,7 +588,7 @@ export default function TransferAuthSettings() {
                             placeholder="no cap (empty)"
                             value={valueOf('single_txn_limit_ngn')}
                             onChange={(e) => setField('single_txn_limit_ngn', parseAmt(e.target.value))}
-                            className="w-full"
+                            className="w-full text-right tabular-nums font-mono"
                           />
                         </TableCell>
                         <TableCell>
@@ -598,7 +598,7 @@ export default function TransferAuthSettings() {
                             placeholder="no cap (empty)"
                             value={valueOf('daily_limit_ngn')}
                             onChange={(e) => setField('daily_limit_ngn', parseAmt(e.target.value))}
-                            className="w-full"
+                            className="w-full text-right tabular-nums font-mono"
                           />
                         </TableCell>
                         <TableCell>
@@ -608,18 +608,7 @@ export default function TransferAuthSettings() {
                             placeholder="no cap (empty)"
                             value={valueOf('monthly_limit_ngn')}
                             onChange={(e) => setField('monthly_limit_ngn', parseAmt(e.target.value))}
-                            className="w-full"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="never (empty)"
-                            value={valueOf('co_approval_threshold_ngn')}
-                            onChange={(e) => setField('co_approval_threshold_ngn', parseAmt(e.target.value))}
-                            title="Above this ₦ amount a second approver is required. Leave empty = never."
-                            className="w-full"
+                            className="w-full text-right tabular-nums font-mono"
                           />
                         </TableCell>
                         <TableCell>
@@ -630,7 +619,7 @@ export default function TransferAuthSettings() {
                             value={valueOf('single_batch_limit_ngn')}
                             onChange={(e) => setField('single_batch_limit_ngn', parseAmt(e.target.value))}
                             title="Maximum total amount for a single payment batch. Leave empty = no cap."
-                            className="w-full"
+                            className="w-full text-right tabular-nums font-mono"
                           />
                         </TableCell>
                         <TableCell className="text-right">
@@ -660,7 +649,12 @@ export default function TransferAuthSettings() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add override form */}
-          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr] gap-2">
+          {/* User select gets a comfortable column on its own; the four
+              numeric inputs share the rest of the row evenly. tabular-nums +
+              right-align + monospace makes long ₦ amounts readable at a
+              glance, and the comma-formatting on display avoids the
+              "5000000" vs "50000000" ambiguity the unformatted inputs had. */}
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,2fr)_repeat(4,minmax(140px,1fr))_auto] gap-2">
             <div className="space-y-1">
               <Label className="text-xs">User</Label>
               <Select value={overrideUserId} onValueChange={setOverrideUserId}>
@@ -678,58 +672,10 @@ export default function TransferAuthSettings() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Single (₦)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="no cap (empty)"
-                value={overrideSingle}
-                onChange={(e) => setOverrideSingle(e.target.value.replace(/[^0-9]/g, ''))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Daily (₦)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="no cap (empty)"
-                value={overrideDaily}
-                onChange={(e) => setOverrideDaily(e.target.value.replace(/[^0-9]/g, ''))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Monthly (₦)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="no cap (empty)"
-                value={overrideMonthly}
-                onChange={(e) => setOverrideMonthly(e.target.value.replace(/[^0-9]/g, ''))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Co-approval above (₦)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="never (empty)"
-                value={overrideCo}
-                onChange={(e) => setOverrideCo(e.target.value.replace(/[^0-9]/g, ''))}
-                title="Above this ₦ amount this user's transfer needs a second approver."
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Max batch total (₦)</Label>
-              <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="no cap (empty)"
-                value={overrideBatch}
-                onChange={(e) => setOverrideBatch(e.target.value.replace(/[^0-9]/g, ''))}
-                title="Maximum total for a single payment batch initiated by this user."
-              />
-            </div>
+            <CommaInput label="Single (₦)"     value={overrideSingle}   setValue={setOverrideSingle}   placeholder="no cap" />
+            <CommaInput label="Daily (₦)"      value={overrideDaily}    setValue={setOverrideDaily}    placeholder="no cap" />
+            <CommaInput label="Monthly (₦)"    value={overrideMonthly}  setValue={setOverrideMonthly}  placeholder="no cap" />
+            <CommaInput label="Max batch (₦)"  value={overrideBatch}    setValue={setOverrideBatch}    placeholder="no cap" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_auto] gap-2 items-end">
             <div className="space-y-1">
@@ -774,11 +720,10 @@ export default function TransferAuthSettings() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Single</TableHead>
-                    <TableHead>Daily</TableHead>
-                    <TableHead>Monthly</TableHead>
-                    <TableHead>Co-approval above</TableHead>
-                    <TableHead>Max batch</TableHead>
+                    <TableHead className="text-right">Single</TableHead>
+                    <TableHead className="text-right">Daily</TableHead>
+                    <TableHead className="text-right">Monthly</TableHead>
+                    <TableHead className="text-right">Max batch</TableHead>
                     <TableHead>Expires</TableHead>
                     <TableHead>Reason</TableHead>
                     <TableHead className="w-[60px]" />
@@ -796,15 +741,10 @@ export default function TransferAuthSettings() {
                             <span className="ml-2 text-xs text-muted-foreground">({p.role})</span>
                           )}
                         </TableCell>
-                        <TableCell>{fmtCap(o.single_txn_limit_ngn)}</TableCell>
-                        <TableCell>{fmtCap(o.daily_limit_ngn)}</TableCell>
-                        <TableCell>{fmtCap(o.monthly_limit_ngn)}</TableCell>
-                        <TableCell>
-                          {o.co_approval_threshold_ngn === null || o.co_approval_threshold_ngn === undefined
-                            ? <span className="text-xs text-muted-foreground italic">never</span>
-                            : formatNaira(o.co_approval_threshold_ngn)}
-                        </TableCell>
-                        <TableCell>{fmtCap(o.single_batch_limit_ngn)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtCap(o.single_txn_limit_ngn)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtCap(o.daily_limit_ngn)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtCap(o.monthly_limit_ngn)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmtCap(o.single_batch_limit_ngn)}</TableCell>
                         <TableCell>{expiryBadge(o.expires_at)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={o.granted_reason ?? ''}>
                           {o.granted_reason ?? ''}
@@ -1082,6 +1022,34 @@ export default function TransferAuthSettings() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Numeric override input that *displays* a comma-grouped figure (50,000,000)
+// while still storing/setting the raw digit string ("50000000"). Comma
+// formatting matches what every cell in the table renders, so what the
+// operator types and what they read back are visually consistent.
+function CommaInput({
+  label, value, setValue, placeholder,
+}: {
+  label: string;
+  value: string;
+  setValue: (v: string) => void;
+  placeholder?: string;
+}) {
+  const display = value ? Number(value).toLocaleString('en-NG') : '';
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input
+        type="text"
+        inputMode="numeric"
+        placeholder={placeholder}
+        value={display}
+        onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ''))}
+        className="text-right tabular-nums font-mono"
+      />
     </div>
   );
 }

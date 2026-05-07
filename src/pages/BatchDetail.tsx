@@ -1486,22 +1486,8 @@ const BatchDetail = () => {
         </Alert>
       )}
 
-      {batch.status === 'pending_second_approval' && (
-        <Alert className="border-amber-500/40 bg-amber-500/5">
-          <ShieldAlert className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-sm">
-            <span className="font-semibold">Awaiting second approval.</span>{' '}
-            First approved
-            {firstApproverName ? <> by <span className="font-semibold">{firstApproverName}</span></> : null}
-            {batch.approved_at && (
-              <> on {formatDateTime(batch.approved_at)}</>
-            )}
-            . {secondApprovers.length > 0
-                ? <>{secondApprovers.length} eligible approver{secondApprovers.length === 1 ? '' : 's'} can confirm.</>
-                : <>Waiting for an eligible second approver.</>}
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Co-approval flow retired — pending_second_approval batches are
+          cleared to 'approved' by migration 20260507000000_remove_co_approval. */}
 
       {(batch.status === 'approved' || batch.status === 'funded'
         || batch.status === 'processing' || batch.status === 'partially_processed'
@@ -1630,26 +1616,6 @@ const BatchDetail = () => {
                 You submitted this batch — another approver must review it.
               </AlertDescription>
             </Alert>
-          )}
-          {batch.status === 'pending_second_approval' && canApprove
-            && batch.created_by !== profile?.id
-            && batch.approved_by !== profile?.id && (
-            <>
-              <div className="w-full">
-                <BatchRiskFlags batchId={id!} onAcknowledgedChange={setRiskFlagsAcknowledged} />
-              </div>
-              <Button
-                onClick={confirmSecondApproveBatch}
-                disabled={actionLoading || (capPreview ? !capPreview.allowed : false) || !riskFlagsAcknowledged}
-                size="lg"
-              >
-                {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-                Approve as Second
-              </Button>
-              <Button variant="destructive" onClick={() => setShowReject(true)} disabled={actionLoading}>
-                <X className="mr-2 h-4 w-4" /> Reject
-              </Button>
-            </>
           )}
           {batch.status === 'approved' && (
             <Button onClick={() => markFunded()} disabled={actionLoading}>

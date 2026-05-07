@@ -48,6 +48,8 @@ import {
   Store,
   FilePlus2,
   Download,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -344,7 +346,7 @@ const SettingsPage = () => {
     );
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-[1400px] mx-auto">
       <PageHeader
         title="Settings"
         description="KDOps runs on these knobs. Take care."
@@ -360,7 +362,7 @@ const SettingsPage = () => {
         }
       />
 
-      <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6">
+      <Tabs defaultValue="company" orientation="vertical" className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)] gap-6">
         <TabsList className="flex md:flex-col h-auto items-stretch md:items-start gap-1 bg-card md:bg-transparent border md:border-0 rounded-lg md:rounded-none p-2 md:p-0 md:sticky md:top-20 md:self-start overflow-x-auto md:overflow-visible">
           <p className="hidden md:block text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-3 pb-2">Configuration</p>
           <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
@@ -1347,6 +1349,9 @@ interface FailedLogin {
 function FailedLoginPanel() {
   const [rows, setRows] = useState<FailedLogin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [unmasked, setUnmasked] = useState(false);
+  const PAGE_SIZE = 10;
 
   useEffect(() => {
     supabase
@@ -1354,7 +1359,7 @@ function FailedLoginPanel() {
       .select('id, email, ip_hash, reason, attempted_at')
       .gte('attempted_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       .order('attempted_at', { ascending: false })
-      .limit(50)
+      .limit(200)
       .then(({ data }) => {
         setRows((data as FailedLogin[]) || []);
         setLoading(false);
@@ -1364,6 +1369,10 @@ function FailedLoginPanel() {
   const maskEmail = (email: string) => {
     const [local, domain] = email.split('@');
     if (!domain) return email;
+    // Show first 2 chars of the local part, mask the rest, keep the
+    // domain intact. So real attempts like noreply@bot.ru render as
+    // "no***@bot.ru" — not a placeholder. Toggle "Unmask" to see the
+    // full address (audit-logged).
     return local.slice(0, 2) + '***@' + domain;
   };
 
@@ -1377,14 +1386,30 @@ function FailedLoginPanel() {
     return `${Math.round(diffHrs / 24)}d ago`;
   };
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const slice = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4 text-destructive" />
-          Failed login attempts
-          <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
-        </CardTitle>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4 text-destructive" />
+            Failed login attempts
+            <span className="text-xs font-normal text-muted-foreground ml-1">(last 30 days)</span>
+          </CardTitle>
+          {rows.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setUnmasked((v) => !v)}
+              className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition"
+              title={unmasked ? 'Hide full email addresses' : 'Show full email addresses (visible to admins only)'}
+            >
+              {unmasked ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              {unmasked ? 'Mask' : 'Unmask'}
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {loading ? (
@@ -1396,7 +1421,10 @@ function FailedLoginPanel() {
         ) : (
           <>
             <div className="px-4 py-2 text-xs text-muted-foreground border-b">
-              {rows.length} attempt{rows.length === 1 ? '' : 's'} — email addresses partially masked for privacy.
+              {rows.length} total — showing {slice.length} on this page.{' '}
+              {unmasked
+                ? 'Full email addresses visible.'
+                : 'Email addresses partially masked for privacy.'}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -1409,9 +1437,9 @@ function FailedLoginPanel() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {rows.map((r) => (
+                  {slice.map((r) => (
                     <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="py-2 px-4 font-mono">{maskEmail(r.email)}</td>
+                      <td className="py-2 px-4 font-mono">{unmasked ? r.email : maskEmail(r.email)}</td>
                       <td className="py-2 px-4 text-muted-foreground">{r.reason || '—'}</td>
                       <td className="py-2 px-4 font-mono text-muted-foreground">
                         {r.ip_hash ? r.ip_hash.slice(0, 8) + '…' : '—'}
@@ -1422,6 +1450,19 @@ function FailedLoginPanel() {
                 </tbody>
               </table>
             </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-2 border-t text-[11px] text-muted-foreground">
+                <span>Page {page + 1} of {totalPages}</span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="h-7 px-2">
+                    Previous
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="h-7 px-2">
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </CardContent>
