@@ -16,7 +16,7 @@ import {
   Info,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { friendlyPaystackError } from '@/lib/paystack';
+import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -436,10 +436,22 @@ const Transactions = () => {
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    const fee = Number(r.paystack_fee_ngn || 0);
-                    const vat = +(fee * VAT_RATE).toFixed(2);
-                    const stamp = stampDutyForAmount(Number(r.amount_ngn || 0));
+                    // Older transfers were dispatched before paystack_fee_ngn was
+                    // captured on batch_items, so the column is NULL on the view.
+                    // Falling back to the published Paystack fee schedule keeps
+                    // the ledger consistent — the schedule is deterministic
+                    // (amount → fee), so the calculated value matches what
+                    // Paystack actually charged unless the merchant has a
+                    // negotiated rate (rare). Only succeeded transfers incur
+                    // the fee; pending/failed ones don't.
+                    const amount = Number(r.amount_ngn || 0);
                     const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
+                    const dbFee = Number(r.paystack_fee_ngn || 0);
+                    const fee = dbFee > 0
+                      ? dbFee
+                      : (ledgerStatus === 'succeeded' ? paystackTransferFee(amount) : 0);
+                    const vat = +(fee * VAT_RATE).toFixed(2);
+                    const stamp = stampDutyForAmount(amount);
                     const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
                     return (
                       <TableRow

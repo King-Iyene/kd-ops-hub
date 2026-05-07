@@ -1663,7 +1663,14 @@ const BatchDetail = () => {
           )}
           {(['partially_processed', 'failed'].includes(batch.status) ||
             (batch.status === 'processing' && items.some(i => (i.status === 'failed' || i.status === 'pending') && !i.paystack_reference))) &&
-            items.some(i => i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference)) && (
+            items.some(i => {
+              // Only show Retry unsent if at least one item is still inside
+              // the 5-hour retry window — otherwise the button does nothing
+              // and confuses the operator. Same window as per-row retry.
+              if (!(i.status === 'failed' || (i.status === 'pending' && !i.paystack_reference))) return false;
+              const ageMs = Date.now() - new Date(i.updated_at || i.created_at).getTime();
+              return ageMs <= 5 * 60 * 60 * 1000;
+            }) && (
             <Button
               variant="outline"
               onClick={async () => {
