@@ -14,6 +14,7 @@ import {
   Loader2,
   Info,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
@@ -142,14 +143,7 @@ const Reports = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Cross-module analytics: P&amp;L, cash flow, spend concentration, payment reconciliation, fleet and contractor summaries. Filter by any date range.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Cross-module analytics: P&amp;L, cash flow, spend concentration, payment reconciliation, fleet and contractor summaries. Filter by any date range.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Finance and operations analytics across modules.</p>
         </div>

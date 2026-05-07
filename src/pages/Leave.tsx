@@ -13,6 +13,7 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -618,14 +619,7 @@ const Leave = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Leave</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Request and manage employee time off. Tracks annual, sick and other leave types with manager approval workflows and live balance calculations.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Request and manage employee time off. Tracks annual, sick and other leave types with manager approval workflows and live balance calculations.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Submit time off and review your team's leave requests.</p>
         </div>

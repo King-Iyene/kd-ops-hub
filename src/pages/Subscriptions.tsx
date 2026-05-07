@@ -12,6 +12,7 @@ import {
   Loader2,
   Info,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -474,14 +475,7 @@ const Subscriptions = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Subscriptions</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Track recurring software and service subscriptions, renewal dates, monthly costs and status. Renewal alerts help you avoid unexpected charges.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Track recurring software and service subscriptions, renewal dates, monthly costs and status. Renewal alerts help you avoid unexpected charges.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Track recurring software and service subscriptions with renewal alerts.</p>
         </div>

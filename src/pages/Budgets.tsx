@@ -11,6 +11,7 @@ import {
   Unlock,
   Info,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -506,14 +507,7 @@ const Budgets = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Budgets</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Define departmental budgets and track actual spend. Overspend is flagged automatically so you can control costs before they escalate.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Define departmental budgets and track actual spend. Overspend is flagged automatically so you can control costs before they escalate.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Plan spend per category, track actuals, and control overruns.</p>
         </div>

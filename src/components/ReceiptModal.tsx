@@ -21,9 +21,18 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, Printer, Share2, X } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Download, Printer, Share2, X, FileImage, FileText, ChevronDown,
+} from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
 import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
@@ -156,19 +165,66 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   const fileSafe = (str: string) => str.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40) || 'receipt';
   const filename = `kdops_receipt_${fileSafe(item.full_name || certId)}.png`;
 
-  const renderToBlob = async (): Promise<Blob | null> => {
+  // Render the receipt card to a high-DPI canvas. Used by both the
+  // PNG and PDF paths so the visual is identical between the two
+  // formats — the PDF is just the same image dropped onto an A4
+  // page so it prints correctly on Nigerian printer defaults.
+  const renderToCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const node = cardRef.current;
     if (!node) return null;
-    const canvas = await html2canvas(node, {
+    return html2canvas(node, {
       backgroundColor: '#ffffff',
       scale: 2,
       useCORS: true,
       logging: false,
     });
+  };
+
+  const renderToBlob = async (): Promise<Blob | null> => {
+    const canvas = await renderToCanvas();
+    if (!canvas) return null;
     return new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), 'image/png', 0.96),
     );
   };
+
+  // Generate a single-page A4 PDF with the receipt PNG centred and
+  // scaled to fit the page width with reasonable margins. jsPDF takes
+  // dimensions in mm; A4 is 210x297. 16mm margin on each side leaves
+  // 178mm for the receipt — comfortable for both screen viewing and
+  // a printed copy.
+  const renderToPdfBlob = async (): Promise<Blob | null> => {
+    const canvas = await renderToCanvas();
+    if (!canvas) return null;
+    const dataUrl = canvas.toDataURL('image/png', 0.96);
+    const pdf = new jsPDF({
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait',
+      compress: true,
+    });
+    const pageW = 210;
+    const pageH = 297;
+    const margin = 16;
+    const maxW = pageW - margin * 2;
+    const ratio = canvas.width / canvas.height;
+    let imgW = maxW;
+    let imgH = imgW / ratio;
+    // Cap height too — receipts are tall but should still fit on one
+    // page if at all possible.
+    const maxH = pageH - margin * 2;
+    if (imgH > maxH) {
+      imgH = maxH;
+      imgW = imgH * ratio;
+    }
+    const x = (pageW - imgW) / 2;
+    const y = (pageH - imgH) / 2;
+    pdf.addImage(dataUrl, 'PNG', x, y, imgW, imgH, undefined, 'FAST');
+    return pdf.output('blob');
+  };
+
+  const filenameFor = (kind: 'png' | 'pdf') =>
+    filename.replace(/\.png$/i, kind === 'pdf' ? '.pdf' : '.png');
 
   const handlePrint = () => {
     // Clone the receipt card into a body-level container BEFORE we hide
@@ -196,20 +252,20 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     setTimeout(() => window.print(), 60);
   };
 
-  const handleDownload = async () => {
+  const handleDownload = async (kind: 'png' | 'pdf') => {
     setBusy('download');
     try {
-      const blob = await renderToBlob();
+      const blob = kind === 'pdf' ? await renderToPdfBlob() : await renderToBlob();
       if (!blob) throw new Error('Could not render receipt');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = filenameFor(kind);
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast({ title: 'Receipt downloaded' });
+      toast({ title: kind === 'pdf' ? 'Receipt PDF downloaded' : 'Receipt image downloaded' });
     } catch (err: any) {
       toast({ title: 'Download failed', description: err?.message || 'Try Print instead.', variant: 'destructive' });
     } finally {
@@ -217,11 +273,12 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     }
   };
 
-  const handleShare = async () => {
+  const handleShare = async (kind: 'png' | 'pdf') => {
     setBusy('share');
     try {
-      const blob = await renderToBlob();
-      const file = blob ? new File([blob], filename, { type: 'image/png' }) : null;
+      const blob = kind === 'pdf' ? await renderToPdfBlob() : await renderToBlob();
+      const mime = kind === 'pdf' ? 'application/pdf' : 'image/png';
+      const file = blob ? new File([blob], filenameFor(kind), { type: mime }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: `KDOps Receipt — ${item.full_name || ''}`,
@@ -232,6 +289,22 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
         await navigator.share({
           title: `KDOps Receipt — ${item.full_name || ''}`,
           text: `Payment receipt for ${item.full_name || ''} — ${fmtNgn(amount)} (${certId})`,
+        });
+      } else if (blob) {
+        // Desktop browser without Web Share — fall back to download
+        // so the operator still gets the file. Better than copying a
+        // bare reference ID with no context.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filenameFor(kind);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        toast({
+          title: 'Share unavailable on this browser',
+          description: `Saved as ${kind.toUpperCase()} — attach it to your email / chat manually.`,
         });
       } else {
         await navigator.clipboard.writeText(certId);
@@ -464,15 +537,47 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
         </div>
 
         {/* Action buttons — flat / simple, sit below the receipt backdrop */}
-        <div className="kd-receipt-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', padding: '12px 18px 18px' }}>
-          <Button variant="outline" size="sm" onClick={handleShare} disabled={busy !== null}>
-            <Share2 className="h-4 w-4 mr-1.5" />
-            {busy === 'share' ? 'Preparing…' : 'Share'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownload} disabled={busy !== null}>
-            <Download className="h-4 w-4 mr-1.5" />
-            {busy === 'download' ? 'Saving…' : 'Download'}
-          </Button>
+        <div className="kd-receipt-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', padding: '12px 18px 18px', flexWrap: 'wrap' }}>
+          {/* Share — dropdown lets the operator pick PNG (the default
+              for chat apps + WhatsApp where image previews render) or
+              PDF (better for email attachments + finance archives). */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={busy !== null}>
+                <Share2 className="h-4 w-4 mr-1.5" />
+                {busy === 'share' ? 'Preparing…' : 'Share'}
+                <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => void handleShare('png')}>
+                <FileImage className="h-4 w-4 mr-2" /> Share as image
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleShare('pdf')}>
+                <FileText className="h-4 w-4 mr-2" /> Share as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Download — same two formats. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={busy !== null}>
+                <Download className="h-4 w-4 mr-1.5" />
+                {busy === 'download' ? 'Saving…' : 'Download'}
+                <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => void handleDownload('png')}>
+                <FileImage className="h-4 w-4 mr-2" /> Image (PNG)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleDownload('pdf')}>
+                <FileText className="h-4 w-4 mr-2" /> PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button size="sm" onClick={handlePrint} disabled={busy !== null}>
             <Printer className="h-4 w-4 mr-1.5" />
             Print

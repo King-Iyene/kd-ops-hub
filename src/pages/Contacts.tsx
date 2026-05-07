@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -345,14 +346,7 @@ const Contacts = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Leads, students, partners — every person KD Squares talks to.</p>
         </div>

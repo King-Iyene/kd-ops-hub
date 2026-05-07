@@ -14,6 +14,7 @@ import {
   Check,
 } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -455,14 +456,7 @@ const Employees = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">{`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
         </div>

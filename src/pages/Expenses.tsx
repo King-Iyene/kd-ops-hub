@@ -27,6 +27,7 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
@@ -1122,14 +1123,7 @@ const Expenses = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Expenses</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Submit, review and approve employee expense claims. Approvers can bulk-approve pending claims and export records for accounting.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Submit, review and approve employee expense claims. Approvers can bulk-approve pending claims and export records for accounting.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Track and manage expense claims.</p>
         </div>

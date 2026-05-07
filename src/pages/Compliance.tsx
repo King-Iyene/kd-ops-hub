@@ -13,6 +13,7 @@ import {
   Sparkles,
   ChevronDown,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -389,14 +390,7 @@ const Compliance = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight">Compliance Centre</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Track every Nigerian statutory filing deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF. Export a compliance calendar.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Track every Nigerian statutory filing deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF. Export a compliance calendar.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF.</p>
         </div>

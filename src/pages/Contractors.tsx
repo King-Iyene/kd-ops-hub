@@ -41,6 +41,7 @@ import {
   FileText,
   Info,
 } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
@@ -540,14 +541,7 @@ const Contractors = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold">Contractors</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Manage independent contractors and freelancers. Store bank details, track engagement status and bulk-import via CSV for payment batches.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>Manage independent contractors and freelancers. Store bank details, track engagement status and bulk-import via CSV for payment batches.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
         </div>
