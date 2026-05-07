@@ -20,10 +20,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   Plus, Search, RefreshCw, Clock,
-  TrendingUp, Zap, ArrowRight, Users, Info,
+  TrendingUp, Zap, ArrowRight, Users,
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -32,7 +33,6 @@ import { APPROVER_ROLES } from '@/lib/roles';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface PaymentBatch {
   id: string;
@@ -102,6 +102,11 @@ const Payments = () => {
   const [balance, setBalance] = useState<BalanceData | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState(false);
+  // Store the raw ISO timestamp so the card can render a live
+  // relative figure ("just now", "5 sec ago", "2 min ago") that
+  // ticks while the panel is open. The previous "07:46" clock-time
+  // didn't tell operators whether the figure was 30 seconds stale or
+  // 30 minutes stale.
   const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
   const [balanceHidden, setBalanceHidden] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
@@ -130,7 +135,7 @@ const Payments = () => {
       const result = await getPaystackBalance();
       setBalance(result);
       setBalanceError(false);
-      setBalanceUpdatedAt(new Date().toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }));
+      setBalanceUpdatedAt(new Date().toISOString());
     } catch {
       if (!isRetry) {
         // Race condition: session may not be restored yet on first mount.
@@ -291,14 +296,9 @@ const Payments = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold tracking-tight">Payment Batches</h1>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Manage bulk payments through draft → approval → funding → processing with a full audit trail.
-              </TooltipContent>
-            </Tooltip>
+            <InfoHint>
+              Manage bulk payments through draft → approval → funding → processing with a full audit trail.
+            </InfoHint>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
             Manage partner and contractor payments

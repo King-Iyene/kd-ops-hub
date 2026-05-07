@@ -224,7 +224,12 @@ export function NotificationBell() {
           )}
         </div>
 
-        <ScrollArea className="max-h-[min(28rem,65vh)]">
+        {/* ScrollArea needs an explicit height (not max-height) for its
+            inner viewport to overflow correctly. Without `h-…` the
+            content rendered past 65vh just got clipped instead of
+            scrollable, which is why the list felt frozen at the
+            visible rows. */}
+        <ScrollArea className="h-[min(28rem,65vh)]">
           {notifications.length === 0 ? (
             <div className="py-12 px-4 flex flex-col items-center text-center gap-3">
               <div className="relative">
@@ -275,14 +280,23 @@ export function NotificationBell() {
                               <Icon className={cn('h-4 w-4', t.iconFg)} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-baseline justify-between gap-2">
+                              {/* Title + timestamp on the same line. Title
+                                  truncates with min-w-0 so the timestamp on
+                                  the right always stays visible — the
+                                  earlier layout had truncate fighting with
+                                  the absolute width and the relative time
+                                  ended up clipped to "3…" */}
+                              <div className="flex items-start justify-between gap-2">
                                 <p className={cn(
-                                  'text-sm leading-tight truncate',
+                                  'text-sm leading-tight truncate min-w-0',
                                   n.read ? 'font-medium text-foreground/80' : 'font-semibold text-foreground',
                                 )}>
                                   {n.title}
                                 </p>
-                                <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
+                                <span
+                                  className="text-[11px] font-medium text-muted-foreground/80 shrink-0 tabular-nums whitespace-nowrap pt-0.5"
+                                  title={new Date(n.created_at).toLocaleString('en-NG')}
+                                >
                                   {formatRelative(n.created_at)}
                                 </span>
                               </div>

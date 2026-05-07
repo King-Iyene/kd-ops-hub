@@ -20,7 +20,7 @@
  * Numbers use `tabular-nums` so digits don't shift width when the
  * balance changes — matches how every fintech card renders money.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Wallet, RefreshCw, AlertTriangle, Eye, EyeOff, Copy, Check,
@@ -218,9 +218,10 @@ export function PaystackBalanceCard({
                 </span>
               </div>
               {balanceUpdatedAt && (
-                <span className="text-[10px] text-muted-foreground/50 tabular-nums shrink-0">
-                  {balanceUpdatedAt}
-                </span>
+                <RelativeAge
+                  iso={balanceUpdatedAt}
+                  className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0"
+                />
               )}
             </div>
           </div>
@@ -404,6 +405,49 @@ function CopyButton({
         <Copy className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground shrink-0 kd-transition" />
       )}
     </button>
+  );
+}
+
+// Relative-age clock that ticks while the panel is mounted. Returns
+// "just now" → "5 sec ago" → "2 min ago" → "1h ago" → "3h ago" → "1d ago".
+// Re-renders every 10s for the first minute (so the "just now" → "X sec
+// ago" transition is snappy), then every 30s thereafter — fast enough
+// that "1m ago" doesn't sit stale, slow enough that idle tabs aren't
+// busy-rendering.
+function RelativeAge({ iso, className }: { iso: string; className?: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  const ageMs = now - new Date(iso).getTime();
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const interval = ageMs < 60_000 ? 5_000 : 30_000;
+    const id = setInterval(tick, interval);
+    return () => clearInterval(id);
+  }, [ageMs]);
+
+  let label: string;
+  if (ageMs < 5_000)        label = 'just now';
+  else if (ageMs < 60_000)  label = `${Math.round(ageMs / 1_000)} sec ago`;
+  else if (ageMs < 3_600_000) {
+    const m = Math.round(ageMs / 60_000);
+    label = `${m} min${m === 1 ? '' : 's'} ago`;
+  }
+  else if (ageMs < 86_400_000) {
+    const h = Math.round(ageMs / 3_600_000);
+    label = `${h}h ago`;
+  }
+  else {
+    const d = Math.round(ageMs / 86_400_000);
+    label = `${d}d ago`;
+  }
+
+  return (
+    <span
+      className={className}
+      title={new Date(iso).toLocaleString('en-NG')}
+    >
+      Updated {label}
+    </span>
   );
 }
 

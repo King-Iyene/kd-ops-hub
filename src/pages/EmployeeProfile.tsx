@@ -837,12 +837,16 @@ const EmployeeProfile = () => {
       <div className="bg-card border rounded-xl px-6 py-4">
         <div className="flex items-center gap-4">
 
-          {/* Avatar — click to upload */}
+          {/* Avatar — click to upload. Camera badge stays visible (not
+              hover-only) so the upload affordance is discoverable
+              without needing to mouse-over first. Hover still shows the
+              full overlay for the explicit "you can change this" cue. */}
           <button
             type="button"
             onClick={() => avatarFileRef.current?.click()}
             disabled={uploadingPhoto}
-            className="relative h-16 w-16 rounded-full shrink-0 group focus:outline-none"
+            title={employee.photo_url ? 'Change profile photo' : 'Upload profile photo'}
+            className="relative h-16 w-16 rounded-full shrink-0 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           >
             {employee.photo_url ? (
               <img
@@ -857,10 +861,18 @@ const EmployeeProfile = () => {
                 </span>
               </div>
             )}
-            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Persistent camera badge at the bottom-right of the avatar.
+                Brand-coloured ring matches the rest of the surface. */}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-background shadow-md kd-transition group-hover:scale-110">
               {uploadingPhoto
-                ? <Loader2 className="h-5 w-5 text-white animate-spin" />
-                : <Camera className="h-5 w-5 text-white" />}
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Camera className="h-3 w-3" />}
+            </span>
+            {/* Hover overlay — full-bleed dimmed prompt */}
+            <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-white">
+                {employee.photo_url ? 'Change' : 'Upload'}
+              </span>
             </div>
           </button>
           <input
