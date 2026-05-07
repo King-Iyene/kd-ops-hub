@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { type LucideIcon } from 'lucide-react';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 
 interface Props {
   title: string;
@@ -8,9 +9,13 @@ interface Props {
   actions?: React.ReactNode;
   className?: string;
   badge?: React.ReactNode;
+  /** Optional help text — renders an info icon next to the title with
+   *  the text in a tooltip below. Replaces the per-page inline
+   *  Tooltip/TooltipTrigger/Info-icon pattern. */
+  info?: React.ReactNode;
 }
 
-export function PageHeader({ title, description, icon: Icon, actions, badge, className }: Props) {
+export function PageHeader({ title, description, icon: Icon, actions, badge, info, className }: Props) {
   return (
     <div className={cn('flex items-start justify-between gap-4 flex-wrap mb-6', className)}>
       <div className="flex items-start gap-3 min-w-0">
@@ -28,6 +33,7 @@ export function PageHeader({ title, description, icon: Icon, actions, badge, cla
           <div className="flex items-center gap-2 flex-wrap">
             {/* Gradient brand title — visible tech feel without losing legibility */}
             <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">{title}</h1>
+            {info && <InfoHint>{info}</InfoHint>}
             {badge}
           </div>
           {description && (

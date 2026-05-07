@@ -22,6 +22,7 @@ import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus,
   Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
 } from 'lucide-react';
+import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
@@ -681,11 +682,15 @@ const NewPaymentBatch = () => {
               <Label>Notes</Label>
               <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional notes..." />
             </div>
-            <div className="flex justify-end">
-              <Button onClick={() => setStep(2)} disabled={!batchName || !paymentDate}>
+            <StickyActionBar>
+              <Button
+                onClick={() => setStep(2)}
+                disabled={!batchName || !paymentDate}
+                className="flex-1 md:flex-none h-11 md:h-9"
+              >
                 Next <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-            </div>
+            </StickyActionBar>
           </CardContent>
         </Card>
       )}
@@ -931,14 +936,16 @@ const NewPaymentBatch = () => {
             </CardContent>
           </Card>
 
-          <div className="flex items-center justify-between">
-            <Button variant="outline" onClick={() => setStep(1)}>
+          <StickyActionBar
+            status={items.length > 0 ? `${items.length} recipient${items.length === 1 ? '' : 's'} selected` : undefined}
+          >
+            <Button variant="outline" onClick={() => setStep(1)} className="h-11 md:h-9">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button onClick={() => setStep(3)} disabled={items.length === 0}>
+            <Button onClick={() => setStep(3)} disabled={items.length === 0} className="flex-1 md:flex-none h-11 md:h-9">
               Review <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
-          </div>
+          </StickyActionBar>
         </div>
       )}
 
@@ -978,23 +985,22 @@ const NewPaymentBatch = () => {
               </Table>
             </div>
 
-            <div className="flex items-center justify-between pt-4">
-              <Button variant="outline" onClick={() => setStep(2)}>
+            <StickyActionBar>
+              <Button variant="outline" onClick={() => setStep(2)} className="h-11 md:h-9">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Draft
-                </Button>
-                <Button onClick={() => handleSave(true)} disabled={saving}>
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  <Check className="mr-2 h-4 w-4" /> Submit for Approval
-                </Button>
-              </div>
-            </div>
+              <Button variant="outline" onClick={() => handleSave(false)} disabled={saving} className="h-11 md:h-9">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save Draft
+              </Button>
+              <Button onClick={() => handleSave(true)} disabled={saving} className="flex-1 md:flex-none h-11 md:h-9">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Check className="mr-2 h-4 w-4" /> Submit for Approval
+              </Button>
+            </StickyActionBar>
           </CardContent>
         </Card>
       )}
+      <StickyActionBarSpacer />
 
       {/* Ad-hoc beneficiary dialog */}
       <Dialog open={showAdHoc} onOpenChange={setShowAdHoc}>

@@ -4,7 +4,9 @@ import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
   ChevronDown, AlertTriangle, ExternalLink, Camera, History, CheckCircle2, XCircle,
+  ClipboardList, Activity, Receipt,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
@@ -1959,7 +1961,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {documents.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No documents uploaded yet.</p>
+                <EmptyState compact icon={FileText} title="No documents yet" description="Upload contracts, IDs, or HR docs above." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -2123,7 +2125,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {tasks.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No tasks assigned to this employee.</p>
+                <EmptyState compact icon={ClipboardList} title="No tasks assigned" description="Tasks assigned to this employee will appear here." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -2179,7 +2181,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {auditLogs.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No activity recorded.</p>
+                <EmptyState compact icon={Activity} title="No activity yet" description="Profile changes and audit events will appear here." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -2237,7 +2239,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {leaves.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No leave requests found.</p>
+                <EmptyState compact icon={CalendarDays} title="No leave requests" description="Leave requests submitted by this employee will appear here." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -2287,7 +2289,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {expenses.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No expenses found.</p>
+                <EmptyState compact icon={Receipt} title="No expenses raised" description="Expense claims submitted by this employee will appear here." />
               ) : (
                 <Table>
                   <TableHeader>
@@ -2337,7 +2339,7 @@ const EmployeeProfile = () => {
             </CardHeader>
             <CardContent className="p-0">
               {payslips.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-muted-foreground">No payslips generated yet.</p>
+                <EmptyState compact icon={FileText} title="No payslips yet" description="Finance generates payslips at the end of each month." />
               ) : (
                 <div className="divide-y">
                   {payslips.map((slip: any) => (
