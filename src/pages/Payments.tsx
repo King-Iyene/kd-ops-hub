@@ -323,7 +323,7 @@ const Payments = () => {
             toggleBalanceHidden={toggleBalanceHidden}
             fetchBalance={fetchBalance}
             funding={funding}
-          />
+          />}
 
           {/* Action buttons — full-width row on mobile so taps are easy */}
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
