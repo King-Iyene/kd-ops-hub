@@ -536,10 +536,17 @@ const EmployeeProfile = () => {
     setUploadingPhoto(true);
     const compressed = await compressImage(file);
     const ext = compressed.name.split('.').pop() || 'jpg';
-    const path = `employees/${id}.${ext}`;
+    // Path convention is `{target_user_id}/{timestamp}.{ext}`.
+    //   • For self-upload the first folder is auth.uid() — passes the
+    //     bucket's per-user RLS.
+    //   • For admin editing another user's photo, the admin role
+    //     bypasses the per-user check via the OR clause in the policy.
+    // Timestamp suffix means we never overwrite the existing file in
+    // place (avoids stale CDN edges showing the previous photo).
+    const path = `${id}/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, compressed, { upsert: true });
+      .upload(path, compressed, { upsert: true, cacheControl: '3600' });
     if (upErr) {
       toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
       setUploadingPhoto(false);

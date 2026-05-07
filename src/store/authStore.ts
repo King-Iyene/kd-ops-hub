@@ -19,6 +19,8 @@ export interface Profile {
   phone?: string | null;
   status?: string;
   created_at?: string;
+  photo_url?: string | null;
+  permissions?: Record<string, boolean> | null;
 }
 
 /** sessionStorage key for the Super Admin role-simulation override. */
