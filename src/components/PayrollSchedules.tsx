@@ -132,6 +132,18 @@ interface SchedulePreset {
 
 const PRESETS: SchedulePreset[] = [
   {
+    // Pay-on-the-5th is the most common Nigerian SME cadence —
+    // workers get paid early in the new month for the previous
+    // month's work, so cash-flow planning is straightforward.
+    // Cutoff is the 25th of the *previous* month (5 day lead-in)
+    // so HR has a week to lock overtime / variable pay before
+    // payroll calc kicks off.
+    key: 'ng-monthly-5',
+    label: 'Monthly on the 5th (most common)',
+    description: 'Salary on the 5th of every month for the previous month\'s work. Cutoff a few days before to lock overtime + variable pay. Rolls to the prior business day if the 5th lands on a weekend or holiday.',
+    config: { frequency: 'monthly', anchor_day: 5, day_adjustment: 'before', processing_lead_days: 5, cutoff_lead_days: 3 },
+  },
+  {
     key: 'ng-monthly-25',
     label: 'Nigeria standard monthly (25th)',
     description: 'Salary on the 25th of every month, rolled to the prior business day if it falls on a weekend or public holiday.',

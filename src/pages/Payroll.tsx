@@ -15,6 +15,7 @@ import {
   AlertCircle,
   X,
   Info,
+  Trash2,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -389,6 +390,53 @@ const Payroll = () => {
     } finally {
       setWorking(false);
     }
+  };
+
+  // Recall a pending-approval run back to draft so the originator (or
+  // an admin) can edit it. Approved + paid runs can't be recalled —
+  // that would corrupt the audit trail. The frontend hides the button
+  // for those statuses, but the RLS on payroll_runs is the actual gate.
+  const recallToDraft = async (run: PayrollRun) => {
+    if (run.status !== 'pending_approval') return;
+    if (!confirm(`Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`)) return;
+    const { error } = await supabase
+      .from('payroll_runs')
+      .update({ status: 'draft' })
+      .eq('id', run.id);
+    if (error) {
+      toast({ title: 'Recall failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('payroll_run_recalled', `Payroll run ${run.period} recalled to draft`, profile);
+    toast({ title: 'Run recalled to draft' });
+    await load();
+  };
+
+  // Delete a draft payroll run. Restricted to `draft` because anything
+  // submitted has been seen by an approver and deleting it silently
+  // would erase that audit step. Use Recall first to send a pending
+  // run back to draft, then Delete.
+  const deleteDraft = async (run: PayrollRun) => {
+    if (run.status !== 'draft') {
+      toast({
+        title: 'Only drafts can be deleted',
+        description: 'Recall a pending run to draft first, or contact an admin to reject an approved run.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (!confirm(`Delete the draft for "${run.period}"? This cannot be undone.`)) return;
+    const { error } = await supabase
+      .from('payroll_runs')
+      .delete()
+      .eq('id', run.id);
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('payroll_run_deleted', `Payroll draft ${run.period} deleted`, profile);
+    toast({ title: 'Draft deleted' });
+    await load();
   };
 
   const submit = async (run: PayrollRun) => {
@@ -1434,14 +1482,45 @@ const Payroll = () => {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {r.status === 'draft' && (
-                          <Button size="sm" variant="outline" onClick={() => submit(r)}>
-                            Submit
-                          </Button>
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => submit(r)}>
+                              Submit
+                            </Button>
+                            {/* Delete is draft-only — once a run is in
+                                pending_approval / approved / paid the
+                                audit trail must stay intact. Operators
+                                use Recall on a pending run to send it
+                                back to draft, then delete. */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteDraft(r)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Delete this draft"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
                         )}
                         {r.status === 'pending_approval' && canApprovePerm && (
-                          <Button size="sm" variant="outline" onClick={() => approve(r)}>
-                            Approve
-                          </Button>
+                          <>
+                            <Button size="sm" variant="outline" onClick={() => approve(r)}>
+                              Approve
+                            </Button>
+                            {/* Recall sends a pending run back to draft so
+                                the originator (or an admin) can edit it
+                                before re-submitting. Approved / paid runs
+                                can't be recalled — that would corrupt
+                                the audit trail. */}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => recallToDraft(r)}
+                              title="Recall to draft for editing"
+                            >
+                              Recall
+                            </Button>
+                          </>
                         )}
                         {r.status === 'approved' && (
                           <>

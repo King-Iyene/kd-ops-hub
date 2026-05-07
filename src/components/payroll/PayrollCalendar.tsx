@@ -34,6 +34,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { formatDate } from '@/lib/format';
+import { getNigerianHolidaysInRange, type NgHoliday } from '@/lib/holidays';
+import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { cn } from '@/lib/utils';
 
 interface CalendarEvent {
@@ -100,9 +102,12 @@ export function PayrollCalendar() {
       const start = new Date(month.getFullYear(), month.getMonth() - 6, 1);
       const end   = new Date(month.getFullYear(), month.getMonth() + 8, 0);
 
-      // 1. Public holidays — Nigerian national holidays, seeded once
-      //    per year by the payroll_world_class migration. Anyone can
-      //    SELECT (auth_read_public_holidays policy).
+      // 1. Public holidays — pulled from BOTH a deterministic
+      //    client-side generator (covers any year, no seed needed)
+      //    AND the public_holidays DB table (admin overrides any
+      //    proclamation that shifts a date by ±1 day). The DB row
+      //    wins on duplicates so the calendar always reflects the
+      //    operator's authoritative copy.
       // 2. Payroll runs — already-issued runs carry a pay_date; older
       //    rows pre-dating the column fall back to the period (rolled
       //    to last day of month for display).
@@ -127,7 +132,24 @@ export function PayrollCalendar() {
 
       const out: CalendarEvent[] = [];
 
-      // Holidays
+      // Algorithmic holidays — covers every year deterministically.
+      const computed: NgHoliday[] = getNigerianHolidaysInRange(isoOf(start), isoOf(end));
+      const dbDates = new Set((hRes.data ?? []).map((r: any) => r.holiday_date));
+      for (const h of computed) {
+        if (dbDates.has(h.date)) continue; // DB override beats computed
+        out.push({
+          date: h.date,
+          kind: 'holiday',
+          label: h.name + (h.exact ? '' : ' (estimated)'),
+          detail: h.category === 'islamic'
+            ? 'Islamic holiday — exact civil date depends on lunar sighting'
+            : h.category === 'christian'
+              ? 'Christian holiday — Gregorian computus'
+              : 'Public holiday (Nigeria)',
+        });
+      }
+
+      // DB-overridden holidays
       for (const h of (hRes.data ?? []) as any[]) {
         out.push({
           date: h.holiday_date,
@@ -245,6 +267,15 @@ export function PayrollCalendar() {
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-primary" /> Payroll calendar
+          <InfoHint>
+            A month-by-month plan of what's coming up. <b>Pay days</b> are
+            when salaries hit employee accounts. <b>Cutoffs</b> are the
+            last day to lock in overtime, bonuses or any variable pay
+            for that month — anything entered after a cutoff lands on
+            next month's run. <b>Holidays</b> are Nigerian public days;
+            if a pay day falls on one, the schedule rolls it to the
+            previous business day automatically.
+          </InfoHint>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
