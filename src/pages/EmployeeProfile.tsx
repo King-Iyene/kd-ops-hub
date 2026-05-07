@@ -112,6 +112,7 @@ const EmployeeProfile = () => {
 
   const [employee, setEmployee] = useState<EmployeeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [pendingDeleteDoc, setPendingDeleteDoc] = useState<any>(null);
   const [confirmAnonymise, setConfirmAnonymise] = useState(false);
@@ -233,14 +234,36 @@ const EmployeeProfile = () => {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const { data, error } = await supabase
+    setLoadError(null);
+    // Try the joined query first. If the FK embed fails (typically when
+    // the departments table or schema cache hasn't caught up yet), fall
+    // back to a plain select so the page still loads — losing only the
+    // department display, not the entire profile.
+    let { data, error } = await supabase
       .from('profiles')
       .select('*, departments(name)')
       .eq('id', id)
       .single();
+    if (error) {
+      const fallback = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .single();
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error || !data) {
-      toast({ title: 'Employee not found', variant: 'destructive' });
-      navigate('/employees');
+      // Real network / RLS / not-found error — keep the user on the page
+      // and show what went wrong so they can retry. Auto-navigating away
+      // hid the underlying problem (auth.users.last_sign_in_at NULL,
+      // Supabase pool exhausted, missing column, etc.) and made it
+      // impossible to debug from the UI.
+      const msg = error?.message
+        ?? (error as any)?.details
+        ?? 'Could not load this employee. The connection may have dropped — try again.';
+      setLoadError(msg);
+      setLoading(false);
       return;
     }
     const emp = data as EmployeeData;
@@ -721,10 +744,34 @@ const EmployeeProfile = () => {
     return ((employee.salary_ngn - past.new_salary_ngn) / past.new_salary_ngn) * 100;
   }, [increments, employee]);
 
-  if (loading || !employee) {
+  if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (loadError || !employee) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center px-4">
+        <div className="max-w-md w-full text-center space-y-3 rounded-xl border bg-card p-6 shadow-sm">
+          <p className="text-base font-semibold">Couldn't load this employee</p>
+          <p className="text-sm text-muted-foreground break-words">
+            {loadError || 'No data was returned for this profile.'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            If this persists, check the Supabase status page — connection drops normally clear within a minute.
+          </p>
+          <div className="flex justify-center gap-2 pt-2">
+            <Button variant="outline" onClick={() => navigate('/employees')}>
+              Back to list
+            </Button>
+            <Button onClick={() => void load()}>
+              Retry
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

@@ -316,6 +316,12 @@ const Employees = () => {
   };
 
   const resendInvite = async (e: Employee) => {
+    // signInWithOtp doubles as both "resend invite" (for status='invited'
+    // users who never accepted the original link) and "send sign-in link"
+    // (for status='active' users who never actually logged in, or who
+    // are locked out). Either way Supabase emails them a magic link
+    // that lands on /reset-password.
+    const isFirstTime = e.status === 'invited';
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: e.email,
@@ -328,13 +334,18 @@ const Employees = () => {
       if (error) throw error;
       await logAudit(
         'employee_invite_resent',
-        `Invite resent to ${e.email}`,
+        isFirstTime
+          ? `Invite resent to ${e.email}`
+          : `Sign-in link sent to ${e.email}`,
         profile,
       );
-      toast({ title: 'Invite email resent' });
+      toast({
+        title: isFirstTime ? 'Invite email resent' : 'Sign-in link sent',
+        description: `Sent to ${e.email}`,
+      });
     } catch (err: any) {
       toast({
-        title: 'Could not resend invite',
+        title: isFirstTime ? 'Could not resend invite' : 'Could not send link',
         description: err?.message,
         variant: 'destructive',
       });
@@ -587,12 +598,23 @@ const Employees = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          {e.status === 'invited' && isAdmin && (
+                          {/* Resend invite is available on every active /
+                              invited employee row — not just `status='invited'`.
+                              The original gate hid this from admins who needed
+                              to re-invite a "lead" who never signed in for the
+                              first time even though their status had been
+                              flipped to active by an unrelated edit. The
+                              underlying call is supabase.auth.signInWithOtp,
+                              which sends a magic link whether the user has
+                              signed in before or not — so admins can use this
+                              as both first-time invite resend and as a
+                              "you're locked out, here's a fresh link" tool. */}
+                          {isAdmin && e.status !== 'inactive' && (
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={(evt) => { evt.stopPropagation(); resendInvite(e); }}
-                              title="Resend invite"
+                              title={e.status === 'invited' ? 'Resend invite' : 'Send sign-in link to this user'}
                             >
                               <Mail className="h-4 w-4" />
                             </Button>

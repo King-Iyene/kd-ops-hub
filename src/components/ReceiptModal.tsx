@@ -19,13 +19,14 @@
  * REVERSED) so the outcome is unmissable even if the small status pill is
  * overlooked.
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Printer, Share2, X } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
 import { stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -59,6 +60,51 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
 
+  // The webhook normally writes paystack_fee_ngn when transfer.success
+  // fires, and the reconcile job backfills any rows that miss the
+  // webhook. This is the third safety net: when the receipt is opened
+  // for a succeeded transfer that still has no fee on file, fetch it
+  // straight from Paystack via the verify_transfer edge action and
+  // persist the result back to the row. So once a receipt has been
+  // opened, the fee is *guaranteed* real-Paystack — no calculations,
+  // no estimates, just the figure Paystack actually charged.
+  const [feeOverride, setFeeOverride] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || !item) return;
+    const isSucceeded = item.status === 'succeeded' || item.status === 'processed';
+    const hasFee = Number(item.paystack_fee_ngn || 0) > 0;
+    const hasRef = !!item.paystack_reference;
+    if (!isSucceeded || hasFee || !hasRef) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+          body: { action: 'verify_transfer', reference: item.paystack_reference },
+          headers: session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : undefined,
+        });
+        if (cancelled || error) return;
+        const fee = Number((data as any)?.fee_ngn || 0);
+        if (fee > 0) {
+          setFeeOverride(fee);
+          // Persist back so subsequent opens are instant and the
+          // ledger / Transactions table also see the real value.
+          await supabase
+            .from('batch_items')
+            .update({ paystack_fee_ngn: fee })
+            .eq('id', item.id);
+        }
+      } catch (e) {
+        // Silent — receipt still renders, just without the fee row
+        // populated. Operators can hit Reconcile from Payments instead.
+        console.warn('[receipt] fee backfill failed:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, item?.id, item?.status, item?.paystack_reference, item?.paystack_fee_ngn]);
+
   if (!item) return null;
 
   const s = statusInfo(item.status);
@@ -74,10 +120,11 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
   const amount = Number(item.amount_ngn) || 0;
-  // Transfer fee comes from Paystack (paystack_fee_ngn on batch_items).
+  // Transfer fee comes from Paystack (paystack_fee_ngn on batch_items),
+  // with a lazy backfill above if the column is null on first open.
   // No client-side calculation — if Paystack hasn't reported a fee yet
   // the row shows "—" rather than guessing.
-  const psFee = Number(item.paystack_fee_ngn || 0);
+  const psFee = feeOverride ?? Number(item.paystack_fee_ngn || 0);
   const duty = stampDutyFor(amount);
   const total = amount + psFee + duty;
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
