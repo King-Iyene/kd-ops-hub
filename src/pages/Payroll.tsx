@@ -1287,15 +1287,29 @@ const Payroll = () => {
       <NextPayrollBanner />
 
       <Tabs defaultValue="runs">
-        <TabsList>
-          <TabsTrigger value="runs">Payroll Runs</TabsTrigger>
-          <TabsTrigger value="calendar">
-            <CalendarDays className="mr-2 h-4 w-4" />
+        {/* Underline tabs — central-bank pattern: thin border-b
+            row, no rounded pill background. Active tab gets a 2px
+            underline and bold weight. Restraint over chrome. */}
+        <TabsList className="h-9 bg-transparent border-b border-border/50 rounded-none w-full justify-start gap-0 p-0">
+          <TabsTrigger
+            value="runs"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            Payroll runs
+          </TabsTrigger>
+          <TabsTrigger
+            value="calendar"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
             Calendar
           </TabsTrigger>
-          <TabsTrigger value="schedules">
-            <CalendarClock className="mr-2 h-4 w-4" />
-            Pay Schedules
+          <TabsTrigger
+            value="schedules"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
+            Pay schedules
           </TabsTrigger>
         </TabsList>
 
@@ -1320,34 +1334,48 @@ const Payroll = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard
-          title="Latest total burn"
-          value={latest ? formatNaira(latest.total_burn_ngn) : '—'}
-          subtitle={latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run'}
-          icon={Banknote}
-          tone="primary"
-        />
-        <StatCard
-          title="PAYE (est.)"
-          value={latest ? formatNaira(latest.paye_ngn) : '—'}
-          subtitle="Due 10th next month"
-          icon={FileText}
-          tone="warning"
-        />
-        <StatCard
-          title="Active employees"
-          value={latest?.employee_count ?? '—'}
-          subtitle={latest ? `Pension: ${formatNaira(latest.pension_ngn)}` : 'No runs yet'}
-          icon={Users}
-          tone="success"
-        />
-        <StatCard
-          title="Approved runs"
-          value={runs.filter((r) => r.status === 'approved' || r.status === 'paid').length}
-          subtitle="This year"
-          icon={CheckCircle2}
-        />
+      {/* Summary strip — central-bank pattern: hairline 4-cell row,
+          status dot per metric. Latest burn is the hero (blue dot),
+          PAYE due is a warning (amber), active count is good
+          (emerald), approved count is neutral. */}
+      <div className="rounded-lg border border-border/60 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/60 divide-y sm:divide-y-0">
+        {[
+          {
+            label: 'Latest total burn',
+            value: latest ? formatNaira(latest.total_burn_ngn) : '—',
+            sub: latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run',
+            dot: 'bg-blue-500',
+          },
+          {
+            label: 'PAYE (est.)',
+            value: latest ? formatNaira(latest.paye_ngn) : '—',
+            sub: 'Due 10th next month',
+            dot: 'bg-amber-500',
+          },
+          {
+            label: 'Active employees',
+            value: latest?.employee_count ?? '—',
+            sub: latest ? `Pension: ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
+            dot: 'bg-emerald-500',
+          },
+          {
+            label: 'Approved runs',
+            value: runs.filter((r) => r.status === 'approved' || r.status === 'paid').length,
+            sub: 'This year',
+            dot: 'bg-slate-400',
+          },
+        ].map(({ label, value, sub, dot }) => (
+          <div key={label} className="px-4 py-3.5">
+            <div className="flex items-center gap-1.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</p>
+            </div>
+            <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+              {value}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums truncate">{sub}</p>
+          </div>
+        ))}
       </div>
 
       {trend.length > 0 && (
@@ -1392,13 +1420,11 @@ const Payroll = () => {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Payroll runs</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
+      <div className="space-y-3">
+        <h2 className="text-[13px] font-semibold tracking-tight">Payroll runs</h2>
+        <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
           {loading ? (
-            <TableSkeleton rows={5} cols={7} />
+            <div className="p-3"><TableSkeleton rows={5} cols={7} /></div>
           ) : runs.length === 0 ? (
             <EmptyState
               illustration="coin"
@@ -1659,8 +1685,8 @@ const Payroll = () => {
             </div>
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
         </TabsContent>
 

@@ -492,12 +492,23 @@ const Transactions = () => {
                         && (r.manual_resolution_method === 'cancelled'
                             || r.manual_resolution_method === 'voided');
                       const wasPaidExternally = r.is_manually_resolved && !wasCancelled;
+                      // Subtle row-tint cue. Operator can see at a
+                      // glance whether a row is failed (rose hairline)
+                      // or succeeded (clean white) without looking at
+                      // the status column. Pending stays neutral so
+                      // the eye isn't drawn to in-flight items.
+                      const rowTint = wasCancelled ? ''
+                        : wasPaidExternally ? 'bg-emerald-50/30 hover:bg-emerald-50/50 dark:bg-emerald-950/10'
+                        : ledgerStatus === 'failed' ? 'bg-rose-50/30 hover:bg-rose-50/50 dark:bg-rose-950/10'
+                        : ledgerStatus === 'succeeded' ? 'hover:bg-muted/30'
+                        : 'hover:bg-muted/30';
                       return (
                         <tr
                           key={`${r.txn_type}-${r.id}`}
                           className={cn(
-                            'cursor-pointer hover:bg-muted/30 kd-transition',
-                            wasCancelled && 'opacity-55',
+                            'cursor-pointer kd-transition',
+                            rowTint,
+                            wasCancelled && 'opacity-55 hover:bg-muted/30',
                           )}
                           onClick={() => handleRowClick(r)}
                         >

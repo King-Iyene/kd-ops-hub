@@ -460,66 +460,89 @@ const Payments = () => {
             }
           />
         ) : (
-          /* US bank-grade batch rows: hairline-divided list, dense
-             but legible. No rounded-2xl card per row — cards-per-row
-             waste vertical space and obscure cross-row scanning.
-             Status as a coloured dot on the left so the eye can
-             scan a column of dots top-to-bottom (Mercury / Ramp
-             pattern). Amount is right-aligned, tabular-nums,
-             semibold but not display weight. */
+          /* US/UK central-bank dense ledger row.
+             Single-line layout (h-11 ≈ 44px) instead of stacked
+             two-line. Left edge carries a 3px coloured rail in the
+             status hue so a glance down the list immediately
+             segregates failed (red), pending (amber), processed
+             (emerald) and processing (blue, pulsing). Failed +
+             rejected rows also tint the row background a hairline
+             of red so they read as alarming without shouting.
+             Layout, left → right:
+               • status rail (3px)
+               • status dot
+               • batch name (14px medium)
+               • inline meta: type chip · recipients · pay date
+               • amount (right, tabular-nums, status-coloured)
+               • chevron */
           <div className="rounded-lg border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
             {filtered.map((batch) => {
               const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
               const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
-              const dotColor = isProcessing ? 'bg-blue-500'
-                : batch.status === 'pending_approval' ? 'bg-amber-500'
-                : batch.status === 'rejected' || batch.status === 'failed' ? 'bg-red-500'
-                : batch.status === 'processed' ? 'bg-emerald-500'
-                : batch.status === 'draft' ? 'bg-slate-300'
+              const isFailed = batch.status === 'rejected' || batch.status === 'failed';
+              const isPending = batch.status === 'pending_approval';
+              const isProcessed = batch.status === 'processed';
+              const isDraft = batch.status === 'draft';
+              const railColor = isProcessing ? 'bg-blue-500'
+                : isPending ? 'bg-amber-500'
+                : isFailed ? 'bg-red-500'
+                : isProcessed ? 'bg-emerald-500'
+                : isDraft ? 'bg-slate-300'
                 : 'bg-muted-foreground/40';
+              const amountColor = isFailed ? 'text-red-700'
+                : isProcessed ? 'text-emerald-700'
+                : 'text-foreground';
               return (
                 <div
                   key={batch.id}
                   onClick={() => navigate(`/payments/${batch.id}`)}
                   className={cn(
-                    'group flex items-center gap-3 px-4 h-14 cursor-pointer kd-transition',
-                    'hover:bg-muted/30',
-                    batch.status === 'draft' && 'opacity-70',
+                    'group relative flex items-center gap-2.5 pl-3 pr-3 h-11 cursor-pointer kd-transition',
+                    'hover:bg-muted/40',
+                    isFailed && 'bg-red-50/30 dark:bg-red-950/10',
+                    isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
+                    isDraft && 'opacity-70',
                   )}
                 >
-                  {/* Status dot */}
-                  <span className={cn('h-2 w-2 rounded-full shrink-0', dotColor, isProcessing && 'animate-pulse')} />
+                  {/* Left status rail — 3px wide, full height */}
+                  <span className={cn('absolute left-0 top-0 h-full w-[3px]', railColor, isProcessing && 'animate-pulse')} />
 
-                  {/* Main info — name + meta inline on desktop, stacked on mobile */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <p className="font-medium text-[13.5px] truncate text-foreground">{batch.name}</p>
-                      {typeMeta && (
-                        <span className={cn('hidden sm:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0', typeMeta.bg, typeMeta.text)}>
-                          {typeMeta.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground tabular-nums">
-                      <span className="inline-flex items-center gap-1">
-                        <Users className="h-2.5 w-2.5" />
-                        {batch.beneficiary_count}
+                  {/* Status dot for redundancy */}
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 ml-0.5', railColor)} />
+
+                  {/* Main info — single line on desktop */}
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <p className="font-medium text-[13px] truncate text-foreground shrink min-w-0">{batch.name}</p>
+                    {typeMeta && (
+                      <span className={cn('hidden md:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0', typeMeta.bg, typeMeta.text)}>
+                        {typeMeta.label}
                       </span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span>{formatDate(batch.payment_date)}</span>
-                      <span className="hidden sm:inline text-muted-foreground/40">·</span>
-                      <StatusBadge status={batch.status} size="sm" />
-                    </div>
+                    )}
+                    <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                      <Users className="inline h-2.5 w-2.5 mr-0.5 -mt-0.5" />
+                      {batch.beneficiary_count}
+                    </span>
+                    <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                      {formatDate(batch.payment_date)}
+                    </span>
                   </div>
 
-                  {/* Amount — semibold tabular, right-aligned */}
-                  <div className="shrink-0 text-right">
-                    <p className="font-semibold text-[14px] tabular-nums leading-none tracking-tight">
-                      {formatNaira(batch.total_amount || 0)}
-                    </p>
-                  </div>
+                  {/* Mobile-only meta below name */}
+                  <span className="md:hidden text-[10.5px] text-muted-foreground/70 tabular-nums shrink-0">
+                    {batch.beneficiary_count}p · {formatDate(batch.payment_date)}
+                  </span>
 
-                  <ArrowRight className="shrink-0 h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 kd-transition" />
+                  {/* Status pill (compact) */}
+                  <span className="hidden sm:inline-flex shrink-0">
+                    <StatusBadge status={batch.status} size="sm" />
+                  </span>
+
+                  {/* Amount — status-coloured, tabular */}
+                  <p className={cn('shrink-0 font-semibold text-[13.5px] tabular-nums leading-none tracking-tight tabular-nums w-24 text-right', amountColor)}>
+                    {formatNaira(batch.total_amount || 0)}
+                  </p>
+
+                  <ArrowRight className="shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 kd-transition" />
                 </div>
               );
             })}

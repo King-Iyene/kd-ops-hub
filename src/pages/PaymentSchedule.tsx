@@ -8,11 +8,9 @@ import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { StatCard } from '@/components/ui-kit/StatCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,14 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -501,178 +491,190 @@ export default function PaymentSchedule() {
         </div>
       )}
 
-      {/* Section 2 — Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          title="Next 7 Days"
-          value={formatNaira(obligations7)}
-          subtitle="Total NGN obligations"
-          icon={CalendarClock}
-          tone="primary"
-        />
-        <StatCard
-          title="Next 30 Days"
-          value={formatNaira(obligations30)}
-          subtitle="Total NGN obligations"
-          icon={CalendarClock}
-          tone="default"
-        />
-        <StatCard
-          title="Overdue"
-          value={overdueBatches.length.toString()}
-          subtitle={
-            overdueBatches.length > 0
-              ? `${formatNaira(overdueTotal)} past due`
-              : 'All on schedule'
-          }
-          icon={AlertTriangle}
-          tone={overdueBatches.length > 0 ? 'danger' : 'success'}
-        />
+      {/* Section 2 — Summary strip (US/UK central-bank pattern:
+          hairline 3-cell row, status dot per metric, no medallions
+          or gradient cards). */}
+      <div className="rounded-lg border border-border/60 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/60">
+        {[
+          {
+            label: 'Next 7 days',
+            value: formatNaira(obligations7),
+            sub: 'NGN obligations',
+            dot: 'bg-blue-500',
+          },
+          {
+            label: 'Next 30 days',
+            value: formatNaira(obligations30),
+            sub: 'NGN obligations',
+            dot: 'bg-slate-400',
+          },
+          {
+            label: 'Overdue',
+            value: overdueBatches.length.toString(),
+            sub: overdueBatches.length > 0 ? `${formatNaira(overdueTotal)} past due` : 'All on schedule',
+            dot: overdueBatches.length > 0 ? 'bg-red-500' : 'bg-emerald-500',
+          },
+        ].map(({ label, value, sub, dot }) => (
+          <div key={label} className="px-4 py-3.5">
+            <div className="flex items-center gap-1.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</p>
+            </div>
+            <p className="mt-1.5 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+              {value}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">{sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Section 3 — Upcoming payments list */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Payments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <TableSkeleton rows={5} cols={4} />
-          ) : grouped.length === 0 ? (
+      {/* Section 3 — Upcoming payments list (dense ledger rows,
+          status rail on the left, group label small-caps). */}
+      <div className="space-y-4">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-[13px] font-semibold tracking-tight">Upcoming payments</h2>
+        </div>
+        {loading ? (
+          <TableSkeleton rows={5} cols={4} />
+        ) : grouped.length === 0 ? (
+          <div className="rounded-lg border border-border/60 bg-card">
             <EmptyState
               icon={CalendarClock}
               title="No upcoming payments"
               description="Scheduled batches, recurring schedules, and active subscriptions will appear here."
             />
-          ) : (
-            <div className="space-y-4">
-              {grouped.map(({ group, items }) => (
-                <div key={group}>
-                  <div
-                    className={cn(
-                      'text-xs font-semibold uppercase tracking-wider px-1 pb-2',
-                      group === 'Overdue'
-                        ? 'text-destructive'
-                        : 'text-muted-foreground',
-                    )}
-                  >
-                    {group}
-                  </div>
-                  <div className="space-y-1">
-                    {items.map((item) => {
-                      const cfg = TYPE_CONFIG[item.type];
-                      return (
-                        <div
-                          key={`${item.type}-${item.id}`}
-                          onClick={() => handleItemClick(item)}
-                          className="flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer kd-transition hover:bg-muted/40"
-                        >
-                          <cfg.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{item.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDate(item.dueDate)}
-                            </p>
-                          </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {grouped.map(({ group, items }) => (
+              <div key={group}>
+                <div
+                  className={cn(
+                    'text-[10.5px] font-semibold uppercase tracking-[0.1em] px-1 pb-1.5',
+                    group === 'Overdue'
+                      ? 'text-red-600'
+                      : 'text-muted-foreground/80',
+                  )}
+                >
+                  {group}
+                </div>
+                <div className="rounded-lg border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
+                  {items.map((item) => {
+                    const cfg = TYPE_CONFIG[item.type];
+                    const isOverdue = group === 'Overdue';
+                    const railColor = isOverdue ? 'bg-red-500'
+                      : group === 'Today' || group === 'This week' ? 'bg-amber-500'
+                      : 'bg-slate-300';
+                    return (
+                      <div
+                        key={`${item.type}-${item.id}`}
+                        onClick={() => handleItemClick(item)}
+                        className={cn(
+                          'group relative flex items-center gap-2.5 pl-3 pr-3 h-11 cursor-pointer kd-transition',
+                          'hover:bg-muted/40',
+                          isOverdue && 'bg-red-50/30 dark:bg-red-950/10',
+                        )}
+                      >
+                        <span className={cn('absolute left-0 top-0 h-full w-[3px]', railColor)} />
+                        <cfg.icon className="h-3.5 w-3.5 text-muted-foreground/70 shrink-0 ml-0.5" />
+                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                          <p className="font-medium text-[13px] truncate text-foreground shrink min-w-0">{item.name}</p>
                           <Badge
                             variant="outline"
-                            className={cn('text-[11px] shrink-0', cfg.className)}
+                            className={cn('hidden md:inline-flex text-[10px] h-4 px-1.5 shrink-0', cfg.className)}
                           >
                             {cfg.label}
                           </Badge>
-                          <span className="font-semibold currency shrink-0 text-sm">
-                            {formatNaira(item.amount)}
+                          <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                            {formatDate(item.dueDate)}
                           </span>
-                          <StatusBadge status={item.status} size="sm" />
                         </div>
-                      );
-                    })}
-                  </div>
+                        <span className="md:hidden text-[10.5px] text-muted-foreground/70 tabular-nums shrink-0">
+                          {formatDate(item.dueDate)}
+                        </span>
+                        <span className={cn(
+                          'shrink-0 font-semibold text-[13.5px] tabular-nums leading-none w-24 text-right',
+                          isOverdue && 'text-red-700',
+                        )}>
+                          {formatNaira(item.amount)}
+                        </span>
+                        <StatusBadge status={item.status} size="sm" />
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 4 — Recurring schedules manager */}
-      <div ref={recurringRef}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Recurring Schedules</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <TableSkeleton rows={3} cols={6} />
-            ) : recurringSchedules.length === 0 ? (
-              <EmptyState
-                icon={Repeat}
-                title="No recurring schedules"
-                description="Open a payment batch and click 'Make recurring' to set one up."
-              />
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Batch</TableHead>
-                      <TableHead>Frequency</TableHead>
-                      <TableHead>Next Run</TableHead>
-                      <TableHead>Last Run</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {recurringSchedules.map((s) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">{s.batch_name}</TableCell>
-                        <TableCell className="capitalize">{s.frequency}</TableCell>
-                        <TableCell>{s.next_run_date ? formatDate(s.next_run_date) : '—'}</TableCell>
-                        <TableCell>{s.last_run_date ? formatDate(s.last_run_date) : '—'}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={s.status} size="sm" />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => openEdit(s)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => togglePause(s)}
-                            >
-                              {s.status === 'active' ? (
-                                <PauseCircle className="h-3.5 w-3.5" />
-                              ) : (
-                                <PlayCircle className="h-3.5 w-3.5 text-green-600" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              onClick={() => setConfirmDelete(s)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section 4 — Recurring schedules (native table, hairline
+          divider, mono dates, dot+label status). */}
+      <div ref={recurringRef} className="space-y-3">
+        <h2 className="text-[13px] font-semibold tracking-tight">Recurring schedules</h2>
+        {loading ? (
+          <TableSkeleton rows={3} cols={6} />
+        ) : recurringSchedules.length === 0 ? (
+          <div className="rounded-lg border border-border/60 bg-card">
+            <EmptyState
+              icon={Repeat}
+              title="No recurring schedules"
+              description="Open a payment batch and click 'Make recurring' to set one up."
+            />
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Batch</th>
+                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Frequency</th>
+                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Next run</th>
+                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Last run</th>
+                    <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
+                    <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {recurringSchedules.map((s) => (
+                    <tr key={s.id} className="hover:bg-muted/30 kd-transition">
+                      <td className="px-3 py-2 text-[13px] font-medium">{s.batch_name}</td>
+                      <td className="px-3 py-2 text-[12px] capitalize text-muted-foreground">{s.frequency}</td>
+                      <td className="px-3 py-2 text-[12px] font-mono tabular-nums text-muted-foreground">
+                        {s.next_run_date ? formatDate(s.next_run_date) : <span className="text-muted-foreground/30">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-[12px] font-mono tabular-nums text-muted-foreground">
+                        {s.last_run_date ? formatDate(s.last_run_date) : <span className="text-muted-foreground/30">—</span>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <StatusBadge status={s.status} size="sm" />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => togglePause(s)}>
+                            {s.status === 'active' ? (
+                              <PauseCircle className="h-3 w-3" />
+                            ) : (
+                              <PlayCircle className="h-3 w-3 text-emerald-600" />
+                            )}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(s)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit schedule dialog */}
