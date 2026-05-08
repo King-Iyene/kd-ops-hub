@@ -7,6 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
+import { BulkActionBar } from '@/components/ui-kit/BulkActionBar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { displayName } from '@/lib/name';
 import { formatDate, formatNaira } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
@@ -164,6 +166,17 @@ const Contractors = () => {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const navigate = useNavigate();
+  // Bulk selection — Set keeps lookups O(1) when toggling many rows
+  // and lets us pass directly into supabase.in() once the user
+  // confirms a bulk delete from <BulkActionBar>.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -608,6 +621,26 @@ const Contractors = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                {/* Select-all checkbox in the header — toggles every
+                    visible (filtered) row on/off. Indeterminate state
+                    when only some rows are picked. */}
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select all contractors"
+                    checked={
+                      filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))
+                        ? true
+                        : selectedIds.size === 0
+                          ? false
+                          : 'indeterminate'
+                    }
+                    onCheckedChange={(v) => {
+                      setSelectedIds(() => v
+                        ? new Set(filtered.map((c) => c.id))
+                        : new Set());
+                    }}
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Bank</TableHead>
                 <TableHead>Account</TableHead>
@@ -628,7 +661,23 @@ const Contractors = () => {
                     ? 'bg-accent'
                     : 'bg-destructive';
                 return (
-                <TableRow key={c.id} className="cursor-pointer kd-transition" onClick={() => navigate(`/contractors/${c.id}`)}>
+                <TableRow
+                  key={c.id}
+                  className={cn(
+                    'cursor-pointer kd-transition',
+                    selectedIds.has(c.id) && 'bg-primary/5',
+                  )}
+                  onClick={() => navigate(`/contractors/${c.id}`)}
+                >
+                  {/* Selection checkbox — stops click propagation so
+                      ticking the box doesn't navigate to the profile. */}
+                  <TableCell className="w-10" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      aria-label={`Select ${c.full_name || c.first_name}`}
+                      checked={selectedIds.has(c.id)}
+                      onCheckedChange={() => toggleSelected(c.id)}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <div>{displayName(c.first_name, c.last_name, c.full_name)}</div>
                     {c.linkedin_id && (
@@ -1087,6 +1136,34 @@ const Contractors = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk action bar — slides up when one or more rows are
+          selected. Delete writes a hard delete (RLS gates which
+          contractors the user can actually remove). The toast +
+          fetchContractors() refresh runs after a confirmation
+          inside <BulkActionBar>. */}
+      <BulkActionBar
+        count={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        onDelete={async () => {
+          const ids = Array.from(selectedIds);
+          const { error } = await supabase
+            .from('contractors')
+            .delete()
+            .in('id', ids);
+          if (error) {
+            toast({ title: 'Bulk delete failed', description: error.message, variant: 'destructive' });
+            return;
+          }
+          await logAudit('contractor_deleted', `Bulk-deleted ${ids.length} contractors`, profile);
+          setSelectedIds(new Set());
+          toast({ title: `${ids.length} contractor${ids.length === 1 ? '' : 's'} deleted` });
+          fetchContractors();
+        }}
+        deleteLabel="Delete contractors"
+        deleteConfirmTitle="Delete selected contractors?"
+        deleteConfirmDescription="They'll be removed from the directory. Past payment batches that reference them stay intact via the historical contractor_id snapshot."
+      />
     </div>
   );
 };
