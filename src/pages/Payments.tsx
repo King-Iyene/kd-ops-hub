@@ -19,8 +19,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  Plus, Search, RefreshCw, Clock,
-  TrendingUp, Zap, ArrowRight, Users,
+  Plus, Search, RefreshCw, ArrowRight, Users,
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
@@ -362,54 +361,44 @@ const Payments = () => {
       )}
 
       {/* ── Stats row ──────────────────────────────────────────────
-          UK bank style (Monzo/Starling/Revolut): rounded-2xl cards
-          with soft pastel surfaces, prominent display amounts in
-          bold, and a friendly icon medallion. Generous padding so
-          the figures breathe — the headline amount is the hero. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          US bank-grade (Mercury / Brex / Ramp): one hairline strip,
+          three KPIs separated by a vertical divider, no pastel
+          gradients, no medallion icons. Label small-caps + tabular
+          number is what every B2B finance dashboard converges on
+          because operators read it across many sessions. Density
+          first — the page header and the wallet card are already
+          carrying visual weight. */}
+      <div className="rounded-lg border border-border/60 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/60">
         {[
           {
             label: 'Pending approval',
             value: stats.pendingCount,
             sub: formatNaira(stats.pendingAmount),
-            icon: Clock,
-            color: 'text-amber-700',
-            bg: 'bg-gradient-to-br from-amber-50 to-amber-100/40',
-            ring: 'ring-1 ring-amber-200/60',
-            iconBg: 'bg-amber-100/80 text-amber-700',
+            dot: 'bg-amber-500',
           },
           {
-            label: 'Processing now',
+            label: 'Processing',
             value: stats.processingCount,
             sub: 'Active transfers',
-            icon: Zap,
-            color: 'text-blue-700',
-            bg: 'bg-gradient-to-br from-blue-50 to-blue-100/40',
-            ring: 'ring-1 ring-blue-200/60',
-            iconBg: 'bg-blue-100/80 text-blue-700',
+            dot: 'bg-blue-500',
+            pulse: stats.processingCount > 0,
           },
           {
             label: 'Paid this month',
             value: formatNaira(stats.thisMonthAmount),
-            sub: 'Completed batches',
-            icon: TrendingUp,
-            color: 'text-emerald-700',
-            bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100/40',
-            ring: 'ring-1 ring-emerald-200/60',
-            iconBg: 'bg-emerald-100/80 text-emerald-700',
+            sub: 'Cleared on Paystack',
+            dot: 'bg-emerald-500',
           },
-        ].map(({ label, value, sub, icon: Icon, color, bg, ring, iconBg }) => (
-          <div key={label} className={cn('rounded-2xl px-5 py-4 kd-transition hover:shadow-[var(--shadow-md)]', bg, ring)}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium text-muted-foreground/90">{label}</p>
-                <p className={cn('text-[26px] font-bold mt-1 leading-none tracking-tight tabular-nums', color)}>{value}</p>
-                <p className="text-[11px] text-muted-foreground/80 mt-1.5">{sub}</p>
-              </div>
-              <div className={cn('rounded-2xl p-2.5 shrink-0', iconBg)}>
-                <Icon className="h-4 w-4" strokeWidth={2.25} />
-              </div>
+        ].map(({ label, value, sub, dot, pulse }) => (
+          <div key={label} className="px-4 py-3.5 first:rounded-t-lg sm:first:rounded-tr-none sm:first:rounded-l-lg last:rounded-b-lg sm:last:rounded-bl-none sm:last:rounded-r-lg">
+            <div className="flex items-center gap-1.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot, pulse && 'animate-pulse')} />
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</p>
             </div>
+            <p className="mt-1.5 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
+              {value}
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">{sub}</p>
           </div>
         ))}
       </div>
@@ -419,12 +408,12 @@ const Payments = () => {
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           {/* Tabs scroll horizontally on mobile so they don't wrap into a
               second row that pushes the table down. Snap to each pill. */}
-          {/* Pill tabs — Monzo/Starling style: rounded-full,
-              friendly hover, active gets a soft fill rather than
-              a hard background. */}
+          {/* Tabs — bank-grade: thin underline-style, no pill fills.
+              Mercury/Brex use this on their list pages because pill
+              tabs steal too much visual weight from the data below. */}
           <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }} className="w-full sm:w-auto">
             <div className="-mx-1 overflow-x-auto kd-mobile-snap-x sm:overflow-visible">
-              <TabsList className="h-9 bg-muted/40 rounded-full inline-flex w-max sm:flex sm:w-auto sm:flex-wrap sm:gap-y-1 p-1">
+              <TabsList className="h-8 bg-transparent border-b border-border/50 rounded-none inline-flex w-max sm:flex sm:w-auto sm:flex-wrap p-0 gap-0">
                 {[
                   { value: 'all', label: 'All' },
                   { value: 'pending_approval', label: 'Pending' },
@@ -438,7 +427,7 @@ const Payments = () => {
                   <TabsTrigger
                     key={value}
                     value={value}
-                    className="text-[12px] px-3.5 h-7 rounded-full shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-[var(--shadow-sm)] data-[state=active]:font-semibold"
+                    className="text-[12px] px-2.5 h-8 rounded-none shrink-0 border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                   >
                     {label}
                   </TabsTrigger>
@@ -471,75 +460,89 @@ const Payments = () => {
             }
           />
         ) : (
-          /* UK bank style batch rows: rounded-2xl card per row, roomy
-             padding, big right-aligned amount in display weight,
-             pastel category chip on the left, accent strip for status. */
-          <div className="space-y-2">
+          /* US/UK central-bank dense ledger row.
+             Single-line layout (h-11 ≈ 44px) instead of stacked
+             two-line. Left edge carries a 3px coloured rail in the
+             status hue so a glance down the list immediately
+             segregates failed (red), pending (amber), processed
+             (emerald) and processing (blue, pulsing). Failed +
+             rejected rows also tint the row background a hairline
+             of red so they read as alarming without shouting.
+             Layout, left → right:
+               • status rail (3px)
+               • status dot
+               • batch name (14px medium)
+               • inline meta: type chip · recipients · pay date
+               • amount (right, tabular-nums, status-coloured)
+               • chevron */
+          <div className="rounded-lg border border-border/60 bg-card overflow-hidden divide-y divide-border/40">
             {filtered.map((batch) => {
               const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
               const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
-              const accentColor = isProcessing ? 'bg-blue-400'
-                : batch.status === 'pending_approval' ? 'bg-amber-400'
-                : batch.status === 'rejected' || batch.status === 'failed' ? 'bg-red-400'
-                : batch.status === 'processed' ? 'bg-emerald-400'
-                : 'bg-muted-foreground/30';
+              const isFailed = batch.status === 'rejected' || batch.status === 'failed';
+              const isPending = batch.status === 'pending_approval';
+              const isProcessed = batch.status === 'processed';
+              const isDraft = batch.status === 'draft';
+              const railColor = isProcessing ? 'bg-blue-500'
+                : isPending ? 'bg-amber-500'
+                : isFailed ? 'bg-red-500'
+                : isProcessed ? 'bg-emerald-500'
+                : isDraft ? 'bg-slate-300'
+                : 'bg-muted-foreground/40';
+              const amountColor = isFailed ? 'text-red-700'
+                : isProcessed ? 'text-emerald-700'
+                : 'text-foreground';
               return (
                 <div
                   key={batch.id}
                   onClick={() => navigate(`/payments/${batch.id}`)}
                   className={cn(
-                    'group relative flex items-center gap-4 rounded-2xl border border-border/60 bg-card px-5 py-4 cursor-pointer kd-transition overflow-hidden',
-                    'hover:shadow-[var(--shadow-md)] hover:border-primary/20',
-                    batch.status === 'draft' && 'opacity-80',
+                    'group relative flex items-center gap-2.5 pl-3 pr-3 h-11 cursor-pointer kd-transition',
+                    'hover:bg-muted/40',
+                    isFailed && 'bg-red-50/30 dark:bg-red-950/10',
+                    isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
+                    isDraft && 'opacity-70',
                   )}
                 >
-                  {/* Color accent strip */}
-                  <span className={cn('absolute left-0 top-0 h-full w-1', accentColor)} />
+                  {/* Left status rail — 3px wide, full height */}
+                  <span className={cn('absolute left-0 top-0 h-full w-[3px]', railColor, isProcessing && 'animate-pulse')} />
 
-                  {/* Type chip — Monzo-style soft pastel */}
-                  {typeMeta && (
-                    <div className="hidden sm:flex shrink-0">
-                      <span className={cn('inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold', typeMeta.bg, typeMeta.text)}>
+                  {/* Status dot for redundancy */}
+                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0 ml-0.5', railColor)} />
+
+                  {/* Main info — single line on desktop */}
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <p className="font-medium text-[13px] truncate text-foreground shrink min-w-0">{batch.name}</p>
+                    {typeMeta && (
+                      <span className={cn('hidden md:inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0', typeMeta.bg, typeMeta.text)}>
                         {typeMeta.label}
                       </span>
-                    </div>
-                  )}
-
-                  {/* Main info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-[15px] leading-snug truncate">{batch.name}</p>
-                      {typeMeta && (
-                        <span className={cn('sm:hidden inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium', typeMeta.bg, typeMeta.text)}>
-                          {typeMeta.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2.5 mt-1 text-[12px] text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <Users className="h-3 w-3" />
-                        {batch.beneficiary_count} {batch.beneficiary_count === 1 ? 'recipient' : 'recipients'}
-                      </span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span>Pay {formatDate(batch.payment_date)}</span>
-                      <span className="hidden sm:inline text-muted-foreground/40">·</span>
-                      <span className="hidden sm:inline">Created {formatDate(batch.created_at)}</span>
-                    </div>
+                    )}
+                    <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                      <Users className="inline h-2.5 w-2.5 mr-0.5 -mt-0.5" />
+                      {batch.beneficiary_count}
+                    </span>
+                    <span className="hidden md:inline text-[11px] text-muted-foreground/70 tabular-nums shrink-0">
+                      {formatDate(batch.payment_date)}
+                    </span>
                   </div>
 
-                  {/* Amount + status — big display amount on right,
-                      Monzo-style. tabular-nums so digits align across rows. */}
-                  <div className="shrink-0 text-right">
-                    <p className="font-bold text-[18px] tabular-nums leading-none tracking-tight">{formatNaira(batch.total_amount || 0)}</p>
-                    <div className="mt-1.5 flex items-center justify-end gap-1.5">
-                      <StatusBadge status={batch.status} size="sm" />
-                      {isProcessing && (
-                        <span className="flex h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                      )}
-                    </div>
-                  </div>
+                  {/* Mobile-only meta below name */}
+                  <span className="md:hidden text-[10.5px] text-muted-foreground/70 tabular-nums shrink-0">
+                    {batch.beneficiary_count}p · {formatDate(batch.payment_date)}
+                  </span>
 
-                  <ArrowRight className="shrink-0 h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 kd-transition" />
+                  {/* Status pill (compact) */}
+                  <span className="hidden sm:inline-flex shrink-0">
+                    <StatusBadge status={batch.status} size="sm" />
+                  </span>
+
+                  {/* Amount — status-coloured, tabular */}
+                  <p className={cn('shrink-0 font-semibold text-[13.5px] tabular-nums leading-none tracking-tight tabular-nums w-24 text-right', amountColor)}>
+                    {formatNaira(batch.total_amount || 0)}
+                  </p>
+
+                  <ArrowRight className="shrink-0 h-3 w-3 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 kd-transition" />
                 </div>
               );
             })}

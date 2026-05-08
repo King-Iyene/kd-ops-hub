@@ -74,6 +74,8 @@ interface Transaction {
   account_name: string | null;
   receipt_url: string | null;
   parent_batch_id: string | null;
+  is_manually_resolved: boolean | null;
+  manual_resolution_method: string | null;
 }
 
 // Item-level ledger types — every row is an actual money movement.
@@ -486,10 +488,28 @@ const Transactions = () => {
                       const refDisplay = r.reference && r.reference.length > 18
                         ? `${r.reference.slice(0, 12)}…${r.reference.slice(-4)}`
                         : (r.reference || '—');
+                      const wasCancelled = r.is_manually_resolved
+                        && (r.manual_resolution_method === 'cancelled'
+                            || r.manual_resolution_method === 'voided');
+                      const wasPaidExternally = r.is_manually_resolved && !wasCancelled;
+                      // Subtle row-tint cue. Operator can see at a
+                      // glance whether a row is failed (rose hairline)
+                      // or succeeded (clean white) without looking at
+                      // the status column. Pending stays neutral so
+                      // the eye isn't drawn to in-flight items.
+                      const rowTint = wasCancelled ? ''
+                        : wasPaidExternally ? 'bg-emerald-50/30 hover:bg-emerald-50/50 dark:bg-emerald-950/10'
+                        : ledgerStatus === 'failed' ? 'bg-rose-50/30 hover:bg-rose-50/50 dark:bg-rose-950/10'
+                        : ledgerStatus === 'succeeded' ? 'hover:bg-muted/30'
+                        : 'hover:bg-muted/30';
                       return (
                         <tr
                           key={`${r.txn_type}-${r.id}`}
-                          className="cursor-pointer hover:bg-muted/30 kd-transition"
+                          className={cn(
+                            'cursor-pointer kd-transition',
+                            rowTint,
+                            wasCancelled && 'opacity-55 hover:bg-muted/30',
+                          )}
                           onClick={() => handleRowClick(r)}
                         >
                           <td className="px-3 py-2 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
@@ -544,7 +564,19 @@ const Transactions = () => {
                             {formatNaira(r.amount_ngn)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
-                            <LedgerStatusDot status={ledgerStatus} />
+                            {wasCancelled ? (
+                              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-slate-500">
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-slate-400" />
+                                Cancelled
+                              </span>
+                            ) : wasPaidExternally ? (
+                              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-emerald-700">
+                                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
+                                Paid externally
+                              </span>
+                            ) : (
+                              <LedgerStatusDot status={ledgerStatus} />
+                            )}
                           </td>
                         </tr>
                       );
@@ -559,11 +591,21 @@ const Transactions = () => {
                   const Icon = TYPE_ICON[r.txn_type] || ArrowUpDown;
                   const recipient = r.account_name || r.description || '—';
                   const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
+                  const wasCancelled = r.is_manually_resolved
+                    && (r.manual_resolution_method === 'cancelled'
+                        || r.manual_resolution_method === 'voided');
+                  const wasPaidExternally = r.is_manually_resolved && !wasCancelled;
                   return (
                     <MobileCard
                       key={`${r.txn_type}-${r.id}`}
                       onClick={() => handleRowClick(r)}
-                      accentClassName={r.txn_type === 'quick_pay' ? 'bg-blue-500' : r.txn_type === 'charge' ? 'bg-amber-500' : 'bg-emerald-500'}
+                      className={cn(wasCancelled && 'opacity-60')}
+                      accentClassName={
+                        wasCancelled ? 'bg-slate-400'
+                        : wasPaidExternally ? 'bg-emerald-500'
+                        : r.txn_type === 'quick_pay' ? 'bg-blue-500'
+                        : 'bg-emerald-500'
+                      }
                     >
                       <MobileCardHeader>
                         <div className="min-w-0 flex-1">
@@ -612,7 +654,19 @@ const Transactions = () => {
                       </MobileCardHeader>
 
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <StatusBadge status={r.status} size="sm" />
+                        {wasCancelled ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-slate-500">
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-slate-400" />
+                            Cancelled
+                          </span>
+                        ) : wasPaidExternally ? (
+                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
+                            Paid externally
+                          </span>
+                        ) : (
+                          <StatusBadge status={r.status} size="sm" />
+                        )}
                         <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
                       </div>
 
