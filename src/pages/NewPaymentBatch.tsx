@@ -792,66 +792,60 @@ const NewPaymentBatch = () => {
                       {items.filter((i) => i.employee_id).length} selected
                     </span>
                   </div>
-                  <div className="border rounded-lg max-h-80 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10" />
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Bank Account</TableHead>
-                          <TableHead className="text-right">
-                            {batchType === 'employee_salary' ? 'Salary' : 'Amount'}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredEmployees.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground text-sm py-6">
-                              No employees found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {filteredEmployees.map((e) => {
-                          const hasBank = !!e.bank_account_number;
-                          const checked = selectedEmployeeIds.has(e.id);
-                          return (
-                            <TableRow
-                              key={e.id}
-                              className={cn('transition-colors', hasBank ? 'cursor-pointer' : 'opacity-60')}
-                              onClick={() => hasBank && toggleEmployee(e, !checked)}
-                            >
-                              <TableCell onClick={(ev) => ev.stopPropagation()}>
-                                <Checkbox
-                                  checked={checked}
-                                  disabled={!hasBank}
-                                  onCheckedChange={(v) => hasBank && toggleEmployee(e, Boolean(v))}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <p className="font-medium text-sm">{empDisplayName(e)}</p>
-                                <p className="text-xs text-muted-foreground">{e.job_title || '—'}</p>
-                              </TableCell>
-                              <TableCell>
+                  {/* Compact picker — matches contractor picker. h-9
+                      label rows, hairline divide-y, mono account
+                      subtitle. */}
+                  <div className="border rounded-lg max-h-80 overflow-y-auto bg-card divide-y divide-border/40">
+                    {filteredEmployees.length === 0 ? (
+                      <div className="text-center text-muted-foreground text-[12px] py-6">
+                        No employees match your search.
+                      </div>
+                    ) : (
+                      filteredEmployees.map((e) => {
+                        const hasBank = !!e.bank_account_number;
+                        const checked = selectedEmployeeIds.has(e.id);
+                        const name = empDisplayName(e);
+                        return (
+                          <label
+                            key={e.id}
+                            className={cn(
+                              'flex items-center gap-3 px-3 h-9 kd-transition',
+                              hasBank ? 'cursor-pointer' : 'opacity-60',
+                              checked ? 'bg-primary/[0.04]' : hasBank && 'hover:bg-muted/30',
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              disabled={!hasBank}
+                              onCheckedChange={(v) => hasBank && toggleEmployee(e, Boolean(v))}
+                              className="h-3.5 w-3.5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-[12.5px] font-medium truncate">{name}</span>
                                 {hasBank ? (
-                                  <div>
-                                    <p className="text-sm">{e.bank_name}</p>
-                                    <p className="font-mono text-xs text-muted-foreground">{e.bank_account_number || '—'}</p>
-                                  </div>
+                                  <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                    {e.bank_name} · {e.bank_account_number || '—'}
+                                  </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                                    <AlertTriangle className="h-3 w-3" /> No bank set
+                                  <span className="inline-flex items-center gap-1 text-[10.5px] text-amber-600 shrink-0">
+                                    <AlertTriangle className="h-2.5 w-2.5" /> No bank
                                   </span>
                                 )}
-                              </TableCell>
-                              <TableCell className="text-right font-medium text-sm">
-                                {e.salary_ngn ? formatNaira(e.salary_ngn) : '—'}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                              </div>
+                              {hasBank && (
+                                <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
+                                  {e.bank_name} · {e.bank_account_number || '—'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[12px] font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
+                              {e.salary_ngn ? formatNaira(e.salary_ngn) : '—'}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
                   </div>
                 </>
               )}
