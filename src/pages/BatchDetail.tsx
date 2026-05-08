@@ -186,32 +186,51 @@ const BatchDetail = () => {
   const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [diagnosingId, setDiagnosingId] = useState<string | null>(null);
-  // Mark-as-resolved dialog — fires the RPC that flips
-  // batch_items.is_manually_resolved=true and recomputes the
-  // batch's derived status. The row's underlying `status` stays
-  // 'failed' so the audit trail of the original Paystack outcome
-  // is preserved; resolution metadata sits alongside.
+  // Resolution dialog — closes a failed item without retrying. Two
+  // modes share the same RPC + dialog frame:
+  //   • 'paid'   — money moved via another rail (bank app / cash /
+  //                cheque). Method tags how it was paid.
+  //   • 'cancel' — money will not move. Operator writes off the
+  //                item (e.g. wrong bank details, recipient
+  //                uncontactable). Method = 'cancelled'.
+  // Both flip is_manually_resolved=true so the item drops out of
+  // pending and the parent batch lifts to its terminal state. The
+  // row's `status` column stays on 'failed' for audit.
   const [resolveItem, setResolveItem] = useState<any | null>(null);
+  const [resolveMode, setResolveMode] = useState<'paid' | 'cancel'>('paid');
   const [resolveMethod, setResolveMethod] = useState<string>('bank_transfer');
   const [resolveNote, setResolveNote] = useState<string>('');
   const [resolving, setResolving] = useState(false);
+
+  const openResolve = (item: any, mode: 'paid' | 'cancel') => {
+    setResolveItem(item);
+    setResolveMode(mode);
+    setResolveMethod(mode === 'cancel' ? 'cancelled' : 'bank_transfer');
+    setResolveNote('');
+  };
 
   const submitResolve = async () => {
     if (!resolveItem) return;
     setResolving(true);
     try {
+      const method = resolveMode === 'cancel' ? 'cancelled' : resolveMethod;
       const { error } = await supabase.rpc('mark_batch_item_resolved', {
         p_item_id: resolveItem.id,
-        p_method:  resolveMethod,
+        p_method:  method,
         p_note:    resolveNote.trim() || null,
       });
       if (error) throw error;
       await logAudit(
-        'batch_item_resolved',
-        `${resolveItem.full_name || 'Item'} marked as paid manually (${resolveMethod})`,
+        resolveMode === 'cancel' ? 'batch_item_cancelled' : 'batch_item_resolved',
+        resolveMode === 'cancel'
+          ? `${resolveItem.full_name || 'Item'} cancelled — closed without payment`
+          : `${resolveItem.full_name || 'Item'} marked as paid manually (${method})`,
         profile,
       );
-      toast({ title: 'Marked as resolved', description: 'Batch status will update shortly.' });
+      toast({
+        title: resolveMode === 'cancel' ? 'Item cancelled' : 'Marked as resolved',
+        description: 'Batch status will update shortly.',
+      });
       setResolveItem(null);
       setResolveNote('');
       setResolveMethod('bank_transfer');
@@ -1865,91 +1884,139 @@ const BatchDetail = () => {
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            {/* Bank-grade compact layout — Mercury / Ramp aesthetic.
+                9 columns collapsed into 5 by stacking related info
+                (name + bank + account ; amount + fee ; ref + paystack
+                ref). Each row is ~40px tall with subtle dividers and
+                font-mono on every numeric / identifier so dense lists
+                scan cleanly at a glance. */}
+            <Table className="text-[13px]">
               <TableHeader>
-                <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
-                  <TableHead className="text-xs">Name</TableHead>
-                  <TableHead className="text-xs">Bank</TableHead>
-                  <TableHead className="text-xs">Account</TableHead>
-                  <TableHead className="text-right text-xs">Amount</TableHead>
-                  <TableHead className="text-right text-xs">Fee</TableHead>
-                  <TableHead className="text-xs">Reference</TableHead>
-                  <TableHead className="text-xs">Paystack Ref</TableHead>
-                  <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-right text-xs">Actions</TableHead>
+                <TableRow className="border-b border-border/50 hover:bg-transparent">
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Beneficiary</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Amount</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Reference</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto">Status</TableHead>
+                  <TableHead className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground py-2 h-auto text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="divide-y divide-border/40">
                 {filteredItems.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                    <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
                       No recipients match this filter.
                     </TableCell>
                   </TableRow>
                 )}
-                {filteredItems.map((item) => (
+                {filteredItems.map((item) => {
+                  const wasCancelled = item.is_manually_resolved
+                    && (item.manual_resolution_method === 'cancelled' || item.manual_resolution_method === 'voided');
+                  return (
                   <TableRow
                     key={item.id}
-                    className={item.status === 'failed' ? 'border-l-4 border-l-destructive bg-destructive/5 kd-transition' : 'kd-transition'}
+                    className={cn(
+                      'kd-transition border-b-0',
+                      item.status === 'failed' && !item.is_manually_resolved && 'bg-destructive/[0.04] border-l-2 border-l-destructive',
+                      item.is_manually_resolved && !wasCancelled && 'bg-emerald-500/[0.04] border-l-2 border-l-emerald-500/60',
+                      wasCancelled && 'bg-muted/20 border-l-2 border-l-muted-foreground/30 opacity-75',
+                    )}
                   >
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate">{item.full_name || 'Unknown Recipient'}</span>
-                        {item.failure_reason && (() => {
-                          const f = friendlyPaystackError(item.failure_reason);
-                          const isOtp = /awaiting otp/i.test(item.failure_reason);
-                          return (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <button
-                                  type="button"
-                                  aria-label="View failure reason"
-                                  className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-amber-700 hover:bg-amber-50 dark:text-amber-400' : 'text-destructive hover:bg-destructive/10'}`}
-                                >
-                                  <Info className="h-3.5 w-3.5" />
-                                </button>
-                              </PopoverTrigger>
-                              <PopoverContent side="right" className="w-72 text-xs">
-                                <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
-                                <p className="text-muted-foreground mb-2">{f.hint}</p>
-                                {f.hint !== item.failure_reason && (
-                                  <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
-                                    <span className="opacity-60">Paystack: </span>{item.failure_reason}
-                                  </p>
-                                )}
-                              </PopoverContent>
-                            </Popover>
-                          );
-                        })()}
+                    {/* Beneficiary — name + bank + account stacked.
+                        Single cell does the work of three. */}
+                    <TableCell className="py-2.5 align-top">
+                      <div className="flex items-start gap-1.5">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium truncate">{item.full_name || 'Unknown Recipient'}</span>
+                            {item.failure_reason && (() => {
+                              const f = friendlyPaystackError(item.failure_reason);
+                              const isOtp = /awaiting otp/i.test(item.failure_reason);
+                              return (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      type="button"
+                                      aria-label="View failure reason"
+                                      className={`shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full ${isOtp ? 'text-amber-700 hover:bg-amber-50 dark:text-amber-400' : 'text-destructive hover:bg-destructive/10'}`}
+                                    >
+                                      <Info className="h-3 w-3" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent side="right" className="w-72 text-xs">
+                                    <p className={`font-semibold mb-1 ${isOtp ? 'text-amber-700 dark:text-amber-400' : 'text-destructive'}`}>{f.title}</p>
+                                    <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                    {f.hint !== item.failure_reason && (
+                                      <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                        <span className="opacity-60">Paystack: </span>{item.failure_reason}
+                                      </p>
+                                    )}
+                                  </PopoverContent>
+                                </Popover>
+                              );
+                            })()}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1.5">
+                            <span>{item.bank_name || '—'}</span>
+                            {item.account_number && (
+                              <>
+                                <span className="text-muted-foreground/30">·</span>
+                                <span className="font-mono tracking-tight">{item.account_number}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{item.bank_name}</TableCell>
-                    <TableCell className="font-mono text-xs">{item.account_number || '—'}</TableCell>
-                    <TableCell className="text-right">
-                      {canSeeAmounts
-                        ? <span className="currency">{formatNaira(item.amount_ngn || 0)}</span>
-                        : <span className="tabular-nums text-muted-foreground select-none">₦ ——</span>}
+
+                    {/* Amount + fee stacked, monospace tabular-nums
+                        right-aligned — every fintech presents money
+                        this way, makes it possible to compare rows by
+                        glancing down a column. */}
+                    <TableCell className="py-2.5 text-right align-top">
+                      {canSeeAmounts ? (
+                        <>
+                          <div className="font-mono font-semibold tabular-nums leading-tight">
+                            {formatNaira(item.amount_ngn || 0)}
+                          </div>
+                          {(() => {
+                            const fee = getItemFee(item);
+                            if (fee > 0) {
+                              return <div className="font-mono text-[10px] text-muted-foreground tabular-nums mt-0.5">+{formatNaira(fee)} fee</div>;
+                            }
+                            if (item.status === 'succeeded') {
+                              return <div className="text-[10px] text-muted-foreground/70 mt-0.5" title="Webhook not yet received">fee pending…</div>;
+                            }
+                            return null;
+                          })()}
+                        </>
+                      ) : (
+                        <span className="font-mono tabular-nums text-muted-foreground select-none">₦ ——</span>
+                      )}
                     </TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground">
-                      {canSeeAmounts ? (() => {
-                        const fee = getItemFee(item);
-                        if (fee > 0) return <span className="currency">{formatNaira(fee)}</span>;
-                        return item.status === 'succeeded'
-                          ? <span title="Webhook not yet received">…</span>
-                          : '—';
-                      })() : '——'}
+
+                    {/* Reference — internal kdops_ ref + paystack ref
+                        subscript. Both monospace, both small, the
+                        paystack ref is hex so it's worth shrinking. */}
+                    <TableCell className="py-2.5 align-top">
+                      <div className="font-mono text-[12px] truncate max-w-[160px]" title={item.reference || '—'}>
+                        {item.reference || '—'}
+                      </div>
+                      {item.paystack_reference && (
+                        <div className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[160px]" title={item.paystack_reference}>
+                          {item.paystack_reference}
+                        </div>
+                      )}
                     </TableCell>
-                    <TableCell>{item.reference}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {item.paystack_reference || '—'}
+
+                    {/* Status — sm pill keeps the row height tight */}
+                    <TableCell className="py-2.5 align-top">
+                      <StatusBadge status={item.status} size="sm" />
                     </TableCell>
-                    <TableCell>
-                      <StatusBadge status={item.status} />
-                    </TableCell>
-                    <TableCell className="text-right">
+
+                    <TableCell className="py-2.5 text-right align-top">
                       <div className="flex justify-end gap-1 flex-wrap">
                         {item.status === 'failed' && canApprove && (() => {
-                          // Retry expires after 48 hours — matches Paystack's
+                          // Retry expires after 5 hours — matches Paystack's
                           // transfer reversal window and NIBSS instant-transfer
                           // settlement window. Beyond that the bank details,
                           // narration period and amount may all be stale and
@@ -1959,38 +2026,56 @@ const BatchDetail = () => {
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
                           const RETRY_WINDOW_HOURS = 5;
-                          // Once resolved manually, hide the retry path —
-                          // the item is closed even though status='failed'
-                          // for audit purposes. The check on
-                          // is_manually_resolved short-circuits before
-                          // the retry window so the UI doesn't tease a
-                          // retry on something already paid.
+                          // Resolved short-circuits before retry — the item is
+                          // closed even though status='failed' for audit.
+                          // Two flavours of resolution show different pills:
+                          //   • method = 'cancelled' → grey "Cancelled" pill
+                          //   • anything else        → green "Paid externally"
                           if (item.is_manually_resolved) {
-                            return (
+                            const wasCancelled = item.manual_resolution_method === 'cancelled'
+                              || item.manual_resolution_method === 'voided';
+                            return wasCancelled ? (
+                              <span
+                                className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
+                                title={item.manual_resolution_note || 'Cancelled — closed without payment'}
+                              >
+                                <X className="h-3 w-3" /> Cancelled
+                              </span>
+                            ) : (
                               <span
                                 className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
-                                title={item.manual_resolution_note || 'Marked as paid manually'}
+                                title={item.manual_resolution_note || 'Paid via another channel'}
                               >
-                                <Check className="h-3 w-3" /> Resolved manually
+                                <Check className="h-3 w-3" /> Paid externally
                               </span>
                             );
                           }
-                          // Past the retry window we no longer offer a
-                          // platform retry (stale recipient details +
-                          // accidental re-fire risk), but operators do
-                          // still need to close the loop on items they
-                          // paid via bank app. Surface "Mark as paid"
-                          // here so the batch status reflects reality.
+                          // Past the retry window: offer both close-out
+                          // paths. "Mark as paid" if money moved off-rail;
+                          // "Cancel" if it never will. Either way the row
+                          // drops from pending while keeping its failed
+                          // status for audit.
                           if (ageHours > RETRY_WINDOW_HOURS) {
                             return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setResolveItem(item)}
-                                title="Retry window closed — record that this transfer was paid via another channel so the batch can close"
-                              >
-                                <Check className="h-3.5 w-3.5 mr-1" /> Mark as paid
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openResolve(item, 'paid')}
+                                  title="Recipient was paid via another channel (bank app, cash, etc.). Closes the row so the batch reflects reality."
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" /> Mark as paid
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openResolve(item, 'cancel')}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Give up on this transfer (wrong details, account closed, etc.). Closes without claiming payment was made."
+                                >
+                                  <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                                </Button>
+                              </>
                             );
                           }
                           return (
@@ -2024,10 +2109,19 @@ const BatchDetail = () => {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => setResolveItem(item)}
+                                onClick={() => openResolve(item, 'paid')}
                                 title="Already paid this person via bank app? Mark resolved so the batch reflects reality."
                               >
                                 Mark paid
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => openResolve(item, 'cancel')}
+                                className="text-muted-foreground"
+                                title="Give up on this transfer (wrong details, account closed, etc.) so the batch can close."
+                              >
+                                Cancel
                               </Button>
                             </>
                           );
@@ -2049,7 +2143,8 @@ const BatchDetail = () => {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -2307,53 +2402,88 @@ const BatchDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Mark-as-resolved dialog — captures method + note, fires
-          the mark_batch_item_resolved RPC, lets the derive function
-          recompute the batch status. The item's underlying status
-          stays 'failed' so the audit trail of the original Paystack
-          outcome is preserved; the resolution metadata sits
-          alongside. */}
+      {/* Resolution dialog — handles both close-out flavours:
+            • paid   — money moved off-rail. Pick method + optional
+                       proof note. Closes the row, batch lifts to
+                       'processed'.
+            • cancel — money will not move (wrong details, account
+                       closed, etc.). Note is required so audit has
+                       a paper trail of WHY we wrote the item off.
+          The same RPC handles both — the method value differentiates
+          ('cancelled' vs 'bank_transfer'/'cash'/etc.). */}
       <Dialog open={!!resolveItem} onOpenChange={(v) => { if (!v && !resolving) setResolveItem(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mark as paid manually</DialogTitle>
+            <DialogTitle>
+              {resolveMode === 'cancel' ? 'Cancel this transfer' : 'Mark as paid manually'}
+            </DialogTitle>
             <DialogDescription>
-              Record that <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> was paid via another channel for{' '}
-              <span className="font-semibold text-foreground">{formatNaira(resolveItem?.amount_ngn || 0)}</span>.
-              The batch status updates automatically once you save.
+              {resolveMode === 'cancel' ? (
+                <>
+                  Close <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> ({formatNaira(resolveItem?.amount_ngn || 0)}) without paying.
+                  Use this when the transfer can't be retried — wrong account, dormant, recipient unreachable. The batch can then close out.
+                </>
+              ) : (
+                <>
+                  Record that <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> was paid via another channel for{' '}
+                  <span className="font-semibold text-foreground">{formatNaira(resolveItem?.amount_ngn || 0)}</span>.
+                  The batch status updates automatically once you save.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {resolveMode === 'paid' && (
+              <div className="space-y-1">
+                <Label className="text-xs">How was it paid?</Label>
+                <Select value={resolveMethod} onValueChange={setResolveMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bank_transfer">Bank transfer (USSD / banking app)</SelectItem>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
-              <Label className="text-xs">How was it paid?</Label>
-              <Select value={resolveMethod} onValueChange={setResolveMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bank_transfer">Bank transfer (USSD / banking app)</SelectItem>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Note (optional)</Label>
+              <Label className="text-xs">
+                {resolveMode === 'cancel' ? 'Reason (required)' : 'Note (optional)'}
+              </Label>
               <Textarea
                 value={resolveNote}
                 onChange={(e) => setResolveNote(e.target.value)}
-                placeholder="e.g. Paid via GTBank USSD on 2026-05-08, ref TRF/0123456"
+                placeholder={
+                  resolveMode === 'cancel'
+                    ? 'e.g. Account number incorrect, contractor confirmed they no longer use this bank'
+                    : 'e.g. Paid via GTBank USSD on 2026-05-08, ref TRF/0123456'
+                }
                 className="min-h-[70px]"
               />
             </div>
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
-              The original failed status stays on the row for audit. This action is logged and visible to admins.
+            <div
+              className={cn(
+                'rounded-md border p-2.5 text-[11px] leading-snug',
+                resolveMode === 'cancel'
+                  ? 'border-muted-foreground/20 bg-muted/30 text-muted-foreground'
+                  : 'border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-300',
+              )}
+            >
+              {resolveMode === 'cancel'
+                ? 'No money will be sent. The original failed status stays on the row for audit; the row drops out of pending and the batch closes.'
+                : 'The original failed status stays on the row for audit. This action is logged and visible to admins.'}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setResolveItem(null)} disabled={resolving}>Cancel</Button>
-            <Button onClick={submitResolve} disabled={resolving}>
+            <Button variant="ghost" onClick={() => setResolveItem(null)} disabled={resolving}>Back</Button>
+            <Button
+              onClick={submitResolve}
+              disabled={resolving || (resolveMode === 'cancel' && !resolveNote.trim())}
+              variant={resolveMode === 'cancel' ? 'secondary' : 'default'}
+            >
               {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Mark as paid
+              {resolveMode === 'cancel' ? 'Cancel transfer' : 'Mark as paid'}
             </Button>
           </DialogFooter>
         </DialogContent>

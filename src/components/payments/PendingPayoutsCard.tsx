@@ -1,35 +1,29 @@
 /**
  * PendingPayoutsCard — at-a-glance pending-payout summary.
  *
- * Answers the daily operator question: "how much do we owe right
- * now, what state are those batches in, and is the wallet covered?"
+ * Bank-grade compact: a single-line header strip showing the three
+ * KPIs (Pending now / This month / Funding gap) inline, a slim tab
+ * row, and a 28px-row list. Inspired by the "Pending" widget in
+ * Monzo/Starling/Revolut — high information density without
+ * sacrificing scannability.
  *
- * Three KPIs across the top, then a tabbed list breaking down the
- * pending batches by stage so the operator sees exactly which tier
- * of attention each one needs:
+ * Sub-tabs split Pending into the four operator views so each row
+ * is on the right pile:
  *
- *   • Awaiting approval — pending_approval. Sat with finance/admin.
- *   • Awaiting funding  — approved. Need wallet cash before
- *                         processing.
- *   • In flight         — funded / processing / partially_processed.
- *                         Money is moving.
- *   • Stuck             — anything in flight for > 24h, or pending
- *                         approval for > 3 days. Calls out batches
- *                         that have lost momentum so they don't sit
- *                         silently.
- *
- * "View all" link drops a `status=` search param on the Payments
- * URL — same page, but the main batches table re-filters via its
- * existing search-params hook. No more dead-link bug.
- *
- * "Pending now" / "Funding gap" calculation is documented in the
- * info tooltip and in the comments below so finance can audit the
- * figure rather than trusting it blindly.
+ *   • Awaiting approval — pending_approval / pending_second_approval
+ *   • Awaiting funding  — approved
+ *   • In flight         — funded / processing / partially_processed
+ *   • Stuck             — anything in flight > 24h, or pending
+ *                         approval > 3 days. Calls out batches that
+ *                         have lost momentum so they don't sit
+ *                         silently. Failed-with-unresolved-items
+ *                         batches also surface here so operators
+ *                         see exactly what's blocking close-out.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, AlertTriangle, Wallet, Calendar, Hourglass } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowRight, AlertTriangle, Wallet, Hourglass } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
@@ -52,24 +46,13 @@ interface Props {
   walletBalanceNgn?: number | null;
 }
 
-// ── Status groupings ─────────────────────────────────────────────
-//
-// Source of truth for "Pending now" — anything in this set means
-// money is committed but hasn't fully settled. Each subset feeds a
-// different tab so operators see exactly which tier of attention
-// each batch needs.
 const AWAITING_APPROVAL = ['pending_approval', 'pending_second_approval'];
 const AWAITING_FUNDING  = ['approved'];
 const IN_FLIGHT         = ['funded', 'processing', 'partially_processed'];
 const PENDING_ALL       = [...AWAITING_APPROVAL, ...AWAITING_FUNDING, ...IN_FLIGHT];
 
-const MONTH_DONE_STATUSES = ['processed'];
-
-// "Stuck" is a heuristic — a batch counts as stuck when it's been
-// sitting in its current stage longer than the SLA most operators
-// expect. Tunable via constants here.
-const STUCK_APPROVAL_HOURS = 72;   // 3 days waiting for approval
-const STUCK_INFLIGHT_HOURS = 24;   // 24h funded but not processed
+const STUCK_APPROVAL_HOURS = 72;
+const STUCK_INFLIGHT_HOURS = 24;
 function isStuck(b: PendingBatch): boolean {
   const now = Date.now();
   const ageHrs = (iso: string | null) =>
@@ -83,9 +66,9 @@ type Bucket = 'all' | 'approval' | 'funding' | 'flight' | 'stuck';
 
 const TAB_META: Record<Bucket, { label: string; statusFilter?: string }> = {
   all:      { label: 'All' },
-  approval: { label: 'Awaiting approval', statusFilter: 'pending_approval' },
-  funding:  { label: 'Awaiting funding',  statusFilter: 'approved' },
-  flight:   { label: 'In flight',         statusFilter: 'processing' },
+  approval: { label: 'Approval', statusFilter: 'pending_approval' },
+  funding:  { label: 'Funding',  statusFilter: 'approved' },
+  flight:   { label: 'In flight', statusFilter: 'processing' },
   stuck:    { label: 'Stuck' },
 };
 
@@ -111,30 +94,31 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
           .is('deleted_at', null)
           .order('payment_date', { ascending: true, nullsFirst: false })
           .limit(50),
-        supabase.from('payment_batches')
-          .select('total_amount')
-          .in('status', MONTH_DONE_STATUSES)
-          .gte('payment_date', monthStart.toISOString().slice(0, 10))
-          .lt('payment_date', monthEnd.toISOString().slice(0, 10))
-          .is('deleted_at', null),
+        // "Paid this month" sums actual money out — succeeded items
+        // that were NOT manually resolved. Cancelled and paid-externally
+        // items are excluded because no Paystack-rail money moved (in
+        // the cancelled case nothing moved at all; in the externally-paid
+        // case it moved but the operator records it elsewhere). The RPC
+        // does the join + filter on the server.
+        supabase.rpc('paid_total_in_period', {
+          p_start: monthStart.toISOString().slice(0, 10),
+          p_end:   monthEnd.toISOString().slice(0, 10),
+        }),
       ]);
       if (cancelled) return;
 
       setBatches(((pendRes.data ?? []) as any[]) as PendingBatch[]);
-      setPaidThisMonth(((paidRes.data ?? []) as any[]).reduce((s, r) => s + Number(r.total_amount || 0), 0));
+      setPaidThisMonth(Number(paidRes.data ?? 0));
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // KPI 1 — pending now: every batch in PENDING_ALL.
   const pendingTotal = useMemo(
     () => batches.reduce((s, b) => s + Number(b.total_amount || 0), 0),
     [batches],
   );
 
-  // KPI 2 — this month: pending batches dated this month + already
-  // paid this month. Gives the "we'll move ₦X this month" picture.
   const monthPlanned = useMemo(() => {
     const ymPrefix = new Date().toISOString().slice(0, 7);
     const monthPending = batches
@@ -143,14 +127,11 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
     return paidThisMonth + monthPending;
   }, [batches, paidThisMonth]);
 
-  // KPI 3 — funding gap: pending now minus wallet balance. Capped
-  // at zero (negative = covered).
   const fundingGap = walletBalanceNgn != null
     ? Math.max(0, pendingTotal - walletBalanceNgn)
     : null;
   const isCovered = walletBalanceNgn != null && pendingTotal > 0 && fundingGap === 0;
 
-  // Per-tab filtered list.
   const tabBatches = useMemo(() => {
     switch (tab) {
       case 'approval': return batches.filter((b) => AWAITING_APPROVAL.includes(b.status));
@@ -169,16 +150,10 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
     stuck:    batches.filter(isStuck).length,
   }), [batches]);
 
-  // "View all" — push a status= search param onto the current
-  // Payments URL so the main table re-filters via its existing
-  // search-params hook. Same page, real effect.
   const viewAll = () => {
     const filter = TAB_META[tab].statusFilter;
     const url = filter ? `/payments?status=${filter}` : '/payments';
     navigate(url);
-    // Scroll the batches table into view if we're already on
-    // /payments. setTimeout 0 lets the search-params reactivate
-    // the filter before we scroll.
     setTimeout(() => {
       document.getElementById('batches-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
@@ -186,171 +161,163 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2 flex-wrap">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-primary" />
-            Pending payouts
-            <InfoHint>
-              <span className="block mb-1.5"><b>Pending now</b> sums batches in any of these statuses: pending_approval, pending_second_approval, approved, funded, processing, partially_processed.</span>
-              <span className="block mb-1.5"><b>This month</b> = pending batches dated this month + batches already paid this month.</span>
-              <span className="block"><b>Funding gap</b> = pending_now − wallet balance (zero or negative means you're covered).</span>
-            </InfoHint>
-          </CardTitle>
-          <button
-            type="button"
-            onClick={viewAll}
-            className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 kd-transition"
-          >
-            View all <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* KPI tiles — slimmer than before, monospace numbers */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <KpiTile
-            label="Pending now"
+      <CardContent className="p-0">
+        {/* ── Single-line KPI strip ─────────────────────────────────
+            Three figures inline, divided by hairlines. No tile chrome,
+            no big card padding — same pattern as Mercury / Wise's
+            "Money in / Money out" overview strip. */}
+        <div className="grid grid-cols-3 divide-x divide-border/50 border-b">
+          <KpiCell
+            label="Pending"
             value={loading ? null : formatNaira(pendingTotal)}
-            sublabel={loading ? '' : `${batches.length} batch${batches.length === 1 ? '' : 'es'}`}
+            sub={loading ? '' : `${batches.length} batch${batches.length === 1 ? '' : 'es'}`}
             tone={pendingTotal > 0 ? 'warning' : 'neutral'}
+            icon={<Wallet className="h-3 w-3" />}
+            hint={
+              <>
+                <span className="block mb-1"><b>Pending</b> = batches in pending_approval, approved, funded, processing, or partially_processed.</span>
+                <span className="block mb-1"><b>This month</b> = pending dated this month + already paid this month.</span>
+                <span className="block"><b>Gap</b> = pending − wallet balance (zero or negative means covered).</span>
+              </>
+            }
           />
-          <KpiTile
+          <KpiCell
             label="This month"
             value={loading ? null : formatNaira(monthPlanned)}
-            sublabel={loading
-              ? ''
-              : `${formatNaira(paidThisMonth)} paid`}
+            sub={loading ? '' : `${formatNaira(paidThisMonth)} paid`}
             tone="info"
           />
-          <KpiTile
+          <KpiCell
             label="Funding gap"
             value={
               loading ? null
                 : fundingGap == null ? '—'
-                : isCovered ? '✓ Covered'
+                : isCovered ? 'Covered'
                 : formatNaira(fundingGap)
             }
-            sublabel={
-              fundingGap == null
-                ? 'Wallet not loaded'
-                : isCovered
-                  ? 'Wallet covers pending'
-                  : 'Top up before processing'
+            sub={
+              fundingGap == null ? 'Wallet not loaded'
+                : isCovered ? 'Wallet covers'
+                : 'Top up'
             }
-            tone={fundingGap && fundingGap > 0 ? 'danger' : 'success'}
+            tone={fundingGap && fundingGap > 0 ? 'danger' : isCovered ? 'success' : 'neutral'}
           />
         </div>
 
-        {/* Sub-tab strip — splits Pending into the four operator
-            views so each row is on the right pile. Stuck tab gets
-            an amber dot pulse to draw attention when count > 0. */}
-        <div className="flex items-center gap-1 overflow-x-auto -mx-1 px-1 pb-1 kd-mobile-snap-x">
-          {(Object.keys(TAB_META) as Bucket[]).map((k) => {
-            const isActive = tab === k;
-            const count = counts[k];
-            const isStuckTab = k === 'stuck';
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setTab(k)}
-                className={cn(
-                  'shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium kd-transition',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                {isStuckTab && count > 0 && (
+        {/* ── Sub-tab strip + View all ──────────────────────────────
+            Inline with the action — saves a row. Tabs are slimmer
+            (text-[10px], h-6), counts integrated as suffix not chip. */}
+        <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b bg-muted/20">
+          <div className="flex items-center gap-0.5 overflow-x-auto kd-mobile-snap-x">
+            {(Object.keys(TAB_META) as Bucket[]).map((k) => {
+              const isActive = tab === k;
+              const count = counts[k];
+              const isStuckTab = k === 'stuck';
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setTab(k)}
+                  className={cn(
+                    'shrink-0 inline-flex items-center gap-1 rounded-md px-2 h-6 text-[11px] kd-transition',
+                    isActive
+                      ? 'bg-foreground text-background font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-background',
+                  )}
+                >
+                  {isStuckTab && count > 0 && (
+                    <span className={cn(
+                      'h-1 w-1 rounded-full',
+                      isActive ? 'bg-background' : 'bg-amber-500 kd-status-live-warning',
+                    )} />
+                  )}
+                  <span>{TAB_META[k].label}</span>
                   <span className={cn(
-                    'h-1.5 w-1.5 rounded-full',
-                    isActive ? 'bg-primary-foreground' : 'bg-amber-500 kd-status-live-warning',
-                  )} />
-                )}
-                {TAB_META[k].label}
-                <span className={cn(
-                  'tabular-nums px-1 rounded-md text-[10px]',
-                  isActive ? 'bg-primary-foreground/20' : 'bg-background/80',
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+                    'tabular-nums text-[10px]',
+                    isActive ? 'opacity-70' : 'opacity-50',
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={viewAll}
+            className="shrink-0 inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground kd-transition"
+          >
+            View all <ArrowRight className="h-2.5 w-2.5" />
+          </button>
         </div>
 
-        {/* Compact list — bank-grade row layout: one row = 32px
-            tall, monospace amount right-aligned, single subtle
-            divider between rows. Inspired by Mercury / Ramp /
-            Brex — minimal chrome, dense info, scannable. */}
-        <div className="rounded-lg border bg-card divide-y divide-border/40">
+        {/* ── 28px row list ─────────────────────────────────────────
+            One row = name + status + amount on a single line. No
+            secondary text by default — recipient count and date on
+            hover via title attr. Failure / stuck cases get a leading
+            colored bar so the row remains scannable. */}
+        <div className="divide-y divide-border/40">
           {loading ? (
             <>
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-7 w-full" />
+              <Skeleton className="h-7 w-full" />
+              <Skeleton className="h-7 w-full" />
             </>
           ) : tabBatches.length === 0 ? (
-            <div className="py-6 text-center text-xs text-muted-foreground">
+            <div className="px-3 py-3 text-center text-[11px] text-muted-foreground">
               {tab === 'stuck'
                 ? 'Nothing stuck — every pending batch is moving on schedule.'
                 : tab === 'all'
-                  ? 'Nothing in flight. New batches show up here as soon as they\'re submitted.'
+                  ? 'Nothing pending. New batches show up here as soon as they\'re submitted.'
                   : `No batches in ${TAB_META[tab].label.toLowerCase()}.`}
             </div>
           ) : (
-            tabBatches.slice(0, 6).map((b) => {
+            tabBatches.slice(0, 4).map((b) => {
               const stuck = isStuck(b);
+              const subtitle = `${b.beneficiary_count ?? 0} recipient${b.beneficiary_count === 1 ? '' : 's'}${b.payment_date ? ' · pay ' + formatDate(b.payment_date) : ''}`;
               return (
                 <button
                   key={b.id}
                   type="button"
                   onClick={() => navigate(`/payments/${b.id}`)}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-muted/40 kd-transition group"
-                >
-                  {stuck && (
-                    <Hourglass className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  className={cn(
+                    'w-full grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-3 h-8 text-left hover:bg-muted/40 kd-transition',
+                    stuck && 'bg-amber-500/[0.04]',
                   )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-medium truncate">{b.name}</p>
-                      <StatusBadge status={b.status} size="sm" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                      {b.beneficiary_count ?? 0} recipient{b.beneficiary_count === 1 ? '' : 's'}
-                      {b.payment_date && (
-                        <>
-                          <span className="mx-1.5 text-muted-foreground/40">·</span>
-                          <Calendar className="inline h-2.5 w-2.5 mr-1 -mt-px" />
-                          {formatDate(b.payment_date)}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <span className="text-[13px] font-semibold tabular-nums shrink-0 font-mono">
+                  title={subtitle}
+                >
+                  {stuck ? (
+                    <Hourglass className="h-3 w-3 text-amber-500 shrink-0" />
+                  ) : (
+                    <span className="h-3 w-3 shrink-0" />
+                  )}
+                  <span className="text-[12px] truncate">{b.name}</span>
+                  <StatusBadge status={b.status} size="sm" />
+                  <span className="text-[12px] font-mono font-semibold tabular-nums">
                     {formatNaira(b.total_amount)}
                   </span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground/30 group-hover:text-foreground shrink-0 kd-transition" />
                 </button>
               );
             })
           )}
         </div>
 
-        {tabBatches.length > 6 && (
-          <p className="text-[11px] text-muted-foreground/70 text-center">
-            +{tabBatches.length - 6} more. Click <button onClick={viewAll} className="underline underline-offset-2 hover:text-foreground">View all</button> for the full list.
-          </p>
+        {tabBatches.length > 4 && (
+          <button
+            type="button"
+            onClick={viewAll}
+            className="w-full px-3 py-1.5 border-t text-[10px] text-muted-foreground hover:bg-muted/30 hover:text-foreground kd-transition flex items-center justify-center gap-1"
+          >
+            +{tabBatches.length - 4} more · View all
+            <ArrowRight className="h-2.5 w-2.5" />
+          </button>
         )}
 
-        {/* Funding gap callout */}
         {fundingGap != null && fundingGap > 0 && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 flex items-start gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-[11px] leading-snug text-amber-800 dark:text-amber-300">
-              <span className="font-semibold">Top up {formatNaira(fundingGap)}</span> before processing — pending batches above are committed but not yet covered by the wallet balance.
+          <div className="border-t px-3 py-1.5 flex items-start gap-1.5 bg-amber-500/5">
+            <AlertTriangle className="h-3 w-3 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-[10px] leading-snug text-amber-800 dark:text-amber-300">
+              Top up <span className="font-semibold font-mono">{formatNaira(fundingGap)}</span> before processing.
             </p>
           </div>
         )}
@@ -359,32 +326,38 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
   );
 }
 
-function KpiTile({
-  label, value, sublabel, tone,
+function KpiCell({
+  label, value, sub, tone, icon, hint,
 }: {
   label: string;
   value: string | null;
-  sublabel: string;
+  sub: string;
   tone: 'warning' | 'success' | 'danger' | 'info' | 'neutral';
+  icon?: React.ReactNode;
+  hint?: React.ReactNode;
 }) {
-  const ring: Record<string, string> = {
-    warning: 'border-amber-500/30 bg-amber-500/5',
-    success: 'border-emerald-500/30 bg-emerald-500/5',
-    danger:  'border-red-500/30 bg-red-500/5',
-    info:    'border-primary/20 bg-primary/5',
-    neutral: 'border-border bg-card',
+  const valueClass: Record<string, string> = {
+    warning: 'text-amber-700 dark:text-amber-400',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    danger:  'text-red-700 dark:text-red-400',
+    info:    'text-foreground',
+    neutral: 'text-foreground',
   };
   return (
-    <div className={cn('rounded-lg border p-2.5', ring[tone])}>
-      <p className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-        {label}
-      </p>
+    <div className="px-3 py-2">
+      <div className="flex items-center gap-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+        {icon}
+        <span>{label}</span>
+        {hint && <InfoHint>{hint}</InfoHint>}
+      </div>
       {value === null ? (
-        <Skeleton className="h-6 w-20 mt-1" />
+        <Skeleton className="h-4 w-16 mt-1" />
       ) : (
-        <p className="text-base font-bold tabular-nums font-mono mt-0.5 leading-tight">{value}</p>
+        <p className={cn('text-[15px] font-bold tabular-nums font-mono mt-0.5 leading-tight truncate', valueClass[tone])}>
+          {value}
+        </p>
       )}
-      <p className="text-[10px] text-muted-foreground mt-0.5">{sublabel}</p>
+      <p className="text-[9.5px] text-muted-foreground mt-0.5 truncate">{sub}</p>
     </div>
   );
 }

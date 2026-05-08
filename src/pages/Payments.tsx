@@ -152,13 +152,18 @@ const Payments = () => {
 
   const fetchStats = async () => {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+    // Date-only strings for the paid-total RPC (it indexes on payment_date).
+    const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    const monthEndDate   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
 
-    const [pendingRes, processingRes, monthRes] = await Promise.all([
+    const [pendingRes, processingRes, paidRes] = await Promise.all([
       supabase.from('payment_batches').select('total_amount').eq('status', 'pending_approval').is('deleted_at', null),
       supabase.from('payment_batches').select('id', { count: 'exact', head: true }).eq('status', 'processing').is('deleted_at', null),
-      supabase.from('payment_batches').select('total_amount').eq('status', 'processed').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
+      // "Paid this month" — actual money out only. Cancelled and
+      // paid-externally items are excluded server-side via the RPC
+      // (see migration 20260508220000) so the figure tracks Paystack-
+      // rail spend exclusively.
+      supabase.rpc('paid_total_in_period', { p_start: monthStartDate, p_end: monthEndDate }),
     ]);
 
     const pendingRows = (pendingRes.data || []) as { total_amount: number }[];
@@ -166,7 +171,7 @@ const Payments = () => {
       pendingCount: pendingRows.length,
       pendingAmount: pendingRows.reduce((s, r) => s + (r.total_amount || 0), 0),
       processingCount: processingRes.count || 0,
-      thisMonthAmount: ((monthRes.data || []) as { total_amount: number }[]).reduce((s, r) => s + (r.total_amount || 0), 0),
+      thisMonthAmount: Number(paidRes.data ?? 0),
     });
   };
 
@@ -356,46 +361,53 @@ const Payments = () => {
         <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
       )}
 
-      {/* ── Stats row ──────────────────────────────────────────── */}
+      {/* ── Stats row ──────────────────────────────────────────────
+          UK bank style (Monzo/Starling/Revolut): rounded-2xl cards
+          with soft pastel surfaces, prominent display amounts in
+          bold, and a friendly icon medallion. Generous padding so
+          the figures breathe — the headline amount is the hero. */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           {
-            label: 'Pending Approval',
+            label: 'Pending approval',
             value: stats.pendingCount,
             sub: formatNaira(stats.pendingAmount),
             icon: Clock,
-            color: 'text-amber-600',
-            bg: 'bg-amber-50 border-amber-200',
-            accent: 'border-l-amber-400',
+            color: 'text-amber-700',
+            bg: 'bg-gradient-to-br from-amber-50 to-amber-100/40',
+            ring: 'ring-1 ring-amber-200/60',
+            iconBg: 'bg-amber-100/80 text-amber-700',
           },
           {
-            label: 'Processing Now',
+            label: 'Processing now',
             value: stats.processingCount,
             sub: 'Active transfers',
             icon: Zap,
-            color: 'text-blue-600',
-            bg: 'bg-blue-50 border-blue-200',
-            accent: 'border-l-blue-400',
+            color: 'text-blue-700',
+            bg: 'bg-gradient-to-br from-blue-50 to-blue-100/40',
+            ring: 'ring-1 ring-blue-200/60',
+            iconBg: 'bg-blue-100/80 text-blue-700',
           },
           {
-            label: 'Paid This Month',
+            label: 'Paid this month',
             value: formatNaira(stats.thisMonthAmount),
             sub: 'Completed batches',
             icon: TrendingUp,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-50 border-emerald-200',
-            accent: 'border-l-emerald-400',
+            color: 'text-emerald-700',
+            bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100/40',
+            ring: 'ring-1 ring-emerald-200/60',
+            iconBg: 'bg-emerald-100/80 text-emerald-700',
           },
-        ].map(({ label, value, sub, icon: Icon, color, bg, accent }) => (
-          <div key={label} className={cn('rounded-xl border border-l-4 px-4 py-3', bg, accent)}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-                <p className={cn('text-2xl font-bold mt-0.5 kd-stat-number', color)}>{value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
+        ].map(({ label, value, sub, icon: Icon, color, bg, ring, iconBg }) => (
+          <div key={label} className={cn('rounded-2xl px-5 py-4 kd-transition hover:shadow-[var(--shadow-md)]', bg, ring)}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium text-muted-foreground/90">{label}</p>
+                <p className={cn('text-[26px] font-bold mt-1 leading-none tracking-tight tabular-nums', color)}>{value}</p>
+                <p className="text-[11px] text-muted-foreground/80 mt-1.5">{sub}</p>
               </div>
-              <div className={cn('rounded-full p-2.5', bg)}>
-                <Icon className={cn('h-5 w-5', color)} />
+              <div className={cn('rounded-2xl p-2.5 shrink-0', iconBg)}>
+                <Icon className="h-4 w-4" strokeWidth={2.25} />
               </div>
             </div>
           </div>
@@ -407,9 +419,12 @@ const Payments = () => {
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           {/* Tabs scroll horizontally on mobile so they don't wrap into a
               second row that pushes the table down. Snap to each pill. */}
+          {/* Pill tabs — Monzo/Starling style: rounded-full,
+              friendly hover, active gets a soft fill rather than
+              a hard background. */}
           <Tabs value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }} className="w-full sm:w-auto">
             <div className="-mx-1 overflow-x-auto kd-mobile-snap-x sm:overflow-visible">
-              <TabsList className="h-8 inline-flex w-max sm:flex sm:w-auto sm:flex-wrap sm:gap-y-1 px-1">
+              <TabsList className="h-9 bg-muted/40 rounded-full inline-flex w-max sm:flex sm:w-auto sm:flex-wrap sm:gap-y-1 p-1">
                 {[
                   { value: 'all', label: 'All' },
                   { value: 'pending_approval', label: 'Pending' },
@@ -420,7 +435,11 @@ const Payments = () => {
                   { value: 'rejected', label: 'Rejected' },
                   { value: 'draft', label: 'Draft' },
                 ].map(({ value, label }) => (
-                  <TabsTrigger key={value} value={value} className="text-xs px-3 h-6 shrink-0">
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="text-[12px] px-3.5 h-7 rounded-full shrink-0 data-[state=active]:bg-background data-[state=active]:shadow-[var(--shadow-sm)] data-[state=active]:font-semibold"
+                  >
                     {label}
                   </TabsTrigger>
                 ))}
@@ -452,28 +471,35 @@ const Payments = () => {
             }
           />
         ) : (
-          <div className="space-y-1.5">
+          /* UK bank style batch rows: rounded-2xl card per row, roomy
+             padding, big right-aligned amount in display weight,
+             pastel category chip on the left, accent strip for status. */
+          <div className="space-y-2">
             {filtered.map((batch) => {
               const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
               const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
+              const accentColor = isProcessing ? 'bg-blue-400'
+                : batch.status === 'pending_approval' ? 'bg-amber-400'
+                : batch.status === 'rejected' || batch.status === 'failed' ? 'bg-red-400'
+                : batch.status === 'processed' ? 'bg-emerald-400'
+                : 'bg-muted-foreground/30';
               return (
                 <div
                   key={batch.id}
                   onClick={() => navigate(`/payments/${batch.id}`)}
                   className={cn(
-                    'group relative flex items-center gap-3 rounded-xl border bg-card px-4 py-2.5 cursor-pointer kd-transition',
-                    'hover:shadow-[var(--shadow-md)] hover:border-primary/20 hover:-translate-y-px',
-                    isProcessing && 'border-l-[3px] border-l-blue-400',
-                    batch.status === 'pending_approval' && 'border-l-[3px] border-l-amber-400',
-                    batch.status === 'rejected' && 'border-l-[3px] border-l-red-400',
-                    batch.status === 'processed' && 'border-l-[3px] border-l-emerald-400',
+                    'group relative flex items-center gap-4 rounded-2xl border border-border/60 bg-card px-5 py-4 cursor-pointer kd-transition overflow-hidden',
+                    'hover:shadow-[var(--shadow-md)] hover:border-primary/20',
                     batch.status === 'draft' && 'opacity-80',
                   )}
                 >
-                  {/* Type chip */}
+                  {/* Color accent strip */}
+                  <span className={cn('absolute left-0 top-0 h-full w-1', accentColor)} />
+
+                  {/* Type chip — Monzo-style soft pastel */}
                   {typeMeta && (
                     <div className="hidden sm:flex shrink-0">
-                      <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold', typeMeta.bg, typeMeta.text)}>
+                      <span className={cn('inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold', typeMeta.bg, typeMeta.text)}>
                         {typeMeta.label}
                       </span>
                     </div>
@@ -482,37 +508,30 @@ const Payments = () => {
                   {/* Main info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-sm leading-snug truncate">{batch.name}</p>
+                      <p className="font-semibold text-[15px] leading-snug truncate">{batch.name}</p>
                       {typeMeta && (
-                        <span className={cn('sm:hidden inline-flex items-center rounded-full px-2 py-0 text-[10px] font-medium', typeMeta.bg, typeMeta.text)}>
+                        <span className={cn('sm:hidden inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium', typeMeta.bg, typeMeta.text)}>
                           {typeMeta.label}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground flex-wrap">
+                    <div className="flex items-center gap-2.5 mt-1 text-[12px] text-muted-foreground flex-wrap">
                       <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {batch.beneficiary_count} {batch.beneficiary_count === 1 ? 'beneficiary' : 'beneficiaries'}
+                        {batch.beneficiary_count} {batch.beneficiary_count === 1 ? 'recipient' : 'recipients'}
                       </span>
-                      {/* Show the running total alongside the recipient count.
-                          Operators wanted the figure visible on every card —
-                          including draft / approved / scheduled — so they
-                          can see total exposure without opening each batch.
-                          The big right-aligned amount stays so the page also
-                          reads well at a glance. */}
-                      <span className="flex items-center gap-1 tabular-nums">
-                        <span className="text-muted-foreground/60">·</span>
-                        <span className="font-medium text-foreground/80">{formatNaira(batch.total_amount || 0)}</span>
-                      </span>
-                      <span>Pay date: {formatDate(batch.payment_date)}</span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>Pay {formatDate(batch.payment_date)}</span>
+                      <span className="hidden sm:inline text-muted-foreground/40">·</span>
                       <span className="hidden sm:inline">Created {formatDate(batch.created_at)}</span>
                     </div>
                   </div>
 
-                  {/* Amount + status */}
+                  {/* Amount + status — big display amount on right,
+                      Monzo-style. tabular-nums so digits align across rows. */}
                   <div className="shrink-0 text-right">
-                    <p className="font-bold text-sm tabular-nums">{formatNaira(batch.total_amount || 0)}</p>
-                    <div className="mt-1 flex items-center justify-end gap-1.5">
+                    <p className="font-bold text-[18px] tabular-nums leading-none tracking-tight">{formatNaira(batch.total_amount || 0)}</p>
+                    <div className="mt-1.5 flex items-center justify-end gap-1.5">
                       <StatusBadge status={batch.status} size="sm" />
                       {isProcessing && (
                         <span className="flex h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
@@ -520,7 +539,7 @@ const Payments = () => {
                     </div>
                   </div>
 
-                  <ArrowRight className="shrink-0 h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary kd-transition" />
+                  <ArrowRight className="shrink-0 h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 kd-transition" />
                 </div>
               );
             })}
