@@ -476,23 +476,25 @@ const Employees = () => {
         </div>
       </div>
 
-      <Card>
-        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+      {/* Mercury-style list wrapper: hairline-bordered surface, sticky
+          filter strip, no card chrome. Replaces shadcn Card so the
+          page reads as one ledger-grade list. */}
+      <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-border/70 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 flex items-center gap-2 flex-wrap print:hidden">
           <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              className="h-10 sm:h-9"
-              placeholder="Search by name, email, role..."
+              placeholder="Search by name, email, role…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 pagination.reset();
               }}
-              className="pl-9"
+              className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
             />
           </div>
           <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -504,7 +506,7 @@ const Employees = () => {
               ))}
             </SelectContent>
           </Select>
-          <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">
+          <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
             <Switch
               checked={showInactive}
               onCheckedChange={(v) => { setShowInactive(v); pagination.reset(); }}
@@ -512,7 +514,7 @@ const Employees = () => {
             Show inactive
           </label>
         </div>
-        <CardContent className="p-0">
+        <div className="p-0">
           {loading ? (
             <TableSkeleton rows={6} cols={6} />
           ) : filtered.length === 0 ? (
@@ -775,8 +777,8 @@ const Employees = () => {
               />
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Dialog
         open={showForm}

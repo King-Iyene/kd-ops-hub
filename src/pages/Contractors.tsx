@@ -616,8 +616,9 @@ const Contractors = () => {
         </label>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
+      {/* Mercury-style list: hairline-bordered surface, no card chrome. */}
+      <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
+        <div className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -788,8 +789,8 @@ const Contractors = () => {
             hasPrev={pagination.hasPrev}
             hasNext={pagination.hasNext}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
         </TabsContent>
 
         <TabsContent value="applications" className="mt-4">
