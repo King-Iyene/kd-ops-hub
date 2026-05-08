@@ -877,41 +877,55 @@ const NewPaymentBatch = () => {
                     </Button>
                     <span className="text-muted-foreground text-xs ml-auto">{items.length} selected</span>
                   </div>
-                  <div className="border rounded-lg max-h-80 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-10" />
-                          <TableHead>Name</TableHead>
-                          <TableHead>Bank</TableHead>
-                          <TableHead>Account</TableHead>
-                          <TableHead className="text-right">Default Amount</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredContractors.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center text-muted-foreground text-sm py-6">
-                              No contractors match your search.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                        {filteredContractors.map((c) => {
-                          const checked = selectedIds.has(c.id);
-                          return (
-                            <TableRow key={c.id} className="cursor-pointer" onClick={() => toggleContractor(c, !checked)}>
-                              <TableCell onClick={(ev) => ev.stopPropagation()}>
-                                <Checkbox checked={checked} onCheckedChange={(v) => toggleContractor(c, Boolean(v))} />
-                              </TableCell>
-                              <TableCell className="font-medium">{c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown'}</TableCell>
-                              <TableCell>{c.bank_name}</TableCell>
-                              <TableCell className="font-mono text-xs">{c.account_number || '—'}</TableCell>
-                              <TableCell className="text-right currency">{formatNaira(c.default_amount_ngn || 0)}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
+                  {/* Compact picker — row = 36px tall. Beneficiary on
+                      left (checkbox + name + bank · acc subtitle in
+                      mono), default amount on right in mono. Hairline
+                      divide-y, no chunky table chrome. Pattern lifted
+                      from Wise / Mercury batch composer. */}
+                  <div className="border rounded-lg max-h-80 overflow-y-auto bg-card divide-y divide-border/40">
+                    {filteredContractors.length === 0 ? (
+                      <div className="text-center text-muted-foreground text-[12px] py-6">
+                        No contractors match your search.
+                      </div>
+                    ) : (
+                      filteredContractors.map((c) => {
+                        const checked = selectedIds.has(c.id);
+                        const name = c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+                        return (
+                          <label
+                            key={c.id}
+                            className={cn(
+                              'flex items-center gap-3 px-3 h-9 cursor-pointer kd-transition',
+                              checked ? 'bg-primary/[0.04]' : 'hover:bg-muted/30',
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
+                              className="h-3.5 w-3.5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="text-[12.5px] font-medium truncate">{name}</span>
+                                {c.bank_name && (
+                                  <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                    {c.bank_name} · {c.account_number || '—'}
+                                  </span>
+                                )}
+                              </div>
+                              {c.bank_name && (
+                                <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
+                                  {c.bank_name} · {c.account_number || '—'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[12px] font-mono font-semibold tabular-nums shrink-0 text-muted-foreground">
+                              {formatNaira(c.default_amount_ngn || 0)}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
                   </div>
                 </>
               )}
@@ -949,52 +963,61 @@ const NewPaymentBatch = () => {
             </CardHeader>
             <CardContent className="p-0">
               {items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
+                <p className="text-[12px] text-muted-foreground text-center py-8">
                   No beneficiaries selected yet.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Bank</TableHead>
-                        <TableHead>Account</TableHead>
-                        <TableHead className="text-right">Amount (₦)</TableHead>
-                        <TableHead>Reference</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/50">
+                        <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
+                        <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount (₦)</th>
+                        <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
+                        <th className="w-8" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
                       {items.map((item, i) => (
-                        <TableRow key={item._key}>
-                          <TableCell className="font-medium">{item.full_name || 'Unknown'}</TableCell>
-                          <TableCell>{item.bank_name}</TableCell>
-                          <TableCell className="font-mono text-xs">{item.account_number || '—'}</TableCell>
-                          <TableCell>
+                        <tr key={item._key} className="hover:bg-muted/20 kd-transition">
+                          <td className="px-3 py-1.5 max-w-[280px]">
+                            <div className="text-[12.5px] font-medium truncate">{item.full_name || 'Unknown'}</div>
+                            {item.bank_name && (
+                              <div className="text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                {item.bank_name} · {item.account_number || '—'}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-3 py-1.5 text-right">
                             <Input
                               type="number"
-                              className="w-32 text-right"
+                              className="w-28 h-7 text-right text-[12px] font-mono tabular-nums"
                               value={item.amount_ngn}
                               onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)}
                             />
-                          </TableCell>
-                          <TableCell>
+                          </td>
+                          <td className="px-3 py-1.5">
                             <Input
-                              className="w-32"
+                              className="w-32 h-7 text-[11px] font-mono"
                               value={item.reference}
                               onChange={(e) => updateItem(i, 'reference', e.target.value)}
                             />
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="icon" aria-label="Remove item" onClick={() => removeItem(i)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Remove item"
+                              onClick={() => removeItem(i)}
+                              className="h-7 w-7"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </Button>
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>

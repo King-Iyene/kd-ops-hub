@@ -22,28 +22,16 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatDateTime, formatNaira, toIsoDate, maskAccountNumber } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
-  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -335,80 +323,65 @@ const Transactions = () => {
         }
       />
 
-      {/* Summary strip — single column on phones, 2 cols on desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
-        {(['quick_pay', 'transfer'] as const).map((type) => {
-          const count = rows.filter((r) => r.txn_type === type).length;
-          const Icon = TYPE_ICON[type] || ArrowUpDown;
+      {/* Summary strip — Mercury/Brex style: borderless, hairline
+          divider between columns, no card chrome. Counts are bold
+          mono, type label sits underneath. Click a column to filter
+          the table to that channel. */}
+      <div className="grid grid-cols-3 divide-x divide-border/40 border-y border-border/40 -mx-4 sm:mx-0 sm:rounded-lg print:hidden">
+        {([
+          { type: 'all' as const, label: 'All transactions', count: rows.length },
+          { type: 'transfer' as const, label: 'Transfers',  count: rows.filter((r) => r.txn_type === 'transfer').length },
+          { type: 'quick_pay' as const, label: 'Quick Pay', count: rows.filter((r) => r.txn_type === 'quick_pay').length },
+        ]).map(({ type, label, count }) => {
+          const isActive = typeFilter === type;
           return (
-            <div
+            <button
               key={type}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setTypeFilter((prev) => (prev === type ? 'all' : type));
-                  pagination.reset();
-                }
-              }}
-              className={cn(
-                'rounded-xl border bg-card px-4 py-3 cursor-pointer kd-transition shadow-[var(--shadow-sm)]',
-                typeFilter === type
-                  ? 'border-primary/40 bg-primary/5 ring-2 ring-primary/20'
-                  : 'hover:border-primary/20 hover:shadow-[var(--shadow-md)]',
-              )}
+              type="button"
               onClick={() => {
-                setTypeFilter((prev) => (prev === type ? 'all' : type));
+                setTypeFilter(type);
                 pagination.reset();
               }}
+              className={cn(
+                'flex flex-col items-start px-4 py-3 text-left kd-transition',
+                isActive ? 'bg-primary/[0.04]' : 'hover:bg-muted/30',
+              )}
             >
-              <div className="flex items-center gap-2.5">
-                <div className={cn('rounded-lg p-2', TYPE_COLOR[type])}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-lg font-bold leading-none">{count.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{typeLabel(type)}</p>
-                </div>
-              </div>
-            </div>
+              <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+                {label}
+              </span>
+              <span className={cn(
+                'text-[20px] font-bold tabular-nums font-mono mt-1 leading-none',
+                isActive && 'text-primary',
+              )}>
+                {count.toLocaleString()}
+              </span>
+            </button>
           );
         })}
       </div>
 
-      <Card>
-        {/* Filter tabs */}
-        <div className="p-4 border-b flex items-center gap-1 flex-wrap print:hidden">
-          {FILTER_TABS.map((tab) => (
-            <Button
-              key={tab.value}
-              variant={typeFilter === tab.value ? 'secondary' : 'ghost'}
-              size="sm"
-              className={cn('rounded-full px-4', typeFilter === tab.value && 'font-semibold')}
-              onClick={() => {
-                setTypeFilter(tab.value);
-                pagination.reset();
-              }}
-            >
-              {tab.label}
-            </Button>
-          ))}
-        </div>
-
-        {/* Secondary filters — search full-width on mobile, others reflow */}
-        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap print:hidden">
-          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Mercury/Brex/Ramp shell: hairline border on the wrapper,
+          no card chrome, sticky filter strip at the top. The whole
+          page reads as one ledger surface rather than a series of
+          stacked cards. */}
+      <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
+        {/* Single combined filter strip — search front and centre,
+            secondary filters tucked next to it. Drops one full row
+            vs. the previous tab + filter split. */}
+        <div className="px-3 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 flex items-center gap-2 flex-wrap print:hidden">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
-              className="pl-9 h-10 sm:h-9"
-              placeholder="Search reference, description, bank..."
+              className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
+              placeholder="Search reference, beneficiary, bank…"
               value={search}
               onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
-              <SelectValue placeholder="All categories" />
+            <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60">
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
@@ -418,8 +391,8 @@ const Transactions = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
-              <SelectValue placeholder="All statuses" />
+            <SelectTrigger className="w-[120px] h-8 text-[12px] bg-transparent border-border/60">
+              <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All statuses</SelectItem>
@@ -432,32 +405,33 @@ const Transactions = () => {
             type="date"
             value={from}
             onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
-            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
+            className="w-[130px] h-8 text-[12px] bg-transparent border-border/60"
           />
           <Input
             type="date"
             value={to}
             onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
-            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
+            className="w-[130px] h-8 text-[12px] bg-transparent border-border/60"
           />
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10 sm:h-9">
-              <X className="h-4 w-4 mr-1" /> Clear
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-[12px]">
+              <X className="h-3 w-3 mr-1" /> Clear
             </Button>
           )}
         </div>
 
-        {/* Filtered totals */}
+        {/* Filtered totals — slim inline strip */}
         {hasActiveFilters && (
-          <div className="px-4 py-2 border-b bg-muted/30 text-xs text-muted-foreground flex items-center gap-4 flex-wrap">
-            <span>
-              {filtered.length.toLocaleString()} transaction{filtered.length !== 1 ? 's' : ''} matched
+          <div className="px-3 py-1.5 border-b border-border/50 bg-muted/20 text-[11px] text-muted-foreground flex items-center gap-3 flex-wrap">
+            <span className="tabular-nums">
+              {filtered.length.toLocaleString()} match{filtered.length !== 1 ? 'es' : ''}
             </span>
-            <span className="font-medium">{formatNaira(totalAmount)} total</span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="font-mono font-semibold text-foreground tabular-nums">{formatNaira(totalAmount)} total</span>
           </div>
         )}
 
-        <CardContent className="p-0">
+        <div className="p-0">
           {loading ? (
             <TableSkeleton rows={10} cols={6} />
           ) : filtered.length === 0 ? (
@@ -472,108 +446,111 @@ const Transactions = () => {
             />
           ) : (
             <>
+              {/* US bank style ledger table — Mercury / Brex / Ramp.
+                  • All numerics font-mono tabular-nums right-aligned
+                  • Hairline divide-y, no zebra
+                  • Status as small dot + label, lowercase
+                  • Beneficiary cell stacks name and bank · acc on one
+                    very tight line so the row stays at ~36px
+                  • Sticky header with backdrop blur
+                  • Header in 9px uppercase tracking-[0.12em] */}
               <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
-                    <TableHead className="text-right text-xs">Amount</TableHead>
-                    <TableHead className="text-right text-xs">Transfer fee</TableHead>
-                    <TableHead className="text-right text-xs">Stamp Duty</TableHead>
-                    <TableHead className="text-xs">Beneficiary</TableHead>
-                    <TableHead className="text-xs">Date</TableHead>
-                    <TableHead className="text-xs">Channel</TableHead>
-                    <TableHead className="text-xs">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagination.slice.map((r) => {
-                    // Transfer fee resolution mirrors the receipt + BatchDetail:
-                    //   1. paystack_fee_ngn from the view (populated by webhook,
-                    //      reconcile, or our lazy backfill below).
-                    //   2. paystack_raw.fee (kobo) — the same value Paystack
-                    //      sent on every webhook payload, surfaced by the
-                    //      view's paystack_raw column.
-                    //   3. The published Paystack fee schedule for succeeded
-                    //      transfers — keeps the ledger from showing "—" with
-                    //      an underset total below it. Once the lazy-backfill
-                    //      effect fires, step 1 will replace this estimate.
-                    //   4. Zero for non-succeeded items.
-                    // Stamp duty (₦50 on transfers ≥ ₦10K) is a deterministic
-                    // FIRS pass-through Paystack collects on every successful
-                    // transfer.
-                    const amount = Number(r.amount_ngn || 0);
-                    const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
-                    const directFee = Number(r.paystack_fee_ngn || 0);
-                    const rawFeeKobo = Number((r as any).paystack_raw?.fee || 0);
-                    const fee = directFee > 0
-                      ? directFee
-                      : rawFeeKobo > 0 ? rawFeeKobo / 100
-                      : ledgerStatus === 'succeeded' ? paystackTransferFee(amount)
-                      : 0;
-                    const stamp = ledgerStatus === 'succeeded' ? stampDutyForAmount(amount) : 0;
-                    const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
-                    return (
-                      <TableRow
-                        key={`${r.txn_type}-${r.id}`}
-                        className="cursor-pointer hover:bg-muted/40 kd-transition"
-                        onClick={() => handleRowClick(r)}
-                      >
-                        <TableCell className="text-right font-semibold currency whitespace-nowrap text-sm">
-                          {formatNaira(r.amount_ngn)}
-                        </TableCell>
-                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
-                          {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/40">—</span>}
-                        </TableCell>
-                        <TableCell className="text-right currency text-xs text-muted-foreground whitespace-nowrap">
-                          {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/40">—</span>}
-                        </TableCell>
-                        <TableCell className="text-sm max-w-[220px]">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-medium truncate uppercase tracking-tight">{r.account_name || r.description}</span>
-                            {f && ledgerStatus === 'failed' && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    type="button"
-                                    aria-label="View failure reason"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="shrink-0 inline-flex h-4 w-4 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Info className="h-3.5 w-3.5" />
-                                  </button>
-                                </PopoverTrigger>
-                                <PopoverContent side="right" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
-                                  <p className="font-semibold mb-1 text-destructive">{f.title}</p>
-                                  <p className="text-muted-foreground mb-2">{f.hint}</p>
-                                  {f.hint !== r.rejection_reason && (
-                                    <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
-                                      <span className="opacity-60">Paystack: </span>{r.rejection_reason}
-                                    </p>
-                                  )}
-                                </PopoverContent>
-                              </Popover>
+                <table className="w-full">
+                  <thead className="sticky top-12 z-10 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+                    <tr className="border-b border-border/50">
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Date</th>
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
+                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Fee</th>
+                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Duty</th>
+                      <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount</th>
+                      <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {pagination.slice.map((r) => {
+                      // Fee resolution: webhook value → paystack_raw.fee
+                      // → published schedule (succeeded only). Stamp duty
+                      // is ₦50 on transfers ≥ ₦10K (FIRS pass-through).
+                      const amount = Number(r.amount_ngn || 0);
+                      const ledgerStatus = LEDGER_STATUS[r.status] || r.status;
+                      const directFee = Number(r.paystack_fee_ngn || 0);
+                      const rawFeeKobo = Number((r as any).paystack_raw?.fee || 0);
+                      const fee = directFee > 0
+                        ? directFee
+                        : rawFeeKobo > 0 ? rawFeeKobo / 100
+                        : ledgerStatus === 'succeeded' ? paystackTransferFee(amount)
+                        : 0;
+                      const stamp = ledgerStatus === 'succeeded' ? stampDutyForAmount(amount) : 0;
+                      const f = r.rejection_reason ? friendlyPaystackError(r.rejection_reason) : null;
+                      const refDisplay = r.reference && r.reference.length > 18
+                        ? `${r.reference.slice(0, 12)}…${r.reference.slice(-4)}`
+                        : (r.reference || '—');
+                      return (
+                        <tr
+                          key={`${r.txn_type}-${r.id}`}
+                          className="cursor-pointer hover:bg-muted/30 kd-transition"
+                          onClick={() => handleRowClick(r)}
+                        >
+                          <td className="px-3 py-2 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
+                            <span className="font-mono">{formatDate(r.created_at)}</span>
+                            <span className="ml-1.5 text-[10px] text-muted-foreground/60">
+                              {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-[13px] max-w-[260px]">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="font-medium truncate">{r.account_name || r.description || '—'}</span>
+                              {f && ledgerStatus === 'failed' && (
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      type="button"
+                                      aria-label="View failure reason"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="shrink-0 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-destructive hover:bg-destructive/10"
+                                    >
+                                      <Info className="h-3 w-3" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent side="right" className="w-72 text-xs" onClick={(e) => e.stopPropagation()}>
+                                    <p className="font-semibold mb-1 text-destructive">{f.title}</p>
+                                    <p className="text-muted-foreground mb-2">{f.hint}</p>
+                                    {f.hint !== r.rejection_reason && (
+                                      <p className="font-mono text-[10px] text-muted-foreground/80 bg-muted/50 rounded px-1.5 py-1 break-all">
+                                        <span className="opacity-60">Paystack: </span>{r.rejection_reason}
+                                      </p>
+                                    )}
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                            </div>
+                            {r.bank_name && (
+                              <p className="text-[10.5px] text-muted-foreground/70 truncate font-mono tracking-tight">
+                                {r.bank_name} · {r.account_number || '—'}
+                              </p>
                             )}
-                          </div>
-                          {r.bank_name && (
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {r.bank_name} · <span className="font-mono">{r.account_number || '—'}</span>
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs whitespace-nowrap">
-                          {formatDateTime(r.created_at)}
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-700 border border-blue-200/80">WEB</span>
-                        </TableCell>
-                        <TableCell>
-                          <LedgerStatusBadge status={ledgerStatus} />
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </td>
+                          <td className="px-3 py-2 font-mono text-[11px] text-muted-foreground tracking-tight whitespace-nowrap">
+                            {refDisplay}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
+                            {fee > 0 ? formatNaira(fee) : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono text-[11.5px] text-muted-foreground tabular-nums whitespace-nowrap">
+                            {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/30">—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold text-[13px] tabular-nums whitespace-nowrap">
+                            {formatNaira(r.amount_ngn)}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <LedgerStatusDot status={ledgerStatus} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
 
               {/* Mobile transactions list */}
@@ -661,8 +638,8 @@ const Transactions = () => {
               />
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
@@ -670,20 +647,23 @@ const Transactions = () => {
 export default Transactions;
 
 // ---------------------------------------------------------------------------
-// Ledger status badge — Paystack-dashboard style: SUCCESSFUL / PENDING /
-// FAILED / REFUNDED. Uppercase pill with high-contrast colour.
+// Ledger status dot — Mercury / Brex / Ramp style.
+//   • Coloured 6px dot
+//   • Sentence-case label (succeeded / pending / failed / refunded)
+//   • text-[11px] muted-foreground for the label so the dot does the work
 // ---------------------------------------------------------------------------
 
-function LedgerStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; bg: string; text: string; ring: string }> = {
-    succeeded: { label: 'SUCCESSFUL', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-1 ring-inset ring-emerald-300/60' },
-    pending:   { label: 'PENDING',    bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-1 ring-inset ring-amber-300/60' },
-    failed:    { label: 'FAILED',     bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-1 ring-inset ring-red-300/60' },
-    reversed:  { label: 'REFUNDED',   bg: 'bg-slate-100',  text: 'text-slate-600',   ring: 'ring-1 ring-inset ring-slate-300/60' },
+function LedgerStatusDot({ status }: { status: string }) {
+  const config: Record<string, { label: string; dot: string; text: string }> = {
+    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-emerald-700' },
+    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-amber-700' },
+    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-red-700' },
+    reversed:  { label: 'Refunded',  dot: 'bg-slate-400',    text: 'text-slate-600' },
   };
   const c = config[status] ?? config.pending;
   return (
-    <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider', c.bg, c.text, c.ring)}>
+    <span className={cn('inline-flex items-center gap-1.5 text-[11.5px] font-medium', c.text)}>
+      <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', c.dot)} />
       {c.label}
     </span>
   );
