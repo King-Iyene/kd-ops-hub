@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatNairaCode, formatDate, toIsoDate, daysUntil } from '@/lib/format';
+import { formatNaira, formatDate, toIsoDate, daysUntil } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
@@ -491,39 +491,37 @@ export default function PaymentSchedule() {
         </div>
       )}
 
-      {/* Section 2 — Summary strip (continental hybrid: US base
-          + German grafts, ToD glow on hover). */}
+      {/* Section 2 — Summary strip (pure Mercury: hairline tiles,
+          mono ₦ values, ToD holographic hover). */}
       <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
             label: 'Next 7 days',
-            value: formatNairaCode(obligations7),
+            value: formatNaira(obligations7),
             sub: 'Outstanding obligations',
-            dot: 'bg-blue-600',
           },
           {
             label: 'Next 30 days',
-            value: formatNairaCode(obligations30),
+            value: formatNaira(obligations30),
             sub: 'Outstanding obligations',
-            dot: 'bg-slate-400',
           },
           {
             label: 'Overdue',
             value: overdueBatches.length.toString(),
-            sub: overdueBatches.length > 0 ? `${formatNairaCode(overdueTotal)} past due` : 'All on schedule',
-            dot: overdueBatches.length > 0 ? 'bg-red-600' : 'bg-emerald-600',
+            sub: overdueBatches.length > 0 ? `${formatNaira(overdueTotal)} past due` : 'All on schedule',
+            warn: overdueBatches.length > 0,
           },
-        ].map(({ label, value, sub, dot }) => (
+        ].map(({ label, value, sub, warn }) => (
           <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
             <div className="relative z-[2]">
-              <div className="flex items-center gap-1.5">
-                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-              </div>
-              <p className="mt-2 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+                {label}
+                {warn && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-red-500 animate-pulse" />}
+              </p>
+              <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
               </p>
-              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
             </div>
           </div>
         ))}
@@ -594,11 +592,10 @@ export default function PaymentSchedule() {
                           {formatDate(item.dueDate)}
                         </span>
                         <span className={cn(
-                          'shrink-0 font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight w-32 text-right',
+                          'shrink-0 font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight w-28 text-right',
                           isOverdue && 'text-red-700',
                         )}>
-                          <span className="text-[10px] text-muted-foreground/70 mr-1 font-medium tracking-[0.08em] uppercase">NGN</span>
-                          {formatNaira(item.amount).replace(/^₦/, '')}
+                          {formatNaira(item.amount)}
                         </span>
                         <StatusBadge status={item.status} size="sm" />
                       </div>

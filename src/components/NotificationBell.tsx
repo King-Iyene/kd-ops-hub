@@ -14,23 +14,55 @@ import { cn } from '@/lib/utils';
 
 /**
  * Maps a notification.module value to the route the user should land on.
- * Falls back to the dashboard if the module is unknown.
+ * Falls back to the dashboard if the module is unknown. Accepts both
+ * singular ("payment", "leave_request") and plural ("payments") forms
+ * because some senders write `module: 'payment'` while others write
+ * `module: 'payments'` — neither is "wrong" but the routing has to
+ * accept both.
  */
 const moduleToRoute = (module: string | null | undefined): string => {
   switch (module) {
-    case 'leave':         return '/leave';
-    case 'expenses':      return '/expenses';
+    case 'leave':
+    case 'leaves':
+    case 'leave_request':       return '/leave';
+    case 'expense':
+    case 'expenses':            return '/expenses';
     case 'fuel':
-    case 'fleet':         return '/fleet';
-    case 'payments':      return '/payments';
-    case 'payroll':       return '/payroll';
-    case 'budgets':       return '/budgets';
-    case 'tasks':         return '/tasks';
-    case 'subscriptions': return '/subscriptions';
-    case 'compliance':    return '/compliance';
-    case 'documents':     return '/documents';
-    case 'approvals':     return '/approvals';
-    default:              return '/dashboard';
+    case 'fuel_request':
+    case 'fleet':
+    case 'vehicle':             return '/fleet';
+    case 'payment':
+    case 'payments':
+    case 'payment_batch':
+    case 'transfer':            return '/payments';
+    case 'payroll':
+    case 'payroll_run':         return '/payroll';
+    case 'budget':
+    case 'budgets':             return '/budgets';
+    case 'task':
+    case 'tasks':               return '/tasks';
+    case 'subscription':
+    case 'subscriptions':       return '/subscriptions';
+    case 'compliance':          return '/compliance';
+    case 'document':
+    case 'documents':           return '/documents';
+    case 'approval':
+    case 'approvals':           return '/approvals';
+    case 'employee':
+    case 'employees':           return '/employees';
+    case 'contractor':
+    case 'contractors':         return '/contractors';
+    case 'invoice':
+    case 'invoices':            return '/invoices';
+    case 'asset':
+    case 'assets':              return '/assets';
+    case 'communication':
+    case 'communications':      return '/communications';
+    case 'anomaly':
+    case 'anomalies':           return '/anomalies';
+    case 'audit':
+    case 'audit_log':           return '/audit';
+    default:                    return '/dashboard';
   }
 };
 
@@ -105,6 +137,45 @@ function fallbackToneIcon(tone: Tone): typeof Bell {
   }
 }
 
+/**
+ * Resolves a deep-link path for a notification when the payload
+ * carries enough context (target_id / batch_id / etc.) to route
+ * straight to the detail page. Returns null if the module doesn't
+ * have a detail surface or the target is missing — caller falls
+ * back to the list route.
+ */
+function deepLinkFor(module: string | null | undefined, n: any): string | null {
+  const targetId = n.target_id || n.batch_id || n.entity_id || n.payload?.batch_id || n.payload?.id;
+  if (!targetId) return null;
+  switch (module) {
+    case 'payment':
+    case 'payments':
+    case 'payment_batch':
+    case 'transfer':       return `/payments/${targetId}`;
+    case 'payroll':
+    case 'payroll_run':    return `/payroll/${targetId}`;
+    case 'expense':
+    case 'expenses':       return `/expenses/${targetId}`;
+    case 'leave':
+    case 'leaves':
+    case 'leave_request':  return `/leave?id=${targetId}`;
+    case 'employee':
+    case 'employees':      return `/employees/${targetId}`;
+    case 'contractor':
+    case 'contractors':    return `/contractors/${targetId}`;
+    case 'invoice':
+    case 'invoices':       return `/invoices/${targetId}`;
+    case 'budget':
+    case 'budgets':        return `/budgets?id=${targetId}`;
+    case 'fuel':
+    case 'fuel_request':
+    case 'fleet':          return `/fleet?id=${targetId}`;
+    case 'task':
+    case 'tasks':          return `/tasks?id=${targetId}`;
+    default:               return null;
+  }
+}
+
 function moduleFromType(type: string): string | undefined {
   // notification.type often encodes module + verb, e.g.
   // 'payment.transfer.failed' or 'fleet.fuel_request.approved'.
@@ -164,8 +235,18 @@ export function NotificationBell() {
 
   const handleClick = (n: any) => {
     if (!n.read) markAsRead(n.id);
-    const route = moduleToRoute(moduleFromType(n.type) || (n as any).module);
-    navigate(route);
+    // Priority: explicit n.module (sender knows best) → token from
+    // n.type (heuristic fallback) → /dashboard. The previous order
+    // was reversed and `||` short-circuited on the heuristic — so a
+    // notification with module='payments' but type='payment_succeeded'
+    // routed to /dashboard because moduleFromType('payment_succeeded')
+    // returned 'payment' (singular), which wasn't in the map.
+    const route = moduleToRoute(n.module || moduleFromType(n.type));
+    // Deep link: many notifications include a target_id (batch_id,
+    // expense_id, etc.) — if present, route directly to the detail
+    // page instead of the list. Module-specific deep-link rules.
+    const detailPath = deepLinkFor(n.module || moduleFromType(n.type), n);
+    navigate(detailPath || route);
     setOpen(false);
   };
 

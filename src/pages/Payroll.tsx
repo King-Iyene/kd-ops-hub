@@ -41,7 +41,6 @@ import {
   formatDate,
   formatDateTime,
   formatNaira,
-  formatNairaCode,
   formatNairaCompact,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -1335,45 +1334,38 @@ const Payroll = () => {
         </div>
       )}
 
-      {/* Summary strip — continental hybrid (US base + German
-          grafts + Swiss precision + ToD hover glow). */}
+      {/* Summary strip — pure Mercury: hairline 4-cell, mono ₦
+          values, ToD holographic hover. */}
       <div className="rounded-lg border border-border/70 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/70 divide-y sm:divide-y-0 overflow-hidden">
         {[
           {
             label: 'Latest total burn',
-            value: latest ? formatNairaCode(latest.total_burn_ngn) : '—',
+            value: latest ? formatNaira(latest.total_burn_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run',
-            dot: 'bg-blue-600',
           },
           {
             label: 'PAYE (est.)',
-            value: latest ? formatNairaCode(latest.paye_ngn) : '—',
+            value: latest ? formatNaira(latest.paye_ngn) : '—',
             sub: 'Due 10th next month',
-            dot: 'bg-amber-500',
           },
           {
             label: 'Active employees',
             value: latest?.employee_count ?? '—',
-            sub: latest ? `Pension ${formatNairaCode(latest.pension_ngn)}` : 'No runs yet',
-            dot: 'bg-emerald-600',
+            sub: latest ? `Pension ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
           },
           {
             label: 'Approved runs',
             value: runs.filter((r) => r.status === 'approved' || r.status === 'paid').length,
             sub: 'This year',
-            dot: 'bg-slate-400',
           },
-        ].map(({ label, value, sub, dot }) => (
+        ].map(({ label, value, sub }) => (
           <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
             <div className="relative z-[2]">
-              <div className="flex items-center gap-1.5">
-                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-              </div>
-              <p className="mt-2 text-[18px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+              <p className="mt-1.5 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
               </p>
-              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
             </div>
           </div>
         ))}

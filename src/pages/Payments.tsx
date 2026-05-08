@@ -3,7 +3,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatNairaCode, formatDate } from '@/lib/format';
+import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -361,50 +361,40 @@ const Payments = () => {
       )}
 
       {/* ── Stats row ──────────────────────────────────────────────
-          KDOps continental hybrid:
-            • US base (Mercury / Brex) — hairline tiles, dot status
-            • German grafts (Sparkasse / N26) — mono numerics, ISO
-              code prefix ("NGN 200,000.00"), uppercase compressed
-              labels with 0.14em tracking
-            • Swiss touch — generous letter-spacing on labels for
-              precise hierarchy
-            • Swedish warmth — slate dots instead of pure greys,
-              softer pulse on dynamic states
-            • Time-of-day glow on hover (kd-holographic class) so
-              the same surface warms amber in the morning, cools
-              cyan in afternoon, violet at dusk. */}
+          Pure Mercury / Brex / Ramp — matching the Transactions
+          module the operator picked. Hairline tiles, mono counts,
+          local currency glyph (₦), no ISO prefix, no dots on the
+          tile (those are kept on the rows below). Time-of-day
+          holographic hover. */}
       <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
             label: 'Pending approval',
             value: stats.pendingCount,
-            sub: formatNairaCode(stats.pendingAmount),
-            dot: 'bg-amber-500',
+            sub: formatNaira(stats.pendingAmount),
           },
           {
             label: 'In processing',
             value: stats.processingCount,
             sub: 'Active transfers',
-            dot: 'bg-blue-600',
             pulse: stats.processingCount > 0,
           },
           {
             label: 'Paid this month',
-            value: formatNairaCode(stats.thisMonthAmount),
+            value: formatNaira(stats.thisMonthAmount),
             sub: 'Settled via Paystack',
-            dot: 'bg-emerald-600',
           },
-        ].map(({ label, value, sub, dot, pulse }) => (
+        ].map(({ label, value, sub, pulse }) => (
           <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
             <div className="relative z-[2]">
-              <div className="flex items-center gap-1.5">
-                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot, pulse && 'animate-pulse')} />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-              </div>
-              <p className="mt-2 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+                {label}
+                {pulse && <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-blue-500 animate-pulse" />}
+              </p>
+              <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
                 {value}
               </p>
-              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/80 tabular-nums truncate">{sub}</p>
             </div>
           </div>
         ))}
@@ -541,11 +531,10 @@ const Payments = () => {
                     <StatusBadge status={batch.status} variant="outline" size="sm" />
                   </div>
 
-                  {/* Amount (col 5) — NGN prefix mono right-aligned */}
+                  {/* Amount (col 5) — pure Mercury: ₦ glyph, mono, right-aligned */}
                   <div className="text-right ml-auto md:ml-0 shrink-0">
                     <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight', amountColor)}>
-                      <span className="text-[10px] text-muted-foreground/70 mr-1 font-medium tracking-[0.08em] uppercase">NGN</span>
-                      {formatNaira(batch.total_amount || 0).replace(/^₦/, '')}
+                      {formatNaira(batch.total_amount || 0)}
                     </p>
                   </div>
 

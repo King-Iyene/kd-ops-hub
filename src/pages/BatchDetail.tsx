@@ -2015,6 +2015,60 @@ const BatchDetail = () => {
 
                     <TableCell className="py-2.5 text-right align-top">
                       <div className="flex justify-end gap-1 flex-wrap">
+                        {/* Stuck pending / processing — give the operator
+                            an escape hatch. Items that have been pending
+                            or processing for more than 1 hour are almost
+                            certainly stuck (Paystack webhook lost, network
+                            error mid-dispatch, ambiguous Paystack state).
+                            Without this, the batch hangs forever and the
+                            row can't leave the Pending Payouts list. */}
+                        {(item.status === 'pending' || item.status === 'processing' || item.status === 'retry')
+                          && !item.is_manually_resolved
+                          && canApprove
+                          && (() => {
+                            const startedAt = new Date(item.updated_at || item.created_at).getTime();
+                            const ageHours = (Date.now() - startedAt) / (1000 * 60 * 60);
+                            const STUCK_THRESHOLD_HOURS = 1;
+                            if (ageHours <= STUCK_THRESHOLD_HOURS) {
+                              return (
+                                <span
+                                  className="text-[10.5px] text-muted-foreground inline-flex items-center gap-1"
+                                  title={`In flight ${Math.round(ageHours * 60)}m — escape hatch unlocks after 1h`}
+                                >
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  In flight
+                                </span>
+                              );
+                            }
+                            return (
+                              <>
+                                <span
+                                  className="text-[10px] text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 mr-1"
+                                  title={`Stuck for ~${Math.round(ageHours)}h — Paystack hasn't responded`}
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Stuck
+                                </span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openResolve(item, 'paid')}
+                                  title="Already paid this person via bank app or another channel? Closes the row so the batch can finish."
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" /> Mark paid
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => openResolve(item, 'cancel')}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  title="Give up on this transfer (wrong details, account closed, etc.). Closes without claiming payment was made."
+                                >
+                                  <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                                </Button>
+                              </>
+                            );
+                          })()}
                         {item.status === 'failed' && canApprove && (() => {
                           // Retry expires after 5 hours — matches Paystack's
                           // transfer reversal window and NIBSS instant-transfer
