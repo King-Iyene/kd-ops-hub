@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatDate, toIsoDate, daysUntil } from '@/lib/format';
+import { formatNaira, formatNairaCode, formatDate, toIsoDate, daysUntil } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
@@ -491,39 +491,40 @@ export default function PaymentSchedule() {
         </div>
       )}
 
-      {/* Section 2 — Summary strip (US/UK central-bank pattern:
-          hairline 3-cell row, status dot per metric, no medallions
-          or gradient cards). */}
-      <div className="rounded-lg border border-border/60 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/60">
+      {/* Section 2 — Summary strip (continental hybrid: US base
+          + German grafts, ToD glow on hover). */}
+      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
             label: 'Next 7 days',
-            value: formatNaira(obligations7),
-            sub: 'NGN obligations',
-            dot: 'bg-blue-500',
+            value: formatNairaCode(obligations7),
+            sub: 'Outstanding obligations',
+            dot: 'bg-blue-600',
           },
           {
             label: 'Next 30 days',
-            value: formatNaira(obligations30),
-            sub: 'NGN obligations',
+            value: formatNairaCode(obligations30),
+            sub: 'Outstanding obligations',
             dot: 'bg-slate-400',
           },
           {
             label: 'Overdue',
             value: overdueBatches.length.toString(),
-            sub: overdueBatches.length > 0 ? `${formatNaira(overdueTotal)} past due` : 'All on schedule',
-            dot: overdueBatches.length > 0 ? 'bg-red-500' : 'bg-emerald-500',
+            sub: overdueBatches.length > 0 ? `${formatNairaCode(overdueTotal)} past due` : 'All on schedule',
+            dot: overdueBatches.length > 0 ? 'bg-red-600' : 'bg-emerald-600',
           },
         ].map(({ label, value, sub, dot }) => (
-          <div key={label} className="px-4 py-3.5">
-            <div className="flex items-center gap-1.5">
-              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</p>
+          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
+            <div className="relative z-[2]">
+              <div className="flex items-center gap-1.5">
+                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+              </div>
+              <p className="mt-2 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+                {value}
+              </p>
+              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
             </div>
-            <p className="mt-1.5 text-[22px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
-              {value}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">{sub}</p>
           </div>
         ))}
       </div>
@@ -593,10 +594,11 @@ export default function PaymentSchedule() {
                           {formatDate(item.dueDate)}
                         </span>
                         <span className={cn(
-                          'shrink-0 font-semibold text-[13.5px] tabular-nums leading-none w-24 text-right',
+                          'shrink-0 font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight w-32 text-right',
                           isOverdue && 'text-red-700',
                         )}>
-                          {formatNaira(item.amount)}
+                          <span className="text-[10px] text-muted-foreground/70 mr-1 font-medium tracking-[0.08em] uppercase">NGN</span>
+                          {formatNaira(item.amount).replace(/^₦/, '')}
                         </span>
                         <StatusBadge status={item.status} size="sm" />
                       </div>

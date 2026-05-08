@@ -3,7 +3,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
-import { formatNaira, formatDate } from '@/lib/format';
+import { formatNaira, formatNairaCode, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { usePermission, useFeatureAccess } from '@/hooks/usePermission';
 import { APPROVER_ROLES } from '@/lib/roles';
-import { statusLabel } from '@/components/ui-kit/StatusBadge';
+import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 
@@ -361,43 +361,51 @@ const Payments = () => {
       )}
 
       {/* ── Stats row ──────────────────────────────────────────────
-          German bank language (Sparkasse / Commerzbank / Deutsche Bank /
-          N26): rounded-md (smaller corners), uppercase compressed
-          column labels with letter-spacing, currency code prefix
-          ("NGN ₦…"), no rounded-full status pills, status as plain
-          mono text. Bauhaus-derived: form follows function — every
-          pixel is data, no decoration. */}
-      <div className="rounded-md border border-border bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border">
+          KDOps continental hybrid:
+            • US base (Mercury / Brex) — hairline tiles, dot status
+            • German grafts (Sparkasse / N26) — mono numerics, ISO
+              code prefix ("NGN 200,000.00"), uppercase compressed
+              labels with 0.14em tracking
+            • Swiss touch — generous letter-spacing on labels for
+              precise hierarchy
+            • Swedish warmth — slate dots instead of pure greys,
+              softer pulse on dynamic states
+            • Time-of-day glow on hover (kd-holographic class) so
+              the same surface warms amber in the morning, cools
+              cyan in afternoon, violet at dusk. */}
+      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
             label: 'Pending approval',
             value: stats.pendingCount,
-            sub: `NGN ${formatNaira(stats.pendingAmount).replace(/^₦/, '')}`,
+            sub: formatNairaCode(stats.pendingAmount),
             dot: 'bg-amber-500',
           },
           {
             label: 'In processing',
             value: stats.processingCount,
-            sub: 'aktive Überweisungen',
+            sub: 'Active transfers',
             dot: 'bg-blue-600',
             pulse: stats.processingCount > 0,
           },
           {
             label: 'Paid this month',
-            value: `NGN ${formatNaira(stats.thisMonthAmount).replace(/^₦/, '')}`,
+            value: formatNairaCode(stats.thisMonthAmount),
             sub: 'Settled via Paystack',
             dot: 'bg-emerald-600',
           },
         ].map(({ label, value, sub, dot, pulse }) => (
-          <div key={label} className="px-4 py-3">
-            <div className="flex items-center gap-1.5">
-              <span className={cn('h-1 w-1 rounded-none shrink-0', dot, pulse && 'animate-pulse')} />
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
+            <div className="relative z-[2]">
+              <div className="flex items-center gap-1.5">
+                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot, pulse && 'animate-pulse')} />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+              </div>
+              <p className="mt-2 text-[19px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+                {value}
+              </p>
+              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
             </div>
-            <p className="mt-2 text-[18px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono">
-              {value}
-            </p>
-            <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight">{sub}</p>
           </div>
         ))}
       </div>
@@ -459,29 +467,28 @@ const Payments = () => {
             }
           />
         ) : (
-          /* German bank ledger row.
-             Header row column labels (Sparkasse / Postbank style):
-             "BEZEICHNUNG  EMPFÄNGER  WERT  STATUS" but in English.
-             Density: h-10 instead of h-11. Square corners (no
-             rounded). Mono numerals throughout. Currency code
-             prefix on the amount ("NGN") because German banks
-             never trust a lone glyph. Status as plain mono text
-             (lowercase + colour) instead of a pill — German
-             bank apps don't use rounded badges, they let the
-             colour and weight do the work. Hairline column
-             rule on header. */
-          <div className="rounded-md border border-border bg-card overflow-hidden">
+          /* Continental hybrid ledger row:
+               • US base — hairline rows, status rail on the left,
+                 dot+text status (StatusBadge outline variant)
+               • German grafts — column headers, mono nums, ISO
+                 currency code, UPPERCASE compressed status,
+                 right-aligned amount column with NGN prefix
+               • Swiss precision — 0.14em letter-spacing on
+                 column headers, exact pixel rhythm
+               • Swedish warmth — Inter sans for names + body
+                 (default), softer rail (2px), draft rows fade
+                 instead of looking dead. */
+          <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
             {/* Column header — uppercase compressed, hairline rule. */}
-            <div className="hidden md:grid grid-cols-[12px_1fr_180px_90px_70px_120px_12px] gap-2.5 items-center px-3 h-7 border-b border-border bg-muted/40">
+            <div className="hidden md:grid grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center px-3 h-8 border-b border-border/70 bg-muted/30">
               <span />
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Description</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Recipients · Pay date</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground text-right">Status</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground text-right">Currency</p>
-              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground text-right">Amount</p>
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Description</p>
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Recipients · Pay date</p>
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90">Status</p>
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/90 text-right">Amount</p>
               <span />
             </div>
-            <div className="divide-y divide-border/60">
+            <div className="divide-y divide-border/50">
             {filtered.map((batch) => {
               const typeMeta = batch.batch_type ? BATCH_TYPE_META[batch.batch_type] : null;
               const isProcessing = batch.status === 'processing' || batch.status === 'partially_processed';
@@ -493,19 +500,8 @@ const Payments = () => {
                 : isPending ? 'bg-amber-500'
                 : isFailed ? 'bg-red-600'
                 : isProcessed ? 'bg-emerald-600'
-                : isDraft ? 'bg-slate-400'
+                : isDraft ? 'bg-slate-300'
                 : 'bg-slate-400';
-              const statusText = isProcessing ? 'text-blue-700'
-                : isPending ? 'text-amber-700'
-                : isFailed ? 'text-red-700'
-                : isProcessed ? 'text-emerald-700'
-                : 'text-muted-foreground';
-              const statusLabel = isProcessing ? 'in processing'
-                : isPending ? 'pending'
-                : isFailed ? 'failed'
-                : isProcessed ? 'completed'
-                : isDraft ? 'draft'
-                : batch.status;
               const amountColor = isFailed ? 'text-red-700'
                 : isProcessed ? 'text-emerald-700'
                 : 'text-foreground';
@@ -514,20 +510,22 @@ const Payments = () => {
                   key={batch.id}
                   onClick={() => navigate(`/payments/${batch.id}`)}
                   className={cn(
-                    'group relative md:grid md:grid-cols-[12px_1fr_180px_90px_70px_120px_12px] gap-2.5 items-center flex flex-wrap px-3 md:h-10 py-2 md:py-0 cursor-pointer kd-transition',
+                    'group relative md:grid md:grid-cols-[12px_1fr_180px_110px_140px_12px] gap-3 items-center flex flex-wrap px-3 md:h-11 py-2.5 md:py-0 cursor-pointer kd-transition',
                     'hover:bg-muted/30',
-                    isDraft && 'opacity-65',
+                    isFailed && 'bg-red-50/20 dark:bg-red-950/10',
+                    isPending && 'bg-amber-50/20 dark:bg-amber-950/10',
+                    isDraft && 'opacity-60',
                   )}
                 >
-                  {/* Left status rail — 2px wide, square. */}
+                  {/* Left status rail — 2px wide */}
                   <span className={cn('absolute left-0 top-0 h-full w-[2px]', railColor, isProcessing && 'animate-pulse')} />
                   <span />
 
                   {/* Description (col 2) */}
                   <div className="min-w-0 flex items-center gap-2">
-                    <p className="font-medium text-[12.5px] text-foreground truncate">{batch.name}</p>
+                    <p className="font-medium text-[13px] text-foreground truncate">{batch.name}</p>
                     {typeMeta && (
-                      <span className={cn('hidden lg:inline-flex items-center rounded-sm px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
+                      <span className={cn('hidden lg:inline-flex items-center rounded px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-[0.06em] shrink-0', typeMeta.bg, typeMeta.text)}>
                         {typeMeta.label}
                       </span>
                     )}
@@ -538,24 +536,22 @@ const Payments = () => {
                     {batch.beneficiary_count} · {formatDate(batch.payment_date)}
                   </p>
 
-                  {/* Status (col 4) — plain text, no pill, German-bank style */}
-                  <p className={cn('hidden md:block text-[10.5px] font-semibold uppercase tracking-[0.08em] text-right tabular-nums', statusText)}>
-                    {statusLabel}
-                  </p>
+                  {/* Status (col 4) — outlined badge with breathing dot */}
+                  <div className="hidden md:block">
+                    <StatusBadge status={batch.status} variant="outline" size="sm" />
+                  </div>
 
-                  {/* Currency code (col 5) — German banks always show ISO code beside amount */}
-                  <p className="hidden md:block text-[10.5px] text-muted-foreground/70 font-mono tracking-tight text-right">
-                    NGN
-                  </p>
+                  {/* Amount (col 5) — NGN prefix mono right-aligned */}
+                  <div className="text-right ml-auto md:ml-0 shrink-0">
+                    <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight', amountColor)}>
+                      <span className="text-[10px] text-muted-foreground/70 mr-1 font-medium tracking-[0.08em] uppercase">NGN</span>
+                      {formatNaira(batch.total_amount || 0).replace(/^₦/, '')}
+                    </p>
+                  </div>
 
-                  {/* Amount (col 6) */}
-                  <p className={cn('font-mono font-semibold text-[13px] tabular-nums leading-none tracking-tight text-right ml-auto md:ml-0', amountColor)}>
-                    {formatNaira(batch.total_amount || 0).replace(/^₦/, '')}
-                  </p>
-
-                  {/* Mobile-only meta line — only shown on small screens */}
+                  {/* Mobile-only secondary line */}
                   <div className="md:hidden basis-full mt-1 flex items-center gap-2 text-[10.5px] text-muted-foreground tabular-nums font-mono">
-                    <span className={cn('font-semibold uppercase tracking-[0.08em]', statusText)}>{statusLabel}</span>
+                    <StatusBadge status={batch.status} variant="outline" size="sm" />
                     <span className="text-muted-foreground/40">·</span>
                     <span>{batch.beneficiary_count} · {formatDate(batch.payment_date)}</span>
                   </div>

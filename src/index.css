@@ -694,27 +694,46 @@
     animation: kd-particle-drift 8s linear infinite;
   }
 
-  /* Holographic card — mouse-tracking iridescent shimmer */
+  /* Holographic card — mouse-tracking iridescent shimmer.
+     Hue is driven by --tod-glow which the useTimeOfDay hook sets
+     on <html data-tod="…">. So the same surface glows warm amber
+     in the morning, cyan in the afternoon, violet at dusk, deep
+     cyan at night. Two layers stacked for richness:
+       ::before is the soft halo (large, low opacity)
+       ::after is the tight bright spot (small, higher opacity)
+     Single-layer reads as flat — Mercury's Treasury / Cards screens
+     use the same dual-layer trick. */
   .kd-holographic {
     position: relative;
     isolation: isolate;
   }
-  .kd-holographic::before {
+  .kd-holographic::before,
+  .kd-holographic::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background: radial-gradient(
-      circle 220px at var(--mx, 50%) var(--my, 50%),
-      hsl(var(--tod-glow) / 0.18),
-      transparent 60%
-    );
-    opacity: 0;
-    transition: opacity 240ms ease;
     pointer-events: none;
+    opacity: 0;
+    transition: opacity 280ms ease;
     z-index: 1;
   }
-  .kd-holographic:hover::before {
+  .kd-holographic::before {
+    background: radial-gradient(
+      circle 260px at var(--mx, 50%) var(--my, 50%),
+      hsl(var(--tod-glow) / 0.22),
+      transparent 65%
+    );
+  }
+  .kd-holographic::after {
+    background: radial-gradient(
+      circle 80px at var(--mx, 50%) var(--my, 50%),
+      hsl(var(--tod-glow) / 0.32),
+      transparent 70%
+    );
+  }
+  .kd-holographic:hover::before,
+  .kd-holographic:hover::after {
     opacity: 1;
   }
 

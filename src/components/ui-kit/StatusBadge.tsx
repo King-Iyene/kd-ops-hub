@@ -73,11 +73,14 @@ export function StatusBadge({
   status,
   size = 'default',
   showDot = true,
+  variant = 'fill',
   className,
 }: {
   status: string;
   size?: 'sm' | 'default';
   showDot?: boolean;
+  /** `fill` = soft pastel pill (US default). `outline` = no fill, dot + coloured text only (German / Swedish bank standard). */
+  variant?: 'fill' | 'outline';
   className?: string;
 }) {
   const config = STATUS_CONFIG[status] ?? FALLBACK;
@@ -98,21 +101,22 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full font-medium capitalize',
-        config.bg,
-        config.text,
-        size === 'sm'
-          ? 'px-2 py-0 text-[10px] leading-5'
-          : 'px-2.5 py-0.5 text-[11px] leading-5',
+        'inline-flex items-center gap-1.5 font-medium',
+        variant === 'fill'
+          ? cn('rounded-full capitalize', config.bg, config.text,
+              size === 'sm' ? 'px-2 py-0 text-[10px] leading-5' : 'px-2.5 py-0.5 text-[11px] leading-5')
+          : cn('rounded-none uppercase tracking-[0.08em]', config.text,
+              size === 'sm' ? 'text-[10px] leading-5' : 'text-[10.5px] leading-5'),
         className,
       )}
     >
       {showDot && (
         <span
           className={cn(
-            'inline-block rounded-full shrink-0',
+            'inline-block shrink-0',
             config.dot,
-            size === 'sm' ? 'h-1.5 w-1.5' : 'h-1.5 w-1.5',
+            variant === 'fill' ? 'rounded-full' : 'rounded-none',
+            'h-1.5 w-1.5',
             liveAnim,
           )}
         />
