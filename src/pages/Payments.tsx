@@ -403,7 +403,7 @@ const Payments = () => {
       </div>
 
       {/* ── Filters + list ─────────────────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-3" id="batches-list">
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           {/* Tabs scroll horizontally on mobile so they don't wrap into a
               second row that pushes the table down. Snap to each pill. */}
