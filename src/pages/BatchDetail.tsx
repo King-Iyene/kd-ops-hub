@@ -186,6 +186,42 @@ const BatchDetail = () => {
   const [riskFlagsAcknowledged, setRiskFlagsAcknowledged] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [diagnosingId, setDiagnosingId] = useState<string | null>(null);
+  // Mark-as-resolved dialog — fires the RPC that flips
+  // batch_items.is_manually_resolved=true and recomputes the
+  // batch's derived status. The row's underlying `status` stays
+  // 'failed' so the audit trail of the original Paystack outcome
+  // is preserved; resolution metadata sits alongside.
+  const [resolveItem, setResolveItem] = useState<any | null>(null);
+  const [resolveMethod, setResolveMethod] = useState<string>('bank_transfer');
+  const [resolveNote, setResolveNote] = useState<string>('');
+  const [resolving, setResolving] = useState(false);
+
+  const submitResolve = async () => {
+    if (!resolveItem) return;
+    setResolving(true);
+    try {
+      const { error } = await supabase.rpc('mark_batch_item_resolved', {
+        p_item_id: resolveItem.id,
+        p_method:  resolveMethod,
+        p_note:    resolveNote.trim() || null,
+      });
+      if (error) throw error;
+      await logAudit(
+        'batch_item_resolved',
+        `${resolveItem.full_name || 'Item'} marked as paid manually (${resolveMethod})`,
+        profile,
+      );
+      toast({ title: 'Marked as resolved', description: 'Batch status will update shortly.' });
+      setResolveItem(null);
+      setResolveNote('');
+      setResolveMethod('bank_transfer');
+      await fetchBatch();
+    } catch (err: any) {
+      toast({ title: 'Resolve failed', description: err?.message ?? '', variant: 'destructive' });
+    } finally {
+      setResolving(false);
+    }
+  };
   const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string } | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
@@ -1923,7 +1959,40 @@ const BatchDetail = () => {
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
                           const RETRY_WINDOW_HOURS = 5;
-                          if (ageHours > RETRY_WINDOW_HOURS) return null;
+                          // Once resolved manually, hide the retry path —
+                          // the item is closed even though status='failed'
+                          // for audit purposes. The check on
+                          // is_manually_resolved short-circuits before
+                          // the retry window so the UI doesn't tease a
+                          // retry on something already paid.
+                          if (item.is_manually_resolved) {
+                            return (
+                              <span
+                                className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+                                title={item.manual_resolution_note || 'Marked as paid manually'}
+                              >
+                                <Check className="h-3 w-3" /> Resolved manually
+                              </span>
+                            );
+                          }
+                          // Past the retry window we no longer offer a
+                          // platform retry (stale recipient details +
+                          // accidental re-fire risk), but operators do
+                          // still need to close the loop on items they
+                          // paid via bank app. Surface "Mark as paid"
+                          // here so the batch status reflects reality.
+                          if (ageHours > RETRY_WINDOW_HOURS) {
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setResolveItem(item)}
+                                title="Retry window closed — record that this transfer was paid via another channel so the batch can close"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" /> Mark as paid
+                              </Button>
+                            );
+                          }
                           return (
                             <>
                               <Button
@@ -1951,6 +2020,14 @@ const BatchDetail = () => {
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : null}
                                 Diagnose
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setResolveItem(item)}
+                                title="Already paid this person via bank app? Mark resolved so the batch reflects reality."
+                              >
+                                Mark paid
                               </Button>
                             </>
                           );
@@ -2225,6 +2302,58 @@ const BatchDetail = () => {
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {deleting ? 'Deleting…' : 'Delete batch'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark-as-resolved dialog — captures method + note, fires
+          the mark_batch_item_resolved RPC, lets the derive function
+          recompute the batch status. The item's underlying status
+          stays 'failed' so the audit trail of the original Paystack
+          outcome is preserved; the resolution metadata sits
+          alongside. */}
+      <Dialog open={!!resolveItem} onOpenChange={(v) => { if (!v && !resolving) setResolveItem(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark as paid manually</DialogTitle>
+            <DialogDescription>
+              Record that <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> was paid via another channel for{' '}
+              <span className="font-semibold text-foreground">{formatNaira(resolveItem?.amount_ngn || 0)}</span>.
+              The batch status updates automatically once you save.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">How was it paid?</Label>
+              <Select value={resolveMethod} onValueChange={setResolveMethod}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bank_transfer">Bank transfer (USSD / banking app)</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Note (optional)</Label>
+              <Textarea
+                value={resolveNote}
+                onChange={(e) => setResolveNote(e.target.value)}
+                placeholder="e.g. Paid via GTBank USSD on 2026-05-08, ref TRF/0123456"
+                className="min-h-[70px]"
+              />
+            </div>
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-[11px] text-amber-800 dark:text-amber-300 leading-snug">
+              The original failed status stays on the row for audit. This action is logged and visible to admins.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResolveItem(null)} disabled={resolving}>Cancel</Button>
+            <Button onClick={submitResolve} disabled={resolving}>
+              {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Mark as paid
             </Button>
           </DialogFooter>
         </DialogContent>
