@@ -18,6 +18,28 @@ export const formatNaira = (amount: number | null | undefined): string => {
 };
 
 /**
+ * Naira amount in institutional format with the ISO 4217 code: "NGN 200,000.00".
+ *
+ * German-bank convention (Sparkasse, DKB, N26 all do this) — never trust a
+ * lone currency glyph because:
+ *   1. ₦ renders inconsistently across fonts and OSes
+ *   2. Multi-currency reports get confused if every figure is just a glyph
+ *   3. Institutions read "NGN 200,000.00" as auditable; "₦200,000" as casual
+ *
+ * Use on every monetary value in the bank-grade ledger surfaces (Payments,
+ * Transactions, Payment Schedule, Payroll). Reserve formatNaira() with the
+ * lone glyph for tight chips and inline references where the institutional
+ * column header isn't there to qualify the amount.
+ */
+export const formatNairaCode = (amount: number | null | undefined): string => {
+  const n = amount ?? 0;
+  return `NGN ${n.toLocaleString('en-NG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+};
+
+/**
  * Date formatter — adapts to whether the input carries a time component.
  *
  * - Pure dates ('YYYY-MM-DD') render as DD/MM/YYYY: birthdays, leave dates,

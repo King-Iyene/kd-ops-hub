@@ -41,6 +41,7 @@ import {
   formatDate,
   formatDateTime,
   formatNaira,
+  formatNairaCode,
   formatNairaCompact,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -1334,29 +1335,27 @@ const Payroll = () => {
         </div>
       )}
 
-      {/* Summary strip — central-bank pattern: hairline 4-cell row,
-          status dot per metric. Latest burn is the hero (blue dot),
-          PAYE due is a warning (amber), active count is good
-          (emerald), approved count is neutral. */}
-      <div className="rounded-lg border border-border/60 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/60 divide-y sm:divide-y-0">
+      {/* Summary strip — continental hybrid (US base + German
+          grafts + Swiss precision + ToD hover glow). */}
+      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-2 sm:grid-cols-4 sm:divide-x divide-border/70 divide-y sm:divide-y-0 overflow-hidden">
         {[
           {
             label: 'Latest total burn',
-            value: latest ? formatNaira(latest.total_burn_ngn) : '—',
+            value: latest ? formatNairaCode(latest.total_burn_ngn) : '—',
             sub: latest ? monthLabel(latest.period, latest.period_type) : 'Draft your first run',
-            dot: 'bg-blue-500',
+            dot: 'bg-blue-600',
           },
           {
             label: 'PAYE (est.)',
-            value: latest ? formatNaira(latest.paye_ngn) : '—',
+            value: latest ? formatNairaCode(latest.paye_ngn) : '—',
             sub: 'Due 10th next month',
             dot: 'bg-amber-500',
           },
           {
             label: 'Active employees',
             value: latest?.employee_count ?? '—',
-            sub: latest ? `Pension: ${formatNaira(latest.pension_ngn)}` : 'No runs yet',
-            dot: 'bg-emerald-500',
+            sub: latest ? `Pension ${formatNairaCode(latest.pension_ngn)}` : 'No runs yet',
+            dot: 'bg-emerald-600',
           },
           {
             label: 'Approved runs',
@@ -1365,15 +1364,17 @@ const Payroll = () => {
             dot: 'bg-slate-400',
           },
         ].map(({ label, value, sub, dot }) => (
-          <div key={label} className="px-4 py-3.5">
-            <div className="flex items-center gap-1.5">
-              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">{label}</p>
+          <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
+            <div className="relative z-[2]">
+              <div className="flex items-center gap-1.5">
+                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+              </div>
+              <p className="mt-2 text-[18px] font-semibold tabular-nums tracking-tight text-foreground leading-none font-mono truncate">
+                {value}
+              </p>
+              <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 tabular-nums tracking-tight truncate">{sub}</p>
             </div>
-            <p className="mt-1.5 text-[20px] font-semibold tabular-nums tracking-tight text-foreground leading-none">
-              {value}
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground tabular-nums truncate">{sub}</p>
           </div>
         ))}
       </div>
