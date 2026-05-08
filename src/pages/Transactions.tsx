@@ -325,17 +325,17 @@ const Transactions = () => {
         }
       />
 
-      {/* Summary strip — continental hybrid:
-            • US base — borderless tabs, click-to-filter
-            • German grafts — uppercase compressed labels (0.14em),
-              mono-font count, ISO-style figure rendering
-            • Time-of-day glow on hover (kd-holographic) */}
+      {/* Summary strip — pure Mercury / Brex / Ramp:
+          borderless tabs in a hairline-bordered surface, click-to-filter,
+          big mono count, small uppercase label. No status dots
+          (those are German). Holographic hover stays — it's a
+          Mercury Treasury pattern, not a German one. */}
       <div className="rounded-lg border border-border/70 bg-card grid grid-cols-3 sm:divide-x divide-border/70 overflow-hidden print:hidden">
         {([
-          { type: 'all' as const, label: 'All transactions', count: rows.length, dot: 'bg-blue-600' },
-          { type: 'transfer' as const, label: 'Transfers',  count: rows.filter((r) => r.txn_type === 'transfer').length, dot: 'bg-emerald-600' },
-          { type: 'quick_pay' as const, label: 'Quick Pay', count: rows.filter((r) => r.txn_type === 'quick_pay').length, dot: 'bg-amber-500' },
-        ]).map(({ type, label, count, dot }) => {
+          { type: 'all' as const, label: 'All transactions', count: rows.length },
+          { type: 'transfer' as const, label: 'Transfers',  count: rows.filter((r) => r.txn_type === 'transfer').length },
+          { type: 'quick_pay' as const, label: 'Quick Pay', count: rows.filter((r) => r.txn_type === 'quick_pay').length },
+        ]).map(({ type, label, count }) => {
           const isActive = typeFilter === type;
           return (
             <button
@@ -351,14 +351,11 @@ const Transactions = () => {
               )}
             >
               <div className="relative z-[2]">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dot)} />
-                  <span className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground font-semibold">
-                    {label}
-                  </span>
-                </div>
+                <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold">
+                  {label}
+                </span>
                 <span className={cn(
-                  'mt-2 text-[19px] font-semibold tabular-nums font-mono leading-none tracking-tight block',
+                  'mt-1.5 text-[20px] font-semibold tabular-nums font-mono leading-none tracking-tight block',
                   isActive && 'text-primary',
                 )}>
                   {count.toLocaleString()}
@@ -567,8 +564,7 @@ const Transactions = () => {
                             {stamp > 0 ? formatNaira(stamp) : <span className="text-muted-foreground/30">—</span>}
                           </td>
                           <td className="px-3 py-2 text-right font-mono font-semibold text-[13px] tabular-nums whitespace-nowrap">
-                            <span className="text-[10px] text-muted-foreground/70 mr-1 font-medium tracking-[0.08em] uppercase">NGN</span>
-                            {formatNaira(r.amount_ngn).replace(/^₦/, '')}
+                            {formatNaira(r.amount_ngn)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
                             {wasCancelled ? (
