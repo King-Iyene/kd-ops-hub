@@ -14,6 +14,8 @@ import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { openPayslipPrintWindow } from '@/lib/payslip';
+import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
+import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
 import { calculatePAYE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -835,12 +837,10 @@ const EmployeeProfile = () => {
 
   return (
     <div className="max-w-5xl">
-      <button
-        onClick={() => navigate('/employees')}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-3"
-      >
-        ← Back
-      </button>
+      <PageBreadcrumbs trail={[
+        { label: 'Employees', href: '/employees' },
+        { label: empName || 'Employee' },
+      ]} />
 
       {/* ── Profile header card ── */}
       <div className="bg-card border rounded-xl px-6 py-4">
@@ -905,6 +905,16 @@ const EmployeeProfile = () => {
               >
                 {employee.status === 'active' ? 'Active' : 'Inactive'}
               </Badge>
+              {/* WhatsApp deep-link in the profile header — most KD
+                  Squares ops conversations happen on WhatsApp, so the
+                  one-click "open chat" button removes the friction
+                  of copy/paste from the phone field below. */}
+              <WhatsAppButton
+                phone={employee.phone}
+                size="sm"
+                variant="outline"
+                label="WhatsApp"
+              />
             </div>
             <p className="text-muted-foreground text-sm mt-0.5 truncate">
               {employee.job_title || roleLabel(employee.role)} &middot; {employee.email}

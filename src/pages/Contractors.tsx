@@ -6,6 +6,7 @@ import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName } from '@/lib/name';
 import { formatDate, formatNaira } from '@/lib/format';
 import { logAudit } from '@/lib/audit';
@@ -685,6 +686,16 @@ const Contractors = () => {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      {/* WhatsApp deep-link — Nigerian SME standard.
+                          Stops row-level navigation on click so the
+                          message opens in WhatsApp without dragging
+                          the user to the contractor profile. */}
+                      <WhatsAppButton
+                        phone={c.whatsapp_phone}
+                        size="sm"
+                        stopPropagation
+                        text={`Hi ${c.first_name || c.full_name || ''}, this is ${profile?.full_name || 'KD Squares'}.`}
+                      />
                       <Button
                         size="sm"
                         variant="ghost"

@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
+import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { displayName, initialsOf } from '@/lib/name';
@@ -362,11 +364,10 @@ const ContractorProfile = () => {
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <button onClick={() => navigate('/contractors')} className="hover:text-foreground transition-colors">Contractors</button>
-        <span>/</span>
-        <span className="text-foreground">{ctrName}</span>
-      </nav>
+      <PageBreadcrumbs trail={[
+        { label: 'Contractors', href: '/contractors' },
+        { label: ctrName },
+      ]} />
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" aria-label="Back to contractors" onClick={() => navigate('/contractors')}>
           <ArrowLeft className="h-4 w-4" />
@@ -543,6 +544,15 @@ const ContractorProfile = () => {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
               <CardTitle className="text-base">Contractor details</CardTitle>
+              <div className="flex items-center gap-2">
+                {/* WhatsApp deep-link in detail header so admins can
+                    message a contractor without leaving the profile. */}
+                <WhatsAppButton
+                  phone={contractor.whatsapp_phone}
+                  size="sm"
+                  variant="outline"
+                  label="WhatsApp"
+                />
               {!editMode ? (
                 <Button variant="outline" size="sm" onClick={beginEdit}>
                   <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Details
@@ -558,6 +568,7 @@ const ContractorProfile = () => {
                   </Button>
                 </div>
               )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

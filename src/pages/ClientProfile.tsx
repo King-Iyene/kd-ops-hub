@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { logAudit } from '@/lib/audit';
 import { MANAGER_ROLES, hasRole } from '@/lib/roles';
 import { formatDate, formatNaira } from '@/lib/format';
@@ -179,6 +180,10 @@ const ClientProfile = () => {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <PageBreadcrumbs trail={[
+        { label: 'Clients', href: '/clients' },
+        { label: client.name },
+      ]} />
       {/* Back + title */}
       <div className="flex items-center gap-4 flex-wrap">
         <Button

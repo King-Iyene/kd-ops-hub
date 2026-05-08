@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { logAudit } from '@/lib/audit';
@@ -1353,12 +1354,10 @@ const BatchDetail = () => {
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <button onClick={() => navigate('/payments')} className="hover:text-foreground kd-transition font-medium">Payments</button>
-        <span className="text-border">›</span>
-        <span className="text-foreground font-medium truncate max-w-xs">{batch.name}</span>
-      </nav>
+      <PageBreadcrumbs trail={[
+        { label: 'Payments', href: '/payments' },
+        { label: batch.name || 'Batch' },
+      ]} />
 
       {/* Batch header */}
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-sm)]">
