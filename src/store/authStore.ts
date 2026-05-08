@@ -21,6 +21,10 @@ export interface Profile {
   created_at?: string;
   photo_url?: string | null;
   permissions?: Record<string, boolean> | null;
+  /** The tenant this user belongs to. Defaults to the seed tenant
+   *  (00000000-0000-0000-0000-000000000001) for legacy KD Squares
+   *  staff; brand-new self-signup tenants get their own UUID. */
+  tenant_id?: string | null;
 }
 
 /** sessionStorage key for the Super Admin role-simulation override. */
