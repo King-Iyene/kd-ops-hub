@@ -27,6 +27,16 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
 
+// Paystack's `transfer/bulk` endpoint caps each call at 100 items;
+// our dispatcher loops single-call transfers so the same ceiling
+// applies operationally — at 100+ recipients the batch becomes
+// hard to review/approve and slow to process. Operators that
+// genuinely need more split into multiple batches.
+const MAX_RECIPIENTS_PER_BATCH = 100;
+// Soft warning threshold — UI flips amber a few rows before the
+// hard cap so the operator gets a heads-up they're filling up.
+const WARN_RECIPIENTS = 80;
+
 interface BatchItem {
   _key: string;
   full_name: string;
@@ -272,6 +282,14 @@ const NewPaymentBatch = () => {
   const toggleContractor = (c: Contractor, checked: boolean) => {
     if (checked) {
       if (selectedIds.has(c.id)) return;
+      if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
+        toast({
+          title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
+          description: 'Paystack caps a single batch at 100 transfers. Submit this one and create a second batch for the rest.',
+          variant: 'destructive',
+        });
+        return;
+      }
       setItems((prev) => [
         ...prev,
         {
@@ -302,7 +320,26 @@ const NewPaymentBatch = () => {
         contractor_id: c.id,
       }));
     if (toAdd.length === 0) return;
-    setItems((prev) => [...prev, ...toAdd]);
+    // Trim against the per-batch cap so a wide select-all doesn't
+    // blow past 100 silently. Any leftovers stay unselected and
+    // can go in a follow-up batch.
+    const remaining = MAX_RECIPIENTS_PER_BATCH - items.length;
+    if (remaining <= 0) {
+      toast({
+        title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
+        description: 'Submit this one and create a second batch for the rest.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const trimmed = toAdd.slice(0, remaining);
+    if (trimmed.length < toAdd.length) {
+      toast({
+        title: `Added ${trimmed.length} — batch is now full`,
+        description: `${toAdd.length - trimmed.length} additional recipient${toAdd.length - trimmed.length === 1 ? '' : 's'} skipped. Create a second batch to include them.`,
+      });
+    }
+    setItems((prev) => [...prev, ...trimmed]);
   };
 
   const clearAllVisible = (visible: Contractor[]) => {
@@ -365,6 +402,14 @@ const NewPaymentBatch = () => {
       toast({
         title: 'Verify the account first',
         description: 'Beneficiary account must be verified before adding.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
+      toast({
+        title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
+        description: 'Submit this one and create a second batch for the rest.',
         variant: 'destructive',
       });
       return;
@@ -875,8 +920,27 @@ const NewPaymentBatch = () => {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Selected Beneficiaries ({items.length})</CardTitle>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  Selected Beneficiaries
+                  {/* Count chip with progressive tone — green under
+                      the warn threshold, amber as it fills up, red
+                      at the cap. The hard MAX is 100 because Paystack's
+                      transfer/bulk endpoint caps each call at 100 and
+                      our dispatcher loops single-call transfers. */}
+                  <span
+                    className={cn(
+                      'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                      items.length >= MAX_RECIPIENTS_PER_BATCH
+                        ? 'bg-red-500/15 text-red-700 dark:text-red-300'
+                        : items.length >= WARN_RECIPIENTS
+                          ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+                          : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+                    )}
+                  >
+                    {items.length} / {MAX_RECIPIENTS_PER_BATCH}
+                  </span>
+                </CardTitle>
                 <div className="text-sm">
                   <span className="text-muted-foreground mr-2">Running total:</span>
                   <span className="font-bold currency">{formatNaira(totalAmount)}</span>

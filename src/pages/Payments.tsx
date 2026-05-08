@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
+import { PendingPayoutsCard } from '@/components/payments/PendingPayoutsCard';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { getPaystackBalance } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
@@ -346,6 +347,14 @@ const Payments = () => {
           </div>
         </div>
       </div>
+
+      {/* Pending payouts overview — answers the daily "how much do
+          we owe right now?" without forcing the operator to open
+          every single batch one by one. Side-by-side with the
+          wallet card on wide screens, stacked on mobile. */}
+      {canSeeWallet && (
+        <PendingPayoutsCard walletBalanceNgn={balance?.available ?? null} />
+      )}
 
       {/* ── Stats row ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

@@ -83,6 +83,42 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- ── 2. profiles.tenant_id + company_settings.tenant_id ────────────
+-- Order-of-operations note: these column adds MUST happen BEFORE
+-- the RLS policies on `tenants` are created, because those policies
+-- reference profiles.tenant_id and Postgres validates the column
+-- exists at policy-creation time. The first version of this
+-- migration created the policies first and threw 42703 mid-run.
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS tenant_id uuid
+  REFERENCES public.tenants(id) ON DELETE RESTRICT
+  DEFAULT '00000000-0000-0000-0000-000000000001';
+
+CREATE INDEX IF NOT EXISTS profiles_tenant_id_idx
+  ON public.profiles (tenant_id);
+
+ALTER TABLE public.company_settings
+  ADD COLUMN IF NOT EXISTS tenant_id uuid
+  REFERENCES public.tenants(id) ON DELETE CASCADE
+  DEFAULT '00000000-0000-0000-0000-000000000001';
+
+CREATE UNIQUE INDEX IF NOT EXISTS company_settings_tenant_id_idx
+  ON public.company_settings (tenant_id);
+
+ALTER TABLE public.company_settings
+  ADD COLUMN IF NOT EXISTS allow_self_signup boolean NOT NULL DEFAULT false;
+
+UPDATE public.profiles
+SET tenant_id = '00000000-0000-0000-0000-000000000001'
+WHERE tenant_id IS NULL;
+
+UPDATE public.company_settings
+SET tenant_id = '00000000-0000-0000-0000-000000000001'
+WHERE tenant_id IS NULL;
+
+-- ── 3. RLS policies on tenants (now safe — columns exist) ─────────
+
 -- Read: a user can read their OWN tenant row (so the platform can
 -- display the tenant name in the sidebar / header). Other tenants
 -- are invisible.
@@ -103,43 +139,7 @@ CREATE POLICY "tenants_super_admin_write" ON public.tenants
           WHERE profiles.id = auth.uid() AND profiles.role = 'super_admin')
   );
 
--- ── 2. profiles.tenant_id + company_settings.tenant_id ────────────
-
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS tenant_id uuid
-  REFERENCES public.tenants(id) ON DELETE RESTRICT
-  DEFAULT '00000000-0000-0000-0000-000000000001';
-
-CREATE INDEX IF NOT EXISTS profiles_tenant_id_idx
-  ON public.profiles (tenant_id);
-
-ALTER TABLE public.company_settings
-  ADD COLUMN IF NOT EXISTS tenant_id uuid
-  REFERENCES public.tenants(id) ON DELETE CASCADE
-  DEFAULT '00000000-0000-0000-0000-000000000001';
-
-CREATE UNIQUE INDEX IF NOT EXISTS company_settings_tenant_id_idx
-  ON public.company_settings (tenant_id);
-
--- A self-signup gate: the operator of any tenant can flip this ON
--- in their settings UI when they're ready for self-serve signups.
--- Defaults OFF until Phase 1B ring-fences business tables.
-ALTER TABLE public.company_settings
-  ADD COLUMN IF NOT EXISTS allow_self_signup boolean NOT NULL DEFAULT false;
-
--- Backfill: every existing profile and the existing settings row
--- now belong to the seed tenant. The DEFAULT does this for new
--- rows; the explicit UPDATE catches anything legacy that somehow
--- has tenant_id NULL.
-UPDATE public.profiles
-SET tenant_id = '00000000-0000-0000-0000-000000000001'
-WHERE tenant_id IS NULL;
-
-UPDATE public.company_settings
-SET tenant_id = '00000000-0000-0000-0000-000000000001'
-WHERE tenant_id IS NULL;
-
--- ── 3. current_tenant_id() helper ─────────────────────────────────
+-- ── 4. current_tenant_id() helper ─────────────────────────────────
 --
 -- Future RLS policies (Phase 1B) compare row.tenant_id to this.
 -- SECURITY DEFINER + STABLE so it can be called from any policy
@@ -157,7 +157,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.current_tenant_id() TO authenticated;
 
--- ── 4. handle_new_user_signup trigger ─────────────────────────────
+-- ── 5. handle_new_user_signup trigger ─────────────────────────────
 --
 -- When a fresh auth user signs up via the public /signup form, the
 -- request carries `signup_company_name` in `raw_user_meta_data`.
