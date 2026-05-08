@@ -2,8 +2,9 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, Building2,
   AlertTriangle, CheckCircle2, Ban, FileText, Phone, Mail,
-  Calendar, DollarSign, Tag,
+  Calendar, DollarSign, Tag, Store,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
@@ -271,7 +272,7 @@ export default function Vendors() {
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No vendors found. Add your first vendor above.</p>
+        <EmptyState compact icon={Store} title="No vendors yet" description="Add your first vendor above so you can track invoices, renewals and contacts in one place." />
       ) : (
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">

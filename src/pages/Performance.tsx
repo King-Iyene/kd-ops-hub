@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, isPast, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -260,7 +261,7 @@ export default function Performance() {
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
       ) : cycles.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No review cycles yet. Create your first cycle above.</p>
+        <EmptyState compact icon={Star} title="No review cycles yet" description="Create your first cycle above to start tracking employee performance." />
       ) : (
         <div className="space-y-4">
           {cycles.map(cycle => {
@@ -320,7 +321,7 @@ export default function Performance() {
                 {isExpanded && (
                   <CardContent>
                     {cycleReviews.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">No reviews in this cycle yet.</p>
+                      <EmptyState compact icon={Star} title="No reviews yet" description="Reviews submitted under this cycle will appear here." />
                     ) : (
                       <div className="space-y-3">
                         {cycleReviews.map(r => (
