@@ -127,6 +127,9 @@ interface CompanySettings {
   smtp_from_address: string | null;
   session_timeout_minutes: number;
   audit_log_retention_days: number;
+  /** Platform-wide policy: when TRUE every user must enrol TOTP MFA.
+   *  Toggle visible to super_admin only in Settings → Security. */
+  mfa_required_for_all_users: boolean;
   fuel_weekly_budgets: Record<string, number>;
   website_url: string | null;
   linkedin_url: string | null;
@@ -273,6 +276,7 @@ const SettingsPage = () => {
         smtp_from_address: settings.smtp_from_address,
         session_timeout_minutes: settings.session_timeout_minutes,
         audit_log_retention_days: settings.audit_log_retention_days,
+        mfa_required_for_all_users: settings.mfa_required_for_all_users,
         fuel_weekly_budgets: settings.fuel_weekly_budgets,
         website_url: settings.website_url || null,
         linkedin_url: settings.linkedin_url || null,
@@ -1165,6 +1169,40 @@ const SettingsPage = () => {
 
         {/* SECURITY ----------------------------------------------------- */}
         <TabsContent value="security" className="mt-4 space-y-4">
+          {/* Platform-wide 2FA policy. Toggle is super_admin only —
+              admins shouldn't be able to relax their own 2FA
+              requirement. When enabled, an MfaRequiredBanner shows
+              non-dismissibly to every user without an enrolled
+              factor, pointing them at /profile to set it up. */}
+          {profile?.role === 'super_admin' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  Two-factor authentication policy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <Switch
+                    checked={!!settings.mfa_required_for_all_users}
+                    onCheckedChange={(v) => patch({ mfa_required_for_all_users: v })}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="text-sm font-medium">Require 2FA for all users</p>
+                    <p className="text-[12px] text-muted-foreground leading-snug">
+                      When ON, every signed-in user without an enrolled authenticator factor sees a
+                      non-dismissible banner pointing them to <span className="font-mono">/profile</span> to set up 2FA.
+                      Users can still navigate the app while they enrol — once they enable an authenticator,
+                      the banner disappears. Switch OFF to keep 2FA optional.
+                    </p>
+                  </div>
+                </label>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Session + audit</CardTitle>

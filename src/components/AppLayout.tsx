@@ -11,6 +11,7 @@ import { ChatWidget } from '@/components/ChatWidget';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { MfaRequiredBanner } from '@/components/MfaRequiredBanner';
 import { useEffectiveRole } from '@/store/authStore';
 import { useTimeOfDay } from '@/hooks/useTimeOfDay';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
@@ -89,6 +90,7 @@ export default function AppLayout() {
       </a>
       <OfflineBanner />
       <ViewAsBanner />
+      <MfaRequiredBanner />
       <SidebarProvider>
         {/* Sidebar hidden entirely on mobile — bottom MobileNav handles
             navigation there, and shadcn's <Sidebar> already collapses to
