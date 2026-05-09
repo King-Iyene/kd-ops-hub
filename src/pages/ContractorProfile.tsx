@@ -207,7 +207,14 @@ const ContractorProfile = () => {
       heyreach_email: contractor.heyreach_email || '',
       heyreach_password_enc: contractor.heyreach_password_enc || '',
       linkedin_url: contractor.linkedin_url || '',
-      default_amount: contractor.default_amount ?? contractor.default_amount_ngn ?? 0,
+      // Canonical column is default_amount_ngn — that's what the
+      // Contractors list page edit dialog writes to. The legacy
+      // `default_amount` column hangs around for old rows but gets
+      // overridden to 0 sometimes, so a `??` chain that prefers it
+      // wins zero when the canonical column has a real value.
+      // Read default_amount_ngn first, fall back to default_amount
+      // only if the canonical column is null/undefined.
+      default_amount: contractor.default_amount_ngn ?? contractor.default_amount ?? 0,
       notes: contractor.notes || '',
     });
     setShowPwdEdit(false);
@@ -694,7 +701,7 @@ const ContractorProfile = () => {
                     />
                   ) : (
                     <p className="text-sm py-2 currency">
-                      {formatNaira(contractor.default_amount ?? contractor.default_amount_ngn ?? 0)}
+                      {formatNaira(contractor.default_amount_ngn ?? contractor.default_amount ?? 0)}
                     </p>
                   )}
                 </div>
