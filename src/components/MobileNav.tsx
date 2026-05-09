@@ -7,34 +7,18 @@ import {
   Bell,
   Menu,
   X,
-  Layers,
-  Truck,
-  Users,
-  UserCog,
-  Settings,
-  Inbox,
-  CalendarClock,
-  PiggyBank,
-  FileText,
-  BarChart3,
-  CalendarDays,
-  ShieldCheck,
-  Banknote,
-  ListTodo,
-  BookOpen,
-  ScrollText,
-  Target,
-  Gift,
-  Contact2,
-  ArrowUpDown,
   Search,
-  ClipboardList,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
-import { useEffectiveRole } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { Role } from '@/lib/roles';
+import {
+  ALL_NAV,
+  NAV_GROUPS,
+  filterNavByRoleAndPermissions,
+} from '@/lib/navConfig';
 
 const TABS = [
   { title: 'Home',      url: '/',          icon: LayoutDashboard },
@@ -43,76 +27,39 @@ const TABS = [
   { title: 'Approvals', url: '/approvals', icon: Bell },
 ] as const;
 
-type NavItem = {
-  title: string;
-  url: string;
-  icon: typeof LayoutDashboard;
-  roles: Role[];
-};
-
-// Mobile "More" sheet — grouped to mirror the desktop sidebar.
-const GROUPS: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Finance',
-    items: [
-      { title: 'Approvals',     url: '/approvals',     icon: Inbox,         roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Payments',      url: '/payments',      icon: Layers,        roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Transactions',  url: '/transactions',  icon: ArrowUpDown,   roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Payroll',       url: '/payroll',       icon: Banknote,      roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Subscriptions', url: '/subscriptions', icon: CalendarClock, roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Budgets',       url: '/budgets',       icon: PiggyBank,     roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Cards',         url: '/cards',         icon: CreditCard,    roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Compliance',    url: '/compliance',    icon: ShieldCheck,   roles: ['super_admin', 'admin', 'finance'] },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { title: 'Expenses',    url: '/expenses',    icon: Receipt,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-      { title: 'Fleet',       url: '/fleet',       icon: Truck,      roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'] },
-      { title: 'Contractors', url: '/contractors', icon: Users,      roles: ['super_admin', 'admin', 'finance', 'operations'] },
-      { title: 'Employees',   url: '/employees',   icon: UserCog,    roles: ['super_admin', 'admin'] },
-      { title: 'Leave',       url: '/leave',       icon: CalendarDays, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-    ],
-  },
-  {
-    label: 'Workspace',
-    items: [
-      { title: 'Tasks',     url: '/tasks',     icon: ListTodo,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-      { title: 'Goals',     url: '/goals',     icon: Target,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-      { title: 'Knowledge', url: '/knowledge', icon: BookOpen,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-      { title: 'Documents', url: '/documents', icon: FileText,    roles: ['super_admin', 'admin', 'finance'] },
-      { title: 'Reports',   url: '/reports',   icon: BarChart3,   roles: ['super_admin', 'admin', 'finance'] },
-    ],
-  },
-  {
-    label: 'CRM',
-    items: [
-      { title: 'Contacts',  url: '/contacts',  icon: Contact2, roles: ['super_admin', 'admin', 'finance', 'operations'] },
-      { title: 'Referrals', url: '/referrals', icon: Gift,     roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-    ],
-  },
-  {
-    label: 'Admin',
-    items: [
-      { title: 'Audit Log', url: '/audit',    icon: ScrollText, roles: ['super_admin', 'admin'] },
-      { title: 'Settings',  url: '/settings', icon: Settings,   roles: ['super_admin'] },
-    ],
-  },
-];
-
 export function MobileNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const approvalTotal = useApprovalStore((s) => s.counts.total);
+  const profile = useAuthStore((s) => s.profile);
   const effectiveRole = useEffectiveRole();
   const [moreOpen, setMoreOpen] = useState(false);
 
+  // Mirror AppSidebar's filter exactly so an admin who grants e.g.
+  // payments.view to a field user sees the link in BOTH the desktop
+  // sidebar AND the mobile More sheet. Before this fix the mobile
+  // navigation hard-coded a smaller item list and didn't honour the
+  // permissions JSONB at all — operators with custom grants would
+  // see a strict role-default set on mobile that didn't match what
+  // they had on desktop.
+  //
+  // View-as mode (super_admin simulating another role) suppresses the
+  // permissions map for the same reason AppSidebar does — otherwise
+  // the simulation leaks the simulator's own grants back into the
+  // role being simulated.
   const role = effectiveRole as Role | undefined;
-  const visibleGroups = role
-    ? GROUPS.map((g) => ({ ...g, items: g.items.filter((it) => it.roles.includes(role)) }))
-        .filter((g) => g.items.length > 0)
-    : GROUPS;
+  const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
+  const permissions = isViewAs
+    ? null
+    : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
+
+  const visibleItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
+  const visibleGroups = NAV_GROUPS
+    .map((g) => ({
+      ...g,
+      items: visibleItems.filter((it) => (g.titles as readonly string[]).includes(it.title)),
+    }))
+    .filter((g) => g.items.length > 0);
 
   const openCommandPalette = () => {
     setMoreOpen(false);
@@ -141,7 +88,6 @@ export function MobileNav() {
                 {active && (
                   <>
                     <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px h-0.5 w-6 rounded-full bg-primary" />
-                    {/* Soft TOD-aware halo behind the active icon */}
                     <span className="pointer-events-none absolute inset-x-3 inset-y-1 rounded-lg bg-[hsl(var(--tod-glow))] opacity-10 blur-md" />
                   </>
                 )}
@@ -179,7 +125,6 @@ export function MobileNav() {
             </button>
           </SheetHeader>
 
-          {/* Search button — opens the command palette */}
           <button
             onClick={openCommandPalette}
             className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/70 kd-transition mb-3 mt-2 active:scale-[0.99]"
