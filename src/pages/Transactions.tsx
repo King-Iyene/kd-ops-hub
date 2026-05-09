@@ -511,7 +511,7 @@ const Transactions = () => {
                           className={cn(
                             'cursor-pointer kd-transition',
                             rowTint,
-                            wasCancelled && 'opacity-55 hover:bg-muted/30',
+                            wasCancelled && 'bg-muted/20 hover:bg-muted/30',
                           )}
                           onClick={() => handleRowClick(r)}
                         >
@@ -600,7 +600,7 @@ const Transactions = () => {
                     <MobileCard
                       key={`${r.txn_type}-${r.id}`}
                       onClick={() => handleRowClick(r)}
-                      className={cn(wasCancelled && 'opacity-60')}
+                      className={cn(wasCancelled && 'bg-muted/20')}
                       accentClassName={
                         wasCancelled ? 'bg-slate-400'
                         : wasPaidExternally ? 'bg-emerald-500'
