@@ -836,7 +836,7 @@ const EmployeeProfile = () => {
     : ['finance', 'operations', 'field_staff'];
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-5xl mx-auto">
       <PageBreadcrumbs trail={[
         { label: 'Employees', href: '/employees' },
         { label: empName || 'Employee' },

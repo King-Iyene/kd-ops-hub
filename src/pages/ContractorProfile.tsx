@@ -370,7 +370,7 @@ const ContractorProfile = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <PageBreadcrumbs trail={[
         { label: 'Contractors', href: '/contractors' },
         { label: ctrName },
