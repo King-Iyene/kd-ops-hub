@@ -7,7 +7,63 @@ import {
 } from '@/lib/notify-templates';
 
 /**
- * Send an in-app notification to a specific user. Best-effort — never throws.
+ * Module → push category. The send-push edge function uses the
+ * category to honour per-user push_preferences (a user who muted
+ * "transfers" still gets the in-app row but no native push).
+ * Unrecognised modules fall through to no category, which means
+ * the push is delivered unconditionally (assuming the user has any
+ * subscription).
+ */
+const MODULE_TO_PUSH_CATEGORY: Record<string, 'approvals' | 'transfers' | 'anomalies' | 'schedules' | 'announcements'> = {
+  approvals:     'approvals',
+  payments:      'transfers',
+  payment:       'transfers',
+  payment_batch: 'transfers',
+  transfer:      'transfers',
+  payroll:       'transfers',
+  anomalies:     'anomalies',
+  anomaly:       'anomalies',
+  subscriptions: 'schedules',
+  payment_schedule: 'schedules',
+  schedules:     'schedules',
+};
+
+/**
+ * Fire-and-forget invoke of the send-push edge function. Any failure
+ * is swallowed so notification delivery never blocks the originating
+ * action. Push delivery is best-effort by design — the in-app row
+ * is the source of truth.
+ */
+async function fanOutPush(opts: {
+  userIds: string[];
+  module?: string;
+  title: string;
+  body: string;
+  url?: string;
+}): Promise<void> {
+  if (opts.userIds.length === 0) return;
+  const category = opts.module ? MODULE_TO_PUSH_CATEGORY[opts.module] : undefined;
+  try {
+    await supabase.functions.invoke('send-push', {
+      body: {
+        user_ids: opts.userIds,
+        category,
+        title: opts.title,
+        body: opts.body,
+        url: opts.url,
+      },
+    });
+  } catch {
+    // Best-effort — never block the calling action. Push is a
+    // delivery convenience; the in-app notification row is the
+    // source of truth and is already written by the caller.
+  }
+}
+
+/**
+ * Send an in-app notification to a specific user, plus a native push
+ * (if the user has a registered subscription and hasn't muted the
+ * matching category). Best-effort on both layers — never throws.
  */
 export async function notifyUser(opts: {
   userId: string;
@@ -29,6 +85,14 @@ export async function notifyUser(opts: {
   } catch {
     // Best-effort — never block the calling action.
   }
+  // Fan out the native push asynchronously. Don't await — the
+  // in-app row is already persisted; the push is a courtesy.
+  void fanOutPush({
+    userIds: [opts.userId],
+    module: opts.module,
+    title: opts.title,
+    body: opts.body,
+  });
 }
 
 /**
@@ -59,6 +123,13 @@ export async function notifyRoles(opts: {
       body: opts.body,
     }));
     await supabase.from('notifications').insert(rows);
+    // Fan out push to every targeted user in one call.
+    void fanOutPush({
+      userIds: users.map((u: any) => u.id as string),
+      module: opts.module,
+      title: opts.title,
+      body: opts.body,
+    });
   } catch {
     // Best-effort.
   }

@@ -1,56 +1,22 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  CreditCard,
-  Truck,
-  Receipt,
-  Users,
-  UserCog,
-  Settings,
-  LogOut,
-  Inbox,
-  CalendarClock,
-  PiggyBank,
-  FileText,
-  FilePlus2,
-  BarChart3,
-  CalendarDays,
-  ShieldCheck,
-  Banknote,
-  ListTodo,
-  BookOpen,
-  ScrollText,
-  Target,
-  Gift,
-  Contact2,
-  Mail,
-  Building2,
-  ArrowUpDown,
-  Layers,
-  ChevronRight,
   ChevronDown,
-  Store,
-  Star,
-  Package,
-  GraduationCap,
-  FolderKanban,
-  HeartPulse,
-  UserCheck,
-  UserPlus2,
-  CalendarCheck2,
-  ShieldAlert,
-  Bot,
-  Wallet,
-  Siren,
-  Activity,
-  ClipboardList,
+  LogOut,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { BrandLogo } from '@/components/BrandLogo';
 import type { Role } from '@/lib/roles';
 import { useApprovalStore } from '@/store/approvalStore';
+import {
+  ALL_NAV,
+  NAV_GROUPS,
+  UNGROUPED_TITLES,
+  filterNavByRoleAndPermissions,
+  type NavItem,
+  type NavGroupKey,
+} from '@/lib/navConfig';
 import {
   Sidebar,
   SidebarContent,
@@ -63,106 +29,12 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-// ─── Nav item type ────────────────────────────────────────────────────────────
-
-type NavItem = {
-  title: string;
-  url: string;
-  icon: typeof LayoutDashboard;
-  roles: Role[];
-  /** Optional permission key. If the user's role isn't in `roles`, the item
-   *  is still shown when this permission is explicitly granted on the
-   *  profile (`permissions[key] === true`). Mirrors the gating logic used
-   *  by RoleGuard and useFeatureAccess so the sidebar never lies — if the
-   *  user can navigate to the route, the link shows. */
-  permission?: string;
-  badge?: 'approvals' | 'anomalies';
-};
-
-const ALL_NAV: NavItem[] = [
-  { title: 'Dashboard',        url: '/',                  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Approvals',        url: '/approvals',         icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', permission: 'payments.approve_batches' },
-  // Finance
-  { title: 'Payments',         url: '/payments',          icon: Layers,          roles: ['super_admin', 'admin', 'finance'], permission: 'payments.view' },
-  { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'], permission: 'payments.view' },
-  { title: 'Transactions',     url: '/transactions',      icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance'], permission: 'payments.view' },
-  { title: 'Payroll',          url: '/payroll',           icon: Banknote,        roles: ['super_admin', 'admin', 'finance'], permission: 'payroll.view' },
-  { title: 'Earned Wages',     url: '/ewa',               icon: Wallet,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'hr'] },
-  { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Budgets',          url: '/budgets',           icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Invoices',         url: '/invoices',          icon: FilePlus2,       roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Assets',           url: '/assets',            icon: Package,         roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
-  { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
-  // Operations
-  { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], permission: 'expenses.submit' },
-  { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'], permission: 'fleet.view' },
-  { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'contractors.view' },
-  // Employees, Disciplinary, Audit Log, Settings — STRICT role only.
-  // These touch HR records, financial audit, and platform configuration;
-  // delegation needs to be deliberate, so the bar is "change the user's
-  // role" rather than "toggle a permission". Without this guard a single
-  // stale `*.access: true` left in a profile from an earlier admin edit
-  // would re-expose the entire admin surface to a downgraded user.
-  { title: 'Employees',        url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'] },
-  { title: 'Leave',            url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Performance',      url: '/performance',       icon: Star,            roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'performance.view' },
-  { title: 'Training',         url: '/training',          icon: GraduationCap,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'training.view' },
-  { title: 'Benefits',         url: '/benefits',          icon: HeartPulse,      roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'benefits.view' },
-  { title: 'Onboarding',       url: '/onboarding',        icon: UserCheck,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'onboarding.view' },
-  { title: 'Recruitment',      url: '/recruitment',       icon: UserPlus2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'recruitment.view' },
-  { title: 'Attendance',       url: '/attendance',        icon: CalendarCheck2,  roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'attendance.view' },
-  { title: 'Disciplinary',     url: '/disciplinary',      icon: ShieldAlert,     roles: ['super_admin', 'admin'] },
-  { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'vendors.view' },
-  // Workspace
-  { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Projects',         url: '/projects',          icon: FolderKanban,    roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'projects.view' },
-  { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
-  // CRM
-  { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'clients.view' },
-  { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
-  // Admin — strict role only (see comment block above).
-  { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
-  { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
-  // Workspace addition (Assistant)
-  { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-];
-
-// ─── Group definitions ────────────────────────────────────────────────────────
-
-// Finance was a 14-item bucket — biggest in the sidebar by far —
-// which made operators with a fat list scroll past the half they
-// don't use daily. Split into a tight day-to-day "Finance" group
-// (the things finance touches every week) and a "Treasury" group
-// for the assets / compliance / cash-flow surface that's typically
-// reviewed monthly. Both groups individually-collapsible so an
-// admin can hide the half they don't want to look at.
-const GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Budgets', 'Anomalies'] },
-  { key: 'treasury',   label: 'Treasury',   titles: ['Subscriptions', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Cash Flow'] },
-  { key: 'operations', label: 'Operations', titles: ['My Requests', 'Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
-  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
-  { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
-] as const;
-
-type GroupKey = (typeof GROUPS)[number]['key'];
-
-// Dashboard and Approvals sit above all groups, always visible
-const UNGROUPED = ['Dashboard', 'Approvals'];
 
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 
-const lsKey = (k: GroupKey) => `kdops_sidebar_${k}_collapsed`;
+const lsKey = (k: NavGroupKey) => `kdops_sidebar_${k}_collapsed`;
 
-function loadCollapsed(k: GroupKey): boolean {
+function loadCollapsed(k: NavGroupKey): boolean {
   try {
     return localStorage.getItem(lsKey(k)) === 'true';
   } catch {
@@ -170,7 +42,7 @@ function loadCollapsed(k: GroupKey): boolean {
   }
 }
 
-function persistCollapsed(k: GroupKey, v: boolean) {
+function persistCollapsed(k: NavGroupKey, v: boolean) {
   try {
     localStorage.setItem(lsKey(k), String(v));
   } catch { /* localStorage unavailable */ }
@@ -235,7 +107,7 @@ export function AppSidebar() {
 
   // ─── Group collapse state (initialised from localStorage) ─────────────────
 
-  const [groupCollapsed, setGroupCollapsed] = useState<Record<GroupKey, boolean>>(() => ({
+  const [groupCollapsed, setGroupCollapsed] = useState<Record<NavGroupKey, boolean>>(() => ({
     finance:    loadCollapsed('finance'),
     treasury:   loadCollapsed('treasury'),
     operations: loadCollapsed('operations'),
@@ -244,7 +116,7 @@ export function AppSidebar() {
     admin:      loadCollapsed('admin'),
   }));
 
-  function toggleGroup(key: GroupKey) {
+  function toggleGroup(key: NavGroupKey) {
     setGroupCollapsed((prev) => {
       const next = !prev[key];
       persistCollapsed(key, next);
@@ -255,7 +127,7 @@ export function AppSidebar() {
   // Auto-expand the group containing the active route so the user never
   // lands on a page whose nav item is hidden inside a collapsed group.
   useEffect(() => {
-    for (const group of GROUPS) {
+    for (const group of NAV_GROUPS) {
       const groupUrls = ALL_NAV
         .filter((n) => (group.titles as readonly string[]).includes(n.title))
         .map((n) => n.url);
@@ -296,13 +168,7 @@ export function AppSidebar() {
   const permissions = isViewAs
     ? null
     : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
-  const navItems = ALL_NAV.filter((n) => {
-    const explicitDeny = n.permission && permissions?.[n.permission] === false;
-    if (explicitDeny) return false;
-    const explicitGrant = n.permission && permissions?.[n.permission] === true;
-    if (explicitGrant) return true;
-    return role ? n.roles.includes(role) : true;
-  });
+  const navItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
 
   // ─── Render a single nav item (unchanged styles) ──────────────────────────
 
@@ -368,7 +234,7 @@ export function AppSidebar() {
     );
   }
 
-  const ungroupedItems = navItems.filter((n) => UNGROUPED.includes(n.title));
+  const ungroupedItems = navItems.filter((n) => UNGROUPED_TITLES.includes(n.title));
 
   return (
     <Sidebar collapsible="icon">
@@ -404,7 +270,7 @@ export function AppSidebar() {
             </SidebarMenu>
 
             {/* Collapsible groups */}
-            {GROUPS.map((group) => {
+            {NAV_GROUPS.map((group) => {
               const groupItems = navItems.filter((n) =>
                 (group.titles as readonly string[]).includes(n.title),
               );
