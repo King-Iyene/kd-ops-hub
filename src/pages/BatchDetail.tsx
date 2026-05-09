@@ -2081,14 +2081,6 @@ const BatchDetail = () => {
                                 </span>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  onClick={() => openResolve(item, 'paid')}
-                                  title="Already paid this person via bank app or another channel? Closes the row so the batch can finish."
-                                >
-                                  <Check className="h-3.5 w-3.5 mr-1" /> Mark paid
-                                </Button>
-                                <Button
-                                  size="sm"
                                   variant="ghost"
                                   onClick={() => openResolve(item, 'cancel')}
                                   className="text-muted-foreground hover:text-foreground"
@@ -2153,30 +2145,21 @@ const BatchDetail = () => {
                           }
                           // Past the retry window: offer both close-out
                           // paths. "Mark as paid" if money moved off-rail;
-                          // "Cancel" if it never will. Either way the row
-                          // drops from pending while keeping its failed
-                          // status for audit.
+                          // "Cancel" closes the row out — Mark paid was
+                          // removed because tracking external payments
+                          // in KDOps would conflict with the operator's
+                          // bank reconciliation. KDOps = Paystack ledger;
+                          // external payments live in the bank's records.
                           if (ageHours > RETRY_WINDOW_HOURS) {
                             return (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openResolve(item, 'paid')}
-                                  title="Recipient was paid via another channel (bank app, cash, etc.). Closes the row so the batch reflects reality."
-                                >
-                                  <Check className="h-3.5 w-3.5 mr-1" /> Mark as paid
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openResolve(item, 'cancel')}
-                                  className="text-muted-foreground hover:text-foreground"
-                                  title="Give up on this transfer (wrong details, account closed, etc.). Closes without claiming payment was made."
-                                >
-                                  <X className="h-3.5 w-3.5 mr-1" /> Cancel
-                                </Button>
-                              </>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openResolve(item, 'cancel')}
+                                title="Give up on this transfer. Closes without claiming payment was made; record in bank reconciliation if you paid externally."
+                              >
+                                <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                              </Button>
                             );
                           }
                           return (
@@ -2206,14 +2189,6 @@ const BatchDetail = () => {
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : null}
                                 Diagnose
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => openResolve(item, 'paid')}
-                                title="Already paid this person via bank app? Mark resolved so the batch reflects reality."
-                              >
-                                Mark paid
                               </Button>
                               <Button
                                 size="sm"
@@ -2512,79 +2487,44 @@ const BatchDetail = () => {
                        a paper trail of WHY we wrote the item off.
           The same RPC handles both — the method value differentiates
           ('cancelled' vs 'bank_transfer'/'cash'/etc.). */}
+      {/* Cancel-only dialog. Mark-as-paid was retired — KDOps tracks
+          Paystack transfers; off-rail payments belong in the bank's
+          reconciliation, not here. The dual-mode dialog state stays
+          in case we ever bring Mark paid back, but only the cancel
+          path is reachable. */}
       <Dialog open={!!resolveItem} onOpenChange={(v) => { if (!v && !resolving) setResolveItem(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {resolveMode === 'cancel' ? 'Cancel this transfer' : 'Mark as paid manually'}
-            </DialogTitle>
+            <DialogTitle>Cancel this transfer</DialogTitle>
             <DialogDescription>
-              {resolveMode === 'cancel' ? (
-                <>
-                  Close <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> ({formatNaira(resolveItem?.amount_ngn || 0)}) without paying.
-                  Use this when the transfer can't be retried — wrong account, dormant, recipient unreachable. The batch can then close out.
-                </>
-              ) : (
-                <>
-                  Record that <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> was paid via another channel for{' '}
-                  <span className="font-semibold text-foreground">{formatNaira(resolveItem?.amount_ngn || 0)}</span>.
-                  The batch status updates automatically once you save.
-                </>
-              )}
+              Close <span className="font-semibold text-foreground">{resolveItem?.full_name}</span> ({formatNaira(resolveItem?.amount_ngn || 0)}) without paying.
+              Use this when the transfer can't be retried — wrong account, dormant, recipient unreachable.
+              The batch can then close out. If you paid this person another way, record it in your bank reconciliation rather than here.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {resolveMode === 'paid' && (
-              <div className="space-y-1">
-                <Label className="text-xs">How was it paid?</Label>
-                <Select value={resolveMethod} onValueChange={setResolveMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bank_transfer">Bank transfer (USSD / banking app)</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
             <div className="space-y-1">
-              <Label className="text-xs">
-                {resolveMode === 'cancel' ? 'Reason (required)' : 'Note (optional)'}
-              </Label>
+              <Label className="text-xs">Reason (required)</Label>
               <Textarea
                 value={resolveNote}
                 onChange={(e) => setResolveNote(e.target.value)}
-                placeholder={
-                  resolveMode === 'cancel'
-                    ? 'e.g. Account number incorrect, contractor confirmed they no longer use this bank'
-                    : 'e.g. Paid via GTBank USSD on 2026-05-08, ref TRF/0123456'
-                }
+                placeholder="e.g. Account number incorrect, contractor confirmed they no longer use this bank"
                 className="min-h-[70px]"
               />
             </div>
-            <div
-              className={cn(
-                'rounded-md border p-2.5 text-[11px] leading-snug',
-                resolveMode === 'cancel'
-                  ? 'border-muted-foreground/20 bg-muted/30 text-muted-foreground'
-                  : 'border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-300',
-              )}
-            >
-              {resolveMode === 'cancel'
-                ? 'No money will be sent. The original failed status stays on the row for audit; the row drops out of pending and the batch closes.'
-                : 'The original failed status stays on the row for audit. This action is logged and visible to admins.'}
+            <div className="rounded-md border border-muted-foreground/20 bg-muted/30 p-2.5 text-[11px] leading-snug text-muted-foreground">
+              No money will be sent. The original failed status stays on the row for audit; the row drops out of pending and the batch closes. Cancellations are reversible — use the Undo button if you change your mind.
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setResolveItem(null)} disabled={resolving}>Back</Button>
             <Button
               onClick={submitResolve}
-              disabled={resolving || (resolveMode === 'cancel' && !resolveNote.trim())}
-              variant={resolveMode === 'cancel' ? 'secondary' : 'default'}
+              disabled={resolving || !resolveNote.trim()}
+              variant="secondary"
             >
               {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {resolveMode === 'cancel' ? 'Cancel transfer' : 'Mark as paid'}
+              Cancel transfer
             </Button>
           </DialogFooter>
         </DialogContent>
