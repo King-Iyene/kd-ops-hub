@@ -72,6 +72,7 @@ import {
   ShieldAlert,
   Download,
   RotateCw,
+  RotateCcw,
   AlertTriangle,
   FileText,
   Trash2,
@@ -239,6 +240,35 @@ const BatchDetail = () => {
       toast({ title: 'Resolve failed', description: err?.message ?? '', variant: 'destructive' });
     } finally {
       setResolving(false);
+    }
+  };
+
+  // Undo a manual resolution. Clears the four resolution columns
+  // and re-derives the parent batch's status. RPC enforces same
+  // role gate as mark_batch_item_resolved (finance / admin / super).
+  // Audit trail captures both actions on the front-end side.
+  const [unresolvingId, setUnresolvingId] = useState<string | null>(null);
+  const unresolveItem = async (item: any) => {
+    setUnresolvingId(item.id);
+    try {
+      const { error } = await supabase.rpc('unresolve_batch_item', {
+        p_item_id: item.id,
+      });
+      if (error) throw error;
+      await logAudit(
+        'batch_item_unresolved',
+        `${item.full_name || 'Item'} resolution undone — back to ${item.status}`,
+        profile,
+      );
+      toast({
+        title: 'Resolution undone',
+        description: 'Item is back to its original status.',
+      });
+      await fetchBatch();
+    } catch (err: any) {
+      toast({ title: 'Undo failed', description: err?.message ?? '', variant: 'destructive' });
+    } finally {
+      setUnresolvingId(null);
     }
   };
   const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string } | null>(null);
@@ -1918,7 +1948,7 @@ const BatchDetail = () => {
                       'kd-transition border-b-0',
                       item.status === 'failed' && !item.is_manually_resolved && 'bg-destructive/[0.04] border-l-2 border-l-destructive',
                       item.is_manually_resolved && !wasCancelled && 'bg-emerald-500/[0.04] border-l-2 border-l-emerald-500/60',
-                      wasCancelled && 'bg-muted/20 border-l-2 border-l-muted-foreground/30 opacity-75',
+                      wasCancelled && 'bg-muted/20 border-l-2 border-l-muted-foreground/30',
                     )}
                   >
                     {/* Beneficiary — name + bank + account stacked.
@@ -2088,20 +2118,37 @@ const BatchDetail = () => {
                           if (item.is_manually_resolved) {
                             const wasCancelled = item.manual_resolution_method === 'cancelled'
                               || item.manual_resolution_method === 'voided';
-                            return wasCancelled ? (
-                              <span
-                                className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
-                                title={item.manual_resolution_note || 'Cancelled — closed without payment'}
-                              >
-                                <X className="h-3 w-3" /> Cancelled
-                              </span>
-                            ) : (
-                              <span
-                                className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
-                                title={item.manual_resolution_note || 'Paid via another channel'}
-                              >
-                                <Check className="h-3 w-3" /> Paid externally
-                              </span>
+                            const isUndoing = unresolvingId === item.id;
+                            return (
+                              <div className="inline-flex items-center gap-2">
+                                {wasCancelled ? (
+                                  <span
+                                    className="text-[10px] text-muted-foreground inline-flex items-center gap-1"
+                                    title={item.manual_resolution_note || 'Cancelled — closed without payment'}
+                                  >
+                                    <X className="h-3 w-3" /> Cancelled
+                                  </span>
+                                ) : (
+                                  <span
+                                    className="text-[10px] text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-1"
+                                    title={item.manual_resolution_note || 'Paid via another channel'}
+                                  >
+                                    <Check className="h-3 w-3" /> Paid externally
+                                  </span>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+                                  onClick={() => unresolveItem(item)}
+                                  disabled={isUndoing}
+                                  title="Undo this resolution. Item returns to its original status."
+                                >
+                                  {isUndoing
+                                    ? <Loader2 className="h-3 w-3 animate-spin" />
+                                    : <><RotateCcw className="h-3 w-3 mr-1" /> Undo</>}
+                                </Button>
+                              </div>
                             );
                           }
                           // Past the retry window: offer both close-out
