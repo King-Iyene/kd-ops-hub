@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -86,8 +87,23 @@ export default function Anomalies() {
     row: PaymentAnomaly;
     nextStatus: AnomalyStatus;
   } | null>(null);
+  // Bulk-action state. Selected rows must all be 'open' — the
+  // bulk bar only acts on actionable items, mirroring the row-
+  // level buttons. selectedIds is a Set so toggling is O(1) and
+  // the rendered checkbox state stays cheap.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<{ nextStatus: AnomalyStatus; count: number } | null>(null);
   const [reviewerNote, setReviewerNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const clearSelection = () => setSelectedIds(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -161,6 +177,54 @@ export default function Anomalies() {
     }
   };
 
+  // Bulk submit: process selected open rows in parallel, then
+  // refresh. Limited to selectedIds that are still 'open' so
+  // we don't accidentally re-action already-handled rows when
+  // the operator's selection lags behind a refresh.
+  const submitBulkReview = async () => {
+    if (!bulkAction) return;
+    const targets = rows.filter((r) => selectedIds.has(r.id) && r.status === 'open');
+    if (targets.length === 0) {
+      toast({ title: 'No open rows selected' });
+      setBulkAction(null);
+      return;
+    }
+    setSubmitting(true);
+    const note = reviewerNote.trim() || undefined;
+    let success = 0;
+    let failed = 0;
+    await Promise.all(
+      targets.map(async (r) => {
+        try {
+          await reviewAnomaly(r.id, bulkAction.nextStatus, note);
+          await logAudit(
+            `anomaly_${bulkAction.nextStatus}`,
+            `Anomaly ${RULE_LABEL[r.rule_code]} ${bulkAction.nextStatus}` +
+              (note ? ` — ${note}` : '') + ' (bulk)',
+            profile,
+          );
+          success++;
+        } catch {
+          failed++;
+        }
+      }),
+    );
+    if (failed > 0) {
+      toast({
+        title: `Bulk ${bulkAction.nextStatus} partial`,
+        description: `${success} succeeded, ${failed} failed`,
+        variant: 'destructive',
+      });
+    } else {
+      toast({ title: `${success} marked ${bulkAction.nextStatus}` });
+    }
+    setBulkAction(null);
+    setReviewerNote('');
+    clearSelection();
+    setSubmitting(false);
+    load();
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -226,9 +290,76 @@ export default function Anomalies() {
               description="Nothing to review with the current filters."
             />
           ) : (
+            <>
+            {/* Bulk action bar — appears only when at least one row
+                is selected. Sticky at the top of the table area so
+                the operator can scan the list and act without
+                scrolling back. Counter on the left is the truth;
+                buttons on the right kick off the same review flow
+                as per-row actions but for every selected row. */}
+            {selectedIds.size > 0 && (
+              <div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/[0.03] backdrop-blur px-3 py-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold tabular-nums">{selectedIds.size}</span>
+                  <span className="text-muted-foreground">selected</span>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={clearSelection}>
+                    Clear
+                  </Button>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setBulkAction({ nextStatus: 'acknowledged', count: selectedIds.size })}
+                    disabled={submitting}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Ack {selectedIds.size}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-purple-500/40 text-purple-700 hover:bg-purple-50"
+                    onClick={() => setBulkAction({ nextStatus: 'escalated', count: selectedIds.size })}
+                    disabled={submitting}
+                  >
+                    <Flag className="h-3.5 w-3.5 mr-1" /> Escalate {selectedIds.size}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => setBulkAction({ nextStatus: 'dismissed', count: selectedIds.size })}
+                    disabled={submitting}
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" /> Dismiss {selectedIds.size}
+                  </Button>
+                </div>
+              </div>
+            )}
             <Table>
               <TableHeader>
                 <TableRow>
+                  {/* Select-all toggles every visible 'open' row. Only
+                      open rows are selectable because bulk actions
+                      only apply to actionable items. */}
+                  <TableHead className="w-10">
+                    {(() => {
+                      const openIds = rows.filter((r) => r.status === 'open').map((r) => r.id);
+                      const selectedOpen = openIds.filter((id) => selectedIds.has(id));
+                      const allSelected = openIds.length > 0 && selectedOpen.length === openIds.length;
+                      const someSelected = selectedOpen.length > 0 && !allSelected;
+                      return (
+                        <Checkbox
+                          checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                          onCheckedChange={(v) => {
+                            if (v) setSelectedIds(new Set(openIds));
+                            else clearSelection();
+                          }}
+                          aria-label="Select all open anomalies"
+                        />
+                      );
+                    })()}
+                  </TableHead>
                   <TableHead className="w-[120px]">Severity</TableHead>
                   <TableHead>Rule</TableHead>
                   <TableHead>Description</TableHead>
@@ -244,6 +375,17 @@ export default function Anomalies() {
                     <Fragment key={r.id}>
                       <TableRow className="cursor-pointer hover:bg-muted/40"
                         onClick={() => setExpandedId(expanded ? null : r.id)}>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {/* Only open rows can be bulk-actioned. Acked /
+                              escalated / dismissed rows show a disabled
+                              checkbox so the column stays visually aligned. */}
+                          <Checkbox
+                            checked={selectedIds.has(r.id)}
+                            onCheckedChange={() => r.status === 'open' && toggleSelected(r.id)}
+                            disabled={r.status !== 'open'}
+                            aria-label={`Select ${RULE_LABEL[r.rule_code]} anomaly`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cn(SEVERITY_TONE[r.severity])}>
                             {r.severity}
@@ -290,7 +432,7 @@ export default function Anomalies() {
                       </TableRow>
                       {expanded && (
                         <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
-                          <TableCell colSpan={6} className="py-4">
+                          <TableCell colSpan={7} className="py-4">
                             <div className="space-y-2 px-2">
                               <p className="text-sm">{r.description}</p>
                               <details className="text-xs">
@@ -319,9 +461,57 @@ export default function Anomalies() {
                 })}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Bulk-action confirmation dialog. Shares the reviewerNote
+          state with the single-row dialog — only one of the two
+          dialogs is open at a time, so reusing the textarea avoids
+          a parallel state. */}
+      <Dialog open={!!bulkAction} onOpenChange={(o) => { if (!o) { setBulkAction(null); setReviewerNote(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {bulkAction?.nextStatus === 'acknowledged' && `Acknowledge ${bulkAction?.count} anomalies`}
+              {bulkAction?.nextStatus === 'escalated' && `Escalate ${bulkAction?.count} anomalies`}
+              {bulkAction?.nextStatus === 'dismissed' && `Dismiss ${bulkAction?.count} anomalies`}
+            </DialogTitle>
+            <DialogDescription>
+              {bulkAction?.nextStatus === 'acknowledged' &&
+                'Mark all selected anomalies as reviewed and acknowledged. Adds the same note to each.'}
+              {bulkAction?.nextStatus === 'escalated' &&
+                'Flag all selected anomalies for further investigation. Adds the same note to each. This is a strong signal — escalations stay visible to admins.'}
+              {bulkAction?.nextStatus === 'dismissed' &&
+                'Mark all selected anomalies as false positives. Adds the same note to each.'}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={reviewerNote}
+            onChange={(e) => setReviewerNote(e.target.value)}
+            placeholder={
+              bulkAction?.nextStatus === 'escalated'
+                ? 'Why are these being escalated? (visible in audit log)'
+                : 'Optional note — added to every selected row'
+            }
+            className="min-h-[80px]"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkAction(null); setReviewerNote(''); }} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitBulkReview}
+              disabled={submitting || (bulkAction?.nextStatus === 'escalated' && !reviewerNote.trim())}
+              variant={bulkAction?.nextStatus === 'dismissed' ? 'secondary' : 'default'}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm {bulkAction?.nextStatus === 'acknowledged' ? 'Ack' : bulkAction?.nextStatus === 'escalated' ? 'Escalate' : 'Dismiss'} {bulkAction?.count}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>
         <DialogContent>
