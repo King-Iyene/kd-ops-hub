@@ -57,6 +57,19 @@ const sentry = (): SentryGlobal | undefined =>
   (window as unknown as { Sentry?: SentryGlobal }).Sentry;
 
 window.addEventListener("error", (e) => {
+  // ResizeObserver "loop completed with undelivered notifications"
+  // is a benign warning Chrome throws when a ResizeObserver callback
+  // triggers another resize within the same frame. It's harmless and
+  // emitted by mainstream UI libraries (Radix, react-resizable-panels,
+  // recharts) on routine work. Filtering here so the console stays
+  // signal-only and Sentry's quota isn't burned on noise.
+  if (
+    typeof e.message === 'string' &&
+    e.message.toLowerCase().includes('resizeobserver loop')
+  ) {
+    e.stopImmediatePropagation();
+    return;
+  }
   console.error("[KDOps] uncaught error:", { message: e.message, source: e.filename, lineno: e.lineno, error: e.error });
   sentry()?.captureException?.(e.error || e.message);
 });

@@ -361,13 +361,16 @@ export function NotificationBell() {
                               <Icon className={cn('h-4 w-4', t.iconFg)} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              {/* Title + timestamp on the same line. Title
-                                  truncates with min-w-0 so the timestamp on
-                                  the right always stays visible — the
-                                  earlier layout had truncate fighting with
-                                  the absolute width and the relative time
-                                  ended up clipped to "3…" */}
-                              <div className="flex items-start justify-between gap-2">
+                              {/* Title + relative timestamp on the
+                                  same line. Title has `truncate min-w-0`
+                                  so it shrinks under pressure; timestamp
+                                  is `shrink-0` and slightly bigger now —
+                                  earlier styling rendered as "5" instead
+                                  of "5d" because the unit suffix bled
+                                  into a thin opacity that the eye missed.
+                                  Also added pl-2 so the timestamp can't
+                                  hug the popover's right edge. */}
+                              <div className="flex items-start justify-between gap-3">
                                 <p className={cn(
                                   'text-sm leading-tight truncate min-w-0',
                                   n.read ? 'font-medium text-foreground/80' : 'font-semibold text-foreground',
@@ -375,7 +378,7 @@ export function NotificationBell() {
                                   {n.title}
                                 </p>
                                 <span
-                                  className="text-[11px] font-medium text-muted-foreground/80 shrink-0 tabular-nums whitespace-nowrap pt-0.5"
+                                  className="text-[11.5px] font-medium text-muted-foreground shrink-0 tabular-nums whitespace-nowrap pt-0.5 pl-1"
                                   title={new Date(n.created_at).toLocaleString('en-NG')}
                                 >
                                   {formatRelative(n.created_at)}
