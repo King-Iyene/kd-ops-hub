@@ -567,35 +567,17 @@ const Transactions = () => {
                             {formatNaira(r.amount_ngn)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
-                            {/* Status column always shows the truthful
+                            {/* Status column shows only the truthful
                                 Paystack outcome (Failed / Succeeded /
                                 Pending / Reversed). Manual resolution
-                                does not overwrite the status because no
-                                money changed direction at Paystack —
-                                the operator just gave up on retrying
-                                or paid externally. The resolution is
-                                surfaced by a tiny right-aligned marker
-                                so the audit trail stays intact without
-                                lying about what happened on the rail. */}
-                            <div className="flex items-center gap-2">
-                              <LedgerStatusDot status={ledgerStatus} />
-                              {wasCancelled && (
-                                <span
-                                  className="text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground/70"
-                                  title={`Cancelled by operator${r.rejection_reason ? ` — ${r.rejection_reason}` : ''}`}
-                                >
-                                  · cancelled
-                                </span>
-                              )}
-                              {wasPaidExternally && (
-                                <span
-                                  className="text-[9.5px] uppercase tracking-[0.08em] text-emerald-700/80"
-                                  title={`Paid via another channel${r.rejection_reason ? ` — ${r.rejection_reason}` : ''}`}
-                                >
-                                  · paid externally
-                                </span>
-                              )}
-                            </div>
+                                is intentionally not surfaced here —
+                                cancelling / marking-paid doesn't change
+                                what Paystack did, so the ledger stays
+                                accurate. The resolution still drops the
+                                row from Pending Payouts and excludes
+                                it from spend totals; the audit trail
+                                lives in batch_items columns. */}
+                            <LedgerStatusDot status={ledgerStatus} />
                           </td>
                         </tr>
                       );
@@ -673,19 +655,7 @@ const Transactions = () => {
                       </MobileCardHeader>
 
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <StatusBadge status={r.status} size="sm" />
-                          {wasCancelled && (
-                            <span className="text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground/70">
-                              · cancelled
-                            </span>
-                          )}
-                          {wasPaidExternally && (
-                            <span className="text-[9.5px] uppercase tracking-[0.08em] text-emerald-700/80">
-                              · paid externally
-                            </span>
-                          )}
-                        </div>
+                        <StatusBadge status={r.status} size="sm" />
                         <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
                       </div>
 
