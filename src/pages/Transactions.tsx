@@ -567,19 +567,35 @@ const Transactions = () => {
                             {formatNaira(r.amount_ngn)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
-                            {wasCancelled ? (
-                              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-slate-500">
-                                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-slate-400" />
-                                Cancelled
-                              </span>
-                            ) : wasPaidExternally ? (
-                              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-emerald-700">
-                                <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
-                                Paid externally
-                              </span>
-                            ) : (
+                            {/* Status column always shows the truthful
+                                Paystack outcome (Failed / Succeeded /
+                                Pending / Reversed). Manual resolution
+                                does not overwrite the status because no
+                                money changed direction at Paystack —
+                                the operator just gave up on retrying
+                                or paid externally. The resolution is
+                                surfaced by a tiny right-aligned marker
+                                so the audit trail stays intact without
+                                lying about what happened on the rail. */}
+                            <div className="flex items-center gap-2">
                               <LedgerStatusDot status={ledgerStatus} />
-                            )}
+                              {wasCancelled && (
+                                <span
+                                  className="text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground/70"
+                                  title={`Cancelled by operator${r.rejection_reason ? ` — ${r.rejection_reason}` : ''}`}
+                                >
+                                  · cancelled
+                                </span>
+                              )}
+                              {wasPaidExternally && (
+                                <span
+                                  className="text-[9.5px] uppercase tracking-[0.08em] text-emerald-700/80"
+                                  title={`Paid via another channel${r.rejection_reason ? ` — ${r.rejection_reason}` : ''}`}
+                                >
+                                  · paid externally
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -657,19 +673,19 @@ const Transactions = () => {
                       </MobileCardHeader>
 
                       <div className="flex items-center justify-between gap-2 text-xs">
-                        {wasCancelled ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-slate-500">
-                            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-slate-400" />
-                            Cancelled
-                          </span>
-                        ) : wasPaidExternally ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-emerald-500" />
-                            Paid externally
-                          </span>
-                        ) : (
+                        <div className="flex items-center gap-1.5">
                           <StatusBadge status={r.status} size="sm" />
-                        )}
+                          {wasCancelled && (
+                            <span className="text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground/70">
+                              · cancelled
+                            </span>
+                          )}
+                          {wasPaidExternally && (
+                            <span className="text-[9.5px] uppercase tracking-[0.08em] text-emerald-700/80">
+                              · paid externally
+                            </span>
+                          )}
+                        </div>
                         <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
                       </div>
 
