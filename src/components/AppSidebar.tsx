@@ -331,39 +331,36 @@ export function AppSidebar() {
           <NavLink
             to={item.url}
             className={`
-              flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium
+              flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium
               kd-transition group relative
               ${active
-                ? 'bg-white/15 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_1px_3px_rgba(0,0,0,0.2)]'
-                : 'text-sidebar-foreground/75 hover:bg-white/8 hover:text-sidebar-foreground'
+                ? 'bg-white/10 text-white'
+                : 'text-sidebar-foreground/70 hover:bg-white/5 hover:text-sidebar-foreground'
               }
             `}
           >
             {active && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 rounded-r-full bg-cyan-400" />
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-3.5 rounded-r-full bg-cyan-400" />
             )}
             <item.icon
-              className={`h-4 w-4 shrink-0 kd-transition ${
+              className={`h-3.5 w-3.5 shrink-0 kd-transition ${
                 active
                   ? 'text-cyan-300'
-                  : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80'
+                  : 'text-sidebar-foreground/45 group-hover:text-sidebar-foreground/80'
               }`}
             />
             {!sidebarCollapsed && (
               <>
                 <span className="flex-1 truncate">{item.title}</span>
                 {showBadge && (
-                  <span className={`relative ml-auto flex h-5 min-w-5 items-center justify-center rounded-full ${badgeTone} px-1.5 text-[10px] font-bold kd-status-live-warning`}>
+                  <span className={`relative ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${badgeTone} px-1 text-[9.5px] font-bold tabular-nums kd-status-live-warning`}>
                     {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
-                )}
-                {active && !showBadge && (
-                  <ChevronRight className="h-3 w-3 text-cyan-400/60 shrink-0" />
                 )}
               </>
             )}
             {sidebarCollapsed && showBadge && (
-              <span className={`absolute top-1 right-1 h-2 w-2 rounded-full kd-status-live-warning ${item.badge === 'anomalies' ? 'bg-red-500' : 'bg-amber-400'}`} />
+              <span className={`absolute top-0.5 right-0.5 h-1.5 w-1.5 rounded-full kd-status-live-warning ${item.badge === 'anomalies' ? 'bg-red-500' : 'bg-amber-400'}`} />
             )}
           </NavLink>
         </SidebarMenuButton>
@@ -375,22 +372,23 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      {/* ── Logo area ─────────────────────────────────────────────── */}
-      <div className="px-3 pt-4 pb-3 border-b border-sidebar-border/50">
+      {/* ── Logo area — Mercury / Brex style: compact, hairline
+          divider, neutral typographic hierarchy. */}
+      <div className="px-3 pt-3.5 pb-3 border-b border-sidebar-border/40">
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-3 px-1">
+          <div className="flex items-center gap-2.5 px-0.5">
             <div className="relative shrink-0">
-              <BrandLogo size={36} className="h-9 w-9 rounded-xl ring-2 ring-sidebar-border/40 bg-white/5" />
-              <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-sidebar-background" />
+              <BrandLogo size={32} className="h-8 w-8 rounded-lg ring-1 ring-sidebar-border/40 bg-white/5" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-sidebar-background" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-sidebar-primary leading-none">KDOps</p>
-              <p className="text-[11px] text-sidebar-foreground/50 mt-0.5">Operations Platform</p>
+              <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">KDOps</p>
+              <p className="text-[10.5px] text-sidebar-foreground/45 mt-0.5 tracking-tight">Operations</p>
             </div>
           </div>
         ) : (
           <div className="flex justify-center">
-            <BrandLogo size={32} className="h-8 w-8 rounded-xl bg-white/5" />
+            <BrandLogo size={28} className="h-7 w-7 rounded-lg bg-white/5" />
           </div>
         )}
       </div>
@@ -418,18 +416,17 @@ export function AppSidebar() {
                 <div key={group.key}>
                   {/* Group header */}
                   {sidebarCollapsed ? (
-                    // Icon-mode: thin divider instead of label
-                    <div className="mx-3 my-2 h-px bg-sidebar-border/25" />
+                    <div className="mx-3 my-2 h-px bg-sidebar-border/20" />
                   ) : (
                     <button
                       onClick={() => toggleGroup(group.key)}
-                      className="flex w-full items-center gap-1.5 px-4 pt-4 pb-1.5 kd-transition hover:opacity-80 focus-visible:outline-none"
+                      className="flex w-full items-center gap-1.5 px-3.5 pt-3.5 pb-1 kd-transition hover:opacity-80 focus-visible:outline-none"
                     >
-                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-sidebar-foreground/35 flex-1 text-left">
+                      <span className="text-[9.5px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/40 flex-1 text-left">
                         {group.label}
                       </span>
                       <ChevronDown
-                        className={`h-3 w-3 text-sidebar-foreground/30 transition-transform duration-200 ${
+                        className={`h-2.5 w-2.5 text-sidebar-foreground/30 transition-transform duration-200 ${
                           isCollapsed ? '-rotate-90' : ''
                         }`}
                       />
@@ -450,28 +447,29 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
-      <SidebarFooter className="border-t border-sidebar-border/50 pt-2 pb-3 px-2">
+      {/* ── Footer — tighter Mercury-style: hairline divider, smaller
+          icon, restrained user card. */}
+      <SidebarFooter className="border-t border-sidebar-border/40 pt-1.5 pb-2.5 px-2">
         <SidebarMenu>
           <SidebarMenuItem className="list-none">
             <SidebarMenuButton
               onClick={signOut}
               tooltip={sidebarCollapsed ? 'Sign Out' : undefined}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-sidebar-foreground/60 hover:bg-red-500/15 hover:text-red-300 kd-transition w-full"
+              className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
             >
-              <LogOut className="h-4 w-4 shrink-0" />
+              <LogOut className="h-3.5 w-3.5 shrink-0" />
               {!sidebarCollapsed && <span>Sign Out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
         {!sidebarCollapsed && profile && (
-          <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-lg bg-white/5">
-            <div className="h-7 w-7 rounded-full kd-gradient-brand flex items-center justify-center shrink-0 text-[11px] font-bold text-white">
+          <div className="flex items-center gap-2.5 px-2 py-1.5 mt-1 rounded-md bg-white/5">
+            <div className="h-6 w-6 rounded-full kd-gradient-brand flex items-center justify-center shrink-0 text-[10px] font-bold text-white">
               {getInitials(profile.full_name ?? profile.email ?? 'U')}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-sidebar-foreground/90 truncate leading-none">
+              <p className="text-[11.5px] font-medium text-sidebar-foreground/85 truncate leading-none">
                 {profile.full_name ?? 'User'}
               </p>
               <p className="text-[10px] text-sidebar-foreground/45 truncate mt-0.5">
