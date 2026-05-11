@@ -49,7 +49,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
-import { NIGERIAN_BANKS } from '@/lib/paystack';
+import { NIGERIAN_BANKS, resolveAccount } from '@/lib/paystack';
+import { getBankCode } from '@/lib/nigerian-banks';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
 
@@ -108,6 +109,11 @@ interface ParsedRow {
   raw: Record<string, string>;
   full_name: string;
   bank_name: string;
+  /** Bank code resolved via getBankCode(). null if we couldn't map the
+   *  user's typed bank name to a known Paystack code — in that case
+   *  we can't run Paystack account verify; the row stays importable
+   *  but unverified (and gets a warning the admin can override). */
+  bank_code: string | null;
   account_number: string;
   default_amount_ngn: number;
   linkedin_id: string;
@@ -118,6 +124,20 @@ interface ParsedRow {
   onboarded_at: string | null;
   valid: boolean;
   errors: string[];
+  /** Soft warnings — row is still importable but admin should look.
+   *  Examples: bank not recognised by Paystack, account name from
+   *  Paystack differs from CSV name. */
+  warnings: string[];
+  /** Bank-verified name from Paystack /bank/resolve. Populated after
+   *  the async verify pass. null = not yet verified / verify failed. */
+  paystack_name: string | null;
+  /** Set true once Paystack /bank/resolve returns a successful match.
+   *  Drives the green "Verified" pill in the review table. */
+  paystack_verified: boolean;
+  /** Operator can override a name-mismatch warning row by row. When
+   *  true, the row gets imported even if paystack_verified is false
+   *  due to a name mismatch (not a hard error). */
+  forcedImport?: boolean;
 }
 
 const emptyBank: BankAccountValue = {
@@ -160,6 +180,23 @@ const normalizeBankName = (raw: string): string | null => {
   if (!key) return null;
   return BANK_NAME_LOOKUP.get(key) ?? null;
 };
+
+// Fuzzy comparator for "is this the same person?" between the CSV
+// name and the bank-verified name. Strips whitespace, lowercases,
+// then compares as a sorted-token set so "John Doe" and "DOE JOHN"
+// match. Also matches when one is a strict subset of the other (the
+// CSV may include a middle name the bank dropped, or vice versa).
+function namesAreEquivalent(a: string, b: string): boolean {
+  const tok = (s: string) =>
+    s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).sort();
+  const ta = tok(a);
+  const tb = tok(b);
+  if (ta.length === 0 || tb.length === 0) return false;
+  if (ta.join(' ') === tb.join(' ')) return true;
+  // Subset match — every short-side token appears in the long side.
+  const [short, long] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return short.every((t) => long.includes(t));
+}
 
 const Contractors = () => {
   usePageTitle('Contractors');
@@ -411,13 +448,27 @@ const Contractors = () => {
     const onboarded_at = (raw.onboarded_at || '').trim() || null;
 
     const errors: string[] = [];
+    const warnings: string[] = [];
     if (!full_name) errors.push('Full name is required');
 
+    // Bank handling — the previous version rejected unknown bank
+    // names with a hard error. Operator pointed out that's wrong:
+    // Paystack supports 300+ banks including microfinance and PSBs
+    // whose names drift, so the right behaviour is to ACCEPT any
+    // typed bank name, attempt to resolve via Paystack on import,
+    // and only warn if we can't. Two layers:
+    //   1. normalizeBankName — fast static lookup, used for the
+    //      display name (so "gtb" canonicalises to "GTBank")
+    //   2. getBankCode — fuzzy match against the dynamic Paystack
+    //      bank list. Used to drive the /bank/resolve account-
+    //      verify call. If null, we couldn't map to a Paystack
+    //      code and verify gets skipped (warning, not error).
     const canonicalBank = normalizeBankName(bank_raw);
+    const bank_code = getBankCode(bank_raw) ?? null;
     if (!bank_raw) {
       errors.push('Bank name is required');
-    } else if (!canonicalBank) {
-      errors.push(`Unknown bank "${bank_raw}"`);
+    } else if (!bank_code) {
+      warnings.push(`Bank "${bank_raw}" not recognised by Paystack — account number cannot be verified before import.`);
     }
 
     if (!/^\d{10}$/.test(account_number)) {
@@ -429,6 +480,7 @@ const Contractors = () => {
       raw,
       full_name,
       bank_name: canonicalBank ?? bank_raw,
+      bank_code,
       account_number,
       default_amount_ngn,
       linkedin_id,
@@ -439,8 +491,86 @@ const Contractors = () => {
       onboarded_at,
       valid: errors.length === 0,
       errors,
+      warnings,
+      paystack_name: null,
+      paystack_verified: false,
     };
   };
+
+  // ── Paystack account verification (batched) ──────────────────────
+  //
+  // After the CSV is parsed, kick off /bank/resolve for every row
+  // that has a bank_code + a 10-digit account_number. Verify in
+  // batches with throttling so we don't slam Paystack with 750
+  // calls in one tick. Each successful resolve writes paystack_name
+  // back onto the row; a mismatch with the CSV full_name becomes a
+  // soft warning the operator can force-push past.
+  const [verifying, setVerifying] = useState(false);
+  const [verifyProgress, setVerifyProgress] = useState({ done: 0, total: 0 });
+
+  const verifyRows = useCallback(async (rows: ParsedRow[]) => {
+    const candidates = rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => r.bank_code && /^\d{10}$/.test(r.account_number));
+
+    if (candidates.length === 0) return rows;
+
+    setVerifying(true);
+    setVerifyProgress({ done: 0, total: candidates.length });
+
+    // Concurrency guard — Paystack rate-limits at ~10 req/s for
+    // /bank/resolve. We cap at 4 in flight to stay well under that
+    // and leave headroom for any other calls happening concurrently
+    // (manual recipient creation, balance fetch, etc.).
+    const CONCURRENCY = 4;
+    const next = [...rows];
+    let cursor = 0;
+    let completed = 0;
+
+    const worker = async () => {
+      while (cursor < candidates.length) {
+        const myIdx = cursor++;
+        const { r, idx } = candidates[myIdx];
+        try {
+          const result = await resolveAccount(r.account_number, r.bank_code!);
+          const psName = result?.account_name?.trim() || '';
+          next[idx] = {
+            ...next[idx],
+            paystack_name: psName || null,
+            paystack_verified: !!psName && namesAreEquivalent(r.full_name, psName),
+          };
+          if (psName && !namesAreEquivalent(r.full_name, psName)) {
+            next[idx].warnings = [
+              ...next[idx].warnings,
+              `Bank name on Paystack is "${psName}" — different from CSV "${r.full_name}".`,
+            ];
+          }
+        } catch (err: any) {
+          // /bank/resolve returns 422 if the account doesn't exist at
+          // the bank, 400 if the bank code is wrong. Treat both as
+          // a soft warning — operator can still force the row through
+          // if they're confident the details are correct (e.g. just-
+          // opened account that Paystack hasn't indexed yet).
+          next[idx] = {
+            ...next[idx],
+            paystack_name: null,
+            paystack_verified: false,
+            warnings: [
+              ...next[idx].warnings,
+              `Paystack could not verify this account (${err?.message || 'unknown error'}).`,
+            ],
+          };
+        } finally {
+          completed++;
+          setVerifyProgress({ done: completed, total: candidates.length });
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+    setVerifying(false);
+    return next;
+  }, []);
 
   const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -451,12 +581,18 @@ const Contractors = () => {
       header: true,
       skipEmptyLines: true,
       transformHeader: (h) => h.trim().toLowerCase(),
-      complete: (results) => {
+      complete: async (results) => {
         const rows = (results.data || []).map((row, idx) => validateRow(row, idx + 1));
         setParsedRows(rows);
         setImportDialog(true);
         // Reset the input so the same file can be re-picked later.
         if (fileInputRef.current) fileInputRef.current.value = '';
+        // Fire Paystack /bank/resolve in the background. The review
+        // dialog opens immediately with rows in their CSV-validated
+        // state; verification results stream in over the next few
+        // seconds and update the table in place.
+        const verified = await verifyRows(rows);
+        setParsedRows(verified);
       },
       error: (err) => {
         toast({
@@ -469,13 +605,24 @@ const Contractors = () => {
   };
 
   const confirmImport = async () => {
-    const valid = parsedRows.filter((r) => r.valid);
-    const invalid = parsedRows.filter((r) => !r.valid);
+    // A row is importable if:
+    //   • it has no hard errors (full_name, account_number)
+    //   • AND it's not stuck on an un-forced name mismatch
+    // The bank-name unknown / Paystack-couldn't-verify cases are
+    // warnings only — they import without needing force.
+    const isImportable = (r: ParsedRow) => {
+      if (r.errors.length > 0) return false;
+      const hasNameMismatch = !!r.paystack_name && !r.paystack_verified;
+      if (hasNameMismatch && !r.forcedImport) return false;
+      return true;
+    };
+    const valid = parsedRows.filter(isImportable);
+    const invalid = parsedRows.filter((r) => !isImportable(r));
 
     if (valid.length === 0) {
       toast({
         title: 'Nothing to import',
-        description: 'All rows have validation errors. Fix them and try again.',
+        description: 'All rows have validation errors or need a manual "Import anyway" tick.',
         variant: 'destructive',
       });
       return;
@@ -484,9 +631,14 @@ const Contractors = () => {
     setImporting(true);
     try {
       const payload = valid.map((r) => ({
+        // If Paystack verified the account, store its canonical name
+        // as account_name so payouts are addressed to the bank's
+        // actual record-of-truth. Keep the original CSV name on
+        // full_name so the operator's chosen display name stays.
         full_name: r.full_name,
         bank_name: r.bank_name,
         account_number: r.account_number,
+        account_name: r.paystack_name || r.full_name,
         default_amount_ngn: r.default_amount_ngn,
         linkedin_id: r.linkedin_id || null,
         status: 'active',
@@ -1029,13 +1181,25 @@ const Contractors = () => {
 
           {!importSummary && (
             <>
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="inline-flex items-center gap-1 text-success">
                   <CheckCircle2 className="h-4 w-4" /> {validCount} valid
                 </span>
                 <span className="inline-flex items-center gap-1 text-destructive">
                   <AlertCircle className="h-4 w-4" /> {invalidCount} invalid
                 </span>
+                {verifying && (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Verifying with Paystack… {verifyProgress.done}/{verifyProgress.total}
+                  </span>
+                )}
+                {!verifying && parsedRows.length > 0 && (
+                  <span className="text-muted-foreground text-xs">
+                    {parsedRows.filter((r) => r.paystack_verified).length} verified ·{' '}
+                    {parsedRows.filter((r) => r.warnings.length > 0 && r.errors.length === 0).length} with warnings
+                  </span>
+                )}
               </div>
 
               <div className="border rounded-lg max-h-[360px] overflow-auto">
@@ -1052,39 +1216,79 @@ const Contractors = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {parsedRows.map((r) => (
-                      <TableRow
-                        key={r.rowNumber}
-                        className={
-                          r.valid ? '' : 'bg-destructive/5'
-                        }
-                      >
-                        <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
-                        <TableCell className="font-medium">{r.full_name || '—'}</TableCell>
-                        <TableCell>{r.bank_name || '—'}</TableCell>
-                        <TableCell>{r.account_number || '—'}</TableCell>
-                        <TableCell className="text-right currency">
-                          {formatNaira(r.default_amount_ngn || 0)}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {r.linkedin_id || '—'}
-                        </TableCell>
-                        <TableCell>
-                          {r.valid ? (
-                            <Badge
-                              variant="secondary"
-                              className="bg-success/10 text-success"
-                            >
-                              OK
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-destructive">
-                              {r.errors.join(', ')}
-                            </span>
+                    {parsedRows.map((r) => {
+                      const hasError = r.errors.length > 0;
+                      const hasNameMismatch = !!r.paystack_name && !r.paystack_verified;
+                      const hasOtherWarning = r.warnings.length > 0 && !hasNameMismatch;
+                      return (
+                        <TableRow
+                          key={r.rowNumber}
+                          className={cn(
+                            hasError && 'bg-destructive/5',
+                            !hasError && r.warnings.length > 0 && 'bg-amber-500/5',
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        >
+                          <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
+                          <TableCell className="font-medium">
+                            {r.full_name || '—'}
+                            {r.paystack_name && !r.paystack_verified && (
+                              <div className="text-[10.5px] text-amber-700 dark:text-amber-400 mt-0.5">
+                                Paystack: <span className="font-mono">{r.paystack_name}</span>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>{r.bank_name || '—'}</TableCell>
+                          <TableCell className="font-mono text-[12px]">{r.account_number || '—'}</TableCell>
+                          <TableCell className="text-right currency">
+                            {formatNaira(r.default_amount_ngn || 0)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {r.linkedin_id || '—'}
+                          </TableCell>
+                          <TableCell>
+                            {hasError ? (
+                              <span className="text-xs text-destructive">
+                                {r.errors.join(', ')}
+                              </span>
+                            ) : r.paystack_verified ? (
+                              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">
+                                <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
+                              </Badge>
+                            ) : hasNameMismatch ? (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className="border-amber-500/40 text-amber-700 bg-amber-50">
+                                  <AlertCircle className="h-3 w-3 mr-1" /> Name mismatch
+                                </Badge>
+                                <label className="flex items-center gap-1.5 text-[10.5px] cursor-pointer">
+                                  <Checkbox
+                                    checked={!!r.forcedImport}
+                                    onCheckedChange={(v) => {
+                                      setParsedRows((prev) =>
+                                        prev.map((row) =>
+                                          row.rowNumber === r.rowNumber
+                                            ? { ...row, forcedImport: !!v }
+                                            : row,
+                                        ),
+                                      );
+                                    }}
+                                    className="h-3.5 w-3.5"
+                                  />
+                                  Import anyway
+                                </label>
+                              </div>
+                            ) : hasOtherWarning ? (
+                              <span className="text-[11px] text-amber-700" title={r.warnings.join('\n')}>
+                                {r.warnings[0]}
+                              </span>
+                            ) : (
+                              <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                OK
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
