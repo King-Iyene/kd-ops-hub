@@ -50,7 +50,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { NIGERIAN_BANKS, resolveAccount } from '@/lib/paystack';
-import { getBankCode } from '@/lib/nigerian-banks';
+import { getBankCode, fetchBanks } from '@/lib/nigerian-banks';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
 
@@ -450,12 +450,27 @@ const Contractors = () => {
   };
 
   // Separate reference download — one row per supported bank with
-  // the EXACT canonical name the platform recognises. Operators can
-  // open this in Excel alongside their data and copy-paste the bank
-  // names so the importer matches them on first try.
-  const downloadBankReference = () => {
-    const header = ['bank_name', 'paystack_code', 'notes'];
-    const rows = NIGERIAN_BANKS.map((b) => [
+  // the EXACT canonical name the platform recognises. Pulls the
+  // DYNAMIC Paystack-fetched list (300+ banks including every MFB /
+  // PSB / fintech Paystack supports), NOT just the 55-bank static
+  // fallback. Same source the bank picker dropdown reads from, so
+  // operators get the same list they'd see if they typed it manually.
+  // Falls back to NIGERIAN_BANKS only if Paystack /bank/list is
+  // unreachable (offline, edge function down).
+  const [exportingBanks, setExportingBanks] = useState(false);
+  const downloadBankReference = async () => {
+    setExportingBanks(true);
+    let banks = NIGERIAN_BANKS;
+    try {
+      // fetchBanks returns the full dynamic list (cached 24h) and
+      // updates _allBanks so getBankCode() benefits next time too.
+      banks = await fetchBanks();
+    } catch {
+      // Stay on static fallback — operator still gets 55 names which
+      // is better than nothing.
+    }
+    const header = ['bank_name', 'paystack_code', 'category'];
+    const rows = banks.map((b) => [
       b.name,
       b.code,
       // Tag fintech / MFB / PSB so the operator can filter Excel.
@@ -463,7 +478,7 @@ const Contractors = () => {
         ? 'MFB'
         : /psb|payment service bank|momo|smartcash/i.test(b.name)
           ? 'PSB'
-          : /opay|palmpay|kuda|carbon|alat|paga|moniepoint|fairmoney|sparkle|vfd|rubies|eyowo|renmoney|tangerine/i.test(b.name)
+          : /opay|palmpay|kuda|carbon|alat|paga|moniepoint|fairmoney|sparkle|vfd|rubies|eyowo|renmoney|tangerine|branch|baobab|bellbank|berachah|boost|bosak/i.test(b.name)
             ? 'Fintech / Neo-bank'
             : 'Commercial',
     ]);
@@ -477,6 +492,11 @@ const Contractors = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    setExportingBanks(false);
+    toast({
+      title: 'Bank list downloaded',
+      description: `${banks.length} banks exported${banks.length === NIGERIAN_BANKS.length ? ' (static fallback — Paystack /bank/list unreachable)' : ' from Paystack'}.`,
+    });
   };
 
   const validateRow = (raw: Record<string, string>, rowNumber: number): ParsedRow => {
@@ -782,8 +802,11 @@ const Contractors = () => {
           <Button variant="ghost" size="sm" onClick={downloadSample} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
             <Download className="mr-1.5 h-3.5 w-3.5" /> Sample
           </Button>
-          <Button variant="ghost" size="sm" onClick={downloadBankReference} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Bank list
+          <Button variant="ghost" size="sm" onClick={downloadBankReference} disabled={exportingBanks} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
+            {exportingBanks
+              ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              : <Download className="mr-1.5 h-3.5 w-3.5" />}
+            Bank list
           </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" /> Import CSV
