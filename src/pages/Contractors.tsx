@@ -417,10 +417,25 @@ const Contractors = () => {
 
   const downloadSample = () => {
     const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_id', 'linkedin_url', 'heyreach_email', 'onboarded_at'];
+    // Twelve example rows covering commercial banks, fintech /
+    // neo-banks, MFBs and PSBs so the operator can see the EXACT
+    // spelling the platform recognises for each category. After
+    // PR #142 the importer accepts any bank name and verifies via
+    // Paystack at upload time, but using a recognised name skips
+    // the warning and lets account verification fire immediately.
     const rows = [
-      ['Chinwe Okafor', 'chinwe@example.com', '+2348012345678', 'GTBank', '0123456789', '150000', 'chinwe-okafor-123', 'https://linkedin.com/in/chinwe-okafor', 'chinwe@gmail.com', '2026-01-15'],
-      ['Adewale Ogunleye', 'adewale@example.com', '+2348023456789', 'Access Bank', '0234567890', '200000', 'adewale-ogunleye', 'https://linkedin.com/in/adewale-ogunleye', '', ''],
-      ['Ifeoma Nwachukwu', '', '', 'Zenith Bank', '0345678901', '175000', '', '', '', ''],
+      ['Chinwe Okafor',     'chinwe@example.com',     '+2348012345678', 'GTBank',                                       '0123456789', '150000', 'chinwe-okafor',     'https://linkedin.com/in/chinwe-okafor',     'chinwe@gmail.com', '2026-01-15'],
+      ['Adewale Ogunleye',  'adewale@example.com',    '+2348023456789', 'Access Bank',                                  '0234567890', '200000', 'adewale-ogunleye',  'https://linkedin.com/in/adewale-ogunleye',  '',                  ''],
+      ['Ifeoma Nwachukwu',  '',                       '',               'Zenith Bank',                                  '0345678901', '175000', '',                  '',                                          '',                  ''],
+      ['Tunde Bello',       'tunde@example.com',      '+2348034567890', 'First Bank of Nigeria',                        '0456789012', '180000', '',                  '',                                          '',                  ''],
+      ['Amaka Eze',         'amaka@example.com',      '+2348045678901', 'United Bank for Africa (UBA)',                 '0567890123', '160000', '',                  '',                                          '',                  ''],
+      ['Femi Adekunle',     'femi@example.com',       '+2348056789012', 'Stanbic IBTC Bank',                            '0678901234', '220000', '',                  '',                                          '',                  ''],
+      ['Ngozi Obi',         'ngozi@example.com',      '',               'First City Monument Bank (FCMB)',              '0789012345', '140000', '',                  '',                                          '',                  ''],
+      ['Sade Williams',     'sade@example.com',       '+2348078901234', 'Kuda Microfinance Bank',                       '0890123456', '170000', '',                  '',                                          '',                  ''],
+      ['Yusuf Ibrahim',     '',                       '+2348089012345', 'Moniepoint Microfinance Bank',                 '0901234567', '155000', '',                  '',                                          '',                  ''],
+      ['Blessing Okon',     'blessing@example.com',   '',               'OPay Digital Services Limited (OPay)',         '7012345678', '165000', '',                  '',                                          '',                  ''],
+      ['Emeka Anwah',       '',                       '',               'PalmPay',                                      '8012345678', '145000', '',                  '',                                          '',                  ''],
+      ['Tobi Adeyemi',      'tobi@example.com',       '+2348112345678', 'Sterling Bank',                                '0023456789', '195000', '',                  '',                                          '',                  ''],
     ];
     const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -428,6 +443,36 @@ const Contractors = () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = 'kdops-contractors-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Separate reference download — one row per supported bank with
+  // the EXACT canonical name the platform recognises. Operators can
+  // open this in Excel alongside their data and copy-paste the bank
+  // names so the importer matches them on first try.
+  const downloadBankReference = () => {
+    const header = ['bank_name', 'paystack_code', 'notes'];
+    const rows = NIGERIAN_BANKS.map((b) => [
+      b.name,
+      b.code,
+      // Tag fintech / MFB / PSB so the operator can filter Excel.
+      /microfinance|mfb/i.test(b.name)
+        ? 'MFB'
+        : /psb|payment service bank|momo|smartcash/i.test(b.name)
+          ? 'PSB'
+          : /opay|palmpay|kuda|carbon|alat|paga|moniepoint|fairmoney|sparkle|vfd|rubies|eyowo|renmoney|tangerine/i.test(b.name)
+            ? 'Fintech / Neo-bank'
+            : 'Commercial',
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'kdops-supported-banks.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -725,6 +770,21 @@ const Contractors = () => {
             className="hidden"
             onChange={handleFilePick}
           />
+          {/* Import flow needs three tightly-coupled affordances:
+                1. "Sample" — empty template with example rows so a
+                   first-time operator sees the column shape
+                2. "Bank list" — reference CSV with every supported
+                   bank's canonical name so the operator can copy-
+                   paste into their bank_name column
+                3. "Import CSV" — the upload trigger itself
+              All three live as a button group with the import as
+              the primary so the eye lands on it. */}
+          <Button variant="ghost" size="sm" onClick={downloadSample} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Sample
+          </Button>
+          <Button variant="ghost" size="sm" onClick={downloadBankReference} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
+            <Download className="mr-1.5 h-3.5 w-3.5" /> Bank list
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="mr-2 h-4 w-4" /> Import CSV
           </Button>
