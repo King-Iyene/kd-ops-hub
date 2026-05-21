@@ -922,11 +922,11 @@ const Employees = () => {
                 </>
               )}
             </div>
-            {!editing && !isSuperAdmin && (
+            {!editing && !isAdmin && (
               <div className="flex items-start gap-2 rounded-md border border-accent/40 bg-accent/5 p-2 text-xs">
                 <AlertTriangle className="h-4 w-4 text-accent mt-0.5 shrink-0" />
                 <span>
-                  Only Super Admin can invite employees. Admin can edit existing ones.
+                  Only Admins can invite employees. Ask your administrator to send the invite.
                 </span>
               </div>
             )}
@@ -996,7 +996,7 @@ const Employees = () => {
                   submitting ||
                   !form.first_name.trim() ||
                   !form.email.trim() ||
-                  !isSuperAdmin
+                  !isAdmin
                 }
               >
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
