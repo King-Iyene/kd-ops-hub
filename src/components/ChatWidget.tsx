@@ -70,6 +70,10 @@ export function ChatWidget() {
   const [useWebSearch, setUseWebSearch] = useState(false);
   const [unread, setUnread] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  // Daily chat usage — populated after each successful send by the
+  // check_and_record_chat_usage RPC. null = not yet known (haven't
+  // sent anything this session, or the RPC isn't deployed).
+  const [chatUsage, setChatUsage] = useState<{ used: number; limit: number } | null>(null);
 
   const bottomRef    = useRef<HTMLDivElement>(null);
   const textareaRef  = useRef<HTMLTextAreaElement>(null);
@@ -152,6 +156,44 @@ export function ChatWidget() {
   async function handleSend() {
     const text = input.trim();
     if (!text || sending) return;
+
+    // Daily-limit gate. RPC atomically increments-and-checks so
+    // two parallel sends from the same user can't both slip past
+    // a near-limit threshold. The counter resets at local midnight
+    // (Africa/Lagos). If the operator hasn't applied the SQL
+    // migration yet (function not found), we fail-open and let the
+    // send through — better UX than blocking on infrastructure
+    // that hasn't been deployed.
+    try {
+      const { profile } = useAuthStore.getState();
+      if (profile?.id) {
+        const { data, error } = await supabase.rpc('check_and_record_chat_usage', {
+          p_user_id: profile.id,
+        });
+        if (!error && data && (data as any).allowed === false) {
+          const used = (data as any).used;
+          const limit = (data as any).limit;
+          const resetsRaw = (data as any).resets_at;
+          const resetsText = resetsRaw
+            ? `Resets ${new Date(resetsRaw).toLocaleString('en-NG', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}.`
+            : 'Resets at local midnight.';
+          toast({
+            title: 'Daily chat limit reached',
+            description: `You've used all ${limit} messages today (${used}/${limit}). ${resetsText} Ask an admin to raise the limit in Settings → Security if you need more.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+        if (data && (data as any).allowed === true) {
+          setChatUsage({ used: (data as any).used, limit: (data as any).limit });
+        }
+      }
+    } catch {
+      // Fail-open — RPC not deployed yet OR transient error. The
+      // n8n / edge-function call below is the actual GPT spend, so
+      // failing closed here would block legitimate users on
+      // infrastructure migration timing.
+    }
 
     const optimistic: WidgetMessage = {
       id: `opt-${Date.now()}`,
@@ -490,9 +532,25 @@ export function ChatWidget() {
                       : <Send className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
-                <p className="text-[9px] text-muted-foreground/50 text-center mt-1">
-                  Enter to send · Shift+Enter for new line
-                </p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-[9px] text-muted-foreground/50">
+                    Enter to send · Shift+Enter for new line
+                  </p>
+                  {chatUsage && chatUsage.limit > 0 && (
+                    <p
+                      className={`text-[9px] tabular-nums ${
+                        chatUsage.used >= chatUsage.limit
+                          ? 'text-destructive'
+                          : chatUsage.used / chatUsage.limit >= 0.8
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-muted-foreground/50'
+                      }`}
+                      title="Resets at local midnight (Africa/Lagos)"
+                    >
+                      {chatUsage.used} / {chatUsage.limit} today
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}

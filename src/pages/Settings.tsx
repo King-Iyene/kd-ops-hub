@@ -130,6 +130,9 @@ interface CompanySettings {
   /** Platform-wide policy: when TRUE every user must enrol TOTP MFA.
    *  Toggle visible to super_admin only in Settings → Security. */
   mfa_required_for_all_users: boolean;
+  /** Max chatbot messages a user can send per local day. 0 = no limit.
+   *  super_admin only, in Settings → Security. Caps OpenAI spend. */
+  chat_daily_limit_per_user: number;
   fuel_weekly_budgets: Record<string, number>;
   website_url: string | null;
   linkedin_url: string | null;
@@ -277,6 +280,7 @@ const SettingsPage = () => {
         session_timeout_minutes: settings.session_timeout_minutes,
         audit_log_retention_days: settings.audit_log_retention_days,
         mfa_required_for_all_users: settings.mfa_required_for_all_users,
+        chat_daily_limit_per_user: settings.chat_daily_limit_per_user,
         fuel_weekly_budgets: settings.fuel_weekly_budgets,
         website_url: settings.website_url || null,
         linkedin_url: settings.linkedin_url || null,
@@ -1199,6 +1203,26 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 </label>
+
+                <div className="border-t border-border/50 pt-4 space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    AI chatbot — daily messages per user
+                    <InfoTip text="Caps how many chatbot messages each user can send per day (Africa/Lagos midnight reset). Stops a runaway loop from burning OpenAI credit. 0 = unlimited (not recommended). Default 30." />
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    value={settings.chat_daily_limit_per_user}
+                    onChange={(e) => patch({ chat_daily_limit_per_user: Math.max(0, Number(e.target.value) || 0) })}
+                    className="max-w-[200px]"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {settings.chat_daily_limit_per_user === 0
+                      ? 'No limit — every user can send unlimited chatbot messages. OpenAI spend is uncapped.'
+                      : `Each user can send up to ${settings.chat_daily_limit_per_user} chatbot messages per day. Resets at local midnight.`}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
