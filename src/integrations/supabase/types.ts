@@ -1147,6 +1147,11 @@ export type Database = {
           created_at: string
           default_amount_ngn: number
           full_name: string
+          heyreach_account_id: number | null
+          heyreach_active_campaigns: number | null
+          heyreach_auth_valid: boolean | null
+          heyreach_status: string | null
+          heyreach_synced_at: string | null
           id: string
           kyc_document_uploaded: boolean | null
           linkedin_id: string | null
@@ -1162,6 +1167,11 @@ export type Database = {
           created_at?: string
           default_amount_ngn?: number
           full_name: string
+          heyreach_account_id?: number | null
+          heyreach_active_campaigns?: number | null
+          heyreach_auth_valid?: boolean | null
+          heyreach_status?: string | null
+          heyreach_synced_at?: string | null
           id?: string
           kyc_document_uploaded?: boolean | null
           linkedin_id?: string | null
@@ -1177,6 +1187,11 @@ export type Database = {
           created_at?: string
           default_amount_ngn?: number
           full_name?: string
+          heyreach_account_id?: number | null
+          heyreach_active_campaigns?: number | null
+          heyreach_auth_valid?: boolean | null
+          heyreach_status?: string | null
+          heyreach_synced_at?: string | null
           id?: string
           kyc_document_uploaded?: boolean | null
           linkedin_id?: string | null
@@ -1184,6 +1199,51 @@ export type Database = {
           onboarding_complete?: boolean | null
           status?: string
           tags?: string[] | null
+        }
+        Relationships: []
+      }
+      heyreach_sync_log: {
+        Row: {
+          accounts_fetched: number
+          changes: Json
+          contractors_checked: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          matched: number
+          ok: boolean
+          started_at: string
+          triggered_by: string
+          unmatched: number
+          updated: number
+        }
+        Insert: {
+          accounts_fetched?: number
+          changes?: Json
+          contractors_checked?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          matched?: number
+          ok?: boolean
+          started_at?: string
+          triggered_by?: string
+          unmatched?: number
+          updated?: number
+        }
+        Update: {
+          accounts_fetched?: number
+          changes?: Json
+          contractors_checked?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          matched?: number
+          ok?: boolean
+          started_at?: string
+          triggered_by?: string
+          unmatched?: number
+          updated?: number
         }
         Relationships: []
       }

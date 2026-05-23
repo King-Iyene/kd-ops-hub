@@ -43,7 +43,9 @@ import {
   X,
   FileText,
   Info,
+  RefreshCw,
 } from 'lucide-react';
+import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -76,6 +78,9 @@ interface Contractor {
   linkedin_id: string;
   linkedin_url: string | null;
   heyreach_email: string | null;
+  heyreach_status?: string | null;
+  heyreach_active_campaigns?: number | null;
+  heyreach_synced_at?: string | null;
   onboarded_at: string | null;
   status: string;
   agreement_signed?: boolean | null;
@@ -216,6 +221,8 @@ const Contractors = () => {
   };
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
   const [showForm, setShowForm] = useState(false);
@@ -274,6 +281,57 @@ const Contractors = () => {
   useEffect(() => {
     fetchContractors();
   }, [fetchContractors]);
+
+  const fetchLastSync = useCallback(async () => {
+    const { data } = await supabase
+      .from('heyreach_sync_log')
+      .select('finished_at, started_at')
+      .eq('ok', true)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setLastSyncAt((data as any)?.finished_at ?? (data as any)?.started_at ?? null);
+  }, []);
+
+  useEffect(() => {
+    fetchLastSync();
+  }, [fetchLastSync]);
+
+  const runHeyReachSync = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('heyreach-sync', {
+        body: { triggered_by: 'manual' },
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        toast({
+          title: 'Sync could not complete',
+          description: data?.error || 'HeyReach did not respond. No contractor data was changed.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const changes = (data.changes || []) as Array<{ name: string; to: string }>;
+      const summary = changes.length
+        ? changes.slice(0, 5).map((c) => `${c.name} → ${c.to}`).join(', ') +
+          (changes.length > 5 ? ` +${changes.length - 5} more` : '')
+        : 'No status changes detected.';
+      toast({
+        title: `HeyReach sync complete — ${changes.length} updated`,
+        description: summary,
+      });
+      await Promise.all([fetchContractors(), fetchLastSync()]);
+    } catch (err: any) {
+      toast({
+        title: 'Sync failed',
+        description: err?.message || 'Could not reach the sync function.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const resetForm = () => {
     setEditing(null);
@@ -776,7 +834,18 @@ const Contractors = () => {
           </div>
           <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex flex-col items-end mr-1">
+            <Button variant="outline" onClick={runHeyReachSync} disabled={syncing}>
+              {syncing
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sync HeyReach Now
+            </Button>
+            <span className="text-[11px] text-muted-foreground mt-0.5">
+              Last synced: {formatSyncedAt(lastSyncAt)}
+            </span>
+          </div>
           <Button variant="outline" onClick={exportCsv} disabled={exportingCsv}>
             {exportingCsv
               ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -958,16 +1027,22 @@ const Contractors = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={
-                        c.status === 'active'
-                          ? 'bg-success/10 text-success'
-                          : 'bg-muted text-muted-foreground'
-                      }
-                    >
-                      {c.status}
-                    </Badge>
+                    {(() => {
+                      const hr = heyreachDisplayStatus(c);
+                      return (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="secondary" className={cn('gap-1', hr.className)}>
+                              <span aria-hidden>{hr.emoji}</span>
+                              {hr.label}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-[220px] text-xs">{hr.reason}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
