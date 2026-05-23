@@ -151,16 +151,35 @@ export default function MfaSettings() {
   };
 
   // ── Disable ─────────────────────────────────────────────────────────────
+  // Supabase requires AAL2 to unenroll a verified factor. If the session
+  // is only AAL1, disableMfa throws 'NEEDS_CODE' and we reveal a code
+  // input so the user can prove possession of the authenticator, which
+  // elevates the session before the unenroll retries.
+  const [disableCode, setDisableCode] = useState('');
+  const [disableNeedsCode, setDisableNeedsCode] = useState(false);
+
   const handleDisable = async () => {
     if (!factorId) return;
     setBusy(true);
     try {
-      await disableMfa(factorId);
+      await disableMfa(factorId, disableNeedsCode ? disableCode : undefined);
       toast({ title: 'MFA disabled' });
       setDisableOpen(false);
+      setDisableNeedsCode(false);
+      setDisableCode('');
       await reload();
     } catch (e: any) {
-      toast({ title: 'Could not disable MFA', description: e?.message, variant: 'destructive' });
+      if (e?.message === 'NEEDS_CODE') {
+        // First click while only AAL1 — reveal the code field and ask
+        // the user to enter their current authenticator code.
+        setDisableNeedsCode(true);
+        toast({
+          title: 'Confirm with your authenticator',
+          description: 'Enter the current 6-digit code to disable MFA.',
+        });
+      } else {
+        toast({ title: 'Could not disable MFA', description: e?.message, variant: 'destructive' });
+      }
     } finally {
       setBusy(false);
     }
@@ -391,7 +410,13 @@ export default function MfaSettings() {
       </Dialog>
 
       {/* Disable confirmation */}
-      <Dialog open={disableOpen} onOpenChange={setDisableOpen}>
+      <Dialog
+        open={disableOpen}
+        onOpenChange={(o) => {
+          setDisableOpen(o);
+          if (!o) { setDisableNeedsCode(false); setDisableCode(''); }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Disable MFA?</DialogTitle>
@@ -400,9 +425,37 @@ export default function MfaSettings() {
               wiped. You can re-enable any time.
             </DialogDescription>
           </DialogHeader>
+
+          {disableNeedsCode && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">
+                Enter your current 6-digit authenticator code to confirm
+              </Label>
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123 456"
+                value={disableCode}
+                onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, ''))}
+                className="font-mono text-center text-lg tracking-widest"
+                onKeyDown={(e) => { if (e.key === 'Enter' && disableCode.length >= 6) void handleDisable(); }}
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Security requires you to prove you still have your authenticator before removing it.
+              </p>
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDisableOpen(false)}>Keep MFA</Button>
-            <Button variant="destructive" onClick={handleDisable} disabled={busy}>
+            <Button variant="outline" onClick={() => { setDisableOpen(false); setDisableNeedsCode(false); setDisableCode(''); }}>
+              Keep MFA
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDisable}
+              disabled={busy || (disableNeedsCode && disableCode.length < 6)}
+            >
               {busy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Disable MFA
             </Button>
