@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import ReferralPartners from '@/components/ReferralPartners';
+import ReferralCommissions from '@/components/ReferralCommissions';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -82,18 +82,17 @@ const Referrals = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     contractor_id: '',
-    referral_partner_id: '',
+    referrer_contractor_id: '',
     referred_email: '',
     is_affiliate: false,
     commission_pct: '0',
     notes: '',
   });
-  const [partnerList, setPartnerList] = useState<{ id: string; full_name: string; type: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [refRes, profRes, contractorRes, partnerRes] = await Promise.all([
+      const [refRes, profRes, contractorRes] = await Promise.all([
         supabase
           .from('referrals')
           .select('*')
@@ -101,11 +100,9 @@ const Referrals = () => {
           .limit(200),
         supabase.from('profiles').select('id, full_name, email').limit(500),
         supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name').limit(500),
-        supabase.from('referral_partners').select('id, full_name, type').eq('status', 'active').order('full_name').limit(5000),
       ]);
       if (refRes.error) throw refRes.error;
       setReferrals((refRes.data as Referral[]) || []);
-      setPartnerList((partnerRes.data as any[]) || []);
       const m = new Map<string, ProfileRow>();
       for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
       setProfiles(m);
@@ -126,8 +123,8 @@ const Referrals = () => {
       toast({ title: 'Select a contractor or enter an email', variant: 'destructive' });
       return;
     }
-    if (!form.referral_partner_id) {
-      toast({ title: 'Select the partner who referred them', variant: 'destructive' });
+    if (!form.referrer_contractor_id) {
+      toast({ title: 'Select the contractor who referred them', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -135,10 +132,10 @@ const Referrals = () => {
       const contractorName = form.contractor_id
         ? contractors.find((c) => c.id === form.contractor_id)?.full_name || ''
         : form.referred_email;
-      const partnerName = partnerList.find((p) => p.id === form.referral_partner_id)?.full_name || 'partner';
+      const referrerName = contractors.find((c) => c.id === form.referrer_contractor_id)?.full_name || 'contractor';
       const { error } = await supabase.from('referrals').insert({
         referrer_id: profile?.id || null,
-        referral_partner_id: form.referral_partner_id,
+        referrer_contractor_id: form.referrer_contractor_id,
         referred_email: form.referred_email.trim().toLowerCase() || contractorName,
         is_affiliate: form.is_affiliate,
         commission_pct: parseFloat(form.commission_pct) || 0,
@@ -147,12 +144,12 @@ const Referrals = () => {
       if (error) throw error;
       await logAudit(
         'contractor_added',
-        `Referral added: ${contractorName} (referred by ${partnerName})`,
+        `Referral added: ${contractorName} (referred by ${referrerName}, ${form.is_affiliate ? 'affiliate' : 'referral'})`,
         profile,
       );
       toast({ title: 'Referral added' });
       setDialog(false);
-      setForm({ contractor_id: '', referral_partner_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
+      setForm({ contractor_id: '', referrer_contractor_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
       load();
     } catch (err: any) {
       toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
@@ -247,8 +244,8 @@ const Referrals = () => {
         </Card>
       </div>
 
-      {/* Commission partners — roster, auto-count + override, USD per account → NGN */}
-      <ReferralPartners />
+      {/* Commissions — contractors who referred, auto-count + override, USD → NGN */}
+      <ReferralCommissions />
 
       <Card>
         <div className="p-4 border-b">
@@ -401,28 +398,20 @@ const Referrals = () => {
               </div>
             )}
             <div className="space-y-1">
-              <Label>Referred by (partner) *</Label>
+              <Label>Referred by (contractor) *</Label>
               <Select
-                value={form.referral_partner_id || 'none'}
-                onValueChange={(v) => {
-                  const pid = v === 'none' ? '' : v;
-                  const partner = partnerList.find((p) => p.id === pid);
-                  setForm({
-                    ...form,
-                    referral_partner_id: pid,
-                    is_affiliate: partner ? partner.type === 'affiliate' : form.is_affiliate,
-                  });
-                }}
+                value={form.referrer_contractor_id || 'none'}
+                onValueChange={(v) => setForm({ ...form, referrer_contractor_id: v === 'none' ? '' : v })}
               >
-                <SelectTrigger><SelectValue placeholder="Select the referrer / affiliate" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select the contractor who referred them" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">— select a partner —</SelectItem>
-                  {partnerList.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name} · {p.type}</SelectItem>
+                  <SelectItem value="none">— select a contractor —</SelectItem>
+                  {contractors.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground">Add partners in the Commission partners section above. This links the referral so their count is automatic.</p>
+              <p className="text-[11px] text-muted-foreground">Their commission is then counted automatically. Use the toggle below to mark this as an affiliate referral.</p>
             </div>
             <div className="space-y-1">
               <Label>Notes</Label>
