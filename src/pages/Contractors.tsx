@@ -38,6 +38,7 @@ import {
   UserX,
   CheckCircle2,
   AlertCircle,
+  XCircle,
   Check,
   X,
   FileText,
@@ -780,11 +781,24 @@ const Contractors = () => {
     //   • AND it's not stuck on an un-forced name mismatch
     // The bank-name unknown / Paystack-couldn't-verify cases are
     // warnings only — they import without needing force.
+    // Import gating (operator policy):
+    //   • Hard errors (no name, bad account number)  → never import
+    //   • Paystack returned a name (account exists):
+    //       - name matches                           → import
+    //       - name differs slightly                  → import + WARN
+    //         (no checkbox — a verified account with a different
+    //          registered name is fine, just flagged)
+    //   • Paystack could NOT resolve the account (doesn't exist /
+    //     invalid / bank unrecognised)               → BLOCK, unless
+    //     an admin explicitly ticks "Import anyway" (escape hatch for
+    //     brand-new accounts Paystack hasn't indexed yet).
     const isImportable = (r: ParsedRow) => {
       if (r.errors.length > 0) return false;
-      const hasNameMismatch = !!r.paystack_name && !r.paystack_verified;
-      if (hasNameMismatch && !r.forcedImport) return false;
-      return true;
+      // Account verified to exist (any name) → importable.
+      if (r.paystack_name) return true;
+      // No Paystack-resolved name = account couldn't be confirmed.
+      // Block by default; allow only with explicit admin override.
+      return !!r.forcedImport;
     };
     const valid = parsedRows.filter(isImportable);
     const invalid = parsedRows.filter((r) => !isImportable(r));
@@ -896,7 +910,11 @@ const Contractors = () => {
 
   if (loading) return <TableSkeleton rows={5} />;
 
-  const validCount = parsedRows.filter((r) => r.valid).length;
+  // "Will import" mirrors isImportable in confirmImport: no hard
+  // errors AND (Paystack confirmed the account OR admin override).
+  const validCount = parsedRows.filter(
+    (r) => r.errors.length === 0 && (!!r.paystack_name || !!r.forcedImport),
+  ).length;
   const invalidCount = parsedRows.length - validCount;
 
   return (
@@ -1415,7 +1433,7 @@ const Contractors = () => {
                       ? `, ${importSummary.failed} row(s) skipped.`
                       : '.'
                   }`
-                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${validCount} valid, ${invalidCount} with errors.`}
+                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${validCount} will import, ${invalidCount} blocked.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -1423,10 +1441,10 @@ const Contractors = () => {
             <>
               <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="inline-flex items-center gap-1 text-success">
-                  <CheckCircle2 className="h-4 w-4" /> {validCount} valid
+                  <CheckCircle2 className="h-4 w-4" /> {validCount} will import
                 </span>
                 <span className="inline-flex items-center gap-1 text-destructive">
-                  <AlertCircle className="h-4 w-4" /> {invalidCount} invalid
+                  <AlertCircle className="h-4 w-4" /> {invalidCount} blocked
                 </span>
                 {verifying && (
                   <span className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -1437,7 +1455,8 @@ const Contractors = () => {
                 {!verifying && parsedRows.length > 0 && (
                   <span className="text-muted-foreground text-xs">
                     {parsedRows.filter((r) => r.paystack_verified).length} verified ·{' '}
-                    {parsedRows.filter((r) => r.warnings.length > 0 && r.errors.length === 0).length} with warnings
+                    {parsedRows.filter((r) => !!r.paystack_name && !r.paystack_verified).length} name differs ·{' '}
+                    {parsedRows.filter((r) => r.errors.length === 0 && !r.paystack_name).length} unverified
                   </span>
                 )}
               </div>
@@ -1458,20 +1477,27 @@ const Contractors = () => {
                   <TableBody>
                     {parsedRows.map((r) => {
                       const hasError = r.errors.length > 0;
-                      const hasNameMismatch = !!r.paystack_name && !r.paystack_verified;
-                      const hasOtherWarning = r.warnings.length > 0 && !hasNameMismatch;
+                      // Account verified to exist (Paystack returned a
+                      // name). Name match vs slight difference is just
+                      // a display nuance — both import.
+                      const nameMatches = r.paystack_verified;
+                      const nameDiffers = !!r.paystack_name && !r.paystack_verified;
+                      // No resolved name + no hard error = Paystack
+                      // could not confirm the account. Blocks import
+                      // unless the admin ticks "Import anyway".
+                      const unverified = !hasError && !r.paystack_name;
                       return (
                         <TableRow
                           key={r.rowNumber}
                           className={cn(
-                            hasError && 'bg-destructive/5',
-                            !hasError && r.warnings.length > 0 && 'bg-amber-500/5',
+                            (hasError || unverified) && 'bg-destructive/5',
+                            !hasError && !unverified && nameDiffers && 'bg-amber-500/5',
                           )}
                         >
                           <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
                           <TableCell className="font-medium">
                             {r.full_name || '—'}
-                            {r.paystack_name && !r.paystack_verified && (
+                            {nameDiffers && (
                               <div className="text-[10.5px] text-amber-700 dark:text-amber-400 mt-0.5">
                                 Paystack: <span className="font-mono">{r.paystack_name}</span>
                               </div>
@@ -1482,22 +1508,30 @@ const Contractors = () => {
                           <TableCell className="text-right currency">
                             {formatNaira(r.default_amount_ngn || 0)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {r.linkedin_id || '—'}
+                          <TableCell className="text-muted-foreground font-mono text-[11px] truncate max-w-[160px]">
+                            {r.linkedin_url || '—'}
                           </TableCell>
                           <TableCell>
                             {hasError ? (
                               <span className="text-xs text-destructive">
                                 {r.errors.join(', ')}
                               </span>
-                            ) : r.paystack_verified ? (
+                            ) : nameMatches ? (
                               <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-700">
                                 <CheckCircle2 className="h-3 w-3 mr-1" /> Verified
                               </Badge>
-                            ) : hasNameMismatch ? (
+                            ) : nameDiffers ? (
+                              // Account EXISTS, registered name differs.
+                              // Imports automatically — just flagged.
+                              <Badge variant="outline" className="border-amber-500/40 text-amber-700 bg-amber-50">
+                                <AlertCircle className="h-3 w-3 mr-1" /> Name differs (will import)
+                              </Badge>
+                            ) : unverified ? (
+                              // Paystack could not confirm the account.
+                              // Blocked unless admin overrides.
                               <div className="space-y-1">
-                                <Badge variant="outline" className="border-amber-500/40 text-amber-700 bg-amber-50">
-                                  <AlertCircle className="h-3 w-3 mr-1" /> Name mismatch
+                                <Badge variant="outline" className="border-destructive/40 text-destructive bg-destructive/5">
+                                  <XCircle className="h-3 w-3 mr-1" /> Not verified — blocked
                                 </Badge>
                                 <label className="flex items-center gap-1.5 text-[10.5px] cursor-pointer">
                                   <Checkbox
@@ -1513,13 +1547,9 @@ const Contractors = () => {
                                     }}
                                     className="h-3.5 w-3.5"
                                   />
-                                  Import anyway
+                                  Import anyway (override)
                                 </label>
                               </div>
-                            ) : hasOtherWarning ? (
-                              <span className="text-[11px] text-amber-700" title={r.warnings.join('\n')}>
-                                {r.warnings[0]}
-                              </span>
                             ) : (
                               <Badge variant="secondary" className="bg-muted text-muted-foreground">
                                 OK
