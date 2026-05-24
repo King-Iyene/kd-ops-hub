@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import ReferralAffiliateEarnings from '@/components/ReferralAffiliateEarnings';
+import ReferralPartners from '@/components/ReferralPartners';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -82,17 +82,18 @@ const Referrals = () => {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     contractor_id: '',
-    referred_by: '',
+    referral_partner_id: '',
     referred_email: '',
     is_affiliate: false,
     commission_pct: '0',
     notes: '',
   });
+  const [partnerList, setPartnerList] = useState<{ id: string; full_name: string; type: string }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [refRes, profRes, contractorRes] = await Promise.all([
+      const [refRes, profRes, contractorRes, partnerRes] = await Promise.all([
         supabase
           .from('referrals')
           .select('*')
@@ -100,9 +101,11 @@ const Referrals = () => {
           .limit(200),
         supabase.from('profiles').select('id, full_name, email').limit(500),
         supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name').limit(500),
+        supabase.from('referral_partners').select('id, full_name, type').eq('status', 'active').order('full_name').limit(5000),
       ]);
       if (refRes.error) throw refRes.error;
       setReferrals((refRes.data as Referral[]) || []);
+      setPartnerList((partnerRes.data as any[]) || []);
       const m = new Map<string, ProfileRow>();
       for (const p of (profRes.data as ProfileRow[]) || []) m.set(p.id, p);
       setProfiles(m);
@@ -123,8 +126,8 @@ const Referrals = () => {
       toast({ title: 'Select a contractor or enter an email', variant: 'destructive' });
       return;
     }
-    if (!form.referred_by.trim()) {
-      toast({ title: 'Enter who referred this person', variant: 'destructive' });
+    if (!form.referral_partner_id) {
+      toast({ title: 'Select the partner who referred them', variant: 'destructive' });
       return;
     }
     setSaving(true);
@@ -132,22 +135,24 @@ const Referrals = () => {
       const contractorName = form.contractor_id
         ? contractors.find((c) => c.id === form.contractor_id)?.full_name || ''
         : form.referred_email;
+      const partnerName = partnerList.find((p) => p.id === form.referral_partner_id)?.full_name || 'partner';
       const { error } = await supabase.from('referrals').insert({
         referrer_id: profile?.id || null,
+        referral_partner_id: form.referral_partner_id,
         referred_email: form.referred_email.trim().toLowerCase() || contractorName,
         is_affiliate: form.is_affiliate,
         commission_pct: parseFloat(form.commission_pct) || 0,
         status: 'active',
-      });
+      } as never);
       if (error) throw error;
       await logAudit(
         'contractor_added',
-        `Referral added: ${contractorName} (referred by ${form.referred_by})`,
+        `Referral added: ${contractorName} (referred by ${partnerName})`,
         profile,
       );
       toast({ title: 'Referral added' });
       setDialog(false);
-      setForm({ contractor_id: '', referred_by: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
+      setForm({ contractor_id: '', referral_partner_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
       load();
     } catch (err: any) {
       toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
@@ -242,8 +247,8 @@ const Referrals = () => {
         </Card>
       </div>
 
-      {/* Commission earnings — referral & affiliate (USD per account → NGN) */}
-      <ReferralAffiliateEarnings />
+      {/* Commission partners — roster, auto-count + override, USD per account → NGN */}
+      <ReferralPartners />
 
       <Card>
         <div className="p-4 border-b">
@@ -396,12 +401,28 @@ const Referrals = () => {
               </div>
             )}
             <div className="space-y-1">
-              <Label>Who referred them? *</Label>
-              <Input
-                value={form.referred_by}
-                onChange={(e) => setForm({ ...form, referred_by: e.target.value })}
-                placeholder="Name of the person who made the referral"
-              />
+              <Label>Referred by (partner) *</Label>
+              <Select
+                value={form.referral_partner_id || 'none'}
+                onValueChange={(v) => {
+                  const pid = v === 'none' ? '' : v;
+                  const partner = partnerList.find((p) => p.id === pid);
+                  setForm({
+                    ...form,
+                    referral_partner_id: pid,
+                    is_affiliate: partner ? partner.type === 'affiliate' : form.is_affiliate,
+                  });
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select the referrer / affiliate" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— select a partner —</SelectItem>
+                  {partnerList.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name} · {p.type}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">Add partners in the Commission partners section above. This links the referral so their count is automatic.</p>
             </div>
             <div className="space-y-1">
               <Label>Notes</Label>
