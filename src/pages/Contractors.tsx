@@ -457,7 +457,7 @@ const Contractors = () => {
       // HeyReach automation). Replaced the old linkedin_id column
       // per operator request. Yes, this writes the password in plain
       // text — the operator accepted that tradeoff for bulk editing.
-      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
+      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'linkedin_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
       const csvRows = (rows as any[]).map((r) => {
         const stored = (r.full_name || '').trim();
         const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
@@ -474,6 +474,11 @@ const Contractors = () => {
           first_name: firstName,
           last_name: lastName,
           linkedin_password: r.heyreach_password_enc || '',
+          // CSV column is "linkedin_email" — what the operator calls
+          // this field. The underlying DB column is heyreach_email
+          // (wired to HeyReach's API), which we deliberately do NOT
+          // rename. Just surface it under the operator-facing name.
+          linkedin_email: r.heyreach_email || '',
         };
         return header.map((col) => csvEscape(out[col])).join(',');
       });
@@ -497,7 +502,7 @@ const Contractors = () => {
   // --- CSV import flow ---------------------------------------------------
 
   const downloadSample = () => {
-    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_password', 'linkedin_url', 'heyreach_email', 'onboarded_at'];
+    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_password', 'linkedin_url', 'linkedin_email', 'onboarded_at'];
     // Twelve example rows covering commercial banks, fintech /
     // neo-banks, MFBs and PSBs so the operator can see the EXACT
     // spelling the platform recognises for each category. After
