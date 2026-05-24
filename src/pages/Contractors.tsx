@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
-import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { ContractorApplications } from '@/components/ContractorApplications';
 import { useNavigate } from 'react-router-dom';
@@ -235,6 +234,17 @@ const Contractors = () => {
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
+  // ── Server-side pagination ───────────────────────────────────────
+  // The list pages on the server (range + exact count) so it scales
+  // to any roster size — no client-side cap to outgrow. Search and
+  // the status chips are applied server-side too, so they cover the
+  // WHOLE directory, not just the loaded page.
+  const CONTRACTORS_PAGE_SIZE = 100;
+  const [page, setPage] = useState(0); // 0-based
+  const [totalCount, setTotalCount] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({
+    all: 0, active: 0, disconnected: 0, pending: 0, inactive: 0,
+  });
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Contractor | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -269,31 +279,104 @@ const Contractors = () => {
     failures: { row: number; name: string; reason: string }[];
   } | null>(null);
 
+  // Apply the active search to a contractors query. Shared by the
+  // page fetch and every status-count query so the filter logic
+  // lives in one place. Searches name / account / both email fields.
+  const applySearch = useCallback((q: any) => {
+    const term = debouncedSearch.trim().replace(/[,()%]/g, ' ').trim();
+    if (!term) return q;
+    return q.or(
+      `full_name.ilike.%${term}%,account_number.ilike.%${term}%,email.ilike.%${term}%,heyreach_email.ilike.%${term}%`,
+    );
+  }, [debouncedSearch]);
+
+  // Translate a display-status chip into server-side conditions.
+  // Mirrors heyreachDisplayStatus exactly:
+  //   inactive     → status = 'inactive'
+  //   active       → not inactive AND heyreach_status = 'active'
+  //   disconnected → not inactive AND heyreach_status = 'disconnected'
+  //   pending      → not inactive AND heyreach_status NOT IN
+  //                  ('active','disconnected')  (incl. null/unmatched)
+  const applyStatusFilter = useCallback((q: any, key: string) => {
+    if (key === 'inactive') return q.eq('status', 'inactive');
+    if (key === 'active') return q.neq('status', 'inactive').eq('heyreach_status', 'active');
+    if (key === 'disconnected') return q.neq('status', 'inactive').eq('heyreach_status', 'disconnected');
+    if (key === 'pending') {
+      return q.neq('status', 'inactive')
+        .or('heyreach_status.is.null,heyreach_status.not.in.(active,disconnected)');
+    }
+    return q; // 'all'
+  }, []);
+
   const fetchContractors = useCallback(async () => {
-    // Load all non-deleted contractors; the status filter chips below do the
-    // active/inactive filtering client-side so the KPI counts stay accurate.
+    setLoading(true);
+    const from = page * CONTRACTORS_PAGE_SIZE;
+    const to = from + CONTRACTORS_PAGE_SIZE - 1;
+
+    let q = supabase
+      .from('contractors')
+      .select('*', { count: 'exact' })
+      .neq('status', 'deleted')
+      .neq('is_anonymised', true);
+    q = applySearch(q);
+    q = applyStatusFilter(q, heyreachFilter);
+    q = q.order('full_name').range(from, to);
+
     const [contractorsRes, tagsRes] = await Promise.all([
-      supabase
-        .from('contractors')
-        .select('*')
-        .neq('status', 'deleted')
-        .neq('is_anonymised', true)
-        .order('full_name')
-        // Raised from 500 — a 753-contractor roster was silently
-        // truncated at 500. 5000 comfortably covers the directory;
-        // bump again (or switch to server-side paging) if a tenant
-        // ever exceeds it.
-        .limit(5000),
+      q,
       supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
+    setTotalCount(contractorsRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, []);
+  }, [page, heyreachFilter, applySearch, applyStatusFilter]);
+
+  // Per-chip counts across the WHOLE directory (respecting the active
+  // search). Count-only queries (head: true) — cheap, no rows pulled.
+  const fetchStatusCounts = useCallback(async () => {
+    const base = () =>
+      applySearch(
+        supabase
+          .from('contractors')
+          .select('id', { count: 'exact', head: true })
+          .neq('status', 'deleted')
+          .neq('is_anonymised', true),
+      );
+    const [all, active, disconnected, pending, inactive] = await Promise.all([
+      base(),
+      applyStatusFilter(base(), 'active'),
+      applyStatusFilter(base(), 'disconnected'),
+      applyStatusFilter(base(), 'pending'),
+      applyStatusFilter(base(), 'inactive'),
+    ]);
+    setStatusCounts({
+      all: all.count ?? 0,
+      active: active.count ?? 0,
+      disconnected: disconnected.count ?? 0,
+      pending: pending.count ?? 0,
+      inactive: inactive.count ?? 0,
+    });
+  }, [applySearch, applyStatusFilter]);
+
+  // Reload the page rows AND the chip counts. Use after any mutation
+  // (delete, import, deactivate, edit) so both stay in sync.
+  const reloadAll = useCallback(() => {
+    fetchContractors();
+    fetchStatusCounts();
+  }, [fetchContractors, fetchStatusCounts]);
+
+  // Reset to page 0 whenever the search or status filter changes, so
+  // the operator isn't stranded on a page that no longer exists.
+  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter]);
 
   useEffect(() => {
     fetchContractors();
   }, [fetchContractors]);
+
+  useEffect(() => {
+    fetchStatusCounts();
+  }, [fetchStatusCounts]);
 
   const fetchLastSync = useCallback(async () => {
     const { data } = await supabase
@@ -334,7 +417,7 @@ const Contractors = () => {
         title: `HeyReach sync complete — ${changes.length} updated`,
         description: summary,
       });
-      await Promise.all([fetchContractors(), fetchLastSync()]);
+      await Promise.all([fetchContractors(), fetchStatusCounts(), fetchLastSync()]);
     } catch (err: any) {
       toast({
         title: 'Sync failed',
@@ -399,7 +482,7 @@ const Contractors = () => {
       }
       setShowForm(false);
       resetForm();
-      fetchContractors();
+      reloadAll();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     } finally {
@@ -434,7 +517,7 @@ const Contractors = () => {
     }
     await logAudit('contractor_deactivated', `Contractor "${c.full_name}" deactivated`, profile);
     toast({ title: 'Contractor deactivated' });
-    fetchContractors();
+    reloadAll();
   };
 
   const reactivateContractor = async (c: Contractor) => {
@@ -446,7 +529,7 @@ const Contractors = () => {
     await logAudit('contractor_edited', `Contractor "${c.full_name}" reactivated`, profile);
     toast({ title: 'Contractor reactivated' });
     setConfirmReactivate(null);
-    fetchContractors();
+    reloadAll();
   };
 
   // --- CSV export ---------------------------------------------------
@@ -563,11 +646,6 @@ const Contractors = () => {
   // AND the supported-banks reference together, so the operator
   // doesn't have to pick between them. Sample fires first (sync),
   // then the bank list (async — it fetches the live Paystack list).
-  const downloadAllTemplates = async () => {
-    downloadSample();
-    await downloadBankReference();
-  };
-
   // Separate reference download — one row per supported bank with
   // the EXACT canonical name the platform recognises. Pulls the
   // DYNAMIC Paystack-fetched list (300+ banks including every MFB /
@@ -616,6 +694,14 @@ const Contractors = () => {
       title: 'Bank list downloaded',
       description: `${banks.length} banks exported${banks.length === NIGERIAN_BANKS.length ? ' (static fallback — Paystack /bank/list unreachable)' : ' from Paystack'}.`,
     });
+  };
+
+  // One-click "give me everything" — downloads the sample template
+  // AND the supported-banks reference together. Defined after both
+  // so it doesn't reference them before definition.
+  const downloadAllTemplates = async () => {
+    downloadSample();
+    await downloadBankReference();
   };
 
   const validateRow = (raw: Record<string, string>, rowNumber: number): ParsedRow => {
@@ -959,7 +1045,7 @@ const Contractors = () => {
         title: 'Import complete',
         description: `${toInsert.length} added, ${toUpdate.length} updated${updateFailures ? `, ${updateFailures} update(s) failed` : ''}.`,
       });
-      fetchContractors();
+      reloadAll();
     } finally {
       setImporting(false);
     }
@@ -972,22 +1058,21 @@ const Contractors = () => {
     setImportSummary(null);
   };
 
-  // Status counts across ALL contractors (for the filter chips / KPI row).
-  const statusCounts = contractors.reduce(
-    (acc, c) => {
-      acc[heyreachDisplayStatus(c).key]++;
-      return acc;
-    },
-    { active: 0, disconnected: 0, pending: 0, inactive: 0 } as Record<string, number>,
-  );
-
-  const filtered = contractors.filter((c) => {
-    const matchesSearch = c.full_name.toLowerCase().includes(debouncedSearch.toLowerCase());
-    const matchesStatus = heyreachFilter === 'all' || heyreachDisplayStatus(c).key === heyreachFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const pagination = usePagination(filtered, 100);
+  // Server-side paging: `contractors` already holds exactly the
+  // current page. Build a pagination object matching the shape the
+  // <Pagination> component + table expect (was usePagination).
+  const totalPages = Math.max(1, Math.ceil(totalCount / CONTRACTORS_PAGE_SIZE));
+  const pagination = {
+    items: contractors,
+    page,
+    pageSize: CONTRACTORS_PAGE_SIZE,
+    totalPages,
+    totalItems: totalCount,
+    hasPrev: page > 0,
+    hasNext: page < totalPages - 1,
+    prev: () => setPage((p) => Math.max(0, p - 1)),
+    next: () => setPage((p) => Math.min(totalPages - 1, p + 1)),
+  };
 
   if (loading) return <TableSkeleton rows={5} />;
 
@@ -1067,7 +1152,7 @@ const Contractors = () => {
       {/* HeyReach status filter — doubles as a KPI summary. */}
       <div className="flex flex-wrap gap-2">
         {([
-          { key: 'all',          label: 'All',          count: contractors.length,        dot: 'bg-muted-foreground/40' },
+          { key: 'all',          label: 'All',          count: statusCounts.all,           dot: 'bg-muted-foreground/40' },
           { key: 'active',       label: 'Active',       count: statusCounts.active,        dot: 'bg-success' },
           { key: 'disconnected', label: 'Disconnected', count: statusCounts.disconnected,  dot: 'bg-amber-500' },
           { key: 'pending',      label: 'Pending',      count: statusCounts.pending,       dot: 'bg-sky-500' },
@@ -1120,17 +1205,19 @@ const Contractors = () => {
                     when only some rows are picked. */}
                 <TableHead className="w-10">
                   <Checkbox
-                    aria-label="Select all contractors"
+                    aria-label="Select all contractors on this page"
                     checked={
-                      filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id))
+                      contractors.length > 0 && contractors.every((c) => selectedIds.has(c.id))
                         ? true
                         : selectedIds.size === 0
                           ? false
                           : 'indeterminate'
                     }
                     onCheckedChange={(v) => {
+                      // Server-side paging: select-all covers the
+                      // current page (the only rows loaded).
                       setSelectedIds(() => v
-                        ? new Set(filtered.map((c) => c.id))
+                        ? new Set(contractors.map((c) => c.id))
                         : new Set());
                     }}
                   />
@@ -1778,7 +1865,7 @@ const Contractors = () => {
           await logAudit('contractor_deleted', `Bulk-deleted ${ids.length} contractors`, profile);
           setSelectedIds(new Set());
           toast({ title: `${ids.length} contractor${ids.length === 1 ? '' : 's'} deleted` });
-          fetchContractors();
+          reloadAll();
         }}
         deleteLabel="Delete contractors"
         deleteConfirmTitle="Delete selected contractors?"
