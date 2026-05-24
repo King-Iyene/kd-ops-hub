@@ -600,7 +600,12 @@ const Contractors = () => {
     const email = (raw.email || '').trim();
     const whatsapp_phone = (raw.whatsapp_phone || raw.phone || '').trim();
     const linkedin_url = (raw.linkedin_url || '').trim();
-    const heyreach_email = (raw.heyreach_email || raw.linkedin_email || '').trim();
+    // LinkedIn Email (stored as heyreach_email). Operator treats this
+    // as the primary email: when the linkedin_email / heyreach_email
+    // column is blank, fall back to the general `email` column so a
+    // single email in the CSV populates BOTH the Email and LinkedIn
+    // Email fields. An explicit linkedin_email still wins if provided.
+    const heyreach_email = (raw.heyreach_email || raw.linkedin_email || email || '').trim();
     // LinkedIn login password (stored encrypted as heyreach_password_enc).
     // Accept linkedin_password (new column) or the legacy linkedin_id
     // column so files exported before the rename still import.
