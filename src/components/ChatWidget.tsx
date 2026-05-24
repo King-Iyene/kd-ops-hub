@@ -68,6 +68,11 @@ export function ChatWidget() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [useWebSearch, setUseWebSearch] = useState(false);
+  // Advanced mode routes a single message to the paid n8n agent (for complex /
+  // code / troubleshooting questions). Off by default — the free internal
+  // assistant handles everything else. Per-message: resets after each send.
+  const [useAdvanced, setUseAdvanced] = useState(false);
+  const n8nConfigured = !!(import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined);
   const [unread, setUnread] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -162,18 +167,20 @@ export function ChatWidget() {
     setInput('');
     setSending(true);
 
-    // ── If an n8n webhook URL is configured, route the chat there.
-    //    Falls back to the existing chatbot-chat edge function when not set,
-    //    so flipping between the two is just a Vercel env-var change.
+    // ── Routing: the free internal assistant (chatbot-chat) handles everything
+    //    by default. Only when the user flips "Advanced" on (and n8n is
+    //    configured) does this single message go to the paid n8n agent — for
+    //    complex / code / troubleshooting questions.
     const n8nUrl = import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL as string | undefined;
     const n8nSecret = import.meta.env.VITE_N8N_CHAT_SECRET as string | undefined;
+    const routeToN8n = useAdvanced && !!n8nUrl;
 
     try {
       let reply: string;
       let newConvId = convId;
       let toolsUsed: string[] = [];
 
-      if (n8nUrl) {
+      if (routeToN8n && n8nUrl) {
         // n8n route — synchronous request/response, secret in header.
         const { profile } = useAuthStore.getState();
         const sessionId = convId || `s-${profile?.id || 'anon'}-${Date.now()}`;
@@ -252,6 +259,7 @@ export function ChatWidget() {
       });
     } finally {
       setSending(false);
+      setUseAdvanced(false);
     }
   }
 
@@ -468,12 +476,29 @@ export function ChatWidget() {
                     <Globe className="h-3.5 w-3.5" />
                   </button>
 
+                  {/* Advanced → routes this message to the paid n8n agent.
+                      Only shown when n8n is configured. */}
+                  {n8nConfigured && (
+                    <button
+                      type="button"
+                      onClick={() => setUseAdvanced((v) => !v)}
+                      title={useAdvanced ? 'Advanced on — next message goes to the advanced assistant' : 'Advanced off — using the free assistant'}
+                      className={`p-1.5 rounded-lg kd-transition shrink-0 mb-0.5 ${
+                        useAdvanced
+                          ? 'text-primary bg-primary/10'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+
                   <Textarea
                     ref={textareaRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKey}
-                    placeholder={useWebSearch ? 'Search the web…' : 'Ask anything…'}
+                    placeholder={useAdvanced ? 'Ask the advanced assistant…' : useWebSearch ? 'Search the web…' : 'Ask anything…'}
                     rows={1}
                     className="resize-none flex-1 min-h-[38px] max-h-[100px] text-sm py-2 leading-snug bg-muted/40 border-muted focus-visible:bg-background"
                     disabled={sending}
