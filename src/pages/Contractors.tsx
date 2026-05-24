@@ -145,6 +145,10 @@ interface ParsedRow {
    *  true, the row gets imported even if paystack_verified is false
    *  due to a name mismatch (not a hard error). */
   forcedImport?: boolean;
+  /** True when a contractor with this account_number already exists
+   *  in the directory. Such rows are SKIPPED on import to avoid
+   *  duplicates. Detected during the verify pass. */
+  alreadyExists?: boolean;
 }
 
 const emptyBank: BankAccountValue = {
@@ -447,6 +451,12 @@ const Contractors = () => {
       const { data: rows, error } = await supabase
         .from('contractors')
         .select('full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, heyreach_email, heyreach_password_enc, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
+        // Match the list's visibility — exclude deleted + anonymised
+        // contractors so the export doesn't resurrect rows the
+        // operator removed. (The list query in fetchContractors
+        // applies the same two filters.)
+        .neq('status', 'deleted')
+        .neq('is_anonymised', true)
         .order('full_name');
       if (error) throw error;
       // full_name leads the export and is ALWAYS populated (derived
@@ -689,11 +699,41 @@ const Contractors = () => {
   const [verifyProgress, setVerifyProgress] = useState({ done: 0, total: 0 });
 
   const verifyRows = useCallback(async (rows: ParsedRow[]) => {
-    const candidates = rows
-      .map((r, idx) => ({ r, idx }))
-      .filter(({ r }) => r.bank_code && /^\d{10}$/.test(r.account_number));
+    // ── Duplicate detection ──────────────────────────────────────
+    // A contractor is identified by their bank account_number. Pull
+    // the account numbers that already exist (active OR inactive, but
+    // not deleted/anonymised) and flag matching rows so import skips
+    // them instead of creating duplicates.
+    let working = rows;
+    try {
+      const accountNumbers = Array.from(
+        new Set(rows.map((r) => r.account_number).filter((a) => /^\d{10}$/.test(a))),
+      );
+      if (accountNumbers.length > 0) {
+        const { data: existing } = await supabase
+          .from('contractors')
+          .select('account_number')
+          .neq('status', 'deleted')
+          .neq('is_anonymised', true)
+          .in('account_number', accountNumbers);
+        const existingSet = new Set((existing || []).map((e: any) => e.account_number));
+        if (existingSet.size > 0) {
+          working = rows.map((r) =>
+            existingSet.has(r.account_number) ? { ...r, alreadyExists: true } : r,
+          );
+        }
+      }
+    } catch {
+      // Best-effort — if the dedup lookup fails, fall through and
+      // let the import proceed (duplicates are recoverable; blocking
+      // the whole import on a transient query error is worse).
+    }
 
-    if (candidates.length === 0) return rows;
+    const candidates = working
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => !r.alreadyExists && r.bank_code && /^\d{10}$/.test(r.account_number));
+
+    if (candidates.length === 0) return working;
 
     setVerifying(true);
     setVerifyProgress({ done: 0, total: candidates.length });
@@ -703,7 +743,7 @@ const Contractors = () => {
     // and leave headroom for any other calls happening concurrently
     // (manual recipient creation, balance fetch, etc.).
     const CONCURRENCY = 4;
-    const next = [...rows];
+    const next = [...working];
     let cursor = 0;
     let completed = 0;
 
@@ -803,6 +843,9 @@ const Contractors = () => {
     //     brand-new accounts Paystack hasn't indexed yet).
     const isImportable = (r: ParsedRow) => {
       if (r.errors.length > 0) return false;
+      // Already in the directory (same account_number) → skip, never
+      // re-insert. Avoids duplicates on a repeat import.
+      if (r.alreadyExists) return false;
       // Account verified to exist (any name) → importable.
       if (r.paystack_name) return true;
       // No Paystack-resolved name = account couldn't be confirmed.
@@ -922,9 +965,10 @@ const Contractors = () => {
   // "Will import" mirrors isImportable in confirmImport: no hard
   // errors AND (Paystack confirmed the account OR admin override).
   const validCount = parsedRows.filter(
-    (r) => r.errors.length === 0 && (!!r.paystack_name || !!r.forcedImport),
+    (r) => !r.alreadyExists && r.errors.length === 0 && (!!r.paystack_name || !!r.forcedImport),
   ).length;
   const invalidCount = parsedRows.length - validCount;
+  const duplicateCount = parsedRows.filter((r) => r.alreadyExists).length;
 
   return (
     <div className="space-y-6">
@@ -1465,7 +1509,8 @@ const Contractors = () => {
                   <span className="text-muted-foreground text-xs">
                     {parsedRows.filter((r) => r.paystack_verified).length} verified ·{' '}
                     {parsedRows.filter((r) => !!r.paystack_name && !r.paystack_verified).length} name differs ·{' '}
-                    {parsedRows.filter((r) => r.errors.length === 0 && !r.paystack_name).length} unverified
+                    {parsedRows.filter((r) => r.errors.length === 0 && !r.paystack_name && !r.alreadyExists).length} unverified
+                    {duplicateCount > 0 && <> · {duplicateCount} already exist</>}
                   </span>
                 )}
               </div>
@@ -1486,21 +1531,24 @@ const Contractors = () => {
                   <TableBody>
                     {parsedRows.map((r) => {
                       const hasError = r.errors.length > 0;
+                      // Already in the directory — skipped, never re-inserted.
+                      const isDuplicate = !!r.alreadyExists;
                       // Account verified to exist (Paystack returned a
                       // name). Name match vs slight difference is just
                       // a display nuance — both import.
-                      const nameMatches = r.paystack_verified;
-                      const nameDiffers = !!r.paystack_name && !r.paystack_verified;
+                      const nameMatches = !isDuplicate && r.paystack_verified;
+                      const nameDiffers = !isDuplicate && !!r.paystack_name && !r.paystack_verified;
                       // No resolved name + no hard error = Paystack
                       // could not confirm the account. Blocks import
                       // unless the admin ticks "Import anyway".
-                      const unverified = !hasError && !r.paystack_name;
+                      const unverified = !isDuplicate && !hasError && !r.paystack_name;
                       return (
                         <TableRow
                           key={r.rowNumber}
                           className={cn(
                             (hasError || unverified) && 'bg-destructive/5',
-                            !hasError && !unverified && nameDiffers && 'bg-amber-500/5',
+                            isDuplicate && 'opacity-60',
+                            !hasError && !unverified && !isDuplicate && nameDiffers && 'bg-amber-500/5',
                           )}
                         >
                           <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
@@ -1521,7 +1569,11 @@ const Contractors = () => {
                             {r.linkedin_url || '—'}
                           </TableCell>
                           <TableCell>
-                            {hasError ? (
+                            {isDuplicate ? (
+                              <Badge variant="secondary" className="bg-muted text-muted-foreground">
+                                <Info className="h-3 w-3 mr-1" /> Already exists — skipped
+                              </Badge>
+                            ) : hasError ? (
                               <span className="text-xs text-destructive">
                                 {r.errors.join(', ')}
                               </span>
