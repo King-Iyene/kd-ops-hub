@@ -146,9 +146,13 @@ interface ParsedRow {
    *  due to a name mismatch (not a hard error). */
   forcedImport?: boolean;
   /** True when a contractor with this account_number already exists
-   *  in the directory. Such rows are SKIPPED on import to avoid
-   *  duplicates. Detected during the verify pass. */
+   *  in the directory. On import these rows UPDATE the existing
+   *  contractor (matched by existingId) instead of inserting a
+   *  duplicate. Detected during the verify pass. */
   alreadyExists?: boolean;
+  /** id of the existing contractor this row matches (by
+   *  account_number). Drives UPDATE-instead-of-INSERT on import. */
+  existingId?: string;
 }
 
 const emptyBank: BankAccountValue = {
@@ -701,9 +705,10 @@ const Contractors = () => {
   const verifyRows = useCallback(async (rows: ParsedRow[]) => {
     // ── Duplicate detection ──────────────────────────────────────
     // A contractor is identified by their bank account_number. Pull
-    // the account numbers that already exist (active OR inactive, but
-    // not deleted/anonymised) and flag matching rows so import skips
-    // them instead of creating duplicates.
+    // the existing (active OR inactive, but not deleted/anonymised)
+    // contractors by account_number and tag matching rows with the
+    // existing id so import UPDATES them instead of inserting a
+    // duplicate.
     let working = rows;
     try {
       const accountNumbers = Array.from(
@@ -712,14 +717,20 @@ const Contractors = () => {
       if (accountNumbers.length > 0) {
         const { data: existing } = await supabase
           .from('contractors')
-          .select('account_number')
+          .select('id, account_number')
           .neq('status', 'deleted')
           .neq('is_anonymised', true)
           .in('account_number', accountNumbers);
-        const existingSet = new Set((existing || []).map((e: any) => e.account_number));
-        if (existingSet.size > 0) {
+        // Map account_number → existing id (first match wins).
+        const existingById = new Map<string, string>();
+        for (const e of (existing || []) as any[]) {
+          if (!existingById.has(e.account_number)) existingById.set(e.account_number, e.id);
+        }
+        if (existingById.size > 0) {
           working = rows.map((r) =>
-            existingSet.has(r.account_number) ? { ...r, alreadyExists: true } : r,
+            existingById.has(r.account_number)
+              ? { ...r, alreadyExists: true, existingId: existingById.get(r.account_number) }
+              : r,
           );
         }
       }
@@ -841,16 +852,19 @@ const Contractors = () => {
     //     invalid / bank unrecognised)               → BLOCK, unless
     //     an admin explicitly ticks "Import anyway" (escape hatch for
     //     brand-new accounts Paystack hasn't indexed yet).
+    // A row is processable (insert OR update) when it passes the
+    // verification gate. Existing rows (alreadyExists) UPDATE the
+    // matched contractor; new rows INSERT.
+    //   • Hard errors                              → never processed
+    //   • Already exists (matched by account #)    → UPDATE
+    //   • Paystack returned a name (account exists) → INSERT
+    //   • Paystack couldn't resolve                → BLOCK unless the
+    //     admin ticks "Import anyway"
     const isImportable = (r: ParsedRow) => {
       if (r.errors.length > 0) return false;
-      // Already in the directory (same account_number) → skip, never
-      // re-insert. Avoids duplicates on a repeat import.
-      if (r.alreadyExists) return false;
-      // Account verified to exist (any name) → importable.
-      if (r.paystack_name) return true;
-      // No Paystack-resolved name = account couldn't be confirmed.
-      // Block by default; allow only with explicit admin override.
-      return !!r.forcedImport;
+      if (r.alreadyExists) return true;          // update path
+      if (r.paystack_name) return true;          // verified, insert
+      return !!r.forcedImport;                   // override for unverified
     };
     const valid = parsedRows.filter(isImportable);
     const invalid = parsedRows.filter((r) => !isImportable(r));
@@ -864,60 +878,67 @@ const Contractors = () => {
       return;
     }
 
+    // Build the writable field set for one row. Shared by insert
+    // (full row) and update (same fields, matched by id).
+    const fieldsFor = (r: ParsedRow) => {
+      const nameParts = r.full_name.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      return {
+        full_name: r.full_name,
+        first_name: firstName || null,
+        last_name: lastName || null,
+        bank_name: r.bank_name,
+        bank_code: r.bank_code,
+        account_number: r.account_number,
+        account_name: r.paystack_name || r.full_name,
+        default_amount_ngn: r.default_amount_ngn,
+        heyreach_password_enc: r.linkedin_password || null,
+        email: r.email || null,
+        whatsapp_phone: r.whatsapp_phone || null,
+        linkedin_url: r.linkedin_url || null,
+        heyreach_email: r.heyreach_email || null,
+        onboarded_at: r.onboarded_at || null,
+      };
+    };
+
+    const toInsert = valid.filter((r) => !r.existingId);
+    const toUpdate = valid.filter((r) => !!r.existingId);
+
     setImporting(true);
     try {
-      const payload = valid.map((r) => {
-        // Split the CSV full_name into first/last so the profile
-        // edit form (which reads first_name/last_name columns
-        // directly) shows the name. Without this, imported
-        // contractors had a populated full_name but null
-        // first_name/last_name, so the profile name fields rendered
-        // empty even though the header showed the full name.
-        const nameParts = r.full_name.trim().split(/\s+/);
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-        return {
-          // If Paystack verified the account, store its canonical name
-          // as account_name so payouts are addressed to the bank's
-          // actual record-of-truth. Keep the original CSV name on
-          // full_name so the operator's chosen display name stays.
-          full_name: r.full_name,
-          first_name: firstName || null,
-          last_name: lastName || null,
-          bank_name: r.bank_name,
-          // Persist the resolved Paystack bank code so the profile
-          // bank dropdown pre-selects instead of showing "Select
-          // bank…". null when the typed bank wasn't recognised.
-          bank_code: r.bank_code,
-          account_number: r.account_number,
-          account_name: r.paystack_name || r.full_name,
-          default_amount_ngn: r.default_amount_ngn,
-          heyreach_password_enc: r.linkedin_password || null,
-          status: 'active',
-          email: r.email || null,
-          whatsapp_phone: r.whatsapp_phone || null,
-          linkedin_url: r.linkedin_url || null,
-          heyreach_email: r.heyreach_email || null,
-          onboarded_at: r.onboarded_at || null,
-        };
-      });
+      // 1. Insert brand-new contractors in one batch.
+      if (toInsert.length > 0) {
+        const insertPayload = toInsert.map((r) => ({ ...fieldsFor(r), status: 'active' as const }));
+        const { error } = await supabase.from('contractors').insert(insertPayload);
+        if (error) {
+          toast({ title: 'Import failed', description: error.message, variant: 'destructive' });
+          setImporting(false);
+          return;
+        }
+      }
 
-      const { error } = await supabase.from('contractors').insert(payload);
-      if (error) {
-        toast({
-          title: 'Import failed',
-          description: error.message,
-          variant: 'destructive',
-        });
-        setImporting(false);
-        return;
+      // 2. Update existing contractors by id, in parallel. status is
+      //    NOT touched on update — an import shouldn't silently
+      //    reactivate a contractor someone deactivated.
+      let updateFailures = 0;
+      if (toUpdate.length > 0) {
+        await Promise.all(
+          toUpdate.map(async (r) => {
+            const { error } = await supabase
+              .from('contractors')
+              .update(fieldsFor(r))
+              .eq('id', r.existingId!);
+            if (error) updateFailures++;
+          }),
+        );
       }
 
       await logAudit(
         'contractor_added',
-        `Imported ${payload.length} contractors via CSV${
-          invalid.length ? ` (${invalid.length} row(s) skipped)` : ''
-        }`,
+        `CSV import: ${toInsert.length} added, ${toUpdate.length} updated` +
+          (invalid.length ? ` (${invalid.length} blocked)` : '') +
+          (updateFailures ? ` — ${updateFailures} update(s) failed` : ''),
         profile,
       );
 
@@ -927,8 +948,12 @@ const Contractors = () => {
         failures: invalid.map((r) => ({
           row: r.rowNumber,
           name: r.full_name || '(no name)',
-          reason: r.errors.join(', '),
+          reason: r.errors.length ? r.errors.join(', ') : 'Account could not be verified',
         })),
+      });
+      toast({
+        title: 'Import complete',
+        description: `${toInsert.length} added, ${toUpdate.length} updated${updateFailures ? `, ${updateFailures} update(s) failed` : ''}.`,
       });
       fetchContractors();
     } finally {
@@ -964,11 +989,14 @@ const Contractors = () => {
 
   // "Will import" mirrors isImportable in confirmImport: no hard
   // errors AND (Paystack confirmed the account OR admin override).
-  const validCount = parsedRows.filter(
+  // Will process = new inserts (verified or forced) + existing
+  // updates. Existing rows always process (they update by id).
+  const newCount = parsedRows.filter(
     (r) => !r.alreadyExists && r.errors.length === 0 && (!!r.paystack_name || !!r.forcedImport),
   ).length;
+  const updateCount = parsedRows.filter((r) => r.alreadyExists && r.errors.length === 0).length;
+  const validCount = newCount + updateCount;
   const invalidCount = parsedRows.length - validCount;
-  const duplicateCount = parsedRows.filter((r) => r.alreadyExists).length;
 
   return (
     <div className="space-y-6">
@@ -1486,7 +1514,7 @@ const Contractors = () => {
                       ? `, ${importSummary.failed} row(s) skipped.`
                       : '.'
                   }`
-                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${validCount} will import, ${invalidCount} blocked.`}
+                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${newCount} new, ${updateCount} update, ${invalidCount} blocked.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -1494,8 +1522,13 @@ const Contractors = () => {
             <>
               <div className="flex items-center gap-4 text-sm flex-wrap">
                 <span className="inline-flex items-center gap-1 text-success">
-                  <CheckCircle2 className="h-4 w-4" /> {validCount} will import
+                  <CheckCircle2 className="h-4 w-4" /> {newCount} new
                 </span>
+                {updateCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-blue-600">
+                    <RefreshCw className="h-4 w-4" /> {updateCount} update
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1 text-destructive">
                   <AlertCircle className="h-4 w-4" /> {invalidCount} blocked
                 </span>
@@ -1507,10 +1540,9 @@ const Contractors = () => {
                 )}
                 {!verifying && parsedRows.length > 0 && (
                   <span className="text-muted-foreground text-xs">
-                    {parsedRows.filter((r) => r.paystack_verified).length} verified ·{' '}
-                    {parsedRows.filter((r) => !!r.paystack_name && !r.paystack_verified).length} name differs ·{' '}
+                    {parsedRows.filter((r) => !r.alreadyExists && r.paystack_verified).length} verified ·{' '}
+                    {parsedRows.filter((r) => !r.alreadyExists && !!r.paystack_name && !r.paystack_verified).length} name differs ·{' '}
                     {parsedRows.filter((r) => r.errors.length === 0 && !r.paystack_name && !r.alreadyExists).length} unverified
-                    {duplicateCount > 0 && <> · {duplicateCount} already exist</>}
                   </span>
                 )}
               </div>
@@ -1547,7 +1579,7 @@ const Contractors = () => {
                           key={r.rowNumber}
                           className={cn(
                             (hasError || unverified) && 'bg-destructive/5',
-                            isDuplicate && 'opacity-60',
+                            isDuplicate && 'bg-blue-500/5',
                             !hasError && !unverified && !isDuplicate && nameDiffers && 'bg-amber-500/5',
                           )}
                         >
@@ -1570,8 +1602,8 @@ const Contractors = () => {
                           </TableCell>
                           <TableCell>
                             {isDuplicate ? (
-                              <Badge variant="secondary" className="bg-muted text-muted-foreground">
-                                <Info className="h-3 w-3 mr-1" /> Already exists — skipped
+                              <Badge variant="outline" className="border-blue-500/40 text-blue-700 bg-blue-50">
+                                <RefreshCw className="h-3 w-3 mr-1" /> Already exists — will update
                               </Badge>
                             ) : hasError ? (
                               <span className="text-xs text-destructive">
