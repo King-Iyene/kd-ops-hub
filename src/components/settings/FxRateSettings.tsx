@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Pagination } from '@/components/ui-kit/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -76,7 +78,7 @@ export default function FxRateSettings() {
         .select('*')
         .eq('base', BASE).eq('quote', QUOTE)
         .order('valid_from', { ascending: false })
-        .limit(25),
+        .limit(100),
       supabase
         .from('company_settings')
         .select('fx_deviation_threshold_pct')
@@ -86,7 +88,7 @@ export default function FxRateSettings() {
     const rows = (ratesRes.data as FxRate[]) || [];
     setActive(rows.find((r) => r.status === 'active') ?? null);
     setPending(rows.find((r) => r.status === 'pending_review') ?? null);
-    setHistory(rows.slice(0, 10));
+    setHistory(rows);
     const t = Number((settingsRes.data as any)?.fx_deviation_threshold_pct ?? 5);
     setThreshold(t);
     setThresholdInput(String(t));
@@ -94,6 +96,9 @@ export default function FxRateSettings() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Paginate history so the table stays compact as entries accrue daily.
+  const histPage = usePagination(history, 6);
 
   const fetchNow = async () => {
     setFetching(true);
@@ -298,39 +303,64 @@ export default function FxRateSettings() {
 
       {/* History */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Rate history</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0">
+          <CardTitle className="text-base">Rate history</CardTitle>
+          {history.length > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">{history.length} change{history.length === 1 ? '' : 's'}</span>
+          )}
+        </CardHeader>
         <CardContent>
           <div className="rounded-lg border border-border/70 overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Rate (₦/$)</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-right">Rate (₦/$)</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Source</TableHead>
-                  <TableHead>Change</TableHead>
-                  <TableHead>Effective</TableHead>
+                  <TableHead className="text-right">Change</TableHead>
+                  <TableHead className="text-right">Effective</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {history.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No rates recorded yet.</TableCell></TableRow>
-                ) : history.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-mono tabular-nums">{fmtRate(r.rate)}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={cn('capitalize', STATUS_STYLE[r.status] ?? 'bg-muted text-muted-foreground')}>
-                        {r.status.replace('_', ' ')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.source}</TableCell>
-                    <TableCell className="text-xs tabular-nums text-muted-foreground">
-                      {r.deviation_pct == null ? '—' : `${r.deviation_pct}%`}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{formatDateTime(r.valid_from)}</TableCell>
-                  </TableRow>
-                ))}
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No rates recorded yet.</TableCell></TableRow>
+                ) : histPage.items.map((r) => {
+                  const up = r.prev_rate != null && r.rate > r.prev_rate;
+                  const down = r.prev_rate != null && r.rate < r.prev_rate;
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="text-right font-mono tabular-nums font-medium">{fmtRate(r.rate)}</TableCell>
+                      <TableCell>
+                        <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium capitalize',
+                          STATUS_STYLE[r.status] ?? 'bg-muted text-muted-foreground')}>
+                          {r.status.replace('_', ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {r.source === 'manual' ? 'Manual' : 'Auto'}
+                      </TableCell>
+                      <TableCell className={cn('text-right text-xs tabular-nums',
+                        up ? 'text-amber-600' : down ? 'text-success' : 'text-muted-foreground')}>
+                        {r.deviation_pct == null ? '—' : `${up ? '▲' : down ? '▼' : ''} ${r.deviation_pct}%`}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">{formatDateTime(r.valid_from)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
+            {histPage.totalPages > 1 && (
+              <Pagination
+                page={histPage.page}
+                totalPages={histPage.totalPages}
+                totalItems={histPage.totalItems}
+                pageSize={histPage.pageSize}
+                onPrev={histPage.prev}
+                onNext={histPage.next}
+                hasPrev={histPage.hasPrev}
+                hasNext={histPage.hasNext}
+              />
+            )}
           </div>
         </CardContent>
       </Card>
