@@ -13,6 +13,7 @@ export type HeyReachDisplayKey = 'active' | 'disconnected' | 'inactive' | 'pendi
 export interface HeyReachContractorFields {
   status?: string | null;                 // manual: 'active' | 'inactive'
   heyreach_email?: string | null;
+  linkedin_url?: string | null;
   heyreach_status?: string | null;         // 'active' | 'disconnected' | 'unmatched' | null
   heyreach_active_campaigns?: number | null;
   heyreach_synced_at?: string | null;
@@ -62,19 +63,24 @@ export function heyreachDisplayStatus(c: HeyReachContractorFields): HeyReachDisp
   // Manual deactivation always wins.
   if (c.status === 'inactive') return INACTIVE;
 
-  // No LinkedIn Email on file → can't be matched yet.
-  if (!c.heyreach_email) return PENDING('No LinkedIn Email on file yet.');
-
   switch (c.heyreach_status) {
     case 'active':
       return ACTIVE;
     case 'disconnected':
       return DISCONNECTED;
     case 'unmatched':
-      return PENDING('No matching HeyReach account found for this LinkedIn Email.');
+      return PENDING(
+        c.heyreach_email || c.linkedin_url
+          ? 'No matching HeyReach account found — check the LinkedIn Email / URL on file.'
+          : 'No LinkedIn Email or URL on file to match against HeyReach.',
+      );
     default:
-      // Has an email but the sync hasn't run / recorded a result yet.
-      return PENDING('Not yet synced with HeyReach.');
+      // Synced result not recorded yet (sync not run, or no email/URL on file).
+      return PENDING(
+        c.heyreach_email || c.linkedin_url
+          ? 'Not yet synced with HeyReach.'
+          : 'No LinkedIn Email or URL on file yet.',
+      );
   }
 }
 
