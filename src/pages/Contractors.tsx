@@ -144,14 +144,22 @@ interface ParsedRow {
    *  true, the row gets imported even if paystack_verified is false
    *  due to a name mismatch (not a hard error). */
   forcedImport?: boolean;
-  /** True when a contractor with this account_number already exists
-   *  in the directory. On import these rows UPDATE the existing
-   *  contractor (matched by existingId) instead of inserting a
-   *  duplicate. Detected during the verify pass. */
+  /** True when a contractor already exists for this row (matched via the
+   *  identifier hierarchy below). On import these rows UPDATE the existing
+   *  contractor — and NEVER its bank/payout details. Detected during verify. */
   alreadyExists?: boolean;
-  /** id of the existing contractor this row matches (by
-   *  account_number). Drives UPDATE-instead-of-INSERT on import. */
+  /** id of the existing contractor this row matches. Drives UPDATE by id. */
   existingId?: string;
+  /** Internal id carried by a CSV that was exported from this app (the "id"
+   *  column). When present and found, it's the safest match key. */
+  csvId?: string;
+  /** Why this row matched: 'id' | 'email' | 'bank+account' | 'url'. Shown in
+   *  the review so a human can sanity-check the match. */
+  existingMatchBasis?: string;
+  /** True when the row matches MORE THAN ONE existing contractor, or its
+   *  keys point at different contractors. Finance safety: such rows are
+   *  blocked from auto-import and flagged for manual review. */
+  matchAmbiguous?: boolean;
 }
 
 const emptyBank: BankAccountValue = {
@@ -193,6 +201,16 @@ const normalizeBankName = (raw: string): string | null => {
   const key = (raw || '').trim().toLowerCase();
   if (!key) return null;
   return BANK_NAME_LOOKUP.get(key) ?? null;
+};
+
+// Normalise a LinkedIn URL for matching (drop protocol, www, query, trailing /).
+const normLinkedinUrl = (u: string | null | undefined): string => {
+  if (!u) return '';
+  return u.trim().toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split(/[?#]/)[0]
+    .replace(/\/+$/, '');
 };
 
 // Fuzzy comparator for "is this the same person?" between the CSV
@@ -541,7 +559,7 @@ const Contractors = () => {
     try {
       const { data: rows, error } = await supabase
         .from('contractors')
-        .select('full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, heyreach_email, heyreach_password_enc, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
+        .select('id, full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, heyreach_email, heyreach_password_enc, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
         // Match the list's visibility — exclude deleted + anonymised
         // contractors so the export doesn't resurrect rows the
         // operator removed. (The list query in fetchContractors
@@ -559,7 +577,10 @@ const Contractors = () => {
       // HeyReach automation). Replaced the old linkedin_id column
       // per operator request. Yes, this writes the password in plain
       // text — the operator accepted that tradeoff for bulk editing.
-      const header = ['full_name', 'first_name', 'last_name', 'linkedin_email', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
+      // `id` leads the export so a re-imported file matches the exact
+      // contractor (safest dedup key). It's ignored when preparing a brand-new
+      // CSV by hand (the column simply won't be present).
+      const header = ['id', 'full_name', 'first_name', 'last_name', 'linkedin_email', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
       const csvRows = (rows as any[]).map((r) => {
         const stored = (r.full_name || '').trim();
         const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
@@ -730,6 +751,8 @@ const Contractors = () => {
     // column so files exported before the rename still import.
     const linkedin_password = (raw.linkedin_password || raw.linkedin_id || '').trim();
     const onboarded_at = (raw.onboarded_at || '').trim() || null;
+    // Internal id, only present when re-importing a CSV exported from this app.
+    const csvId = (raw.id || raw.contractor_id || '').trim();
 
     const errors: string[] = [];
     const warnings: string[] = [];
@@ -773,6 +796,7 @@ const Contractors = () => {
       linkedin_url,
       heyreach_email,
       onboarded_at,
+      csvId: csvId || undefined,
       valid: errors.length === 0,
       errors,
       warnings,
@@ -793,41 +817,81 @@ const Contractors = () => {
   const [verifyProgress, setVerifyProgress] = useState({ done: 0, total: 0 });
 
   const verifyRows = useCallback(async (rows: ParsedRow[]) => {
-    // ── Duplicate detection ──────────────────────────────────────
-    // A contractor is identified by their bank account_number. Pull
-    // the existing (active OR inactive, but not deleted/anonymised)
-    // contractors by account_number and tag matching rows with the
-    // existing id so import UPDATES them instead of inserting a
-    // duplicate.
+    // ── Duplicate detection (finance-safe, precision-first) ──────────
+    // Match each row to an existing contractor using an identifier
+    // hierarchy, highest-confidence first:
+    //   1. internal id     (only present in a CSV exported from this app)
+    //   2. LinkedIn Email
+    //   3. bank_code + account_number TOGETHER (never account # alone —
+    //      the same number can belong to a different person at another bank)
+    //   4. normalised LinkedIn URL
+    // If a key matches more than one contractor, OR different keys point at
+    // different contractors, the row is flagged AMBIGUOUS and blocked from
+    // auto-import (we never guess who gets paid). A confident match UPDATEs
+    // the existing contractor — but NEVER its bank/payout details.
     let working = rows;
     try {
-      const accountNumbers = Array.from(
-        new Set(rows.map((r) => r.account_number).filter((a) => /^\d{10}$/.test(a))),
-      );
-      if (accountNumbers.length > 0) {
-        const { data: existing } = await supabase
-          .from('contractors')
-          .select('id, account_number')
-          .neq('status', 'deleted')
-          .neq('is_anonymised', true)
-          .in('account_number', accountNumbers);
-        // Map account_number → existing id (first match wins).
-        const existingById = new Map<string, string>();
-        for (const e of (existing || []) as any[]) {
-          if (!existingById.has(e.account_number)) existingById.set(e.account_number, e.id);
+      const { data: existing } = await supabase
+        .from('contractors')
+        .select('id, heyreach_email, account_number, bank_code, linkedin_url')
+        .neq('status', 'deleted')
+        .neq('is_anonymised', true)
+        .limit(5000);
+
+      const exlist = (existing || []) as Array<{
+        id: string; heyreach_email: string | null; account_number: string | null;
+        bank_code: string | null; linkedin_url: string | null;
+      }>;
+      const idSet = new Set(exlist.map((e) => e.id));
+      const byEmail = new Map<string, string[]>();
+      const byAcct = new Map<string, string[]>();
+      const byUrl = new Map<string, string[]>();
+      const push = (m: Map<string, string[]>, k: string, id: string) => {
+        if (!k) return;
+        const arr = m.get(k);
+        if (arr) { if (!arr.includes(id)) arr.push(id); } else m.set(k, [id]);
+      };
+      for (const e of exlist) {
+        const em = (e.heyreach_email || '').trim().toLowerCase();
+        if (em) push(byEmail, em, e.id);
+        if (e.bank_code && /^\d{10}$/.test(e.account_number || '')) {
+          push(byAcct, `${e.bank_code}|${e.account_number}`, e.id);
         }
-        if (existingById.size > 0) {
-          working = rows.map((r) =>
-            existingById.has(r.account_number)
-              ? { ...r, alreadyExists: true, existingId: existingById.get(r.account_number) }
-              : r,
-          );
-        }
+        const url = normLinkedinUrl(e.linkedin_url);
+        if (url) push(byUrl, url, e.id);
       }
+
+      working = rows.map((r) => {
+        const matches: { basis: string; ids: string[] }[] = [];
+        if (r.csvId && idSet.has(r.csvId)) matches.push({ basis: 'id', ids: [r.csvId] });
+        const em = (r.heyreach_email || '').trim().toLowerCase();
+        if (em && byEmail.has(em)) matches.push({ basis: 'email', ids: byEmail.get(em)! });
+        if (r.bank_code && /^\d{10}$/.test(r.account_number)) {
+          const k = `${r.bank_code}|${r.account_number}`;
+          if (byAcct.has(k)) matches.push({ basis: 'bank+account', ids: byAcct.get(k)! });
+        }
+        const url = normLinkedinUrl(r.linkedin_url);
+        if (url && byUrl.has(url)) matches.push({ basis: 'url', ids: byUrl.get(url)! });
+
+        if (matches.length === 0) return r; // brand new
+
+        const distinct = new Set(matches.flatMap((m) => m.ids));
+        const multi = matches.some((m) => m.ids.length > 1);
+        if (multi || distinct.size > 1) {
+          return {
+            ...r,
+            matchAmbiguous: true,
+            valid: false,
+            errors: [...r.errors, 'Matches more than one contractor — resolve manually'],
+          };
+        }
+        const [id] = [...distinct];
+        return { ...r, alreadyExists: true, existingId: id, existingMatchBasis: matches[0].basis };
+      });
     } catch {
-      // Best-effort — if the dedup lookup fails, fall through and
-      // let the import proceed (duplicates are recoverable; blocking
-      // the whole import on a transient query error is worse).
+      // Best-effort — if the dedup lookup fails, fall through and let the
+      // import proceed (duplicates are recoverable; blocking the whole
+      // import on a transient query error is worse).
     }
 
     const candidates = working
@@ -992,6 +1056,16 @@ const Contractors = () => {
       };
     };
 
+    // For UPDATES to an existing contractor, deliberately omit the bank /
+    // payout fields (bank_name, bank_code, account_number, account_name). An
+    // import must never silently change where money is sent — payout details
+    // can only be changed through the verified bank-change flow on the profile.
+    const updateFieldsFor = (r: ParsedRow) => {
+      const { bank_name, bank_code, account_number, account_name, ...rest } = fieldsFor(r);
+      void bank_name; void bank_code; void account_number; void account_name;
+      return rest;
+    };
+
     const toInsert = valid.filter((r) => !r.existingId);
     const toUpdate = valid.filter((r) => !!r.existingId);
 
@@ -1017,7 +1091,7 @@ const Contractors = () => {
           toUpdate.map(async (r) => {
             const { error } = await supabase
               .from('contractors')
-              .update(fieldsFor(r))
+              .update(updateFieldsFor(r))
               .eq('id', r.existingId!);
             if (error) updateFailures++;
           }),
@@ -1693,9 +1767,14 @@ const Contractors = () => {
                           </TableCell>
                           <TableCell>
                             {isDuplicate ? (
-                              <Badge variant="outline" className="border-blue-500/40 text-blue-700 bg-blue-50">
-                                <RefreshCw className="h-3 w-3 mr-1" /> Already exists — will update
-                              </Badge>
+                              <div className="space-y-0.5">
+                                <Badge variant="outline" className="border-blue-500/40 text-blue-700 bg-blue-50">
+                                  <RefreshCw className="h-3 w-3 mr-1" /> Will update
+                                </Badge>
+                                <div className="text-[10px] text-muted-foreground">
+                                  matched by {r.existingMatchBasis === 'bank+account' ? 'bank + account' : r.existingMatchBasis === 'id' ? 'export ID' : r.existingMatchBasis} · bank details unchanged
+                                </div>
+                              </div>
                             ) : hasError ? (
                               <span className="text-xs text-destructive">
                                 {r.errors.join(', ')}
