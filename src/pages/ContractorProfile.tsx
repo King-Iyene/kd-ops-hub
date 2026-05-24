@@ -705,19 +705,6 @@ const ContractorProfile = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <Label>LinkedIn ID</Label>
-                  {editMode ? (
-                    <Input
-                      value={form.linkedin_id || ''}
-                      onChange={(e) => patch({ linkedin_id: e.target.value })}
-                      placeholder="e.g. chinwe-okafor"
-                    />
-                  ) : (
-                    <p className="text-sm py-2 break-all">{contractor.linkedin_id || '—'}</p>
-                  )}
-                </div>
-
-                <div className="space-y-1">
                   <Label>LinkedIn URL</Label>
                   {editMode ? (
                     <Input
