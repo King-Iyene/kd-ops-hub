@@ -751,24 +751,41 @@ const Contractors = () => {
 
     setImporting(true);
     try {
-      const payload = valid.map((r) => ({
-        // If Paystack verified the account, store its canonical name
-        // as account_name so payouts are addressed to the bank's
-        // actual record-of-truth. Keep the original CSV name on
-        // full_name so the operator's chosen display name stays.
-        full_name: r.full_name,
-        bank_name: r.bank_name,
-        account_number: r.account_number,
-        account_name: r.paystack_name || r.full_name,
-        default_amount_ngn: r.default_amount_ngn,
-        linkedin_id: r.linkedin_id || null,
-        status: 'active',
-        email: r.email || null,
-        whatsapp_phone: r.whatsapp_phone || null,
-        linkedin_url: r.linkedin_url || null,
-        heyreach_email: r.heyreach_email || null,
-        onboarded_at: r.onboarded_at || null,
-      }));
+      const payload = valid.map((r) => {
+        // Split the CSV full_name into first/last so the profile
+        // edit form (which reads first_name/last_name columns
+        // directly) shows the name. Without this, imported
+        // contractors had a populated full_name but null
+        // first_name/last_name, so the profile name fields rendered
+        // empty even though the header showed the full name.
+        const nameParts = r.full_name.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        return {
+          // If Paystack verified the account, store its canonical name
+          // as account_name so payouts are addressed to the bank's
+          // actual record-of-truth. Keep the original CSV name on
+          // full_name so the operator's chosen display name stays.
+          full_name: r.full_name,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          bank_name: r.bank_name,
+          // Persist the resolved Paystack bank code so the profile
+          // bank dropdown pre-selects instead of showing "Select
+          // bank…". null when the typed bank wasn't recognised.
+          bank_code: r.bank_code,
+          account_number: r.account_number,
+          account_name: r.paystack_name || r.full_name,
+          default_amount_ngn: r.default_amount_ngn,
+          linkedin_id: r.linkedin_id || null,
+          status: 'active',
+          email: r.email || null,
+          whatsapp_phone: r.whatsapp_phone || null,
+          linkedin_url: r.linkedin_url || null,
+          heyreach_email: r.heyreach_email || null,
+          onboarded_at: r.onboarded_at || null,
+        };
+      });
 
       const { error } = await supabase.from('contractors').insert(payload);
       if (error) {

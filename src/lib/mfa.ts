@@ -167,7 +167,48 @@ export async function verifyMfa(factorId: string, code: string): Promise<void> {
   if (verErr) throw new Error(verErr.message);
 }
 
-export async function disableMfa(factorId: string): Promise<void> {
+/**
+ * Current Authenticator Assurance Level for this session.
+ *   aal1 = password only
+ *   aal2 = password + a verified MFA challenge this session
+ * Returns 'aal1' on any error so callers fail toward "needs a code".
+ */
+export async function getAssuranceLevel(): Promise<'aal1' | 'aal2'> {
+  try {
+    const { data } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    return data?.currentLevel === 'aal2' ? 'aal2' : 'aal1';
+  } catch {
+    return 'aal1';
+  }
+}
+
+/**
+ * Disable (unenroll) a verified TOTP factor.
+ *
+ * Supabase REQUIRES the session to be at AAL2 to unenroll a verified
+ * factor (otherwise someone with just the password could strip MFA).
+ * If the current session is only AAL1 — which happens when the user
+ * enrolled earlier and hasn't been re-challenged this session, or
+ * skipped the challenge via a trusted device — the unenroll returns
+ * 422 "AAL2 required to unenroll verified factor".
+ *
+ * So: if we're not already AAL2, the caller must pass the user's
+ * current 6-digit authenticator code. We challenge + verify it (which
+ * elevates the session to AAL2), then the unenroll succeeds.
+ *
+ * Throws Error('NEEDS_CODE') if elevation is required but no code was
+ * supplied — the UI uses this to reveal the code input.
+ */
+export async function disableMfa(factorId: string, code?: string): Promise<void> {
+  const level = await getAssuranceLevel();
+  if (level !== 'aal2') {
+    if (!code || code.replace(/\s/g, '').length < 6) {
+      throw new Error('NEEDS_CODE');
+    }
+    // challenge + verify elevates this session to aal2
+    await verifyMfa(factorId, code);
+  }
+
   const { error } = await supabase.auth.mfa.unenroll({ factorId });
   if (error) throw error;
   // Also wipe trusted devices + backup codes for this user, since they're

@@ -49,7 +49,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { NIGERIAN_BANKS, fetchBanks } from '@/lib/nigerian-banks';
+import { NIGERIAN_BANKS, fetchBanks, getBankCode } from '@/lib/nigerian-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { BankCombobox } from '@/components/BankCombobox';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
@@ -205,9 +205,17 @@ const ContractorProfile = () => {
 
   const beginEdit = () => {
     if (!contractor) return;
+    // Imported contractors have full_name populated but null
+    // first_name/last_name (the CSV import stores only full_name).
+    // Fall back to splitting full_name so the edit fields show the
+    // name instead of rendering empty. Mirrors the same fallback
+    // the Contractors list pencil edit already uses.
+    const parts = (contractor.full_name || '').trim().split(/\s+/);
+    const fallbackFirst = parts[0] || '';
+    const fallbackLast = parts.slice(1).join(' ') || '';
     setForm({
-      first_name: contractor.first_name || '',
-      last_name: contractor.last_name || '',
+      first_name: contractor.first_name || fallbackFirst,
+      last_name: contractor.last_name || fallbackLast,
       whatsapp_phone: contractor.whatsapp_phone || '',
       heyreach_email: contractor.heyreach_email || '',
       heyreach_password_enc: contractor.heyreach_password_enc || '',
@@ -760,7 +768,14 @@ const ContractorProfile = () => {
                   onClick={() => {
                     setBankForm({
                       account_number: contractor.account_number || '',
-                      bank_code: contractor.bank_code || '',
+                      // Imported contractors store bank_name but may
+                      // have null bank_code, so the dropdown would show
+                      // "Select bank…". Resolve the code from the name
+                      // via the same fuzzy matcher the picker uses so
+                      // the dropdown pre-selects the right bank.
+                      bank_code: contractor.bank_code
+                        || getBankCode(contractor.bank_name || '')
+                        || '',
                     });
                     setBankVerified(false);
                     setBankVerifiedName(null);
