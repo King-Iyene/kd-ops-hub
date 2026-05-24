@@ -279,7 +279,11 @@ const Contractors = () => {
         .neq('status', 'deleted')
         .neq('is_anonymised', true)
         .order('full_name')
-        .limit(500),
+        // Raised from 500 — a 753-contractor roster was silently
+        // truncated at 500. 5000 comfortably covers the directory;
+        // bump again (or switch to server-side paging) if a tenant
+        // ever exceeds it.
+        .limit(5000),
       supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
@@ -983,7 +987,7 @@ const Contractors = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const pagination = usePagination(filtered, 25);
+  const pagination = usePagination(filtered, 100);
 
   if (loading) return <TableSkeleton rows={5} />;
 
