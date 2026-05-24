@@ -52,6 +52,8 @@ import { useToast } from '@/hooks/use-toast';
 import { NIGERIAN_BANKS, fetchBanks } from '@/lib/nigerian-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { BankCombobox } from '@/components/BankCombobox';
+import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
+import { cn } from '@/lib/utils';
 
 interface ContractorData {
   id: string;
@@ -67,6 +69,9 @@ interface ContractorData {
   whatsapp_phone?: string | null;
   heyreach_email?: string | null;
   heyreach_password_enc?: string | null;
+  heyreach_status?: string | null;
+  heyreach_active_campaigns?: number | null;
+  heyreach_synced_at?: string | null;
   linkedin_id: string | null;
   linkedin_url: string | null;
   notes: string | null;
@@ -518,6 +523,26 @@ const ContractorProfile = () => {
               </span>
             </div>
             <div className="flex-1 min-w-0 space-y-1">
+              {(() => {
+                const hr = heyreachDisplayStatus(contractor);
+                return (
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className={cn(
+                      'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium',
+                      hr.className,
+                    )}>
+                      <span className={cn('h-1.5 w-1.5 rounded-full', hr.dotClass)} />
+                      HeyReach: {hr.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {hr.reason}
+                      {contractor.heyreach_synced_at && (
+                        <> · synced {formatSyncedAt(contractor.heyreach_synced_at).toLowerCase()}</>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
               <p className="text-sm flex items-center gap-2 text-muted-foreground">
                 <Landmark className="h-3.5 w-3.5" /> {contractor.bank_name} — <span className="font-mono">{contractor.account_number || '—'}</span>
               </p>

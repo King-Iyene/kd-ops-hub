@@ -26,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import {
@@ -243,7 +242,8 @@ const Contractors = () => {
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
-  const [showInactive, setShowInactive] = useState(false);
+  const [heyreachFilter, setHeyreachFilter] = useState<'all' | 'active' | 'disconnected' | 'pending' | 'inactive'>('all');
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
   // CSV import state
@@ -259,24 +259,22 @@ const Contractors = () => {
   } | null>(null);
 
   const fetchContractors = useCallback(async () => {
-    let query = supabase
-      .from('contractors')
-      .select('*')
-      .neq('status', 'deleted')
-      .neq('is_anonymised', true)
-      .order('full_name')
-      .limit(500);
-    if (!showInactive) {
-      query = query.eq('status', 'active');
-    }
+    // Load all non-deleted contractors; the status filter chips below do the
+    // active/inactive filtering client-side so the KPI counts stay accurate.
     const [contractorsRes, tagsRes] = await Promise.all([
-      query,
+      supabase
+        .from('contractors')
+        .select('*')
+        .neq('status', 'deleted')
+        .neq('is_anonymised', true)
+        .order('full_name')
+        .limit(500),
       supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, [showInactive]);
+  }, []);
 
   useEffect(() => {
     fetchContractors();
@@ -813,9 +811,20 @@ const Contractors = () => {
     setImportSummary(null);
   };
 
-  const filtered = contractors.filter((c) =>
-    c.full_name.toLowerCase().includes(debouncedSearch.toLowerCase()),
+  // Status counts across ALL contractors (for the filter chips / KPI row).
+  const statusCounts = contractors.reduce(
+    (acc, c) => {
+      acc[heyreachDisplayStatus(c).key]++;
+      return acc;
+    },
+    { active: 0, disconnected: 0, pending: 0, inactive: 0 } as Record<string, number>,
   );
+
+  const filtered = contractors.filter((c) => {
+    const matchesSearch = c.full_name.toLowerCase().includes(debouncedSearch.toLowerCase());
+    const matchesStatus = heyreachFilter === 'all' || heyreachDisplayStatus(c).key === heyreachFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const pagination = usePagination(filtered, 25);
 
@@ -826,32 +835,19 @@ const Contractors = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Contractors</h1>
-            <InfoHint>Manage independent contractors and freelancers. Store bank details, track engagement status and bulk-import via CSV for payment batches.</InfoHint>
+            <h1 className="text-2xl font-semibold tracking-tight">Contractors</h1>
+            <InfoHint>Manage independent contractors and freelancers. Store bank details, track HeyReach status and bulk-import via CSV for payment batches.</InfoHint>
           </div>
-          <p className="text-muted-foreground text-sm">{contractors.length} contractors</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            {contractors.length} total
+            <span className="mx-1.5 text-border">·</span>
+            HeyReach synced {formatSyncedAt(lastSyncAt).toLowerCase()}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <div className="flex flex-col items-end mr-1">
-            <Button variant="outline" onClick={runHeyReachSync} disabled={syncing}>
-              {syncing
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <RefreshCw className="mr-2 h-4 w-4" />}
-              Sync HeyReach Now
-            </Button>
-            <span className="text-[11px] text-muted-foreground mt-0.5">
-              Last synced: {formatSyncedAt(lastSyncAt)}
-            </span>
-          </div>
-          <Button variant="outline" onClick={exportCsv} disabled={exportingCsv}>
-            {exportingCsv
-              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              : <Download className="mr-2 h-4 w-4" />}
-            Export CSV
-          </Button>
           <input
             ref={fileInputRef}
             type="file"
@@ -859,26 +855,24 @@ const Contractors = () => {
             className="hidden"
             onChange={handleFilePick}
           />
-          {/* Import flow needs three tightly-coupled affordances:
-                1. "Sample" — empty template with example rows so a
-                   first-time operator sees the column shape
-                2. "Bank list" — reference CSV with every supported
-                   bank's canonical name so the operator can copy-
-                   paste into their bank_name column
-                3. "Import CSV" — the upload trigger itself
-              All three live as a button group with the import as
-              the primary so the eye lands on it. */}
-          <Button variant="ghost" size="sm" onClick={downloadSample} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
-            <Download className="mr-1.5 h-3.5 w-3.5" /> Sample
+          <Button variant="outline" onClick={runHeyReachSync} disabled={syncing}>
+            {syncing
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <RefreshCw className="mr-2 h-4 w-4" />}
+            Sync HeyReach
           </Button>
-          <Button variant="ghost" size="sm" onClick={downloadBankReference} disabled={exportingBanks} className="h-9 text-[12.5px] text-muted-foreground hover:text-foreground">
-            {exportingBanks
-              ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              : <Download className="mr-1.5 h-3.5 w-3.5" />}
-            Bank list
+          {/* Sample + Bank-list reference CSVs share one "Templates" dialog. */}
+          <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
+            <Download className="mr-2 h-4 w-4" /> Templates
           </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-            <Upload className="mr-2 h-4 w-4" /> Import CSV
+            <Upload className="mr-2 h-4 w-4" /> Import
+          </Button>
+          <Button variant="outline" onClick={exportCsv} disabled={exportingCsv}>
+            {exportingCsv
+              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              : <Download className="mr-2 h-4 w-4" />}
+            Export
           </Button>
           <Button
             onClick={() => {
@@ -901,23 +895,49 @@ const Contractors = () => {
         </TabsList>
 
         <TabsContent value="contractors" className="mt-4 space-y-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative max-w-sm flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search contractors..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">
-          <Switch
-            checked={showInactive}
-            onCheckedChange={setShowInactive}
-          />
-          Show inactive
-        </label>
+      {/* HeyReach status filter — doubles as a KPI summary. */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { key: 'all',          label: 'All',          count: contractors.length,        dot: 'bg-muted-foreground/40' },
+          { key: 'active',       label: 'Active',       count: statusCounts.active,        dot: 'bg-success' },
+          { key: 'disconnected', label: 'Disconnected', count: statusCounts.disconnected,  dot: 'bg-amber-500' },
+          { key: 'pending',      label: 'Pending',      count: statusCounts.pending,       dot: 'bg-sky-500' },
+          { key: 'inactive',     label: 'Inactive',     count: statusCounts.inactive,      dot: 'bg-muted-foreground' },
+        ] as const).map((chip) => {
+          const selected = heyreachFilter === chip.key;
+          return (
+            <button
+              key={chip.key}
+              type="button"
+              onClick={() => setHeyreachFilter(chip.key)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm kd-transition',
+                selected
+                  ? 'border-primary/40 bg-primary/5 text-foreground shadow-sm'
+                  : 'border-border/70 bg-card text-muted-foreground hover:border-border hover:text-foreground',
+              )}
+            >
+              <span className={cn('h-2 w-2 rounded-full', chip.dot)} />
+              <span className="font-medium">{chip.label}</span>
+              <span className={cn(
+                'rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                selected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+              )}>
+                {chip.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search contractors..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
       </div>
 
       {/* Mercury-style list: hairline-bordered surface, no card chrome. */}
@@ -951,7 +971,7 @@ const Contractors = () => {
                 <TableHead>Account</TableHead>
                 <TableHead className="text-right">Default Amount</TableHead>
                 <TableHead>Onboarding</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>HeyReach Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -1032,10 +1052,13 @@ const Contractors = () => {
                       return (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge variant="secondary" className={cn('gap-1', hr.className)}>
-                              <span aria-hidden>{hr.emoji}</span>
+                            <span className={cn(
+                              'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium',
+                              hr.className,
+                            )}>
+                              <span className={cn('h-1.5 w-1.5 rounded-full', hr.dotClass)} />
                               {hr.label}
-                            </Badge>
+                            </span>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="max-w-[220px] text-xs">{hr.reason}</p>
@@ -1497,6 +1520,46 @@ const Contractors = () => {
               <Button onClick={closeImportDialog}>Close</Button>
             )}
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Templates — Sample CSV + Bank-list reference, merged into one dialog. */}
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Download templates</DialogTitle>
+            <DialogDescription>
+              Use these to prepare a clean CSV before importing contractors.
+            </DialogDescription>
+          </DialogHeader>
+          <Tabs defaultValue="sample" className="mt-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="sample">Sample CSV</TabsTrigger>
+              <TabsTrigger value="banks">Bank list</TabsTrigger>
+            </TabsList>
+            <TabsContent value="sample" className="space-y-3 pt-3">
+              <p className="text-sm text-muted-foreground">
+                An empty import template with the exact column headers and a couple of
+                example rows, so you can see the expected shape.
+              </p>
+              <Button onClick={downloadSample}>
+                <Download className="mr-2 h-4 w-4" /> Download sample CSV
+              </Button>
+            </TabsContent>
+            <TabsContent value="banks" className="space-y-3 pt-3">
+              <p className="text-sm text-muted-foreground">
+                Every supported bank's canonical name — copy the exact spelling into
+                your <code className="rounded bg-muted px-1 py-0.5 text-xs">bank_name</code> column
+                so accounts verify correctly.
+              </p>
+              <Button onClick={downloadBankReference} disabled={exportingBanks}>
+                {exportingBanks
+                  ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  : <Download className="mr-2 h-4 w-4" />}
+                Download bank list
+              </Button>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 

@@ -25,6 +25,8 @@ export interface HeyReachDisplayStatus {
   emoji: string;
   /** Tailwind classes for a Badge. */
   className: string;
+  /** Tailwind background class for the small status dot. */
+  dotClass: string;
   /** Human explanation, shown in a tooltip / as the exclusion reason. */
   reason: string;
   /** Whether this contractor may be selected for a batch payment. */
@@ -34,6 +36,7 @@ export interface HeyReachDisplayStatus {
 const ACTIVE: HeyReachDisplayStatus = {
   key: 'active', label: 'Active', emoji: '✅',
   className: 'bg-success/10 text-success',
+  dotClass: 'bg-success',
   reason: 'Connected to HeyReach.',
   payable: true,
 };
@@ -41,6 +44,7 @@ const ACTIVE: HeyReachDisplayStatus = {
 const DISCONNECTED: HeyReachDisplayStatus = {
   key: 'disconnected', label: 'Disconnected', emoji: '⚠️',
   className: 'bg-amber-500/10 text-amber-600',
+  dotClass: 'bg-amber-500',
   reason: 'HeyReach can no longer connect to this account (login invalid).',
   payable: false,
 };
@@ -48,6 +52,7 @@ const DISCONNECTED: HeyReachDisplayStatus = {
 const INACTIVE: HeyReachDisplayStatus = {
   key: 'inactive', label: 'Inactive', emoji: '⏸️',
   className: 'bg-muted text-muted-foreground',
+  dotClass: 'bg-muted-foreground',
   reason: 'Manually deactivated by the team.',
   payable: false,
 };
@@ -55,6 +60,7 @@ const INACTIVE: HeyReachDisplayStatus = {
 const PENDING = (reason: string): HeyReachDisplayStatus => ({
   key: 'pending', label: 'Pending', emoji: '🆕',
   className: 'bg-sky-500/10 text-sky-600',
+  dotClass: 'bg-sky-500',
   reason,
   payable: true,
 });
