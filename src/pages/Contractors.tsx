@@ -1096,7 +1096,7 @@ const Contractors = () => {
             <InfoHint>Manage independent contractors and freelancers. Store bank details, track HeyReach status and bulk-import via CSV for payment batches.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            {contractors.length} total
+            {statusCounts.all} total
             <span className="mx-1.5 text-border">·</span>
             HeyReach synced {formatSyncedAt(lastSyncAt).toLowerCase()}
           </p>

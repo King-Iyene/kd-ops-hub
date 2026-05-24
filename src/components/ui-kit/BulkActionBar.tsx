@@ -29,6 +29,7 @@
  * lets pages add module-specific bulk operations.
  */
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,46 +84,52 @@ export function BulkActionBar({
 
   return (
     <>
-      <div
-        className={cn(
-          // Pinned to the bottom of the viewport on every breakpoint
-          // since this is a contextual selection toolbar — operators
-          // expect it to follow them as they scroll the list. Above
-          // the mobile bottom nav (h-14) so it doesn't get covered.
-          'fixed inset-x-0 bottom-14 md:bottom-4 z-40 flex justify-center px-4 pointer-events-none',
-          className,
-        )}
-      >
-        <div className="pointer-events-auto bg-card border border-border shadow-2xl rounded-full pl-4 pr-2 py-2 flex items-center gap-3 max-w-full kd-animate-slide-down">
-          <span className="text-sm font-semibold tabular-nums">
-            {count}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            selected
-          </span>
-          <button
-            type="button"
-            onClick={onClear}
-            className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground kd-transition"
-            aria-label="Clear selection"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-          <span className="h-5 w-px bg-border mx-1" aria-hidden />
-          {extraActions}
-          {onDelete && (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 rounded-full"
-              onClick={() => setConfirmOpen(true)}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete
-            </Button>
+      {createPortal(
+        <div
+          className={cn(
+            // Pinned to the bottom of the viewport on every breakpoint
+            // since this is a contextual selection toolbar — operators
+            // expect it to follow them as they scroll the list. Above
+            // the mobile bottom nav (h-14) so it doesn't get covered.
+            // Portaled to <body> so an ancestor `transform` (the
+            // page-transition wrapper keeps a non-`none` transform) can't
+            // capture this `fixed` element and strand it off-screen.
+            'fixed inset-x-0 bottom-14 md:bottom-4 z-40 flex justify-center px-4 pointer-events-none',
+            className,
           )}
-        </div>
-      </div>
+        >
+          <div className="pointer-events-auto bg-card border border-border shadow-2xl rounded-full pl-4 pr-2 py-2 flex items-center gap-3 max-w-full kd-animate-slide-up">
+            <span className="text-sm font-semibold tabular-nums">
+              {count}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              selected
+            </span>
+            <button
+              type="button"
+              onClick={onClear}
+              className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground kd-transition"
+              aria-label="Clear selection"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+            <span className="h-5 w-px bg-border mx-1" aria-hidden />
+            {extraActions}
+            {onDelete && (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 rounded-full"
+                onClick={() => setConfirmOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                Delete
+              </Button>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
