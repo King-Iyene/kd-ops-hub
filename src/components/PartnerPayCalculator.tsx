@@ -10,6 +10,7 @@
 // batch" bridge into the approval/Paystack pipeline lands in Phase 1b.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -20,10 +21,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/format';
 import {
-  toMinor, toMajor, multiplyMinor, usdMinorToNgnMinor, sumMinor,
+  toMinor, toMajor, usdMinorToNgnMinor, sumMinor,
   formatUsdMinor, formatNgnMinor,
 } from '@/lib/money';
-import { Loader2, Save, Users, ArrowRightLeft, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, Save, Users, ArrowRightLeft, AlertTriangle, Info, FileText } from 'lucide-react';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -33,10 +34,16 @@ interface PartnerRow {
   status: string;
   heyreach_status: string | null;
   pay_amount_usd_minor: number | null;
+  bank_name: string | null;
+  account_number: string | null;
 }
+
+const hasBank = (p: PartnerRow) =>
+  /^\d{10}$/.test(p.account_number || '') && !!(p.bank_name && p.bank_name.trim());
 
 export default function PartnerPayCalculator() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { profile } = useAuthStore();
   const canEdit = ['super_admin', 'admin', 'finance'].includes(profile?.role ?? '');
 
@@ -47,12 +54,13 @@ export default function PartnerPayCalculator() {
   const [rate, setRate] = useState<number | null>(null);
   const [rateAt, setRateAt] = useState<string | null>(null);
   const [savingGlobal, setSavingGlobal] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
     const [contractorsRes, settingsRes, rateRes] = await Promise.all([
       supabase
         .from('contractors')
-        .select('id, full_name, status, heyreach_status, pay_amount_usd_minor')
+        .select('id, full_name, status, heyreach_status, pay_amount_usd_minor, bank_name, account_number')
         .neq('status', 'deleted')
         .neq('is_anonymised', true)
         .order('full_name')
@@ -95,16 +103,21 @@ export default function PartnerPayCalculator() {
   const perPartnerMinor = (p: PartnerRow) =>
     p.pay_amount_usd_minor != null ? p.pay_amount_usd_minor : globalUsdMinor;
 
+  // Of the active partners, only those with valid bank details can be paid;
+  // the rest are flagged so a human adds their account (never silently dropped).
+  const payable = useMemo(() => active.filter(hasBank), [active]);
+  const needsBank = useMemo(() => active.filter((p) => !hasBank(p)), [active]);
+
+  // Totals reflect what a batch would actually PAY (payable partners), so the
+  // headline NGN equals the batch total.
   const totals = useMemo(() => {
-    const usdPerPartner = active.map(perPartnerMinor);
-    const totalUsdMinor = sumMinor(usdPerPartner);
-    const overrides = active.filter((p) => p.pay_amount_usd_minor != null).length;
+    const totalUsdMinor = sumMinor(payable.map(perPartnerMinor));
+    const overrides = payable.filter((p) => p.pay_amount_usd_minor != null).length;
     const totalNgnMinor = rate != null ? usdMinorToNgnMinor(totalUsdMinor, rate) : null;
-    // When everyone is on the global amount, show the tidy multiplication.
     const flat = overrides === 0;
     return { totalUsdMinor, totalNgnMinor, overrides, flat };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, globalUsdMinor, rate]);
+  }, [payable, globalUsdMinor, rate]);
 
   const saveGlobal = async () => {
     const major = parseFloat(globalInput.replace(/,/g, ''));
@@ -126,6 +139,75 @@ export default function PartnerPayCalculator() {
       toast({ title: 'Could not save', description: err?.message ?? '', variant: 'destructive' });
     } finally {
       setSavingGlobal(false);
+    }
+  };
+
+  // Create a DRAFT payment batch from the payable partners. The NGN is computed
+  // per partner at the locked rate (snapshotted on the batch + each line). It
+  // enters the normal Payments approval flow — nothing is paid until approved.
+  const generateBatch = async () => {
+    if (rate == null) {
+      toast({ title: 'No exchange rate', description: 'Set an active rate in Settings → Exchange rate first.', variant: 'destructive' });
+      return;
+    }
+    if (payable.length === 0) {
+      toast({ title: 'No payable partners', description: 'No active partners have valid bank details.', variant: 'destructive' });
+      return;
+    }
+    setGenerating(true);
+    try {
+      const now = new Date();
+      const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+      const lines = payable.map((p) => {
+        const usdMinor = perPartnerMinor(p);
+        return { p, usdMinor, ngnMinor: usdMinorToNgnMinor(usdMinor, rate) };
+      });
+      const totalNgnMinor = sumMinor(lines.map((l) => l.ngnMinor));
+
+      const { data: batch, error } = await supabase
+        .from('payment_batches')
+        .insert({
+          name: `Partner Pay — ${monthLong}`,
+          payment_date: now.toISOString().slice(0, 10),
+          period: monthLong,
+          total_amount: toMajor(totalNgnMinor),
+          beneficiary_count: lines.length,
+          batch_type: 'contractor',
+          status: 'draft',
+          created_by: profile?.id,
+          fx_rate_used: rate,
+          fx_base: 'USD',
+          fx_quote: 'NGN',
+        } as never)
+        .select()
+        .single();
+      if (error) throw error;
+
+      const items = lines.map((l) => ({
+        batch_id: (batch as any).id,
+        contractor_id: l.p.id,
+        item_type: 'contractor',
+        full_name: l.p.full_name,
+        bank_name: l.p.bank_name,
+        account_number: l.p.account_number,
+        account_name: l.p.full_name,
+        amount_ngn: toMajor(l.ngnMinor),
+        reference: `Partner Pay — ${l.p.full_name} — ${monthLong}`,
+        source_usd_minor: l.usdMinor,
+        status: 'pending',
+      }));
+      const { error: itemsErr } = await supabase.from('batch_items').insert(items as never);
+      if (itemsErr) throw itemsErr;
+
+      toast({
+        title: 'Draft batch created',
+        description: `${lines.length} partners · ${formatNgnMinor(totalNgnMinor)}. Review and approve it next.`,
+      });
+      navigate(`/payments/${(batch as any).id}`);
+    } catch (err: any) {
+      toast({ title: 'Could not create batch', description: err?.message ?? '', variant: 'destructive' });
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -193,14 +275,14 @@ export default function PartnerPayCalculator() {
           <div className="rounded-lg border border-border/70 bg-muted/20 p-3 text-sm text-muted-foreground">
             {totals.flat ? (
               <>
-                <span className="text-foreground font-medium">{active.length}</span> active partners ×{' '}
+                <span className="text-foreground font-medium">{payable.length}</span> payable partner{payable.length === 1 ? '' : 's'} ×{' '}
                 <span className="text-foreground font-medium">{formatUsdMinor(globalUsdMinor)}</span> ={' '}
                 <span className="text-foreground font-medium">{formatUsdMinor(totals.totalUsdMinor)}</span>
                 {!noRate && <>{' '}× <span className="text-foreground font-medium">₦{rate!.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span> ={' '}
                   <span className="text-foreground font-semibold">{formatNgnMinor(totals.totalNgnMinor!)}</span></>}
               </>
             ) : (
-              <>Sum of <span className="text-foreground font-medium">{active.length}</span> active partners
+              <>Sum of <span className="text-foreground font-medium">{payable.length}</span> payable partners
                 ({totals.overrides} with a personal amount) ={' '}
                 <span className="text-foreground font-medium">{formatUsdMinor(totals.totalUsdMinor)}</span>
                 {!noRate && <>{' '}→ <span className="text-foreground font-semibold">{formatNgnMinor(totals.totalNgnMinor!)}</span> at the live rate</>}
@@ -215,9 +297,28 @@ export default function PartnerPayCalculator() {
             </div>
           )}
 
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Info className="h-3 w-3" /> Generating an actual payment batch from this run (with approval + Paystack) is the next step — coming in Phase 1b.
-          </p>
+          {needsBank.length > 0 && (
+            <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-500/5 border border-amber-500/30 rounded-lg p-3">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                <b>{needsBank.length}</b> active partner{needsBank.length === 1 ? '' : 's'}{' '}
+                {needsBank.length === 1 ? 'has' : 'have'} no valid bank details and {needsBank.length === 1 ? 'is' : 'are'}{' '}
+                <b>excluded</b> from the batch. Add their bank account to include them.
+              </span>
+            </div>
+          )}
+
+          {canEdit && (
+            <div className="flex items-center gap-3 flex-wrap pt-1">
+              <Button onClick={generateBatch} disabled={generating || noRate || payable.length === 0}>
+                {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                Generate draft batch ({payable.length})
+              </Button>
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                <Info className="h-3 w-3" /> Creates a draft in Payments for review &amp; approval — nothing is paid until you approve it.
+              </span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
