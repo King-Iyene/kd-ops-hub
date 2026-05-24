@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { ContractorApplications } from '@/components/ContractorApplications';
+import PartnerPayCalculator from '@/components/PartnerPayCalculator';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -43,6 +44,7 @@ import {
   FileText,
   Info,
   RefreshCw,
+  Calculator,
 } from 'lucide-react';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
@@ -1220,6 +1222,9 @@ const Contractors = () => {
             <FileText className="mr-2 h-4 w-4" /> Applications
             <ApplicationsBadge />
           </TabsTrigger>
+          <TabsTrigger value="partner_pay">
+            <Calculator className="mr-2 h-4 w-4" /> Partner Pay
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="contractors" className="mt-4 space-y-4">
@@ -1458,6 +1463,10 @@ const Contractors = () => {
 
         <TabsContent value="applications" className="mt-4">
           <ContractorApplications />
+        </TabsContent>
+
+        <TabsContent value="partner_pay" className="mt-4">
+          <PartnerPayCalculator />
         </TabsContent>
       </Tabs>
 
