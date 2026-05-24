@@ -457,7 +457,7 @@ const Contractors = () => {
       // HeyReach automation). Replaced the old linkedin_id column
       // per operator request. Yes, this writes the password in plain
       // text — the operator accepted that tradeoff for bulk editing.
-      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'linkedin_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
+      const header = ['full_name', 'first_name', 'last_name', 'linkedin_email', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
       const csvRows = (rows as any[]).map((r) => {
         const stored = (r.full_name || '').trim();
         const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
@@ -502,27 +502,32 @@ const Contractors = () => {
   // --- CSV import flow ---------------------------------------------------
 
   const downloadSample = () => {
-    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_password', 'linkedin_url', 'linkedin_email', 'onboarded_at'];
+    // linkedin_email comes BEFORE email per operator preference — it's
+    // their primary email. Column order is defined once here and rows
+    // are emitted by key (below) so the order can't drift between the
+    // header and the data.
+    const header = ['full_name', 'linkedin_email', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_password', 'linkedin_url', 'onboarded_at'];
     // Twelve example rows covering commercial banks, fintech /
     // neo-banks, MFBs and PSBs so the operator can see the EXACT
     // spelling the platform recognises for each category. After
     // PR #142 the importer accepts any bank name and verifies via
     // Paystack at upload time, but using a recognised name skips
     // the warning and lets account verification fire immediately.
-    const rows = [
-      ['Chinwe Okafor',     'chinwe@example.com',     '+2348012345678', 'GTBank',                                       '0123456789', '150000', 'LinkedInPass123',   'https://linkedin.com/in/chinwe-okafor',     'chinwe@gmail.com', '2026-01-15'],
-      ['Adewale Ogunleye',  'adewale@example.com',    '+2348023456789', 'Access Bank',                                  '0234567890', '200000', 'MyLinkedInPwd!',    'https://linkedin.com/in/adewale-ogunleye',  '',                  ''],
-      ['Ifeoma Nwachukwu',  '',                       '',               'Zenith Bank',                                  '0345678901', '175000', '',                  '',                                          '',                  ''],
-      ['Tunde Bello',       'tunde@example.com',      '+2348034567890', 'First Bank of Nigeria',                        '0456789012', '180000', '',                  '',                                          '',                  ''],
-      ['Amaka Eze',         'amaka@example.com',      '+2348045678901', 'United Bank for Africa (UBA)',                 '0567890123', '160000', '',                  '',                                          '',                  ''],
-      ['Femi Adekunle',     'femi@example.com',       '+2348056789012', 'Stanbic IBTC Bank',                            '0678901234', '220000', '',                  '',                                          '',                  ''],
-      ['Ngozi Obi',         'ngozi@example.com',      '',               'First City Monument Bank (FCMB)',              '0789012345', '140000', '',                  '',                                          '',                  ''],
-      ['Sade Williams',     'sade@example.com',       '+2348078901234', 'Kuda Microfinance Bank',                       '0890123456', '170000', '',                  '',                                          '',                  ''],
-      ['Yusuf Ibrahim',     '',                       '+2348089012345', 'Moniepoint Microfinance Bank',                 '0901234567', '155000', '',                  '',                                          '',                  ''],
-      ['Blessing Okon',     'blessing@example.com',   '',               'OPay Digital Services Limited (OPay)',         '7012345678', '165000', '',                  '',                                          '',                  ''],
-      ['Emeka Anwah',       '',                       '',               'PalmPay',                                      '8012345678', '145000', '',                  '',                                          '',                  ''],
-      ['Tobi Adeyemi',      'tobi@example.com',       '+2348112345678', 'Sterling Bank',                                '0023456789', '195000', '',                  '',                                          '',                  ''],
+    const sampleRows: Record<string, string>[] = [
+      { full_name: 'Chinwe Okafor',    linkedin_email: 'chinwe@gmail.com',  email: 'chinwe@example.com',  whatsapp_phone: '+2348012345678', bank_name: 'GTBank',                                 account_number: '0123456789', default_amount_ngn: '150000', linkedin_password: 'LinkedInPass123', linkedin_url: 'https://linkedin.com/in/chinwe-okafor',    onboarded_at: '2026-01-15' },
+      { full_name: 'Adewale Ogunleye', linkedin_email: '',                  email: 'adewale@example.com', whatsapp_phone: '+2348023456789', bank_name: 'Access Bank',                            account_number: '0234567890', default_amount_ngn: '200000', linkedin_password: 'MyLinkedInPwd!',  linkedin_url: 'https://linkedin.com/in/adewale-ogunleye', onboarded_at: '' },
+      { full_name: 'Ifeoma Nwachukwu', linkedin_email: '',                  email: '',                    whatsapp_phone: '',               bank_name: 'Zenith Bank',                            account_number: '0345678901', default_amount_ngn: '175000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Tunde Bello',      linkedin_email: '',                  email: 'tunde@example.com',   whatsapp_phone: '+2348034567890', bank_name: 'First Bank of Nigeria',                  account_number: '0456789012', default_amount_ngn: '180000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Amaka Eze',        linkedin_email: '',                  email: 'amaka@example.com',   whatsapp_phone: '+2348045678901', bank_name: 'United Bank for Africa (UBA)',           account_number: '0567890123', default_amount_ngn: '160000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Femi Adekunle',    linkedin_email: '',                  email: 'femi@example.com',    whatsapp_phone: '+2348056789012', bank_name: 'Stanbic IBTC Bank',                      account_number: '0678901234', default_amount_ngn: '220000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Ngozi Obi',        linkedin_email: '',                  email: 'ngozi@example.com',   whatsapp_phone: '',               bank_name: 'First City Monument Bank (FCMB)',        account_number: '0789012345', default_amount_ngn: '140000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Sade Williams',    linkedin_email: '',                  email: 'sade@example.com',    whatsapp_phone: '+2348078901234', bank_name: 'Kuda Microfinance Bank',                 account_number: '0890123456', default_amount_ngn: '170000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Yusuf Ibrahim',    linkedin_email: '',                  email: '',                    whatsapp_phone: '+2348089012345', bank_name: 'Moniepoint Microfinance Bank',           account_number: '0901234567', default_amount_ngn: '155000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Blessing Okon',    linkedin_email: '',                  email: 'blessing@example.com',whatsapp_phone: '',               bank_name: 'OPay Digital Services Limited (OPay)',   account_number: '7012345678', default_amount_ngn: '165000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Emeka Anwah',      linkedin_email: '',                  email: '',                    whatsapp_phone: '',               bank_name: 'PalmPay',                                account_number: '8012345678', default_amount_ngn: '145000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
+      { full_name: 'Tobi Adeyemi',     linkedin_email: '',                  email: 'tobi@example.com',    whatsapp_phone: '+2348112345678', bank_name: 'Sterling Bank',                          account_number: '0023456789', default_amount_ngn: '195000', linkedin_password: '',                linkedin_url: '',                                         onboarded_at: '' },
     ];
+    const rows = sampleRows.map((r) => header.map((col) => r[col] ?? ''));
     const csv = [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
