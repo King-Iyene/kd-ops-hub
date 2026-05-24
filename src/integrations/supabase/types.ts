@@ -1247,6 +1247,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fx_rates: {
+        Row: {
+          base: string
+          quote: string
+          rate: number
+          source: string
+          status: string
+          prev_rate: number | null
+          deviation_pct: number | null
+          note: string | null
+          fetched_at: string
+          valid_from: string
+          created_by: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+          id: string
+        }
+        Insert: {
+          base: string
+          quote: string
+          rate: number
+          source: string
+          status?: string
+          prev_rate?: number | null
+          deviation_pct?: number | null
+          note?: string | null
+          fetched_at?: string
+          valid_from?: string
+          created_by?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          base?: string
+          quote?: string
+          rate?: number
+          source?: string
+          status?: string
+          prev_rate?: number | null
+          deviation_pct?: number | null
+          note?: string | null
+          fetched_at?: string
+          valid_from?: string
+          created_by?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           admin_note: string | null
@@ -1603,7 +1657,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_rate: {
+        Args: { p_base: string; p_quote: string }
+        Returns: number
+      }
+      set_manual_fx_rate: {
+        Args: { p_base: string; p_quote: string; p_rate: number; p_note?: string }
+        Returns: string
+      }
+      review_fx_rate: {
+        Args: { p_id: string; p_approve: boolean; p_note?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
