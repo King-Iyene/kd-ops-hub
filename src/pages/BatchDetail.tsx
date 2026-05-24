@@ -177,6 +177,11 @@ const BatchDetail = () => {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const canApprovePerm = usePermission('payments.approve_batches');
+  // Anyone who can view/work the Payments module sees amounts. Without
+  // this, an operator granted payments.view could CREATE a batch but
+  // not SEE the amounts on it — so they couldn't catch a 150k-vs-15k
+  // typo. Salary privacy still holds for users with no payment access.
+  const canViewPaymentsPerm = usePermission('payments.view');
   const [batch, setBatch] = useState<any>(null);
   const [receiptItem, setReceiptItem] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
@@ -1416,8 +1421,12 @@ const BatchDetail = () => {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isFinance = profile?.role === 'finance';
-  // Only admin/super_admin/finance see salary amounts — all other roles see ₦ ——
-  const canSeeAmounts = isAdmin || isFinance;
+  // admin / super_admin / finance see amounts by role; anyone else
+  // who's been granted payments.view (e.g. an operator running the
+  // payment schedule) also sees them, so they can verify what they
+  // entered. Users with NO payment access still see ₦ —— (salary
+  // privacy for unrelated roles like field_staff).
+  const canSeeAmounts = isAdmin || isFinance || canViewPaymentsPerm;
   const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
