@@ -43,6 +43,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import ReferralAffiliateEarnings from '@/components/ReferralAffiliateEarnings';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -240,6 +241,9 @@ const Referrals = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Commission earnings — referral & affiliate (USD per account → NGN) */}
+      <ReferralAffiliateEarnings />
 
       <Card>
         <div className="p-4 border-b">
