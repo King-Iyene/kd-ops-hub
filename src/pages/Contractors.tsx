@@ -120,7 +120,9 @@ interface ParsedRow {
   bank_code: string | null;
   account_number: string;
   default_amount_ngn: number;
-  linkedin_id: string;
+  /** LinkedIn login password — persisted as heyreach_password_enc.
+   *  Replaced the old linkedin_id field per operator request. */
+  linkedin_password: string;
   email: string;
   whatsapp_phone: string;
   linkedin_url: string;
@@ -357,7 +359,6 @@ const Contractors = () => {
       bank_name: bank.bank_name,
       account_number: bank.account_number,
       default_amount_ngn: parseFloat(form.default_amount_ngn) || 0,
-      linkedin_id: form.linkedin_id,
       status: 'active',
       tags: selectedTagIds,
       ...(!editing ? {
@@ -399,7 +400,6 @@ const Contractors = () => {
       first_name: c.first_name || (c.full_name || '').split(' ')[0] || '',
       last_name: c.last_name || (c.full_name || '').split(' ').slice(1).join(' ') || '',
       default_amount_ngn: String(c.default_amount_ngn),
-      linkedin_id: c.linkedin_id || '',
     });
     setBank({
       bank_name: c.bank_name,
@@ -445,17 +445,19 @@ const Contractors = () => {
     try {
       const { data: rows, error } = await supabase
         .from('contractors')
-        .select('full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, linkedin_id, heyreach_email, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
+        .select('full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, heyreach_email, heyreach_password_enc, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
         .order('full_name');
       if (error) throw error;
       // full_name leads the export and is ALWAYS populated (derived
       // from first/last when the stored full_name is blank, or vice
       // versa). This is the column the importer reads, so an
-      // export → re-import round-trip preserves names. Previously
-      // the export wrote only first_name/last_name (empty for
-      // imported contractors) and the importer ignored those
-      // columns, so re-importing wiped every name.
-      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_id', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
+      // export → re-import round-trip preserves names.
+      // linkedin_password carries heyreach_password_enc — the field
+      // the operator actually tracks (the LinkedIn login used for
+      // HeyReach automation). Replaced the old linkedin_id column
+      // per operator request. Yes, this writes the password in plain
+      // text — the operator accepted that tradeoff for bulk editing.
+      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_password', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
       const csvRows = (rows as any[]).map((r) => {
         const stored = (r.full_name || '').trim();
         const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
@@ -466,7 +468,13 @@ const Contractors = () => {
         const parts = fullName.split(/\s+/);
         const firstName = (r.first_name || parts[0] || '').trim();
         const lastName = (r.last_name || parts.slice(1).join(' ') || '').trim();
-        const out = { ...r, full_name: fullName, first_name: firstName, last_name: lastName };
+        const out = {
+          ...r,
+          full_name: fullName,
+          first_name: firstName,
+          last_name: lastName,
+          linkedin_password: r.heyreach_password_enc || '',
+        };
         return header.map((col) => csvEscape(out[col])).join(',');
       });
       const csv = [header.join(','), ...csvRows].join('\n');
@@ -489,7 +497,7 @@ const Contractors = () => {
   // --- CSV import flow ---------------------------------------------------
 
   const downloadSample = () => {
-    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_id', 'linkedin_url', 'heyreach_email', 'onboarded_at'];
+    const header = ['full_name', 'email', 'whatsapp_phone', 'bank_name', 'account_number', 'default_amount_ngn', 'linkedin_password', 'linkedin_url', 'heyreach_email', 'onboarded_at'];
     // Twelve example rows covering commercial banks, fintech /
     // neo-banks, MFBs and PSBs so the operator can see the EXACT
     // spelling the platform recognises for each category. After
@@ -497,8 +505,8 @@ const Contractors = () => {
     // Paystack at upload time, but using a recognised name skips
     // the warning and lets account verification fire immediately.
     const rows = [
-      ['Chinwe Okafor',     'chinwe@example.com',     '+2348012345678', 'GTBank',                                       '0123456789', '150000', 'chinwe-okafor',     'https://linkedin.com/in/chinwe-okafor',     'chinwe@gmail.com', '2026-01-15'],
-      ['Adewale Ogunleye',  'adewale@example.com',    '+2348023456789', 'Access Bank',                                  '0234567890', '200000', 'adewale-ogunleye',  'https://linkedin.com/in/adewale-ogunleye',  '',                  ''],
+      ['Chinwe Okafor',     'chinwe@example.com',     '+2348012345678', 'GTBank',                                       '0123456789', '150000', 'LinkedInPass123',   'https://linkedin.com/in/chinwe-okafor',     'chinwe@gmail.com', '2026-01-15'],
+      ['Adewale Ogunleye',  'adewale@example.com',    '+2348023456789', 'Access Bank',                                  '0234567890', '200000', 'MyLinkedInPwd!',    'https://linkedin.com/in/adewale-ogunleye',  '',                  ''],
       ['Ifeoma Nwachukwu',  '',                       '',               'Zenith Bank',                                  '0345678901', '175000', '',                  '',                                          '',                  ''],
       ['Tunde Bello',       'tunde@example.com',      '+2348034567890', 'First Bank of Nigeria',                        '0456789012', '180000', '',                  '',                                          '',                  ''],
       ['Amaka Eze',         'amaka@example.com',      '+2348045678901', 'United Bank for Africa (UBA)',                 '0567890123', '160000', '',                  '',                                          '',                  ''],
@@ -584,11 +592,14 @@ const Contractors = () => {
     const account_number = (raw.account_number || raw.account || '').trim();
     const amount_raw = raw.default_amount_ngn ?? raw.amount ?? '0';
     const default_amount_ngn = parseFloat(String(amount_raw).replace(/,/g, '')) || 0;
-    const linkedin_id = (raw.linkedin_id || '').trim();
     const email = (raw.email || '').trim();
     const whatsapp_phone = (raw.whatsapp_phone || raw.phone || '').trim();
     const linkedin_url = (raw.linkedin_url || '').trim();
     const heyreach_email = (raw.heyreach_email || raw.linkedin_email || '').trim();
+    // LinkedIn login password (stored encrypted as heyreach_password_enc).
+    // Accept linkedin_password (new column) or the legacy linkedin_id
+    // column so files exported before the rename still import.
+    const linkedin_password = (raw.linkedin_password || raw.linkedin_id || '').trim();
     const onboarded_at = (raw.onboarded_at || '').trim() || null;
 
     const errors: string[] = [];
@@ -627,7 +638,7 @@ const Contractors = () => {
       bank_code,
       account_number,
       default_amount_ngn,
-      linkedin_id,
+      linkedin_password,
       email,
       whatsapp_phone,
       linkedin_url,
@@ -800,7 +811,7 @@ const Contractors = () => {
           account_number: r.account_number,
           account_name: r.paystack_name || r.full_name,
           default_amount_ngn: r.default_amount_ngn,
-          linkedin_id: r.linkedin_id || null,
+          heyreach_password_enc: r.linkedin_password || null,
           status: 'active',
           email: r.email || null,
           whatsapp_phone: r.whatsapp_phone || null,
@@ -1278,13 +1289,6 @@ const Contractors = () => {
                   onChange={(e) =>
                     setForm({ ...form, default_amount_ngn: e.target.value })
                   }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>LinkedIn ID</Label>
-                <Input
-                  value={form.linkedin_id}
-                  onChange={(e) => setForm({ ...form, linkedin_id: e.target.value })}
                 />
               </div>
             </div>
