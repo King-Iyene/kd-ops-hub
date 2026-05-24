@@ -69,3 +69,6 @@ jobs:
 
       - name: Deploy vapid-keys
         run: supabase functions deploy vapid-keys --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy fx-rate-sync
+        run: supabase functions deploy fx-rate-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
