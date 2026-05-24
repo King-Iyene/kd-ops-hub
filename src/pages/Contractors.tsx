@@ -445,13 +445,30 @@ const Contractors = () => {
     try {
       const { data: rows, error } = await supabase
         .from('contractors')
-        .select('first_name, last_name, email, whatsapp_phone, linkedin_url, linkedin_id, heyreach_email, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
+        .select('full_name, first_name, last_name, email, whatsapp_phone, linkedin_url, linkedin_id, heyreach_email, bank_name, bank_code, account_number, account_name, default_amount_ngn, onboarded_at, tags, notes, status, created_at')
         .order('full_name');
       if (error) throw error;
-      const header = ['first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_id', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
-      const csvRows = (rows as any[]).map((r) =>
-        header.map((col) => csvEscape(r[col])).join(','),
-      );
+      // full_name leads the export and is ALWAYS populated (derived
+      // from first/last when the stored full_name is blank, or vice
+      // versa). This is the column the importer reads, so an
+      // export → re-import round-trip preserves names. Previously
+      // the export wrote only first_name/last_name (empty for
+      // imported contractors) and the importer ignored those
+      // columns, so re-importing wiped every name.
+      const header = ['full_name', 'first_name', 'last_name', 'email', 'whatsapp_phone', 'linkedin_url', 'linkedin_id', 'heyreach_email', 'bank_name', 'bank_code', 'account_number', 'account_name', 'default_amount_ngn', 'onboarded_at', 'tags', 'notes', 'status', 'created_at'];
+      const csvRows = (rows as any[]).map((r) => {
+        const stored = (r.full_name || '').trim();
+        const composed = `${(r.first_name || '').trim()} ${(r.last_name || '').trim()}`.trim();
+        // Prefer stored full_name; fall back to first+last; final
+        // fallback to the bank-verified account_name so the row is
+        // never nameless.
+        const fullName = stored || composed || (r.account_name || '').trim();
+        const parts = fullName.split(/\s+/);
+        const firstName = (r.first_name || parts[0] || '').trim();
+        const lastName = (r.last_name || parts.slice(1).join(' ') || '').trim();
+        const out = { ...r, full_name: fullName, first_name: firstName, last_name: lastName };
+        return header.map((col) => csvEscape(out[col])).join(',');
+      });
       const csv = [header.join(','), ...csvRows].join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -556,7 +573,13 @@ const Contractors = () => {
   };
 
   const validateRow = (raw: Record<string, string>, rowNumber: number): ParsedRow => {
-    const full_name = (raw.full_name || raw.name || '').trim();
+    // Accept a full_name column OR first_name + last_name columns
+    // (the export emits both). Combining first+last makes an
+    // exported file re-import cleanly — previously the importer
+    // only looked at full_name, so an export's first_name/last_name
+    // columns were ignored and every name came in blank.
+    const composedName = `${(raw.first_name || '').trim()} ${(raw.last_name || '').trim()}`.trim();
+    const full_name = (raw.full_name || raw.name || composedName || '').trim();
     const bank_raw = (raw.bank_name || raw.bank || '').trim();
     const account_number = (raw.account_number || raw.account || '').trim();
     const amount_raw = raw.default_amount_ngn ?? raw.amount ?? '0';

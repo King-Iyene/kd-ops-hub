@@ -219,6 +219,7 @@ const ContractorProfile = () => {
       whatsapp_phone: contractor.whatsapp_phone || '',
       heyreach_email: contractor.heyreach_email || '',
       heyreach_password_enc: contractor.heyreach_password_enc || '',
+      linkedin_id: contractor.linkedin_id || '',
       linkedin_url: contractor.linkedin_url || '',
       // Canonical column is default_amount_ngn — that's what the
       // Contractors list page edit dialog writes to. The legacy
@@ -251,6 +252,7 @@ const ContractorProfile = () => {
         whatsapp_phone: form.whatsapp_phone,
         heyreach_email: form.heyreach_email,
         heyreach_password_enc: form.heyreach_password_enc,
+        linkedin_id: form.linkedin_id,
         linkedin_url: form.linkedin_url,
         default_amount_ngn: Number(form.default_amount),
         default_amount: Number(form.default_amount),
@@ -699,6 +701,19 @@ const ContractorProfile = () => {
                         </Button>
                       )}
                     </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label>LinkedIn ID</Label>
+                  {editMode ? (
+                    <Input
+                      value={form.linkedin_id || ''}
+                      onChange={(e) => patch({ linkedin_id: e.target.value })}
+                      placeholder="e.g. chinwe-okafor"
+                    />
+                  ) : (
+                    <p className="text-sm py-2 break-all">{contractor.linkedin_id || '—'}</p>
                   )}
                 </div>
 
