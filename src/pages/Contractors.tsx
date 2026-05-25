@@ -48,6 +48,8 @@ import {
   Calculator,
   SlidersHorizontal,
   Trash2,
+  Users,
+  Bookmark,
 } from 'lucide-react';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -355,6 +357,37 @@ const advRuleToOrToken = (r: AdvRule): string => {
   }
 };
 
+// ───────────────────────── Saved filter views ──────────────────────────────
+interface SavedFilterState {
+  heyreachFilter?: string;
+  emailFilter?: string;
+  linkFilter?: string;
+  advMatch?: 'all' | 'any';
+  advRules?: { field: string; op: AdvOp; value: string }[];
+}
+
+interface SavedFilter {
+  id: string;
+  user_id: string;
+  module: string;
+  name: string;
+  filters: SavedFilterState;
+  shared: boolean;
+}
+
+// Canonical string for a filter state — used to tell which saved view (if any)
+// matches the live filters. Ignores rule ids and order.
+const normalizeFilterState = (s: SavedFilterState): string => {
+  const rules = (s.advRules ?? []).map((r) => `${r.field}|${r.op}|${r.value}`).sort();
+  return JSON.stringify({
+    h: s.heyreachFilter ?? 'all',
+    e: s.emailFilter ?? 'all',
+    l: s.linkFilter ?? 'all',
+    m: rules.length ? (s.advMatch ?? 'all') : 'all',
+    r: rules,
+  });
+};
+
 const Contractors = () => {
   usePageTitle('Contractors');
   const { toast } = useToast();
@@ -421,6 +454,12 @@ const Contractors = () => {
   // On phones the filter panel lives in a bottom-sheet behind a Filters button.
   const isMobile = useIsMobile();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  // Saved filter views (own + team-shared, enforced by RLS).
+  const [savedViews, setSavedViews] = useState<SavedFilter[]>([]);
+  const [showSaveView, setShowSaveView] = useState(false);
+  const [saveViewName, setSaveViewName] = useState('');
+  const [saveViewShared, setSaveViewShared] = useState(false);
+  const [savingView, setSavingView] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
@@ -1392,6 +1431,71 @@ const Contractors = () => {
     setAdvOpen(open);
   };
 
+  // ── Saved filter views ────────────────────────────────────────────────────
+  const fetchSavedViews = useCallback(async () => {
+    const { data } = await supabase
+      .from('saved_filters')
+      .select('*')
+      .eq('module', 'contractor')
+      .order('name');
+    setSavedViews((data as unknown as SavedFilter[]) || []);
+  }, []);
+
+  useEffect(() => { fetchSavedViews(); }, [fetchSavedViews]);
+
+  // Apply a saved view's filters to the live state (rules get fresh ids).
+  const applyView = (v: SavedFilter) => {
+    const f = v.filters || {};
+    setHeyreachFilter((f.heyreachFilter as typeof heyreachFilter) ?? 'all');
+    setEmailFilter((f.emailFilter as typeof emailFilter) ?? 'all');
+    setLinkFilter((f.linkFilter as typeof linkFilter) ?? 'all');
+    setAdvMatch(f.advMatch ?? 'all');
+    setAdvRules((f.advRules ?? []).map((r) => ({ id: crypto.randomUUID(), field: r.field, op: r.op, value: r.value })));
+    if (isMobile) setMobileFiltersOpen(false);
+  };
+
+  const openSaveView = () => { setSaveViewName(''); setSaveViewShared(false); setShowSaveView(true); };
+
+  const saveCurrentView = async () => {
+    const name = saveViewName.trim();
+    if (!name || !profile?.id) return;
+    setSavingView(true);
+    const payload = {
+      user_id: profile.id,
+      module: 'contractor',
+      name,
+      shared: saveViewShared,
+      filters: {
+        heyreachFilter, emailFilter, linkFilter, advMatch,
+        advRules: advRules.map((r) => ({ field: r.field, op: r.op, value: r.value })),
+      },
+    };
+    const { error } = await supabase.from('saved_filters').insert(payload as never);
+    setSavingView(false);
+    if (error) {
+      toast({
+        title: 'Could not save view',
+        description: /duplicate|unique/i.test(error.message)
+          ? 'You already have a view with that name.'
+          : error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    toast({ title: 'View saved', description: saveViewShared ? 'Shared with your team.' : undefined });
+    setShowSaveView(false);
+    fetchSavedViews();
+  };
+
+  const deleteView = async (v: SavedFilter) => {
+    const { error } = await supabase.from('saved_filters').delete().eq('id', v.id);
+    if (error) {
+      toast({ title: 'Could not delete view', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setSavedViews((prev) => prev.filter((x) => x.id !== v.id));
+  };
+
   // Server-side paging: `contractors` already holds exactly the
   // current page. Build a pagination object matching the shape the
   // <Pagination> component + table expect (was usePagination).
@@ -1428,6 +1532,12 @@ const Contractors = () => {
     (linkFilter !== 'all' ? 1 : 0) +
     advRules.length;
 
+  // Which saved view (if any) matches the live filters — highlights it.
+  const activeViewId = (() => {
+    const cur = normalizeFilterState({ heyreachFilter, emailFilter, linkFilter, advMatch, advRules });
+    return savedViews.find((v) => normalizeFilterState(v.filters || {}) === cur)?.id ?? null;
+  })();
+
   // The full filter UI, rendered in the desktop sidebar OR the mobile sheet
   // (only one mounts at a time — `isMobile` switches between them — so the
   // advanced Popover never double-portals).
@@ -1443,6 +1553,58 @@ const Contractors = () => {
           >
             Clear all
           </button>
+        )}
+      </div>
+
+      {/* Saved views — own + team-shared (RLS-enforced). */}
+      <div className="space-y-0.5">
+        <div className="flex items-center justify-between px-2 pb-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Saved views</p>
+          <button
+            type="button"
+            onClick={openSaveView}
+            disabled={activeFacetCount === 0}
+            className="text-[11px] text-primary hover:underline disabled:opacity-40 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            Save current
+          </button>
+        </div>
+        {savedViews.length === 0 ? (
+          <p className="px-2 text-[11px] text-muted-foreground/70">No saved views yet.</p>
+        ) : (
+          savedViews.map((v) => {
+            const active = activeViewId === v.id;
+            const mine = v.user_id === profile?.id;
+            return (
+              <div
+                key={v.id}
+                className={cn('group flex items-center rounded-md kd-transition', active ? 'bg-primary/5' : 'hover:bg-muted/50')}
+              >
+                <button
+                  type="button"
+                  onClick={() => applyView(v)}
+                  className={cn(
+                    'flex-1 min-w-0 flex items-center gap-2 px-2 py-1.5 text-sm text-left',
+                    active ? 'text-foreground font-medium' : 'text-muted-foreground',
+                  )}
+                >
+                  <Bookmark className={cn('h-3.5 w-3.5 shrink-0', active ? 'text-primary' : 'opacity-50')} />
+                  <span className="flex-1 truncate">{v.name}</span>
+                  {v.shared && <Users className="h-3 w-3 shrink-0 opacity-60" aria-label="Shared with team" />}
+                </button>
+                {mine && (
+                  <button
+                    type="button"
+                    onClick={() => deleteView(v)}
+                    className="shrink-0 px-2 text-muted-foreground/50 hover:text-destructive"
+                    aria-label={`Delete view ${v.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -2463,6 +2625,46 @@ const Contractors = () => {
         deleteConfirmTitle="Delete selected contractors?"
         deleteConfirmDescription="They'll be removed from the directory. Past payment batches that reference them stay intact via the historical contractor_id snapshot."
       />
+
+      {/* Save current filters as a named view */}
+      <Dialog open={showSaveView} onOpenChange={setShowSaveView}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Save filter view</DialogTitle>
+            <DialogDescription>
+              Save the current filters as a reusable view you can re-apply in one click.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>View name</Label>
+              <Input
+                value={saveViewName}
+                onChange={(e) => setSaveViewName(e.target.value)}
+                placeholder="e.g. No LinkedIn email"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentView(); }}
+              />
+            </div>
+            <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 cursor-pointer">
+              <Checkbox checked={saveViewShared} onCheckedChange={(v) => setSaveViewShared(Boolean(v))} className="mt-0.5" />
+              <span className="text-sm leading-snug">
+                Share with team
+                <span className="block text-[11px] text-muted-foreground">
+                  Everyone can apply it; only you can edit or delete it.
+                </span>
+              </span>
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveView(false)} disabled={savingView}>Cancel</Button>
+            <Button onClick={saveCurrentView} disabled={savingView || !saveViewName.trim()}>
+              {savingView ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bookmark className="mr-2 h-4 w-4" />}
+              Save view
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
