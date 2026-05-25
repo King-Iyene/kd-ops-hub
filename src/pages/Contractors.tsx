@@ -52,6 +52,8 @@ import {
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -416,6 +418,9 @@ const Contractors = () => {
   const [advMatchDraft, setAdvMatchDraft] = useState<'all' | 'any'>('all');
   const [advMatch, setAdvMatch] = useState<'all' | 'any'>('all');
   const [advOpen, setAdvOpen] = useState(false);
+  // On phones the filter panel lives in a bottom-sheet behind a Filters button.
+  const isMobile = useIsMobile();
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
@@ -1416,6 +1421,183 @@ const Contractors = () => {
   const validCount = newCount + updateCount;
   const invalidCount = parsedRows.length - validCount;
 
+  // Number of active filters — drives the mobile "Filters" button badge.
+  const activeFacetCount =
+    (heyreachFilter !== 'all' ? 1 : 0) +
+    (emailFilter !== 'all' ? 1 : 0) +
+    (linkFilter !== 'all' ? 1 : 0) +
+    advRules.length;
+
+  // The full filter UI, rendered in the desktop sidebar OR the mobile sheet
+  // (only one mounts at a time — `isMobile` switches between them — so the
+  // advanced Popover never double-portals).
+  const filterPanel = (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
+        {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all' || advRules.length > 0) && (
+          <button
+            type="button"
+            onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); clearAdvFilters(); }}
+            className="text-[11px] text-primary hover:underline"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-0.5">
+        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">HeyReach status</p>
+        {([
+          { key: 'all',          label: 'All',          dot: 'bg-muted-foreground/40' },
+          { key: 'active',       label: 'Active',       dot: 'bg-success' },
+          { key: 'disconnected', label: 'Disconnected', dot: 'bg-amber-500' },
+          { key: 'pending',      label: 'Pending',      dot: 'bg-sky-500' },
+          { key: 'inactive',     label: 'Inactive',     dot: 'bg-muted-foreground' },
+        ] as const).map((f) => (
+          <FacetButton
+            key={f.key}
+            active={heyreachFilter === f.key}
+            onClick={() => setHeyreachFilter(f.key)}
+            label={f.label}
+            dot={f.dot}
+            count={statusCounts[f.key]}
+          />
+        ))}
+      </div>
+
+      <div className="space-y-0.5">
+        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn email</p>
+        {([
+          { key: 'all',  label: 'Any' },
+          { key: 'has',  label: 'Has email' },
+          { key: 'none', label: 'No email' },
+        ] as const).map((f) => (
+          <FacetButton key={f.key} active={emailFilter === f.key} onClick={() => setEmailFilter(f.key)} label={f.label} />
+        ))}
+      </div>
+
+      <div className="space-y-0.5">
+        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn link</p>
+        {([
+          { key: 'all',  label: 'Any' },
+          { key: 'has',  label: 'Has link' },
+          { key: 'none', label: 'No link' },
+        ] as const).map((f) => (
+          <FacetButton key={f.key} active={linkFilter === f.key} onClick={() => setLinkFilter(f.key)} label={f.label} />
+        ))}
+      </div>
+
+      {/* Advanced rule builder — field / operator / value, ANDed or ORed. */}
+      <div className="pt-2 border-t border-border/60">
+        <Popover open={advOpen} onOpenChange={openAdvPopover}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full justify-start">
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              Advanced filters
+              {advRules.length > 0 && (
+                <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
+                  {advRules.length}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="w-[calc(100vw-2rem)] max-w-[380px] p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Match {advMatchDraft === 'all' ? 'all' : 'any'} of these conditions
+              </p>
+              <div className="inline-flex rounded-md border border-border/70 p-0.5">
+                {(['all', 'any'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setAdvMatchDraft(m)}
+                    className={cn(
+                      'px-2 py-0.5 text-xs rounded kd-transition',
+                      advMatchDraft === m
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {m === 'all' ? 'All' : 'Any'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2 max-h-[320px] overflow-y-auto">
+              {advDraft.length === 0 && (
+                <p className="text-xs text-muted-foreground py-2">No conditions yet.</p>
+              )}
+              {advDraft.map((r) => {
+                const f = advFieldOf(r.field);
+                const ops = OPS_BY_TYPE[f?.type ?? 'text'];
+                const needsValue = opNeedsValue(r.field, r.op);
+                return (
+                  <div key={r.id} className="flex items-center gap-1.5">
+                    <Select value={r.field} onValueChange={(v) => updateAdvRule(r.id, { field: v })}>
+                      <SelectTrigger className="h-8 text-xs flex-1 min-w-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ADV_FIELDS.map((af) => (
+                          <SelectItem key={af.key} value={af.key} className="text-xs">{af.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={r.op} onValueChange={(v) => updateAdvRule(r.id, { op: v as AdvOp })}>
+                      <SelectTrigger className="h-8 text-xs w-[120px] shrink-0"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {ops.map((o) => (
+                          <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {needsValue && (
+                      f?.type === 'select' ? (
+                        <Select value={r.value} onValueChange={(v) => updateAdvRule(r.id, { value: v })}>
+                          <SelectTrigger className="h-8 text-xs w-[110px] shrink-0"><SelectValue placeholder="Value" /></SelectTrigger>
+                          <SelectContent>
+                            {f.options?.map((o) => (
+                              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={r.value}
+                          onChange={(e) => updateAdvRule(r.id, { value: e.target.value })}
+                          type={f?.type === 'number' ? 'number' : 'text'}
+                          placeholder="Value"
+                          className="h-8 text-xs w-[110px] shrink-0"
+                        />
+                      )
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setAdvDraft((d) => d.filter((x) => x.id !== r.id))}
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label="Remove condition"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdvDraft((d) => [...d, newAdvRule()])}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Add condition
+            </Button>
+            <div className="flex items-center justify-between pt-2 border-t border-border/60">
+              <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground">
+                Clear
+              </button>
+              <Button size="sm" className="h-7 text-xs" onClick={applyAdvFilters}>Apply</Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
@@ -1482,176 +1664,47 @@ const Contractors = () => {
 
         <TabsContent value="contractors" className="mt-4">
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Faceted filter sidebar */}
-            <aside className="md:w-56 shrink-0">
-              <div className="rounded-lg border border-border/70 bg-card p-3 space-y-4 md:sticky md:top-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
-                  {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all' || advRules.length > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); clearAdvFilters(); }}
-                      className="text-[11px] text-primary hover:underline"
-                    >
-                      Clear all
-                    </button>
-                  )}
+            {/* Desktop: faceted filter sidebar (mobile uses the bottom-sheet below) */}
+            {!isMobile && (
+              <aside className="md:w-56 shrink-0">
+                <div className="rounded-lg border border-border/70 bg-card p-3 md:sticky md:top-4">
+                  {filterPanel}
                 </div>
-
-                <div className="space-y-0.5">
-                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">HeyReach status</p>
-                  {([
-                    { key: 'all',          label: 'All',          dot: 'bg-muted-foreground/40' },
-                    { key: 'active',       label: 'Active',       dot: 'bg-success' },
-                    { key: 'disconnected', label: 'Disconnected', dot: 'bg-amber-500' },
-                    { key: 'pending',      label: 'Pending',      dot: 'bg-sky-500' },
-                    { key: 'inactive',     label: 'Inactive',     dot: 'bg-muted-foreground' },
-                  ] as const).map((f) => (
-                    <FacetButton
-                      key={f.key}
-                      active={heyreachFilter === f.key}
-                      onClick={() => setHeyreachFilter(f.key)}
-                      label={f.label}
-                      dot={f.dot}
-                      count={statusCounts[f.key]}
-                    />
-                  ))}
-                </div>
-
-                <div className="space-y-0.5">
-                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn email</p>
-                  {([
-                    { key: 'all',  label: 'Any' },
-                    { key: 'has',  label: 'Has email' },
-                    { key: 'none', label: 'No email' },
-                  ] as const).map((f) => (
-                    <FacetButton key={f.key} active={emailFilter === f.key} onClick={() => setEmailFilter(f.key)} label={f.label} />
-                  ))}
-                </div>
-
-                <div className="space-y-0.5">
-                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn link</p>
-                  {([
-                    { key: 'all',  label: 'Any' },
-                    { key: 'has',  label: 'Has link' },
-                    { key: 'none', label: 'No link' },
-                  ] as const).map((f) => (
-                    <FacetButton key={f.key} active={linkFilter === f.key} onClick={() => setLinkFilter(f.key)} label={f.label} />
-                  ))}
-                </div>
-
-                {/* Advanced rule builder — field / operator / value, ANDed. */}
-                <div className="pt-2 border-t border-border/60">
-                  <Popover open={advOpen} onOpenChange={openAdvPopover}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="w-full justify-start">
-                        <SlidersHorizontal className="mr-2 h-4 w-4" />
-                        Advanced filters
-                        {advRules.length > 0 && (
-                          <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
-                            {advRules.length}
-                          </span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent align="start" className="w-[380px] p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground">
-                          Match {advMatchDraft === 'all' ? 'all' : 'any'} of these conditions
-                        </p>
-                        <div className="inline-flex rounded-md border border-border/70 p-0.5">
-                          {(['all', 'any'] as const).map((m) => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => setAdvMatchDraft(m)}
-                              className={cn(
-                                'px-2 py-0.5 text-xs rounded kd-transition',
-                                advMatchDraft === m
-                                  ? 'bg-primary/10 text-primary font-medium'
-                                  : 'text-muted-foreground hover:text-foreground',
-                              )}
-                            >
-                              {m === 'all' ? 'All' : 'Any'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="space-y-2 max-h-[320px] overflow-y-auto">
-                        {advDraft.length === 0 && (
-                          <p className="text-xs text-muted-foreground py-2">No conditions yet.</p>
-                        )}
-                        {advDraft.map((r) => {
-                          const f = advFieldOf(r.field);
-                          const ops = OPS_BY_TYPE[f?.type ?? 'text'];
-                          const needsValue = opNeedsValue(r.field, r.op);
-                          return (
-                            <div key={r.id} className="flex items-center gap-1.5">
-                              <Select value={r.field} onValueChange={(v) => updateAdvRule(r.id, { field: v })}>
-                                <SelectTrigger className="h-8 text-xs flex-1 min-w-0"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {ADV_FIELDS.map((af) => (
-                                    <SelectItem key={af.key} value={af.key} className="text-xs">{af.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Select value={r.op} onValueChange={(v) => updateAdvRule(r.id, { op: v as AdvOp })}>
-                                <SelectTrigger className="h-8 text-xs w-[120px] shrink-0"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {ops.map((o) => (
-                                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {needsValue && (
-                                f?.type === 'select' ? (
-                                  <Select value={r.value} onValueChange={(v) => updateAdvRule(r.id, { value: v })}>
-                                    <SelectTrigger className="h-8 text-xs w-[110px] shrink-0"><SelectValue placeholder="Value" /></SelectTrigger>
-                                    <SelectContent>
-                                      {f.options?.map((o) => (
-                                        <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
-                                  <Input
-                                    value={r.value}
-                                    onChange={(e) => updateAdvRule(r.id, { value: e.target.value })}
-                                    type={f?.type === 'number' ? 'number' : 'text'}
-                                    placeholder="Value"
-                                    className="h-8 text-xs w-[110px] shrink-0"
-                                  />
-                                )
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setAdvDraft((d) => d.filter((x) => x.id !== r.id))}
-                                className="shrink-0 text-muted-foreground hover:text-destructive"
-                                aria-label="Remove condition"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdvDraft((d) => [...d, newAdvRule()])}>
-                        <Plus className="mr-1.5 h-3.5 w-3.5" /> Add condition
-                      </Button>
-                      <div className="flex items-center justify-between pt-2 border-t border-border/60">
-                        <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground">
-                          Clear
-                        </button>
-                        <Button size="sm" className="h-7 text-xs" onClick={applyAdvFilters}>Apply</Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-            </aside>
+              </aside>
+            )}
 
             {/* Main column: search + list + pagination */}
             <div className="flex-1 min-w-0 space-y-4">
+              {/* Mobile: filters live behind a button → bottom-sheet. */}
+              {isMobile && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setMobileFiltersOpen(true)}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" /> Filters
+                    {activeFacetCount > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
+                        {activeFacetCount > 9 ? '9+' : activeFacetCount}
+                      </span>
+                    )}
+                  </Button>
+                  <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+                    <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+                      <SheetHeader className="text-left">
+                        <SheetTitle>Filters</SheetTitle>
+                      </SheetHeader>
+                      <div className="mt-3">{filterPanel}</div>
+                      <Button className="w-full mt-4 h-11" onClick={() => setMobileFiltersOpen(false)}>
+                        Done
+                      </Button>
+                    </SheetContent>
+                  </Sheet>
+                </>
+              )}
+
               <div className="relative max-w-sm">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
