@@ -43,11 +43,14 @@ interface BatchItem {
   full_name: string;
   bank_name: string;
   account_number: string;
+  account_name?: string | null;
   amount_ngn: number;
   reference: string;
   contractor_id?: string;
   employee_id?: string;
   item_type?: 'contractor' | 'employee' | 'adhoc';
+  // Ad-hoc only: persist this payee to the contractors table on save.
+  _saveAsContractor?: boolean;
 }
 
 interface Contractor {
@@ -187,6 +190,9 @@ const NewPaymentBatch = () => {
   const [showAdHoc, setShowAdHoc] = useState(false);
   const [adHoc, setAdHoc] = useState({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
   const [adHocBank, setAdHocBank] = useState<BankAccountValue>(emptyBank);
+  // Default ON: a one-off beneficiary is saved to the contractors table so they
+  // can be reused. Operators can untick for a genuine one-time payee.
+  const [adHocSaveContractor, setAdHocSaveContractor] = useState(true);
 
   useEffect(() => {
     supabase
@@ -473,13 +479,16 @@ const NewPaymentBatch = () => {
         full_name: adHocFullName,
         bank_name: adHocBank.bank_name,
         account_number: adHocBank.account_number,
+        account_name: adHocBank.account_name || adHocFullName,
         amount_ngn: amount,
         reference: adHoc.reference,
+        _saveAsContractor: adHocSaveContractor,
       },
     ]);
     setShowAdHoc(false);
     setAdHoc({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
     setAdHocBank(emptyBank);
+    setAdHocSaveContractor(true);
   };
 
   const totalAmount = items.reduce((sum, i) => sum + (i.amount_ngn || 0), 0);
@@ -534,8 +543,48 @@ const NewPaymentBatch = () => {
         batchId = batch.id;
       }
 
-      if (items.length > 0) {
-        const batchItems = items.map((item) => ({
+      // Persist any ad-hoc beneficiaries the operator chose to save as
+      // contractors. Reuse an existing contractor with the same bank account
+      // (avoids duplicates); otherwise create one. Failure here is non-fatal —
+      // the beneficiary still goes into the batch as an ad-hoc line.
+      const persisted = items.map((i) => ({ ...i }));
+      for (const it of persisted) {
+        if (!it._saveAsContractor || it.contractor_id || it.employee_id) continue;
+        if (!/^\d{10}$/.test(it.account_number || '')) continue;
+        try {
+          const { data: existing } = await supabase
+            .from('contractors')
+            .select('id')
+            .eq('account_number', it.account_number)
+            .eq('bank_name', it.bank_name)
+            .neq('status', 'deleted')
+            .limit(1)
+            .maybeSingle();
+          if (existing?.id) {
+            it.contractor_id = existing.id;
+          } else {
+            const { data: created } = await supabase
+              .from('contractors')
+              .insert({
+                full_name: it.full_name,
+                bank_name: it.bank_name,
+                account_number: it.account_number,
+                account_name: it.account_name || it.full_name,
+                default_amount_ngn: it.amount_ngn,
+                status: 'active',
+              } as never)
+              .select('id')
+              .single();
+            if (created?.id) it.contractor_id = created.id;
+          }
+          if (it.contractor_id) it.item_type = 'contractor';
+        } catch {
+          // keep as ad-hoc line
+        }
+      }
+
+      if (persisted.length > 0) {
+        const batchItems = persisted.map((item) => ({
           batch_id: batchId,
           contractor_id: item.contractor_id || null,
           employee_id: item.employee_id || null,
@@ -1256,6 +1305,19 @@ const NewPaymentBatch = () => {
                 />
               </div>
             </div>
+            <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5 cursor-pointer">
+              <Checkbox
+                checked={adHocSaveContractor}
+                onCheckedChange={(v) => setAdHocSaveContractor(Boolean(v))}
+                className="mt-0.5"
+              />
+              <span className="text-sm leading-snug">
+                Save as a contractor for future payments
+                <span className="block text-[11px] text-muted-foreground">
+                  Adds them to your contractor list (skipped if a contractor already has this bank account). Untick for a true one-off.
+                </span>
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdHoc(false)}>Cancel</Button>
