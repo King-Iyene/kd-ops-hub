@@ -2,15 +2,17 @@
 //
 // Computes what a partner-payment run will cost, the safe way: partners are
 // priced in USD; the calculator multiplies the per-partner USD amount by the
-// count of ACTIVE partners and converts to NGN at the live FX rate (Phase 0).
+// count of ACTIVE partners and converts to NGN at the live FX rate.
 // Everything is derived — the NGN figure is never hand-typed — and only ACTIVE
 // partners are counted, with everyone excluded shown with a reason.
 //
-// Phase 1a: preview + config only (read-only on money). The "Generate draft
-// batch" bridge into the approval/Paystack pipeline lands in Phase 1b.
+// Batches are built in a review step (max 100 partners — Paystack's bulk-transfer
+// limit) so a human confirms who is paid and how much before a draft is created.
+// Partners already in a non-rejected batch for the current period are excluded so
+// nobody is double-paid. Per-row amount edits apply to the batch only; the
+// contractor's stored default is never changed as a side effect.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
@@ -20,6 +22,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatDateTime } from '@/lib/format';
 import {
   toMinor, toMajor, usdMinorToNgnMinor, sumMinor,
@@ -28,6 +36,9 @@ import {
 import { Loader2, Save, Users, ArrowRightLeft, AlertTriangle, Info, FileText } from 'lucide-react';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
+// Paystack bulk transfers accept at most 100 transfers per call, so a batch
+// never exceeds this. Building in groups of ≤100 also keeps each batch reviewable.
+const MAX_BATCH = 100;
 
 interface PartnerRow {
   id: string;
@@ -42,9 +53,13 @@ interface PartnerRow {
 const hasBank = (p: PartnerRow) =>
   /^\d{10}$/.test(p.account_number || '') && !!(p.bank_name && p.bank_name.trim());
 
+// The pay period label used for the batch + the "already batched" exclusion.
+function periodLabel(d = new Date()) {
+  return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+}
+
 export default function PartnerPayCalculator() {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { profile } = useAuthStore();
   const canEdit = ['super_admin', 'admin', 'finance'].includes(profile?.role ?? '');
 
@@ -61,9 +76,20 @@ export default function PartnerPayCalculator() {
   const [manualRateInput, setManualRateInput] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // Contractor ids already in a non-rejected batch for this period (don't re-pay).
+  const [alreadyBatched, setAlreadyBatched] = useState<Set<string>>(new Set());
+
+  // Batch builder (review step) state.
+  const [buildOpen, setBuildOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [amountEdits, setAmountEdits] = useState<Record<string, string>>({});
+  const [bulkInput, setBulkInput] = useState('');
+
+  const period = periodLabel();
 
   const load = useCallback(async () => {
-    const [contractorsRes, settingsRes, rateRes] = await Promise.all([
+    const thisPeriod = periodLabel();
+    const [contractorsRes, settingsRes, rateRes, batchedRes] = await Promise.all([
       supabase
         .from('contractors')
         .select('id, full_name, status, heyreach_status, pay_amount_usd_minor, bank_name, account_number')
@@ -79,6 +105,17 @@ export default function PartnerPayCalculator() {
         .order('valid_from', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // Who is already in a contractor batch for this period that isn't rejected
+      // or deleted — these partners are excluded so they can't be batched twice.
+      supabase
+        .from('batch_items')
+        .select('contractor_id, payment_batches!inner(period, status, deleted_at, batch_type)')
+        .not('contractor_id', 'is', null)
+        .eq('payment_batches.batch_type', 'contractor')
+        .eq('payment_batches.period', thisPeriod)
+        .neq('payment_batches.status', 'rejected')
+        .is('payment_batches.deleted_at', null)
+        .limit(20000),
     ]);
     setPartners((contractorsRes.data as PartnerRow[]) || []);
     const g = Number((settingsRes.data as any)?.partner_pay_usd_minor ?? 0);
@@ -86,6 +123,11 @@ export default function PartnerPayCalculator() {
     setGlobalInput(String(toMajor(g)));
     setRate((rateRes.data as any)?.rate ?? null);
     setRateAt((rateRes.data as any)?.valid_from ?? null);
+    const batched = new Set<string>();
+    for (const r of ((batchedRes.data as any[]) || [])) {
+      if (r.contractor_id) batched.add(r.contractor_id);
+    }
+    setAlreadyBatched(batched);
     setLoading(false);
   }, []);
 
@@ -113,6 +155,10 @@ export default function PartnerPayCalculator() {
   // the rest are flagged so a human adds their account (never silently dropped).
   const payable = useMemo(() => active.filter(hasBank), [active]);
   const needsBank = useMemo(() => active.filter((p) => !hasBank(p)), [active]);
+  // Payable partners not yet in a batch this period — the pool a new batch draws
+  // from. (Order matches the alphabetical load, so "first 100" is stable.)
+  const eligible = useMemo(() => payable.filter((p) => !alreadyBatched.has(p.id)), [payable, alreadyBatched]);
+  const alreadyCount = payable.length - eligible.length;
 
   // A valid manual rate (> 0), or null while empty/invalid.
   const manualRate = useMemo(() => {
@@ -157,10 +203,52 @@ export default function PartnerPayCalculator() {
     }
   };
 
-  // Create a DRAFT payment batch from the payable partners. The NGN is computed
-  // per partner at the locked rate (snapshotted on the batch + each line). It
-  // enters the normal Payments approval flow — nothing is paid until approved.
-  const generateBatch = async () => {
+  // Open the review step, pre-selecting the first ≤100 eligible partners and
+  // resetting any per-row amount edits to the default.
+  const openBuilder = () => {
+    setSelected(new Set(eligible.slice(0, MAX_BATCH).map((p) => p.id)));
+    setAmountEdits({});
+    setBulkInput(String(toMajor(globalUsdMinor)));
+    setBuildOpen(true);
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); return next; }
+      if (next.size >= MAX_BATCH) return prev; // hard cap — ignore extra picks
+      next.add(id);
+      return next;
+    });
+  };
+
+  // The USD (minor units) for a row: a valid per-row edit wins, else the default.
+  // Returns null when the row has been edited to something invalid.
+  const rowUsdMinor = (p: PartnerRow): number | null => {
+    const edit = amountEdits[p.id];
+    if (edit !== undefined && edit.trim() !== '') {
+      const n = parseFloat(edit.replace(/,/g, ''));
+      return Number.isFinite(n) && n >= 0 ? toMinor(n) : null;
+    }
+    return perPartnerMinor(p);
+  };
+
+  // Apply one amount to every row in the builder (the "same amount for all" path).
+  const applyBulkAmount = () => {
+    const next: Record<string, string> = {};
+    for (const p of eligible) next[p.id] = bulkInput;
+    setAmountEdits(next);
+  };
+
+  const selectedRows = useMemo(() => eligible.filter((p) => selected.has(p.id)), [eligible, selected]);
+  const builderHasInvalid = selectedRows.some((p) => rowUsdMinor(p) == null);
+  const builderTotalUsdMinor = sumMinor(selectedRows.map((p) => rowUsdMinor(p) ?? 0));
+  const builderTotalNgnMinor = effectiveRate != null ? usdMinorToNgnMinor(builderTotalUsdMinor, effectiveRate) : null;
+
+  // Create a DRAFT batch from the SELECTED partners, using each row's amount. The
+  // NGN is computed per line at the effective rate (snapshotted on the batch +
+  // each line) and enters the normal approval flow — nothing is paid until approved.
+  const generateSelectedBatch = async () => {
     if (effectiveRate == null) {
       toast({
         title: 'No exchange rate',
@@ -169,16 +257,19 @@ export default function PartnerPayCalculator() {
       });
       return;
     }
-    if (payable.length === 0) {
-      toast({ title: 'No payable partners', description: 'No active partners have valid bank details.', variant: 'destructive' });
+    if (selectedRows.length === 0) {
+      toast({ title: 'No partners selected', description: 'Select at least one partner for this batch.', variant: 'destructive' });
+      return;
+    }
+    if (builderHasInvalid) {
+      toast({ title: 'Fix the amounts', description: 'Every selected partner needs a valid USD amount (zero or more).', variant: 'destructive' });
       return;
     }
     setGenerating(true);
     try {
       const now = new Date();
-      const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-      const lines = payable.map((p) => {
-        const usdMinor = perPartnerMinor(p);
+      const lines = selectedRows.map((p) => {
+        const usdMinor = rowUsdMinor(p) as number;
         return { p, usdMinor, ngnMinor: usdMinorToNgnMinor(usdMinor, effectiveRate) };
       });
       const totalNgnMinor = sumMinor(lines.map((l) => l.ngnMinor));
@@ -186,9 +277,9 @@ export default function PartnerPayCalculator() {
       const { data: batch, error } = await supabase
         .from('payment_batches')
         .insert({
-          name: `Partner Pay — ${monthLong}`,
+          name: `Partner Pay — ${period}`,
           payment_date: now.toISOString().slice(0, 10),
-          period: monthLong,
+          period,
           total_amount: toMajor(totalNgnMinor),
           beneficiary_count: lines.length,
           batch_type: 'contractor',
@@ -211,18 +302,20 @@ export default function PartnerPayCalculator() {
         account_number: l.p.account_number,
         account_name: l.p.full_name,
         amount_ngn: toMajor(l.ngnMinor),
-        reference: `Partner Pay — ${l.p.full_name} — ${monthLong}`,
+        reference: `Partner Pay — ${l.p.full_name} — ${period}`,
         source_usd_minor: l.usdMinor,
         status: 'pending',
       }));
       const { error: itemsErr } = await supabase.from('batch_items').insert(items as never);
       if (itemsErr) throw itemsErr;
 
+      const remaining = eligible.length - lines.length;
       toast({
         title: 'Draft batch created',
-        description: `${lines.length} partners · ${formatNgnMinor(totalNgnMinor)}. Review and approve it next.`,
+        description: `${lines.length} partners · ${formatNgnMinor(totalNgnMinor)}. ${remaining > 0 ? `${remaining} still to batch this period — build the next one.` : 'Everyone is now batched for this period.'} Review & approve in Payments.`,
       });
-      navigate(`/payments/${(batch as any).id}`);
+      setBuildOpen(false);
+      await load(); // refresh so the just-batched partners drop out of "eligible"
     } catch (err: any) {
       toast({ title: 'Could not create batch', description: err?.message ?? '', variant: 'destructive' });
     } finally {
@@ -359,14 +452,21 @@ export default function PartnerPayCalculator() {
             </div>
           )}
 
+          {alreadyCount > 0 && (
+            <div className="flex items-start gap-2 text-sm text-muted-foreground bg-muted/30 border border-border/70 rounded-lg p-3">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" />
+              <span><b>{alreadyCount}</b> payable partner{alreadyCount === 1 ? '' : 's'} {alreadyCount === 1 ? 'is' : 'are'} already in a batch for {period} and {alreadyCount === 1 ? 'is' : 'are'} excluded here. <b>{eligible.length}</b> still to batch.</span>
+            </div>
+          )}
+
           {canEdit && (
             <div className="flex items-center gap-3 flex-wrap pt-1">
-              <Button onClick={generateBatch} disabled={generating || noRate || payable.length === 0}>
-                {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
-                Generate draft batch ({payable.length})
+              <Button onClick={openBuilder} disabled={noRate || eligible.length === 0}>
+                <FileText className="mr-2 h-4 w-4" />
+                Build draft batch{eligible.length > 0 ? ` (${Math.min(eligible.length, MAX_BATCH)} of ${eligible.length})` : ''}
               </Button>
               <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" /> Creates a draft in Payments for review &amp; approval — nothing is paid until you approve it.
+                <Info className="h-3 w-3" /> Review up to {MAX_BATCH} partners &amp; their amounts, then create a draft for approval — nothing is paid until you approve it.
               </span>
             </div>
           )}
@@ -394,6 +494,101 @@ export default function PartnerPayCalculator() {
           </CardContent>
         </Card>
       )}
+
+      {/* Review step: pick ≤100 partners and confirm amounts before creating a draft. */}
+      <Dialog open={buildOpen} onOpenChange={setBuildOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Build draft batch — {period}</DialogTitle>
+            <DialogDescription>
+              Confirm who is paid and how much, then create a draft for approval. Up to {MAX_BATCH} partners per batch
+              (Paystack's limit){alreadyCount > 0 ? ` — ${alreadyCount} already batched this period are not shown` : ''}.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Same-amount-for-all control. */}
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Set all to (USD)</Label>
+              <div className="relative w-40">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input inputMode="decimal" value={bulkInput} onChange={(e) => setBulkInput(e.target.value)} className="pl-7 tabular-nums" />
+              </div>
+            </div>
+            <Button type="button" variant="outline" onClick={applyBulkAmount}>Apply to all</Button>
+            <span className="text-[11px] text-muted-foreground pb-2">Or edit any row below for a different amount. Amounts apply to this batch only.</span>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className={selected.size >= MAX_BATCH ? 'text-amber-600' : 'text-muted-foreground'}>
+              <b>{selected.size}</b> / {MAX_BATCH} selected{selected.size >= MAX_BATCH ? ' (max reached)' : ''}
+            </span>
+            <span className="text-muted-foreground">{eligible.length} eligible</span>
+          </div>
+
+          <ScrollArea className="h-[46vh] rounded-lg border border-border/70">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background z-10">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead>Partner</TableHead>
+                  <TableHead className="text-right w-[140px]">USD</TableHead>
+                  <TableHead className="text-right w-[150px]">NGN</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {eligible.map((p) => {
+                  const isSel = selected.has(p.id);
+                  const m = rowUsdMinor(p);
+                  const ngn = m != null && effectiveRate != null ? usdMinorToNgnMinor(m, effectiveRate) : null;
+                  return (
+                    <TableRow key={p.id} className={isSel ? '' : 'opacity-60'}>
+                      <TableCell>
+                        <Checkbox
+                          checked={isSel}
+                          disabled={!isSel && selected.size >= MAX_BATCH}
+                          onCheckedChange={() => toggleSelected(p.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{p.full_name}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                          <Input
+                            inputMode="decimal"
+                            className={`h-8 pl-5 text-right tabular-nums ${m == null ? 'border-destructive' : ''}`}
+                            value={amountEdits[p.id] ?? String(toMajor(perPartnerMinor(p)))}
+                            onChange={(e) => setAmountEdits((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                            disabled={!isSel}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {m == null ? <span className="text-destructive">invalid</span> : ngn == null ? '—' : formatNgnMinor(ngn)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter className="sm:justify-between gap-3 items-center">
+            <div className="text-sm tabular-nums">
+              <span className="text-muted-foreground">{selectedRows.length} selected · </span>
+              <span className="font-medium">{formatUsdMinor(builderTotalUsdMinor)}</span>
+              {builderTotalNgnMinor != null && <span className="font-semibold"> · {formatNgnMinor(builderTotalNgnMinor)}</span>}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setBuildOpen(false)} disabled={generating}>Cancel</Button>
+              <Button onClick={generateSelectedBatch} disabled={generating || noRate || selectedRows.length === 0 || builderHasInvalid}>
+                {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                Create draft ({selectedRows.length})
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
