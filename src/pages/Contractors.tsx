@@ -46,8 +46,12 @@ import {
   Info,
   RefreshCw,
   Calculator,
+  SlidersHorizontal,
+  Trash2,
 } from 'lucide-react';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -233,6 +237,101 @@ function namesAreEquivalent(a: string, b: string): boolean {
   return short.every((t) => long.includes(t));
 }
 
+// ───────────────────────── Advanced (CRM-style) filters ─────────────────────
+// A flexible field/operator/value rule builder. Rules are ANDed and applied
+// server-side. Each field declares its type, which decides the operators on
+// offer (text → contains/is/empty…, number → comparisons, select → is/is not).
+type AdvOp =
+  | 'contains' | 'not_contains' | 'eq' | 'neq' | 'empty' | 'not_empty' | 'gt' | 'lt';
+
+interface AdvField {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'select';
+  options?: { value: string; label: string }[];
+}
+
+interface AdvRule {
+  id: string;
+  field: string;
+  op: AdvOp;
+  value: string;
+}
+
+const ADV_FIELDS: AdvField[] = [
+  { key: 'full_name',          label: 'Name',              type: 'text' },
+  { key: 'heyreach_email',     label: 'LinkedIn email',    type: 'text' },
+  { key: 'email',              label: 'Contact email',     type: 'text' },
+  { key: 'whatsapp_phone',     label: 'Phone / WhatsApp',  type: 'text' },
+  { key: 'linkedin_url',       label: 'LinkedIn URL',      type: 'text' },
+  { key: 'linkedin_id',        label: 'LinkedIn ID',       type: 'text' },
+  { key: 'account_number',     label: 'Account number',    type: 'text' },
+  { key: 'bank_name',          label: 'Bank',              type: 'text' },
+  { key: 'default_amount_ngn', label: 'Default amount (₦)', type: 'number' },
+  {
+    key: 'heyreach_status', label: 'HeyReach status', type: 'select',
+    options: [
+      { value: 'active',       label: 'Active' },
+      { value: 'disconnected', label: 'Disconnected' },
+      { value: 'unmatched',    label: 'Unmatched' },
+    ],
+  },
+];
+
+const OPS_BY_TYPE: Record<AdvField['type'], { value: AdvOp; label: string; needsValue: boolean }[]> = {
+  text: [
+    { value: 'contains',     label: 'contains',         needsValue: true },
+    { value: 'not_contains', label: 'does not contain', needsValue: true },
+    { value: 'eq',           label: 'is',               needsValue: true },
+    { value: 'neq',          label: 'is not',           needsValue: true },
+    { value: 'not_empty',    label: 'is not empty',     needsValue: false },
+    { value: 'empty',        label: 'is empty',         needsValue: false },
+  ],
+  number: [
+    { value: 'eq',        label: 'equals',       needsValue: true },
+    { value: 'gt',        label: 'greater than', needsValue: true },
+    { value: 'lt',        label: 'less than',    needsValue: true },
+    { value: 'not_empty', label: 'is set',       needsValue: false },
+    { value: 'empty',     label: 'is empty',     needsValue: false },
+  ],
+  select: [
+    { value: 'eq',        label: 'is',         needsValue: true },
+    { value: 'neq',       label: 'is not',     needsValue: true },
+    { value: 'not_empty', label: 'is set',     needsValue: false },
+    { value: 'empty',     label: 'is empty',   needsValue: false },
+  ],
+};
+
+const advFieldOf = (key: string) => ADV_FIELDS.find((f) => f.key === key);
+const opNeedsValue = (field: string, op: AdvOp) =>
+  OPS_BY_TYPE[advFieldOf(field)?.type ?? 'text'].find((o) => o.value === op)?.needsValue ?? true;
+
+// A rule counts only when it has a field/op and (a value, when the op needs one).
+const advRuleReady = (r: AdvRule) => {
+  const f = advFieldOf(r.field);
+  if (!f) return false;
+  const op = OPS_BY_TYPE[f.type].find((o) => o.value === r.op);
+  if (!op) return false;
+  return op.needsValue ? r.value.trim() !== '' : true;
+};
+
+// Strip PostgREST-significant characters so a value can't break the filter.
+const advSanitize = (v: string) => v.replace(/[,()%*]/g, ' ').trim();
+
+// Render a rule as a human-readable chip label, e.g. "LinkedIn email is empty".
+const advRuleLabel = (r: AdvRule) => {
+  const f = advFieldOf(r.field);
+  const op = f && OPS_BY_TYPE[f.type].find((o) => o.value === r.op);
+  const base = `${f?.label ?? r.field} ${op?.label ?? r.op}`;
+  if (op?.needsValue) {
+    if (f?.type === 'select') {
+      return `${base} ${f.options?.find((o) => o.value === r.value)?.label ?? r.value}`;
+    }
+    return `${base} "${r.value}"`;
+  }
+  return base;
+};
+
 const Contractors = () => {
   usePageTitle('Contractors');
   const { toast } = useToast();
@@ -285,9 +384,14 @@ const Contractors = () => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [heyreachFilter, setHeyreachFilter] = useState<'all' | 'active' | 'disconnected' | 'pending' | 'inactive'>('all');
-  // Sidebar facets: presence of a contact email / a LinkedIn link.
+  // Sidebar facets: presence of a LinkedIn email / a LinkedIn link.
   const [emailFilter, setEmailFilter] = useState<'all' | 'has' | 'none'>('all');
   const [linkFilter, setLinkFilter] = useState<'all' | 'has' | 'none'>('all');
+  // Advanced (CRM-style) rule builder: `advDraft` is edited in the popover,
+  // `advRules` is what the query actually uses (committed via "Apply").
+  const [advDraft, setAdvDraft] = useState<AdvRule[]>([]);
+  const [advRules, setAdvRules] = useState<AdvRule[]>([]);
+  const [advOpen, setAdvOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
@@ -335,16 +439,34 @@ const Contractors = () => {
     return q; // 'all'
   }, []);
 
-  // Sidebar field facets — email / link presence. Uses simple null checks
-  // (absent values are stored NULL) so it never stacks a second .or() onto
-  // the status filter's.
+  // Sidebar quick facets (LinkedIn email / LinkedIn link presence) plus the
+  // advanced rule builder. The "email" the team works from is the LinkedIn
+  // email (heyreach_email) — the contact email is only an advanced field.
   const applyFieldFilters = useCallback((q: any) => {
-    if (emailFilter === 'has') q = q.not('email', 'is', null).neq('email', '');
-    else if (emailFilter === 'none') q = q.is('email', null);
+    if (emailFilter === 'has') q = q.not('heyreach_email', 'is', null).neq('heyreach_email', '');
+    else if (emailFilter === 'none') q = q.is('heyreach_email', null);
     if (linkFilter === 'has') q = q.not('linkedin_url', 'is', null).neq('linkedin_url', '');
     else if (linkFilter === 'none') q = q.is('linkedin_url', null);
+
+    // Advanced rules — ANDed, applied via direct query methods so each is its
+    // own clause. "empty" matches NULL (absent values are stored NULL).
+    for (const r of advRules.filter(advRuleReady)) {
+      const f = advFieldOf(r.field)!;
+      const isNum = f.type === 'number';
+      const v = advSanitize(r.value);
+      switch (r.op) {
+        case 'contains':     q = q.ilike(r.field, `%${v}%`); break;
+        case 'not_contains': q = q.not(r.field, 'ilike', `%${v}%`); break;
+        case 'eq':           q = isNum ? q.eq(r.field, Number(v)) : q.ilike(r.field, v); break;
+        case 'neq':          q = isNum ? q.neq(r.field, Number(v)) : q.not(r.field, 'ilike', v); break;
+        case 'gt':           q = q.gt(r.field, Number(v)); break;
+        case 'lt':           q = q.lt(r.field, Number(v)); break;
+        case 'empty':        q = q.is(r.field, null); break;
+        case 'not_empty':    q = q.not(r.field, 'is', null).neq(r.field, ''); break;
+      }
+    }
     return q;
-  }, [emailFilter, linkFilter]);
+  }, [emailFilter, linkFilter, advRules]);
 
   const fetchContractors = useCallback(async () => {
     setLoading(true);
@@ -409,7 +531,7 @@ const Contractors = () => {
 
   // Reset to page 0 whenever the search or status filter changes, so
   // the operator isn't stranded on a page that no longer exists.
-  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter, emailFilter, linkFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter, emailFilter, linkFilter, advRules]);
 
   useEffect(() => {
     fetchContractors();
@@ -1192,6 +1314,41 @@ const Contractors = () => {
     URL.revokeObjectURL(url);
   };
 
+  // ── Advanced filter handlers ──────────────────────────────────────────────
+  const newAdvRule = (): AdvRule => ({ id: crypto.randomUUID(), field: 'full_name', op: 'contains', value: '' });
+
+  const updateAdvRule = (id: string, patch: Partial<AdvRule>) =>
+    setAdvDraft((d) => d.map((r) => {
+      if (r.id !== id) return r;
+      const next = { ...r, ...patch };
+      // Switching field resets to that type's first operator + clears value.
+      if (patch.field && patch.field !== r.field) {
+        const t = advFieldOf(patch.field)?.type ?? 'text';
+        next.op = OPS_BY_TYPE[t][0].value;
+        next.value = '';
+      }
+      return next;
+    }));
+
+  const applyAdvFilters = () => {
+    setAdvRules(advDraft.filter(advRuleReady));
+    setAdvOpen(false);
+  };
+
+  const clearAdvFilters = () => { setAdvDraft([]); setAdvRules([]); };
+
+  // Remove one applied rule from its chip — keep the draft in sync.
+  const removeAppliedRule = (id: string) => {
+    setAdvRules((r) => r.filter((x) => x.id !== id));
+    setAdvDraft((d) => d.filter((x) => x.id !== id));
+  };
+
+  // Seed the draft from the applied rules each time the popover opens.
+  const openAdvPopover = (open: boolean) => {
+    if (open) setAdvDraft(advRules.length ? advRules.map((r) => ({ ...r })) : [newAdvRule()]);
+    setAdvOpen(open);
+  };
+
   // Server-side paging: `contractors` already holds exactly the
   // current page. Build a pagination object matching the shape the
   // <Pagination> component + table expect (was usePagination).
@@ -1292,10 +1449,10 @@ const Contractors = () => {
               <div className="rounded-lg border border-border/70 bg-card p-3 space-y-4 md:sticky md:top-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
-                  {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all') && (
+                  {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all' || advRules.length > 0) && (
                     <button
                       type="button"
-                      onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); }}
+                      onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); clearAdvFilters(); }}
                       className="text-[11px] text-primary hover:underline"
                     >
                       Clear all
@@ -1324,7 +1481,7 @@ const Contractors = () => {
                 </div>
 
                 <div className="space-y-0.5">
-                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Email</p>
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn email</p>
                   {([
                     { key: 'all',  label: 'Any' },
                     { key: 'has',  label: 'Has email' },
@@ -1344,6 +1501,95 @@ const Contractors = () => {
                     <FacetButton key={f.key} active={linkFilter === f.key} onClick={() => setLinkFilter(f.key)} label={f.label} />
                   ))}
                 </div>
+
+                {/* Advanced rule builder — field / operator / value, ANDed. */}
+                <div className="pt-2 border-t border-border/60">
+                  <Popover open={advOpen} onOpenChange={openAdvPopover}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <SlidersHorizontal className="mr-2 h-4 w-4" />
+                        Advanced filters
+                        {advRules.length > 0 && (
+                          <span className="ml-auto rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary tabular-nums">
+                            {advRules.length}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-[380px] p-3 space-y-3">
+                      <p className="text-xs text-muted-foreground">
+                        Match <b>all</b> of the following conditions:
+                      </p>
+                      <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                        {advDraft.length === 0 && (
+                          <p className="text-xs text-muted-foreground py-2">No conditions yet.</p>
+                        )}
+                        {advDraft.map((r) => {
+                          const f = advFieldOf(r.field);
+                          const ops = OPS_BY_TYPE[f?.type ?? 'text'];
+                          const needsValue = opNeedsValue(r.field, r.op);
+                          return (
+                            <div key={r.id} className="flex items-center gap-1.5">
+                              <Select value={r.field} onValueChange={(v) => updateAdvRule(r.id, { field: v })}>
+                                <SelectTrigger className="h-8 text-xs flex-1 min-w-0"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {ADV_FIELDS.map((af) => (
+                                    <SelectItem key={af.key} value={af.key} className="text-xs">{af.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select value={r.op} onValueChange={(v) => updateAdvRule(r.id, { op: v as AdvOp })}>
+                                <SelectTrigger className="h-8 text-xs w-[120px] shrink-0"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {ops.map((o) => (
+                                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {needsValue && (
+                                f?.type === 'select' ? (
+                                  <Select value={r.value} onValueChange={(v) => updateAdvRule(r.id, { value: v })}>
+                                    <SelectTrigger className="h-8 text-xs w-[110px] shrink-0"><SelectValue placeholder="Value" /></SelectTrigger>
+                                    <SelectContent>
+                                      {f.options?.map((o) => (
+                                        <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={r.value}
+                                    onChange={(e) => updateAdvRule(r.id, { value: e.target.value })}
+                                    type={f?.type === 'number' ? 'number' : 'text'}
+                                    placeholder="Value"
+                                    className="h-8 text-xs w-[110px] shrink-0"
+                                  />
+                                )
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setAdvDraft((d) => d.filter((x) => x.id !== r.id))}
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                aria-label="Remove condition"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setAdvDraft((d) => [...d, newAdvRule()])}>
+                        <Plus className="mr-1.5 h-3.5 w-3.5" /> Add condition
+                      </Button>
+                      <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                        <button type="button" onClick={clearAdvFilters} className="text-xs text-muted-foreground hover:text-foreground">
+                          Clear
+                        </button>
+                        <Button size="sm" className="h-7 text-xs" onClick={applyAdvFilters}>Apply</Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </aside>
 
@@ -1358,6 +1604,31 @@ const Contractors = () => {
                   className="pl-9"
                 />
               </div>
+
+              {/* Applied advanced-filter chips — each removable. */}
+              {advRules.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {advRules.map((r) => (
+                    <span
+                      key={r.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 pl-2 pr-1 py-1 text-xs"
+                    >
+                      {advRuleLabel(r)}
+                      <button
+                        type="button"
+                        onClick={() => removeAppliedRule(r.id)}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label="Remove filter"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                  <button type="button" onClick={clearAdvFilters} className="text-xs text-primary hover:underline ml-1">
+                    Clear
+                  </button>
+                </div>
+              )}
 
       {/* Mercury-style list: hairline-bordered surface, no card chrome. */}
       <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
