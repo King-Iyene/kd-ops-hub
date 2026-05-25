@@ -76,6 +76,45 @@ export function sumMinor(amounts: number[]): number {
   return amounts.reduce((acc, m) => acc + m, 0);
 }
 
+export type TierMode = 'marginal' | 'whole';
+
+/**
+ * Tiered per-account commission (affiliate recurring pay), in minor units.
+ *
+ * An affiliate earns `baseMinor` per active account until they reach `threshold`
+ * accounts, after which `tier2Minor` (the increased rate) applies:
+ *   - 'marginal': only the accounts ABOVE the threshold earn the increased rate
+ *     (accounts 1..threshold stay at base). Like tax brackets.
+ *   - 'whole': once threshold is reached, EVERY account earns the increased rate.
+ *
+ * Pure: it uses exactly the rates given. Callers decide policy (e.g. treating an
+ * unset tier2 of 0 as "no increase" by passing baseMinor as tier2Minor).
+ */
+export function tieredCommissionMinor(
+  count: number,
+  baseMinor: number,
+  tier2Minor: number,
+  threshold: number,
+  mode: TierMode,
+): number {
+  if (!Number.isInteger(count) || count < 0) {
+    throw new Error('tieredCommissionMinor: count must be a non-negative integer');
+  }
+  if (!Number.isInteger(threshold) || threshold < 0) {
+    throw new Error('tieredCommissionMinor: threshold must be a non-negative integer');
+  }
+  if (!Number.isInteger(baseMinor) || !Number.isInteger(tier2Minor)) {
+    throw new Error('tieredCommissionMinor: rates must be integers (minor units)');
+  }
+  if (mode === 'whole') {
+    return multiplyMinor(count >= threshold ? tier2Minor : baseMinor, count);
+  }
+  // marginal
+  const atBase = Math.min(count, threshold);
+  const atTier2 = Math.max(count - threshold, 0);
+  return multiplyMinor(baseMinor, atBase) + multiplyMinor(tier2Minor, atTier2);
+}
+
 // ── Display ──────────────────────────────────────────────────────────────────
 
 /** "$1,234.56" from integer USD cents. */

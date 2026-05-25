@@ -75,12 +75,14 @@ const Referrals = () => {
 
   const [dialog, setDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     contractor_id: '',
     referrer_contractor_id: '',
     referred_email: '',
     is_affiliate: false,
     commission_pct: '0',
+    account_start_date: today,
     notes: '',
   });
 
@@ -134,6 +136,7 @@ const Referrals = () => {
         referred_email: form.referred_email.trim().toLowerCase() || contractorName,
         is_affiliate: form.is_affiliate,
         commission_pct: parseFloat(form.commission_pct) || 0,
+        account_start_date: form.account_start_date || null,
         status: 'active',
       } as never);
       if (error) throw error;
@@ -144,7 +147,7 @@ const Referrals = () => {
       );
       toast({ title: 'Referral added' });
       setDialog(false);
-      setForm({ contractor_id: '', referrer_contractor_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', notes: '' });
+      setForm({ contractor_id: '', referrer_contractor_id: '', referred_email: '', is_affiliate: false, commission_pct: '0', account_start_date: today, notes: '' });
       load();
     } catch (err: any) {
       toast({ title: 'Failed', description: err?.message, variant: 'destructive' });
@@ -391,6 +394,16 @@ const Referrals = () => {
                 placeholder="Search the contractor who referred them…"
               />
               <p className="text-[11px] text-muted-foreground">Their commission is counted automatically (per account). Toggle below for an affiliate referral.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Account start date</Label>
+              <Input
+                type="date"
+                value={form.account_start_date}
+                max={today}
+                onChange={(e) => setForm({ ...form, account_start_date: e.target.value })}
+              />
+              <p className="text-[11px] text-muted-foreground">When the account went live — starts the clock for the one-time referral bonus.</p>
             </div>
             <div className="space-y-1">
               <Label>Notes</Label>

@@ -369,6 +369,13 @@ export type Database = {
           paystack_secret_configured: boolean
           airtable_api_key_configured: boolean
           audit_log_retention_days: number
+          referral_rate_usd_minor: number
+          affiliate_rate_usd_minor: number
+          referral_qualifying_days: number
+          affiliate_rate_tier2_usd_minor: number
+          affiliate_tier_threshold: number
+          affiliate_tier_mode: string
+          fx_deviation_threshold_pct: number | null
           created_at: string
           updated_at: string
         }
@@ -387,6 +394,13 @@ export type Database = {
           paystack_secret_configured?: boolean
           airtable_api_key_configured?: boolean
           audit_log_retention_days?: number
+          referral_rate_usd_minor?: number
+          affiliate_rate_usd_minor?: number
+          referral_qualifying_days?: number
+          affiliate_rate_tier2_usd_minor?: number
+          affiliate_tier_threshold?: number
+          affiliate_tier_mode?: string
+          fx_deviation_threshold_pct?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -405,6 +419,13 @@ export type Database = {
           paystack_secret_configured?: boolean
           airtable_api_key_configured?: boolean
           audit_log_retention_days?: number
+          referral_rate_usd_minor?: number
+          affiliate_rate_usd_minor?: number
+          referral_qualifying_days?: number
+          affiliate_rate_tier2_usd_minor?: number
+          affiliate_tier_threshold?: number
+          affiliate_tier_mode?: string
+          fx_deviation_threshold_pct?: number | null
           created_at?: string
           updated_at?: string
         }
