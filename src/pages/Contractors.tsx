@@ -332,6 +332,27 @@ const advRuleLabel = (r: AdvRule) => {
   return base;
 };
 
+// Render a rule as a single PostgREST `or()` token, for "match any" mode where
+// every rule must live in one OR clause. Values are sanitised so they can't
+// break the filter string. Returns '' for an unknown op (caller filters it).
+const advRuleToOrToken = (r: AdvRule): string => {
+  const f = advFieldOf(r.field);
+  if (!f) return '';
+  const isNum = f.type === 'number';
+  const v = advSanitize(r.value);
+  switch (r.op) {
+    case 'contains':     return `${r.field}.ilike.*${v}*`;
+    case 'not_contains': return `${r.field}.not.ilike.*${v}*`;
+    case 'eq':           return isNum ? `${r.field}.eq.${v}` : `${r.field}.ilike.${v}`;
+    case 'neq':          return isNum ? `${r.field}.neq.${v}` : `${r.field}.not.ilike.${v}`;
+    case 'gt':           return `${r.field}.gt.${v}`;
+    case 'lt':           return `${r.field}.lt.${v}`;
+    case 'empty':        return `${r.field}.is.null`;
+    case 'not_empty':    return `${r.field}.not.is.null`;
+    default:             return '';
+  }
+};
+
 const Contractors = () => {
   usePageTitle('Contractors');
   const { toast } = useToast();
@@ -389,8 +410,11 @@ const Contractors = () => {
   const [linkFilter, setLinkFilter] = useState<'all' | 'has' | 'none'>('all');
   // Advanced (CRM-style) rule builder: `advDraft` is edited in the popover,
   // `advRules` is what the query actually uses (committed via "Apply").
+  // `advMatch` = 'all' (AND) or 'any' (OR) across the rules.
   const [advDraft, setAdvDraft] = useState<AdvRule[]>([]);
   const [advRules, setAdvRules] = useState<AdvRule[]>([]);
+  const [advMatchDraft, setAdvMatchDraft] = useState<'all' | 'any'>('all');
+  const [advMatch, setAdvMatch] = useState<'all' | 'any'>('all');
   const [advOpen, setAdvOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
@@ -448,25 +472,32 @@ const Contractors = () => {
     if (linkFilter === 'has') q = q.not('linkedin_url', 'is', null).neq('linkedin_url', '');
     else if (linkFilter === 'none') q = q.is('linkedin_url', null);
 
-    // Advanced rules — ANDed, applied via direct query methods so each is its
-    // own clause. "empty" matches NULL (absent values are stored NULL).
-    for (const r of advRules.filter(advRuleReady)) {
-      const f = advFieldOf(r.field)!;
-      const isNum = f.type === 'number';
-      const v = advSanitize(r.value);
-      switch (r.op) {
-        case 'contains':     q = q.ilike(r.field, `%${v}%`); break;
-        case 'not_contains': q = q.not(r.field, 'ilike', `%${v}%`); break;
-        case 'eq':           q = isNum ? q.eq(r.field, Number(v)) : q.ilike(r.field, v); break;
-        case 'neq':          q = isNum ? q.neq(r.field, Number(v)) : q.not(r.field, 'ilike', v); break;
-        case 'gt':           q = q.gt(r.field, Number(v)); break;
-        case 'lt':           q = q.lt(r.field, Number(v)); break;
-        case 'empty':        q = q.is(r.field, null); break;
-        case 'not_empty':    q = q.not(r.field, 'is', null).neq(r.field, ''); break;
+    // Advanced rules. "empty" matches NULL (absent values are stored NULL).
+    const readyRules = advRules.filter(advRuleReady);
+    if (readyRules.length > 0 && advMatch === 'any') {
+      // Match ANY → one OR clause (its own AND-ed group alongside the facets).
+      const tokens = readyRules.map(advRuleToOrToken).filter(Boolean);
+      if (tokens.length > 0) q = q.or(tokens.join(','));
+    } else {
+      // Match ALL → each rule is its own clause via direct query methods.
+      for (const r of readyRules) {
+        const f = advFieldOf(r.field)!;
+        const isNum = f.type === 'number';
+        const v = advSanitize(r.value);
+        switch (r.op) {
+          case 'contains':     q = q.ilike(r.field, `%${v}%`); break;
+          case 'not_contains': q = q.not(r.field, 'ilike', `%${v}%`); break;
+          case 'eq':           q = isNum ? q.eq(r.field, Number(v)) : q.ilike(r.field, v); break;
+          case 'neq':          q = isNum ? q.neq(r.field, Number(v)) : q.not(r.field, 'ilike', v); break;
+          case 'gt':           q = q.gt(r.field, Number(v)); break;
+          case 'lt':           q = q.lt(r.field, Number(v)); break;
+          case 'empty':        q = q.is(r.field, null); break;
+          case 'not_empty':    q = q.not(r.field, 'is', null).neq(r.field, ''); break;
+        }
       }
     }
     return q;
-  }, [emailFilter, linkFilter, advRules]);
+  }, [emailFilter, linkFilter, advRules, advMatch]);
 
   const fetchContractors = useCallback(async () => {
     setLoading(true);
@@ -531,7 +562,7 @@ const Contractors = () => {
 
   // Reset to page 0 whenever the search or status filter changes, so
   // the operator isn't stranded on a page that no longer exists.
-  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter, emailFilter, linkFilter, advRules]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter, emailFilter, linkFilter, advRules, advMatch]);
 
   useEffect(() => {
     fetchContractors();
@@ -1332,10 +1363,14 @@ const Contractors = () => {
 
   const applyAdvFilters = () => {
     setAdvRules(advDraft.filter(advRuleReady));
+    setAdvMatch(advMatchDraft);
     setAdvOpen(false);
   };
 
-  const clearAdvFilters = () => { setAdvDraft([]); setAdvRules([]); };
+  const clearAdvFilters = () => {
+    setAdvDraft([]); setAdvRules([]);
+    setAdvMatchDraft('all'); setAdvMatch('all');
+  };
 
   // Remove one applied rule from its chip — keep the draft in sync.
   const removeAppliedRule = (id: string) => {
@@ -1343,9 +1378,12 @@ const Contractors = () => {
     setAdvDraft((d) => d.filter((x) => x.id !== id));
   };
 
-  // Seed the draft from the applied rules each time the popover opens.
+  // Seed the draft (rules + match mode) from the applied state on open.
   const openAdvPopover = (open: boolean) => {
-    if (open) setAdvDraft(advRules.length ? advRules.map((r) => ({ ...r })) : [newAdvRule()]);
+    if (open) {
+      setAdvDraft(advRules.length ? advRules.map((r) => ({ ...r })) : [newAdvRule()]);
+      setAdvMatchDraft(advMatch);
+    }
     setAdvOpen(open);
   };
 
@@ -1517,9 +1555,28 @@ const Contractors = () => {
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent align="start" className="w-[380px] p-3 space-y-3">
-                      <p className="text-xs text-muted-foreground">
-                        Match <b>all</b> of the following conditions:
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Match {advMatchDraft === 'all' ? 'all' : 'any'} of these conditions
+                        </p>
+                        <div className="inline-flex rounded-md border border-border/70 p-0.5">
+                          {(['all', 'any'] as const).map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setAdvMatchDraft(m)}
+                              className={cn(
+                                'px-2 py-0.5 text-xs rounded kd-transition',
+                                advMatchDraft === m
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-muted-foreground hover:text-foreground',
+                              )}
+                            >
+                              {m === 'all' ? 'All' : 'Any'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       <div className="space-y-2 max-h-[320px] overflow-y-auto">
                         {advDraft.length === 0 && (
                           <p className="text-xs text-muted-foreground py-2">No conditions yet.</p>
@@ -1605,23 +1662,31 @@ const Contractors = () => {
                 />
               </div>
 
-              {/* Applied advanced-filter chips — each removable. */}
+              {/* Applied advanced-filter chips — each removable, joined by the
+                  active match mode (and / or). */}
               {advRules.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {advRules.map((r) => (
-                    <span
-                      key={r.id}
-                      className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 pl-2 pr-1 py-1 text-xs"
-                    >
-                      {advRuleLabel(r)}
-                      <button
-                        type="button"
-                        onClick={() => removeAppliedRule(r.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label="Remove filter"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                    {advMatch === 'any' ? 'Any of' : 'All of'}
+                  </span>
+                  {advRules.map((r, idx) => (
+                    <span key={r.id} className="inline-flex items-center gap-1.5">
+                      {idx > 0 && (
+                        <span className="text-[11px] text-muted-foreground/70">
+                          {advMatch === 'any' ? 'or' : 'and'}
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 pl-2 pr-1 py-1 text-xs">
+                        {advRuleLabel(r)}
+                        <button
+                          type="button"
+                          onClick={() => removeAppliedRule(r.id)}
+                          className="text-muted-foreground hover:text-destructive"
+                          aria-label="Remove filter"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
                     </span>
                   ))}
                   <button type="button" onClick={clearAdvFilters} className="text-xs text-primary hover:underline ml-1">
