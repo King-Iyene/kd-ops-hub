@@ -20,13 +20,6 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   Table,
   TableBody,
   TableCell,
@@ -44,6 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import ReferralCommissions from '@/components/ReferralCommissions';
+import { ContractorCombobox } from '@/components/ContractorCombobox';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -52,6 +46,7 @@ import { usePagination } from '@/hooks/usePagination';
 interface Referral {
   id: string;
   referrer_id: string | null;
+  referrer_contractor_id: string | null;
   referred_email: string;
   status: string;
   is_affiliate: boolean;
@@ -287,20 +282,19 @@ const Referrals = () => {
                     <TableHead>Referred</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Affiliate</TableHead>
-                    <TableHead>Commission %</TableHead>
                     <TableHead>Date</TableHead>
                     {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagination.slice.map((r) => {
-                    const referrer = r.referrer_id
-                      ? profiles.get(r.referrer_id)
-                      : null;
+                    const referrerName = r.referrer_contractor_id
+                      ? (contractors.find((c) => c.id === r.referrer_contractor_id)?.full_name || '—')
+                      : (r.referrer_id ? profiles.get(r.referrer_id)?.full_name || '—' : '—');
                     return (
                       <TableRow key={r.id} className="kd-transition">
                         <TableCell className="font-medium">
-                          {referrer?.full_name || '—'}
+                          {referrerName}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {r.referred_email}
@@ -325,9 +319,6 @@ const Referrals = () => {
                           ) : (
                             <span className="text-muted-foreground text-sm">—</span>
                           )}
-                        </TableCell>
-                        <TableCell>
-                          {r.commission_pct > 0 ? `${r.commission_pct}%` : '—'}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatDate(r.created_at)}
@@ -372,19 +363,13 @@ const Referrals = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Contractor (select from list)</Label>
-              <Select
-                value={form.contractor_id || 'none'}
-                onValueChange={(v) => setForm({ ...form, contractor_id: v === 'none' ? '' : v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select contractor" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— or enter email below —</SelectItem>
-                  {contractors.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Contractor referred (select from list)</Label>
+              <ContractorCombobox
+                value={form.contractor_id}
+                onChange={(id) => setForm({ ...form, contractor_id: id })}
+                contractors={contractors}
+                clearLabel="— or enter email below —"
+              />
             </div>
             {!form.contractor_id && (
               <div className="space-y-1">
@@ -399,19 +384,13 @@ const Referrals = () => {
             )}
             <div className="space-y-1">
               <Label>Referred by (contractor) *</Label>
-              <Select
-                value={form.referrer_contractor_id || 'none'}
-                onValueChange={(v) => setForm({ ...form, referrer_contractor_id: v === 'none' ? '' : v })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select the contractor who referred them" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— select a contractor —</SelectItem>
-                  {contractors.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">Their commission is then counted automatically. Use the toggle below to mark this as an affiliate referral.</p>
+              <ContractorCombobox
+                value={form.referrer_contractor_id}
+                onChange={(id) => setForm({ ...form, referrer_contractor_id: id })}
+                contractors={contractors}
+                placeholder="Search the contractor who referred them…"
+              />
+              <p className="text-[11px] text-muted-foreground">Their commission is counted automatically (per account). Toggle below for an affiliate referral.</p>
             </div>
             <div className="space-y-1">
               <Label>Notes</Label>
@@ -428,19 +407,6 @@ const Referrals = () => {
               />
               <Label>Mark as affiliate</Label>
             </div>
-            {form.is_affiliate && (
-              <div className="space-y-1">
-                <Label>Commission percentage</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.commission_pct}
-                  onChange={(e) => setForm({ ...form, commission_pct: e.target.value })}
-                  placeholder="e.g. 5"
-                />
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>
