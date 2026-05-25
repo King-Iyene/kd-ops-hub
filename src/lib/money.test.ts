@@ -9,6 +9,7 @@ import {
   roundHalfAwayFromZero,
   formatUsdMinor,
   formatNgnMinor,
+  tieredCommissionMinor,
 } from './money';
 
 describe('money: minor-unit conversion', () => {
@@ -79,5 +80,49 @@ describe('money: aggregation', () => {
     const totalNgn = usdMinorToNgnMinor(totalUsd, 1500); // 2,775,000,000 kobo
     expect(totalNgn).toBe(2775000000);
     expect(formatNgnMinor(totalNgn)).toBe('₦27,750,000.00');
+  });
+});
+
+describe('money: tiered affiliate commission', () => {
+  // base $2/account = 200 cents; increased $3/account = 300 cents; threshold 50.
+  const BASE = 200;
+  const TIER2 = 300;
+  const T = 50;
+
+  it('below threshold pays base on every account (both modes)', () => {
+    expect(tieredCommissionMinor(30, BASE, TIER2, T, 'marginal')).toBe(200 * 30);
+    expect(tieredCommissionMinor(30, BASE, TIER2, T, 'whole')).toBe(200 * 30);
+  });
+
+  it('exactly at threshold: marginal still all base; whole flips to increased', () => {
+    expect(tieredCommissionMinor(50, BASE, TIER2, T, 'marginal')).toBe(200 * 50);
+    expect(tieredCommissionMinor(50, BASE, TIER2, T, 'whole')).toBe(300 * 50);
+  });
+
+  it('above threshold: marginal splits base + increased on the excess', () => {
+    // 60 accounts: 50 × $2 + 10 × $3 = 10000 + 3000 = 13000 cents
+    expect(tieredCommissionMinor(60, BASE, TIER2, T, 'marginal')).toBe(200 * 50 + 300 * 10);
+  });
+
+  it('above threshold: whole-tier pays increased on all accounts', () => {
+    // 60 accounts × $3 = 18000 cents
+    expect(tieredCommissionMinor(60, BASE, TIER2, T, 'whole')).toBe(300 * 60);
+  });
+
+  it('zero accounts pays nothing', () => {
+    expect(tieredCommissionMinor(0, BASE, TIER2, T, 'marginal')).toBe(0);
+    expect(tieredCommissionMinor(0, BASE, TIER2, T, 'whole')).toBe(0);
+  });
+
+  it('when tier2 equals base (unset increase), result is flat base in both modes', () => {
+    expect(tieredCommissionMinor(80, BASE, BASE, T, 'marginal')).toBe(200 * 80);
+    expect(tieredCommissionMinor(80, BASE, BASE, T, 'whole')).toBe(200 * 80);
+  });
+
+  it('rejects bad inputs', () => {
+    expect(() => tieredCommissionMinor(-1, BASE, TIER2, T, 'marginal')).toThrow();
+    expect(() => tieredCommissionMinor(10.5, BASE, TIER2, T, 'marginal')).toThrow();
+    expect(() => tieredCommissionMinor(10, 200.5, TIER2, T, 'marginal')).toThrow();
+    expect(() => tieredCommissionMinor(10, BASE, TIER2, -5, 'marginal')).toThrow();
   });
 });
