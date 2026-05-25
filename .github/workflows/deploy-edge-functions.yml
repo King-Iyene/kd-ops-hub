@@ -72,3 +72,37 @@ jobs:
 
       - name: Deploy fx-rate-sync
         run: supabase functions deploy fx-rate-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      # All KD Ops functions run with --no-verify-jwt: they authenticate in
+      # code (cron secret / webhook signature / user JWT + role check), which
+      # is Supabase's recommended pattern. Keep this flag on every deploy so a
+      # redeploy never silently re-enables the JWT gate and breaks cron jobs.
+      - name: Deploy batch-worker
+        run: supabase functions deploy batch-worker --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy payroll-scheduler
+        run: supabase functions deploy payroll-scheduler --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy heyreach-sync
+        run: supabase functions deploy heyreach-sync --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy data-retention-runner
+        run: supabase functions deploy data-retention-runner --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy fleet-alerts
+        run: supabase functions deploy fleet-alerts --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy export-transfer-audit
+        run: supabase functions deploy export-transfer-audit --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy record-failed-login
+        run: supabase functions deploy record-failed-login --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy bulk-email-sender
+        run: supabase functions deploy bulk-email-sender --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy chatbot-chat
+        run: supabase functions deploy chatbot-chat --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
+
+      - name: Deploy chatbot-embed
+        run: supabase functions deploy chatbot-embed --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt

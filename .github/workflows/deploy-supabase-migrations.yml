@@ -1,0 +1,62 @@
+name: Deploy Supabase Migrations
+
+# ─── SETUP ───────────────────────────────────────────────────────────────────
+#
+# Applies supabase/migrations/** to the PRODUCTION database whenever migrations
+# change on main. Pairs with deploy-edge-functions.yml (functions) so the whole
+# Supabase backend deploys automatically, the same way Vercel deploys the
+# frontend.
+#
+# Required GitHub Secrets (repo → Settings → Secrets and variables → Actions):
+#
+#   SUPABASE_ACCESS_TOKEN — Personal Access Token from
+#                           https://supabase.com/dashboard/account/tokens
+#                           (a PAT, NOT the project anon/service_role key).
+#
+#   SUPABASE_PROJECT_REF  — your LIVE project ref (the slug in your project URL,
+#                           e.g. the one your Edge Functions are hosted under).
+#                           IMPORTANT: set this to the project your app actually
+#                           uses in production.
+#
+#   SUPABASE_DB_PASSWORD  — the database password
+#                           (Project Settings → Database → Connection / Password).
+#
+# Note: this applies migrations straight to production. Until you move to a
+# Pro-plan preview/staging branch, keep migrations additive and review them
+# before merging to main.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          echo "Installing Supabase CLI v${VERSION}"
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
+          sudo dpkg -i supabase.deb
+          rm -f supabase.deb
+          supabase --version
+
+      - name: Link project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Push migrations to production
+        run: supabase db push
