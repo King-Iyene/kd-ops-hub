@@ -36,23 +36,28 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
           supabase
             .from('payment_batches')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending_approval'),
+            .eq('status', 'pending_approval')
+            .is('deleted_at', null),
           supabase
             .from('expenses')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending'),
+            .eq('status', 'pending')
+            .is('deleted_at', null),
           supabase
             .from('fuel_requests')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending'),
+            .eq('status', 'pending')
+            .is('deleted_at', null),
           supabase
             .from('budgets')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending_approval'),
+            .eq('status', 'pending_approval')
+            .is('deleted_at', null),
           supabase
             .from('leave_requests')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'pending'),
+            .eq('status', 'pending')
+            .is('deleted_at', null),
         ]);
 
       const batches = batchRes.count || 0;

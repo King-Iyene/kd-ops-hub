@@ -174,12 +174,14 @@ const Approvals = () => {
             .from('payment_batches')
             .select('*')
             .in('status', ['pending_approval', 'pending_second_approval'])
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
             .from('expenses')
             .select('*')
             .in('status', ['pending', 'pending_second_approval'])
+            .is('deleted_at', null)
             .is('fuel_request_id', null)
             .order('created_at', { ascending: false })
             .limit(200),
@@ -187,12 +189,14 @@ const Approvals = () => {
             .from('fuel_requests')
             .select('*')
             .eq('status', 'pending')
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
             .from('budgets')
             .select('*')
             .eq('status', 'pending_approval')
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase.from('profiles').select('id, full_name, email').limit(500),
@@ -200,6 +204,7 @@ const Approvals = () => {
             .from('leave_requests')
             .select('id, employee_id, start_date, end_date, leave_type, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name)')
             .eq('status', 'pending')
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
         ]);
@@ -557,6 +562,9 @@ const Approvals = () => {
   // Rejection now funnels through a reason dialog — mandatory everywhere.
   const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Bulk reject shares one reason across every selected item.
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
 
   const rejectOne = (it: PendingItem) => {
     if (!canApprove) {
@@ -571,6 +579,63 @@ const Approvals = () => {
     setRejectReason('');
   };
 
+  // Shared per-item reject logic — used by both single and bulk reject so the
+  // RPC routing, paired-expense cleanup, and submitter notification stay
+  // identical. Batches/expenses go through the RPCs (which clear approval state
+  // and write the transfer_audit row); fuel/budget/leave use a direct update.
+  const rejectItemCore = async (it: PendingItem, reason: string) => {
+    if (it.kind === 'batch') {
+      await rejectPaymentBatch(rawId(it.id), reason);
+    } else if (it.kind === 'expense') {
+      await rejectExpense(rawId(it.id), reason);
+    } else {
+      const patch: any = { status: PENDING_STATUS[it.kind].reject, rejection_reason: reason };
+      const { error } = await supabase
+        .from(TABLES[it.kind])
+        .update(patch)
+        .eq('id', rawId(it.id));
+      if (error) throw error;
+    }
+
+    // Rejecting a fuel request also rejects its paired expense row so finance
+    // no longer sees it as actionable.
+    if (it.kind === 'fuel') {
+      await supabase
+        .from('expenses')
+        .update({ status: 'rejected', rejection_reason: reason })
+        .eq('fuel_request_id', rawId(it.id));
+    }
+
+    const submitterId =
+      it.kind === 'batch'
+        ? it.raw?.created_by
+        : it.kind === 'expense'
+        ? it.raw?.submitted_by
+        : it.kind === 'fuel'
+        ? it.raw?.driver_id
+        : it.kind === 'budget'
+        ? it.raw?.created_by
+        : it.raw?.employee_id;
+
+    const KIND_LABELS: Record<string, string> = {
+      batch: 'payment batch',
+      expense: 'expense',
+      fuel: 'fuel request',
+      budget: 'budget',
+      leave: 'leave request',
+    };
+    await writeRejectionNotification({
+      entity: it.kind,
+      entityLabel: KIND_LABELS[it.kind] || it.kind,
+      amount: it.amount,
+      reason,
+      submitterId: submitterId || null,
+      actor: profile,
+      auditType: AUDIT_REJECT[it.kind],
+      auditDescription: `${describeReject(it)} — ${reason}`,
+    });
+  };
+
   const confirmReject = async () => {
     if (!rejectTarget) return;
     if (!isValidRejectionReason(rejectReason)) {
@@ -580,63 +645,7 @@ const Approvals = () => {
     const it = rejectTarget;
     setActioning(it.id);
     try {
-      // Batches and expenses must go through the RPC so the reject can clear
-      // approval state and write the matching transfer_audit row. Fuel /
-      // budget / leave still use the legacy direct-update path.
-      if (it.kind === 'batch') {
-        await rejectPaymentBatch(rawId(it.id), rejectReason.trim());
-      } else if (it.kind === 'expense') {
-        await rejectExpense(rawId(it.id), rejectReason.trim());
-      } else {
-        const patch: any = { status: PENDING_STATUS[it.kind].reject };
-        patch.rejection_reason = rejectReason.trim();
-        const { error } = await supabase
-          .from(TABLES[it.kind])
-          .update(patch)
-          .eq('id', rawId(it.id));
-        if (error) throw error;
-      }
-
-      // If a fuel request is rejected, also mark the paired expense row
-      // as rejected so finance no longer sees it as actionable.
-      if (it.kind === 'fuel') {
-        await supabase
-          .from('expenses')
-          .update({ status: 'rejected', rejection_reason: rejectReason.trim() })
-          .eq('fuel_request_id', rawId(it.id));
-      }
-
-      // Figure out submitter for notification.
-      const submitterId =
-        it.kind === 'batch'
-          ? it.raw?.created_by
-          : it.kind === 'expense'
-          ? it.raw?.submitted_by
-          : it.kind === 'fuel'
-          ? it.raw?.driver_id
-          : it.kind === 'budget'
-          ? it.raw?.created_by
-          : it.raw?.employee_id;
-
-      // Map each kind to a human-friendly label so the recipient sees
-      // "Your fuel request was rejected" instead of "Your fuel was rejected".
-      const KIND_LABELS: Record<string, string> = {
-        batch: 'payment batch',
-        expense: 'expense',
-        fuel: 'fuel request',
-        budget: 'budget',
-        leave: 'leave request',
-      };
-      await writeRejectionNotification({
-        entity: it.kind,
-        entityLabel: KIND_LABELS[it.kind] || it.kind,
-        amount: it.amount,
-        reason: rejectReason.trim(),
-        submitterId: submitterId || null,
-        actor: profile,
-        auditType: AUDIT_REJECT[it.kind],
-        auditDescription: `${describeReject(it)} — ${rejectReason.trim()}`,
-      });
+      await rejectItemCore(it, rejectReason.trim());
       toast({ title: 'Rejected with reason' });
       setRejectTarget(null);
       setRejectReason('');
@@ -751,6 +760,66 @@ const Approvals = () => {
     }
   };
 
+  /**
+   * Bulk reject — one shared reason applied to every selected item. Reuses
+   * rejectItemCore so each kind is rejected and its submitter notified exactly
+   * as in single reject. Per-row failures are collected, not swallowed.
+   */
+  const bulkReject = async () => {
+    if (!canApprove) {
+      toast({
+        title: 'Not authorized',
+        description: 'Only Admin or Finance roles can bulk reject.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const reason = bulkRejectReason.trim();
+    if (!isValidRejectionReason(reason)) {
+      toast({ title: 'Reason is required (min 10 chars)', variant: 'destructive' });
+      return;
+    }
+    const rows = items.filter((i) => selected.has(i.id));
+    if (rows.length === 0) return;
+
+    setBulkLoading(true);
+    let succeeded = 0;
+    const failures: Array<{ title: string; reason: string }> = [];
+    try {
+      for (const it of rows) {
+        try {
+          await rejectItemCore(it, reason);
+          succeeded++;
+        } catch (err: any) {
+          failures.push({ title: it.title, reason: err?.message || 'unknown' });
+        }
+      }
+
+      if (succeeded > 0 && failures.length === 0) {
+        toast({ title: `Rejected ${succeeded} item${succeeded === 1 ? '' : 's'}` });
+      } else if (succeeded > 0 && failures.length > 0) {
+        toast({
+          title: `Rejected ${succeeded} of ${succeeded + failures.length}`,
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Bulk rejection failed',
+          description: failures.map((f) => `• ${f.title}: ${f.reason}`).join('\n'),
+          variant: 'destructive',
+        });
+      }
+      setBulkRejectOpen(false);
+      setBulkRejectReason('');
+      setSelected(new Set());
+      await fetchAll();
+      refreshCounts();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const openItem = (it: PendingItem) => {
     if (it.kind === 'batch') navigate(`/payments/${rawId(it.id)}`);
     else if (it.kind === 'expense') navigate('/expenses', { state: { openExpenseId: rawId(it.id) } });
@@ -841,17 +910,27 @@ const Approvals = () => {
             <p className="text-sm">
               <span className="font-semibold">{selectedCount}</span> item{selectedCount === 1 ? '' : 's'} selected
             </p>
-            <Button
-              onClick={() => {
-                const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
-                setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
-              }}
-              disabled={bulkLoading}
-              className="kd-magnetic"
-            >
-              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => { setBulkRejectReason(''); setBulkRejectOpen(true); }}
+                disabled={bulkLoading}
+                className="text-destructive border-destructive/40 hover:bg-destructive/5"
+              >
+                <X className="mr-2 h-4 w-4" /> Reject {selectedCount} selected
+              </Button>
+              <Button
+                onClick={() => {
+                  const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                  setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
+                }}
+                disabled={bulkLoading}
+                className="kd-magnetic"
+              >
+                {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Check className="mr-2 h-4 w-4" /> Approve {selectedCount} selected
+              </Button>
+            </div>
           </div>
 
           {/* Mobile sticky bulk bar */}
@@ -860,21 +939,31 @@ const Approvals = () => {
               <p className="text-xs">
                 <span className="font-semibold text-base">{selectedCount}</span> selected
               </p>
-              <Button
-                onClick={() => {
-                  const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
-                  setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
-                }}
-                disabled={bulkLoading}
-                className="h-11 flex-1 max-w-[60%] bg-success hover:bg-success/90 text-success-foreground"
-              >
-                {bulkLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                Approve {selectedCount}
-              </Button>
+              <div className="flex items-center gap-2 flex-1 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => { setBulkRejectReason(''); setBulkRejectOpen(true); }}
+                  disabled={bulkLoading}
+                  className="h-11 text-destructive border-destructive/40"
+                >
+                  <X className="mr-1.5 h-4 w-4" /> Reject
+                </Button>
+                <Button
+                  onClick={() => {
+                    const totalAmt = items.filter((i) => selected.has(i.id)).reduce((s, i) => s + (i.amount ?? 0), 0);
+                    setBulkApproveConfirm({ count: selectedCount, total: totalAmt });
+                  }}
+                  disabled={bulkLoading}
+                  className="h-11 bg-success hover:bg-success/90 text-success-foreground"
+                >
+                  {bulkLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  Approve {selectedCount}
+                </Button>
+              </div>
             </div>
           </div>
           {/* Spacer so the last list item isn't hidden behind the sticky bar */}
@@ -1202,6 +1291,42 @@ const Approvals = () => {
               disabled={!isValidRejectionReason(rejectReason)}
             >
               Reject with reason
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkRejectOpen}
+        onOpenChange={(v) => {
+          if (!v) { setBulkRejectOpen(false); setBulkRejectReason(''); }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject {selectedCount} selected item{selectedCount === 1 ? '' : 's'}</DialogTitle>
+            <DialogDescription>
+              One reason is applied to every selected item, and each submitter is
+              notified so they can re-edit and resubmit. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={bulkRejectReason}
+            onChange={(e) => setBulkRejectReason(e.target.value)}
+            placeholder="e.g. Duplicate submissions — please consolidate and resubmit."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(''); }} disabled={bulkLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={bulkReject}
+              disabled={bulkLoading || !isValidRejectionReason(bulkRejectReason)}
+            >
+              {bulkLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Reject {selectedCount} with reason
             </Button>
           </DialogFooter>
         </DialogContent>

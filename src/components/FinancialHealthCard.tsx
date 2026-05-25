@@ -132,7 +132,8 @@ export function FinancialHealthCard() {
         supabase
           .from('payment_batches')
           .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending_approval'),
+          .eq('status', 'pending_approval')
+          .is('deleted_at', null),
         supabase
           .from('compliance_filings')
           .select('id', { count: 'exact', head: true })
