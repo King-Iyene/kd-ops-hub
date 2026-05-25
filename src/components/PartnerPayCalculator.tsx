@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { formatDateTime } from '@/lib/format';
 import {
@@ -53,6 +54,11 @@ export default function PartnerPayCalculator() {
   const [globalInput, setGlobalInput] = useState('0');
   const [rate, setRate] = useState<number | null>(null);
   const [rateAt, setRateAt] = useState<string | null>(null);
+  // Per-run exchange rate: use the live settings rate, or a manually-typed one.
+  // The manual rate is NOT saved (resets on reload) and never touches fx_rates —
+  // it only affects this calculation and the draft batch it generates.
+  const [rateSource, setRateSource] = useState<'settings' | 'manual'>('settings');
+  const [manualRateInput, setManualRateInput] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [generating, setGenerating] = useState(false);
 
@@ -108,16 +114,25 @@ export default function PartnerPayCalculator() {
   const payable = useMemo(() => active.filter(hasBank), [active]);
   const needsBank = useMemo(() => active.filter((p) => !hasBank(p)), [active]);
 
+  // A valid manual rate (> 0), or null while empty/invalid.
+  const manualRate = useMemo(() => {
+    const n = parseFloat(manualRateInput.replace(/,/g, ''));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [manualRateInput]);
+  const usingManual = rateSource === 'manual';
+  // The rate every calc + the generated batch actually uses.
+  const effectiveRate = usingManual ? manualRate : rate;
+
   // Totals reflect what a batch would actually PAY (payable partners), so the
   // headline NGN equals the batch total.
   const totals = useMemo(() => {
     const totalUsdMinor = sumMinor(payable.map(perPartnerMinor));
     const overrides = payable.filter((p) => p.pay_amount_usd_minor != null).length;
-    const totalNgnMinor = rate != null ? usdMinorToNgnMinor(totalUsdMinor, rate) : null;
+    const totalNgnMinor = effectiveRate != null ? usdMinorToNgnMinor(totalUsdMinor, effectiveRate) : null;
     const flat = overrides === 0;
     return { totalUsdMinor, totalNgnMinor, overrides, flat };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [payable, globalUsdMinor, rate]);
+  }, [payable, globalUsdMinor, effectiveRate]);
 
   const saveGlobal = async () => {
     const major = parseFloat(globalInput.replace(/,/g, ''));
@@ -146,8 +161,12 @@ export default function PartnerPayCalculator() {
   // per partner at the locked rate (snapshotted on the batch + each line). It
   // enters the normal Payments approval flow — nothing is paid until approved.
   const generateBatch = async () => {
-    if (rate == null) {
-      toast({ title: 'No exchange rate', description: 'Set an active rate in Settings → Exchange rate first.', variant: 'destructive' });
+    if (effectiveRate == null) {
+      toast({
+        title: 'No exchange rate',
+        description: usingManual ? 'Enter a valid manual rate first.' : 'Set an active rate in Settings → Exchange rate, or switch to a manual rate.',
+        variant: 'destructive',
+      });
       return;
     }
     if (payable.length === 0) {
@@ -160,7 +179,7 @@ export default function PartnerPayCalculator() {
       const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
       const lines = payable.map((p) => {
         const usdMinor = perPartnerMinor(p);
-        return { p, usdMinor, ngnMinor: usdMinorToNgnMinor(usdMinor, rate) };
+        return { p, usdMinor, ngnMinor: usdMinorToNgnMinor(usdMinor, effectiveRate) };
       });
       const totalNgnMinor = sumMinor(lines.map((l) => l.ngnMinor));
 
@@ -175,7 +194,7 @@ export default function PartnerPayCalculator() {
           batch_type: 'contractor',
           status: 'draft',
           created_by: profile?.id,
-          fx_rate_used: rate,
+          fx_rate_used: effectiveRate,
           fx_base: 'USD',
           fx_quote: 'NGN',
         } as never)
@@ -215,7 +234,7 @@ export default function PartnerPayCalculator() {
     return <div className="flex items-center gap-2 text-muted-foreground py-8"><Loader2 className="h-4 w-4 animate-spin" /> Loading pay calculator…</div>;
   }
 
-  const noRate = rate == null;
+  const noRate = effectiveRate == null;
 
   return (
     <div className="space-y-4">
@@ -246,12 +265,44 @@ export default function PartnerPayCalculator() {
               <p className="text-[11px] text-muted-foreground">Applied to every active partner without a personal override.</p>
             </div>
             <div className="space-y-1.5">
-              <Label>Exchange rate (live)</Label>
-              <div className="h-10 flex items-center px-3 rounded-md border bg-muted/30 tabular-nums">
-                {noRate ? <span className="text-amber-600 text-sm">No active rate — set one in Settings → Exchange rate</span>
-                        : <>1 USD = ₦{rate!.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</>}
+              <div className="flex items-center justify-between gap-2">
+                <Label>Exchange rate {usingManual ? '(manual)' : '(live)'}</Label>
+                {canEdit && (
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                    Enter manually
+                    <Switch
+                      checked={usingManual}
+                      onCheckedChange={(v) => {
+                        // Prefill the manual field with the live rate for convenience.
+                        if (v && !manualRateInput && rate != null) setManualRateInput(String(rate));
+                        setRateSource(v ? 'manual' : 'settings');
+                      }}
+                    />
+                  </label>
+                )}
               </div>
-              <p className="text-[11px] text-muted-foreground">{rateAt ? `Locked from the rate effective ${formatDateTime(rateAt)}` : 'Set in Settings → Exchange rate.'}</p>
+              {usingManual ? (
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₦</span>
+                  <Input
+                    inputMode="decimal"
+                    value={manualRateInput}
+                    onChange={(e) => setManualRateInput(e.target.value)}
+                    placeholder="1370.15"
+                    className="pl-7 tabular-nums"
+                  />
+                </div>
+              ) : (
+                <div className="h-10 flex items-center px-3 rounded-md border bg-muted/30 tabular-nums">
+                  {rate == null ? <span className="text-amber-600 text-sm">No active rate — set one in Settings, or switch to manual</span>
+                          : <>1 USD = ₦{rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</>}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                {usingManual
+                  ? 'Used for this run only — not saved, and the draft batch records the rate you used.'
+                  : (rateAt ? `Locked from the rate effective ${formatDateTime(rateAt)}` : 'Set in Settings → Exchange rate.')}
+              </p>
             </div>
           </div>
         </CardContent>
@@ -278,7 +329,7 @@ export default function PartnerPayCalculator() {
                 <span className="text-foreground font-medium">{payable.length}</span> payable partner{payable.length === 1 ? '' : 's'} ×{' '}
                 <span className="text-foreground font-medium">{formatUsdMinor(globalUsdMinor)}</span> ={' '}
                 <span className="text-foreground font-medium">{formatUsdMinor(totals.totalUsdMinor)}</span>
-                {!noRate && <>{' '}× <span className="text-foreground font-medium">₦{rate!.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span> ={' '}
+                {!noRate && <>{' '}× <span className="text-foreground font-medium">₦{effectiveRate!.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span> ={' '}
                   <span className="text-foreground font-semibold">{formatNgnMinor(totals.totalNgnMinor!)}</span></>}
               </>
             ) : (
@@ -293,7 +344,7 @@ export default function PartnerPayCalculator() {
           {noRate && (
             <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-500/5 border border-amber-500/30 rounded-lg p-3">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-              <span>Set an active exchange rate in <b>Settings → Exchange rate</b> to see the Naira total. The USD figures above are already final.</span>
+              <span>{usingManual ? <>Enter a valid <b>manual rate</b> above to see the Naira total. The USD figures are already final.</> : <>Set an active exchange rate in <b>Settings → Exchange rate</b> (or switch to a manual rate) to see the Naira total. The USD figures above are already final.</>}</span>
             </div>
           )}
 
