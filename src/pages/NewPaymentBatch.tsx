@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { heyreachDisplayStatus } from '@/lib/heyreach-status';
 
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
 
@@ -55,6 +56,11 @@ interface Contractor {
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
+  // HeyReach signal — used to block paying disconnected accounts.
+  status?: string | null;
+  heyreach_status?: string | null;
+  heyreach_email?: string | null;
+  linkedin_url?: string | null;
 }
 
 interface Employee {
@@ -288,6 +294,16 @@ const NewPaymentBatch = () => {
   const toggleContractor = (c: Contractor, checked: boolean) => {
     if (checked) {
       if (selectedIds.has(c.id)) return;
+      // Disconnected HeyReach accounts can't be paid — guard even if the
+      // checkbox is somehow toggled (e.g. keyboard).
+      if (!heyreachDisplayStatus(c).payable) {
+        toast({
+          title: 'Cannot add this contractor',
+          description: heyreachDisplayStatus(c).reason,
+          variant: 'destructive',
+        });
+        return;
+      }
       if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
         toast({
           title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
@@ -316,6 +332,7 @@ const NewPaymentBatch = () => {
   const selectAllVisible = (visible: Contractor[]) => {
     const toAdd = visible
       .filter((c) => !selectedIds.has(c.id))
+      .filter((c) => heyreachDisplayStatus(c).payable) // skip disconnected
       .map((c) => ({
         _key: crypto.randomUUID(),
         full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
@@ -466,6 +483,9 @@ const NewPaymentBatch = () => {
   };
 
   const totalAmount = items.reduce((sum, i) => sum + (i.amount_ngn || 0), 0);
+  // Beneficiaries with no/zero amount block advancing — a payout row must have
+  // a positive amount (catch it before Review, not only at save).
+  const zeroAmountCount = items.filter((i) => !(Number(i.amount_ngn) > 0)).length;
 
   const handleSave = async (submit: boolean) => {
     const zeroItems = items.filter((i) => !i.amount_ngn || Number(i.amount_ngn) <= 0);
@@ -577,6 +597,12 @@ const NewPaymentBatch = () => {
         c.account_number.includes(s)
     );
   }, [contractors, searchTerm]);
+
+  // How many visible contractors can actually be selected (excludes disconnected).
+  const selectableVisibleCount = useMemo(
+    () => filteredContractors.filter((c) => heyreachDisplayStatus(c).payable).length,
+    [filteredContractors],
+  );
 
   if (loadingEdit) {
     return (
@@ -888,8 +914,8 @@ const NewPaymentBatch = () => {
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => selectAllVisible(filteredContractors)} disabled={filteredContractors.length === 0}>
-                      Select all {filteredContractors.length ? `(${filteredContractors.length})` : ''}
+                    <Button size="sm" variant="outline" onClick={() => selectAllVisible(filteredContractors)} disabled={selectableVisibleCount === 0}>
+                      Select all {selectableVisibleCount ? `(${selectableVisibleCount})` : ''}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => clearAllVisible(filteredContractors)} disabled={filteredContractors.length === 0}>
                       Clear visible
@@ -910,29 +936,47 @@ const NewPaymentBatch = () => {
                       filteredContractors.map((c) => {
                         const checked = selectedIds.has(c.id);
                         const name = c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
+                        const st = heyreachDisplayStatus(c);
+                        const selectable = st.payable;
                         return (
                           <label
                             key={c.id}
+                            title={selectable ? undefined : st.reason}
                             className={cn(
-                              'flex items-center gap-3 px-3 h-9 cursor-pointer kd-transition',
-                              checked ? 'bg-primary/[0.04]' : 'hover:bg-muted/30',
+                              'flex items-center gap-3 px-3 h-9 kd-transition',
+                              !selectable
+                                ? 'opacity-70 cursor-not-allowed'
+                                : checked ? 'bg-primary/[0.04] cursor-pointer' : 'cursor-pointer hover:bg-muted/30',
                             )}
                           >
                             <Checkbox
                               checked={checked}
-                              onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
+                              disabled={!selectable}
+                              onCheckedChange={(v) => selectable && toggleContractor(c, Boolean(v))}
                               className="h-3.5 w-3.5"
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-[12.5px] font-medium truncate">{name}</span>
-                                {c.bank_name && (
+                                {!selectable && (
+                                  <span className={cn(
+                                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0',
+                                    st.className,
+                                  )}>
+                                    <AlertTriangle className="h-2.5 w-2.5" /> {st.label}
+                                  </span>
+                                )}
+                                {selectable && c.bank_name && (
                                   <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
                                     {c.bank_name} · {c.account_number || '—'}
                                   </span>
                                 )}
                               </div>
-                              {c.bank_name && (
+                              {!selectable ? (
+                                <span className="text-[10px] text-amber-600 block truncate">
+                                  Reconnect on HeyReach to include in a payment
+                                </span>
+                              ) : c.bank_name && (
                                 <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
                                   {c.bank_name} · {c.account_number || '—'}
                                 </span>
@@ -1054,10 +1098,17 @@ const NewPaymentBatch = () => {
                           <td className="px-3 py-1.5 text-right">
                             <Input
                               type="number"
-                              className="w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60"
+                              className={cn(
+                                'w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60',
+                                !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
+                              )}
                               value={item.amount_ngn}
                               disabled={amountMode === 'same'}
-                              title={amountMode === 'same' ? 'Switch to "Different amounts" to edit individually' : undefined}
+                              title={
+                                amountMode === 'same'
+                                  ? 'Switch to "Different amounts" to edit individually'
+                                  : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
+                              }
                               onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)}
                             />
                           </td>
@@ -1088,13 +1139,23 @@ const NewPaymentBatch = () => {
             </CardContent>
           </Card>
 
+          {zeroAmountCount > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <span>
+                <b>{zeroAmountCount}</b> beneficiar{zeroAmountCount === 1 ? 'y has' : 'ies have'} no amount.
+                Set an amount greater than ₦0 for {zeroAmountCount === 1 ? 'it' : 'each'} before continuing.
+              </span>
+            </div>
+          )}
+
           <StickyActionBar
             status={items.length > 0 ? `${items.length} recipient${items.length === 1 ? '' : 's'} selected` : undefined}
           >
             <Button variant="outline" onClick={() => setStep(1)} className="h-11 md:h-9">
               <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
-            <Button onClick={() => setStep(3)} disabled={items.length === 0} className="flex-1 md:flex-none h-11 md:h-9">
+            <Button onClick={() => setStep(3)} disabled={items.length === 0 || zeroAmountCount > 0} className="flex-1 md:flex-none h-11 md:h-9">
               Review <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </StickyActionBar>
