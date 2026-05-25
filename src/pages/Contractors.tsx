@@ -38,6 +38,7 @@ import {
   UserX,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   XCircle,
   Check,
   X,
@@ -284,6 +285,9 @@ const Contractors = () => {
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [heyreachFilter, setHeyreachFilter] = useState<'all' | 'active' | 'disconnected' | 'pending' | 'inactive'>('all');
+  // Sidebar facets: presence of a contact email / a LinkedIn link.
+  const [emailFilter, setEmailFilter] = useState<'all' | 'has' | 'none'>('all');
+  const [linkFilter, setLinkFilter] = useState<'all' | 'has' | 'none'>('all');
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [confirmReactivate, setConfirmReactivate] = useState<Contractor | null>(null);
 
@@ -294,6 +298,9 @@ const Contractors = () => {
   const [importFileName, setImportFileName] = useState('');
   const [importing, setImporting] = useState(false);
   const [importSummary, setImportSummary] = useState<{
+    created: number;
+    updated: number;
+    updateFailures: number;
     imported: number;
     failed: number;
     failures: { row: number; name: string; reason: string }[];
@@ -328,6 +335,17 @@ const Contractors = () => {
     return q; // 'all'
   }, []);
 
+  // Sidebar field facets — email / link presence. Uses simple null checks
+  // (absent values are stored NULL) so it never stacks a second .or() onto
+  // the status filter's.
+  const applyFieldFilters = useCallback((q: any) => {
+    if (emailFilter === 'has') q = q.not('email', 'is', null).neq('email', '');
+    else if (emailFilter === 'none') q = q.is('email', null);
+    if (linkFilter === 'has') q = q.not('linkedin_url', 'is', null).neq('linkedin_url', '');
+    else if (linkFilter === 'none') q = q.is('linkedin_url', null);
+    return q;
+  }, [emailFilter, linkFilter]);
+
   const fetchContractors = useCallback(async () => {
     setLoading(true);
     const from = page * CONTRACTORS_PAGE_SIZE;
@@ -340,6 +358,7 @@ const Contractors = () => {
       .neq('is_anonymised', true);
     q = applySearch(q);
     q = applyStatusFilter(q, heyreachFilter);
+    q = applyFieldFilters(q);
     q = q.order('full_name').range(from, to);
 
     const [contractorsRes, tagsRes] = await Promise.all([
@@ -350,18 +369,20 @@ const Contractors = () => {
     setTotalCount(contractorsRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setLoading(false);
-  }, [page, heyreachFilter, applySearch, applyStatusFilter]);
+  }, [page, heyreachFilter, applySearch, applyStatusFilter, applyFieldFilters]);
 
   // Per-chip counts across the WHOLE directory (respecting the active
   // search). Count-only queries (head: true) — cheap, no rows pulled.
   const fetchStatusCounts = useCallback(async () => {
     const base = () =>
-      applySearch(
-        supabase
-          .from('contractors')
-          .select('id', { count: 'exact', head: true })
-          .neq('status', 'deleted')
-          .neq('is_anonymised', true),
+      applyFieldFilters(
+        applySearch(
+          supabase
+            .from('contractors')
+            .select('id', { count: 'exact', head: true })
+            .neq('status', 'deleted')
+            .neq('is_anonymised', true),
+        ),
       );
     const [all, active, disconnected, pending, inactive] = await Promise.all([
       base(),
@@ -377,7 +398,7 @@ const Contractors = () => {
       pending: pending.count ?? 0,
       inactive: inactive.count ?? 0,
     });
-  }, [applySearch, applyStatusFilter]);
+  }, [applySearch, applyStatusFilter, applyFieldFilters]);
 
   // Reload the page rows AND the chip counts. Use after any mutation
   // (delete, import, deactivate, edit) so both stay in sync.
@@ -388,7 +409,7 @@ const Contractors = () => {
 
   // Reset to page 0 whenever the search or status filter changes, so
   // the operator isn't stranded on a page that no longer exists.
-  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, heyreachFilter, emailFilter, linkFilter]);
 
   useEffect(() => {
     fetchContractors();
@@ -433,9 +454,25 @@ const Contractors = () => {
         ? changes.slice(0, 5).map((c) => `${c.name} → ${c.to}`).join(', ') +
           (changes.length > 5 ? ` +${changes.length - 5} more` : '')
         : 'No status changes detected.';
+
+      // How many couldn't be matched to a HeyReach sender account? Surface the
+      // count AND the reason, since "has an email but still pending" is the
+      // usual confusion: matching is on the LinkedIn Email / URL, not the
+      // general contact email.
+      const { count: pendingCount } = await applyStatusFilter(
+        supabase
+          .from('contractors')
+          .select('id', { count: 'exact', head: true })
+          .neq('status', 'deleted')
+          .neq('is_anonymised', true),
+        'pending',
+      );
+
       toast({
         title: `HeyReach sync complete — ${changes.length} updated`,
-        description: summary,
+        description: pendingCount
+          ? `${summary} · ${pendingCount} still pending — no matching HeyReach account. Matching uses each contractor's LinkedIn Email / URL (not their contact email). Open the Pending filter to see why.`
+          : summary,
       });
       await Promise.all([fetchContractors(), fetchStatusCounts(), fetchLastSync()]);
     } catch (err: any) {
@@ -1109,6 +1146,9 @@ const Contractors = () => {
       );
 
       setImportSummary({
+        created: toInsert.length,
+        updated: toUpdate.length - updateFailures,
+        updateFailures,
         imported: valid.length,
         failed: invalid.length,
         failures: invalid.map((r) => ({
@@ -1132,6 +1172,24 @@ const Contractors = () => {
     setParsedRows([]);
     setImportFileName('');
     setImportSummary(null);
+  };
+
+  // Download the skipped/blocked rows as a CSV so the operator can fix and
+  // re-upload — the recommended pattern for import error reporting.
+  const downloadImportErrors = () => {
+    if (!importSummary?.failures.length) return;
+    const header = ['row', 'name', 'error'];
+    const lines = [
+      header.join(','),
+      ...importSummary.failures.map((f) => [f.row, f.name, f.reason].map(csvEscape).join(',')),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `import-errors-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Server-side paging: `contractors` already holds exactly the
@@ -1227,51 +1285,79 @@ const Contractors = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="contractors" className="mt-4 space-y-4">
-      {/* HeyReach status filter — doubles as a KPI summary. */}
-      <div className="flex flex-wrap gap-2">
-        {([
-          { key: 'all',          label: 'All',          count: statusCounts.all,           dot: 'bg-muted-foreground/40' },
-          { key: 'active',       label: 'Active',       count: statusCounts.active,        dot: 'bg-success' },
-          { key: 'disconnected', label: 'Disconnected', count: statusCounts.disconnected,  dot: 'bg-amber-500' },
-          { key: 'pending',      label: 'Pending',      count: statusCounts.pending,       dot: 'bg-sky-500' },
-          { key: 'inactive',     label: 'Inactive',     count: statusCounts.inactive,      dot: 'bg-muted-foreground' },
-        ] as const).map((chip) => {
-          const selected = heyreachFilter === chip.key;
-          return (
-            <button
-              key={chip.key}
-              type="button"
-              onClick={() => setHeyreachFilter(chip.key)}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm kd-transition',
-                selected
-                  ? 'border-primary/40 bg-primary/5 text-foreground shadow-sm'
-                  : 'border-border/70 bg-card text-muted-foreground hover:border-border hover:text-foreground',
-              )}
-            >
-              <span className={cn('h-2 w-2 rounded-full', chip.dot)} />
-              <span className="font-medium">{chip.label}</span>
-              <span className={cn(
-                'rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
-                selected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
-              )}>
-                {chip.count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <TabsContent value="contractors" className="mt-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Faceted filter sidebar */}
+            <aside className="md:w-56 shrink-0">
+              <div className="rounded-lg border border-border/70 bg-card p-3 space-y-4 md:sticky md:top-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Filters</span>
+                  {(heyreachFilter !== 'all' || emailFilter !== 'all' || linkFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => { setHeyreachFilter('all'); setEmailFilter('all'); setLinkFilter('all'); }}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search contractors..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+                <div className="space-y-0.5">
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">HeyReach status</p>
+                  {([
+                    { key: 'all',          label: 'All',          dot: 'bg-muted-foreground/40' },
+                    { key: 'active',       label: 'Active',       dot: 'bg-success' },
+                    { key: 'disconnected', label: 'Disconnected', dot: 'bg-amber-500' },
+                    { key: 'pending',      label: 'Pending',      dot: 'bg-sky-500' },
+                    { key: 'inactive',     label: 'Inactive',     dot: 'bg-muted-foreground' },
+                  ] as const).map((f) => (
+                    <FacetButton
+                      key={f.key}
+                      active={heyreachFilter === f.key}
+                      onClick={() => setHeyreachFilter(f.key)}
+                      label={f.label}
+                      dot={f.dot}
+                      count={statusCounts[f.key]}
+                    />
+                  ))}
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Email</p>
+                  {([
+                    { key: 'all',  label: 'Any' },
+                    { key: 'has',  label: 'Has email' },
+                    { key: 'none', label: 'No email' },
+                  ] as const).map((f) => (
+                    <FacetButton key={f.key} active={emailFilter === f.key} onClick={() => setEmailFilter(f.key)} label={f.label} />
+                  ))}
+                </div>
+
+                <div className="space-y-0.5">
+                  <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">LinkedIn link</p>
+                  {([
+                    { key: 'all',  label: 'Any' },
+                    { key: 'has',  label: 'Has link' },
+                    { key: 'none', label: 'No link' },
+                  ] as const).map((f) => (
+                    <FacetButton key={f.key} active={linkFilter === f.key} onClick={() => setLinkFilter(f.key)} label={f.label} />
+                  ))}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main column: search + list + pagination */}
+            <div className="flex-1 min-w-0 space-y-4">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search contractors..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
 
       {/* Mercury-style list: hairline-bordered surface, no card chrome. */}
       <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
@@ -1388,15 +1474,18 @@ const Contractors = () => {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className={cn(
-                              'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium',
+                              'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium cursor-help',
                               hr.className,
                             )}>
                               <span className={cn('h-1.5 w-1.5 rounded-full', hr.dotClass)} />
                               {hr.label}
+                              {(hr.key === 'pending' || hr.key === 'disconnected') && (
+                                <Info className="h-3 w-3 opacity-70" />
+                              )}
                             </span>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p className="max-w-[220px] text-xs">{hr.reason}</p>
+                            <p className="max-w-[240px] text-xs">{hr.reason}</p>
                           </TooltipContent>
                         </Tooltip>
                       );
@@ -1459,6 +1548,8 @@ const Contractors = () => {
           />
         </div>
       </div>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="applications" className="mt-4">
@@ -1683,14 +1774,38 @@ const Contractors = () => {
             </DialogTitle>
             <DialogDescription>
               {importSummary
-                ? `${importSummary.imported} contractor(s) imported${
-                    importSummary.failed
-                      ? `, ${importSummary.failed} row(s) skipped.`
-                      : '.'
-                  }`
-                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${newCount} new, ${updateCount} update, ${invalidCount} blocked.`}
+                ? `${importFileName || 'File'} processed.`
+                : `${importFileName || 'Uploaded file'} — ${parsedRows.length} row(s) parsed. ${newCount} new, ${updateCount} already exist (update), ${invalidCount} blocked.`}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Post-import breakdown — created vs updated vs skipped, with a
+              downloadable error report for any blocked rows. */}
+          {importSummary && (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+              <span className="inline-flex items-center gap-1.5 text-success">
+                <CheckCircle2 className="h-4 w-4" /> <b>{importSummary.created}</b> created
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-blue-600">
+                <RefreshCw className="h-4 w-4" /> <b>{importSummary.updated}</b> updated (already existed)
+              </span>
+              {importSummary.failed > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-destructive">
+                  <AlertCircle className="h-4 w-4" /> <b>{importSummary.failed}</b> skipped
+                </span>
+              )}
+              {importSummary.updateFailures > 0 && (
+                <span className="inline-flex items-center gap-1.5 text-amber-600">
+                  <AlertTriangle className="h-4 w-4" /> <b>{importSummary.updateFailures}</b> update(s) failed
+                </span>
+              )}
+              {importSummary.failures.length > 0 && (
+                <Button variant="outline" size="sm" className="ml-auto" onClick={downloadImportErrors}>
+                  <Download className="mr-2 h-4 w-4" /> Download error report
+                </Button>
+              )}
+            </div>
+          )}
 
           {!importSummary && (
             <>
@@ -1984,5 +2099,45 @@ function ApplicationsBadge() {
     <Badge className="ml-2 bg-warning text-warning-foreground h-5 px-1.5 text-[10px] font-semibold">
       {count}
     </Badge>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar facet option — a single selectable filter row with an optional
+// status dot and count badge.
+// ---------------------------------------------------------------------------
+
+function FacetButton({
+  active, onClick, label, dot, count,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  dot?: string;
+  count?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left kd-transition',
+        active
+          ? 'bg-primary/5 text-foreground font-medium'
+          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+      )}
+    >
+      {dot && <span className={cn('h-2 w-2 rounded-full shrink-0', dot)} />}
+      <span className="flex-1 truncate">{label}</span>
+      {count != null && (
+        <span className={cn(
+          'rounded px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+          active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+        )}>
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
