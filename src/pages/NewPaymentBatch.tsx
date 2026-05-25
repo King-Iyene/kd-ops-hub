@@ -171,6 +171,12 @@ const NewPaymentBatch = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
+  // Amount entry mode for the selected beneficiaries: 'different' (type a value
+  // per row, the default) or 'same' (one value applied to everyone). In 'same'
+  // mode the per-row inputs are driven by `bulkAmount` and read-only.
+  const [amountMode, setAmountMode] = useState<'same' | 'different'>('different');
+  const [bulkAmount, setBulkAmount] = useState('');
+
   // Ad-hoc beneficiary dialog
   const [showAdHoc, setShowAdHoc] = useState(false);
   const [adHoc, setAdHoc] = useState({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
@@ -353,6 +359,25 @@ const NewPaymentBatch = () => {
     const updated = [...items];
     (updated[index] as any)[field] = value;
     setItems(updated);
+  };
+
+  // Set the same amount on every selected beneficiary at once.
+  const applyAmountToAll = (raw: string) => {
+    const v = parseFloat(raw);
+    const amount = Number.isFinite(v) && v >= 0 ? v : 0;
+    setItems((prev) => prev.map((i) => ({ ...i, amount_ngn: amount })));
+  };
+
+  // Switch between per-row and single-amount entry. Entering 'same' seeds the
+  // shared field from an existing amount so nothing is silently zeroed.
+  const switchAmountMode = (mode: 'same' | 'different') => {
+    setAmountMode(mode);
+    if (mode === 'same') {
+      const seed = items.find((i) => i.amount_ngn > 0)?.amount_ngn ?? 0;
+      const seedStr = seed ? String(seed) : '';
+      setBulkAmount(seedStr);
+      if (seed) applyAmountToAll(seedStr);
+    }
   };
 
   // Employee helpers
@@ -954,6 +979,50 @@ const NewPaymentBatch = () => {
                   <span className="font-bold currency">{formatNaira(totalAmount)}</span>
                 </div>
               </div>
+
+              {/* Amount entry mode — same amount for everyone, or per-row. */}
+              {items.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 pt-3">
+                  <div className="inline-flex rounded-lg border border-border/70 p-0.5 text-[12px] font-medium">
+                    {(['different', 'same'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => switchAmountMode(mode)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 kd-transition',
+                          amountMode === mode
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {mode === 'different' ? 'Different amounts' : 'Same amount'}
+                      </button>
+                    ))}
+                  </div>
+                  {amountMode === 'same' && (
+                    <div className="relative w-44">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={bulkAmount}
+                        placeholder="Amount for everyone"
+                        className="pl-7 h-8 tabular-nums"
+                        onChange={(e) => {
+                          setBulkAmount(e.target.value);
+                          applyAmountToAll(e.target.value);
+                        }}
+                      />
+                    </div>
+                  )}
+                  <span className="text-[11px] text-muted-foreground">
+                    {amountMode === 'same'
+                      ? 'One amount applied to all selected beneficiaries.'
+                      : 'Type an amount per beneficiary below.'}
+                  </span>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               {items.length === 0 ? (
@@ -985,8 +1054,10 @@ const NewPaymentBatch = () => {
                           <td className="px-3 py-1.5 text-right">
                             <Input
                               type="number"
-                              className="w-28 h-7 text-right text-[12px] font-mono tabular-nums"
+                              className="w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60"
                               value={item.amount_ngn}
+                              disabled={amountMode === 'same'}
+                              title={amountMode === 'same' ? 'Switch to "Different amounts" to edit individually' : undefined}
                               onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)}
                             />
                           </td>

@@ -62,6 +62,8 @@ export default function PartnerPayCalculator() {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const canEdit = ['super_admin', 'admin', 'finance'].includes(profile?.role ?? '');
+  // Generating a draft batch from here is a super-admin-only action.
+  const isSuperAdmin = (profile?.role ?? '') === 'super_admin';
 
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<PartnerRow[]>([]);
@@ -461,12 +463,15 @@ export default function PartnerPayCalculator() {
 
           {canEdit && (
             <div className="flex items-center gap-3 flex-wrap pt-1">
-              <Button onClick={openBuilder} disabled={noRate || eligible.length === 0}>
+              <Button onClick={openBuilder} disabled={!isSuperAdmin || noRate || eligible.length === 0}>
                 <FileText className="mr-2 h-4 w-4" />
                 Build draft batch{eligible.length > 0 ? ` (${Math.min(eligible.length, MAX_BATCH)} of ${eligible.length})` : ''}
               </Button>
               <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Info className="h-3 w-3" /> Review up to {MAX_BATCH} partners &amp; their amounts, then create a draft for approval — nothing is paid until you approve it.
+                <Info className="h-3 w-3" />
+                {isSuperAdmin
+                  ? <>Review up to {MAX_BATCH} partners &amp; their amounts, then create a draft for approval — nothing is paid until you approve it.</>
+                  : <>Only a <b>super admin</b> can build a draft batch from here. Ask one to enable it.</>}
               </span>
             </div>
           )}
