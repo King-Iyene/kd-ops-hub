@@ -129,31 +129,74 @@ async function getPaystackSecret(): Promise<string> {
   );
 }
 
+// Rate-limit handling --------------------------------------------------------
+// Paystack returns HTTP 429 when we exceed its rate limit. A 429 means the
+// request was REJECTED, not processed — so retrying is safe even for transfers
+// (it cannot double-send). We honour the Retry-After header when present, else
+// back off exponentially with jitter. We do NOT retry 5xx/timeouts here, since
+// those may have been processed.
+const PAYSTACK_MAX_RETRIES = 3;
+const PAYSTACK_MAX_BACKOFF_MS = 15_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function retryDelayMs(res: Response, attempt: number): number {
+  const ra = res.headers.get("retry-after");
+  if (ra) {
+    const secs = Number(ra);
+    if (Number.isFinite(secs) && secs >= 0) return Math.min(secs * 1000, PAYSTACK_MAX_BACKOFF_MS);
+    const when = Date.parse(ra);
+    if (!Number.isNaN(when)) return Math.max(0, Math.min(when - Date.now(), PAYSTACK_MAX_BACKOFF_MS));
+  }
+  // 0.5s, 1s, 2s … capped, plus jitter to avoid synchronised retries.
+  const base = Math.min(500 * 2 ** attempt, PAYSTACK_MAX_BACKOFF_MS);
+  return base + Math.floor(Math.random() * 250);
+}
+
 async function paystackFetch(path: string, init: RequestInit = {}) {
   const secret = await getPaystackSecret();
 
-  const res = await fetch(`${PAYSTACK_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      "Content-Type": "application/json",
-      ...(init.headers || {}),
-    },
-  });
-  const body = await res.json();
-  if (!res.ok || body?.status === false) {
-    console.error("[paystack] API error:", res.status, JSON.stringify(body));
-    // PaystackRejection signals that Paystack itself rejected the request
-    // (bad account, NUBAN unresolved, etc.) so the outer catch can return
-    // HTTP 422 instead of a misleading 500. The browser console stops
-    // logging Paystack rejections as red 500 errors, while real internal
-    // exceptions still surface as 500.
-    const err: any = new Error(body?.message || `Paystack error (HTTP ${res.status})`);
-    err.isPaystackRejection = true;
-    err.paystackStatus = res.status;
-    throw err;
+  for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
+    const res = await fetch(`${PAYSTACK_BASE}${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+        ...(init.headers || {}),
+      },
+    });
+
+    // Rate-limited: safe to retry (request was not processed). Drain the body
+    // to free the connection, wait, and try again — unless we're out of tries.
+    if (res.status === 429 && attempt < PAYSTACK_MAX_RETRIES) {
+      const waitMs = retryDelayMs(res, attempt);
+      console.warn(`[paystack] 429 on ${path}; retry ${attempt + 1}/${PAYSTACK_MAX_RETRIES} in ${waitMs}ms`);
+      try { await res.text(); } catch { /* ignore */ }
+      await sleep(waitMs);
+      continue;
+    }
+
+    const body = await res.json();
+    if (!res.ok || body?.status === false) {
+      console.error("[paystack] API error:", res.status, JSON.stringify(body));
+      // PaystackRejection signals that Paystack itself rejected the request
+      // (bad account, NUBAN unresolved, etc.) so the outer catch can return
+      // HTTP 422 instead of a misleading 500. The browser console stops
+      // logging Paystack rejections as red 500 errors, while real internal
+      // exceptions still surface as 500.
+      const err: any = new Error(body?.message || `Paystack error (HTTP ${res.status})`);
+      err.isPaystackRejection = true;
+      err.paystackStatus = res.status;
+      throw err;
+    }
+    return body;
   }
-  return body;
+
+  // All retries exhausted on 429.
+  const err: any = new Error("Paystack is rate-limiting requests (HTTP 429). Please retry in a moment.");
+  err.isPaystackRejection = true;
+  err.paystackStatus = 429;
+  throw err;
 }
 
 serve(async (req) => {

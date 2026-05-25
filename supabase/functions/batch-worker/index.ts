@@ -82,25 +82,58 @@ function generateRef(itemId: string): string {
   return `kdops_${itemId.replace(/-/g, "").slice(0, 20)}`;
 }
 
+// Rate-limit handling: HTTP 429 means the request was REJECTED, not processed,
+// so retrying is safe (cannot double-send). Honour Retry-After, else back off
+// exponentially with jitter. We do NOT retry 5xx/timeouts (may have processed).
+const PAYSTACK_MAX_RETRIES = 3;
+const PAYSTACK_MAX_BACKOFF_MS = 15_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function retryDelayMs(res: Response, attempt: number): number {
+  const ra = res.headers.get("retry-after");
+  if (ra) {
+    const secs = Number(ra);
+    if (Number.isFinite(secs) && secs >= 0) return Math.min(secs * 1000, PAYSTACK_MAX_BACKOFF_MS);
+    const when = Date.parse(ra);
+    if (!Number.isNaN(when)) return Math.max(0, Math.min(when - Date.now(), PAYSTACK_MAX_BACKOFF_MS));
+  }
+  const base = Math.min(500 * 2 ** attempt, PAYSTACK_MAX_BACKOFF_MS);
+  return base + Math.floor(Math.random() * 250);
+}
+
 async function paystackPost(
   secret: string,
   path: string,
   body: unknown,
 ): Promise<any> {
-  const res = await fetch(`${PAYSTACK_BASE}${path}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${secret}`,
-      "Content-Type":  "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok || json?.status === false) {
-    const msg = json?.message || `Paystack ${res.status}`;
-    throw new Error(msg);
+  for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
+    const res = await fetch(`${PAYSTACK_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type":  "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (res.status === 429 && attempt < PAYSTACK_MAX_RETRIES) {
+      const waitMs = retryDelayMs(res, attempt);
+      console.warn(`[batch-worker] paystack 429 on ${path}; retry ${attempt + 1}/${PAYSTACK_MAX_RETRIES} in ${waitMs}ms`);
+      try { await res.text(); } catch { /* ignore */ }
+      await sleep(waitMs);
+      continue;
+    }
+
+    const json = await res.json();
+    if (!res.ok || json?.status === false) {
+      const msg = json?.message || `Paystack ${res.status}`;
+      throw new Error(msg);
+    }
+    return json.data;
   }
-  return json.data;
+
+  throw new Error("Paystack rate-limited the request (HTTP 429) after retries");
 }
 
 // ──────────────────────────────────────────────────────────────────────────
