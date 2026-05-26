@@ -1,0 +1,38 @@
+name: Check migration status
+
+# READ-ONLY diagnostic. Prints `supabase migration list` — which migrations are
+# recorded as applied on the LIVE database vs the ones present in
+# supabase/migrations/. Use the output to plan a one-time history baseline so
+# the auto-migration workflow stops failing. This workflow makes NO changes.
+#
+# Uses the existing secrets:
+#   SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_REF, SUPABASE_DB_PASSWORD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
+          sudo dpkg -i supabase.deb
+          rm -f supabase.deb
+          supabase --version
+
+      - name: Link project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Migration status (read-only)
+        run: supabase migration list
