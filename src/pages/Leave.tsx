@@ -78,6 +78,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
@@ -744,6 +745,7 @@ const Leave = () => {
                 />
               ) : (
                 <>
+                  <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -868,6 +870,66 @@ const Leave = () => {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
+
+                  {/* Mobile: card list with the same per-row actions. */}
+                  <div className="md:hidden divide-y divide-border/60">
+                    {pagination.slice.map((r) => {
+                      const emp = profiles.get(r.employee_id);
+                      const busy = actioning === r.id;
+                      const canManageRow = isManager && canApprovePerm && r.status === 'pending';
+                      const canCancelOwn = r.employee_id === profile?.id && r.status === 'pending';
+                      const canRevertApproved = isManager && canApprovePerm && r.status === 'approved';
+                      return (
+                        <MobileCard key={r.id} className="rounded-none border-0 shadow-none bg-transparent backdrop-blur-none">
+                          <MobileCardHeader>
+                            <MobileCardTitle>
+                              {tab === 'team' ? (emp?.full_name || r.employee_id) : <span className="capitalize">{r.leave_type} leave</span>}
+                            </MobileCardTitle>
+                            <MobileCardMeta>{r.days_requested} day{r.days_requested === 1 ? '' : 's'}</MobileCardMeta>
+                          </MobileCardHeader>
+                          {tab === 'team' && (
+                            <MobileCardRow label="Type">
+                              <Badge variant="secondary" className={TYPE_BADGE[r.leave_type]}>{r.leave_type}</Badge>
+                            </MobileCardRow>
+                          )}
+                          <MobileCardRow label="Dates">{formatDate(r.start_date)} → {formatDate(r.end_date)}</MobileCardRow>
+                          <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>
+                          {r.reason && (
+                            <MobileCardRow label="Reason"><span className="truncate">{r.reason}</span></MobileCardRow>
+                          )}
+                          {(canManageRow || canCancelOwn || canRevertApproved || isManager) && (
+                            <MobileCardFooter>
+                              {canManageRow && (
+                                <>
+                                  <Button size="sm" variant="outline" disabled={busy} onClick={() => approve(r)} className="text-success border-success/40">
+                                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4 mr-1" />} Approve
+                                  </Button>
+                                  <Button size="sm" variant="outline" disabled={busy} onClick={() => { setShowReject(r); setRejectReason(''); }} className="text-destructive border-destructive/40">
+                                    <X className="h-4 w-4 mr-1" /> Reject
+                                  </Button>
+                                </>
+                              )}
+                              {canCancelOwn && !canManageRow && (
+                                <Button size="sm" variant="outline" disabled={busy} onClick={() => cancel(r)}>Cancel</Button>
+                              )}
+                              {canRevertApproved && (
+                                <Button size="sm" variant="outline" disabled={busy} onClick={() => setPendingRevert(r)}>
+                                  {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Revert'}
+                                </Button>
+                              )}
+                              {isManager && (
+                                <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteLeave(r)} className="text-destructive ml-auto" title="Delete">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </MobileCardFooter>
+                          )}
+                        </MobileCard>
+                      );
+                    })}
+                  </div>
+
                   <Pagination
                     page={pagination.page}
                     totalPages={pagination.totalPages}

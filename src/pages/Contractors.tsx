@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { BulkActionBar } from '@/components/ui-kit/BulkActionBar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { displayName } from '@/lib/name';
@@ -1913,6 +1914,8 @@ const Contractors = () => {
       {/* Mercury-style list: hairline-bordered surface, no card chrome. */}
       <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
         <div className="p-0">
+          {/* Desktop: table. Mobile: card list (below). */}
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -2087,6 +2090,38 @@ const Contractors = () => {
               })}
             </TableBody>
           </Table>
+          </div>
+
+          {/* Mobile: tap a card to open the contractor profile. */}
+          <div className="md:hidden divide-y divide-border/60">
+            {pagination.items.map((c) => {
+              const hr = heyreachDisplayStatus(c);
+              return (
+                <MobileCard
+                  key={c.id}
+                  onClick={() => navigate(`/contractors/${c.id}`)}
+                  chevron
+                  className="rounded-none border-0 shadow-none bg-transparent backdrop-blur-none"
+                >
+                  <MobileCardHeader>
+                    <MobileCardTitle>{displayName(c.first_name, c.last_name, c.full_name)}</MobileCardTitle>
+                    <MobileCardMeta>{formatNaira(c.default_amount_ngn || 0)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Bank">
+                    <span className="font-mono text-[11px] tracking-tight">
+                      {c.bank_name || '—'} · {c.account_number || '—'}
+                    </span>
+                  </MobileCardRow>
+                  <MobileCardRow label="HeyReach">
+                    <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium', hr.className)}>
+                      <span className={cn('h-1.5 w-1.5 rounded-full', hr.dotClass)} /> {hr.label}
+                    </span>
+                  </MobileCardRow>
+                </MobileCard>
+              );
+            })}
+          </div>
+
           <Pagination
             page={pagination.page}
             totalPages={pagination.totalPages}
