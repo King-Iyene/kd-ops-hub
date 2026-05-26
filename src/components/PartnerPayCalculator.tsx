@@ -28,6 +28,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
+import { logAudit } from '@/lib/audit';
 import { formatDateTime } from '@/lib/format';
 import {
   toMinor, toMajor, usdMinorToNgnMinor, sumMinor,
@@ -78,6 +80,10 @@ export default function PartnerPayCalculator() {
   const [manualRateInput, setManualRateInput] = useState('');
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // Duplicate-batch override: set when selected partners already have a batch
+  // this period, so the operator can confirm a deliberate repeat with a reason.
+  const [dupeOverride, setDupeOverride] = useState<{ count: number } | null>(null);
+  const [dupeReason, setDupeReason] = useState('');
   // Contractor ids already in a non-rejected batch for this period (don't re-pay).
   const [alreadyBatched, setAlreadyBatched] = useState<Set<string>>(new Set());
 
@@ -267,36 +273,40 @@ export default function PartnerPayCalculator() {
       toast({ title: 'Fix the amounts', description: 'Every selected partner needs a valid USD amount (zero or more).', variant: 'destructive' });
       return;
     }
+    // Race-safe dup guard: `alreadyBatched` is computed at page load, so another
+    // tab/teammate could have batched some of these partners since then. Re-check
+    // FRESH. Keyed on contractor_id + period — a partner's second account is a
+    // SEPARATE contractor record (different id), so it is NEVER blocked here;
+    // only the SAME contractor record being batched twice triggers the confirm.
+    setGenerating(true);
+    const selIds = selectedRows.map((p) => p.id);
+    const { data: freshDupes } = await supabase
+      .from('batch_items')
+      .select('contractor_id, payment_batches!inner(period, status, deleted_at, batch_type)')
+      .in('contractor_id', selIds)
+      .eq('payment_batches.batch_type', 'contractor')
+      .eq('payment_batches.period', period)
+      .neq('payment_batches.status', 'rejected')
+      .is('payment_batches.deleted_at', null)
+      .limit(20000);
+    setGenerating(false);
+    const dupeIds = new Set(((freshDupes as any[]) || []).map((d) => d.contractor_id).filter(Boolean));
+    if (dupeIds.size > 0) {
+      // Don't dead-end a legitimate repeat (e.g. a partner with a second account
+      // who's already in this period's batch). Open a confirm that REQUIRES a
+      // reason, then force the batch through (logged to the audit trail).
+      setDupeReason('');
+      setDupeOverride({ count: dupeIds.size });
+      return;
+    }
+    await createBatch();
+  };
+
+  // Performs the actual draft-batch insert. `overrideReason` is set only when the
+  // operator chose "Pay anyway" past the duplicate guard, and is audit-logged.
+  const createBatch = async (overrideReason?: string) => {
     setGenerating(true);
     try {
-      // Race-safe dup guard: `alreadyBatched` is computed at page load, so
-      // another tab or teammate could have batched some of these partners for
-      // this period since then. Re-check FRESH right before inserting. Keyed on
-      // contractor_id + period — a partner's second account is a SEPARATE
-      // contractor record (different id), so legitimately paying it twice is
-      // unaffected; this only blocks the same contractor being batched twice.
-      const selIds = selectedRows.map((p) => p.id);
-      const { data: freshDupes } = await supabase
-        .from('batch_items')
-        .select('contractor_id, payment_batches!inner(period, status, deleted_at, batch_type)')
-        .in('contractor_id', selIds)
-        .eq('payment_batches.batch_type', 'contractor')
-        .eq('payment_batches.period', period)
-        .neq('payment_batches.status', 'rejected')
-        .is('payment_batches.deleted_at', null)
-        .limit(20000);
-      const dupeIds = new Set(((freshDupes as any[]) || []).map((d) => d.contractor_id).filter(Boolean));
-      if (dupeIds.size > 0) {
-        toast({
-          title: 'Some partners are already batched',
-          description: `${dupeIds.size} selected partner${dupeIds.size === 1 ? ' is' : 's are'} already in a ${period} batch (possibly created in another tab). No batch was made — refreshing so you can review before trying again.`,
-          variant: 'destructive',
-        });
-        await load();
-        setGenerating(false);
-        return;
-      }
-
       const now = new Date();
       const lines = selectedRows.map((p) => {
         const usdMinor = rowUsdMinor(p) as number;
@@ -338,6 +348,14 @@ export default function PartnerPayCalculator() {
       }));
       const { error: itemsErr } = await supabase.from('batch_items').insert(items as never);
       if (itemsErr) throw itemsErr;
+
+      if (overrideReason) {
+        await logAudit(
+          'partner_pay_duplicate_override' as never,
+          `Partner Pay batch (${period}) created including partner(s) already batched this period — reason: ${overrideReason}`,
+          profile,
+        );
+      }
 
       const remaining = eligible.length - lines.length;
       toast({
@@ -619,6 +637,46 @@ export default function PartnerPayCalculator() {
                 Create draft ({selectedRows.length})
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate-batch override: pay already-batched partners again, with a reason. */}
+      <Dialog open={!!dupeOverride} onOpenChange={(v) => { if (!v) { setDupeOverride(null); setDupeReason(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Some partners already have a {period} batch
+            </DialogTitle>
+            <DialogDescription>
+              {dupeOverride?.count} of the selected partner{dupeOverride?.count === 1 ? '' : 's'} already
+              {dupeOverride?.count === 1 ? ' has' : ' have'} a batch this period. This is usually an
+              accidental duplicate. If they genuinely need a second payment (e.g. a partner with two
+              accounts), enter why and pay anyway — it'll be recorded in the audit log.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1">
+            <Label>Reason for the repeat payment</Label>
+            <Textarea
+              value={dupeReason}
+              onChange={(e) => setDupeReason(e.target.value)}
+              placeholder="e.g. This partner has two accounts and is paid on both."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDupeOverride(null); setDupeReason(''); load(); }} disabled={generating}>
+              Cancel &amp; refresh
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={generating || dupeReason.trim().length < 5}
+              onClick={() => { const r = dupeReason.trim(); setDupeOverride(null); setDupeReason(''); createBatch(r); }}
+            >
+              {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Pay anyway
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
