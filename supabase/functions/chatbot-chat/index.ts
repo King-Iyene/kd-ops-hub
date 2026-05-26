@@ -286,6 +286,20 @@ serve(async (req) => {
         .select("id")
         .single();
       convId = newConv?.id;
+    } else {
+      // Ownership check: the admin (service-role) client below bypasses RLS, so
+      // we MUST confirm the caller owns this conversation. Without this, anyone
+      // could pass another user's conversation_id and read/append to their
+      // history (IDOR). 404 (not 403) so we don't leak that the id exists.
+      const { data: conv } = await adminClient
+        .from("chatbot_conversations")
+        .select("user_id")
+        .eq("id", convId)
+        .maybeSingle();
+      if (!conv || conv.user_id !== user.id) {
+        return new Response(JSON.stringify({ error: "Conversation not found" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
 
     // Load conversation history (last 10 messages)

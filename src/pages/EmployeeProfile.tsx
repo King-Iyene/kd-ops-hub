@@ -351,14 +351,11 @@ const EmployeeProfile = () => {
         .order('created_at', { ascending: false })
         .limit(50);
       if (error && (error as any).code === '42703') {
-        // metadata column doesn't exist yet — fetch without the jsonb filter
-        const fallback = await supabase
-          .from('audit_logs')
-          .select('id, action_type, description, performed_by_name, created_at')
-          .like('action_type', 'profile_bank_account_%')
-          .order('created_at', { ascending: false })
-          .limit(50);
-        data = fallback.data;
+        // metadata column missing — do NOT fall back to an unfiltered query:
+        // that would leak EVERY employee's bank-change history onto this one
+        // profile. Show nothing instead (history unavailable).
+        data = [];
+        error = null;
       }
       setBankHistory(data || []);
     } finally {

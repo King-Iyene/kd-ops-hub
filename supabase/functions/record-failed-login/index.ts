@@ -44,32 +44,43 @@ serve(async (req) => {
 
     const cutoff = new Date(Date.now() - WINDOW_MIN * 60_000).toISOString();
 
-    if (action === "check") {
-      const { count } = await service
+    // Lockout is scoped to (email + requesting IP), not email alone. Keying on
+    // email alone let anyone lock any account out of their genuine session by
+    // POSTing 'record' five times from anywhere (a denial-of-service). Scoping
+    // to the IP means an attacker can only block their own IP for that email —
+    // the real owner, on their own IP, is unaffected — while still throttling
+    // brute force from a single source.
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+    const ip_hash = ip ? await sha256(ip) : null;
+
+    const countAttempts = async (): Promise<number> => {
+      let q = service
         .from("failed_login_attempts")
         .select("id", { count: "exact", head: true })
         .eq("email", email)
         .gte("attempted_at", cutoff);
-      const blocked = (count ?? 0) >= MAX_ATTEMPTS;
-      return json({ blocked, remainingMinutes: blocked ? WINDOW_MIN : 0, attempts: count ?? 0 });
+      // When we have an IP, scope to it; null-IP requests fall back to email.
+      q = ip_hash ? q.eq("ip_hash", ip_hash) : q.is("ip_hash", null);
+      const { count } = await q;
+      return count ?? 0;
+    };
+
+    if (action === "check") {
+      const count = await countAttempts();
+      const blocked = count >= MAX_ATTEMPTS;
+      return json({ blocked, remainingMinutes: blocked ? WINDOW_MIN : 0, attempts: count });
     }
 
     if (action === "record") {
-      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
-      const ip_hash = ip ? await sha256(ip) : null;
       await service.from("failed_login_attempts").insert({
         email,
         ip_hash,
         user_agent: req.headers.get("user-agent")?.slice(0, 200) ?? null,
         reason: body?.reason ?? "invalid_credentials",
       });
-      const { count } = await service
-        .from("failed_login_attempts")
-        .select("id", { count: "exact", head: true })
-        .eq("email", email)
-        .gte("attempted_at", cutoff);
-      const blocked = (count ?? 0) >= MAX_ATTEMPTS;
-      return json({ ok: true, attempts: count ?? 0, blocked });
+      const count = await countAttempts();
+      const blocked = count >= MAX_ATTEMPTS;
+      return json({ ok: true, attempts: count, blocked });
     }
 
     return json({ error: "Unknown action" }, 400);
