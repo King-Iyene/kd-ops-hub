@@ -27,7 +27,7 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
-import { openPayslipPrintWindow } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -312,7 +312,7 @@ const ProfilePage = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground">
+      <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground" role="status" aria-live="polite">
         <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading profile…
       </div>
     );
@@ -442,28 +442,56 @@ const ProfilePage = () => {
     loadAll();
   };
 
+  const [downloadingSlip, setDownloadingSlip] = useState<string | null>(null);
+
   const downloadPayslip = async (p: Payslip) => {
-    if (p.storage_path) {
-      const { data, error } = await supabase.storage
-        .from('payslips').createSignedUrl(p.storage_path, 60);
-      if (!error && data?.signedUrl) {
-        window.open(data.signedUrl, '_blank', 'noopener');
-        return;
+    setDownloadingSlip(p.id);
+    try {
+      // Preferred: fetch the stored payslip HTML and render it to a real PDF
+      // download (no browser print dialog).
+      if (p.storage_path) {
+        const { data } = await supabase.storage.from('payslips').createSignedUrl(p.storage_path, 60);
+        if (data?.signedUrl) {
+          const res = await fetch(data.signedUrl);
+          if (res.ok) {
+            const html = await res.text();
+            await downloadPayslipPdfFromHtml(html, `payslip-${p.period}`);
+            return;
+          }
+        }
       }
+      // Fallback: rebuild from stored figures and open the printable version.
+      openPayslipPrintWindow({
+        company_name: 'KD Squares Ltd',
+        employee_name: profile.full_name || profile.email,
+        employee_email: profile.email,
+        employee_role: profile.role,
+        period: p.period,
+        gross_ngn: p.gross_ngn,
+        paye_ngn: p.paye_ngn,
+        pension_ngn: p.pension_ngn,
+        nhf_ngn: p.nhf_ngn,
+        net_ngn: p.net_ngn,
+        generated_by: profile.full_name || profile.email,
+      });
+    } catch {
+      toast({ title: 'Could not build the PDF', description: 'Opening the printable version instead.', variant: 'destructive' });
+      openPayslipPrintWindow({
+        company_name: 'KD Squares Ltd',
+        employee_name: profile.full_name || profile.email,
+        employee_email: profile.email,
+        employee_role: profile.role,
+        period: p.period,
+        gross_ngn: p.gross_ngn,
+        paye_ngn: p.paye_ngn,
+        pension_ngn: p.pension_ngn,
+        nhf_ngn: p.nhf_ngn,
+        net_ngn: p.net_ngn,
+        generated_by: profile.full_name || profile.email,
+      });
+    } finally {
+      setDownloadingSlip(null);
     }
-    openPayslipPrintWindow({
-      company_name: 'KD Squares Ltd',
-      employee_name: profile.full_name || profile.email,
-      employee_email: profile.email,
-      employee_role: profile.role,
-      period: p.period,
-      gross_ngn: p.gross_ngn,
-      paye_ngn: p.paye_ngn,
-      pension_ngn: p.pension_ngn,
-      nhf_ngn: p.nhf_ngn,
-      net_ngn: p.net_ngn,
-      generated_by: profile.full_name || profile.email,
-    });
   };
 
   // ── Stats for the hero strip ───────────────────────────────────
@@ -526,6 +554,7 @@ const ProfilePage = () => {
             disabled={uploading}
             className="relative h-28 w-28 sm:h-32 sm:w-32 rounded-full ring-4 ring-background shadow-xl group focus:outline-none focus-visible:ring-primary"
             title="Click to change profile photo"
+            aria-label={profile.photo_url ? 'Change profile photo' : 'Upload profile photo'}
           >
             {profile.photo_url ? (
               <img src={profile.photo_url} alt={profile.full_name || ''} className="h-full w-full rounded-full object-cover" />
@@ -547,6 +576,7 @@ const ProfilePage = () => {
             ref={fileRef}
             type="file"
             accept="image/*"
+            aria-label="Upload profile photo"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto(f); e.target.value = ''; }}
           />
@@ -585,6 +615,11 @@ const ProfilePage = () => {
       </div>
 
       {/* Tabs */}
+      {/* Screen-reader announcement for async content loads. */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {loadingActivity ? 'Loading your information' : ''}
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full grid grid-cols-3 sm:grid-cols-5 sm:max-w-2xl sm:mx-auto">
           <TabsTrigger value="account">Account</TabsTrigger>
@@ -979,8 +1014,10 @@ const ProfilePage = () => {
                           <p className="text-xs text-muted-foreground">Net pay</p>
                           <p className="font-semibold currency tabular-nums">{formatNaira(p.net_ngn)}</p>
                         </div>
-                        <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)}>
-                          <Download className="mr-2 h-4 w-4" /> Download
+                        <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingSlip === p.id}>
+                          {downloadingSlip === p.id
+                            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            : <Download className="mr-2 h-4 w-4" />} PDF
                         </Button>
                       </div>
                     </div>

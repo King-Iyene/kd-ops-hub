@@ -607,3 +607,72 @@ export const openPayslipPrintWindow = (data: PayslipData): void => {
   window.open(url, '_blank', 'noopener');
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
+
+/**
+ * Render a payslip HTML document to a downloadable multi-page A4 PDF — a real
+ * file download, no browser print dialog. jsPDF + html2canvas are dynamically
+ * imported so they stay out of the initial bundle and only load on first use.
+ * The HTML is rendered in an offscreen, style-isolated iframe so the payslip's
+ * own CSS never leaks into the app.
+ */
+export async function downloadPayslipPdfFromHtml(html: string, filename: string): Promise<void> {
+  const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    import('jspdf'),
+    import('html2canvas'),
+  ]);
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '820px';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  try {
+    const doc = iframe.contentDocument;
+    if (!doc) throw new Error('Could not create render frame');
+    doc.open();
+    doc.write(html);
+    doc.close();
+    // Let layout settle (and any webfont swap) before snapshotting.
+    await new Promise((r) => setTimeout(r, 450));
+
+    const body = doc.body;
+    iframe.style.height = `${body.scrollHeight}px`;
+    const canvas = await html2canvas(body, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      windowWidth: 820,
+    });
+
+    const dataUrl = canvas.toDataURL('image/png', 0.95);
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    const pageW = 210;
+    const pageH = 297;
+    const margin = 10;
+    const imgW = pageW - margin * 2;
+    const fullH = (canvas.height / canvas.width) * imgW;
+    const usableH = pageH - margin * 2;
+
+    // Place the full-height image and shift it up one usable page at a time so
+    // a tall payslip flows across multiple A4 pages.
+    let heightLeft = fullH;
+    let position = margin;
+    pdf.addImage(dataUrl, 'PNG', margin, position, imgW, fullH, undefined, 'FAST');
+    heightLeft -= usableH;
+    while (heightLeft > 0) {
+      position = margin - (fullH - heightLeft);
+      pdf.addPage();
+      pdf.addImage(dataUrl, 'PNG', margin, position, imgW, fullH, undefined, 'FAST');
+      heightLeft -= usableH;
+    }
+
+    pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}
