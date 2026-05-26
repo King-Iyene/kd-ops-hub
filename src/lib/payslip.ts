@@ -132,8 +132,10 @@ const monthLabel = (period: string) => {
 const ngn = (n: number) => formatNaira(Math.round(n || 0));
 const ngnNeg = (n: number) => `−&nbsp;${ngn(n)}`;
 
-const initials = (name: string) =>
-  name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+// Humanise a raw role/title for the "Position" line: "admin" → "Admin",
+// "field_staff" → "Field Staff".
+const prettyPosition = (s: string) =>
+  s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 // ── Render ───────────────────────────────────────────────────────
 
@@ -191,9 +193,14 @@ export const renderPayslipHtml = (
     || ytd.pension_ngn != null || ytd.net_ngn != null
   );
 
-  const logoHtml = data.logo_url
-    ? `<img src="${esc(data.logo_url)}" alt="${esc(data.company_name)} logo" style="height:54px;width:54px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;flex-shrink:0;" />`
-    : `<div style="width:54px;height:54px;border-radius:10px;background:#006994;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;letter-spacing:0.04em;flex-shrink:0;">${esc(initials(data.company_name || 'KD'))}</div>`;
+  // Always show a real logo: the company's uploaded logo_url when set, otherwise
+  // the bundled brand logo (same asset the transaction receipt falls back to).
+  // An absolute origin URL is required because the payslip renders inside a blob
+  // window / iframe where a relative path wouldn't resolve. onerror degrades a
+  // broken/expired company logo URL to the bundled asset rather than a blank box.
+  const bundledLogo = `${typeof window !== 'undefined' ? window.location.origin : ''}/logo-source.png`;
+  const primaryLogo = data.logo_url || bundledLogo;
+  const logoHtml = `<img src="${esc(primaryLogo)}" alt="${esc(data.company_name || 'Company')} logo" onerror="this.onerror=null;this.src='${bundledLogo}'" style="height:54px;width:54px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;flex-shrink:0;" />`;
 
   return `<!doctype html>
 <html lang="en">
@@ -452,7 +459,7 @@ export const renderPayslipHtml = (
         <div class="val">${esc(data.employee_name)}</div>
       </div>
       ${data.employee_number ? `<div><div class="lbl">Staff no.</div><div class="val mono">${esc(data.employee_number)}</div></div>` : ''}
-      ${data.employee_role ? `<div><div class="lbl">Position</div><div class="val">${esc(data.employee_role)}</div></div>` : ''}
+      ${data.employee_role ? `<div><div class="lbl">Position</div><div class="val">${esc(prettyPosition(data.employee_role))}</div></div>` : ''}
       ${data.employee_department ? `<div><div class="lbl">Department</div><div class="val">${esc(data.employee_department)}</div></div>` : ''}
       ${data.employee_tax_id ? `<div><div class="lbl">Tax ID (TIN)</div><div class="val mono">${esc(data.employee_tax_id)}</div></div>` : ''}
       ${data.employee_pension_pin ? `<div><div class="lbl">RSA PIN</div><div class="val mono">${esc(data.employee_pension_pin)}</div></div>` : ''}

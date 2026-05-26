@@ -642,9 +642,9 @@ const Payroll = () => {
       const { data: employees, error: fetchErr } = await supabase
         .from('profiles')
         .select(`
-          id, full_name, first_name, last_name, email, role, salary_ngn, phone,
+          id, full_name, first_name, last_name, email, role, job_title, salary_ngn, phone,
           pension_enabled, nhf_enabled, paye_enabled,
-          tax_id, pension_pin, nhf_number,
+          tax_id, pension_pin, nhf_number, employee_number,
           bank_name, bank_account_number, bank_account_name,
           department:departments!department_id(name)
         `)
@@ -854,7 +854,8 @@ const Payroll = () => {
             // Employee
             employee_name:         empName,
             employee_email:        e.email,
-            employee_role:         e.role,
+            employee_role:         e.job_title || e.role,
+            employee_number:       e.employee_number ?? null,
             employee_department:   e.department?.name ?? null,
             employee_tax_id:       e.tax_id ?? null,
             employee_pension_pin:  e.pension_pin ?? null,
