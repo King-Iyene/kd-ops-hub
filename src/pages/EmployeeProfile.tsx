@@ -794,7 +794,7 @@ const EmployeeProfile = () => {
 
   const patch = (p: Partial<EmployeeData>) => setForm((prev) => ({ ...prev, ...p }));
   const empName = displayName(employee.first_name, employee.last_name, employee.full_name);
-  const leaveTaken = leaves.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + (l.days || 0), 0);
+  const leaveTaken = leaves.filter((l: any) => l.status === 'approved').reduce((sum: number, l: any) => sum + Number(l.days_requested ?? l.days ?? 0), 0);
 
   // ── Compensation (derived from monthly gross) ────────────────────────────
   const hasSalary = !!employee.salary_ngn;

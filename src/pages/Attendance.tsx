@@ -87,7 +87,7 @@ export default function Attendance() {
         .gte('work_date', monthStart)
         .lte('work_date', monthEnd)
         .order('work_date', { ascending: false }),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setRecords(rData ?? []);
     setProfiles(pData ?? []);

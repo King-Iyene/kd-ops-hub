@@ -108,7 +108,7 @@ export default function Disciplinary() {
     const [{ data: rData }, { data: respData }, { data: pData }] = await Promise.all([
       supabase.from('disciplinary_records').select('*').order('incident_date', { ascending: false }),
       supabase.from('disciplinary_responses').select('*').order('responded_at'),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setRecords(rData ?? []);
     setResponses(respData ?? []);

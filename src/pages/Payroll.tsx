@@ -801,7 +801,6 @@ const Payroll = () => {
                 ];
                 return lines.length > 0 ? lines : null;
               })(),
-              file_url: urlData.publicUrl,
               storage_path: path,
               generated_by: profile?.id || null,
             },

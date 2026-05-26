@@ -134,7 +134,7 @@ export default function Performance() {
     const [{ data: cData }, { data: rData }, { data: pData }] = await Promise.all([
       supabase.from('review_cycles').select('*').order('due_date', { ascending: false }).limit(50),
       supabase.from('performance_reviews').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('profiles').select('id, full_name').limit(200),
+      supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).limit(200),
     ]);
     setCycles((cData as ReviewCycle[]) || []);
     setReviews((rData as Review[]) || []);
