@@ -63,7 +63,16 @@ interface AuthState {
   setViewAsRole: (role: UserRole | null) => void;
   setMfaPending: (v: { factorId: string } | null) => void;
   signOut: () => Promise<void>;
-  fetchProfile: (userId: string) => Promise<void>;
+  /**
+   * Loads the profile row for `userId` and reports the outcome so callers can
+   * tell apart the three very different cases:
+   *   'ok'        — row loaded into state.
+   *   'not_found' — query succeeded but there is genuinely no row.
+   *   'error'     — the query itself failed (network / RLS / transient).
+   * The distinction matters: only 'not_found' should trigger the invite-only
+   * sign-out path. An 'error' must NEVER sign a valid user out.
+   */
+  fetchProfile: (userId: string) => Promise<'ok' | 'not_found' | 'error'>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -123,20 +132,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   fetchProfile: async (userId: string) => {
     set({ profileLoading: true });
+    // maybeSingle() returns { data: null, error: null } for zero rows (a real
+    // "no profile" case) and only sets `error` on an actual query failure. With
+    // single() a transient failure and a missing row both surfaced as an error,
+    // so the caller couldn't tell them apart — and treated a network blip as
+    // "user not invited", signing valid employees out.
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
     if (error) {
       console.error('[KDOps] fetchProfile error:', error.message, error);
+      set({ profileLoading: false });
+      return 'error';
     }
     if (data) {
       set({ profile: data as Profile, profileLoading: false });
-    } else {
-      // No profile row found — still unblock the UI.
-      set({ profileLoading: false });
+      return 'ok';
     }
+    set({ profileLoading: false });
+    return 'not_found';
   },
 }));
 

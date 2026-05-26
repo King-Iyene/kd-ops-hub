@@ -16,8 +16,16 @@ export const useAuth = () => {
     didInit.current = true;
 
     const finish = async (userId: string, redirectIfLogin: boolean) => {
-      await fetchProfile(userId);
-      const fetched = useAuthStore.getState().profile;
+      let result = await fetchProfile(userId);
+
+      // Transient fetch failure (network / RLS blip): retry with backoff before
+      // doing anything destructive. A failed profile fetch must NEVER sign a
+      // valid user out — that was the cause of employees being bounced to
+      // /login?message=invite-only on a perfectly good session.
+      for (let attempt = 0; result === 'error' && attempt < 3; attempt++) {
+        await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        result = await fetchProfile(userId);
+      }
 
       // ── MFA challenge gate ─────────────────────────────────────────────
       // If the user opted into TOTP and this device isn't trusted, block
@@ -40,17 +48,29 @@ export const useAuth = () => {
         console.warn('[KDOps] MFA check failed:', e);
       }
 
-      // No profile row found. Before rejecting, try the self-healing RPC which
-      // creates the profile from pending_invites. This handles cases where the
-      // DB trigger failed (e.g. the auth user already existed before the trigger
+      // Profile fetch still failing after retries — fail OPEN, never closed.
+      // Keep the session intact so a transient backend hiccup can't lock a
+      // legitimate employee out. The realtime profile listener (and any later
+      // navigation / refresh) will recover the row once the backend responds.
+      if (result === 'error') {
+        console.warn(
+          '[KDOps] profile fetch failed repeatedly; keeping session to avoid a false logout',
+        );
+        setLoading(false);
+        return;
+      }
+
+      // result === 'not_found': the query succeeded and there is genuinely no
+      // profile row. Before rejecting, try the self-healing RPC which creates
+      // the profile from pending_invites. This handles cases where the DB
+      // trigger failed (e.g. the auth user already existed before the trigger
       // was fixed, or a race condition). The RPC raises an exception for users
       // who have no pending invite, so only legitimate invited users get through.
       if (!fetched) {
         const { error: activateErr } = await supabase.rpc('activate_my_profile');
         if (!activateErr) {
-          await fetchProfile(userId);
-          const healed = useAuthStore.getState().profile;
-          if (healed) {
+          const healed = await fetchProfile(userId);
+          if (healed === 'ok' && useAuthStore.getState().profile) {
             setLoading(false);
             if (redirectIfLogin && window.location.pathname === '/login') {
               navigate('/dashboard', { replace: true });

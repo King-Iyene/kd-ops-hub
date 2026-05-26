@@ -180,8 +180,8 @@ serve(async (req: Request) => {
     const { data: profile } = await svc
       .from("profiles").select("role").eq("id", user.id).maybeSingle();
     const role = (profile as any)?.role;
-    if (!["super_admin", "admin", "finance"].includes(role)) {
-      return json(403, { ok: false, error: "Requires admin or finance role" });
+    if (!["super_admin", "admin", "finance", "operations"].includes(role)) {
+      return json(403, { ok: false, error: "Requires admin, finance or operations role" });
     }
     if (triggeredBy === "cron") triggeredBy = "manual";
   }

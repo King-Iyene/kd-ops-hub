@@ -10,7 +10,7 @@ import { MfaChallengeDialog } from '@/components/MfaChallengeDialog';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { RoleGuard } from '@/components/RoleGuard';
-import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES } from '@/lib/roles';
+import { ADMIN_ONLY_ROLES, ALL_AUTH_ROLES, APPROVER_ROLES, MANAGER_ROLES, PAYMENT_ROLES } from '@/lib/roles';
 import { Loader as Loader2 } from 'lucide-react';
 
 // Eagerly loaded — shown before auth resolves or needed for public routes.
@@ -181,12 +181,14 @@ function AppRoutes() {
           }
         />
 
-        {/* Payments — Finance + Admin + Super Admin by default; other roles can be
-            granted via the permissions JSONB (e.g. ops can schedule/submit batches). */}
+        {/* Payments — Finance + Admin + Super Admin + Operations. Operations can
+            prepare/manage batches; the money path is still guarded downstream
+            (batches need an approver, dispatch is bound by per-role transfer
+            caps). Other roles can be granted via the permissions JSONB. */}
         <Route
           path="/payments"
           element={
-            <RoleGuard roles={APPROVER_ROLES} permission="payments.view">
+            <RoleGuard roles={PAYMENT_ROLES} permission="payments.view">
               <Payments />
             </RoleGuard>
           }
@@ -194,7 +196,7 @@ function AppRoutes() {
         <Route
           path="/payments/schedule"
           element={
-            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
+            <RoleGuard roles={PAYMENT_ROLES} permission="payments.create">
               <PaymentSchedule />
             </RoleGuard>
           }
@@ -202,7 +204,7 @@ function AppRoutes() {
         <Route
           path="/payments/new"
           element={
-            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
+            <RoleGuard roles={PAYMENT_ROLES} permission="payments.create">
               <NewPaymentBatch />
             </RoleGuard>
           }
@@ -210,7 +212,7 @@ function AppRoutes() {
         <Route
           path="/payments/:id/edit"
           element={
-            <RoleGuard roles={APPROVER_ROLES} permission="payments.create">
+            <RoleGuard roles={PAYMENT_ROLES} permission="payments.create">
               <NewPaymentBatch />
             </RoleGuard>
           }
@@ -218,17 +220,17 @@ function AppRoutes() {
         <Route
           path="/payments/:id"
           element={
-            <RoleGuard roles={APPROVER_ROLES} permission="payments.view">
+            <RoleGuard roles={PAYMENT_ROLES} permission="payments.view">
               <BatchDetail />
             </RoleGuard>
           }
         />
 
-        {/* Transactions — Finance + Admin + Super Admin. */}
+        {/* Transactions — Finance + Admin + Super Admin + Operations. */}
         <Route
           path="/transactions"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={PAYMENT_ROLES}>
               <Transactions />
             </RoleGuard>
           }

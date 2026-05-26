@@ -20,6 +20,14 @@ export type Role = UserRole;
  * few extra UI privileges (role simulation) rather than new data access.
  */
 export const APPROVER_ROLES: Role[] = ['super_admin', 'admin', 'finance'];
+/**
+ * Who can prepare/manage payment batches and view payment data: the approver
+ * roles plus Operations. Operations can create, schedule, edit and view
+ * batches, but the money path stays guarded downstream — batches still require
+ * an approver, and dispatch is bound by per-role transfer caps (which fail
+ * closed: a role with no configured cap cannot move funds).
+ */
+export const PAYMENT_ROLES: Role[] = ['super_admin', 'admin', 'finance', 'operations'];
 export const MANAGER_ROLES: Role[] = [
   'super_admin',
   'admin',
