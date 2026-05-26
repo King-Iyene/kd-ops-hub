@@ -446,6 +446,7 @@ const ProfilePage = () => {
     if (gross <= 0) return null;
     return computePayslip({
       grossMonthlyNgn: gross,
+      payeEnabled: employment?.paye_enabled !== false,
       pensionEnabled: employment?.pension_enabled !== false,
       nhfEnabled: employment?.nhf_enabled === true,
       nhisEnabled: employment?.nhis_enabled === true,

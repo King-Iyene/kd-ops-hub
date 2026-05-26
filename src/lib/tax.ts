@@ -127,6 +127,9 @@ export interface PayslipInput {
   pensionEnabled?: boolean;
   /** Whether to deduct 2.5% NHF (default false; voluntary for some employees). */
   nhfEnabled?: boolean;
+  /** Whether PAYE applies (default true). When false, PAYE is 0 and excluded
+   *  from statutory deductions and net — e.g. an employee exempted from PAYE. */
+  payeEnabled?: boolean;
   /** Whether to deduct 5% NHIS employee contribution (default false; sectoral). */
   nhisEnabled?: boolean;
   /** Annual rent paid by the employee, in NGN. Used for the 20% rent relief. */
@@ -213,7 +216,7 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   );
 
   const annualPaye = applyTaxBands(chargeableMonthlyNgn * 12);
-  const payeMonthlyNgn = annualPaye / 12;
+  const payeMonthlyNgn = input.payeEnabled !== false ? annualPaye / 12 : 0;
 
   const statutoryDeductionsMonthlyNgn =
     pensionEmployeeMonthlyNgn + nhfMonthlyNgn + nhisEmployeeMonthlyNgn + payeMonthlyNgn;
