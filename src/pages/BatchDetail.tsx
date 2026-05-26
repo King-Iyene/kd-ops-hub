@@ -858,11 +858,11 @@ const BatchDetail = () => {
         p_reason: deleteReason.trim() || null,
       });
       if (error) throw error;
-      toast({ title: 'Batch deleted', description: `"${batch.name}" was removed.` });
+      toast({ title: 'Batch archived', description: `"${batch.name}" was archived (purged after 90 days).` });
       navigate('/payments');
     } catch (err: any) {
       toast({
-        title: 'Could not delete batch',
+        title: 'Could not archive batch',
         description: err?.message || 'Unknown error',
         variant: 'destructive',
       });
@@ -1806,7 +1806,7 @@ const BatchDetail = () => {
               onClick={() => setShowDelete(true)}
               disabled={actionLoading}
             >
-              <Trash2 className="mr-2 h-4 w-4" /> Delete batch
+              <Trash2 className="mr-2 h-4 w-4" /> Archive batch
             </Button>
           )}
         </div>
@@ -2440,23 +2440,25 @@ const BatchDetail = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              Delete this batch?
+              Archive this batch?
             </DialogTitle>
             <DialogDescription>
-              The batch will be hidden from all lists. The audit history stays intact.
+              The batch is hidden from every list, report and KPI, and its audit history
+              stays intact. Archived batches are permanently purged after 90 days.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <p>
-              You're about to delete{' '}
+              You're about to archive{' '}
               <span className="font-semibold">"{batch?.name}"</span> (status:{' '}
-              <span className="font-mono">{batch?.status}</span>). The batch will be
-              hidden from all lists. Audit history is preserved.
+              <span className="font-mono">{batch?.status}</span>). It disappears from all
+              lists and reports immediately; audit history is preserved and the record is
+              permanently purged after 90 days.
             </p>
             {batch && REASON_REQUIRED_STATUSES.has(batch.status) && (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  This batch is {batch.status} — please explain why you're deleting it.
+                  This batch is {batch.status} — please explain why you're archiving it.
                 </p>
                 <Textarea
                   placeholder="e.g. Funds returned to wallet — payroll cancelled for April"
@@ -2481,7 +2483,7 @@ const BatchDetail = () => {
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {deleting ? 'Deleting…' : 'Delete batch'}
+              {deleting ? 'Archiving…' : 'Archive batch'}
             </Button>
           </DialogFooter>
         </DialogContent>
