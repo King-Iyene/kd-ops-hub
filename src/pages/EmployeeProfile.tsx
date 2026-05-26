@@ -7,6 +7,7 @@ import {
   ClipboardList, Activity, Receipt,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import OffboardingTab from '@/components/employee/OffboardingTab';
 import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
@@ -154,7 +155,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -1046,6 +1047,19 @@ const EmployeeProfile = () => {
             )}
           >
             Permissions
+          </button>
+        )}
+        {canManage && (
+          <button
+            onClick={() => setActiveTab('offboarding')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'offboarding'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Offboarding
           </button>
         )}
       </div>
@@ -2618,6 +2632,13 @@ const EmployeeProfile = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {activeTab === 'offboarding' && canManage && employee && (
+        <OffboardingTab
+          employee={{ id: employee.id, full_name: employee.full_name, salary_ngn: employee.salary_ngn, status: employee.status }}
+          onChanged={load}
+        />
       )}
 
       {/* ── Deactivate dialog ── */}
