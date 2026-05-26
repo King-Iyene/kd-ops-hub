@@ -438,6 +438,8 @@ export function QuickPayDialog() {
         items={[{
           full_name: bank.account_name || bank.account_number || 'recipient',
           amount_ngn: parseFloat(form.amount) || 0,
+          bank_name: bank.bank_name || undefined,
+          account_number: bank.account_number || undefined,
         }]}
         narrationKind="quick_pay"
         label={form.description || undefined}

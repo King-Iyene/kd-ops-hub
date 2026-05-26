@@ -45,6 +45,10 @@ export interface PaymentSummaryItem {
   full_name: string;
   /** Amount in NGN. */
   amount_ngn: number;
+  /** Optional bank name shown under the recipient (for confirmation clarity). */
+  bank_name?: string;
+  /** Optional account number shown under the recipient. */
+  account_number?: string;
 }
 
 export interface PaymentSummaryModalProps {
@@ -302,9 +306,16 @@ export function PaymentSummaryModal({
           <ScrollArea className="max-h-40 rounded-lg border p-3 text-xs">
             <div className="space-y-1">
               {items.map((it, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-2">
-                  <span className="truncate">{it.full_name}</span>
-                  <span className="font-mono">{formatNaira(it.amount_ngn)}</span>
+                <div key={idx} className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="truncate block">{it.full_name}</span>
+                    {(it.bank_name || it.account_number) && (
+                      <span className="block text-[10px] text-muted-foreground font-mono tracking-tight truncate">
+                        {[it.bank_name, it.account_number].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-mono shrink-0">{formatNaira(it.amount_ngn)}</span>
                 </div>
               ))}
             </div>
