@@ -198,6 +198,16 @@ const Payroll = () => {
   const [disbursing, setDisbursing] = useState(false);
   const [disburseErrors, setDisburseErrors] = useState<string[]>([]);
   const [confirmPaidRun, setConfirmPaidRun] = useState<PayrollRun | null>(null);
+  // Per-employee adjustments (bonus / overtime / allowance / one-off deduction)
+  // for a run, entered before payslips are generated.
+  const [adjustRun, setAdjustRun] = useState<PayrollRun | null>(null);
+  const [adjustList, setAdjustList] = useState<any[]>([]);
+  const [adjustEmployees, setAdjustEmployees] = useState<{ id: string; name: string }[]>([]);
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [adjustForm, setAdjustForm] = useState<{ employee_id: string; kind: string; description: string; amount: string; taxable: boolean }>({
+    employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true,
+  });
   const [bannerDismissed, setBannerDismissed] = useState(
     () => localStorage.getItem('kdops_payroll_banner_dismissed') === 'true',
   );
@@ -527,6 +537,56 @@ const Payroll = () => {
     load();
   };
 
+  const openAdjustments = async (run: PayrollRun) => {
+    setAdjustRun(run);
+    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true });
+    setAdjustLoading(true);
+    const [{ data: adj }, { data: emps }] = await Promise.all([
+      (supabase as any).from('payslip_adjustments').select('*').eq('payroll_run_id', run.id).order('created_at', { ascending: true }),
+      (supabase as any).from('profiles').select('id, full_name, first_name, last_name, email')
+        .eq('status', 'active').neq('role', 'driver').gt('salary_ngn', 0).order('full_name'),
+    ]);
+    setAdjustList(adj || []);
+    setAdjustEmployees(((emps || []) as any[]).map((e) => ({
+      id: e.id, name: displayName(e.first_name, e.last_name, e.full_name || e.email),
+    })));
+    setAdjustLoading(false);
+  };
+
+  const addAdjustment = async () => {
+    if (!adjustRun) return;
+    const amt = Number(adjustForm.amount);
+    if (!adjustForm.employee_id) { toast({ title: 'Pick an employee', variant: 'destructive' }); return; }
+    if (!adjustForm.description.trim()) { toast({ title: 'Description is required', variant: 'destructive' }); return; }
+    if (!(amt > 0)) { toast({ title: 'Enter an amount greater than ₦0', variant: 'destructive' }); return; }
+    setAdjustSaving(true);
+    const { data, error } = await (supabase as any).from('payslip_adjustments').insert({
+      payroll_run_id: adjustRun.id,
+      employee_id: adjustForm.employee_id,
+      kind: adjustForm.kind,
+      description: adjustForm.description.trim(),
+      amount_ngn: amt,
+      taxable: adjustForm.kind === 'deduction' ? false : adjustForm.taxable,
+      created_by: profile?.id || null,
+    }).select().single();
+    setAdjustSaving(false);
+    if (error) { toast({ title: 'Could not add adjustment', description: error.message, variant: 'destructive' }); return; }
+    setAdjustList((l) => [...l, data]);
+    setAdjustForm({ employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true });
+    void logAudit(
+      'payslip_adjustment_added' as never,
+      `Payslip adjustment (${data.kind} ${formatNaira(Number(data.amount_ngn))}) added for ${adjustEmployees.find((e) => e.id === data.employee_id)?.name || data.employee_id} · ${monthLabel(adjustRun.period)}`,
+      profile,
+    );
+    toast({ title: 'Adjustment added', description: 'Re-generate payslips for this run to apply it.' });
+  };
+
+  const removeAdjustment = async (id: string) => {
+    const { error } = await (supabase as any).from('payslip_adjustments').delete().eq('id', id);
+    if (error) { toast({ title: 'Could not remove', description: error.message, variant: 'destructive' }); return; }
+    setAdjustList((l) => l.filter((a) => a.id !== id));
+  };
+
   const generatePayslips = async (run: PayrollRun) => {
     setWorking(true);
     setSalaryErrors([]);
@@ -576,7 +636,7 @@ const Payroll = () => {
       // requests that need to be settled this period in one batch.
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
-      const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }] = await Promise.all([
+      const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }] = await Promise.all([
         supabase
           .from('employee_deductions')
           .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
@@ -594,6 +654,10 @@ const Payroll = () => {
           .select('id, employee_id, amount_ngn, status')
           .eq('settlement_period', run.period)
           .in('status', ['approved', 'disbursed']),
+        (supabase as any)
+          .from('payslip_adjustments')
+          .select('id, employee_id, kind, description, amount_ngn, taxable')
+          .eq('payroll_run_id', run.id),
       ]);
 
       // Group deductions by employee id, excluding capped ones
@@ -618,6 +682,14 @@ const Payroll = () => {
       for (const w of (allEwa || [])) {
         if (!ewaByEmployee.has(w.employee_id)) ewaByEmployee.set(w.employee_id, []);
         ewaByEmployee.get(w.employee_id)!.push(w);
+      }
+
+      // Group per-employee one-off adjustments (bonus / overtime / allowance /
+      // deduction) entered for THIS run.
+      const adjustmentsByEmployee = new Map<string, any[]>();
+      for (const adj of ((allAdjustments || []) as any[])) {
+        if (!adjustmentsByEmployee.has(adj.employee_id)) adjustmentsByEmployee.set(adj.employee_id, []);
+        adjustmentsByEmployee.get(adj.employee_id)!.push(adj);
       }
 
       // ── YTD aggregation ─────────────────────────────────────────────
@@ -662,9 +734,26 @@ const Payroll = () => {
         });
         try {
           const empGross = Number(e.salary_ngn);
+
+          // One-off adjustments for this run/employee: earnings add to pay,
+          // deductions reduce it. Taxable earnings raise the PAYE base; pension
+          // and NHF stay on base salary (one-off bonuses are not pensionable
+          // under common Nigerian practice).
+          const empAdjustments = adjustmentsByEmployee.get(e.id) || [];
+          const adjEarnings   = empAdjustments.filter((a: any) => a.kind !== 'deduction');
+          const adjDeductions = empAdjustments.filter((a: any) => a.kind === 'deduction');
+          const taxableEarningsAdd = adjEarnings.reduce((s: number, a: any) => s + (a.taxable !== false ? Number(a.amount_ngn || 0) : 0), 0);
+          const nonTaxEarningsAdd  = adjEarnings.reduce((s: number, a: any) => s + (a.taxable === false ? Number(a.amount_ngn || 0) : 0), 0);
+          const earningsAddTotal   = taxableEarningsAdd + nonTaxEarningsAdd;
+          const adjDeductTotal     = adjDeductions.reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+          const bonusSum    = adjEarnings.filter((a: any) => a.kind === 'bonus').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+          const overtimeSum = adjEarnings.filter((a: any) => a.kind === 'overtime').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
+          const allowanceLines = adjEarnings.filter((a: any) => a.kind === 'allowance').map((a: any) => ({ description: a.description, amount_ngn: Number(a.amount_ngn || 0) }));
+
           // Honour the per-employee statutory toggles. Defaults match
           // Nigerian regulatory baseline: PAYE + Pension on, NHF off.
-          const empPaye    = e.paye_enabled    !== false ? computePayslip({ grossMonthlyNgn: empGross, pensionEnabled: e.pension_enabled !== false, nhfEnabled: e.nhf_enabled === true }).payeMonthlyNgn : 0;
+          const payeBase   = empGross + taxableEarningsAdd;
+          const empPaye    = e.paye_enabled    !== false ? computePayslip({ grossMonthlyNgn: payeBase, pensionEnabled: e.pension_enabled !== false, nhfEnabled: e.nhf_enabled === true }).payeMonthlyNgn : 0;
           const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE                : 0;
           const empNhf     = e.nhf_enabled     === true  ? empGross * NHF_RATE                    : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
@@ -677,10 +766,11 @@ const Payroll = () => {
           );
           const empEwa = ewaByEmployee.get(e.id) || [];
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
-          const empNet = Math.max(0, empGross - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal - empEwaTotal);
+          const empGrossTotal = empGross + earningsAddTotal;
+          const empNet = Math.max(0, empGrossTotal - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
-          // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements)
+          // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
           const allEmpDeductionLines = [
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
@@ -690,6 +780,10 @@ const Payroll = () => {
             ...empEwa.map((w: any) => ({
               description: 'Earned Wage Access (mid-month draw)',
               amount_ngn: Number(w.amount_ngn || 0),
+            })),
+            ...adjDeductions.map((a: any) => ({
+              description: a.description,
+              amount_ngn: Number(a.amount_ngn || 0),
             })),
           ];
 
@@ -724,20 +818,20 @@ const Payroll = () => {
             period_end:   periodEnd,
             pay_date:     payDate,
 
-            // Earnings — Nigerian convention splits gross into
-            // basic 60% / housing 20% / transport 20% so the
-            // breakdown feels familiar to anyone reading.
-            // Tenants that already store granular earnings can
-            // override this later by adding columns; for now we
-            // surface the standard split.
+            // Earnings — Nigerian convention splits base salary into
+            // basic 60% / housing 20% / transport 20%, then appends any
+            // one-off allowances, bonus and overtime entered for this run.
             earnings: {
               basic_ngn:     Math.round(empGross * 0.60),
               housing_ngn:   Math.round(empGross * 0.20),
               transport_ngn: Math.round(empGross * 0.20),
+              ...(allowanceLines.length ? { other_allowances: allowanceLines } : {}),
+              ...(bonusSum    ? { bonus_ngn: bonusSum }       : {}),
+              ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),
             },
 
-            // Stats
-            gross_ngn:   empGross,
+            // Stats — gross includes one-off earnings so the payslip reconciles.
+            gross_ngn:   empGrossTotal,
             paye_ngn:    empPaye,
             pension_ngn: empPension,
             nhf_ngn:     empNhf,
@@ -757,7 +851,7 @@ const Payroll = () => {
             // payslips this year, so brand-new hires don't see
             // an empty YTD box.
             ytd: ytd ? {
-              gross_ngn:   ytd.gross   + empGross,
+              gross_ngn:   ytd.gross   + empGrossTotal,
               paye_ngn:    ytd.paye    + empPaye,
               pension_ngn: ytd.pension + empPension,
               net_ngn:     ytd.net     + empNet,
@@ -789,12 +883,12 @@ const Payroll = () => {
               employee_name: empName,
               employee_email: e.email,
               period: run.period,
-              gross_ngn: empGross,
+              gross_ngn: empGrossTotal,
               paye_ngn: empPaye,
               pension_ngn: empPension,
               nhf_ngn: empNhf,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
               deductions_json: (() => {
                 const lines = [
                   ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
@@ -807,6 +901,11 @@ const Payroll = () => {
                     ewa_request_id: w.id,
                     description: 'Earned Wage Access (mid-month draw)',
                     amount_ngn: Number(w.amount_ngn || 0),
+                  })),
+                  ...adjDeductions.map((a: any) => ({
+                    adjustment_id: a.id,
+                    description: a.description,
+                    amount_ngn: Number(a.amount_ngn || 0),
                   })),
                 ];
                 return lines.length > 0 ? lines : null;
@@ -1595,6 +1694,16 @@ const Payroll = () => {
                             </Button>
                           </>
                         )}
+                        {r.status !== 'paid' && canGeneratePayslipsPerm && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openAdjustments(r)}
+                            title="Add per-employee bonus, overtime, allowance or one-off deduction"
+                          >
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Adjust
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
                           <Download className="h-4 w-4" />
                         </Button>
@@ -1823,6 +1932,125 @@ const Payroll = () => {
               {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Draft
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Per-employee payslip adjustments for a run */}
+      <Dialog
+        open={!!adjustRun}
+        onOpenChange={(open) => { if (!open) setAdjustRun(null); }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Payslip adjustments{adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Add a one-off bonus, overtime, allowance or deduction for a specific employee.
+              Earnings increase pay (taxable ones also raise PAYE); deductions reduce it.
+              <span className="font-medium text-foreground"> Re-generate payslips for this run after editing</span> to apply changes.
+            </p>
+
+            {/* Add form */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border p-3">
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Employee</Label>
+                <Select value={adjustForm.employee_id} onValueChange={(v) => setAdjustForm((f) => ({ ...f, employee_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
+                  <SelectContent>
+                    {adjustEmployees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Type</Label>
+                <Select value={adjustForm.kind} onValueChange={(v) => setAdjustForm((f) => ({ ...f, kind: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bonus">Bonus</SelectItem>
+                    <SelectItem value="overtime">Overtime</SelectItem>
+                    <SelectItem value="allowance">Allowance</SelectItem>
+                    <SelectItem value="deduction">Deduction</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Amount (₦)</Label>
+                <Input
+                  type="number" min="0" inputMode="numeric"
+                  value={adjustForm.amount}
+                  onChange={(e) => setAdjustForm((f) => ({ ...f, amount: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Description</Label>
+                <Input
+                  value={adjustForm.description}
+                  onChange={(e) => setAdjustForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="e.g. Performance bonus, Q2"
+                />
+              </div>
+              {adjustForm.kind !== 'deduction' && (
+                <label className="sm:col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={adjustForm.taxable}
+                    onChange={(e) => setAdjustForm((f) => ({ ...f, taxable: e.target.checked }))}
+                  />
+                  Taxable (adds to PAYE base)
+                </label>
+              )}
+              <div className="sm:col-span-2 flex justify-end">
+                <Button size="sm" onClick={addAdjustment} disabled={adjustSaving}>
+                  {adjustSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Plus className="mr-1 h-3.5 w-3.5" />}
+                  Add adjustment
+                </Button>
+              </div>
+            </div>
+
+            {/* Existing list */}
+            {adjustLoading ? (
+              <div className="py-6 flex items-center justify-center">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : adjustList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">No adjustments for this run yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {adjustList.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 border rounded-lg p-2.5 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {adjustEmployees.find((e) => e.id === a.employee_id)?.name || a.employee_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        <span className="capitalize">{a.kind}</span>
+                        {a.kind !== 'deduction' && !a.taxable ? ' · non-taxable' : ''} · {a.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
+                        {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
+                      </span>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeAdjustment(a.id)} title="Remove">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustRun(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
