@@ -79,7 +79,7 @@ import {
   PENSION_EMPLOYEE_RATE as PENSION_RATE,
   PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE,
   NHF_RATE,
-  calculatePAYE as calculateNigerianPAYE,
+  computePayslip,
 } from '@/lib/tax';
 import {
   createTransferRecipient,
@@ -296,7 +296,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('salary_ngn, pension_enabled, nhf_enabled')
+          .select('salary_ngn, pension_enabled, nhf_enabled, paye_enabled')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -330,8 +330,18 @@ const Payroll = () => {
         ) || 0;
       const empCount = (employeeRes.data || []).length;
       // PAYE, pension and NHF are statutory obligations on employment income only —
-      // contractor payments are handled via WHT separately.
-      const paye = calculateNigerianPAYE(totalEmployee);
+      // contractor payments are handled via WHT separately. PAYE is per-employee
+      // and progressive, and chargeable income is gross MINUS pension/NHF, so we
+      // sum each employee's computePayslip() figure — NOT band the aggregate
+      // salary (which produced a wrong, non-reconciling total).
+      const paye = (employeeRes.data || []).reduce((s: number, r: any) => {
+        if (r.paye_enabled === false) return s;
+        return s + computePayslip({
+          grossMonthlyNgn: Number(r.salary_ngn || 0),
+          pensionEnabled: r.pension_enabled !== false,
+          nhfEnabled: r.nhf_enabled === true,
+        }).payeMonthlyNgn;
+      }, 0);
       const pension = (employeeRes.data || []).reduce(
         (s: number, r: any) => s + (r.pension_enabled !== false ? Number(r.salary_ngn || 0) * PENSION_RATE : 0), 0);
       const nhf = (employeeRes.data || []).reduce(
@@ -654,7 +664,7 @@ const Payroll = () => {
           const empGross = Number(e.salary_ngn);
           // Honour the per-employee statutory toggles. Defaults match
           // Nigerian regulatory baseline: PAYE + Pension on, NHF off.
-          const empPaye    = e.paye_enabled    !== false ? calculateNigerianPAYE(empGross)        : 0;
+          const empPaye    = e.paye_enabled    !== false ? computePayslip({ grossMonthlyNgn: empGross, pensionEnabled: e.pension_enabled !== false, nhfEnabled: e.nhf_enabled === true }).payeMonthlyNgn : 0;
           const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE                : 0;
           const empNhf     = e.nhf_enabled     === true  ? empGross * NHF_RATE                    : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
