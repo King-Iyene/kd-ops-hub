@@ -273,12 +273,14 @@ const Payroll = () => {
           .select('total_amount, payment_date, status')
           .eq('batch_type', 'contractor')
           .in('status', ['processed', 'funded'])
+          .is('deleted_at', null)
           .gte('payment_date', start.toISOString())
           .lte('payment_date', end.toISOString()),
         supabase
           .from('expenses')
           .select('amount_ngn, date, status')
           .eq('status', 'approved')
+          .is('deleted_at', null)
           .gte('date', start.toISOString())
           .lte('date', end.toISOString()),
         supabase

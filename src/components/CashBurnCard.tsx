@@ -23,11 +23,13 @@ export function CashBurnCard() {
           .from('expenses')
           .select('amount_ngn, date, status')
           .eq('status', 'approved')
+          .is('deleted_at', null)
           .gte('date', iso.slice(0, 10)),
         supabase
           .from('payment_batches')
           .select('total_amount, payment_date, status')
           .in('status', ['processed', 'funded'])
+          .is('deleted_at', null)
           .gte('payment_date', iso.slice(0, 10)),
       ]);
       const e = ((expensesRes.data as any[]) || []).reduce(

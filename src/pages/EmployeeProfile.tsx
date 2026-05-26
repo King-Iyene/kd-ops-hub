@@ -295,13 +295,13 @@ const EmployeeProfile = () => {
       .catch(() => { /* company name is cosmetic on the payslip */ });
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
-      supabase.from('expenses').select('*').eq('submitted_by', id)
+      supabase.from('expenses').select('*').eq('submitted_by', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
       // page responsive even for long-tenured employees.
       supabase.from('payslips').select('*').eq('employee_id', id)
         .order('period', { ascending: false }).limit(24),
-      supabase.from('leave_requests').select('*').eq('employee_id', id)
+      supabase.from('leave_requests').select('*').eq('employee_id', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       supabase.from('tasks').select('*').eq('assignee_id', id)
         .order('created_at', { ascending: false }).limit(20),

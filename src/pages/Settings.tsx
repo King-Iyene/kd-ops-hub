@@ -3239,7 +3239,8 @@ function DepartmentsManager() {
     const { count } = await supabase
       .from('budgets')
       .select('*', { count: 'exact', head: true })
-      .eq('department_id', d.id);
+      .eq('department_id', d.id)
+      .is('deleted_at', null);
     if (count && count > 0) {
       toast({
         title: 'Cannot delete',

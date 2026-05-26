@@ -155,7 +155,7 @@ const ContractorProfile = () => {
         .eq('contractor_id', id)
         .order('created_at', { ascending: false })
         .limit(30),
-      supabase.from('documents').select('*').eq('entity_id', id)
+      supabase.from('documents').select('*').eq('entity_id', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(30),
       supabase.from('audit_logs').select('*')
         .or(`actor_id.eq.${id},description.ilike.%${id.slice(0, 8)}%`)

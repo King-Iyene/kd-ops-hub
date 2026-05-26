@@ -1158,6 +1158,7 @@ function FleetAnalyticsDashboard({
           .from('fuel_requests')
           .select('amount_ngn, created_at, vehicle_id, driver_id')
           .in('status', ['approved', 'payment_sent', 'receipt_uploaded', 'completed'])
+          .is('deleted_at', null)
           .gte('created_at', fetchSince.toISOString()),
         supabase
           .from('trip_logs')
@@ -2302,6 +2303,7 @@ const Fleet = () => {
         .from('fuel_requests')
         .select('id')
         .eq('vehicle_id', fuelVehicleId)
+        .is('deleted_at', null)
         .gte('created_at', dayStart.toISOString())
         .lte('created_at', dayEnd.toISOString())
         .limit(1);

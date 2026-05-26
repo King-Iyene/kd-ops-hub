@@ -255,6 +255,7 @@ function PaymentReport({ range }: { range: DateRange }) {
     const { data, error } = await supabase
       .from('payment_batches')
       .select('*')
+      .is('deleted_at', null)
       .gte('payment_date', range.start)
       .lte('payment_date', range.end)
       .order('payment_date', { ascending: true });
@@ -396,6 +397,7 @@ function ExpenseReport({ range }: { range: DateRange }) {
     const { data, error } = await supabase
       .from('expenses')
       .select('*')
+      .is('deleted_at', null)
       .gte('date', range.start)
       .lte('date', range.end)
       .order('date', { ascending: true });
@@ -477,6 +479,7 @@ function FleetReport({ range }: { range: DateRange }) {
       supabase
         .from('fuel_requests')
         .select('*')
+        .is('deleted_at', null)
         .gte('created_at', range.start)
         .lte('created_at', `${range.end}T23:59:59`),
       supabase
@@ -595,13 +598,14 @@ function FleetReport({ range }: { range: DateRange }) {
 function ContractorReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
     const [contractorsRes, itemsRes, batchesRes] = await Promise.all([
-      supabase.from('contractors').select('id, full_name, status'),
+      supabase.from('contractors').select('id, full_name, status').neq('status', 'deleted').neq('is_anonymised', true),
       supabase
         .from('batch_items')
         .select('contractor_id, full_name, amount_ngn, batch_id, status'),
       supabase
         .from('payment_batches')
         .select('id, payment_date')
+        .is('deleted_at', null)
         .gte('payment_date', range.start)
         .lte('payment_date', range.end),
     ]);
@@ -694,7 +698,8 @@ function BudgetReport({ range }: { range: DateRange }) {
       supabase
         .from('payment_batches')
         .select('id, total_amount, payment_date, status')
-        .in('status', [...ACTUAL_DISBURSED_STATUSES]),
+        .in('status', [...ACTUAL_DISBURSED_STATUSES])
+        .is('deleted_at', null),
     ]);
     if (budgetsRes.error) throw budgetsRes.error;
     if (expensesRes.error) throw expensesRes.error;
@@ -816,12 +821,14 @@ function PnLReport({ range }: { range: DateRange }) {
         .from('payment_batches')
         .select('id, total_amount, payment_date, status, name')
         .in('status', [...ACTUAL_DISBURSED_STATUSES])
+        .is('deleted_at', null)
         .gte('payment_date', range.start)
         .lte('payment_date', range.end),
       supabase
         .from('expenses')
         .select('amount_ngn, date, status, category')
         .eq('status', 'approved')
+        .is('deleted_at', null)
         .gte('date', range.start)
         .lte('date', range.end),
       supabase
@@ -1083,6 +1090,7 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
         .from('payment_batches')
         .select('total_amount, payment_date, scheduled_date, status, name')
         .in('status', ['approved', 'funded', 'processing'])
+        .is('deleted_at', null)
         .gte('payment_date', toIsoDate(today))
         .lte('payment_date', toIsoDate(future)),
       supabase
@@ -1202,6 +1210,7 @@ function ConcentrationRiskReport({ range }: { range: DateRange }) {
         .from('payment_batches')
         .select('id, payment_date, status')
         .in('status', [...ACTUAL_DISBURSED_STATUSES])
+        .is('deleted_at', null)
         .gte('payment_date', range.start)
         .lte('payment_date', range.end),
       supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status'),
@@ -1370,7 +1379,8 @@ function ReconciliationReport() {
         supabase
           .from('expenses')
           .select('id, description, amount_ngn, date, status')
-          .eq('status', 'approved'),
+          .eq('status', 'approved')
+          .is('deleted_at', null),
       ]);
       const byAmount = new Map<number, { type: string; id: string }>();
       for (const it of batchItems || []) {

@@ -242,7 +242,8 @@ const Expenses = () => {
         supabase
           .from('budgets')
           .select('id, name, period_start, period_end, status, locked, total_amount_ngn')
-          .eq('status', 'approved'),
+          .eq('status', 'approved')
+          .is('deleted_at', null),
         supabase.from('budget_items').select('budget_id, category'),
         supabase
           .from('company_settings')

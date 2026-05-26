@@ -184,6 +184,7 @@ const Budgets = () => {
           .from('payment_batches')
           .select('total_amount, payment_date, status')
           .in('status', ['processed', 'funded'])
+          .is('deleted_at', null)
           .limit(500),
       ]);
 

@@ -155,13 +155,13 @@ const ProfilePage = () => {
         .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
         .select('id, category, amount_ngn, status, date, created_at, description')
-        .eq('submitted_by', profile.id).order('created_at', { ascending: false }).limit(50),
+        .eq('submitted_by', profile.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
       supabase.from('leave_requests')
         .select('id, leave_type, days_requested, status, start_date, end_date, created_at, reason')
-        .eq('employee_id', profile.id).order('created_at', { ascending: false }).limit(50),
+        .eq('employee_id', profile.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
       supabase.from('fuel_requests')
         .select('id, vehicle_id, amount_ngn, status, created_at, station_name, reason')
-        .eq('driver_id', profile.id).order('created_at', { ascending: false }).limit(50),
+        .eq('driver_id', profile.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
     ]);
 
     setPayslips((psRes.data as Payslip[]) || []);

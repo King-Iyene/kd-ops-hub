@@ -293,6 +293,8 @@ export default function Communications() {
       } else if (src === 'contractors') {
         const { data: rows } = await supabase
           .from('contractors').select('email, full_name')
+          .neq('status', 'deleted')
+          .neq('is_anonymised', true)
           .not('email', 'is', null);
         data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
       }

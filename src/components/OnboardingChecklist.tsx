@@ -70,12 +70,13 @@ export function OnboardingChecklist() {
     const check = async () => {
       const [{ count: contractors }, { count: batches }, { count: processed }] =
         await Promise.all([
-          supabase.from('contractors').select('id', { count: 'exact', head: true }),
-          supabase.from('payment_batches').select('id', { count: 'exact', head: true }),
+          supabase.from('contractors').select('id', { count: 'exact', head: true }).neq('status', 'deleted').neq('is_anonymised', true),
+          supabase.from('payment_batches').select('id', { count: 'exact', head: true }).is('deleted_at', null),
           supabase
             .from('payment_batches')
             .select('id', { count: 'exact', head: true })
-            .eq('status', 'processed'),
+            .eq('status', 'processed')
+            .is('deleted_at', null),
         ]);
       const next: Record<string, boolean> = {
         add_contractor: (contractors || 0) > 0,
