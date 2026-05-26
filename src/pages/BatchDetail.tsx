@@ -930,7 +930,12 @@ const BatchDetail = () => {
       // the same message. Abort the batch loop after the first such error
       // so the operator gets to fix the root cause instead of watching 100
       // identical failures stream in.
-      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
+      // Halt the whole run on any error that affects the account/run as a whole
+      // — transfers disabled, balance too low, account restricted, OR a
+      // daily/monthly/batch transfer CAP being hit — since every remaining
+      // recipient would fail identically. The operator fixes the root cause
+      // (raise the cap / top up) and retries the remaining items.
+      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
       let accountLevelHit = false;
       for (let i = 0; i < toProcess.length; i++) {
         const it = toProcess[i];
@@ -1758,7 +1763,12 @@ const BatchDetail = () => {
                 // Same account-level short-circuit as Process — stop the loop
                 // when Paystack rejects with something that will fail every
                 // subsequent recipient identically.
-                const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended/i;
+                // Halt the whole run on any error that affects the account/run as a whole
+      // — transfers disabled, balance too low, account restricted, OR a
+      // daily/monthly/batch transfer CAP being hit — since every remaining
+      // recipient would fail identically. The operator fixes the root cause
+      // (raise the cap / top up) and retries the remaining items.
+      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
                 for (const it of toRetry) {
                   const r = await retryItem(it);
                   if (r && !r.ok && r.reason && ACCOUNT_LEVEL_ERR.test(r.reason)) {

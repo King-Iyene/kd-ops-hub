@@ -2421,7 +2421,7 @@ function SystemReferencePanel() {
               cols={['Setting', 'Value']}
               rows={[
                 { a: 'Low balance warning',          b: 'Below ₦50,000 → orange banner on Payments page' },
-                { a: 'Batch worker mode',            b: 'Server-side edge function (batch-worker) — not a browser loop. Safe to close the tab.' },
+                { a: 'Batch processing',             b: 'Each transfer is sent via the paystack-transfer edge function, but the batch is currently driven by a browser loop on the Batch page — KEEP THE TAB OPEN AND FOCUSED until the run finishes. A pg_cron watchdog (batch-worker) rescues orphaned items if the tab closes, but slowly (~1/min) — do not rely on it for a large run.' },
                 { a: 'Chunk size per invocation',    b: '50 items per batch-worker call' },
                 { a: 'Concurrency per chunk',        b: '8 Paystack transfers in parallel' },
                 { a: 'Time budget per call',         b: '120 seconds (edge function cap is 150 s)' },
