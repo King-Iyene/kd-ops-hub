@@ -212,6 +212,20 @@ const ProfilePage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // ESS depth: own documents, leave balance, personal-info edit, bank-change request
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [leaveBalance, setLeaveBalance] = useState<any | null>(null);
+  const [bankPending, setBankPending] = useState<any | null>(null);
+  const [editPersonal, setEditPersonal] = useState(false);
+  const [savingPersonal, setSavingPersonal] = useState(false);
+  const [personalForm, setPersonalForm] = useState({
+    date_of_birth: '', gender: '', marital_status: '', address: '',
+    next_of_kin_name: '', next_of_kin_relationship: '', next_of_kin_phone: '', next_of_kin_email: '',
+  });
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [submittingBank, setSubmittingBank] = useState(false);
+  const [bankForm, setBankForm] = useState({ bank_name: '', account_number: '', account_name: '', reason: '' });
+
   // Data
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
@@ -238,7 +252,7 @@ const ProfilePage = () => {
     //                       station_name, reason, status
     //   • vehicle_maintenance is a service-schedule table, not a
     //     user-raised request, so it isn't pulled here.
-    const [psRes, exRes, lvRes, flRes, empRes, advRes] = await Promise.all([
+    const [psRes, exRes, lvRes, flRes, empRes, advRes, docsRes, balRes, bankPendRes] = await Promise.all([
       supabase.from('payslips')
         .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
@@ -268,11 +282,25 @@ const ProfilePage = () => {
       (supabase as any).from('advance_requests')
         .select('id, amount_ngn, repayment_months, reason, status, rejection_reason, created_at')
         .eq('employee_id', profile.id).order('created_at', { ascending: false }).limit(50),
+      supabase.from('documents')
+        .select('id, title, category, storage_path, expires_at, created_at')
+        .eq('employee_id', profile.id).is('deleted_at', null)
+        .order('created_at', { ascending: false }).limit(50),
+      supabase.from('leave_balances')
+        .select('annual_quota, annual_used, sick_used, unpaid_used, year')
+        .eq('employee_id', profile.id).eq('year', new Date().getFullYear()).maybeSingle(),
+      (supabase as any).from('bank_account_change_requests')
+        .select('id, status, new_bank_name, new_account_number, created_at')
+        .eq('employee_id', profile.id).eq('status', 'pending')
+        .order('created_at', { ascending: false }).limit(1),
     ]);
 
     setPayslips((psRes.data as Payslip[]) || []);
     setEmployment((empRes.data as unknown as EmploymentRow) || null);
     setAdvanceReqs((advRes?.data as any[]) || []);
+    setDocuments((docsRes?.data as any[]) || []);
+    setLeaveBalance((balRes?.data as any) || null);
+    setBankPending(((bankPendRes?.data as any[]) || [])[0] || null);
 
     const all: RequestRow[] = [];
     for (const e of (exRes.data ?? []) as any[]) {
@@ -309,6 +337,21 @@ const ProfilePage = () => {
   }, [profile?.id]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Seed the personal-info edit form from the loaded employment record.
+  useEffect(() => {
+    if (!employment) return;
+    setPersonalForm({
+      date_of_birth: employment.date_of_birth || '',
+      gender: employment.gender || '',
+      marital_status: employment.marital_status || '',
+      address: employment.address || '',
+      next_of_kin_name: employment.next_of_kin_name || '',
+      next_of_kin_relationship: employment.next_of_kin_relationship || '',
+      next_of_kin_phone: employment.next_of_kin_phone || '',
+      next_of_kin_email: employment.next_of_kin_email || '',
+    });
+  }, [employment]);
 
   if (!profile) {
     return (
@@ -440,6 +483,56 @@ const ProfilePage = () => {
     if (error) { toast({ title: 'Could not cancel', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Request cancelled' });
     loadAll();
+  };
+
+  const savePersonal = async () => {
+    if (!profile?.id) return;
+    setSavingPersonal(true);
+    // Only personal columns — the DB guard blocks salary/statutory/employment/bank
+    // for non-admins, so this is safe even though it's a direct profiles update.
+    const { error } = await supabase.from('profiles').update({
+      date_of_birth: personalForm.date_of_birth || null,
+      gender: personalForm.gender || null,
+      marital_status: personalForm.marital_status || null,
+      address: personalForm.address || null,
+      next_of_kin_name: personalForm.next_of_kin_name || null,
+      next_of_kin_relationship: personalForm.next_of_kin_relationship || null,
+      next_of_kin_phone: personalForm.next_of_kin_phone || null,
+      next_of_kin_email: personalForm.next_of_kin_email || null,
+    } as any).eq('id', profile.id);
+    setSavingPersonal(false);
+    if (error) { toast({ title: 'Could not save', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Personal details updated' });
+    setEditPersonal(false);
+    loadAll();
+  };
+
+  const submitBankRequest = async () => {
+    if (!bankForm.bank_name.trim() || !bankForm.account_number.trim() || !bankForm.account_name.trim()) {
+      toast({ title: 'Bank, account number and account name are required', variant: 'destructive' });
+      return;
+    }
+    setSubmittingBank(true);
+    const { error } = await (supabase as any).from('bank_account_change_requests').insert({
+      employee_id: profile?.id,
+      new_bank_name: bankForm.bank_name.trim(),
+      new_account_number: bankForm.account_number.trim(),
+      new_account_name: bankForm.account_name.trim(),
+      reason: bankForm.reason.trim() || null,
+    });
+    setSubmittingBank(false);
+    if (error) { toast({ title: 'Request failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Bank change requested', description: 'An admin will review it before it takes effect.' });
+    setShowBankForm(false);
+    setBankForm({ bank_name: '', account_number: '', account_name: '', reason: '' });
+    loadAll();
+  };
+
+  const downloadDocument = async (d: any) => {
+    if (!d.storage_path) { toast({ title: 'No file attached', variant: 'destructive' }); return; }
+    const { data, error } = await supabase.storage.from('documents').createSignedUrl(d.storage_path, 60);
+    if (error || !data?.signedUrl) { toast({ title: 'Could not open document', variant: 'destructive' }); return; }
+    window.open(data.signedUrl, '_blank', 'noopener');
   };
 
   const [downloadingSlip, setDownloadingSlip] = useState<string | null>(null);
@@ -687,6 +780,48 @@ const ProfilePage = () => {
               </StickyActionBar>
             </CardContent>
           </Card>
+
+          {/* Personal details — employee-editable */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Personal details</CardTitle>
+              {!editPersonal ? (
+                <Button size="sm" variant="outline" onClick={() => setEditPersonal(true)}>Edit</Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => { setEditPersonal(false); }}>Cancel</Button>
+                  <Button size="sm" onClick={savePersonal} disabled={savingPersonal}>
+                    {savingPersonal ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Save
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              {!editPersonal ? (
+                <>
+                  <Field label="Date of birth">{employment?.date_of_birth ? formatDate(employment.date_of_birth) : '—'}</Field>
+                  <Field label="Gender">{employment?.gender || '—'}</Field>
+                  <Field label="Marital status">{employment?.marital_status || '—'}</Field>
+                  <Field label="Home address">{employment?.address || '—'}</Field>
+                  <Field label="Next of kin">{employment?.next_of_kin_name || '—'}</Field>
+                  <Field label="Next of kin relationship">{employment?.next_of_kin_relationship || '—'}</Field>
+                  <Field label="Next of kin phone">{employment?.next_of_kin_phone || '—'}</Field>
+                  <Field label="Next of kin email">{employment?.next_of_kin_email || '—'}</Field>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1"><Label>Date of birth</Label><Input type="date" value={personalForm.date_of_birth} onChange={(e) => setPersonalForm((f) => ({ ...f, date_of_birth: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Gender</Label><Input value={personalForm.gender} onChange={(e) => setPersonalForm((f) => ({ ...f, gender: e.target.value }))} placeholder="e.g. Female" /></div>
+                  <div className="space-y-1"><Label>Marital status</Label><Input value={personalForm.marital_status} onChange={(e) => setPersonalForm((f) => ({ ...f, marital_status: e.target.value }))} placeholder="e.g. Single" /></div>
+                  <div className="space-y-1"><Label>Home address</Label><Input value={personalForm.address} onChange={(e) => setPersonalForm((f) => ({ ...f, address: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Next of kin name</Label><Input value={personalForm.next_of_kin_name} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_name: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Relationship</Label><Input value={personalForm.next_of_kin_relationship} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_relationship: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Next of kin phone</Label><Input value={personalForm.next_of_kin_phone} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_phone: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label>Next of kin email</Label><Input type="email" value={personalForm.next_of_kin_email} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_email: e.target.value }))} /></div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ── Employment tab ───────────────────────────────────── */}
@@ -800,21 +935,71 @@ const ProfilePage = () => {
                 </CardContent>
               </Card>
 
-              {/* Bank (masked) */}
+              {/* Bank (masked) + change request */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">Bank account</CardTitle>
+                  {bankPending ? (
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30">Change pending review</Badge>
+                  ) : !showBankForm ? (
+                    <Button size="sm" variant="outline" onClick={() => setShowBankForm(true)}>Request change</Button>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+                    <Field label="Bank">{employment.bank_name || '—'}</Field>
+                    <Field label="Account name">{employment.bank_account_name || '—'}</Field>
+                    <Field label="Account number">{maskAccount(employment.bank_account_number)}</Field>
+                  </div>
+                  {showBankForm && !bankPending && (
+                    <div className="rounded-lg border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1"><Label>New bank</Label><Input value={bankForm.bank_name} onChange={(e) => setBankForm((f) => ({ ...f, bank_name: e.target.value }))} placeholder="e.g. GTBank" /></div>
+                      <div className="space-y-1"><Label>Account number</Label><Input inputMode="numeric" value={bankForm.account_number} onChange={(e) => setBankForm((f) => ({ ...f, account_number: e.target.value }))} /></div>
+                      <div className="space-y-1 sm:col-span-2"><Label>Account name</Label><Input value={bankForm.account_name} onChange={(e) => setBankForm((f) => ({ ...f, account_name: e.target.value }))} /></div>
+                      <div className="space-y-1 sm:col-span-2"><Label>Reason (optional)</Label><Input value={bankForm.reason} onChange={(e) => setBankForm((f) => ({ ...f, reason: e.target.value }))} /></div>
+                      <div className="sm:col-span-2 flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setShowBankForm(false)}>Cancel</Button>
+                        <Button size="sm" onClick={submitBankRequest} disabled={submittingBank}>
+                          {submittingBank ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Submit request
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* My documents */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Bank account</CardTitle>
+                  <CardTitle className="text-base">My documents</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
-                  <Field label="Bank">{employment.bank_name || '—'}</Field>
-                  <Field label="Account name">{employment.bank_account_name || '—'}</Field>
-                  <Field label="Account number">{maskAccount(employment.bank_account_number)}</Field>
+                <CardContent className="pt-2">
+                  {documents.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No documents on file. HR uploads contracts, IDs and certificates here.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {documents.map((d) => (
+                        <div key={d.id} className="flex items-center justify-between gap-2 border rounded-lg p-2.5 text-sm">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{d.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(d.category || 'document').replace(/_/g, ' ')} · {formatDate(d.created_at)}
+                              {d.expires_at ? ` · expires ${formatDate(d.expires_at)}` : ''}
+                            </p>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => downloadDocument(d)}>
+                            <Download className="mr-1 h-3.5 w-3.5" /> Open
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <p className="text-xs text-muted-foreground px-1">
-                These details are managed by HR. To request a change, contact your HR administrator
-                (bank-account changes go through an approval workflow).
+                Salary, statutory and employment fields are managed by HR. Bank changes go through
+                an approval workflow before they take effect.
               </p>
             </>
           )}
@@ -822,6 +1007,33 @@ const ProfilePage = () => {
 
         {/* ── Requests tab ─────────────────────────────────────── */}
         <TabsContent value="requests" className="space-y-4">
+          {/* Leave balance */}
+          {leaveBalance && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Leave balance · {leaveBalance.year}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Annual remaining</p>
+                  <p className="font-semibold tabular-nums">{Math.max(0, (leaveBalance.annual_quota || 0) - (leaveBalance.annual_used || 0))} days</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Annual used</p>
+                  <p className="font-semibold tabular-nums">{leaveBalance.annual_used || 0} of {leaveBalance.annual_quota || 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Sick taken</p>
+                  <p className="font-semibold tabular-nums">{leaveBalance.sick_used || 0} days</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Unpaid taken</p>
+                  <p className="font-semibold tabular-nums">{leaveBalance.unpaid_used || 0} days</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Salary advances */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

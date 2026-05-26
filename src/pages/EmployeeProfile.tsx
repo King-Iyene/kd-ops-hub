@@ -13,7 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
-import { openPayslipPrintWindow } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
@@ -223,16 +223,23 @@ const EmployeeProfile = () => {
       });
       return;
     }
-    // Payroll-module payslips are stored in Supabase Storage
+    // Payroll-module payslips are stored as HTML in Supabase Storage — render
+    // them to a real PDF download (same path as the employee self-service view).
     const path = slip.storage_path || slip.file_url;
     const { data, error } = await supabase.storage.from('payslips').download(path);
     if (error) { toast({ title: 'Download failed', description: error.message, variant: 'destructive' }); return; }
-    const url = URL.createObjectURL(data);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `payslip-${path.split('/').pop()}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const html = await data.text();
+      await downloadPayslipPdfFromHtml(html, `payslip-${slip.period || path.split('/').pop()}`);
+    } catch {
+      // Fallback: hand back the raw stored file if PDF rendering fails.
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payslip-${path.split('/').pop()}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const load = useCallback(async () => {
