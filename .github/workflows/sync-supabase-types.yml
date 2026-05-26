@@ -17,6 +17,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+  # Auto-refresh types right after migrations apply, so they never go stale
+  # without anyone lifting a finger.
+  workflow_run:
+    workflows: ["Deploy Supabase Migrations"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -25,6 +30,8 @@ jobs:
   sync-types:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # For the workflow_run trigger, only proceed if the migration run succeeded.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
