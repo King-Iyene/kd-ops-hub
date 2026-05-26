@@ -216,6 +216,10 @@ const ProfilePage = () => {
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [employment, setEmployment] = useState<EmploymentRow | null>(null);
+  const [advanceReqs, setAdvanceReqs] = useState<any[]>([]);
+  const [showAdvanceForm, setShowAdvanceForm] = useState(false);
+  const [advanceForm, setAdvanceForm] = useState({ amount: '', months: '3', reason: '' });
+  const [submittingAdvance, setSubmittingAdvance] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState(true);
 
   const loadAll = useCallback(async () => {
@@ -234,7 +238,7 @@ const ProfilePage = () => {
     //                       station_name, reason, status
     //   • vehicle_maintenance is a service-schedule table, not a
     //     user-raised request, so it isn't pulled here.
-    const [psRes, exRes, lvRes, flRes, empRes] = await Promise.all([
+    const [psRes, exRes, lvRes, flRes, empRes, advRes] = await Promise.all([
       supabase.from('payslips')
         .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
@@ -261,10 +265,14 @@ const ProfilePage = () => {
         `)
         .eq('id', profile.id)
         .maybeSingle(),
+      (supabase as any).from('advance_requests')
+        .select('id, amount_ngn, repayment_months, reason, status, rejection_reason, created_at')
+        .eq('employee_id', profile.id).order('created_at', { ascending: false }).limit(50),
     ]);
 
     setPayslips((psRes.data as Payslip[]) || []);
     setEmployment((empRes.data as unknown as EmploymentRow) || null);
+    setAdvanceReqs((advRes?.data as any[]) || []);
 
     const all: RequestRow[] = [];
     for (const e of (exRes.data ?? []) as any[]) {
@@ -405,6 +413,33 @@ const ProfilePage = () => {
     } finally {
       setChangingPassword(false);
     }
+  };
+
+  const submitAdvance = async () => {
+    const amt = Number(advanceForm.amount);
+    const months = Number(advanceForm.months);
+    if (!(amt > 0)) { toast({ title: 'Enter an amount greater than ₦0', variant: 'destructive' }); return; }
+    if (!(months >= 1 && months <= 24)) { toast({ title: 'Repayment must be 1–24 months', variant: 'destructive' }); return; }
+    setSubmittingAdvance(true);
+    const { error } = await (supabase as any).from('advance_requests').insert({
+      employee_id: profile?.id,
+      amount_ngn: amt,
+      repayment_months: months,
+      reason: advanceForm.reason.trim() || null,
+    });
+    setSubmittingAdvance(false);
+    if (error) { toast({ title: 'Request failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Advance request submitted', description: 'Your manager will review it.' });
+    setShowAdvanceForm(false);
+    setAdvanceForm({ amount: '', months: '3', reason: '' });
+    loadAll();
+  };
+
+  const cancelAdvance = async (id: string) => {
+    const { error } = await (supabase as any).rpc('cancel_advance_request', { p_request_id: id });
+    if (error) { toast({ title: 'Could not cancel', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Request cancelled' });
+    loadAll();
   };
 
   const downloadPayslip = async (p: Payslip) => {
@@ -752,6 +787,71 @@ const ProfilePage = () => {
 
         {/* ── Requests tab ─────────────────────────────────────── */}
         <TabsContent value="requests" className="space-y-4">
+          {/* Salary advances */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Salary advances</CardTitle>
+              {!showAdvanceForm && (
+                <Button size="sm" variant="outline" onClick={() => setShowAdvanceForm(true)}>
+                  Request advance
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-3 pt-0">
+              {showAdvanceForm && (
+                <div className="rounded-lg border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label>Amount (₦)</Label>
+                    <Input type="number" min="0" inputMode="numeric" value={advanceForm.amount}
+                      onChange={(e) => setAdvanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Repay over (months)</Label>
+                    <Input type="number" min="1" max="24" value={advanceForm.months}
+                      onChange={(e) => setAdvanceForm((f) => ({ ...f, months: e.target.value }))} />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label>Reason (optional)</Label>
+                    <Input value={advanceForm.reason}
+                      onChange={(e) => setAdvanceForm((f) => ({ ...f, reason: e.target.value }))} placeholder="e.g. medical, rent" />
+                  </div>
+                  <div className="sm:col-span-2 flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => { setShowAdvanceForm(false); setAdvanceForm({ amount: '', months: '3', reason: '' }); }}>Cancel</Button>
+                    <Button size="sm" onClick={submitAdvance} disabled={submittingAdvance}>
+                      {submittingAdvance ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Submit request
+                    </Button>
+                  </div>
+                </div>
+              )}
+              {advanceReqs.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-1">No advance requests yet. Repayments are deducted from your payslips.</p>
+              ) : (
+                <div className="space-y-2">
+                  {advanceReqs.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between gap-2 border rounded-lg p-2.5 text-sm flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-semibold currency tabular-nums">{formatNaira(Number(a.amount_ngn))}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Over {a.repayment_months} month{a.repayment_months === 1 ? '' : 's'} · {formatDate(a.created_at)}
+                          {a.reason ? ` · ${a.reason}` : ''}
+                          {a.status === 'rejected' && a.rejection_reason ? ` · ${a.rejection_reason}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className={cn('font-medium', tone(a.status).fg, tone(a.status).bg)}>
+                          {tone(a.status).label}
+                        </Badge>
+                        {(a.status === 'pending' || a.status === 'approved') && (
+                          <Button size="sm" variant="ghost" onClick={() => cancelAdvance(a.id)}>Cancel</Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

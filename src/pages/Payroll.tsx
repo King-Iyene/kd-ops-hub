@@ -49,6 +49,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -208,6 +209,9 @@ const Payroll = () => {
   const [adjustForm, setAdjustForm] = useState<{ employee_id: string; kind: string; description: string; amount: string; taxable: boolean }>({
     employee_id: '', kind: 'bonus', description: '', amount: '', taxable: true,
   });
+  // Manager queue of salary-advance requests awaiting action.
+  const [advanceQueue, setAdvanceQueue] = useState<any[]>([]);
+  const [advanceBusy, setAdvanceBusy] = useState<string | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(
     () => localStorage.getItem('kdops_payroll_banner_dismissed') === 'true',
   );
@@ -235,8 +239,44 @@ const Payroll = () => {
       .order('period', { ascending: false })
       .limit(200);
     setRuns((data as PayrollRun[]) || []);
+
+    // Salary-advance requests awaiting action (pending) or approved-not-yet-paid.
+    const { data: adv } = await (supabase as any).from('advance_requests')
+      .select('id, employee_id, amount_ngn, repayment_months, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name, email)')
+      .in('status', ['pending', 'approved'])
+      .order('created_at', { ascending: true });
+    setAdvanceQueue(((adv as any[]) || []).map((r) => ({
+      ...r,
+      name: displayName(r.profiles?.first_name, r.profiles?.last_name, r.profiles?.full_name || r.profiles?.email),
+    })));
     setLoading(false);
   }, []);
+
+  const actOnAdvance = async (id: string, action: 'approve' | 'reject' | 'paid') => {
+    setAdvanceBusy(id);
+    try {
+      if (action === 'approve') {
+        const { error } = await (supabase as any).rpc('approve_advance_request', { p_request_id: id });
+        if (error) throw error;
+        toast({ title: 'Advance approved', description: 'Pay it in the next batch, then mark it paid to start repayment.' });
+      } else if (action === 'reject') {
+        const reason = window.prompt('Reason for rejecting this advance request?') || '';
+        if (!reason.trim()) { setAdvanceBusy(null); return; }
+        const { error } = await (supabase as any).rpc('reject_advance_request', { p_request_id: id, p_reason: reason });
+        if (error) throw error;
+        toast({ title: 'Advance rejected' });
+      } else {
+        const { error } = await (supabase as any).rpc('mark_advance_request_paid', { p_request_id: id, p_start_period: null });
+        if (error) throw error;
+        toast({ title: 'Recorded as paid', description: 'Repayment will be deducted from upcoming payslips.' });
+      }
+      await load();
+    } catch (err: any) {
+      toast({ title: 'Action failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setAdvanceBusy(null);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -1532,6 +1572,46 @@ const Payroll = () => {
             </p>
           </AlertDescription>
         </Alert>
+      )}
+
+      {advanceQueue.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-[13px] font-semibold tracking-tight">Salary advance requests</h2>
+          <div className="rounded-lg border border-border/60 bg-card divide-y">
+            {advanceQueue.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-3 p-3 flex-wrap">
+                <div className="min-w-0">
+                  <p className="font-medium truncate">
+                    {a.name} · <span className="currency tabular-nums">{formatNaira(Number(a.amount_ngn))}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Over {a.repayment_months} month{a.repayment_months === 1 ? '' : 's'}
+                    {a.reason ? ` · ${a.reason}` : ''} · {monthLabel(a.created_at.slice(0, 7))}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {a.status === 'pending' ? (
+                    <>
+                      <Button size="sm" variant="outline" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'approve')}>
+                        {advanceBusy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Approve'}
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'reject')}>
+                        Reject
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Badge variant="outline" className="bg-info/10 text-info border-info/30">Approved · pending payout</Badge>
+                      <Button size="sm" variant="outline" disabled={advanceBusy === a.id} onClick={() => actOnAdvance(a.id, 'paid')}>
+                        {advanceBusy === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Mark paid'}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="space-y-3">
