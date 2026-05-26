@@ -127,6 +127,32 @@ export const useAuth = () => {
       }
     });
 
+    // A null session arrived from a NON-user-initiated event (a failed/raced
+    // token refresh — 429 rate-limit or the GoTrue lock timing out and two tabs
+    // rotating the refresh token concurrently). Do NOT sign out: signing out
+    // would wipe the shared localStorage session that the *winning* tab just
+    // wrote, logging every tab out. Instead, re-read the session a few times —
+    // the valid rotated session is usually already in shared storage — and only
+    // give up (redirect to /login) if it's genuinely, persistently gone.
+    const recoverOrLogout = async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (s?.user) {
+          setUser(s.user);
+          finish(s.user.id, false);
+          return;
+        }
+      }
+      console.warn('[KDOps] session not recoverable after refresh failure; redirecting to login');
+      setUser(null);
+      useAuthStore.getState().setProfile(null);
+      setLoading(false);
+      if (window.location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
+    };
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -148,15 +174,11 @@ export const useAuth = () => {
       ) {
         return;
       }
-      // Bug 2 — token refresh failure, sign out cleanly.
+      // Token refresh failure / rotation race — try to recover the shared
+      // session before logging out (see recoverOrLogout). Never proactively
+      // signOut() here; that would evict every other tab too.
       if (event === 'TOKEN_REFRESHED' && !session) {
-        supabase.auth.signOut();
-        setUser(null);
-        useAuthStore.getState().setProfile(null);
-        setLoading(false);
-        if (window.location.pathname !== '/login') {
-          navigate('/login', { replace: true });
-        }
+        void recoverOrLogout();
         return;
       }
       if (session?.user) {
@@ -177,13 +199,18 @@ export const useAuth = () => {
             }, 800);
           })();
         }
-      } else {
+      } else if (event === 'SIGNED_OUT') {
+        // Explicit, user-initiated sign-out — go straight to login.
         setUser(null);
         useAuthStore.getState().setProfile(null);
         setLoading(false);
         if (window.location.pathname !== '/login') {
           navigate('/login', { replace: true });
         }
+      } else {
+        // Any other event arriving with no session (e.g. USER_UPDATED after a
+        // raced refresh) — attempt recovery rather than an abrupt logout.
+        void recoverOrLogout();
       }
     });
 
