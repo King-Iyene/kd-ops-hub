@@ -170,6 +170,15 @@ function getItemFee(item: any): number {
   return 0;
 }
 
+// Whether getItemFee returned a real Paystack-confirmed fee or a tier estimate.
+// Surfaced in the CSV export so finance never mistakes an estimate for an actual.
+function getItemFeeBasis(item: any): 'actual' | 'estimated' | '' {
+  if (Number(item?.paystack_fee_ngn || 0) > 0) return 'actual';
+  if (Number(item?.paystack_raw?.fee || 0) > 0) return 'actual';
+  if (item?.status === 'succeeded') return 'estimated';
+  return '';
+}
+
 
 const BatchDetail = () => {
   const { id } = useParams();
@@ -1194,6 +1203,7 @@ const BatchDetail = () => {
       'account_number',
       'amount_ngn',
       'paystack_fee_ngn',
+      'fee_basis',
       'reference',
       'status',
     ];
@@ -1203,6 +1213,7 @@ const BatchDetail = () => {
       i.account_number ?? '',
       i.amount_ngn ?? 0,
       getItemFee(i),
+      getItemFeeBasis(i),
       i.reference ?? '',
       i.status ?? '',
     ]);
