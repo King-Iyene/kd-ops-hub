@@ -60,6 +60,10 @@ export const useAuth = () => {
         return;
       }
 
+      // result is now 'ok' or 'not_found'. On 'ok' the store holds the row;
+      // on 'not_found' this is null and we fall into the self-heal path below.
+      const fetched = useAuthStore.getState().profile;
+
       // result === 'not_found': the query succeeded and there is genuinely no
       // profile row. Before rejecting, try the self-healing RPC which creates
       // the profile from pending_invites. This handles cases where the DB
