@@ -4629,6 +4629,64 @@ export type Database = {
           },
         ]
       }
+      payslip_adjustments: {
+        Row: {
+          amount_ngn: number
+          created_at: string
+          created_by: string | null
+          description: string
+          employee_id: string
+          id: string
+          kind: string
+          payroll_run_id: string
+          taxable: boolean
+        }
+        Insert: {
+          amount_ngn: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          employee_id: string
+          id?: string
+          kind: string
+          payroll_run_id: string
+          taxable?: boolean
+        }
+        Update: {
+          amount_ngn?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          employee_id?: string
+          id?: string
+          kind?: string
+          payroll_run_id?: string
+          taxable?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payslip_adjustments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslip_adjustments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payslip_adjustments_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payslips: {
         Row: {
           batch_item_id: string | null
