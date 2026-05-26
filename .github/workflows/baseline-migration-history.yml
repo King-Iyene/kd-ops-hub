@@ -1,0 +1,66 @@
+name: Baseline migration history (one-time)
+
+# ONE-TIME, MANUAL. Your live database has the full schema but an EMPTY
+# migration-history table, so `supabase db push` tries to replay every migration
+# from the start and fails ("relation already exists"). This marks all EXISTING
+# migrations as already-applied — HISTORY ONLY: it runs no SQL and changes no
+# schema or data — EXCEPT the newest ones that genuinely haven't run yet, then
+# pushes those.
+#
+# After this runs once, the normal "Deploy Supabase Migrations" workflow works
+# for every future migration.
+#
+# The new migrations the final `db push` WILL actually apply:
+#   20260911000000_saved_filters
+#   20260912000000_batch_item_reference_unique   (brief write-lock on payment_batches)
+#   20260913000000_purge_archived_batches
+# Run during a quiet period. If the unique-index step aborts with
+# "duplicate paystack_reference", STOP and report it — that signals a historical
+# double-pay to investigate.
+#
+# Re-runnable: repairing an already-applied version is logged and skipped.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Migrations that have NOT been applied to the live DB yet — everything
+      # else is marked as already-applied. Update this list if you add more
+      # before running the baseline.
+      NEW_MIGRATIONS: "20260911000000 20260912000000 20260913000000"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
+          sudo dpkg -i supabase.deb
+          rm -f supabase.deb
+          supabase --version
+
+      - name: Link project
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Mark existing migrations as applied (history only — no SQL run)
+        run: |
+          set -uo pipefail
+          for v in $(ls supabase/migrations/*.sql | sed -E 's:.*/([0-9]+)_.*:\1:' | sort -u); do
+            case " $NEW_MIGRATIONS " in
+              *" $v "*) echo "skip (new, will be pushed): $v"; continue;;
+            esac
+            echo "repair --status applied $v"
+            supabase migration repair --status applied "$v" \
+              || echo "  (already applied or skipped: $v)"
+          done
+
+      - name: Apply the new migrations
+        run: supabase db push
