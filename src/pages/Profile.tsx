@@ -19,7 +19,7 @@ import {
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
   CheckCircle2, Clock, XCircle,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -112,8 +112,28 @@ function tone(status: string) {
 const ProfilePage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
+
+  // Tab is URL-driven so links (e.g. the "My Pay" nav item) can deep-link
+  // straight to a section like ?tab=payslips.
+  const TAB_KEYS = ['account', 'requests', 'payslips', 'security'] as const;
+  const tabParam = searchParams.get('tab');
+  const activeTab = (TAB_KEYS as readonly string[]).includes(tabParam || '')
+    ? (tabParam as string)
+    : 'account';
+  const setActiveTab = (v: string) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (v === 'account') next.delete('tab');
+        else next.set('tab', v);
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   // Photo upload
   const fileRef = useRef<HTMLInputElement>(null);
@@ -338,6 +358,23 @@ const ProfilePage = () => {
     return { pending, total: requests.length, payslips: payslips.length };
   }, [requests, payslips]);
 
+  // Year-to-date totals across this calendar year's payslips.
+  const ytd = useMemo(() => {
+    const year = String(new Date().getFullYear());
+    return payslips
+      .filter((p) => p.period?.startsWith(year))
+      .reduce(
+        (acc, p) => ({
+          gross: acc.gross + (p.gross_ngn || 0),
+          paye: acc.paye + (p.paye_ngn || 0),
+          pension: acc.pension + (p.pension_ngn || 0),
+          net: acc.net + (p.net_ngn || 0),
+          count: acc.count + 1,
+        }),
+        { gross: 0, paye: 0, pension: 0, net: 0, count: 0 },
+      );
+  }, [payslips]);
+
   // ── Render ─────────────────────────────────────────────────────
 
   return (
@@ -418,7 +455,7 @@ const ProfilePage = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="account" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full grid grid-cols-4 sm:max-w-lg sm:mx-auto">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="requests">
@@ -553,6 +590,33 @@ const ProfilePage = () => {
 
         {/* ── Payslips tab ─────────────────────────────────────── */}
         <TabsContent value="payslips" className="space-y-4">
+          {ytd.count > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  {new Date().getFullYear()} year to date
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <div>
+                  <p className="text-xs text-muted-foreground">Gross</p>
+                  <p className="font-semibold currency tabular-nums">{formatNaira(ytd.gross)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">PAYE</p>
+                  <p className="font-semibold currency tabular-nums">{formatNaira(ytd.paye)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pension</p>
+                  <p className="font-semibold currency tabular-nums">{formatNaira(ytd.pension)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Net pay</p>
+                  <p className="font-semibold currency tabular-nums">{formatNaira(ytd.net)}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base flex items-center gap-2">

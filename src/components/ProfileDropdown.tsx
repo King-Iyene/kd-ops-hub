@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   User as UserIcon,
   LogOut,
+  Wallet,
   Eye,
   ChevronDown,
   Sun,
@@ -188,6 +189,12 @@ export function ProfileDropdown() {
           className="cursor-pointer"
         >
           <UserIcon className="mr-2 h-4 w-4" /> My Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => navigate('/profile?tab=payslips')}
+          className="cursor-pointer"
+        >
+          <Wallet className="mr-2 h-4 w-4" /> My Payslips
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={handleSignOut}
