@@ -129,12 +129,32 @@ const TYPE_BADGE: Record<LeaveType, string> = {
 };
 
 
-const calcDays = (start: string, end: string): number => {
-  const a = new Date(start);
-  const b = new Date(end);
+// Sun = 0, Sat = 6 — the Nigerian working week is Mon–Fri.
+const WEEKEND_DAYS = new Set([0, 6]);
+
+/**
+ * Count working days between two ISO dates (inclusive), excluding weekends and
+ * any date present in `holidays` (a set of 'YYYY-MM-DD' strings from the
+ * public_holidays table). All arithmetic is in UTC so a 'YYYY-MM-DD' date never
+ * drifts across a day boundary because of the viewer's timezone.
+ */
+const countWorkingDays = (
+  start: string,
+  end: string,
+  holidays: Set<string>,
+): number => {
+  const a = new Date(`${start}T00:00:00Z`);
+  const b = new Date(`${end}T00:00:00Z`);
   if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0;
-  const diff = Math.round((b.getTime() - a.getTime()) / (1000 * 60 * 60 * 24));
-  return diff < 0 ? 0 : diff + 1;
+  if (b.getTime() < a.getTime()) return 0;
+  let count = 0;
+  const cur = new Date(a);
+  while (cur.getTime() <= b.getTime()) {
+    const iso = cur.toISOString().slice(0, 10);
+    if (!WEEKEND_DAYS.has(cur.getUTCDay()) && !holidays.has(iso)) count += 1;
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return count;
 };
 
 const TabCount = ({ n }: { n: number }) => (
@@ -160,6 +180,7 @@ const Leave = () => {
   const [teamRequests, setTeamRequests] = useState<LeaveRequest[]>([]);
   const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [actioning, setActioning] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
@@ -209,7 +230,7 @@ const Leave = () => {
             .limit(200)
         : Promise.resolve({ data: [] as LeaveRequest[], error: null });
 
-      const [myRes, teamRes, profilesRes, balanceRes] = await Promise.all([
+      const [myRes, teamRes, profilesRes, balanceRes, holidaysRes] = await Promise.all([
         myQuery,
         teamQuery,
         supabase.from('profiles').select('id, full_name, email, phone').neq('is_anonymised', true).limit(500),
@@ -219,6 +240,7 @@ const Leave = () => {
           .eq('employee_id', currentId)
           .eq('year', new Date().getFullYear())
           .maybeSingle(),
+        supabase.from('public_holidays').select('holiday_date').eq('is_observed', true),
       ]);
       if (myRes.error) throw myRes.error;
       if (teamRes.error) throw teamRes.error;
@@ -231,6 +253,13 @@ const Leave = () => {
       }
       setProfiles(map);
       setBalance((balanceRes.data as LeaveBalance) || null);
+      setHolidays(
+        new Set(
+          ((holidaysRes.data as { holiday_date: string }[] | null) || []).map(
+            (h) => h.holiday_date,
+          ),
+        ),
+      );
     } catch (err: any) {
       setError(err?.message || 'Failed to load leave requests.');
     } finally {
@@ -265,9 +294,19 @@ const Leave = () => {
   // -- Submit ---------------------------------------------------------------
 
   const submitRequest = async () => {
-    const days = calcDays(form.start_date, form.end_date);
+    const days = countWorkingDays(form.start_date, form.end_date, holidays);
     if (days <= 0) {
-      toast({ title: 'End date must be on/after start date', variant: 'destructive' });
+      toast({
+        title:
+          form.end_date < form.start_date
+            ? 'End date must be on/after start date'
+            : 'No working days in that range',
+        description:
+          form.end_date < form.start_date
+            ? undefined
+            : 'The selected dates fall entirely on weekends or public holidays.',
+        variant: 'destructive',
+      });
       return;
     }
     if (!form.reason.trim()) {
@@ -1003,9 +1042,9 @@ const Leave = () => {
               />
             </div>
             <div className="text-sm text-muted-foreground">
-              Days requested:{' '}
+              Working days requested:{' '}
               <span className="font-semibold text-foreground">
-                {calcDays(form.start_date, form.end_date)}
+                {countWorkingDays(form.start_date, form.end_date, holidays)}
               </span>
               {form.leave_type === 'annual' && balance && (
                 <>
