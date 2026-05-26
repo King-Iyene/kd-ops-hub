@@ -158,6 +158,17 @@ const monthLabel = (period: string, periodType?: string): string => {
 const monthPeriod = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
+// Advance repayment for one period: normally the monthly amount, but if a
+// normal deduction would leave a residual smaller than one installment, take
+// the whole remaining balance so it clears to exactly ₦0 — avoids a stranded
+// ₦0.01 left behind by rounding deduction_per_month (e.g. ₦10,000 / 3).
+const advanceDeductionFor = (deductionPerMonth: any, outstanding: any): number => {
+  const ded = Number(deductionPerMonth || 0);
+  const out = Number(outstanding || 0);
+  if (out <= 0) return 0;
+  return (out - ded) < ded ? out : ded;
+};
+
 
 const BONUS_TYPES = [
   'Performance Bonus',
@@ -340,7 +351,7 @@ const Payroll = () => {
       const totalDeductions = qualifyingDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn || 0), 0);
       // Advance repayments reduce net payroll outflow this period
       const totalAdvanceRepayments = (advancesRes.data || []).reduce(
-        (s: number, a: any) => s + Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+        (s: number, a: any) => s + advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
         0,
       );
       const burn =
@@ -651,7 +662,7 @@ const Payroll = () => {
           const empAdvances = advancesByEmployee.get(e.id) || [];
           // Deduct the smaller of deduction_per_month or outstanding_ngn to avoid over-deducting
           const empAdvancesTotal = empAdvances.reduce(
-            (s: number, a: any) => s + Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+            (s: number, a: any) => s + advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
             0,
           );
           const empEwa = ewaByEmployee.get(e.id) || [];
@@ -664,7 +675,7 @@ const Payroll = () => {
             ...empDeductions.map((d: any) => ({ description: d.description, amount_ngn: Number(d.amount_ngn) })),
             ...empAdvances.map((a: any) => ({
               description: 'Salary Advance Repayment',
-              amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+              amount_ngn: advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
             })),
             ...empEwa.map((w: any) => ({
               description: 'Earned Wage Access (mid-month draw)',
@@ -780,7 +791,7 @@ const Payroll = () => {
                   ...empAdvances.map((a: any) => ({
                     advance_id: a.id,
                     description: 'Salary Advance Repayment',
-                    amount_ngn: Math.min(Number(a.deduction_per_month || 0), Number(a.outstanding_ngn || 0)),
+                    amount_ngn: advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
                   })),
                   ...empEwa.map((w: any) => ({
                     ewa_request_id: w.id,
