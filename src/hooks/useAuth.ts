@@ -15,6 +15,23 @@ export const useAuth = () => {
     if (didInit.current) return;
     didInit.current = true;
 
+    // True while a Supabase refresh token is still persisted in storage. A 429
+    // on /auth/v1/token (project-level rate limit) means "retry later", not
+    // "signed out" — so while this is true we must keep the user logged in and
+    // let auto-refresh recover, never tearing the session down.
+    const hasPersistedSession = () => {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && /^sb-.*-auth-token$/.test(k)) {
+            const v = localStorage.getItem(k);
+            if (v && v.includes('refresh_token')) return true;
+          }
+        }
+      } catch { /* localStorage blocked — fall through */ }
+      return false;
+    };
+
     const finish = async (userId: string, redirectIfLogin: boolean) => {
       let result = await fetchProfile(userId);
 
@@ -106,17 +123,22 @@ export const useAuth = () => {
     };
 
     supabase.auth.getSession().then(({ data: { session }, error: sessionError }) => {
-      // Bug 2 fix — expired or invalid refresh token.
+      // A getSession error at load is usually a transient refresh failure
+      // (e.g. 429). Do NOT signOut() — that wipes the persisted session. If a
+      // refresh token is still stored, keep the user and let auto-refresh
+      // recover; only fall back to /login when storage has no session at all.
       if (sessionError) {
         console.warn('[KDOps] session error:', sessionError.message);
-        supabase.auth.signOut().then(() => {
-          setUser(null);
-          useAuthStore.getState().setProfile(null);
+        if (hasPersistedSession()) {
           setLoading(false);
-          if (window.location.pathname !== '/login') {
-            navigate('/login', { replace: true });
-          }
-        });
+          return;
+        }
+        setUser(null);
+        useAuthStore.getState().setProfile(null);
+        setLoading(false);
+        if (window.location.pathname !== '/login') {
+          navigate('/login', { replace: true });
+        }
         return;
       }
       if (session?.user) {
@@ -128,12 +150,16 @@ export const useAuth = () => {
     });
 
     // A null session arrived from a NON-user-initiated event (a failed/raced
-    // token refresh — 429 rate-limit or the GoTrue lock timing out and two tabs
-    // rotating the refresh token concurrently). Do NOT sign out: signing out
-    // would wipe the shared localStorage session that the *winning* tab just
-    // wrote, logging every tab out. Instead, re-read the session a few times —
-    // the valid rotated session is usually already in shared storage — and only
-    // give up (redirect to /login) if it's genuinely, persistently gone.
+    // token refresh — almost always a 429 rate-limit on /auth/v1/token, which
+    // is a PROJECT-level limit shared by everyone, or the GoTrue lock timing out
+    // under concurrent refreshes). A 429 means "retry later", NOT "signed out".
+    //
+    // The decisive rule: as long as a refresh token is still persisted in
+    // storage, the user is NOT logged out — we keep them in place and let the
+    // SDK's auto-refresh recover once the rate-limit window clears. We only
+    // redirect to /login when storage genuinely has no session (a real sign-out
+    // elsewhere). And we NEVER call supabase.auth.signOut() here, which would
+    // wipe the shared session and cascade the logout to every tab.
     const recoverOrLogout = async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
         await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
@@ -144,7 +170,14 @@ export const useAuth = () => {
           return;
         }
       }
-      console.warn('[KDOps] session not recoverable after refresh failure; redirecting to login');
+      // Couldn't refresh (e.g. sustained 429). If the refresh token is still
+      // in storage, DO NOT log out — unblock the UI and let auto-refresh retry.
+      if (hasPersistedSession()) {
+        console.warn('[KDOps] token refresh rate-limited (429); keeping session, will auto-recover');
+        setLoading(false);
+        return;
+      }
+      console.warn('[KDOps] no persisted session; redirecting to login');
       setUser(null);
       useAuthStore.getState().setProfile(null);
       setLoading(false);
