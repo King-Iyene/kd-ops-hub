@@ -329,18 +329,19 @@ const SettingsPage = () => {
       return;
     }
     const compressed = await compressImage(file);
+    // Public "branding" bucket → getPublicUrl is permanent (no expiry), so the
+    // logo keeps rendering on payslips/receipts indefinitely. (The old path used
+    // the private documents bucket + a 1-year signed URL that silently expired.)
     const path = `company-logo-${Date.now()}-${compressed.name.replace(/[^a-z0-9.]+/gi, '_')}`;
     const { error } = await supabase.storage
-      .from('documents')
-      .upload(path, compressed, { upsert: false, contentType: compressed.type || undefined });
+      .from('branding')
+      .upload(path, compressed, { upsert: true, contentType: compressed.type || undefined });
     if (error) {
       toast({ title: 'Logo upload failed', description: error.message, variant: 'destructive' });
       return;
     }
-    const { data: signed } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(path, 60 * 60 * 24 * 365);
-    patch({ logo_url: signed?.signedUrl || null });
+    const { data: pub } = supabase.storage.from('branding').getPublicUrl(path);
+    patch({ logo_url: pub?.publicUrl || null });
     toast({ title: 'Logo uploaded — remember to Save' });
   };
 
