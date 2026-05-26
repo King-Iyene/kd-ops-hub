@@ -574,6 +574,14 @@ const Payroll = () => {
         : 'Payroll is now ready to disburse.' +
           (anomalyCount > 0 ? ` ${anomalyCount} anomal${anomalyCount === 1 ? 'y' : 'ies'} flagged for review.` : ''),
     });
+
+    // Auto-generate payslips right after approval so they're ready without a
+    // separate click. Idempotent (upsert on payroll_run_id+employee_id), so the
+    // manual "Generate payslips" button stays available for re-runs. Skipped if
+    // the approver lacks the payslip-generation permission.
+    if (canGeneratePayslipsPerm) {
+      await generatePayslips({ ...run, status: 'approved' });
+    }
     load();
   };
 
