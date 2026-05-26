@@ -5838,6 +5838,47 @@ export type Database = {
           },
         ]
       }
+      saved_filters: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          module: string
+          name: string
+          shared: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          module?: string
+          name: string
+          shared?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          module?: string
+          name?: string
+          shared?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_filters_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       statement_entries: {
         Row: {
           amount_ngn: number
@@ -7630,6 +7671,10 @@ export type Database = {
         Returns: Json
       }
       process_recurring_schedules: { Args: never; Returns: undefined }
+      purge_archived_payment_batches: {
+        Args: { p_retention_days?: number }
+        Returns: number
+      }
       purge_audit_rows: {
         Args: { p_ids: string[]; p_table: string }
         Returns: number
