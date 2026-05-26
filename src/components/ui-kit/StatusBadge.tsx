@@ -1,26 +1,29 @@
 import { cn } from '@/lib/utils';
 
+// Each status keeps its own hue (so Approved/Funded/Processing stay visually
+// distinct) and now carries dark-mode variants so pills don't render as washed
+// light chips on a dark surface.
 const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  draft:                    { bg: 'bg-slate-100',                    text: 'text-slate-600',   dot: 'bg-slate-400',   label: 'Draft' },
-  pending:                  { bg: 'bg-amber-50  border border-amber-200/80', text: 'text-amber-700',   dot: 'bg-amber-400',   label: 'Pending' },
-  pending_approval:         { bg: 'bg-amber-50  border border-amber-200/80', text: 'text-amber-700',   dot: 'bg-amber-400',   label: 'Pending' },
-  pending_second_approval:  { bg: 'bg-amber-50  border border-amber-200/80', text: 'text-amber-700',   dot: 'bg-amber-400',   label: '2nd Approval' },
-  approved:                 { bg: 'bg-blue-50   border border-blue-200/80',  text: 'text-blue-700',    dot: 'bg-blue-400',    label: 'Approved' },
-  funded:                   { bg: 'bg-indigo-50 border border-indigo-200/80',text: 'text-indigo-700',  dot: 'bg-indigo-400',  label: 'Funded' },
-  processing:               { bg: 'bg-cyan-50   border border-cyan-200/80',  text: 'text-cyan-700',    dot: 'bg-cyan-400',    label: 'Processing' },
-  retry:                    { bg: 'bg-cyan-50   border border-cyan-200/80',  text: 'text-cyan-700',    dot: 'bg-cyan-400',    label: 'Processing' },
-  processed:                { bg: 'bg-emerald-50 border border-emerald-200/80', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Completed' },
-  succeeded:                { bg: 'bg-emerald-50 border border-emerald-200/80', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Completed' },
-  completed:                { bg: 'bg-emerald-50 border border-emerald-200/80', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Completed' },
-  paid:                     { bg: 'bg-emerald-50 border border-emerald-200/80', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Paid' },
-  active:                   { bg: 'bg-emerald-50 border border-emerald-200/80', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Active' },
-  partial:                  { bg: 'bg-orange-50 border border-orange-200/80', text: 'text-orange-700', dot: 'bg-orange-400',  label: 'Partial' },
-  partially_processed:      { bg: 'bg-orange-50 border border-orange-200/80', text: 'text-orange-700', dot: 'bg-orange-400',  label: 'Partial' },
-  failed:                   { bg: 'bg-red-50    border border-red-200/80',   text: 'text-red-700',     dot: 'bg-red-400',     label: 'Failed' },
-  rejected:                 { bg: 'bg-red-50    border border-red-200/80',   text: 'text-red-700',     dot: 'bg-red-400',     label: 'Rejected' },
-  cancelled:                { bg: 'bg-red-50    border border-red-200/80',   text: 'text-red-700',     dot: 'bg-red-400',     label: 'Cancelled' },
-  reversed:                 { bg: 'bg-rose-50   border border-rose-200/80',  text: 'text-rose-700',    dot: 'bg-rose-400',    label: 'Reversed' },
-  inactive:                 { bg: 'bg-slate-100',                            text: 'text-slate-500',   dot: 'bg-slate-300',   label: 'Inactive' },
+  draft:                    { bg: 'bg-slate-100 dark:bg-slate-500/15',                                              text: 'text-slate-600 dark:text-slate-300',   dot: 'bg-slate-400',   label: 'Draft' },
+  pending:                  { bg: 'bg-amber-50 border border-amber-200/80 dark:bg-amber-500/10 dark:border-amber-500/25',     text: 'text-amber-700 dark:text-amber-300',   dot: 'bg-amber-400',   label: 'Pending' },
+  pending_approval:         { bg: 'bg-amber-50 border border-amber-200/80 dark:bg-amber-500/10 dark:border-amber-500/25',     text: 'text-amber-700 dark:text-amber-300',   dot: 'bg-amber-400',   label: 'Pending' },
+  pending_second_approval:  { bg: 'bg-amber-50 border border-amber-200/80 dark:bg-amber-500/10 dark:border-amber-500/25',     text: 'text-amber-700 dark:text-amber-300',   dot: 'bg-amber-400',   label: '2nd Approval' },
+  approved:                 { bg: 'bg-blue-50 border border-blue-200/80 dark:bg-blue-500/10 dark:border-blue-500/25',         text: 'text-blue-700 dark:text-blue-300',     dot: 'bg-blue-400',    label: 'Approved' },
+  funded:                   { bg: 'bg-indigo-50 border border-indigo-200/80 dark:bg-indigo-500/10 dark:border-indigo-500/25', text: 'text-indigo-700 dark:text-indigo-300', dot: 'bg-indigo-400',  label: 'Funded' },
+  processing:               { bg: 'bg-cyan-50 border border-cyan-200/80 dark:bg-cyan-500/10 dark:border-cyan-500/25',         text: 'text-cyan-700 dark:text-cyan-300',     dot: 'bg-cyan-400',    label: 'Processing' },
+  retry:                    { bg: 'bg-cyan-50 border border-cyan-200/80 dark:bg-cyan-500/10 dark:border-cyan-500/25',         text: 'text-cyan-700 dark:text-cyan-300',     dot: 'bg-cyan-400',    label: 'Processing' },
+  processed:                { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Completed' },
+  succeeded:                { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Completed' },
+  completed:                { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Completed' },
+  paid:                     { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Paid' },
+  active:                   { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Active' },
+  partial:                  { bg: 'bg-orange-50 border border-orange-200/80 dark:bg-orange-500/10 dark:border-orange-500/25', text: 'text-orange-700 dark:text-orange-300', dot: 'bg-orange-400',  label: 'Partial' },
+  partially_processed:      { bg: 'bg-orange-50 border border-orange-200/80 dark:bg-orange-500/10 dark:border-orange-500/25', text: 'text-orange-700 dark:text-orange-300', dot: 'bg-orange-400',  label: 'Partial' },
+  failed:                   { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',             text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Failed' },
+  rejected:                 { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',             text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Rejected' },
+  cancelled:                { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',             text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Cancelled' },
+  reversed:                 { bg: 'bg-rose-50 border border-rose-200/80 dark:bg-rose-500/10 dark:border-rose-500/25',         text: 'text-rose-700 dark:text-rose-300',     dot: 'bg-rose-400',    label: 'Reversed' },
+  inactive:                 { bg: 'bg-slate-100 dark:bg-slate-500/15',                                              text: 'text-slate-500 dark:text-slate-400',   dot: 'bg-slate-300',   label: 'Inactive' },
 };
 
 const FALLBACK = { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', label: '' };

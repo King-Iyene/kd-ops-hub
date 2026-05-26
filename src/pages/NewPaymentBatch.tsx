@@ -122,6 +122,10 @@ const emptyBank: BankAccountValue = {
   verified: false,
 };
 
+// Naira amounts can only be as fine as 1 kobo (2 dp). Clamp entered values so a
+// stray sub-kobo figure can't disagree with the kobo amount sent to Paystack.
+const round2 = (n: number) => (Number.isFinite(n) ? Math.round(n * 100) / 100 : 0);
+
 const NewPaymentBatch = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id?: string }>();
@@ -386,7 +390,7 @@ const NewPaymentBatch = () => {
 
   // Set the same amount on every selected beneficiary at once.
   const applyAmountToAll = (raw: string) => {
-    const v = parseFloat(raw);
+    const v = round2(parseFloat(raw));
     const amount = Number.isFinite(v) && v >= 0 ? v : 0;
     setItems((prev) => prev.map((i) => ({ ...i, amount_ngn: amount })));
   };
@@ -462,7 +466,7 @@ const NewPaymentBatch = () => {
       });
       return;
     }
-    const amount = parseFloat(adHoc.amount_ngn);
+    const amount = round2(parseFloat(adHoc.amount_ngn) || 0);
     if (!adHoc.amount_ngn || amount <= 0) {
       toast({
         title: 'Amount required',
@@ -1158,7 +1162,7 @@ const NewPaymentBatch = () => {
                                   ? 'Switch to "Different amounts" to edit individually'
                                   : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
                               }
-                              onChange={(e) => updateItem(i, 'amount_ngn', parseFloat(e.target.value) || 0)}
+                              onChange={(e) => updateItem(i, 'amount_ngn', round2(parseFloat(e.target.value) || 0))}
                             />
                           </td>
                           <td className="px-3 py-1.5">
