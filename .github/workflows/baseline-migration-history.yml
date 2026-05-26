@@ -30,10 +30,11 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      # Migrations that have NOT been applied to the live DB yet — everything
-      # else is marked as already-applied. Update this list if you add more
-      # before running the baseline.
-      NEW_MIGRATIONS: "20260911000000 20260912000000 20260913000000"
+      # The last migration version that was ALREADY applied to the live DB
+      # before this work began. Everything <= this is marked as already-applied
+      # (history only); everything AFTER it is genuinely new and gets pushed.
+      # Robust as more new migrations are added — no hardcoded per-file list.
+      LAST_APPLIED_VERSION: "20260910000000"
     steps:
       - uses: actions/checkout@v4
 
@@ -50,16 +51,17 @@ jobs:
       - name: Link project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Mark existing migrations as applied (history only — no SQL run)
+      - name: Mark already-applied migrations (history only — no SQL run)
         run: |
           set -uo pipefail
           for v in $(ls supabase/migrations/*.sql | sed -E 's:.*/([0-9]+)_.*:\1:' | sort -u); do
-            case " $NEW_MIGRATIONS " in
-              *" $v "*) echo "skip (new, will be pushed): $v"; continue;;
-            esac
-            echo "repair --status applied $v"
-            supabase migration repair --status applied "$v" \
-              || echo "  (already applied or skipped: $v)"
+            if [ "$v" -le "$LAST_APPLIED_VERSION" ]; then
+              echo "repair --status applied $v"
+              supabase migration repair --status applied "$v" \
+                || echo "  (already applied or skipped: $v)"
+            else
+              echo "skip (new, will be pushed): $v"
+            fi
           done
 
       - name: Apply the new migrations
