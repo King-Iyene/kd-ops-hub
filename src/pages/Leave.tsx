@@ -425,6 +425,29 @@ const Leave = () => {
       toast({ title: 'Not authorized', variant: 'destructive' });
       return;
     }
+    // Re-check the balance at APPROVAL time, not just at submission. Without
+    // this, an employee can stack several pending annual-leave requests that
+    // each pass the submit-time check, then a manager approves them all and
+    // pushes annual_used past the quota. Annual is the only quota-capped type.
+    if (req.leave_type === 'annual') {
+      const year = new Date(req.start_date).getFullYear();
+      const { data: bal } = await supabase
+        .from('leave_balances')
+        .select('annual_quota, annual_used')
+        .eq('employee_id', req.employee_id)
+        .eq('year', year)
+        .maybeSingle();
+      const quota = (bal as any)?.annual_quota ?? 12;
+      const used = (bal as any)?.annual_used ?? 0;
+      if (used + req.days_requested > quota) {
+        toast({
+          title: 'Would exceed leave balance',
+          description: `This request is ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}, but only ${Math.max(0, quota - used)} remain this year. Reject it or adjust the employee's quota first.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
     setActioning(req.id);
     try {
       const { error } = await supabase

@@ -269,6 +269,34 @@ export default function PartnerPayCalculator() {
     }
     setGenerating(true);
     try {
+      // Race-safe dup guard: `alreadyBatched` is computed at page load, so
+      // another tab or teammate could have batched some of these partners for
+      // this period since then. Re-check FRESH right before inserting. Keyed on
+      // contractor_id + period — a partner's second account is a SEPARATE
+      // contractor record (different id), so legitimately paying it twice is
+      // unaffected; this only blocks the same contractor being batched twice.
+      const selIds = selectedRows.map((p) => p.id);
+      const { data: freshDupes } = await supabase
+        .from('batch_items')
+        .select('contractor_id, payment_batches!inner(period, status, deleted_at, batch_type)')
+        .in('contractor_id', selIds)
+        .eq('payment_batches.batch_type', 'contractor')
+        .eq('payment_batches.period', period)
+        .neq('payment_batches.status', 'rejected')
+        .is('payment_batches.deleted_at', null)
+        .limit(20000);
+      const dupeIds = new Set(((freshDupes as any[]) || []).map((d) => d.contractor_id).filter(Boolean));
+      if (dupeIds.size > 0) {
+        toast({
+          title: 'Some partners are already batched',
+          description: `${dupeIds.size} selected partner${dupeIds.size === 1 ? ' is' : 's are'} already in a ${period} batch (possibly created in another tab). No batch was made — refreshing so you can review before trying again.`,
+          variant: 'destructive',
+        });
+        await load();
+        setGenerating(false);
+        return;
+      }
+
       const now = new Date();
       const lines = selectedRows.map((p) => {
         const usdMinor = rowUsdMinor(p) as number;
