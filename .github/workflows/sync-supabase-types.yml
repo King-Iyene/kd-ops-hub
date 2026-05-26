@@ -1,0 +1,59 @@
+name: Sync Supabase types
+
+# Regenerates src/integrations/supabase/types.ts from the LIVE database schema
+# and commits it if it changed. This is the permanent fix for the ~1k stale-type
+# errors: the committed types drift from the migrations over time, which is what
+# makes `npm run typecheck` red. Run it manually after a schema change, or let
+# the weekly schedule keep it fresh.
+#
+# Uses the same secrets as the deploy workflows:
+#   SUPABASE_ACCESS_TOKEN — Personal Access Token (account/tokens)
+#   SUPABASE_PROJECT_REF  — the LIVE project ref
+#
+# Note: if `main` is branch-protected with required reviews, the bot push will
+# be rejected — run it on a branch / open a PR instead, or allow the action.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+
+permissions:
+  contents: write
+
+jobs:
+  sync-types:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Supabase CLI
+        run: |
+          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+          curl -fsSLo supabase.deb \
+            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
+          sudo dpkg -i supabase.deb
+          rm -f supabase.deb
+          supabase --version
+
+      - name: Regenerate types from live schema
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase gen types typescript \
+            --project-id "${{ secrets.SUPABASE_PROJECT_REF }}" \
+            > src/integrations/supabase/types.ts
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet src/integrations/supabase/types.ts; then
+            echo "Types already up to date — nothing to commit."
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add src/integrations/supabase/types.ts
+            git commit -m "chore: regenerate Supabase types from live schema"
+            git push
+          fi
