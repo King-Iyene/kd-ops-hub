@@ -14,6 +14,70 @@ export type Database = {
   }
   public: {
     Tables: {
+      advance_requests: {
+        Row: {
+          advance_id: string | null
+          amount_ngn: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          repayment_months: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          advance_id?: string | null
+          amount_ngn: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          repayment_months?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          advance_id?: string | null
+          amount_ngn?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          repayment_months?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_requests_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "employee_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "advance_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           body: string | null
@@ -7180,6 +7244,28 @@ export type Database = {
         Returns: undefined
       }
       activate_my_profile: { Args: never; Returns: undefined }
+      approve_advance_request: {
+        Args: { p_request_id: string }
+        Returns: {
+          advance_id: string | null
+          amount_ngn: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          repayment_months: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "advance_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       approve_bank_account_change_request: {
         Args: { p_request_id: string }
         Returns: undefined
@@ -7280,6 +7366,28 @@ export type Database = {
         Returns: Json
       }
       batch_paid_amount_ngn: { Args: { p_batch_id: string }; Returns: number }
+      cancel_advance_request: {
+        Args: { p_request_id: string }
+        Returns: {
+          advance_id: string | null
+          amount_ngn: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          repayment_months: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "advance_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       cancel_ewa: { Args: { p_request_id: string }; Returns: Json }
       canonical_batch_payload_hash: {
         Args: { p_batch_id: string }
@@ -7594,6 +7702,28 @@ export type Database = {
         }
         Returns: string
       }
+      mark_advance_request_paid: {
+        Args: { p_request_id: string; p_start_period?: string }
+        Returns: {
+          advance_id: string | null
+          amount_ngn: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          repayment_months: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "advance_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       mark_batch_funded: {
         Args: { p_batch_id: string; p_funding_evidence?: Json }
         Returns: {
@@ -7787,6 +7917,28 @@ export type Database = {
           p_user_agent: string
         }
         Returns: undefined
+      }
+      reject_advance_request: {
+        Args: { p_reason: string; p_request_id: string }
+        Returns: {
+          advance_id: string | null
+          amount_ngn: number
+          created_at: string
+          employee_id: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          repayment_months: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "advance_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       reject_bank_account_change_request: {
         Args: { p_reason: string; p_request_id: string }
