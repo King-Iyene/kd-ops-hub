@@ -6329,6 +6329,72 @@ export type Database = {
         }
         Relationships: []
       }
+      terminations: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          exit_interview_notes: string | null
+          final_settlement_ngn: number | null
+          id: string
+          initiated_by: string | null
+          last_working_day: string | null
+          notice_date: string | null
+          reason: string | null
+          rehire_eligible: boolean
+          status: string
+          termination_type: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id: string
+          exit_interview_notes?: string | null
+          final_settlement_ngn?: number | null
+          id?: string
+          initiated_by?: string | null
+          last_working_day?: string | null
+          notice_date?: string | null
+          reason?: string | null
+          rehire_eligible?: boolean
+          status?: string
+          termination_type: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id?: string
+          exit_interview_notes?: string | null
+          final_settlement_ngn?: number | null
+          id?: string
+          initiated_by?: string | null
+          last_working_day?: string | null
+          notice_date?: string | null
+          reason?: string | null
+          rehire_eligible?: boolean
+          status?: string
+          termination_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminations_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_records: {
         Row: {
           category: string
@@ -7420,6 +7486,31 @@ export type Database = {
           used_month_ngn: number
           used_today_ngn: number
         }[]
+      }
+      complete_offboarding: {
+        Args: { p_termination_id: string }
+        Returns: {
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          exit_interview_notes: string | null
+          final_settlement_ngn: number | null
+          id: string
+          initiated_by: string | null
+          last_working_day: string | null
+          notice_date: string | null
+          reason: string | null
+          rehire_eligible: boolean
+          status: string
+          termination_type: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "terminations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       compute_ewa_eligibility: {
         Args: { p_employee_id?: string }
