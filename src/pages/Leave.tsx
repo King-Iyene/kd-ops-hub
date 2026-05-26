@@ -114,6 +114,7 @@ interface ProfileRow {
   full_name: string;
   email: string;
   phone: string | null;
+  start_date: string | null;
 }
 
 const LEAVE_TYPES: { value: LeaveType; label: string; icon: typeof Plane }[] = [
@@ -155,6 +156,34 @@ const countWorkingDays = (
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return count;
+};
+
+/**
+ * Annual-leave days EARNED so far under monthly accrual (quota / 12 per month).
+ * Prior years are fully vested; the current year accrues from the employee's
+ * start month (January if they started in an earlier year); future years and
+ * not-yet-started employees accrue nothing. Always capped at the full quota.
+ */
+const accruedAnnualDays = (
+  quota: number,
+  year: number,
+  startDate?: string | null,
+): number => {
+  const now = new Date();
+  const curYear = now.getUTCFullYear();
+  if (year < curYear) return quota;
+  if (year > curYear) return 0;
+  let startMonth = 0; // January
+  if (startDate) {
+    const d = new Date(`${startDate}T00:00:00Z`);
+    if (!Number.isNaN(d.getTime())) {
+      if (d.getUTCFullYear() > year) return 0; // hasn't started yet
+      if (d.getUTCFullYear() === year) startMonth = d.getUTCMonth();
+    }
+  }
+  const monthsElapsed = now.getUTCMonth() - startMonth + 1; // inclusive of current month
+  if (monthsElapsed <= 0) return 0;
+  return Math.min(quota, Math.round((quota / 12) * monthsElapsed));
 };
 
 const TabCount = ({ n }: { n: number }) => (
@@ -233,7 +262,7 @@ const Leave = () => {
       const [myRes, teamRes, profilesRes, balanceRes, holidaysRes] = await Promise.all([
         myQuery,
         teamQuery,
-        supabase.from('profiles').select('id, full_name, email, phone').neq('is_anonymised', true).limit(500),
+        supabase.from('profiles').select('id, full_name, email, phone, start_date').neq('is_anonymised', true).limit(500),
         supabase
           .from('leave_balances')
           .select('*')
@@ -313,17 +342,17 @@ const Leave = () => {
       toast({ title: 'Reason is required', description: 'Please enter a reason for your leave request.', variant: 'destructive' });
       return;
     }
-    if (
-      form.leave_type === 'annual' &&
-      balance &&
-      balance.annual_used + days > balance.annual_quota
-    ) {
-      toast({
-        title: 'Not enough annual leave',
-        description: `You have ${Math.max(0, balance.annual_quota - balance.annual_used)} days left.`,
-        variant: 'destructive',
-      });
-      return;
+    if (form.leave_type === 'annual' && balance) {
+      const myStart = profiles.get(profile?.id || '')?.start_date ?? null;
+      const accrued = accruedAnnualDays(balance.annual_quota, balance.year, myStart);
+      if (balance.annual_used + days > accrued) {
+        toast({
+          title: 'Not enough annual leave earned yet',
+          description: `You've earned ${Math.max(0, accrued - balance.annual_used)} of ${balance.annual_quota} days so far this year (leave accrues monthly).`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
     setSubmitting(true);
     try {
@@ -384,10 +413,9 @@ const Leave = () => {
     const base = (existing as LeaveBalance) || {
       employee_id: req.employee_id,
       year,
-      // Nigerian Labour Act minimum: 6 working days for under 1 year of
-      // service. 12 is the conservative default — finance can raise it per
-      // employee. (Previously hard-coded to 21 which is rich by local norms.)
-      annual_quota: 12,
+      // Matches the leave_balances DB default and the rest of the app. Finance
+      // can raise/lower it per employee in the balance row.
+      annual_quota: 21,
       annual_used: 0,
       sick_used: 0,
       unpaid_used: 0,
@@ -468,7 +496,8 @@ const Leave = () => {
     // Re-check the balance at APPROVAL time, not just at submission. Without
     // this, an employee can stack several pending annual-leave requests that
     // each pass the submit-time check, then a manager approves them all and
-    // pushes annual_used past the quota. Annual is the only quota-capped type.
+    // push annual_used past what's been earned. Annual is the only capped type,
+    // and the cap is days EARNED to date (monthly accrual), not the full quota.
     if (req.leave_type === 'annual') {
       const year = new Date(req.start_date).getFullYear();
       const { data: bal } = await supabase
@@ -477,12 +506,15 @@ const Leave = () => {
         .eq('employee_id', req.employee_id)
         .eq('year', year)
         .maybeSingle();
-      const quota = (bal as any)?.annual_quota ?? 12;
+      const quota = (bal as any)?.annual_quota ?? 21;
       const used = (bal as any)?.annual_used ?? 0;
-      if (used + req.days_requested > quota) {
+      const empStart = profiles.get(req.employee_id)?.start_date ?? null;
+      const accrued = accruedAnnualDays(quota, year, empStart);
+      if (used + req.days_requested > accrued) {
+        const who = profiles.get(req.employee_id)?.full_name || 'this employee';
         toast({
-          title: 'Would exceed leave balance',
-          description: `This request is ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}, but only ${Math.max(0, quota - used)} remain this year. Reject it or adjust the employee's quota first.`,
+          title: 'Would exceed earned leave',
+          description: `This request is ${req.days_requested} day${req.days_requested === 1 ? '' : 's'}, but ${who} has earned only ${Math.max(0, accrued - used)} of ${quota} days so far this year (leave accrues monthly). Reject it or adjust the employee's quota first.`,
           variant: 'destructive',
         });
         return;
@@ -672,9 +704,11 @@ const Leave = () => {
 
   // -- Render ---------------------------------------------------------------
 
-  const annualLeft = balance
-    ? Math.max(0, balance.annual_quota - balance.annual_used)
-    : 12;
+  const myStartDate = profiles.get(profile?.id || '')?.start_date ?? null;
+  const annualAccrued = balance
+    ? accruedAnnualDays(balance.annual_quota, balance.year, myStartDate)
+    : 0;
+  const annualLeft = balance ? Math.max(0, annualAccrued - balance.annual_used) : 0;
 
   return (
     <div className="space-y-6">
@@ -705,7 +739,7 @@ const Leave = () => {
         <StatCard
           title="Annual Leave Left"
           value={`${annualLeft} days`}
-          subtitle={`${balance?.annual_used || 0} of ${balance?.annual_quota || 21} used`}
+          subtitle={`${balance?.annual_used || 0} used · ${annualAccrued} earned of ${balance?.annual_quota || 21}`}
           icon={Plane}
           tone="primary"
         />
@@ -1049,9 +1083,9 @@ const Leave = () => {
               {form.leave_type === 'annual' && balance && (
                 <>
                   {' '}
-                  · Remaining annual balance:{' '}
+                  · Earned annual balance available:{' '}
                   <span className="font-semibold text-foreground">
-                    {Math.max(0, balance.annual_quota - balance.annual_used)} days
+                    {annualLeft} days
                   </span>
                 </>
               )}
