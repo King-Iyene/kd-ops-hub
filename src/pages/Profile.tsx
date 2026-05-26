@@ -25,6 +25,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime } from '@/lib/format';
+import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
 import { openPayslipPrintWindow } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,6 +54,37 @@ interface Payslip {
   net_ngn: number;
   storage_path: string | null;
   created_at: string;
+}
+
+interface EmploymentRow {
+  job_title: string | null;
+  employee_number: string | null;
+  employment_type: string | null;
+  start_date: string | null;
+  annual_leave_days: number | null;
+  salary_ngn: number | null;
+  department: { name: string } | null;
+  tax_id: string | null;
+  tin: string | null;
+  nin: string | null;
+  pension_pin: string | null;
+  pension_enabled: boolean | null;
+  nhf_number: string | null;
+  nhf_enabled: boolean | null;
+  nhis_number: string | null;
+  nhis_enabled: boolean | null;
+  paye_enabled: boolean | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_account_name: string | null;
+  date_of_birth: string | null;
+  gender: string | null;
+  marital_status: string | null;
+  address: string | null;
+  next_of_kin_name: string | null;
+  next_of_kin_relationship: string | null;
+  next_of_kin_phone: string | null;
+  next_of_kin_email: string | null;
 }
 
 interface RequestRow {
@@ -107,6 +139,37 @@ function tone(status: string) {
   return STATUS_TONE[key] ?? { Icon: Clock, bg: 'bg-muted', fg: 'text-muted-foreground', label: status || '—' };
 }
 
+/** Show only the last 4 digits of an account number; never the full PAN. */
+const maskAccount = (acct: string | null): string => {
+  if (!acct) return '—';
+  const digits = acct.replace(/\s+/g, '');
+  if (digits.length <= 4) return digits;
+  return `•••• ${digits.slice(-4)}`;
+};
+
+// Read-only label/value pair used across the Employment tab.
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="min-w-0">
+    <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="text-sm font-medium break-words">{children}</div>
+  </div>
+);
+
+// Enrolled / Not enrolled pill for statutory toggles.
+const EnrolBadge = ({ on }: { on: boolean }) => (
+  <Badge
+    variant="outline"
+    className={cn(
+      'font-medium',
+      on
+        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+        : 'bg-muted text-muted-foreground border-border',
+    )}
+  >
+    {on ? 'Enrolled' : 'Not enrolled'}
+  </Badge>
+);
+
 // ── Component ────────────────────────────────────────────────────
 
 const ProfilePage = () => {
@@ -118,7 +181,7 @@ const ProfilePage = () => {
 
   // Tab is URL-driven so links (e.g. the "My Pay" nav item) can deep-link
   // straight to a section like ?tab=payslips.
-  const TAB_KEYS = ['account', 'requests', 'payslips', 'security'] as const;
+  const TAB_KEYS = ['account', 'employment', 'requests', 'payslips', 'security'] as const;
   const tabParam = searchParams.get('tab');
   const activeTab = (TAB_KEYS as readonly string[]).includes(tabParam || '')
     ? (tabParam as string)
@@ -152,6 +215,7 @@ const ProfilePage = () => {
   // Data
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [requests, setRequests] = useState<RequestRow[]>([]);
+  const [employment, setEmployment] = useState<EmploymentRow | null>(null);
   const [loadingActivity, setLoadingActivity] = useState(true);
 
   const loadAll = useCallback(async () => {
@@ -170,7 +234,7 @@ const ProfilePage = () => {
     //                       station_name, reason, status
     //   • vehicle_maintenance is a service-schedule table, not a
     //     user-raised request, so it isn't pulled here.
-    const [psRes, exRes, lvRes, flRes] = await Promise.all([
+    const [psRes, exRes, lvRes, flRes, empRes] = await Promise.all([
       supabase.from('payslips')
         .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
@@ -182,9 +246,25 @@ const ProfilePage = () => {
       supabase.from('fuel_requests')
         .select('id, vehicle_id, amount_ngn, status, created_at, station_name, reason')
         .eq('driver_id', profile.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(50),
+      // The signed-in user's own employment / statutory / compensation record.
+      // RLS already restricts a profiles row to its owner, so this returns only
+      // the caller's data. Read-only here — changes go through HR.
+      supabase.from('profiles')
+        .select(`
+          job_title, employee_number, employment_type, start_date, annual_leave_days,
+          salary_ngn, tax_id, tin, nin, pension_pin, pension_enabled,
+          nhf_number, nhf_enabled, nhis_number, nhis_enabled, paye_enabled,
+          bank_name, bank_account_number, bank_account_name,
+          date_of_birth, gender, marital_status, address,
+          next_of_kin_name, next_of_kin_relationship, next_of_kin_phone, next_of_kin_email,
+          department:departments!department_id(name)
+        `)
+        .eq('id', profile.id)
+        .maybeSingle(),
     ]);
 
     setPayslips((psRes.data as Payslip[]) || []);
+    setEmployment((empRes.data as unknown as EmploymentRow) || null);
 
     const all: RequestRow[] = [];
     for (const e of (exRes.data ?? []) as any[]) {
@@ -358,6 +438,20 @@ const ProfilePage = () => {
     return { pending, total: requests.length, payslips: payslips.length };
   }, [requests, payslips]);
 
+  // Indicative monthly compensation breakdown from the employee's own gross
+  // and statutory toggles. The issued payslip is authoritative — this mirrors
+  // the same vetted computePayslip() used by payroll.
+  const comp = useMemo(() => {
+    const gross = Number(employment?.salary_ngn || 0);
+    if (gross <= 0) return null;
+    return computePayslip({
+      grossMonthlyNgn: gross,
+      pensionEnabled: employment?.pension_enabled !== false,
+      nhfEnabled: employment?.nhf_enabled === true,
+      nhisEnabled: employment?.nhis_enabled === true,
+    });
+  }, [employment]);
+
   // Year-to-date totals across this calendar year's payslips.
   const ytd = useMemo(() => {
     const year = String(new Date().getFullYear());
@@ -456,8 +550,9 @@ const ProfilePage = () => {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="w-full grid grid-cols-4 sm:max-w-lg sm:mx-auto">
+        <TabsList className="w-full grid grid-cols-3 sm:grid-cols-5 sm:max-w-2xl sm:mx-auto">
           <TabsTrigger value="account">Account</TabsTrigger>
+          <TabsTrigger value="employment">Employment</TabsTrigger>
           <TabsTrigger value="requests">
             Requests
             {stats.pending > 0 && (
@@ -521,6 +616,137 @@ const ProfilePage = () => {
               </StickyActionBar>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Employment tab ───────────────────────────────────── */}
+        <TabsContent value="employment" className="space-y-4">
+          {loadingActivity ? (
+            <div className="py-8 flex items-center justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : !employment ? (
+            <Card>
+              <CardContent className="py-6 text-sm text-muted-foreground">
+                Your employment record isn't available yet. Contact HR if this looks wrong.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Employment details */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Employment</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
+                  <Field label="Role">{roleLabel(profile.role)}</Field>
+                  <Field label="Job title">{employment.job_title || '—'}</Field>
+                  <Field label="Department">{employment.department?.name || '—'}</Field>
+                  <Field label="Employee no.">{employment.employee_number || '—'}</Field>
+                  <Field label="Employment type">{employment.employment_type ? employment.employment_type.replace(/_/g, ' ') : '—'}</Field>
+                  <Field label="Start date">{employment.start_date ? formatDate(employment.start_date) : '—'}</Field>
+                  <Field label="Annual leave">{employment.annual_leave_days != null ? `${employment.annual_leave_days} days` : '—'}</Field>
+                </CardContent>
+              </Card>
+
+              {/* Compensation breakdown */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Compensation (monthly)</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  {!comp ? (
+                    <p className="text-sm text-muted-foreground">
+                      Your salary isn't configured yet. Contact HR.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Gross</span>
+                        <span className="font-semibold currency tabular-nums">{formatNaira(comp.grossMonthlyNgn)}</span>
+                      </div>
+                      {comp.payeMonthlyNgn > 0 && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-muted-foreground">PAYE tax</span>
+                          <span className="tabular-nums text-destructive">−{formatNaira(comp.payeMonthlyNgn)}</span>
+                        </div>
+                      )}
+                      {comp.pensionEmployeeMonthlyNgn > 0 && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-muted-foreground">Pension (8%)</span>
+                          <span className="tabular-nums text-destructive">−{formatNaira(comp.pensionEmployeeMonthlyNgn)}</span>
+                        </div>
+                      )}
+                      {comp.nhfMonthlyNgn > 0 && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-muted-foreground">NHF (2.5%)</span>
+                          <span className="tabular-nums text-destructive">−{formatNaira(comp.nhfMonthlyNgn)}</span>
+                        </div>
+                      )}
+                      {comp.nhisEmployeeMonthlyNgn > 0 && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-muted-foreground">NHIS (5%)</span>
+                          <span className="tabular-nums text-destructive">−{formatNaira(comp.nhisEmployeeMonthlyNgn)}</span>
+                        </div>
+                      )}
+                      <Separator className="my-1" />
+                      <div className="flex justify-between py-1">
+                        <span className="font-medium">Net pay (indicative)</span>
+                        <span className="font-bold currency tabular-nums text-success">{formatNaira(comp.netMonthlyNgn)}</span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground pt-1">
+                        Indicative — your monthly payslip is authoritative and may include bonuses, advances or other adjustments.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Statutory enrolment */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Statutory & tax</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
+                  <Field label="Tax ID (TIN)">{employment.tin || employment.tax_id || '—'}</Field>
+                  <Field label="NIN">{employment.nin || '—'}</Field>
+                  <Field label="PAYE">
+                    <EnrolBadge on={employment.paye_enabled !== false} />
+                  </Field>
+                  <Field label="Pension RSA PIN">{employment.pension_pin || '—'}</Field>
+                  <Field label="Pension">
+                    <EnrolBadge on={employment.pension_enabled !== false} />
+                  </Field>
+                  <div />
+                  <Field label="NHF number">{employment.nhf_number || '—'}</Field>
+                  <Field label="NHF">
+                    <EnrolBadge on={employment.nhf_enabled === true} />
+                  </Field>
+                  <div />
+                  <Field label="NHIS number">{employment.nhis_number || '—'}</Field>
+                  <Field label="NHIS">
+                    <EnrolBadge on={employment.nhis_enabled === true} />
+                  </Field>
+                </CardContent>
+              </Card>
+
+              {/* Bank (masked) */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Bank account</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 pt-2">
+                  <Field label="Bank">{employment.bank_name || '—'}</Field>
+                  <Field label="Account name">{employment.bank_account_name || '—'}</Field>
+                  <Field label="Account number">{maskAccount(employment.bank_account_number)}</Field>
+                </CardContent>
+              </Card>
+
+              <p className="text-xs text-muted-foreground px-1">
+                These details are managed by HR. To request a change, contact your HR administrator
+                (bank-account changes go through an approval workflow).
+              </p>
+            </>
+          )}
         </TabsContent>
 
         {/* ── Requests tab ─────────────────────────────────────── */}
