@@ -300,7 +300,7 @@ const Payments = () => {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Payment Batches</h1>
+            <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">Payment Batches</h1>
             <InfoHint>
               Manage bulk payments through draft → approval → funding → processing with a full audit trail.
             </InfoHint>

@@ -1766,7 +1766,7 @@ const Contractors = () => {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">Contractors</h1>
+            <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">Contractors</h1>
             <InfoHint>Manage independent contractors and freelancers. Store bank details, track HeyReach status and bulk-import via CSV for payment batches.</InfoHint>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
