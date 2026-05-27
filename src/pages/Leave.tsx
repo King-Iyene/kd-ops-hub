@@ -124,9 +124,9 @@ const LEAVE_TYPES: { value: LeaveType; label: string; icon: typeof Plane }[] = [
 ];
 
 const TYPE_BADGE: Record<LeaveType, string> = {
-  annual: 'bg-info/10 text-info',
-  sick: 'bg-destructive/10 text-destructive',
-  unpaid: 'bg-muted text-muted-foreground',
+  annual: 'bg-info/10 text-info border-info/20',
+  sick: 'bg-destructive/10 text-destructive border-destructive/20',
+  unpaid: 'bg-muted text-muted-foreground border-border',
 };
 
 
@@ -735,7 +735,7 @@ const Leave = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="kd-stat-grid">
         <StatCard
           title="Annual Leave Left"
           value={`${annualLeft} days`}
@@ -772,8 +772,8 @@ const Leave = () => {
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
-          <Card>
-            <div className="p-4 border-b flex items-center gap-2 flex-wrap">
+          <Card className="rounded-xl">
+            <div className="p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input

@@ -666,7 +666,7 @@ export default function LiveTracking() {
       </AuroraHero>
 
       {/* Live counter strip */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card px-4 py-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2.5 w-2.5">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
@@ -682,7 +682,7 @@ export default function LiveTracking() {
           </Badge>
         )}
         {tripList.some((r) => r.stale) && (
-          <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100">
+          <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/15">
             {tripList.filter((r) => r.stale).length} stale
           </Badge>
         )}
@@ -754,7 +754,7 @@ export default function LiveTracking() {
                         {row.lastPingMs != null && (
                           <p className={cn(
                             'text-[10px] mt-0.5',
-                            row.stale ? 'text-amber-600 font-semibold' : 'text-muted-foreground',
+                            row.stale ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-muted-foreground',
                           )}>
                             ping {formatPingAge(now - row.lastPingMs)}
                           </p>
@@ -767,7 +767,7 @@ export default function LiveTracking() {
                         <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Speed</p>
                         <p className={cn(
                           'font-mono font-semibold',
-                          row.speeding ? 'text-red-600' : 'text-foreground',
+                          row.speeding ? 'text-red-600 dark:text-red-400' : 'text-foreground',
                         )}>
                           {row.last?.speed_kmh != null ? `${Math.round(row.last.speed_kmh)}` : '—'}
                           <span className="text-[10px] font-normal text-muted-foreground ml-0.5">km/h</span>

@@ -946,7 +946,7 @@ function PnLReport({ range }: { range: DateRange }) {
       </div>
 
       {(data?.revenue as any[])?.length === 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm">
+        <div className="kd-card-warning flex items-start gap-3">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
           <div className="space-y-1">
             <p className="font-medium text-foreground">Revenue data not connected</p>
@@ -1021,18 +1021,18 @@ function PnLReport({ range }: { range: DateRange }) {
             <div className="overflow-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/40">
-                    <th className="text-left p-3 font-medium">Month</th>
-                    <th className="text-left p-3 font-medium">Category</th>
-                    <th className="text-right p-3 font-medium">Amount</th>
+                  <tr className="border-b border-border/50 bg-muted/40">
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Month</th>
+                    <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</th>
+                    <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(data.revenue as any[]).map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
-                      <td className="p-3">{r.month}</td>
-                      <td className="p-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
-                      <td className="p-3 text-right currency">{formatNaira(r.amount_ngn)}</td>
+                    <tr key={r.id} className="border-b border-border/50 last:border-0 hover:bg-muted/40">
+                      <td className="py-3 px-3">{r.month}</td>
+                      <td className="py-3 px-3 capitalize">{(r.category as string).replace(/_/g, ' ')}</td>
+                      <td className="py-3 px-3 text-right currency">{formatNaira(r.amount_ngn)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1507,7 +1507,7 @@ function ReconciliationReport() {
                     Nothing matched yet — review unmatched entries on the right.
                   </p>
                 ) : (
-                  <ul className="divide-y">
+                  <ul className="divide-y divide-border/50">
                     {matched.map((e) => (
                       <li key={e.id} className="p-3 text-sm">
                         <div className="flex justify-between">
@@ -1540,7 +1540,7 @@ function ReconciliationReport() {
                     Nothing to review. 🎉
                   </p>
                 ) : (
-                  <ul className="divide-y">
+                  <ul className="divide-y divide-border/50">
                     {unmatched.map((e) => (
                       <li key={e.id} className="p-3 text-sm">
                         <div className="flex justify-between">

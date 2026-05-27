@@ -407,14 +407,16 @@ const Dashboard = () => {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="text-center space-y-4 max-w-sm">
-          <AlertTriangle className="h-10 w-10 text-destructive mx-auto" />
-          <h2 className="text-lg font-semibold">Dashboard failed to load</h2>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+            <AlertTriangle className="h-7 w-7 text-destructive" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground">Dashboard failed to load</h2>
           <p className="text-sm text-muted-foreground">
             There was a problem fetching your data. Check your connection and try again.
           </p>
           <button
             onClick={() => { setLoadError(false); setLoading(true); fetchDashboard(); }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 kd-transition"
           >
             <RefreshCw className="h-4 w-4" /> Retry
           </button>
@@ -425,7 +427,7 @@ const Dashboard = () => {
 
   if (isPersonal) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Greeting */}
         <AuroraHero className="p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-1">
@@ -439,7 +441,7 @@ const Dashboard = () => {
         <PushNotificationsBanner />
         <AnnouncementsBanner />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="kd-stat-grid">
           <StatCard title="Pending Expenses" value={personalLoading ? '—' : personalKPIs.pendingExpenses} icon={Receipt} subtitle="Awaiting approval" tone="warning" onClick={() => navigate('/expenses')} />
           <StatCard title="Leave Days Left" value={personalLoading ? '—' : personalKPIs.leaveDaysRemaining} icon={CalendarDays} subtitle="Annual leave balance" tone="primary" onClick={() => navigate('/leave')} />
           <StatCard title="Assigned Tasks" value={personalLoading ? '—' : personalKPIs.assignedTasks} icon={CheckCircle} subtitle="Open tasks" tone="primary" onClick={() => navigate('/tasks')} />
@@ -456,7 +458,7 @@ const Dashboard = () => {
 
   /* ── Finance / admin / operations view ─────────────────────────── */
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
       <AuroraHero className="p-5 sm:p-7" scanLine>
         <div className="flex items-center gap-2 mb-1">
@@ -486,8 +488,8 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {expiringDocs.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Documents expiring ({expiringDocs.length})
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+                  Documents Expiring ({expiringDocs.length})
                 </p>
                 {expiringDocs.map((d) => (
                   <button
@@ -503,8 +505,8 @@ const Dashboard = () => {
             )}
             {dueFilings.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Compliance filings due ({dueFilings.length})
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+                  Compliance Filings Due ({dueFilings.length})
                 </p>
                 {dueFilings.map((f) => (
                   <button
@@ -523,7 +525,7 @@ const Dashboard = () => {
       )}
 
       {/* ── 1. KPI stats — first data visible ────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="kd-stat-grid">
         <StatCard
           title="Total Employees"
           value={loading ? '—' : stats.totalEmployees}
@@ -557,11 +559,11 @@ const Dashboard = () => {
       </div>
 
       {/* ── 2. Quick Actions + Budget Utilisation ────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Quick Actions */}
         <Card>
           <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-sm font-semibold">Quick Actions</CardTitle>
+            <CardTitle className="kd-section-title">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="p-3 space-y-2">
             {[
@@ -581,7 +583,7 @@ const Dashboard = () => {
                 <Icon className="mr-2 h-4 w-4 shrink-0" />
                 {label}
                 {badge !== undefined && badge > 0 && (
-                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700">
+                  <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                     {badge}
                   </span>
                 )}
@@ -593,7 +595,7 @@ const Dashboard = () => {
         {/* Budget Utilisation — wider card with donut */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="text-sm font-semibold">Budget Utilisation</CardTitle>
+            <CardTitle className="kd-section-title">Budget Utilisation</CardTitle>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/budgets')}>
               View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Button>
@@ -612,7 +614,7 @@ const Dashboard = () => {
                   </div>
                   <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden mb-4">
                     <div
-                      className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-red-500' : utilizationPct > 70 ? 'bg-amber-500' : 'bg-primary')}
+                      className={cn('h-full rounded-full kd-transition', utilizationPct > 90 ? 'bg-rose-500 dark:bg-rose-400' : utilizationPct > 70 ? 'bg-amber-500 dark:bg-amber-400' : 'bg-primary')}
                       style={{ width: `${Math.min(utilizationPct, 100)}%` }}
                     />
                   </div>
@@ -669,13 +671,13 @@ const Dashboard = () => {
       )}
 
       {/* ── 4. Operational monitoring ─────────────────────────────── */}
-      <div className={cn('grid grid-cols-1 gap-5', isFinanceRole ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
+      <div className={cn('grid grid-cols-1 gap-4', isFinanceRole ? 'lg:grid-cols-3' : 'lg:grid-cols-2')}>
         <ComplianceCard />
 
         {/* Upcoming subscriptions */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-            <CardTitle className="text-sm font-semibold">Upcoming Renewals</CardTitle>
+            <CardTitle className="kd-section-title">Upcoming Renewals</CardTitle>
             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/subscriptions')}>
               View all <ArrowRight className="ml-1 h-3.5 w-3.5" />
             </Button>
@@ -688,7 +690,7 @@ const Dashboard = () => {
             ) : upcoming.length === 0 ? (
               <EmptyState icon={CalendarClock} title="No renewals in 30 days" description="Upcoming subscription renewals will appear here." compact />
             ) : (
-              <div className="divide-y divide-border/40">
+              <div className="divide-y divide-border/50">
                 {upcoming.map((s, i) => {
                   const d = daysUntil(s.next_renewal_date);
                   const urgent = d !== null && d <= 7;
@@ -703,7 +705,7 @@ const Dashboard = () => {
                       </div>
                       <div className="text-right shrink-0 ml-3">
                         <p className="text-sm font-semibold currency">{formatNaira(s.amount_ngn)}</p>
-                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700' : 'bg-muted text-muted-foreground')}>
+                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-[10px] font-medium mt-0.5', urgent ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-muted text-muted-foreground')}>
                           {urgent ? 'Soon' : 'Upcoming'}
                         </span>
                       </div>
@@ -719,7 +721,7 @@ const Dashboard = () => {
         {isFinanceRole && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-              <CardTitle className="text-sm font-semibold">Payments This Week</CardTitle>
+              <CardTitle className="kd-section-title">Payments This Week</CardTitle>
               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/payments/schedule')}>
                 Schedule <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </Button>
@@ -732,7 +734,7 @@ const Dashboard = () => {
               ) : upcomingPayments.length === 0 ? (
                 <EmptyState icon={CalendarClock} title="No payments in the next 7 days" description="Scheduled payment batches will appear here." compact />
               ) : (
-                <div className="divide-y divide-border/40">
+                <div className="divide-y divide-border/50">
                   {upcomingPayments.map((p, i) => (
                     <div key={p.id} className={cn('flex items-center justify-between px-4 py-3 hover:bg-muted/30 kd-transition', i === 0 && 'pt-4')}>
                       <div className="min-w-0">
@@ -764,7 +766,7 @@ const Dashboard = () => {
       {/* ── 6. Audit log — reference data at bottom ───────────────── */}
       <Card className="overflow-hidden">
         <CardHeader className="flex flex-row items-center justify-between pb-3 border-b">
-          <CardTitle className="text-sm font-semibold">Recent Activity</CardTitle>
+          <CardTitle className="kd-section-title">Recent Activity</CardTitle>
           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate('/audit')}>
             Full audit log <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Button>
@@ -785,7 +787,7 @@ const Dashboard = () => {
           ) : activity.length === 0 ? (
             <EmptyState icon={Inbox} title="No recent activity" description="Actions across all modules will appear here." compact />
           ) : (
-            <div className="divide-y divide-border/40">
+            <div className="divide-y divide-border/50">
               {activity.map((item, i) => {
                 const Icon = ICONS[item.action_type] || FileText;
                 // Curated overrides take precedence; otherwise the
