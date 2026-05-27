@@ -322,7 +322,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="kd-receipt-dialog max-w-[640px] p-0 overflow-hidden border-0 bg-transparent shadow-none"
+        className="kd-receipt-dialog max-w-[640px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto"
       >
         {/* Backdrop = solid brand blue (no glass), with faint status watermark */}
         <div
@@ -536,14 +536,16 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
           </div>
         </div>
 
-        {/* Action buttons — flat / simple, sit below the receipt backdrop */}
-        <div className="kd-receipt-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', padding: '12px 18px 18px', flexWrap: 'wrap' }}>
+        {/* Action buttons — pinned to the bottom of the (scrollable) modal so
+            Share / Download / Print stay reachable on short mobile screens,
+            where the centred receipt used to push them below the fold. */}
+        <div className="kd-receipt-actions sticky bottom-0 z-10 flex flex-wrap items-center justify-center sm:justify-end gap-2 px-4 py-3 bg-card/95 backdrop-blur-sm border-t border-border/40 rounded-b-2xl">
           {/* Share — dropdown lets the operator pick PNG (the default
               for chat apps + WhatsApp where image previews render) or
               PDF (better for email attachments + finance archives). */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={busy !== null}>
+              <Button variant="outline" size="sm" disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
                 <Share2 className="h-4 w-4 mr-1.5" />
                 {busy === 'share' ? 'Preparing…' : 'Share'}
                 <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
@@ -562,7 +564,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
           {/* Download — same two formats. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={busy !== null}>
+              <Button variant="outline" size="sm" disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
                 <Download className="h-4 w-4 mr-1.5" />
                 {busy === 'download' ? 'Saving…' : 'Download'}
                 <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
@@ -578,7 +580,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button size="sm" onClick={handlePrint} disabled={busy !== null}>
+          <Button size="sm" onClick={handlePrint} disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
             <Printer className="h-4 w-4 mr-1.5" />
             Print
           </Button>
