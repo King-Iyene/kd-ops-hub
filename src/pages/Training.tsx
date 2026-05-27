@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 
 const CATEGORIES = ['professional_development','compliance','safety','technical','leadership','software','other'] as const;
 type TrainingCategory = typeof CATEGORIES[number];
@@ -270,7 +271,8 @@ export default function Training() {
           description="Add the first training or certification record to start tracking courses and expiry dates."
         />
       ) : (
-        <div className="rounded-xl border overflow-x-auto">
+        <>
+        <div className="hidden md:block rounded-xl border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30">
               <tr>
@@ -337,6 +339,63 @@ export default function Training() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card list — same data, thumb-friendly */}
+        <div className="md:hidden space-y-2">
+          {filtered.map(r => {
+            const eff = effectiveStatus(r);
+            return (
+              <MobileCard key={r.id}>
+                <MobileCardHeader>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <MobileCardTitle>{r.title}</MobileCardTitle>
+                      {r.is_mandatory && <Badge variant="outline" className="text-[10px] shrink-0">Mandatory</Badge>}
+                    </div>
+                    {r.provider && <p className="text-[11px] text-muted-foreground">{r.provider}</p>}
+                  </div>
+                  <MobileCardMeta>
+                    <Badge variant={STATUS_BADGE[eff].variant} className="text-[10px]">
+                      {STATUS_BADGE[eff].label}
+                    </Badge>
+                  </MobileCardMeta>
+                </MobileCardHeader>
+
+                <MobileCardRow label="Employee">{nameOf(r.employee_id)}</MobileCardRow>
+                <MobileCardRow label="Type">
+                  <span className="inline-flex items-center gap-1">
+                    {r.record_type === 'certification'
+                      ? <><Award className="h-3 w-3" /> Certification</>
+                      : <><GraduationCap className="h-3 w-3" /> Training</>}
+                  </span>
+                </MobileCardRow>
+                <MobileCardRow label="Category">{CATEGORY_LABEL[r.category]}</MobileCardRow>
+                {r.completion_date && (
+                  <MobileCardRow label="Completed">{format(parseISO(r.completion_date), 'd MMM yyyy')}</MobileCardRow>
+                )}
+                {r.expiry_date && (
+                  <MobileCardRow label="Expires">
+                    <span className="inline-flex items-center gap-1.5">
+                      {format(parseISO(r.expiry_date), 'd MMM yyyy')}
+                      {expiryBadge(r.expiry_date)}
+                    </span>
+                  </MobileCardRow>
+                )}
+                <MobileCardRow label="Score">{r.score ?? '—'}</MobileCardRow>
+
+                <MobileCardFooter>
+                  <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => openEdit(r)}>
+                    <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={() => setDeleteTarget(r)}>
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                  </Button>
+                </MobileCardFooter>
+              </MobileCard>
+            );
+          })}
+        </div>
+        </>
       )}
 
       {/* Create / Edit dialog */}

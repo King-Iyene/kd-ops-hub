@@ -5,6 +5,7 @@ import {
   Calendar, DollarSign, Tag, Store,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { formatNaira } from '@/lib/format';
@@ -274,7 +275,8 @@ export default function Vendors() {
       ) : filtered.length === 0 ? (
         <EmptyState compact icon={Store} title="No vendors yet" description="Add your first vendor above so you can track invoices, renewals and contacts in one place." />
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <>
+        <div className="hidden md:block rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30">
               <tr>
@@ -341,6 +343,60 @@ export default function Vendors() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card list — same data, thumb-friendly */}
+        <div className="md:hidden space-y-2">
+          {filtered.map(v => (
+            <MobileCard key={v.id}>
+              <MobileCardHeader>
+                <div className="min-w-0 flex-1">
+                  <MobileCardTitle>{v.name}</MobileCardTitle>
+                  {v.rc_number && <p className="text-[11px] text-muted-foreground">RC: {v.rc_number}</p>}
+                </div>
+                <MobileCardMeta>
+                  <Badge variant={STATUS_BADGE[v.status].variant} className="text-[10px]">
+                    {STATUS_BADGE[v.status].label}
+                  </Badge>
+                </MobileCardMeta>
+              </MobileCardHeader>
+
+              <MobileCardRow label="Category">{CATEGORY_LABEL[v.category]}</MobileCardRow>
+              {v.contact_name && <MobileCardRow label="Contact">{v.contact_name}</MobileCardRow>}
+              {v.contact_email && (
+                <MobileCardRow label="Email">
+                  <a href={`mailto:${v.contact_email}`} className="inline-flex items-center gap-1 text-primary">
+                    <Mail className="h-3 w-3" />{v.contact_email}
+                  </a>
+                </MobileCardRow>
+              )}
+              {v.contact_phone && (
+                <MobileCardRow label="Phone">
+                  <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{v.contact_phone}</span>
+                </MobileCardRow>
+              )}
+              <MobileCardRow label="Payment terms">{v.payment_terms}</MobileCardRow>
+              {v.contract_value_ngn && <MobileCardRow label="Contract value">{formatNaira(v.contract_value_ngn)}</MobileCardRow>}
+              {v.contract_end && (
+                <MobileCardRow label="Contract end">
+                  <span className="inline-flex items-center gap-1.5">
+                    {format(parseISO(v.contract_end), 'd MMM yyyy')}
+                    {contractExpiryBadge(v.contract_end)}
+                  </span>
+                </MobileCardRow>
+              )}
+
+              <MobileCardFooter>
+                <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => openEdit(v)}>
+                  <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                </Button>
+                <Button variant="outline" size="sm" className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={() => setDeleteTarget(v)}>
+                  <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                </Button>
+              </MobileCardFooter>
+            </MobileCard>
+          ))}
+        </div>
+        </>
       )}
 
       {/* Create / Edit dialog */}

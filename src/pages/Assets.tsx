@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -305,7 +306,8 @@ export default function Assets() {
           <EmptyState icon={Package} title="No assets found" description="Add your first asset above to start tracking depreciation, custody and insurance." />
         </div>
       ) : (
-        <div className="rounded-xl border border-border/50 overflow-x-auto bg-card">
+        <>
+        <div className="hidden md:block rounded-xl border border-border/50 overflow-x-auto bg-card">
           <table className="w-full text-sm">
             <thead className="border-b border-border/50 bg-muted/40">
               <tr>
@@ -372,6 +374,54 @@ export default function Assets() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card list — same data, thumb-friendly */}
+        <div className="md:hidden space-y-2">
+          {filtered.map(a => {
+            const bv = bookValue(a);
+            const depn = totalDepreciation(a);
+            return (
+              <MobileCard key={a.id}>
+                <MobileCardHeader>
+                  <div className="min-w-0 flex-1">
+                    <MobileCardTitle>{a.name}</MobileCardTitle>
+                    <p className="text-[11px] text-muted-foreground">{a.asset_number}</p>
+                  </div>
+                  <MobileCardMeta>
+                    <Badge variant={STATUS_BADGE[a.status].variant} className="text-[10px]">
+                      {STATUS_BADGE[a.status].label}
+                    </Badge>
+                  </MobileCardMeta>
+                </MobileCardHeader>
+
+                <MobileCardRow label="Category">{CATEGORY_META[a.category].label}</MobileCardRow>
+                <MobileCardRow label="Purchase date">{format(parseISO(a.purchase_date), 'd MMM yyyy')}</MobileCardRow>
+                <MobileCardRow label="Cost">{formatNaira(a.cost_ngn)}</MobileCardRow>
+                <MobileCardRow label="Book value"><span className="text-success">{formatNaira(bv)}</span></MobileCardRow>
+                <MobileCardRow label="Depreciation">{formatNaira(depn)}</MobileCardRow>
+                <MobileCardRow label="Assigned">{a.assigned_to ? nameOf(a.assigned_to) : '—'}</MobileCardRow>
+                {a.insurance_expiry && (
+                  <MobileCardRow label="Insurance">
+                    <span className="inline-flex items-center gap-1.5">
+                      {format(parseISO(a.insurance_expiry), 'd MMM yy')}
+                      {insuranceExpiryBadge(a.insurance_expiry)}
+                    </span>
+                  </MobileCardRow>
+                )}
+
+                <MobileCardFooter>
+                  <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => openEdit(a)}>
+                    <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5" onClick={() => setDeleteTarget(a)}>
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                  </Button>
+                </MobileCardFooter>
+              </MobileCard>
+            );
+          })}
+        </div>
+        </>
       )}
 
       {/* Create / Edit Dialog */}
