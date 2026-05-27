@@ -404,7 +404,8 @@ const BatchDetail = () => {
         && (
           ((b.status === 'pending_approval' || b.status === 'pending_second_approval')
             && APPROVER_ROLES.includes(profile.role as any))
-          || (b.status === 'draft' && b.created_by === profile.id)
+          || (b.status === 'draft'
+              && (b.created_by === profile.id || APPROVER_ROLES.includes(profile.role as any)))
         );
       if (userCanAct && profile?.id) {
         const total = Number(b.total_amount) || 0;
@@ -1446,6 +1447,17 @@ const BatchDetail = () => {
   const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
+  // Who may prepare (edit + submit) a DRAFT batch: the person who created it
+  // — which now includes the Operations role, who can build batches but is not
+  // an approver — or an approver (admin/finance/super_admin) picking up a
+  // prepared draft. Operations gaining batch-creation without this left their
+  // drafts stuck: the creator was hidden by the approver-only action wrapper,
+  // and approvers were hidden by the created_by check, so the draft could
+  // neither be edited nor submitted. Approval itself stays approver-only below.
+  const canManageDraft =
+    batch.status === 'draft' &&
+    (batch.created_by === profile?.id || isAdmin || isFinance);
+
   const filteredItems = items.filter((i) => {
     if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
     if (itemFilter === 'failed' && i.status !== 'failed') return false;
@@ -1636,30 +1648,35 @@ const BatchDetail = () => {
         </Alert>
       )}
 
+      {/* Draft preparation — the creator (now including the Operations role,
+          who can build but not approve batches) or an approver picking it up
+          may edit and submit it. Rendered OUTSIDE the approver-only wrapper so
+          an Operations preparer isn't locked out of their own draft. */}
+      {canManageDraft && (
+        <div className="flex gap-2 flex-wrap items-center">
+          {/* Submitter pre-flight: tell them if this will need dual approval. */}
+          {coThreshold !== null && Number(batch.total_amount) > coThreshold && (
+            <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
+              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                <span className="font-semibold">Heads up — dual approval will be required.</span>{' '}
+                Total {formatNaira(batch.total_amount)} exceeds the co-approval threshold of {formatNaira(coThreshold)}.
+                After the first approval the batch will wait for a second approver before funds can move.
+              </AlertDescription>
+            </Alert>
+          )}
+          <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
+            Edit Batch
+          </Button>
+          <Button onClick={submitForApproval} disabled={actionLoading}>
+            Submit for Approval
+          </Button>
+        </div>
+      )}
+
       {/* Action buttons */}
       {(isAdmin || isFinance) && (
         <div className="flex gap-2 flex-wrap items-center">
-          {batch.status === 'draft' && batch.created_by === profile?.id && (
-            <>
-              {/* Submitter pre-flight: tell them if this will need dual approval. */}
-              {coThreshold !== null && Number(batch.total_amount) > coThreshold && (
-                <Alert className="border-amber-500/50 bg-amber-500/5 w-full">
-                  <ShieldAlert className="h-4 w-4 text-amber-600" />
-                  <AlertDescription className="text-sm">
-                    <span className="font-semibold">Heads up — dual approval will be required.</span>{' '}
-                    Total {formatNaira(batch.total_amount)} exceeds the co-approval threshold of {formatNaira(coThreshold)}.
-                    After the first approval the batch will wait for a second approver before funds can move.
-                  </AlertDescription>
-                </Alert>
-              )}
-              <Button variant="outline" onClick={() => navigate(`/payments/${id}/edit`)} disabled={actionLoading}>
-                Edit Batch
-              </Button>
-              <Button onClick={submitForApproval} disabled={actionLoading}>
-                Submit for Approval
-              </Button>
-            </>
-          )}
           {/* Pre-flight: cap-blocked → red, co-approval needed → amber, ready → green. */}
           {(batch.status === 'pending_approval' || batch.status === 'pending_second_approval')
             && canApprove
@@ -2085,6 +2102,11 @@ const BatchDetail = () => {
                         {(item.status === 'pending' || item.status === 'processing' || item.status === 'retry')
                           && !item.is_manually_resolved
                           && canApprove
+                          // Nothing is "in flight" before the batch is dispatched. On a
+                          // draft / pending-approval / rejected batch the items sit at
+                          // their default 'pending' with no Paystack reference, so the
+                          // spinner + stuck escape-hatch is misleading — suppress it.
+                          && !['draft', 'pending_approval', 'pending_second_approval', 'rejected'].includes(batch.status)
                           && (() => {
                             const startedAt = new Date(item.updated_at || item.created_at).getTime();
                             const ageHours = (Date.now() - startedAt) / (1000 * 60 * 60);
