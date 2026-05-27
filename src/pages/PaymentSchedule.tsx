@@ -9,6 +9,14 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -624,7 +632,7 @@ export default function PaymentSchedule() {
           </div>
         ) : (
           <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/50">
@@ -671,6 +679,50 @@ export default function PaymentSchedule() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile card list — same data, thumb-friendly */}
+            <div className="md:hidden p-3 space-y-2">
+              {recurringSchedules.map((s) => (
+                <MobileCard key={s.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{s.batch_name}</MobileCardTitle>
+                    <MobileCardMeta>
+                      <StatusBadge status={s.status} size="sm" />
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+
+                  <MobileCardRow label="Frequency">
+                    <span className="capitalize">{s.frequency}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Next run">
+                    {s.next_run_date ? formatDate(s.next_run_date) : '—'}
+                  </MobileCardRow>
+                  <MobileCardRow label="Last run">
+                    {s.last_run_date ? formatDate(s.last_run_date) : '—'}
+                  </MobileCardRow>
+
+                  <MobileCardFooter>
+                    <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => openEdit(s)}>
+                      <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 h-9" onClick={() => togglePause(s)}>
+                      {s.status === 'active' ? (
+                        <>
+                          <PauseCircle className="h-4 w-4 mr-1.5" /> Pause
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="h-4 w-4 mr-1.5 text-emerald-600" /> Resume
+                        </>
+                      )}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="flex-1 h-9 text-destructive hover:text-destructive" onClick={() => setConfirmDelete(s)}>
+                      <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                    </Button>
+                  </MobileCardFooter>
+                </MobileCard>
+              ))}
             </div>
           </div>
         )}

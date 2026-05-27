@@ -64,6 +64,14 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { Pagination } from '@/components/ui-kit/Pagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
 
@@ -496,6 +504,7 @@ const Invoices = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
@@ -588,6 +597,88 @@ const Invoices = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden p-3 space-y-2">
+                {pagination.slice.map((inv) => {
+                  const eff = effectiveStatus(inv);
+                  return (
+                    <MobileCard key={inv.id}>
+                      <MobileCardHeader>
+                        <div className="min-w-0 flex-1">
+                          <MobileCardTitle className="font-mono">
+                            {inv.invoice_number}
+                          </MobileCardTitle>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {inv.client_name}
+                          </p>
+                          {inv.client_email && (
+                            <p className="text-[10px] text-muted-foreground truncate">
+                              {inv.client_email}
+                            </p>
+                          )}
+                        </div>
+                        <MobileCardMeta className="currency text-base">
+                          {formatNaira(inv.total_ngn)}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+
+                      <MobileCardRow label="Issued">{formatDate(inv.issue_date)}</MobileCardRow>
+                      <MobileCardRow label="Due">
+                        <span className={cn(eff === 'overdue' ? 'text-destructive font-medium' : '')}>
+                          {formatDate(inv.due_date)}
+                        </span>
+                      </MobileCardRow>
+                      <MobileCardRow label="Status">
+                        <StatusBadge status={eff} size="sm" />
+                      </MobileCardRow>
+
+                      <MobileCardFooter className="print:hidden">
+                        {eff === 'draft' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-9"
+                            onClick={() => markSent(inv)}
+                          >
+                            <Send className="h-4 w-4 mr-1.5" /> Send
+                          </Button>
+                        )}
+                        {(eff === 'sent' || eff === 'overdue') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-9 text-success border-success/40 hover:bg-success/5"
+                            onClick={() => markPaid(inv)}
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" /> Mark paid
+                          </Button>
+                        )}
+                        {eff === 'draft' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 h-9"
+                            onClick={() => openEdit(inv)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1 h-9 text-destructive"
+                          onClick={() => setPendingDelete(inv)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                        </Button>
+                      </MobileCardFooter>
+                    </MobileCard>
+                  );
+                })}
+              </div>
+
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}
