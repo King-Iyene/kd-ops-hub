@@ -17,16 +17,16 @@ const Unauthorized = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-      <Card className="max-w-lg w-full border-destructive/30">
+    <div className="kd-gradient-mesh min-h-screen flex items-center justify-center p-6">
+      <Card className="kd-card-tech max-w-lg w-full rounded-2xl border-0 kd-animate-scale-in">
         <CardContent className="pt-8 pb-6 text-center space-y-5">
           <div
             className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center ${
-              isPending ? 'bg-amber-500/10' : 'bg-destructive/10'
+              isPending ? 'bg-warning/10' : 'bg-destructive/10'
             }`}
           >
             {isPending ? (
-              <Clock className="h-7 w-7 text-amber-500" />
+              <Clock className="h-7 w-7 text-warning" />
             ) : (
               <ShieldAlert className="h-7 w-7 text-destructive" />
             )}

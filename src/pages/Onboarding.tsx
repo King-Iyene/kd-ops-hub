@@ -2,12 +2,15 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, UserCheck,
   CheckCircle2, Circle, ChevronDown, ChevronUp, ClipboardList,
+  UserMinus,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -324,19 +327,10 @@ export default function Onboarding() {
       />
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card><CardContent className="pt-4 pb-4">
-          <p className="text-xs text-muted-foreground mb-1">Onboarding</p>
-          <p className="text-2xl font-semibold">{onboardingCount}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 pb-4">
-          <p className="text-xs text-muted-foreground mb-1">Offboarding</p>
-          <p className="text-2xl font-semibold">{offboardingCount}</p>
-        </CardContent></Card>
-        <Card><CardContent className="pt-4 pb-4">
-          <p className="text-xs text-muted-foreground mb-1">Completed</p>
-          <p className="text-2xl font-semibold">{completedCount}</p>
-        </CardContent></Card>
+      <div className="kd-stat-grid">
+        <StatCard title="Onboarding" value={onboardingCount} icon={UserCheck} tone="primary" />
+        <StatCard title="Offboarding" value={offboardingCount} icon={UserMinus} tone="default" />
+        <StatCard title="Completed" value={completedCount} icon={CheckCircle2} tone="success" />
       </div>
 
       {/* Filters */}
@@ -369,11 +363,14 @@ export default function Onboarding() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>No checklists found.</p>
-          <Button className="mt-4 gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> New Checklist</Button>
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title="No checklists found"
+          description="Create an onboarding or offboarding checklist to track joining and exit tasks."
+          action={
+            <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> New Checklist</Button>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {filtered.map(cl => {
@@ -405,9 +402,9 @@ export default function Onboarding() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(cl)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(cl)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [cl.id]: !p[cl.id] }))}>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(cl)} aria-label="Edit checklist"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(cl)} aria-label="Delete checklist"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [cl.id]: !p[cl.id] }))} aria-label={isExpanded ? 'Collapse checklist' : 'Expand checklist'}>
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
                     </div>
@@ -455,6 +452,7 @@ export default function Onboarding() {
                                   variant="ghost" size="icon"
                                   className="h-6 w-6 opacity-0 group-hover:opacity-100"
                                   onClick={() => deleteItem(item)}
+                                  aria-label="Delete item"
                                 >
                                   <Trash2 className="h-3 w-3 text-destructive" />
                                 </Button>
@@ -467,7 +465,7 @@ export default function Onboarding() {
 
                     {/* Add item inline */}
                     {addItemCl === cl.id ? (
-                      <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+                      <div className="border border-border/60 rounded-xl p-3 space-y-2 bg-muted/30">
                         <div className="grid grid-cols-2 gap-2">
                           <Input
                             ref={newItemRef}
@@ -527,7 +525,7 @@ export default function Onboarding() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Employee *</Label>
+              <Label className="kd-label">Employee *</Label>
               <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
@@ -538,7 +536,7 @@ export default function Onboarding() {
             </div>
 
             <div className="space-y-1">
-              <Label>Checklist Type</Label>
+              <Label className="kd-label">Checklist Type</Label>
               <Select value={form.checklist_type} onValueChange={v => setForm(f => ({ ...f, checklist_type: v as ChecklistType }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -549,12 +547,12 @@ export default function Onboarding() {
             </div>
 
             <div className="space-y-1">
-              <Label>Target Completion Date</Label>
+              <Label className="kd-label">Target Completion Date</Label>
               <Input type="date" value={form.target_completion_date} onChange={e => setForm(f => ({ ...f, target_completion_date: e.target.value }))} />
             </div>
 
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label className="kd-label">Notes</Label>
               <Textarea rows={3} placeholder="Additional notes…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 

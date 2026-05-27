@@ -368,13 +368,13 @@ const Tasks = () => {
         title="Tasks"
         description="Your team's accountability system — every action has an owner and a deadline."
         actions={
-          <Button onClick={openCreate}>
+          <Button size="sm" onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" /> New task
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="kd-stat-grid">
         <StatCard title="My tasks" value={stats.mine} icon={ListTodo} tone="primary" />
         <StatCard title="Open" value={stats.open} icon={ListTodo} tone="warning" />
         <StatCard title="Overdue" value={stats.overdue} icon={Flag} tone="danger" />
@@ -545,6 +545,7 @@ const Tasks = () => {
                                 variant="ghost"
                                 onClick={() => markComplete(t)}
                                 title="Mark complete"
+                                aria-label={`Mark "${t.title}" complete`}
                               >
                                 <CheckCircle2 className="h-4 w-4 text-success" />
                               </Button>
@@ -554,6 +555,7 @@ const Tasks = () => {
                               variant="ghost"
                               onClick={() => openDetail(t)}
                               title="Comments"
+                              aria-label={`Comments on "${t.title}"`}
                             >
                               <MessageSquare className="h-4 w-4" />
                             </Button>
@@ -775,7 +777,7 @@ const Tasks = () => {
                       return (
                         <div
                           key={c.id}
-                          className="rounded-md border p-3 bg-muted/20 text-sm"
+                          className="rounded-lg border border-border p-3 bg-muted/30 text-sm"
                         >
                           <p className="text-xs text-muted-foreground mb-1">
                             {author?.full_name || 'Unknown'} · {formatDateTime(c.created_at)}

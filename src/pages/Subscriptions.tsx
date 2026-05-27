@@ -471,27 +471,26 @@ const Subscriptions = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Subscriptions</h1>
-            <InfoHint>Track recurring software and service subscriptions, renewal dates, monthly costs and status. Renewal alerts help you avoid unexpected charges.</InfoHint>
-          </div>
-          <p className="text-muted-foreground text-sm mt-1">Track recurring software and service subscriptions with renewal alerts.</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
-          {canManage && (
-            <Button onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" /> New Subscription
+      <PageHeader
+        title="Subscriptions"
+        description="Track recurring software and service subscriptions with renewal alerts."
+        icon={Repeat}
+        info="Track recurring software and service subscriptions, renewal dates, monthly costs and status. Renewal alerts help you avoid unexpected charges."
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+              <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
-          )}
-        </div>
-      </div>
+            {canManage && (
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="mr-2 h-4 w-4" /> New Subscription
+              </Button>
+            )}
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
           title="Monthly Spend"
           value={formatNaira(stats.monthly)}
@@ -515,8 +514,8 @@ const Subscriptions = () => {
         />
       </div>
 
-      <Card>
-        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+      <Card className="rounded-xl">
+        <div className="p-3 sm:p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
           <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -779,8 +778,8 @@ const Subscriptions = () => {
             </div>
 
             {!canManage && (
-              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-warning">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="kd-card-warning flex items-start gap-2 text-xs">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
                 <span>Only Admin or Finance roles can create subscriptions.</span>
               </div>
             )}

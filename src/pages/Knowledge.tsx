@@ -247,7 +247,7 @@ const Knowledge = () => {
         description="Internal SOPs, policies and playbooks. Searchable, versioned, owned by the team."
         actions={
           canWrite && (
-            <Button onClick={openCreate}>
+            <Button size="sm" onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> New article
             </Button>
           )

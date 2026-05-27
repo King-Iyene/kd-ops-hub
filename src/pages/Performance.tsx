@@ -9,6 +9,7 @@ import { format, isPast, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { StatCard } from '@/components/ui-kit/StatCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -239,22 +240,20 @@ export default function Performance() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Active cycles', value: activeCycles, icon: BarChart3, color: 'text-primary' },
-          { label: 'Total reviews', value: totalReviews, icon: Users, color: 'text-muted-foreground' },
-          { label: 'Submitted', value: submitted, icon: Send, color: 'text-green-600' },
-          { label: 'Avg overall rating', value: avgOverall > 0 ? avgOverall.toFixed(1) + '/5' : '—', icon: Star, color: 'text-yellow-500' },
-        ].map(s => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-              </div>
-              <p className="text-2xl font-bold mt-1">{s.value}</p>
-            </CardContent>
-          </Card>
+      <div className="kd-stat-grid">
+        {([
+          { label: 'Active cycles', value: activeCycles, icon: BarChart3, tone: 'primary' },
+          { label: 'Total reviews', value: totalReviews, icon: Users, tone: 'default' },
+          { label: 'Submitted', value: submitted, icon: Send, tone: 'success' },
+          { label: 'Avg overall rating', value: avgOverall > 0 ? avgOverall.toFixed(1) + '/5' : '—', icon: Star, tone: 'gold' },
+        ] as { label: string; value: string | number; icon: typeof BarChart3; tone: 'primary' | 'default' | 'success' | 'gold' }[]).map(s => (
+          <StatCard
+            key={s.label}
+            title={s.label}
+            value={s.value}
+            icon={s.icon}
+            tone={s.tone}
+          />
         ))}
       </div>
 
@@ -325,7 +324,7 @@ export default function Performance() {
                     ) : (
                       <div className="space-y-3">
                         {cycleReviews.map(r => (
-                          <div key={r.id} className="rounded-lg border p-3 space-y-2">
+                          <div key={r.id} className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2">
                             <div className="flex items-start justify-between gap-2 flex-wrap">
                               <div>
                                 <p className="text-sm font-medium">{nameOf(r.employee_id)}</p>
@@ -381,13 +380,13 @@ export default function Performance() {
                               <div className="grid sm:grid-cols-2 gap-3 pt-1 text-xs">
                                 {r.strengths && (
                                   <div>
-                                    <p className="font-semibold text-green-700 dark:text-green-400 mb-0.5">Strengths</p>
+                                    <p className="font-semibold text-success mb-0.5">Strengths</p>
                                     <p className="text-muted-foreground leading-relaxed">{r.strengths}</p>
                                   </div>
                                 )}
                                 {r.areas_for_growth && (
                                   <div>
-                                    <p className="font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Areas for growth</p>
+                                    <p className="font-semibold text-warning mb-0.5">Areas for growth</p>
                                     <p className="text-muted-foreground leading-relaxed">{r.areas_for_growth}</p>
                                   </div>
                                 )}
@@ -414,11 +413,11 @@ export default function Performance() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label>Cycle name *</Label>
+              <Label className="kd-label">Cycle name *</Label>
               <Input value={cycleForm.name} onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q2 2026 Performance Review" />
             </div>
             <div className="space-y-1.5">
-              <Label>Type</Label>
+              <Label className="kd-label">Type</Label>
               <Select value={cycleForm.cycle_type} onValueChange={v => setCycleForm(p => ({ ...p, cycle_type: v }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -428,16 +427,16 @@ export default function Performance() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Period start *</Label>
+                <Label className="kd-label">Period start *</Label>
                 <Input type="date" value={cycleForm.period_start} onChange={e => setCycleForm(p => ({ ...p, period_start: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label>Period end *</Label>
+                <Label className="kd-label">Period end *</Label>
                 <Input type="date" value={cycleForm.period_end} onChange={e => setCycleForm(p => ({ ...p, period_end: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Submission due date *</Label>
+              <Label className="kd-label">Submission due date *</Label>
               <Input type="date" value={cycleForm.due_date} onChange={e => setCycleForm(p => ({ ...p, due_date: e.target.value }))} />
             </div>
           </div>
@@ -458,14 +457,14 @@ export default function Performance() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>Employee *</Label>
+                <Label className="kd-label">Employee *</Label>
                 <Select value={reviewForm.employee_id} onValueChange={v => setReviewForm(p => ({ ...p, employee_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                   <SelectContent>{profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Review type</Label>
+                <Label className="kd-label">Review type</Label>
                 <Select value={reviewForm.review_type} onValueChange={v => setReviewForm(p => ({ ...p, review_type: v as 'manager'|'self'|'peer' }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -477,7 +476,7 @@ export default function Performance() {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>Reviewer *</Label>
+              <Label className="kd-label">Reviewer *</Label>
               <Select value={reviewForm.reviewer_id} onValueChange={v => setReviewForm(p => ({ ...p, reviewer_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
                 <SelectContent>{profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
@@ -485,7 +484,7 @@ export default function Performance() {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">Competency ratings</Label>
+              <Label className="kd-label">Competency ratings</Label>
               {COMPETENCIES.map(c => (
                 <div key={c.key} className="flex items-center justify-between gap-3">
                   <span className="text-sm text-muted-foreground w-40 shrink-0">{c.label}</span>
@@ -498,11 +497,11 @@ export default function Performance() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Strengths</Label>
+              <Label className="kd-label">Strengths</Label>
               <Textarea rows={2} value={reviewForm.strengths} onChange={e => setReviewForm(p => ({ ...p, strengths: e.target.value }))} placeholder="What does this person do particularly well?" />
             </div>
             <div className="space-y-1.5">
-              <Label>Areas for growth</Label>
+              <Label className="kd-label">Areas for growth</Label>
               <Textarea rows={2} value={reviewForm.areas_for_growth} onChange={e => setReviewForm(p => ({ ...p, areas_for_growth: e.target.value }))} placeholder="Where can they improve?" />
             </div>
           </div>

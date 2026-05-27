@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { BrandLogo } from '@/components/BrandLogo';
 
 function passwordStrength(pw: string): { score: number; label: string; color: string } {
   if (!pw) return { score: 0, label: '', color: '' };
@@ -64,19 +65,19 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-0 shadow-xl">
+    <div className="kd-gradient-mesh min-h-screen flex items-center justify-center px-4 py-10">
+      <Card className="kd-card-tech w-full max-w-md rounded-2xl border-0 kd-animate-scale-in">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <span className="text-2xl font-bold text-primary-foreground">KD</span>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border shadow-md overflow-hidden">
+            <BrandLogo size={40} className="h-10 w-10 rounded-lg" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Create Account</h1>
+          <h1 className="text-2xl font-bold kd-text-gradient">Create account</h1>
           <p className="text-muted-foreground text-sm">KD Squares Operations Platform</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName" className="kd-label">Full name</Label>
               <Input
                 id="fullName"
                 type="text"
@@ -87,7 +88,7 @@ const Register = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="kd-label">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -99,7 +100,7 @@ const Register = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="kd-label">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -121,13 +122,13 @@ const Register = () => {
                         />
                       ))}
                     </div>
-                    <p className="text-xs text-muted-foreground">{label} — use 12+ characters, numbers and symbols for a strong password.</p>
+                    <p className="kd-field-hint">{label} — use 12+ characters, numbers and symbols for a strong password.</p>
                   </div>
                 );
               })()}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="kd-label">Confirm password</Label>
               <Input
                 id="confirmPassword"
                 type="password"

@@ -342,28 +342,28 @@ const Contacts = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
-            <InfoHint>Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type.</InfoHint>
+      <PageHeader
+        title="Contacts"
+        description="Leads, students, partners — every person KD Squares talks to."
+        icon={Users}
+        info="Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type."
+        actions={
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={contacts.length === 0}>
+              <Download className="mr-2 h-4 w-4" /> Export CSV
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                reset();
+                setDialog(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add contact
+            </Button>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">Leads, students, partners — every person KD Squares talks to.</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={exportCsv} disabled={contacts.length === 0}>
-            <Download className="mr-2 h-4 w-4" /> Export CSV
-          </Button>
-          <Button
-            onClick={() => {
-              reset();
-              setDialog(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add contact
-          </Button>
-        </div>
-      </div>
+        }
+      />
 
       <Tabs defaultValue="contacts">
         <TabsList>
@@ -375,10 +375,10 @@ const Contacts = () => {
         </TabsList>
 
         <TabsContent value="contacts" className="mt-4 space-y-4">
-      <Card>
-        <div className="p-3 sm:p-4 border-b flex gap-2 items-center flex-wrap">
+      <Card className="rounded-xl">
+        <div className="p-3 sm:p-4 border-b border-border/50 flex gap-3 items-center flex-wrap">
           <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               className="pl-9 h-10 sm:h-9"
               placeholder="Search name, email, phone, tags..."
@@ -469,6 +469,7 @@ const Contacts = () => {
                               setNoteText('');
                             }}
                             title="Add note"
+                            aria-label={`Add note for ${c.full_name}`}
                           >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
@@ -477,6 +478,7 @@ const Contacts = () => {
                             variant="ghost"
                             onClick={() => openEdit(c)}
                             title="Edit"
+                            aria-label={`Edit ${c.full_name}`}
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -486,6 +488,7 @@ const Contacts = () => {
                               variant="ghost"
                               onClick={() => convertToContractor(c)}
                               title="Convert to contractor"
+                              aria-label={`Convert ${c.full_name} to contractor`}
                             >
                               <ArrowRightCircle className="h-4 w-4 text-success" />
                             </Button>
@@ -496,6 +499,7 @@ const Contacts = () => {
                               variant="ghost"
                               onClick={(evt) => { evt.stopPropagation(); setConfirmDelete(c); }}
                               title="Delete"
+                              aria-label={`Delete ${c.full_name}`}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -691,7 +695,7 @@ const Contacts = () => {
             <DialogTitle>Add note — {noteDialog?.full_name}</DialogTitle>
           </DialogHeader>
           {noteDialog?.notes && (
-            <div className="rounded-md border bg-muted/20 p-3 text-xs whitespace-pre-wrap max-h-40 overflow-auto">
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-xs whitespace-pre-wrap max-h-40 overflow-auto">
               {noteDialog.notes}
             </div>
           )}
@@ -846,15 +850,19 @@ export function WhatsAppGroupsTab() {
           <p className="text-sm text-muted-foreground">
             {groups.length} group{groups.length !== 1 ? 's' : ''} tracked
           </p>
-          <Button onClick={() => { reset(); setShowForm(true); }}>
+          <Button size="sm" onClick={() => { reset(); setShowForm(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Group
           </Button>
         </div>
 
         {groups.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground text-sm">
-              No WhatsApp groups tracked yet. Add groups to organize your contacts.
+          <Card className="rounded-xl">
+            <CardContent className="p-0">
+              <EmptyState
+                icon={MessageSquare}
+                title="No WhatsApp groups yet"
+                description="Add groups to organize your contacts into project, client and department channels."
+              />
             </CardContent>
           </Card>
         ) : (
@@ -912,7 +920,7 @@ export function WhatsAppGroupsTab() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" variant="ghost" onClick={() => openEdit(g)}>
+                        <Button size="sm" variant="ghost" onClick={() => openEdit(g)} aria-label={`Edit ${g.name}`}>
                           <Pencil className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -1045,12 +1053,10 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
 
   return (
     <div className="space-y-4 max-w-xl">
-      <Card className="border-amber-400/40 bg-amber-50/40 dark:bg-amber-950/20">
-        <CardContent className="py-3 px-4 flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
-          <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>This panel is a <strong>temporary test tool</strong>. It calls the live <code>send-email</code> edge function directly and will send real messages. Delete the tab once Termii / Resend are confirmed working.</span>
-        </CardContent>
-      </Card>
+      <div className="kd-card-warning flex items-start gap-2">
+        <FlaskConical className="h-4 w-4 mt-0.5 shrink-0 text-warning" />
+        <span>This panel is a <strong>temporary test tool</strong>. It calls the live <code>send-email</code> edge function directly and will send real messages. Delete the tab once Termii / Resend are confirmed working.</span>
+      </div>
 
       <Card>
         <CardHeader className="pb-3">
@@ -1074,11 +1080,11 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
           </div>
 
           {selected && (
-            <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs space-y-0.5">
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs space-y-0.5">
               <div><span className="text-muted-foreground">Phone: </span>
                 {selected.phone ? (
                   phoneInfo.ok
-                    ? <span className="text-emerald-700 font-medium">{phoneInfo.termii} ✓ valid Termii number</span>
+                    ? <span className="text-success font-medium">{phoneInfo.termii} ✓ valid Termii number</span>
                     : <span className="text-destructive">{selected.phone} — {phoneInfo.reason}</span>
                 ) : <span className="text-muted-foreground">none</span>}
               </div>
@@ -1137,9 +1143,9 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
           )}
 
           {result && (
-            <div className={`rounded-md border px-3 py-2.5 flex items-start gap-2 text-sm ${
+            <div className={`rounded-lg border px-3 py-2.5 flex items-start gap-2 text-sm ${
               result.ok
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300'
+                ? 'kd-card-success'
                 : 'bg-destructive/10 border-destructive/30 text-destructive'
             }`}>
               {result.ok

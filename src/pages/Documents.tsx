@@ -346,12 +346,13 @@ const Documents = () => {
         actions={
           canManage && (
             <Button
+              size="sm"
               onClick={() => {
                 resetForm();
                 setUploadOpen(true);
               }}
             >
-              <Upload className="mr-2 h-4 w-4" /> Upload Document
+              <Upload className="mr-2 h-4 w-4" /> Upload document
             </Button>
           )
         }
@@ -458,6 +459,7 @@ const Documents = () => {
                               variant="ghost"
                               onClick={() => download(r)}
                               title="Download"
+                              aria-label={`Download ${r.title}`}
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -467,6 +469,7 @@ const Documents = () => {
                                 variant="ghost"
                                 onClick={() => remove(r)}
                                 title="Delete"
+                                aria-label={`Delete ${r.title}`}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -580,8 +583,8 @@ const Documents = () => {
               />
             </div>
 
-            <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
-              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+            <div className="kd-card-info flex items-start gap-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-info" />
               <span>
                 Access is governed centrally: Super Admin and Admin can upload
                 and delete. Finance can download. Operations, Field Staff and

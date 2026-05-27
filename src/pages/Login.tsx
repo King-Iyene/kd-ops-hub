@@ -107,9 +107,9 @@ const Login = () => {
           </p>
         </div>
 
-        <div className="kd-glass-dark rounded-2xl border border-white/10 p-6 sm:p-7 shadow-2xl">
+        <div className="kd-glass-dark rounded-2xl border border-white/10 p-6 sm:p-7 shadow-2xl kd-animate-scale-in">
           {isInviteOnly && (
-            <div className="mb-4 rounded-md border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               Access is by invitation only. Contact your KDOps administrator.
             </div>
           )}
@@ -159,9 +159,11 @@ const Login = () => {
               Sign In
             </Button>
             {loginError && (
-              <p className="text-sm text-red-300 text-center">{loginError}</p>
+              <div role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 text-center">
+                {loginError}
+              </div>
             )}
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-white/10">
               <Link to="/forgot-password" className="text-white/60 hover:text-white kd-transition">
                 Forgot password?
               </Link>

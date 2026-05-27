@@ -59,17 +59,17 @@ import {
 } from '@/lib/anomalies';
 
 const SEVERITY_TONE: Record<AnomalySeverity, string> = {
-  critical: 'bg-red-500/10 text-red-700 border-red-500/30',
-  high: 'bg-orange-500/10 text-orange-700 border-orange-500/30',
-  medium: 'bg-amber-500/10 text-amber-700 border-amber-500/30',
-  low: 'bg-sky-500/10 text-sky-700 border-sky-500/30',
+  critical: 'bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/30',
+  high: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/30',
+  medium: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  low: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30',
 };
 
 const STATUS_TONE: Record<AnomalyStatus, string> = {
-  open: 'bg-rose-500/10 text-rose-700',
-  acknowledged: 'bg-emerald-500/10 text-emerald-700',
+  open: 'bg-rose-500/10 text-rose-700 dark:text-rose-400',
+  acknowledged: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
   dismissed: 'bg-muted text-muted-foreground',
-  escalated: 'bg-purple-500/10 text-purple-700',
+  escalated: 'bg-purple-500/10 text-purple-700 dark:text-purple-400',
 };
 
 export default function Anomalies() {
@@ -239,16 +239,16 @@ export default function Anomalies() {
         }
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="kd-stat-grid">
         <StatCard title="Open" value={stats.open.toString()} icon={Flag} />
         <StatCard title="Critical" value={stats.critical.toString()} icon={ShieldAlert} tone="danger" />
         <StatCard title="High" value={stats.high.toString()} icon={AlertTriangle} tone="warning" />
         <StatCard title="Total" value={stats.total.toString()} icon={CheckCircle2} />
       </div>
 
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
-          <CardTitle className="flex-1">Queue</CardTitle>
+          <CardTitle className="kd-section-title flex-1">Queue</CardTitle>
           <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -318,7 +318,7 @@ export default function Anomalies() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="border-purple-500/40 text-purple-700 hover:bg-purple-50"
+                    className="border-purple-500/40 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10"
                     onClick={() => setBulkAction({ nextStatus: 'escalated', count: selectedIds.size })}
                     disabled={submitting}
                   >
@@ -406,6 +406,7 @@ export default function Anomalies() {
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="inline-flex gap-1">
                             <Button size="sm" variant="ghost"
+                              aria-label={expanded ? 'Collapse details' : 'Expand details'}
                               onClick={() => setExpandedId(expanded ? null : r.id)}>
                               <ChevronDown className={cn('h-4 w-4 transition-transform',
                                 expanded && 'rotate-180')} />
@@ -417,11 +418,12 @@ export default function Anomalies() {
                                   Ack
                                 </Button>
                                 <Button size="sm" variant="outline"
-                                  className="border-purple-500/40 text-purple-700 hover:bg-purple-50"
+                                  className="border-purple-500/40 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-500/10"
                                   onClick={() => openReview(r, 'escalated')}>
                                   Escalate
                                 </Button>
                                 <Button size="sm" variant="ghost" className="text-muted-foreground"
+                                  aria-label={`Dismiss ${RULE_LABEL[r.rule_code]} anomaly`}
                                   onClick={() => openReview(r, 'dismissed')}>
                                   <XCircle className="h-4 w-4" />
                                 </Button>

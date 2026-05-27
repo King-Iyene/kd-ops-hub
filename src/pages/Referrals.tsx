@@ -7,6 +7,7 @@ import {
   Download,
   Pencil,
   Star,
+  Clock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
 import ReferralCommissions from '@/components/ReferralCommissions';
 import { ContractorCombobox } from '@/components/ContractorCombobox';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -219,34 +221,22 @@ const Referrals = () => {
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Total referrals</p>
-            <p className="text-2xl font-bold mt-1">{referrals.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Affiliates</p>
-            <p className="text-2xl font-bold mt-1">{affiliateCount}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Pending</p>
-            <p className="text-2xl font-bold mt-1">
-              {referrals.filter((r) => r.status === 'pending').length}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <StatCard title="Total referrals" value={referrals.length} icon={Users} tone="primary" />
+        <StatCard title="Affiliates" value={affiliateCount} icon={Star} tone="gold" />
+        <StatCard
+          title="Pending"
+          value={referrals.filter((r) => r.status === 'pending').length}
+          icon={Clock}
+          tone="warning"
+        />
       </div>
 
       {/* Commissions — contractors who referred, auto-count + override, USD → NGN */}
       <ReferralCommissions />
 
       <Card>
-        <div className="p-4 border-b">
+        <div className="p-4 border-b border-border/60">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -366,7 +356,7 @@ const Referrals = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Contractor referred (select from list)</Label>
+              <Label className="kd-label">Contractor referred (select from list)</Label>
               <ContractorCombobox
                 value={form.contractor_id}
                 onChange={(id) => setForm({ ...form, contractor_id: id })}
@@ -376,7 +366,7 @@ const Referrals = () => {
             </div>
             {!form.contractor_id && (
               <div className="space-y-1">
-                <Label>Or enter email manually</Label>
+                <Label className="kd-label">Or enter email manually</Label>
                 <Input
                   type="email"
                   value={form.referred_email}
@@ -386,27 +376,27 @@ const Referrals = () => {
               </div>
             )}
             <div className="space-y-1">
-              <Label>Referred by (contractor) *</Label>
+              <Label className="kd-label">Referred by (contractor) *</Label>
               <ContractorCombobox
                 value={form.referrer_contractor_id}
                 onChange={(id) => setForm({ ...form, referrer_contractor_id: id })}
                 contractors={contractors}
                 placeholder="Search the contractor who referred them…"
               />
-              <p className="text-[11px] text-muted-foreground">Their commission is counted automatically (per account). Toggle below for an affiliate referral.</p>
+              <p className="kd-field-hint">Their commission is counted automatically (per account). Toggle below for an affiliate referral.</p>
             </div>
             <div className="space-y-1">
-              <Label>Account start date</Label>
+              <Label className="kd-label">Account start date</Label>
               <Input
                 type="date"
                 value={form.account_start_date}
                 max={today}
                 onChange={(e) => setForm({ ...form, account_start_date: e.target.value })}
               />
-              <p className="text-[11px] text-muted-foreground">When the account went live — starts the clock for the one-time referral bonus.</p>
+              <p className="kd-field-hint">When the account went live — starts the clock for the one-time referral bonus.</p>
             </div>
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label className="kd-label">Notes</Label>
               <Input
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, GraduationCap,
-  Award, AlertTriangle, CheckCircle2, Clock, Filter,
+  Award, AlertTriangle, CheckCircle2, Clock, Loader2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -13,12 +13,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 
 const CATEGORIES = ['professional_development','compliance','safety','technical','leadership','software','other'] as const;
 type TrainingCategory = typeof CATEGORIES[number];
@@ -203,46 +204,34 @@ export default function Training() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1.5" />Export</Button>
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Record</Button>
+            <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add record</Button>
           </div>
         }
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Completed', value: completed, icon: CheckCircle2, color: 'text-green-600' },
-          { label: 'Mandatory', value: mandatory, icon: Award, color: 'text-primary' },
-          { label: 'Certs expiring ≤30d', value: expiring, icon: AlertTriangle, color: 'text-warning' },
-          { label: 'Expired', value: expired, icon: Clock, color: 'text-destructive' },
-        ].map(s => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-              </div>
-              <p className="text-2xl font-bold mt-1">{s.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="kd-stat-grid">
+        <StatCard title="Completed" value={completed} icon={CheckCircle2} tone="success" />
+        <StatCard title="Mandatory" value={mandatory} icon={Award} tone="primary" />
+        <StatCard title="Certs expiring ≤30d" value={expiring} icon={AlertTriangle} tone="warning" />
+        <StatCard title="Expired" value={expired} icon={Clock} tone="danger" />
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search by title, provider, or employee…" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input className="pl-9 h-10 sm:h-9" placeholder="Search by title, provider, or employee…" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All employees" /></SelectTrigger>
+          <SelectTrigger className="w-44 h-10 sm:h-9"><SelectValue placeholder="All employees" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All employees</SelectItem>
             {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger className="w-36 h-10 sm:h-9"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
             <SelectItem value="training">Training</SelectItem>
@@ -250,7 +239,7 @@ export default function Training() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-36 h-10 sm:h-9"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
@@ -260,7 +249,7 @@ export default function Training() {
           </SelectContent>
         </Select>
         <Select value={catFilter} onValueChange={setCatFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Category" /></SelectTrigger>
+          <SelectTrigger className="w-44 h-10 sm:h-9"><SelectValue placeholder="Category" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
             {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>)}
@@ -270,11 +259,18 @@ export default function Training() {
 
       {/* Table */}
       {loading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+        <div className="py-12 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No records found. Add the first training record above.</p>
+        <EmptyState
+          icon={GraduationCap}
+          tone="primary"
+          title="No records found"
+          description="Add the first training or certification record to start tracking courses and expiry dates."
+        />
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <div className="rounded-xl border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30">
               <tr>

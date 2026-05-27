@@ -15,7 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -260,29 +261,17 @@ export default function Assets() {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1.5" />Export</Button>
-            <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Asset</Button>
+            <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Asset</Button>
           </div>
         }
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'Total cost (active)', value: formatNaira(totalCost), icon: Package, color: 'text-primary' },
-          { label: 'Net book value', value: formatNaira(totalBookValue), icon: CheckCircle2, color: 'text-green-600' },
-          { label: 'Total depreciation', value: formatNaira(totalDepn), icon: TrendingDown, color: 'text-muted-foreground' },
-          { label: 'Insurance expiring ≤30d', value: insuranceExpiring, icon: AlertTriangle, color: 'text-warning' },
-        ].map(s => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <s.icon className={`h-4 w-4 ${s.color}`} />
-              </div>
-              <p className="text-2xl font-bold mt-1">{typeof s.value === 'number' ? s.value : s.value}</p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="kd-stat-grid">
+        <StatCard title="Total cost (active)" value={formatNaira(totalCost)} icon={Package} tone="primary" />
+        <StatCard title="Net book value" value={formatNaira(totalBookValue)} icon={CheckCircle2} tone="success" />
+        <StatCard title="Total depreciation" value={formatNaira(totalDepn)} icon={TrendingDown} tone="default" />
+        <StatCard title="Insurance expiring ≤30d" value={insuranceExpiring} icon={AlertTriangle} tone="warning" />
       </div>
 
       {/* Filters */}
@@ -312,24 +301,26 @@ export default function Assets() {
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">No assets found. Add your first asset above.</p>
+        <div className="rounded-xl border border-border/50 bg-card">
+          <EmptyState icon={Package} title="No assets found" description="Add your first asset above to start tracking depreciation, custody and insurance." />
+        </div>
       ) : (
-        <div className="rounded-lg border overflow-x-auto">
+        <div className="rounded-xl border border-border/50 overflow-x-auto bg-card">
           <table className="w-full text-sm">
-            <thead className="border-b bg-muted/30">
+            <thead className="border-b border-border/50 bg-muted/40">
               <tr>
                 {['Asset', 'Category', 'Purchase Date', 'Cost', 'Book Value', 'Deprecn', 'Assigned', 'Insurance', 'Status', ''].map(h => (
-                  <th key={h} className="text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-3 py-2">{h}</th>
+                  <th key={h} className="text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground px-3 py-3">{h}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
+            <tbody className="divide-y divide-border/50">
               {filtered.map(a => {
                 const bv = bookValue(a);
                 const depn = totalDepreciation(a);
                 const depnPct = a.cost_ngn > 0 ? (depn / a.cost_ngn) * 100 : 0;
                 return (
-                  <tr key={a.id} className="hover:bg-muted/20">
+                  <tr key={a.id} className="hover:bg-muted/40 kd-transition">
                     <td className="px-3 py-3">
                       <p className="font-medium">{a.name}</p>
                       <p className="text-[11px] text-muted-foreground">{a.asset_number}</p>
@@ -339,7 +330,7 @@ export default function Assets() {
                       {format(parseISO(a.purchase_date), 'd MMM yyyy')}
                     </td>
                     <td className="px-3 py-3 text-xs font-medium">{formatNaira(a.cost_ngn)}</td>
-                    <td className="px-3 py-3 text-xs font-medium text-green-700 dark:text-green-400">{formatNaira(bv)}</td>
+                    <td className="px-3 py-3 text-xs font-medium text-success">{formatNaira(bv)}</td>
                     <td className="px-3 py-3">
                       <p className="text-xs text-muted-foreground">{formatNaira(depn)}</p>
                       <p className="text-[10px] text-muted-foreground/60">{depnPct.toFixed(0)}%</p>

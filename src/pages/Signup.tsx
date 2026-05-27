@@ -97,9 +97,9 @@ const Signup = () => {
   if (done) {
     return (
       <div className="min-h-screen flex items-center justify-center kd-aurora p-4">
-        <div className="max-w-md w-full bg-card rounded-2xl shadow-2xl border border-border p-8 text-center space-y-4">
-          <div className="mx-auto h-14 w-14 rounded-full bg-emerald-500/15 flex items-center justify-center">
-            <Mail className="h-6 w-6 text-emerald-600" />
+        <div className="max-w-md w-full bg-card rounded-2xl shadow-2xl border border-border p-8 text-center space-y-4 kd-animate-scale-in">
+          <div className="mx-auto h-14 w-14 rounded-full bg-success/15 flex items-center justify-center">
+            <Mail className="h-6 w-6 text-success" />
           </div>
           <h1 className="text-xl font-bold">Almost there — check your email</h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
@@ -132,10 +132,10 @@ const Signup = () => {
           </p>
         </div>
 
-        <div className="kd-glass-dark rounded-2xl border border-white/10 p-6 sm:p-7 shadow-2xl">
+        <div className="kd-glass-dark rounded-2xl border border-white/10 p-6 sm:p-7 shadow-2xl kd-animate-scale-in">
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="companyName" className="text-white/80 text-xs">Company name</Label>
+              <Label htmlFor="companyName" className="text-white/80 text-xs uppercase tracking-wider">Company name</Label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                 <Input
@@ -151,7 +151,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="fullName" className="text-white/80 text-xs">Your name</Label>
+              <Label htmlFor="fullName" className="text-white/80 text-xs uppercase tracking-wider">Your name</Label>
               <Input
                 id="fullName"
                 value={fullName}
@@ -164,7 +164,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-white/80 text-xs">Work email</Label>
+              <Label htmlFor="email" className="text-white/80 text-xs uppercase tracking-wider">Work email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                 <Input
@@ -181,7 +181,7 @@ const Signup = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-white/80 text-xs">Password</Label>
+              <Label htmlFor="password" className="text-white/80 text-xs uppercase tracking-wider">Password</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                 <Input

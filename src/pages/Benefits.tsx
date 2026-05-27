@@ -8,6 +8,8 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -226,7 +228,7 @@ export default function Benefits() {
     if (!expiry) return null;
     const days = differenceInDays(parseISO(expiry), new Date());
     if (days < 0) return <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" /> Expired</Badge>;
-    if (days <= 30) return <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600"><Clock className="h-3 w-3" /> Expires in {days}d</Badge>;
+    if (days <= 30) return <Badge variant="outline" className="gap-1 border-warning/50 text-warning"><Clock className="h-3 w-3" /> Expires in {days}d</Badge>;
     return null;
   }
 
@@ -281,21 +283,20 @@ export default function Benefits() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {(['hmo', 'pension_pfa', 'group_life', 'other'] as BenefitType[]).map(t => {
+      <div className="kd-stat-grid">
+        {(['hmo', 'pension_pfa', 'group_life', 'other'] as BenefitType[]).map((t, i) => {
           const active = benefits.filter(b => b.benefit_type === t && b.status === 'active').length;
           const Icon = TYPE_ICON[t];
+          const tones = ['success', 'primary', 'default', 'default'] as const;
           return (
-            <Card key={t}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Icon className="h-4 w-4" />
-                  <span className="text-xs">{TYPE_LABEL[t]}</span>
-                </div>
-                <p className="text-2xl font-semibold">{active}</p>
-                <p className="text-xs text-muted-foreground">active enrolments</p>
-              </CardContent>
-            </Card>
+            <StatCard
+              key={t}
+              title={TYPE_LABEL[t]}
+              value={active}
+              subtitle="active enrolments"
+              icon={Icon as any}
+              tone={tones[i]}
+            />
           );
         })}
       </div>
@@ -304,11 +305,14 @@ export default function Benefits() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <HeartPulse className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>No benefit records found.</p>
-          <Button className="mt-4 gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Add Benefit</Button>
-        </div>
+        <EmptyState
+          icon={HeartPulse}
+          title="No benefit records found"
+          description="Enrol employees in HMO, pension, group life or other benefits to track them here."
+          action={
+            <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Add Benefit</Button>
+          }
+        />
       ) : (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(b => {
@@ -347,10 +351,10 @@ export default function Benefits() {
                   {expiryBadge(b.expiry_date)}
 
                   <div className="flex justify-end gap-2 pt-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(b)}>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(b)} aria-label="Edit benefit">
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)}>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(b)} aria-label="Delete benefit">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
@@ -370,7 +374,7 @@ export default function Benefits() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Employee *</Label>
+              <Label className="kd-label">Employee *</Label>
               <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
@@ -382,7 +386,7 @@ export default function Benefits() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Benefit Type *</Label>
+                <Label className="kd-label">Benefit Type *</Label>
                 <Select value={form.benefit_type} onValueChange={v => setForm(f => ({ ...f, benefit_type: v as BenefitType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -393,7 +397,7 @@ export default function Benefits() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Status</Label>
+                <Label className="kd-label">Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as BenefitStatus }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -406,35 +410,35 @@ export default function Benefits() {
             </div>
 
             <div className="space-y-1">
-              <Label>Provider *</Label>
+              <Label className="kd-label">Provider *</Label>
               <Input placeholder="e.g. Hygeia HMO, ARM Pension" value={form.provider} onChange={e => setForm(f => ({ ...f, provider: e.target.value }))} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Plan Name</Label>
+                <Label className="kd-label">Plan Name</Label>
                 <Input placeholder="e.g. Executive Plan" value={form.plan_name} onChange={e => setForm(f => ({ ...f, plan_name: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Policy Number</Label>
+                <Label className="kd-label">Policy Number</Label>
                 <Input placeholder="Policy / member ID" value={form.policy_number} onChange={e => setForm(f => ({ ...f, policy_number: e.target.value }))} />
               </div>
             </div>
 
             {form.benefit_type === 'pension_pfa' && (
               <div className="space-y-1">
-                <Label>RSA PIN (PFA)</Label>
+                <Label className="kd-label">RSA PIN (PFA)</Label>
                 <Input placeholder="Retirement Savings Account PIN" value={form.pfa_rsa_pin} onChange={e => setForm(f => ({ ...f, pfa_rsa_pin: e.target.value }))} />
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Premium (₦)</Label>
+                <Label className="kd-label">Premium (₦)</Label>
                 <Input type="number" min="0" placeholder="0.00" value={form.premium_ngn} onChange={e => setForm(f => ({ ...f, premium_ngn: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Frequency</Label>
+                <Label className="kd-label">Frequency</Label>
                 <Select value={form.premium_frequency} onValueChange={v => setForm(f => ({ ...f, premium_frequency: v as BenefitFreq }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -448,17 +452,17 @@ export default function Benefits() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Enrollment Date</Label>
+                <Label className="kd-label">Enrollment Date</Label>
                 <Input type="date" value={form.enrollment_date} onChange={e => setForm(f => ({ ...f, enrollment_date: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Expiry Date</Label>
+                <Label className="kd-label">Expiry Date</Label>
                 <Input type="date" value={form.expiry_date} onChange={e => setForm(f => ({ ...f, expiry_date: e.target.value }))} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label className="kd-label">Notes</Label>
               <Textarea rows={3} placeholder="Additional notes…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
           </div>

@@ -362,17 +362,17 @@ const Goals = () => {
         description="Track company, team and individual goals by quarter. Celebrate what ships."
         actions={
           <>
-            <Button variant="outline" onClick={exportCsv} disabled={goals.length === 0}>
+            <Button variant="outline" size="sm" onClick={exportCsv} disabled={goals.length === 0}>
               <Download className="mr-2 h-4 w-4" /> Export CSV
             </Button>
-            <Button onClick={openCreate}>
+            <Button size="sm" onClick={openCreate}>
               <Plus className="mr-2 h-4 w-4" /> New goal
             </Button>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
           title="My goals this quarter"
           value={myStats.count}

@@ -9,6 +9,8 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -357,21 +359,14 @@ export default function Recruitment() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Active Openings', value: totalPublished, icon: Briefcase },
-          { label: 'Total Applicants', value: totalApplicants, icon: Users },
-          { label: 'Offers Out', value: totalOffers, icon: ArrowRight },
-          { label: 'Hired', value: totalHired, icon: CheckCircle2 },
-        ].map(({ label, value, icon: Icon }) => (
-          <Card key={label}>
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <Icon className="h-4 w-4" /><span className="text-xs">{label}</span>
-              </div>
-              <p className="text-2xl font-semibold">{value}</p>
-            </CardContent>
-          </Card>
+      <div className="kd-stat-grid">
+        {([
+          { label: 'Active Openings', value: totalPublished, icon: Briefcase, tone: 'primary' },
+          { label: 'Total Applicants', value: totalApplicants, icon: Users, tone: 'default' },
+          { label: 'Offers Out', value: totalOffers, icon: ArrowRight, tone: 'warning' },
+          { label: 'Hired', value: totalHired, icon: CheckCircle2, tone: 'success' },
+        ] as { label: string; value: number; icon: typeof Briefcase; tone: 'primary' | 'default' | 'warning' | 'success' }[]).map(({ label, value, icon, tone }) => (
+          <StatCard key={label} title={label} value={value} icon={icon} tone={tone} />
         ))}
       </div>
 
@@ -400,11 +395,14 @@ export default function Recruitment() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : filteredOpenings.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <UserPlus2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>No job openings found.</p>
-          <Button className="mt-4 gap-2" onClick={openCreateOpening}><Plus className="h-4 w-4" /> New Opening</Button>
-        </div>
+        <EmptyState
+          icon={UserPlus2}
+          title="No job openings found"
+          description="Create a job opening to start building your hiring pipeline."
+          action={
+            <Button className="gap-2" onClick={openCreateOpening}><Plus className="h-4 w-4" /> New Opening</Button>
+          }
+        />
       ) : (
         <div className="space-y-4">
           {filteredOpenings.map(opening => {
@@ -431,7 +429,7 @@ export default function Recruitment() {
                         {opening.closing_date && <span>Closes {format(parseISO(opening.closing_date), 'dd MMM yyyy')}</span>}
                         <span>{opening.opening_count} seat{opening.opening_count !== 1 ? 's' : ''}</span>
                         <span>{oApps.length} applicant{oApps.length !== 1 ? 's' : ''}</span>
-                        {hiredCount > 0 && <span className="text-green-600 font-medium">{hiredCount} hired</span>}
+                        {hiredCount > 0 && <span className="text-success font-medium">{hiredCount} hired</span>}
                       </div>
                       {(opening.salary_min_ngn || opening.salary_max_ngn) && (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -440,9 +438,9 @@ export default function Recruitment() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => openEditOpening(opening)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteOpening(opening)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setExpandedOpening(isExpanded ? null : opening.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => openEditOpening(opening)} aria-label="Edit opening"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteOpening(opening)} aria-label="Remove opening"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setExpandedOpening(isExpanded ? null : opening.id)} aria-label={isExpanded ? 'Collapse opening' : 'Expand opening'}>
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
                     </div>
@@ -459,7 +457,7 @@ export default function Recruitment() {
                           <button
                             key={stage}
                             onClick={() => setStageFilter(stageFilter === stage ? 'all' : stage)}
-                            className={`text-xs px-2 py-1 rounded border transition-colors ${stageFilter === stage ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-border'}`}
+                            className={`text-xs px-2.5 py-1 rounded-lg border kd-transition ${stageFilter === stage ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted border-border'}`}
                           >
                             {STAGE_LABEL[stage]} ({count})
                           </button>
@@ -471,7 +469,7 @@ export default function Recruitment() {
                     {filteredApps.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No applicants{stageFilter !== 'all' ? ` in ${STAGE_LABEL[stageFilter as ApplicantStage]} stage` : ' yet'}.</p>
                     ) : (
-                      <div className="divide-y">
+                      <div className="divide-y divide-border/50">
                         {filteredApps.map(app => {
                           const stageBadge = STAGE_BADGE[app.stage];
                           return (
@@ -493,8 +491,8 @@ export default function Recruitment() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <Button variant="ghost" size="icon" onClick={() => openEditApplicant(app)}><Pencil className="h-4 w-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => setDeleteApplicant(app)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => openEditApplicant(app)} aria-label="Edit applicant"><Pencil className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteApplicant(app)} aria-label="Remove applicant"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                               </div>
                             </div>
                           );
@@ -522,12 +520,12 @@ export default function Recruitment() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Job Title *</Label>
+              <Label className="kd-label">Job Title *</Label>
               <Input placeholder="e.g. Senior Software Engineer" value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Employment Type</Label>
+                <Label className="kd-label">Employment Type</Label>
                 <Select value={openingForm.employment_type} onValueChange={v => setOpeningForm(f => ({ ...f, employment_type: v as EmpType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -538,7 +536,7 @@ export default function Recruitment() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Status</Label>
+                <Label className="kd-label">Status</Label>
                 <Select value={openingForm.status} onValueChange={v => setOpeningForm(f => ({ ...f, status: v as OpeningStatus }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -552,7 +550,7 @@ export default function Recruitment() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Department</Label>
+                <Label className="kd-label">Department</Label>
                 <Select value={openingForm.department_id} onValueChange={v => setOpeningForm(f => ({ ...f, department_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                   <SelectContent>
@@ -562,38 +560,38 @@ export default function Recruitment() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Location</Label>
+                <Label className="kd-label">Location</Label>
                 <Input placeholder="e.g. Lagos (Hybrid)" value={openingForm.location} onChange={e => setOpeningForm(f => ({ ...f, location: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>Min Salary (₦/yr)</Label>
+                <Label className="kd-label">Min Salary (₦/yr)</Label>
                 <Input type="number" min="0" placeholder="0" value={openingForm.salary_min_ngn} onChange={e => setOpeningForm(f => ({ ...f, salary_min_ngn: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Max Salary (₦/yr)</Label>
+                <Label className="kd-label">Max Salary (₦/yr)</Label>
                 <Input type="number" min="0" placeholder="0" value={openingForm.salary_max_ngn} onChange={e => setOpeningForm(f => ({ ...f, salary_max_ngn: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Seats</Label>
+                <Label className="kd-label">Seats</Label>
                 <Input type="number" min="1" value={openingForm.opening_count} onChange={e => setOpeningForm(f => ({ ...f, opening_count: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Closing Date</Label>
+              <Label className="kd-label">Closing Date</Label>
               <Input type="date" value={openingForm.closing_date} onChange={e => setOpeningForm(f => ({ ...f, closing_date: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Job Description</Label>
+              <Label className="kd-label">Job Description</Label>
               <Textarea rows={3} placeholder="Role overview, responsibilities…" value={openingForm.description} onChange={e => setOpeningForm(f => ({ ...f, description: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Requirements</Label>
+              <Label className="kd-label">Requirements</Label>
               <Textarea rows={3} placeholder="Qualifications, experience, skills…" value={openingForm.requirements} onChange={e => setOpeningForm(f => ({ ...f, requirements: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label className="kd-label">Notes</Label>
               <Textarea rows={2} placeholder="Internal notes…" value={openingForm.notes} onChange={e => setOpeningForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
           </div>
@@ -613,22 +611,22 @@ export default function Recruitment() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Full Name *</Label>
+              <Label className="kd-label">Full Name *</Label>
               <Input placeholder="Applicant's full name" value={applicantForm.full_name} onChange={e => setApplicantForm(f => ({ ...f, full_name: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Email</Label>
+                <Label className="kd-label">Email</Label>
                 <Input type="email" placeholder="email@example.com" value={applicantForm.email} onChange={e => setApplicantForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Phone</Label>
+                <Label className="kd-label">Phone</Label>
                 <Input placeholder="+234 xxx xxxx" value={applicantForm.phone} onChange={e => setApplicantForm(f => ({ ...f, phone: e.target.value }))} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Source</Label>
+                <Label className="kd-label">Source</Label>
                 <Select value={applicantForm.source} onValueChange={v => setApplicantForm(f => ({ ...f, source: v as ApplicantSource }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -639,7 +637,7 @@ export default function Recruitment() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Pipeline Stage</Label>
+                <Label className="kd-label">Pipeline Stage</Label>
                 <Select value={applicantForm.stage} onValueChange={v => setApplicantForm(f => ({ ...f, stage: v as ApplicantStage }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -652,7 +650,7 @@ export default function Recruitment() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Assigned Interviewer</Label>
+                <Label className="kd-label">Assigned Interviewer</Label>
                 <Select value={applicantForm.assigned_to} onValueChange={v => setApplicantForm(f => ({ ...f, assigned_to: v }))}>
                   <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
                   <SelectContent>
@@ -662,28 +660,28 @@ export default function Recruitment() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Interview Date & Time</Label>
+                <Label className="kd-label">Interview Date & Time</Label>
                 <Input type="datetime-local" value={applicantForm.interview_date} onChange={e => setApplicantForm(f => ({ ...f, interview_date: e.target.value }))} />
               </div>
             </div>
             {(applicantForm.stage === 'offer' || applicantForm.stage === 'hired') && (
               <div className="space-y-1">
-                <Label>Offer Amount (₦/yr)</Label>
+                <Label className="kd-label">Offer Amount (₦/yr)</Label>
                 <Input type="number" min="0" placeholder="Annual salary offered" value={applicantForm.offer_amount_ngn} onChange={e => setApplicantForm(f => ({ ...f, offer_amount_ngn: e.target.value }))} />
               </div>
             )}
             {applicantForm.stage === 'rejected' && (
               <div className="space-y-1">
-                <Label>Rejection Reason</Label>
+                <Label className="kd-label">Rejection Reason</Label>
                 <Input placeholder="Brief reason for rejection" value={applicantForm.rejection_reason} onChange={e => setApplicantForm(f => ({ ...f, rejection_reason: e.target.value }))} />
               </div>
             )}
             <div className="space-y-1">
-              <Label>CV / Portfolio URL</Label>
+              <Label className="kd-label">CV / Portfolio URL</Label>
               <Input placeholder="https://…" value={applicantForm.cv_url} onChange={e => setApplicantForm(f => ({ ...f, cv_url: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Stage Notes</Label>
+              <Label className="kd-label">Stage Notes</Label>
               <Textarea rows={3} placeholder="Interview feedback, assessments…" value={applicantForm.stage_notes} onChange={e => setApplicantForm(f => ({ ...f, stage_notes: e.target.value }))} />
             </div>
           </div>

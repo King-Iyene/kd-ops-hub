@@ -43,6 +43,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 
 const ALL_ROLES = ['super_admin', 'admin', 'finance', 'operations', 'driver', 'field_staff'] as const;
 
@@ -319,7 +320,7 @@ export default function AssistantAdmin() {
           <TabsTrigger value="config"><Sparkles className="h-3.5 w-3.5 mr-1.5" /> Brain</TabsTrigger>
           <TabsTrigger value="knowledge">
             <Database className="h-3.5 w-3.5 mr-1.5" /> Knowledge ({knowledge.length})
-            {unembeddedCount > 0 && <Badge variant="outline" className="ml-1.5 text-[10px] border-amber-400 text-amber-600">{unembeddedCount} unembedded</Badge>}
+            {unembeddedCount > 0 && <Badge variant="outline" className="ml-1.5 text-[10px] border-amber-400 text-amber-600 dark:border-amber-500/40 dark:text-amber-400">{unembeddedCount} unembedded</Badge>}
           </TabsTrigger>
           <TabsTrigger value="usage"><Activity className="h-3.5 w-3.5 mr-1.5" /> Usage</TabsTrigger>
         </TabsList>
@@ -377,7 +378,7 @@ export default function AssistantAdmin() {
             <CardContent className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Daily message limit per user</Label>
+                  <Label className="kd-label">Daily message limit per user</Label>
                   <Input
                     type="number"
                     value={config.daily_message_limit}
@@ -386,7 +387,7 @@ export default function AssistantAdmin() {
                 </div>
               </div>
 
-              <div className="space-y-2 border-t pt-3">
+              <div className="space-y-2 border-t border-border pt-3">
                 <ToggleRow
                   icon={<Globe className="h-4 w-4 text-blue-500" />}
                   title="Web search (Tavily)"
@@ -446,13 +447,13 @@ export default function AssistantAdmin() {
           </div>
 
           {knowledge.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Database className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-medium mb-1">No knowledge entries yet</p>
-                <p className="text-xs text-muted-foreground">
-                  Add platform documentation, policies, or FAQs so the assistant can answer accurately.
-                </p>
+            <Card className="rounded-xl">
+              <CardContent className="p-0">
+                <EmptyState
+                  icon={Database}
+                  title="No knowledge entries yet"
+                  description="Add platform documentation, policies, or FAQs so the assistant can answer accurately."
+                />
               </CardContent>
             </Card>
           ) : (
@@ -464,7 +465,7 @@ export default function AssistantAdmin() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-medium truncate">{k.title}</p>
-                          <Badge variant="outline" className={`text-[10px] ${k.tsv_content ? 'border-emerald-300 text-emerald-700' : 'border-amber-300 text-amber-700'}`}>
+                          <Badge variant="outline" className={`text-[10px] ${k.tsv_content ? 'border-emerald-300 text-emerald-700 dark:border-emerald-500/40 dark:text-emerald-400' : 'border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-400'}`}>
                             {k.tsv_content
                               ? <><Eye className="h-2.5 w-2.5 mr-0.5" /> Indexed</>
                               : <><EyeOff className="h-2.5 w-2.5 mr-0.5" /> Not indexed</>
@@ -515,7 +516,12 @@ export default function AssistantAdmin() {
             <CardHeader><CardTitle className="text-base">Cumulative usage by user</CardTitle></CardHeader>
             <CardContent>
               {usage.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No usage yet.</p>
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="No usage yet"
+                  description="Assistant activity will appear here once people start chatting."
+                />
               ) : (
                 <div className="space-y-1">
                   {usage.map((u) => (
@@ -543,7 +549,7 @@ export default function AssistantAdmin() {
           {editKb && (
             <div className="space-y-3">
               <div>
-                <Label>Title <span className="text-destructive">*</span></Label>
+                <Label className="kd-label">Title <span className="text-destructive">*</span></Label>
                 <Input
                   value={editKb.title ?? ''}
                   onChange={(e) => setEditKb({ ...editKb, title: e.target.value })}
@@ -551,7 +557,7 @@ export default function AssistantAdmin() {
                 />
               </div>
               <div>
-                <Label>Content <span className="text-destructive">*</span></Label>
+                <Label className="kd-label">Content <span className="text-destructive">*</span></Label>
                 <Textarea
                   value={editKb.content ?? ''}
                   onChange={(e) => setEditKb({ ...editKb, content: e.target.value })}
@@ -559,12 +565,12 @@ export default function AssistantAdmin() {
                   className="font-mono text-xs"
                   placeholder="Paste documentation, FAQs, or platform information here..."
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="kd-field-hint">
                   This text is embedded as a vector and retrieved when users ask related questions.
                 </p>
               </div>
               <div>
-                <Label>Source (optional)</Label>
+                <Label className="kd-label">Source (optional)</Label>
                 <Input
                   value={editKb.source ?? ''}
                   onChange={(e) => setEditKb({ ...editKb, source: e.target.value })}
@@ -572,7 +578,7 @@ export default function AssistantAdmin() {
                 />
               </div>
               <div>
-                <Label>Tags (comma-separated)</Label>
+                <Label className="kd-label">Tags (comma-separated)</Label>
                 <Input
                   value={(editKb.tags ?? []).join(', ')}
                   onChange={(e) => setEditKb({ ...editKb, tags: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
@@ -580,7 +586,7 @@ export default function AssistantAdmin() {
                 />
               </div>
               <div>
-                <Label>Visible to roles</Label>
+                <Label className="kd-label">Visible to roles</Label>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {ALL_ROLES.map((role) => {
                     const checked = (editKb.visible_to_roles ?? []).includes(role);
@@ -604,7 +610,7 @@ export default function AssistantAdmin() {
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="kd-field-hint">
                   Only users with these roles will see this knowledge during retrieval.
                 </p>
               </div>

@@ -324,10 +324,10 @@ const AuditLog = () => {
         }
       />
 
-      <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
-        <ShieldCheck className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+      <div className="kd-card-info flex items-start gap-2 text-xs">
+        <ShieldCheck className="h-4 w-4 text-info mt-0.5 shrink-0" />
         <div>
-          <p className="font-semibold text-primary">Immutable by design</p>
+          <p className="font-semibold text-info">Immutable by design</p>
           <p className="text-muted-foreground">
             The database refuses any UPDATE or DELETE on audit_logs via a trigger.
             Historical entries are preserved for SOC2 / ISO27001 evidence.
@@ -335,8 +335,8 @@ const AuditLog = () => {
         </div>
       </div>
 
-      <Card>
-        <div className="p-3 sm:p-4 border-b flex items-center gap-2 flex-wrap">
+      <Card className="rounded-xl">
+        <div className="p-3 sm:p-4 border-b border-border flex items-center gap-2 flex-wrap">
           <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -486,7 +486,7 @@ const AuditLog = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {chainResult?.length === 0
-                ? <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                ? <ShieldCheck className="h-5 w-5 text-success" />
                 : <ShieldAlert className="h-5 w-5 text-destructive" />}
               Audit chain integrity
             </DialogTitle>
@@ -496,9 +496,9 @@ const AuditLog = () => {
           </DialogHeader>
 
           {chainResult?.length === 0 ? (
-            <Alert className="border-emerald-500/40 bg-emerald-500/5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <AlertDescription className="text-sm font-medium text-emerald-700">
+            <Alert className="border-success/40 bg-success/5">
+              <ShieldCheck className="h-4 w-4 text-success" />
+              <AlertDescription className="text-sm font-medium text-success">
                 Chain intact — {rows.length} records verified. No tampering detected.
               </AlertDescription>
             </Alert>

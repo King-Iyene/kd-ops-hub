@@ -486,14 +486,14 @@ export default function Communications() {
 
       {/* Composer */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Compose</CardTitle>
+            <CardTitle className="kd-section-title">Compose</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Body source */}
             <div className="space-y-1">
-              <Label className="text-xs">Body source</Label>
+              <Label className="kd-label">Body source</Label>
               <Select value={bodySource} onValueChange={(v) => setBodySource(v as BodySource)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -505,7 +505,7 @@ export default function Communications() {
 
             {bodySource === 'template' ? (
               <div className="space-y-2">
-                <Label className="text-xs">Template</Label>
+                <Label className="kd-label">Template</Label>
                 <Select value={templateKey} onValueChange={setTemplateKey}>
                   <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
                   <SelectContent>
@@ -533,17 +533,17 @@ export default function Communications() {
             ) : (
               <>
                 <div className="space-y-1">
-                  <Label className="text-xs">Subject</Label>
+                  <Label className="kd-label">Subject</Label>
                   <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">HTML body</Label>
+                  <Label className="kd-label">HTML body</Label>
                   <Textarea
                     value={htmlBody}
                     onChange={(e) => setHtmlBody(e.target.value)}
                     className="font-mono text-xs min-h-[260px]"
                   />
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="kd-field-hint">
                     Use <code>{'{{recipient_name}}'}</code> for personalization.
                   </p>
                 </div>
@@ -556,8 +556,8 @@ export default function Communications() {
                 <TabsTrigger value="preview"><Eye className="h-3 w-3 mr-1" /> Preview</TabsTrigger>
               </TabsList>
               <TabsContent value="preview" className="pt-3">
-                <div className="border rounded-md overflow-hidden">
-                  <div className="bg-muted/40 px-3 py-2 border-b text-xs">
+                <div className="border border-border rounded-xl overflow-hidden">
+                  <div className="bg-muted/40 px-3 py-2 border-b border-border text-xs text-muted-foreground">
                     Subject: <strong>{previewSubject}</strong>
                   </div>
                   <iframe title="Preview" srcDoc={previewHtml} className="w-full h-[420px] bg-white" />
@@ -580,15 +580,15 @@ export default function Communications() {
         </Card>
 
         {/* Recipient picker */}
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" /> Recipients · {allRecipients.length}
+            <CardTitle className="kd-section-title flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" /> Recipients · {allRecipients.length}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs">Source</Label>
+              <Label className="kd-label">Source</Label>
               <Select
                 value={recipientSource}
                 onValueChange={(v) => {
@@ -609,7 +609,7 @@ export default function Communications() {
 
             {recipientSource === 'manual' ? (
               <div className="space-y-1">
-                <Label className="text-xs">Addresses — one per line or comma-separated</Label>
+                <Label className="kd-label">Addresses — one per line or comma-separated</Label>
                 <Textarea
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
@@ -632,7 +632,7 @@ export default function Communications() {
                     <Loader2 className="h-3 w-3 animate-spin" /> Loading…
                   </div>
                 ) : (
-                  <div className="border rounded-md max-h-[260px] overflow-y-auto divide-y">
+                  <div className="border border-border rounded-lg max-h-[260px] overflow-y-auto divide-y">
                     {pickedRecipients.length === 0 && (
                       <p className="text-xs text-muted-foreground italic p-2">No recipients found.</p>
                     )}
@@ -660,7 +660,7 @@ export default function Communications() {
 
       {/* Live progress card for the in-flight campaign */}
       {activeProgress && (
-        <Card className="border-primary/40">
+        <Card className="rounded-xl border-primary/40">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               {isProgressTerminal
@@ -686,9 +686,9 @@ export default function Communications() {
       )}
 
       {/* History */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="kd-section-title flex items-center gap-2">
             <History className="h-4 w-4" /> Recent campaigns
           </CardTitle>
           <Button size="sm" variant="ghost" onClick={() => void reloadHistory()}>
@@ -754,7 +754,7 @@ export default function Communications() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto space-y-4 py-1">
             <div className="space-y-1">
-              <Label className="text-xs">Subject line</Label>
+              <Label className="kd-label">Subject line</Label>
               <Input
                 value={editSubject}
                 onChange={(e) => setEditSubject(e.target.value)}
@@ -762,7 +762,7 @@ export default function Communications() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">HTML body</Label>
+              <Label className="kd-label">HTML body</Label>
               <Textarea
                 value={editHtmlBody}
                 onChange={(e) => setEditHtmlBody(e.target.value)}

@@ -66,13 +66,13 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-0 shadow-xl">
+    <div className="kd-gradient-mesh min-h-screen flex items-center justify-center px-4 py-10">
+      <Card className="kd-card-tech w-full max-w-md rounded-2xl border-0 kd-animate-scale-in">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <KeyRound className="h-7 w-7 text-primary-foreground" />
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl kd-gradient-brand text-primary-foreground shadow-md">
+            <KeyRound className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold">Set new password</h1>
+          <h1 className="text-2xl font-bold kd-text-gradient">Set new password</h1>
           <p className="text-muted-foreground text-sm">
             {ready
               ? 'Enter your new password below.'
@@ -82,7 +82,7 @@ const ResetPassword = () => {
         <CardContent>
           <form onSubmit={handleReset} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">New password</Label>
+              <Label htmlFor="password" className="kd-label">New password</Label>
               <Input
                 id="password"
                 type="password"
@@ -94,7 +94,7 @@ const ResetPassword = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirm">Confirm password</Label>
+              <Label htmlFor="confirm" className="kd-label">Confirm password</Label>
               <Input
                 id="confirm"
                 type="password"

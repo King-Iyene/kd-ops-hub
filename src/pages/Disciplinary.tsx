@@ -2,12 +2,15 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, ShieldAlert,
   CheckCircle2, ChevronDown, ChevronUp, MessageSquare,
+  FileWarning, Gavel, Ban,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -267,19 +270,14 @@ export default function Disciplinary() {
       />
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Active Records', value: activeCount },
-          { label: 'Open Queries', value: queriesCount },
-          { label: 'Suspensions', value: suspendedCount },
-          { label: 'Unacknowledged', value: unacknowledgedCount },
-        ].map(({ label, value }) => (
-          <Card key={label}>
-            <CardContent className="pt-4 pb-4">
-              <p className="text-xs text-muted-foreground mb-1">{label}</p>
-              <p className="text-2xl font-semibold">{value}</p>
-            </CardContent>
-          </Card>
+      <div className="kd-stat-grid">
+        {([
+          { label: 'Active Records', value: activeCount, icon: FileWarning, tone: 'default' },
+          { label: 'Open Queries', value: queriesCount, icon: Gavel, tone: 'warning' },
+          { label: 'Suspensions', value: suspendedCount, icon: Ban, tone: 'danger' },
+          { label: 'Unacknowledged', value: unacknowledgedCount, icon: ShieldAlert, tone: 'primary' },
+        ] as { label: string; value: number; icon: typeof FileWarning; tone: 'default' | 'warning' | 'danger' | 'primary' }[]).map(({ label, value, icon, tone }) => (
+          <StatCard key={label} title={label} value={value} icon={icon} tone={tone} />
         ))}
       </div>
 
@@ -318,11 +316,14 @@ export default function Disciplinary() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <ShieldAlert className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>No disciplinary records found.</p>
-          <Button className="mt-4 gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> New Record</Button>
-        </div>
+        <EmptyState
+          icon={ShieldAlert}
+          title="No disciplinary records found"
+          description="Formal warnings, queries and suspensions will appear here once recorded."
+          action={
+            <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> New Record</Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map(r => {
@@ -348,13 +349,13 @@ export default function Disciplinary() {
                         <span>{format(parseISO(r.incident_date), 'dd MMM yyyy')}</span>
                         {r.issued_by && <span>Issued by: {empName(r.issued_by)}</span>}
                         {r.suspension_days && <span>Suspension: {r.suspension_days} day{r.suspension_days !== 1 ? 's' : ''}</span>}
-                        {r.acknowledged_at && <span className="text-green-600">Acknowledged {format(parseISO(r.acknowledged_at), 'dd MMM')}</span>}
+                        {r.acknowledged_at && <span className="text-success font-medium">Acknowledged {format(parseISO(r.acknowledged_at), 'dd MMM')}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [r.id]: !p[r.id] }))}>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setExpanded(p => ({ ...p, [r.id]: !p[r.id] }))} aria-label={isExpanded ? 'Collapse record' : 'Expand record'}>
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </Button>
                     </div>
@@ -390,7 +391,7 @@ export default function Disciplinary() {
                         </p>
                         <div className="space-y-2">
                           {recordResponses.map(rs => (
-                            <div key={rs.id} className="bg-muted/30 rounded-md p-3">
+                            <div key={rs.id} className="bg-muted/40 rounded-lg p-3">
                               <p className="text-sm">{rs.response_text}</p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {empName(rs.responded_by)} · {format(parseISO(rs.responded_at), 'dd MMM yyyy HH:mm')}
@@ -453,7 +454,7 @@ export default function Disciplinary() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label>Employee *</Label>
+              <Label className="kd-label">Employee *</Label>
               <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
@@ -464,11 +465,11 @@ export default function Disciplinary() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Incident Date</Label>
+                <Label className="kd-label">Incident Date</Label>
                 <Input type="date" value={form.incident_date} onChange={e => setForm(f => ({ ...f, incident_date: e.target.value }))} />
               </div>
               <div className="space-y-1">
-                <Label>Action Type</Label>
+                <Label className="kd-label">Action Type</Label>
                 <Select value={form.incident_type} onValueChange={v => setForm(f => ({ ...f, incident_type: v as IncidentType }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -480,25 +481,25 @@ export default function Disciplinary() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Subject *</Label>
+              <Label className="kd-label">Subject *</Label>
               <Input placeholder="e.g. Unauthorised absence — 14 April 2026" value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Description / Incident Details</Label>
+              <Label className="kd-label">Description / Incident Details</Label>
               <Textarea rows={4} placeholder="Full description of the incident, evidence, timeline…" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
             <div className="space-y-1">
-              <Label>Outcome / Decision</Label>
+              <Label className="kd-label">Outcome / Decision</Label>
               <Textarea rows={2} placeholder="Formal outcome, action taken…" value={form.outcome} onChange={e => setForm(f => ({ ...f, outcome: e.target.value }))} />
             </div>
             {form.incident_type === 'suspension' && (
               <div className="space-y-1">
-                <Label>Suspension Days</Label>
+                <Label className="kd-label">Suspension Days</Label>
                 <Input type="number" min="1" placeholder="Number of days" value={form.suspension_days} onChange={e => setForm(f => ({ ...f, suspension_days: e.target.value }))} />
               </div>
             )}
             <div className="space-y-1">
-              <Label>Issued By</Label>
+              <Label className="kd-label">Issued By</Label>
               <Select value={form.issued_by} onValueChange={v => setForm(f => ({ ...f, issued_by: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select issuer" /></SelectTrigger>
                 <SelectContent>

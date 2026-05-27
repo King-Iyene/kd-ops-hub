@@ -76,7 +76,7 @@ const STATUS_TONE: Record<EwaStatus, string> = {
   pending: 'bg-warning/10 text-warning',
   approved: 'bg-primary/10 text-primary',
   rejected: 'bg-destructive/10 text-destructive',
-  disbursed: 'bg-blue-500/10 text-blue-600',
+  disbursed: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
   settled: 'bg-success/10 text-success',
   cancelled: 'bg-muted text-muted-foreground',
 };
@@ -282,9 +282,9 @@ export default function EarnedWageAccess() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : eligibility ? (
-        <Card className="overflow-hidden border-primary/20">
-          <CardHeader className="bg-primary/5 border-b">
-            <CardTitle className="flex items-center gap-2 text-base">
+        <Card className="overflow-hidden rounded-xl border-primary/20">
+          <CardHeader className="bg-primary/5 border-b border-border">
+            <CardTitle className="kd-section-title flex items-center gap-2 text-base">
               <Sparkles className="h-4 w-4 text-primary" />
               Available to draw right now
             </CardTitle>
@@ -347,7 +347,7 @@ export default function EarnedWageAccess() {
 
       {/* Stats */}
       {eligibility && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="kd-stat-grid">
           <StatCard title="Monthly salary"   value={formatNaira(eligibility.monthly_salary_ngn)}  icon={Wallet}     tone="primary" />
           <StatCard title="Accrued so far"   value={formatNaira(eligibility.accrued_to_date_ngn)} icon={TrendingUp} tone="success" />
           <StatCard title="Already drawn"    value={formatNaira(eligibility.already_drawn_ngn)}   icon={Clock}      tone="warning" />
@@ -357,9 +357,9 @@ export default function EarnedWageAccess() {
 
       {/* Admin queue */}
       {isFinance && (
-        <Card>
+        <Card className="rounded-xl">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="kd-section-title flex items-center gap-2">
               <Inbox className="h-4 w-4 text-warning" /> Pending requests
               {pending.length > 0 && (
                 <Badge variant="secondary" className="bg-warning/10 text-warning">{pending.length}</Badge>
@@ -426,9 +426,9 @@ export default function EarnedWageAccess() {
       )}
 
       {/* User history */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
-          <CardTitle className="text-base">Your EWA history</CardTitle>
+          <CardTitle className="kd-section-title">Your EWA history</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
@@ -491,20 +491,20 @@ export default function EarnedWageAccess() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Amount (₦)</Label>
+              <Label className="kd-label">Amount (₦)</Label>
               <Input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder={String(eligibility?.available_now_ngn ?? '')}
               />
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="kd-field-hint">
                 Min ₦{eligibility?.min_draw_ngn?.toLocaleString() ?? '5,000'} •
                 {' '}Max ₦{eligibility?.available_now_ngn?.toLocaleString() ?? '0'} for this period
               </p>
             </div>
             <div>
-              <Label>Reason (optional)</Label>
+              <Label className="kd-label">Reason (optional)</Label>
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}

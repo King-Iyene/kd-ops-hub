@@ -8,12 +8,13 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { StatCard } from '@/components/ui-kit/StatCard';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -213,32 +214,35 @@ export default function Attendance() {
       {/* Month navigator */}
       <div className="flex items-center gap-3">
         <Button variant="outline" size="sm" onClick={() => shiftMonth(-1)}>← Prev</Button>
-        <span className="font-medium min-w-[120px] text-center">
+        <span className="font-medium min-w-[120px] text-center text-foreground">
           {format(parseISO(monthStart), 'MMMM yyyy')}
         </span>
         <Button variant="outline" size="sm" onClick={() => shiftMonth(1)}>Next →</Button>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {(['present', 'late', 'absent', 'on_leave'] as AttendanceStatus[]).map(s => {
+      <div className="kd-stat-grid">
+        {([
+          { status: 'present',  tone: 'success' },
+          { status: 'late',     tone: 'warning' },
+          { status: 'absent',   tone: 'danger' },
+          { status: 'on_leave', tone: 'default' },
+        ] as { status: AttendanceStatus; tone: 'success' | 'warning' | 'danger' | 'default' }[]).map(({ status: s, tone }) => {
           const cfg = STATUS_CONFIG[s];
-          const Icon = cfg.icon;
           return (
-            <Card key={s}>
-              <CardContent className="pt-4 pb-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Icon className="h-4 w-4" /><span className="text-xs">{cfg.label}</span>
-                </div>
-                <p className="text-2xl font-semibold">{counts[s] ?? 0}</p>
-                <p className="text-xs text-muted-foreground">records</p>
-              </CardContent>
-            </Card>
+            <StatCard
+              key={s}
+              title={cfg.label}
+              value={counts[s] ?? 0}
+              subtitle="records"
+              icon={cfg.icon as any}
+              tone={tone}
+            />
           );
         })}
       </div>
       {totalOvertimeHours > 0 && (
-        <p className="text-sm text-muted-foreground">Total overtime this period: <strong>{totalOvertimeHours.toFixed(1)} hrs</strong></p>
+        <p className="text-sm text-muted-foreground">Total overtime this period: <strong className="text-foreground">{totalOvertimeHours.toFixed(1)} hrs</strong></p>
       )}
 
       {/* Filters */}
@@ -272,40 +276,43 @@ export default function Attendance() {
       {loading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Clock className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p>No attendance records for this period.</p>
-          <Button className="mt-4 gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Record Attendance</Button>
-        </div>
+        <EmptyState
+          icon={Clock}
+          title="No attendance records for this period"
+          description="Record attendance to start building this month's timesheet."
+          action={
+            <Button className="gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Record Attendance</Button>
+          }
+        />
       ) : (
-        <div className="rounded-md border overflow-hidden">
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium">Employee</th>
-                <th className="text-left px-4 py-3 font-medium">Date</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-left px-4 py-3 font-medium">Clock In</th>
-                <th className="text-left px-4 py-3 font-medium">Clock Out</th>
-                <th className="text-left px-4 py-3 font-medium">OT (min)</th>
-                <th className="text-right px-4 py-3 font-medium">Actions</th>
+              <tr className="border-b border-border/50">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock In</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock Out</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT (min)</th>
+                <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/50">
               {filtered.map(r => {
                 const cfg = STATUS_CONFIG[r.status];
                 return (
-                  <tr key={r.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 font-medium">{empName(r.employee_id)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{format(parseISO(r.work_date), 'EEE, dd MMM')}</td>
-                    <td className="px-4 py-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.clock_in ?? '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.clock_out ?? '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.overtime_minutes > 0 ? r.overtime_minutes : '—'}</td>
-                    <td className="px-4 py-3 text-right">
+                  <tr key={r.id} className="hover:bg-muted/40 transition-colors">
+                    <td className="py-3 px-3 font-medium text-foreground">{empName(r.employee_id)}</td>
+                    <td className="py-3 px-3 text-muted-foreground">{format(parseISO(r.work_date), 'EEE, dd MMM')}</td>
+                    <td className="py-3 px-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
+                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_in ?? '—'}</td>
+                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_out ?? '—'}</td>
+                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.overtime_minutes > 0 ? r.overtime_minutes : '—'}</td>
+                    <td className="py-3 px-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -324,8 +331,8 @@ export default function Attendance() {
             <DialogDescription>Log daily attendance for an employee</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label>Employee *</Label>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Employee *</Label>
               <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
@@ -335,12 +342,12 @@ export default function Attendance() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Work Date *</Label>
+              <div className="space-y-1.5">
+                <Label className="kd-label">Work Date *</Label>
                 <Input type="date" value={form.work_date} onChange={e => setForm(f => ({ ...f, work_date: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label>Status</Label>
+              <div className="space-y-1.5">
+                <Label className="kd-label">Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as AttendanceStatus }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -352,21 +359,21 @@ export default function Attendance() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Clock In</Label>
+              <div className="space-y-1.5">
+                <Label className="kd-label">Clock In</Label>
                 <Input type="time" value={form.clock_in} onChange={e => setForm(f => ({ ...f, clock_in: e.target.value }))} />
               </div>
-              <div className="space-y-1">
-                <Label>Clock Out</Label>
+              <div className="space-y-1.5">
+                <Label className="kd-label">Clock Out</Label>
                 <Input type="time" value={form.clock_out} onChange={e => setForm(f => ({ ...f, clock_out: e.target.value }))} />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Overtime (minutes)</Label>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Overtime (minutes)</Label>
               <Input type="number" min="0" value={form.overtime_minutes} onChange={e => setForm(f => ({ ...f, overtime_minutes: e.target.value }))} />
             </div>
-            <div className="space-y-1">
-              <Label>Notes</Label>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Notes</Label>
               <Textarea rows={2} placeholder="Any remarks…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
           </div>

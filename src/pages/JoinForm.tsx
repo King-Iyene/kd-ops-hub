@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { BankCombobox } from '@/components/BankCombobox';
 import { useToast } from '@/hooks/use-toast';
+import { BrandLogo } from '@/components/BrandLogo';
 
 const LINKEDIN_RE = /^https?:\/\/(www\.)?linkedin\.com\/in\/.+/;
 
@@ -191,10 +192,12 @@ const JoinForm = () => {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
-        <Card className="w-full max-w-lg border-0 shadow-xl">
+      <div className="kd-gradient-mesh min-h-screen flex items-center justify-center px-4 py-12">
+        <Card className="kd-card-tech w-full max-w-lg rounded-2xl border-0 kd-animate-scale-in">
           <CardContent className="pt-10 pb-8 text-center space-y-4">
-            <CheckCircle2 className="h-16 w-16 text-success mx-auto" />
+            <div className="mx-auto h-16 w-16 rounded-full bg-success/10 flex items-center justify-center">
+              <CheckCircle2 className="h-9 w-9 text-success" />
+            </div>
             <h1 className="text-2xl font-bold">Application received</h1>
             <p className="text-muted-foreground">
               Thank you for applying to work with KD Squares. Our team will
@@ -210,13 +213,13 @@ const JoinForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-start justify-center px-4 py-10">
-      <Card className="w-full max-w-2xl border-0 shadow-xl">
+    <div className="kd-gradient-mesh min-h-screen flex items-start justify-center px-4 py-10">
+      <Card className="kd-card-tech w-full max-w-2xl rounded-2xl border-0 kd-animate-scale-in">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <span className="text-2xl font-bold text-primary-foreground">KD</span>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-card border border-border shadow-md overflow-hidden">
+            <BrandLogo size={40} className="h-10 w-10 rounded-lg" />
           </div>
-          <h1 className="text-2xl font-bold">KD Squares — LinkedIn Partner Onboarding</h1>
+          <h1 className="text-2xl font-bold kd-text-gradient">KD Squares — LinkedIn Partner Onboarding</h1>
           <p className="text-muted-foreground text-sm">
             Apply to join our LinkedIn Outreach Partner network. Fill in your
             details below — our team will review and activate your account
@@ -228,12 +231,12 @@ const JoinForm = () => {
 
             {/* Personal information */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="kd-section-label mb-0">
                 Personal information
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>First name *</Label>
+                  <Label className="kd-label">First name *</Label>
                   <Input
                     value={form.first_name}
                     onChange={(e) => setForm({ ...form, first_name: e.target.value })}
@@ -242,7 +245,7 @@ const JoinForm = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Last name *</Label>
+                  <Label className="kd-label">Last name *</Label>
                   <Input
                     value={form.last_name}
                     onChange={(e) => setForm({ ...form, last_name: e.target.value })}
@@ -254,7 +257,7 @@ const JoinForm = () => {
                   Please this should be exactly the full name you have on your LinkedIn profile
                 </p>
                 <div className="space-y-1">
-                  <Label>Email *</Label>
+                  <Label className="kd-label">Email *</Label>
                   <Input
                     type="email"
                     value={form.email}
@@ -264,7 +267,7 @@ const JoinForm = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Phone / WhatsApp *</Label>
+                  <Label className="kd-label">Phone / WhatsApp *</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -277,11 +280,11 @@ const JoinForm = () => {
 
             {/* LinkedIn */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="kd-section-label mb-0">
                 LinkedIn profile
               </h3>
               <div className="space-y-1">
-                <Label>LinkedIn profile URL *</Label>
+                <Label className="kd-label">LinkedIn profile URL *</Label>
                 <Input
                   value={form.linkedin_url}
                   onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
@@ -300,7 +303,7 @@ const JoinForm = () => {
                 )}
               </div>
               <div className="space-y-1">
-                <Label>LinkedIn Email *</Label>
+                <Label className="kd-label">LinkedIn Email *</Label>
                 <Input
                   type="email"
                   value={form.linkedin_email}
@@ -310,7 +313,7 @@ const JoinForm = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>LinkedIn Password *</Label>
+                <Label className="kd-label">LinkedIn Password *</Label>
                 <Input
                   type="text"
                   value={form.heyreach_password}
@@ -327,12 +330,12 @@ const JoinForm = () => {
 
             {/* Bank details */}
             <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <h3 className="kd-section-label mb-0">
                 Bank details
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Bank *</Label>
+                  <Label className="kd-label">Bank *</Label>
                   <BankCombobox
                     value={form.bank_name}
                     onChange={(name) => handleBankChange(name)}
@@ -340,7 +343,7 @@ const JoinForm = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Account number (10 digits) *</Label>
+                  <Label className="kd-label">Account number (10 digits) *</Label>
                   <div className="flex gap-2">
                     <Input
                       value={form.account_number}

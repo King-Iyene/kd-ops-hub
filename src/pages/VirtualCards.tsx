@@ -74,9 +74,9 @@ interface Subscription {
 }
 
 const STATUS_BADGE: Record<VirtualCard['status'], string> = {
-  active: 'bg-success/10 text-success',
-  paused: 'bg-warning/10 text-warning',
-  deactivated: 'bg-muted text-muted-foreground',
+  active: 'bg-success/10 text-success capitalize',
+  paused: 'bg-warning/10 text-warning capitalize',
+  deactivated: 'bg-muted text-muted-foreground capitalize',
 };
 
 const VirtualCards = () => {
@@ -246,13 +246,13 @@ const VirtualCards = () => {
         title="Virtual Cards"
         description="Track per-vendor spend controls. Assign a card to a subscription and monitor usage."
         actions={
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} size="sm">
             <Plus className="mr-2 h-4 w-4" /> New card record
           </Button>
         }
       />
 
-      <Card>
+      <Card className="rounded-xl">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 flex items-center justify-center">
@@ -387,7 +387,7 @@ const VirtualCards = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Card name</Label>
+              <Label className="kd-label">Card name</Label>
               <Input
                 value={form.card_name}
                 onChange={(e) => setForm({ ...form, card_name: e.target.value })}
@@ -396,7 +396,7 @@ const VirtualCards = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Vendor</Label>
+                <Label className="kd-label">Vendor</Label>
                 <Input
                   value={form.vendor}
                   onChange={(e) => setForm({ ...form, vendor: e.target.value })}
@@ -404,7 +404,7 @@ const VirtualCards = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Last 4 digits</Label>
+                <Label className="kd-label">Last 4 digits</Label>
                 <Input
                   value={form.last_four}
                   onChange={(e) =>
@@ -415,7 +415,7 @@ const VirtualCards = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Monthly limit (₦)</Label>
+                <Label className="kd-label">Monthly limit (₦)</Label>
                 <Input
                   type="number"
                   value={form.monthly_limit_ngn}
@@ -425,7 +425,7 @@ const VirtualCards = () => {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Current spend (₦)</Label>
+                <Label className="kd-label">Current spend (₦)</Label>
                 <Input
                   type="number"
                   value={form.current_spend_ngn}
@@ -436,7 +436,7 @@ const VirtualCards = () => {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Linked subscription (optional)</Label>
+              <Label className="kd-label">Linked subscription (optional)</Label>
               <Select
                 value={form.subscription_id || 'none'}
                 onValueChange={(v) =>
@@ -457,7 +457,7 @@ const VirtualCards = () => {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Notes</Label>
+              <Label className="kd-label">Notes</Label>
               <Textarea
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
