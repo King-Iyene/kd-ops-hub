@@ -121,10 +121,10 @@ const TYPE_CONFIG: Record<
   ScheduledItemType,
   { label: string; className: string; icon: typeof Layers }
 > = {
-  batch:        { label: 'Scheduled',    className: 'bg-blue-50 text-blue-700 border-blue-200',     icon: Layers },
-  recurring:    { label: 'Recurring',    className: 'bg-purple-50 text-purple-700 border-purple-200', icon: Repeat },
-  payroll:      { label: 'Payroll',      className: 'bg-green-50 text-green-700 border-green-200',   icon: Banknote },
-  subscription: { label: 'Subscription', className: 'bg-amber-50 text-amber-700 border-amber-200',   icon: CreditCard },
+  batch:        { label: 'Scheduled',    className: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30',         icon: Layers },
+  recurring:    { label: 'Recurring',    className: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/30', icon: Repeat },
+  payroll:      { label: 'Payroll',      className: 'bg-green-50 text-green-700 border-green-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30', icon: Banknote },
+  subscription: { label: 'Subscription', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30',     icon: CreditCard },
 };
 
 // ─── Form ─────────────────────────────────────────────────────────────────────
@@ -465,8 +465,8 @@ export default function PaymentSchedule() {
           className={cn(
             'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium',
             surplus7 >= 0
-              ? 'bg-green-50 text-green-800 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200',
+              ? 'bg-green-50 text-green-800 border border-green-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30'
+              : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30',
           )}
         >
           {surplus7 >= 0 ? (

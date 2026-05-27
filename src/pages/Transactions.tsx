@@ -698,10 +698,10 @@ export default Transactions;
 
 function LedgerStatusDot({ status }: { status: string }) {
   const config: Record<string, { label: string; dot: string; text: string }> = {
-    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-emerald-700' },
-    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-amber-700' },
-    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-red-700' },
-    reversed:  { label: 'Refunded',  dot: 'bg-slate-400',    text: 'text-slate-600' },
+    succeeded: { label: 'Succeeded', dot: 'bg-emerald-500',  text: 'text-emerald-700 dark:text-emerald-400' },
+    pending:   { label: 'Pending',   dot: 'bg-amber-500',    text: 'text-amber-700 dark:text-amber-400' },
+    failed:    { label: 'Failed',    dot: 'bg-red-500',      text: 'text-red-700 dark:text-red-400' },
+    reversed:  { label: 'Refunded',  dot: 'bg-slate-400',    text: 'text-slate-600 dark:text-slate-400' },
   };
   const c = config[status] ?? config.pending;
   return (

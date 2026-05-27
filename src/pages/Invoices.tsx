@@ -885,7 +885,7 @@ export default Invoices;
 function StatusBadge({ status, size }: { status: string; size?: 'sm' }) {
   const map: Record<string, string> = {
     draft:     'bg-muted text-muted-foreground',
-    sent:      'bg-blue-500/10 text-blue-700 border border-blue-500/30',
+    sent:      'bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/30',
     paid:      'bg-success/10 text-success border border-success/30',
     overdue:   'bg-destructive/10 text-destructive border border-destructive/30',
     cancelled: 'bg-muted/60 text-muted-foreground line-through',

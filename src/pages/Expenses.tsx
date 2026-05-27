@@ -337,13 +337,13 @@ const Expenses = () => {
 
   const paymentBadge = (status: Expense['payment_status']) => {
     if (!status || status === 'pending')
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Pending Payment</Badge>;
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-400 dark:border-yellow-500/30">Pending Payment</Badge>;
     if (status === 'processing')
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Processing</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">Processing</Badge>;
     if (status === 'processed')
-      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Paid</Badge>;
+      return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">Paid</Badge>;
     if (status === 'failed')
-      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Failed</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30">Failed</Badge>;
     return null;
   };
 

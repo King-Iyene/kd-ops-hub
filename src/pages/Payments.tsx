@@ -71,10 +71,10 @@ interface FundingDetails {
 const BALANCE_HIDDEN_KEY = 'kdops.paystack_balance_hidden';
 
 const BATCH_TYPE_META: Record<string, { label: string; bg: string; text: string }> = {
-  contractor:      { label: 'Contractor',   bg: 'bg-blue-50',    text: 'text-blue-700' },
-  employee_salary: { label: 'Salary Run',   bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  advance:         { label: 'Advance',      bg: 'bg-amber-50',   text: 'text-amber-700' },
-  prize:           { label: 'Bonus/Prize',  bg: 'bg-purple-50',  text: 'text-purple-700' },
+  contractor:      { label: 'Contractor',   bg: 'bg-blue-50 dark:bg-blue-500/10',       text: 'text-blue-700 dark:text-blue-400' },
+  employee_salary: { label: 'Salary Run',   bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400' },
+  advance:         { label: 'Advance',      bg: 'bg-amber-50 dark:bg-amber-500/10',     text: 'text-amber-700 dark:text-amber-400' },
+  prize:           { label: 'Bonus/Prize',  bg: 'bg-purple-50 dark:bg-purple-500/10',   text: 'text-purple-700 dark:text-purple-400' },
 };
 
 const Payments = () => {
