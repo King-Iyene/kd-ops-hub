@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/useDebounce';
 import {
   Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus,
   Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
@@ -183,6 +184,7 @@ const NewPaymentBatch = () => {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearch = useDebounce(searchTerm);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
   // Amount entry mode for the selected beneficiaries: 'different' (type a value
@@ -200,15 +202,6 @@ const NewPaymentBatch = () => {
   const [adHocSaveContractor, setAdHocSaveContractor] = useState(true);
 
   useEffect(() => {
-    // Load ALL contractors (active or not). Lifecycle/HeyReach status no longer
-    // blocks payment — it's surfaced as an indicator on each row instead.
-    supabase
-      .from('contractors')
-      .select('*')
-      .order('full_name')
-      .limit(500)
-      .then(({ data }) => setContractors((data as Contractor[]) || []));
-
     supabase
       .from('profiles')
       .select('id, full_name, first_name, last_name, bank_name, bank_account_number, bank_account_name, salary_ngn, job_title')
@@ -217,6 +210,27 @@ const NewPaymentBatch = () => {
       .limit(500)
       .then(({ data }) => setEmployees((data as Employee[]) || []));
   }, []);
+
+  // Contractors load server-side so the search spans the ENTIRE roster (700+),
+  // not just a first page. A client-side filter over a `.limit(500)` page
+  // silently hid contractors whose name sorts past the cap (e.g. a search that
+  // matched a later-alphabet partner returned nothing). Lifecycle/HeyReach
+  // status no longer blocks payment — all contractors load, status is shown as
+  // a row indicator. Mirrors the Contractors page search (name/account/email).
+  useEffect(() => {
+    const term = debouncedSearch.trim().replace(/[,()%]/g, ' ').trim();
+    let q = supabase
+      .from('contractors')
+      .select('*')
+      .order('full_name')
+      .limit(term ? 200 : 500);
+    if (term) {
+      q = q.or(
+        `full_name.ilike.%${term}%,account_number.ilike.%${term}%,email.ilike.%${term}%,heyreach_email.ilike.%${term}%`,
+      );
+    }
+    q.then(({ data }) => setContractors((data as Contractor[]) || []));
+  }, [debouncedSearch]);
 
   // Pre-populate a single contractor when navigated from ContractorProfile
   useEffect(() => {
@@ -631,16 +645,9 @@ const NewPaymentBatch = () => {
     }
   };
 
-  const filteredContractors = useMemo(() => {
-    const s = searchTerm.trim().toLowerCase();
-    if (!s) return contractors;
-    return contractors.filter(
-      (c) =>
-        (c.full_name || '').toLowerCase().includes(s) ||
-        c.bank_name.toLowerCase().includes(s) ||
-        c.account_number.includes(s)
-    );
-  }, [contractors, searchTerm]);
+  // Search is performed server-side (see the load effect), so the loaded set is
+  // already scoped to the query — expose it directly.
+  const filteredContractors = contractors;
 
   // Visible selectable count (all contractors are payable now; kept for the
   // "Select all (N)" affordance and to disable it when the list is empty).
