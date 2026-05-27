@@ -57,9 +57,9 @@ interface ClientData {
 }
 
 const STATUS_TONE: Record<ClientStatus, string> = {
-  active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  inactive: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-  prospect: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-400',
+  inactive: 'bg-muted text-muted-foreground',
+  prospect: 'bg-blue-100 text-blue-800 dark:bg-blue-500/10 dark:text-blue-400',
 };
 
 const INDUSTRIES = [

@@ -1037,7 +1037,7 @@ const ContractorProfile = () => {
                             {d.total_deductible_amount ? ` / ${formatNaira(d.total_deductible_amount)}` : ''}
                           </p>
                         </div>
-                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700' : d.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                        <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full shrink-0 ${d.status === 'active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : d.status === 'completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' : 'bg-muted text-muted-foreground'}`}>
                           {d.status}
                         </span>
                         {d.status === 'active' && (
