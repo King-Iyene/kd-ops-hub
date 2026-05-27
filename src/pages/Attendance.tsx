@@ -285,8 +285,8 @@ export default function Attendance() {
           }
         />
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-muted/50">
               <tr className="border-b border-border/50">
                 <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>

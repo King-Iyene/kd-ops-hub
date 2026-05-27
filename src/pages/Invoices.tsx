@@ -697,8 +697,8 @@ const Invoices = () => {
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add row
                 </Button>
               </div>
-              <div className="rounded-lg border overflow-hidden">
-                <table className="w-full text-sm">
+              <div className="rounded-lg border overflow-x-auto">
+                <table className="w-full text-sm min-w-[520px]">
                   <thead className="bg-muted/40">
                     <tr>
                       <th className="text-left p-2 text-xs font-medium">Description</th>
