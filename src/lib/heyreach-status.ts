@@ -29,7 +29,13 @@ export interface HeyReachDisplayStatus {
   dotClass: string;
   /** Human explanation, shown in a tooltip / as the exclusion reason. */
   reason: string;
-  /** Whether this contractor may be selected for a batch payment. */
+  /**
+   * Informational only — every contractor is payable regardless of HeyReach
+   * connection or manual lifecycle status (paying someone does not depend on
+   * their outreach-tool state). The status is surfaced as an indicator on the
+   * batch builder, not a gate. Kept as a field so callers can still highlight
+   * non-ideal selections.
+   */
   payable: boolean;
 }
 
@@ -45,16 +51,16 @@ const DISCONNECTED: HeyReachDisplayStatus = {
   key: 'disconnected', label: 'Disconnected', emoji: '⚠️',
   className: 'bg-amber-500/10 text-amber-600',
   dotClass: 'bg-amber-500',
-  reason: 'HeyReach can no longer connect to this account (login invalid).',
-  payable: false,
+  reason: 'HeyReach can no longer connect to this account (login invalid). Still payable.',
+  payable: true,
 };
 
 const INACTIVE: HeyReachDisplayStatus = {
   key: 'inactive', label: 'Inactive', emoji: '⏸️',
   className: 'bg-muted text-muted-foreground',
   dotClass: 'bg-muted-foreground',
-  reason: 'Manually deactivated by the team.',
-  payable: false,
+  reason: 'Manually deactivated by the team. Still payable (e.g. final settlement).',
+  payable: true,
 };
 
 const PENDING = (reason: string): HeyReachDisplayStatus => ({

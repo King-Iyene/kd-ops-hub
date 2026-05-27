@@ -59,7 +59,8 @@ interface Contractor {
   bank_name: string;
   account_number: string;
   default_amount_ngn: number;
-  // HeyReach signal — used to block paying disconnected accounts.
+  // HeyReach signal — surfaced as a status indicator on each contractor row
+  // (no longer blocks payment; lifecycle/connection state is informational).
   status?: string | null;
   heyreach_status?: string | null;
   heyreach_email?: string | null;
@@ -199,10 +200,11 @@ const NewPaymentBatch = () => {
   const [adHocSaveContractor, setAdHocSaveContractor] = useState(true);
 
   useEffect(() => {
+    // Load ALL contractors (active or not). Lifecycle/HeyReach status no longer
+    // blocks payment — it's surfaced as an indicator on each row instead.
     supabase
       .from('contractors')
       .select('*')
-      .eq('status', 'active')
       .order('full_name')
       .limit(500)
       .then(({ data }) => setContractors((data as Contractor[]) || []));
@@ -304,16 +306,6 @@ const NewPaymentBatch = () => {
   const toggleContractor = (c: Contractor, checked: boolean) => {
     if (checked) {
       if (selectedIds.has(c.id)) return;
-      // Disconnected HeyReach accounts can't be paid — guard even if the
-      // checkbox is somehow toggled (e.g. keyboard).
-      if (!heyreachDisplayStatus(c).payable) {
-        toast({
-          title: 'Cannot add this contractor',
-          description: heyreachDisplayStatus(c).reason,
-          variant: 'destructive',
-        });
-        return;
-      }
       if (items.length >= MAX_RECIPIENTS_PER_BATCH) {
         toast({
           title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
@@ -342,7 +334,6 @@ const NewPaymentBatch = () => {
   const selectAllVisible = (visible: Contractor[]) => {
     const toAdd = visible
       .filter((c) => !selectedIds.has(c.id))
-      .filter((c) => heyreachDisplayStatus(c).payable) // skip disconnected
       .map((c) => ({
         _key: crypto.randomUUID(),
         full_name: c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown',
@@ -651,7 +642,8 @@ const NewPaymentBatch = () => {
     );
   }, [contractors, searchTerm]);
 
-  // How many visible contractors can actually be selected (excludes disconnected).
+  // Visible selectable count (all contractors are payable now; kept for the
+  // "Select all (N)" affordance and to disable it when the list is empty).
   const selectableVisibleCount = useMemo(
     () => filteredContractors.filter((c) => heyreachDisplayStatus(c).payable).length,
     [filteredContractors],
@@ -990,46 +982,42 @@ const NewPaymentBatch = () => {
                         const checked = selectedIds.has(c.id);
                         const name = c.full_name || `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'Unknown';
                         const st = heyreachDisplayStatus(c);
-                        const selectable = st.payable;
+                        const showStatus = st.key !== 'active';
                         return (
                           <label
                             key={c.id}
-                            title={selectable ? undefined : st.reason}
+                            title={showStatus ? st.reason : undefined}
                             className={cn(
                               'flex items-center gap-3 px-3 h-9 kd-transition',
-                              !selectable
-                                ? 'opacity-70 cursor-not-allowed'
-                                : checked ? 'bg-primary/[0.04] cursor-pointer' : 'cursor-pointer hover:bg-muted/30',
+                              checked ? 'bg-primary/[0.04] cursor-pointer' : 'cursor-pointer hover:bg-muted/30',
                             )}
                           >
                             <Checkbox
                               checked={checked}
-                              disabled={!selectable}
-                              onCheckedChange={(v) => selectable && toggleContractor(c, Boolean(v))}
+                              onCheckedChange={(v) => toggleContractor(c, Boolean(v))}
                               className="h-3.5 w-3.5"
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 min-w-0">
                                 <span className="text-[12.5px] font-medium truncate">{name}</span>
-                                {!selectable && (
-                                  <span className={cn(
-                                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0',
-                                    st.className,
-                                  )}>
-                                    <AlertTriangle className="h-2.5 w-2.5" /> {st.label}
+                                {showStatus && (
+                                  <span
+                                    className={cn(
+                                      'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium shrink-0',
+                                      st.className,
+                                    )}
+                                    title={st.reason}
+                                  >
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', st.dotClass)} /> {st.label}
                                   </span>
                                 )}
-                                {selectable && c.bank_name && (
+                                {c.bank_name && (
                                   <span className="hidden sm:inline text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
                                     {c.bank_name} · {c.account_number || '—'}
                                   </span>
                                 )}
                               </div>
-                              {!selectable ? (
-                                <span className="text-[10px] text-amber-600 block truncate">
-                                  Reconnect on HeyReach to include in a payment
-                                </span>
-                              ) : c.bank_name && (
+                              {c.bank_name && (
                                 <span className="sm:hidden text-[10px] text-muted-foreground/80 font-mono tracking-tight block truncate">
                                   {c.bank_name} · {c.account_number || '—'}
                                 </span>

@@ -1447,16 +1447,16 @@ const BatchDetail = () => {
   const canExport = items.length > 0 && canSeeAmounts;
   const failedItems = items.filter((i) => i.status === 'failed');
 
-  // Who may prepare (edit + submit) a DRAFT batch: the person who created it
-  // — which now includes the Operations role, who can build batches but is not
-  // an approver — or an approver (admin/finance/super_admin) picking up a
-  // prepared draft. Operations gaining batch-creation without this left their
-  // drafts stuck: the creator was hidden by the approver-only action wrapper,
-  // and approvers were hidden by the created_by check, so the draft could
-  // neither be edited nor submitted. Approval itself stays approver-only below.
+  // Who may prepare (edit + submit) a DRAFT batch: the Operations role (the
+  // batch preparers) and approvers (admin/finance/super_admin), plus whoever
+  // created it. Operations build batches but don't approve them, so they must
+  // be able to edit/submit any draft — approval still happens downstream and
+  // stays approver-only. Without this, an admin-created draft was uneditable
+  // by the Operations team who actually prepare the payment runs.
+  const isOperations = profile?.role === 'operations';
   const canManageDraft =
     batch.status === 'draft' &&
-    (batch.created_by === profile?.id || isAdmin || isFinance);
+    (batch.created_by === profile?.id || isAdmin || isFinance || isOperations);
 
   const filteredItems = items.filter((i) => {
     if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
