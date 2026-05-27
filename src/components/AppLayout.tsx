@@ -82,10 +82,7 @@ export default function AppLayout() {
   return (
     <div className="flex min-h-screen flex-col">
       {/* Skip navigation — visible only on keyboard focus, before anything else */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
-      >
+      <a href="#main-content" className="kd-skip-link">
         Skip to main content
       </a>
       <OfflineBanner />
@@ -101,7 +98,10 @@ export default function AppLayout() {
         </div>
         <div className="flex-1 flex flex-col min-w-0">
           {/* ── Header ──────────────────────────────────────────────── */}
-          <header className="relative h-14 flex items-center justify-between border-b border-border/50 bg-card/70 backdrop-blur-xl supports-[backdrop-filter]:bg-card/50 px-4 sticky top-0 z-20 shadow-[0_1px_0_hsl(var(--primary)/0.10)_inset,0_4px_16px_-4px_hsl(var(--primary)/0.10)] before:content-[''] before:absolute before:inset-x-0 before:bottom-[-1px] before:h-px before:bg-gradient-to-r before:from-transparent before:via-[hsl(var(--tod-glow)/0.35)] before:to-transparent before:pointer-events-none">
+          <header
+            role="banner"
+            aria-label="Site header"
+            className="relative h-14 flex items-center justify-between border-b border-border/40 bg-card/80 backdrop-blur-xl supports-[backdrop-filter]:bg-card/60 px-4 sticky top-0 z-20 shadow-[0_1px_0_hsl(var(--primary)/0.08)_inset,0_1px_0_hsl(var(--border)/0.5),0_4px_16px_-4px_hsl(var(--primary)/0.06)] before:content-[''] before:absolute before:inset-x-0 before:bottom-[-1px] before:h-px before:bg-gradient-to-r before:from-transparent before:via-[hsl(var(--tod-glow)/0.3)] before:to-transparent before:pointer-events-none">
             <div className="flex items-center gap-3 min-w-0">
               {/* Hamburger only on tablet+ where the sidebar exists */}
               <SidebarTrigger className="hidden md:inline-flex shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
@@ -113,8 +113,8 @@ export default function AppLayout() {
                 )}
                 {portal && (
                   <>
-                    {pageTitle && <span className="text-border/80 text-xs select-none">·</span>}
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${portal.color}`}>
+                    {pageTitle && <span className="text-border/60 text-xs select-none">·</span>}
+                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide ${portal.color}`}>
                       {portal.label}
                     </span>
                   </>
@@ -142,7 +142,7 @@ export default function AppLayout() {
             </div>
           </header>
           {/* ── Main content ────────────────────────────────────────── */}
-          <main id="main-content" className="flex-1 p-4 md:p-6 overflow-auto kd-gradient-mesh">
+          <main id="main-content" className="flex-1 p-4 md:p-5 lg:p-6 overflow-auto kd-gradient-mesh">
             <div key={location.pathname} className="kd-page-transition">
               {/* key={pathname} resets the boundary on navigation, so a
                   crash on one page doesn't permanently break the next. */}

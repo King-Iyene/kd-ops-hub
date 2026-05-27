@@ -9,39 +9,63 @@ interface Props {
   actions?: React.ReactNode;
   className?: string;
   badge?: React.ReactNode;
-  /** Optional help text — renders an info icon next to the title with
-   *  the text in a tooltip below. Replaces the per-page inline
-   *  Tooltip/TooltipTrigger/Info-icon pattern. */
   info?: React.ReactNode;
+  /** Compact variant — shorter margin, smaller type. For sub-page sections. */
+  compact?: boolean;
 }
 
-export function PageHeader({ title, description, icon: Icon, actions, badge, info, className }: Props) {
+export function PageHeader({ title, description, icon: Icon, actions, badge, info, className, compact }: Props) {
   return (
-    <div className={cn('flex items-start justify-between gap-4 flex-wrap mb-6', className)}>
+    <div className={cn(
+      'flex items-start justify-between gap-4 flex-wrap',
+      compact ? 'mb-4' : 'mb-6',
+      className,
+    )}>
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
-          // Tech-tile icon container — gradient surface, hairline border ring,
-          // animated outer glow that breathes with the time-of-day palette.
-          <div className="relative h-11 w-11 shrink-0 mt-0.5">
-            <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-25 blur-lg kd-icon-glow" />
-            <div className="relative h-11 w-11 rounded-xl bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/15 border border-primary/20 flex items-center justify-center shadow-sm backdrop-blur-sm">
-              <Icon className="h-5 w-5 text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.6)]" />
+          <div className="relative shrink-0 mt-0.5">
+            {/* Aurora glow halo */}
+            <span className="pointer-events-none absolute inset-0 rounded-xl bg-[hsl(var(--tod-glow))] opacity-20 blur-lg kd-icon-glow" />
+            {/* Icon tile — brand gradient + hairline border */}
+            <div className={cn(
+              'relative rounded-xl flex items-center justify-center',
+              'bg-gradient-to-br from-primary/18 via-primary/10 to-secondary/12',
+              'border border-primary/18 shadow-sm backdrop-blur-sm',
+              compact ? 'h-9 w-9' : 'h-11 w-11',
+            )}>
+              <Icon className={cn(
+                'text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.55)]',
+                compact ? 'h-4 w-4' : 'h-5 w-5',
+              )} />
             </div>
           </div>
         )}
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Gradient brand title — visible tech feel without losing legibility */}
-            <h1 className="kd-display text-2xl font-bold tracking-tight kd-text-gradient">{title}</h1>
+            <h1 className={cn(
+              'kd-display font-bold tracking-tight kd-text-gradient',
+              compact ? 'text-xl' : 'text-[1.625rem] leading-8',
+            )}>
+              {title}
+            </h1>
             {info && <InfoHint>{info}</InfoHint>}
             {badge}
           </div>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
+            <p className={cn(
+              'text-muted-foreground leading-relaxed mt-1',
+              compact ? 'text-xs' : 'text-sm',
+            )}>
+              {description}
+            </p>
           )}
         </div>
       </div>
-      {actions && <div className="flex gap-2 flex-wrap items-center">{actions}</div>}
+      {actions && (
+        <div className="flex gap-2 flex-wrap items-center shrink-0">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }

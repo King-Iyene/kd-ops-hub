@@ -83,6 +83,21 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
+      },
+      spacing: {
+        "page": "1.5rem",
+        "page-sm": "1rem",
+      },
+      fontSize: {
+        "display-sm": ["1.375rem", { lineHeight: "1.3", letterSpacing: "-0.025em" }],
+        "display-md": ["1.75rem", { lineHeight: "1.25", letterSpacing: "-0.03em" }],
+        "display-lg": ["2.25rem", { lineHeight: "1.2", letterSpacing: "-0.035em" }],
+        "label-xs": ["0.6875rem", { lineHeight: "1.4", letterSpacing: "0.04em" }],
+        "stat-sm": ["1.375rem", { lineHeight: "1", letterSpacing: "-0.02em" }],
+        "stat-md": ["1.75rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
+        "stat-lg": ["2.25rem", { lineHeight: "1", letterSpacing: "-0.04em" }],
       },
       keyframes: {
         "accordion-down": {

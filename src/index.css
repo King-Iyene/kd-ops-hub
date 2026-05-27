@@ -39,7 +39,7 @@
     --input: 210 20% 90%;
     --ring: 200 100% 29%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 201 100% 12%;
     --sidebar-foreground: 200 30% 88%;
@@ -183,16 +183,52 @@
     font-family: 'Cabin', system-ui, sans-serif;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  /* Page-level headings use Space Grotesk for strong visual hierarchy.
+     Inline headings (card titles, section labels) stay with Cabin so the
+     reading rhythm doesn't shift inside data-dense surfaces. */
+  h1 {
+    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+  }
+  h2 {
+    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+  }
+  h3, h4, h5, h6 {
     font-family: 'Cabin', system-ui, sans-serif;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
+    font-weight: 600;
   }
 
-  /* Better focus rings */
+  /* Improved focus rings — subtle brand glow, never the harsh blue default */
   :focus-visible {
-    outline: 2px solid hsl(var(--primary) / 0.6);
+    outline: 2px solid hsl(var(--primary) / 0.7);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--radius);
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.12);
+    transition: box-shadow 150ms ease;
+  }
+
+  /* Form inputs — premium feel: hairline border, brand ring on focus */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    transition: border-color 150ms ease, box-shadow 150ms ease;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12), 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  /* Selection colour — keep brand-consistent */
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: inherit;
   }
 
   /* Custom scrollbar */
@@ -1098,5 +1134,154 @@
     font-family: 'Cabin Condensed', 'Cabin', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+  }
+
+  /* ─── Phase 1: Layout utilities ───────────────────────────────────── */
+
+  /* Standard page content max-width wrapper */
+  .kd-page-content {
+    @apply max-w-screen-xl mx-auto;
+  }
+
+  /* Responsive stat grid — single col → 2 → 4 */
+  .kd-stat-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3;
+  }
+
+  /* Two-column content grid */
+  .kd-content-grid {
+    @apply grid grid-cols-1 lg:grid-cols-3 gap-4;
+  }
+
+  /* Section divider with label — replaces inline h3 title patterns */
+  .kd-section-header {
+    @apply flex items-center justify-between gap-3 mb-3;
+  }
+  .kd-section-title {
+    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    @apply text-base font-semibold tracking-tight text-foreground;
+  }
+
+  /* ─── Phase 1: Form improvements ─────────────────────────────────── */
+
+  /* Soft label — sits above every form field */
+  .kd-label {
+    @apply block text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em] mb-1.5;
+  }
+
+  /* Helper text below a field */
+  .kd-field-hint {
+    @apply mt-1 text-xs text-muted-foreground leading-snug;
+  }
+
+  /* Required dot */
+  .kd-required::after {
+    content: ' *';
+    @apply text-destructive;
+  }
+
+  /* ─── Phase 2: Elevated stat tiles with per-tone backgrounds ──────── */
+
+  .kd-stat-primary {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--primary) / 0.15) 0%, transparent 50%),
+      hsl(var(--card));
+    border-color: hsl(var(--primary) / 0.2);
+  }
+  .kd-stat-success {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--success) / 0.12) 0%, transparent 50%),
+      hsl(var(--card));
+    border-color: hsl(var(--success) / 0.2);
+  }
+  .kd-stat-warning {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--warning) / 0.12) 0%, transparent 50%),
+      hsl(var(--card));
+    border-color: hsl(var(--warning) / 0.2);
+  }
+  .kd-stat-danger {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--destructive) / 0.10) 0%, transparent 50%),
+      hsl(var(--card));
+    border-color: hsl(var(--destructive) / 0.18);
+  }
+  .kd-stat-gold {
+    background:
+      radial-gradient(circle at 85% 5%, hsl(var(--accent) / 0.14) 0%, transparent 50%),
+      hsl(var(--card));
+    border-color: hsl(var(--accent) / 0.25);
+  }
+
+  /* ─── Phase 2: Improved table styles ─────────────────────────────── */
+
+  /* Sticky header variant */
+  .kd-table-sticky thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: hsl(var(--card));
+    backdrop-filter: blur(8px);
+  }
+
+  /* Row highlight on selection */
+  .kd-table tbody tr.is-selected {
+    @apply bg-primary/8 border-primary/20;
+  }
+
+  /* Numeric cell — right-align + tabular numbers (works inside any table) */
+  .kd-cell-num {
+    @apply text-right tabular-nums font-medium;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─── Phase 2: Navigation active state refinements ────────────────── */
+
+  /* Wider active indicator pill on sidebar items */
+  .kd-nav-active-pill {
+    @apply rounded-md bg-white/10 text-white;
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.06);
+  }
+
+  /* ─── Phase 3: Better loading state ──────────────────────────────── */
+
+  /* Content-aware skeleton blocks */
+  .kd-skeleton-sm  { @apply h-3.5 rounded-full kd-skeleton; }
+  .kd-skeleton-md  { @apply h-5 rounded-lg kd-skeleton; }
+  .kd-skeleton-lg  { @apply h-8 rounded-xl kd-skeleton; }
+  .kd-skeleton-kpi { @apply h-10 rounded-2xl kd-skeleton; }
+
+  /* ─── Phase 3: Accessibility & focus enhancements ─────────────────── */
+
+  /* High-contrast focus for keyboard users only */
+  .kd-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Skip-link — shown only on keyboard focus */
+  .kd-skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:z-[9999] focus:top-3 focus:left-3 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground focus:shadow-lg;
+  }
+
+  /* ─── Phase 3: Card variant improvements ─────────────────────────── */
+
+  /* Info callout card */
+  .kd-card-info {
+    @apply rounded-xl border border-info/20 bg-info/5 p-4 text-sm text-foreground;
+  }
+
+  /* Warning callout */
+  .kd-card-warning {
+    @apply rounded-xl border border-warning/25 bg-warning/5 p-4 text-sm text-foreground;
+  }
+
+  /* Success callout */
+  .kd-card-success {
+    @apply rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-foreground;
+  }
+
+  /* Danger callout */
+  .kd-card-danger {
+    @apply rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-foreground;
   }
 }
