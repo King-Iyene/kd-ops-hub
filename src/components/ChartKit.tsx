@@ -13,8 +13,12 @@ export const chartTheme = {
   danger:     '#EF4444',
   violet:     '#8B5CF6',
   muted:      '#E2E8F0',
-  axis:       '#94A3B8',
-  gridLine:   '#E2E8F0',
+  // axis + gridLine use translucent slate so they read correctly in BOTH light
+  // and dark mode without a per-chart theme switch. Solid #E2E8F0 gridlines
+  // glared white on dark surfaces; slate-400 at low alpha is subtle on light
+  // and soft on dark. (Independent of the time-of-day --tod-* system.)
+  axis:       'rgba(100, 116, 139, 0.85)',
+  gridLine:   'rgba(148, 163, 184, 0.22)',
 };
 
 /** Single source of truth for every gradient referenced by id. */
