@@ -894,24 +894,45 @@ const ContractorProfile = () => {
                 <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {payments.map((p: any) => (
-                    <div key={p.id} className="flex items-center justify-between border rounded-lg p-3">
-                      <div>
-                        <p className="font-medium">{p.recipient_name || ctrName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(p.created_at)} · {p.payment_batches?.payment_description || p.payment_batches?.name || 'Batch payment'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium currency">{formatNaira(p.amount_ngn)}</p>
-                        <Badge variant="secondary" className={
-                          p.transfer_status === 'success' ? 'bg-success/10 text-success' :
-                          p.transfer_status === 'failed' ? 'bg-destructive/10 text-destructive' :
-                          'bg-warning/10 text-warning'
-                        }>{p.transfer_status || 'pending'}</Badge>
-                      </div>
-                    </div>
-                  ))}
+                  {payments.map((p: any) => {
+                    // Map the batch_item status to a display label + tone.
+                    // The previous code read a non-existent `transfer_status`
+                    // column and every row showed "pending" regardless of the
+                    // real Paystack outcome.
+                    const s: string = p.status || 'pending';
+                    const label =
+                      s === 'succeeded' ? 'Completed' :
+                      s === 'failed'    ? 'Failed' :
+                      s === 'reversed'  ? 'Reversed' :
+                      s === 'retry'     ? 'Retrying' :
+                      s === 'awaiting_otp' ? 'Awaiting OTP' :
+                      'Pending';
+                    const tone =
+                      s === 'succeeded' ? 'bg-success/10 text-success dark:text-success' :
+                      s === 'failed' || s === 'reversed' ? 'bg-destructive/10 text-destructive' :
+                      'bg-amber-500/10 text-amber-700 dark:text-amber-400';
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => p.batch_id && navigate(`/payments/${p.batch_id}`)}
+                        disabled={!p.batch_id}
+                        className="w-full text-left flex items-center justify-between border rounded-lg p-3 transition-colors hover:bg-muted/40 hover:border-border focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:cursor-default disabled:hover:bg-transparent"
+                        aria-label={`Open batch — ${p.payment_batches?.name || 'Batch payment'} on ${formatDate(p.created_at)}`}
+                      >
+                        <div>
+                          <p className="font-medium">{p.recipient_name || ctrName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(p.created_at)} · {p.payment_batches?.payment_description || p.payment_batches?.name || 'Batch payment'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium currency">{formatNaira(p.amount_ngn)}</p>
+                          <Badge variant="secondary" className={tone}>{label}</Badge>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
