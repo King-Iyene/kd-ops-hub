@@ -600,7 +600,12 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: `Bearer ${jwt}` } } },
   );
-  const { data: userRes, error: userErr } = await userClient.auth.getUser();
+  // Pass the JWT explicitly to getUser. Without the argument, newer
+  // supabase-js versions read the client's INTERNAL session (which doesn't
+  // exist on the server) and fail with "Auth session missing!", returning
+  // 401 even though the Authorization header was perfectly valid. With the
+  // arg, supabase validates the given token against auth.users directly.
+  const { data: userRes, error: userErr } = await userClient.auth.getUser(jwt);
   if (userErr || !userRes?.user) {
     console.warn("[batch-worker] 401: getUser failed —", userErr?.message || "no user", "; jwt_prefix=", jwt.slice(0, 16));
     return new Response(JSON.stringify({ error: `unauthorized: ${userErr?.message || "session invalid"}` }), {
