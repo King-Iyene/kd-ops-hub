@@ -196,6 +196,8 @@ const EmployeeProfile = () => {
   const [bankRejectReason, setBankRejectReason] = useState('');
   const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  // Active employees (used as the Reports-to dropdown).
+  const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
   const [companySetting, setCompanySetting] = useState<{ company_name: string; logo_url: string | null }>({ company_name: 'KD Squares Ltd', logo_url: null });
 
@@ -306,6 +308,17 @@ const EmployeeProfile = () => {
     supabase.from('departments').select('id, name').order('name').then(({ data }) => {
       setDepartments((data as Array<{ id: string; name: string }>) || []);
     }).catch(() => { /* departments are non-critical; edit select degrades gracefully */ });
+
+    // Active employees for the Reports-to dropdown. Excludes the employee
+    // being viewed so they can't pick themselves. Read-only — managers can
+    // be anyone, not just admins, so we don't filter by role.
+    supabase.from('profiles')
+      .select('id, full_name, email')
+      .eq('status', 'active')
+      .neq('id', id || '')
+      .order('full_name')
+      .then(({ data }) => setManagers((data as any[]) || []))
+      .catch(() => { /* dropdown degrades to empty */ });
 
     // Company settings for payslip generation
     supabase.from('company_settings').select('company_name, logo_url')
@@ -1322,6 +1335,11 @@ const EmployeeProfile = () => {
                         start_date: form.start_date || null,
                         annual_leave_days: form.annual_leave_days ?? 20,
                         status: form.status,
+                        // Sprint B additions
+                        reporting_manager_id: form.reporting_manager_id || null,
+                        contract_end_date: form.contract_end_date || null,
+                        pfa_name: form.pfa_name || null,
+                        state_of_residence: form.state_of_residence || null,
                       })}
                       disabled={sectionSaving}
                     >
@@ -1426,6 +1444,73 @@ const EmployeeProfile = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Sprint B — reporting manager + extras. Each field is
+                        independently optional so legacy profiles keep working. */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Reports to (manager)</Label>
+                        <Select
+                          value={form.reporting_manager_id || '__none__'}
+                          onValueChange={(v) => patch({ reporting_manager_id: v === '__none__' ? null : v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="No manager assigned" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— No manager —</SelectItem>
+                            {managers.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.full_name || m.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Contract end date</Label>
+                        <Input
+                          type="date"
+                          value={form.contract_end_date || ''}
+                          onChange={(e) => patch({ contract_end_date: e.target.value || null })}
+                          placeholder="dd/mm/yyyy"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          For Contract / Intern roles. Leave blank for permanent staff.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Pension Fund Administrator (PFA)</Label>
+                        <Input
+                          value={form.pfa_name || ''}
+                          onChange={(e) => patch({ pfa_name: e.target.value || null })}
+                          placeholder="e.g. ARM Pension, Stanbic IBTC"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">State of residence</Label>
+                        <Select
+                          value={form.state_of_residence || '__none__'}
+                          onValueChange={(v) => patch({ state_of_residence: v === '__none__' ? null : v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select state…" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Not set —</SelectItem>
+                            {[
+                              'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
+                              'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT - Abuja','Gombe',
+                              'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos',
+                              'Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto',
+                              'Taraba','Yobe','Zamfara',
+                            ].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[10px] text-muted-foreground">
+                          PAYE is remitted to the State IRS of residence.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <dl className="space-y-3">
@@ -1469,6 +1554,33 @@ const EmployeeProfile = () => {
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">Annual leave</dt>
                       <dd className="font-medium">{employee.annual_leave_days ?? 20} days/yr</dd>
+                    </div>
+
+                    {/* Sprint B — read-only display of new optional fields.
+                        Each row renders "—" when unset so the layout stays calm. */}
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Reports to</dt>
+                      <dd className="font-medium">
+                        {(() => {
+                          if (!employee.reporting_manager_id) return '—';
+                          const m = managers.find((x) => x.id === employee.reporting_manager_id);
+                          return m ? (m.full_name || m.email) : '—';
+                        })()}
+                      </dd>
+                    </div>
+                    {employee.contract_end_date && (
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">Contract ends</dt>
+                        <dd className="font-medium">{formatDate(employee.contract_end_date)}</dd>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">PFA</dt>
+                      <dd className="font-medium">{employee.pfa_name || '—'}</dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">State of residence</dt>
+                      <dd className="font-medium">{employee.state_of_residence || '—'}</dd>
                     </div>
                   </dl>
                 )}
