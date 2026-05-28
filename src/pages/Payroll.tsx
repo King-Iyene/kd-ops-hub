@@ -80,6 +80,7 @@ import {
   PENSION_EMPLOYEE_RATE as PENSION_RATE,
   PENSION_EMPLOYER_RATE as EMPLOYER_PENSION_RATE,
   NHF_RATE,
+  NSITF_RATE,
   computePayslip,
 } from '@/lib/tax';
 import {
@@ -346,7 +347,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('salary_ngn, pension_enabled, nhf_enabled, paye_enabled')
+          .select('salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -384,20 +385,44 @@ const Payroll = () => {
       // and progressive, and chargeable income is gross MINUS pension/NHF, so we
       // sum each employee's computePayslip() figure — NOT band the aggregate
       // salary (which produced a wrong, non-reconciling total).
+      // Sprint A: pension/NHF use statutory bases when components are configured.
+      //   pension base = basic + housing + transport  (PRA 2014)
+      //   NHF base     = basic only                   (NHF Act)
+      // Otherwise (toggle OFF, default) fall back to gross — preserves
+      // today's behavior for everyone whose row hasn't been migrated.
       const paye = (employeeRes.data || []).reduce((s: number, r: any) => {
         if (r.paye_enabled === false) return s;
+        const useComps = !!r.use_salary_components;
+        const basic = Number(r.basic_ngn || 0);
+        const housing = Number(r.housing_ngn || 0);
+        const transport = Number(r.transport_ngn || 0);
+        const other = Number(r.other_allowances_ngn || 0);
+        const gross = useComps ? (basic + housing + transport + other) : Number(r.salary_ngn || 0);
         return s + computePayslip({
-          grossMonthlyNgn: Number(r.salary_ngn || 0),
+          grossMonthlyNgn: gross,
           pensionEnabled: r.pension_enabled !== false,
           nhfEnabled: r.nhf_enabled === true,
+          useComponents: useComps,
+          basicMonthlyNgn: basic,
+          housingMonthlyNgn: housing,
+          transportMonthlyNgn: transport,
+          otherAllowancesMonthlyNgn: other,
         }).payeMonthlyNgn;
       }, 0);
+      const pensionBaseFor = (r: any) => {
+        const useComps = !!r.use_salary_components;
+        return useComps
+          ? Number(r.basic_ngn || 0) + Number(r.housing_ngn || 0) + Number(r.transport_ngn || 0)
+          : Number(r.salary_ngn || 0);
+      };
+      const nhfBaseFor = (r: any) =>
+        r.use_salary_components ? Number(r.basic_ngn || 0) : Number(r.salary_ngn || 0);
       const pension = (employeeRes.data || []).reduce(
-        (s: number, r: any) => s + (r.pension_enabled !== false ? Number(r.salary_ngn || 0) * PENSION_RATE : 0), 0);
+        (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
       const nhf = (employeeRes.data || []).reduce(
-        (s: number, r: any) => s + (r.nhf_enabled === true ? Number(r.salary_ngn || 0) * NHF_RATE : 0), 0);
+        (s: number, r: any) => s + (r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
       const employerPension = (employeeRes.data || []).reduce(
-        (s: number, r: any) => s + (r.pension_enabled !== false ? Number(r.salary_ngn || 0) * EMPLOYER_PENSION_RATE : 0), 0);
+        (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
       const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
       const transportAllowance = empCount * form.transport_per_emp;
@@ -414,9 +439,20 @@ const Payroll = () => {
         (s: number, a: any) => s + advanceDeductionFor(a.deduction_per_month, a.outstanding_ngn),
         0,
       );
+      // Sprint A: NSITF (1% of gross payroll, employer-borne) — added to burn
+      // when the company toggle is on (default). Keeps payroll cost honest:
+      // NSITF is legally required for firms with 5+ staff.
+      const { data: complianceSettings } = await supabase
+        .from('company_settings')
+        .select('nsitf_enabled')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const includeNsitf = (complianceSettings as any)?.nsitf_enabled !== false;
+      const nsitfCharge = includeNsitf ? totalEmployee * NSITF_RATE : 0;
+
       const burn =
         totalContractor + totalEmployee + totalExpenses +
-        paye + pension + nhf + employerPension +
+        paye + pension + nhf + employerPension + nsitfCharge +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
       // Core upsert — works with the existing schema.
@@ -643,7 +679,8 @@ const Payroll = () => {
         .from('profiles')
         .select(`
           id, full_name, first_name, last_name, email, role, job_title, salary_ngn, phone,
-          pension_enabled, nhf_enabled, paye_enabled,
+          pension_enabled, nhf_enabled, nhis_enabled, paye_enabled,
+          use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn,
           tax_id, pension_pin, nhf_number, employee_number,
           bank_name, bank_account_number, bank_account_name,
           department:departments!department_id(name)
@@ -671,7 +708,7 @@ const Payroll = () => {
       // empty company_settings row still produces a valid payslip.
       const { data: settings } = await supabase
         .from('company_settings')
-        .select('company_name, rc_number, tin, address, logo_url')
+        .select('company_name, rc_number, tin, address, logo_url, nsitf_enabled, itf_enabled')
         .eq('id', '00000000-0000-0000-0000-000000000001')
         .maybeSingle();
       const companyName    = (settings as any)?.company_name || 'KD Squares Ltd';
@@ -679,6 +716,8 @@ const Payroll = () => {
       const companyTin     = (settings as any)?.tin          || null;
       const companyAddress = (settings as any)?.address      || null;
       const companyLogo    = (settings as any)?.logo_url     || null;
+      const nsitfEnabled   = (settings as any)?.nsitf_enabled !== false;
+      const itfEnabled     = (settings as any)?.itf_enabled !== false;
 
       // Fetch all active employee deductions, advances, AND outstanding EWA
       // requests that need to be settled this period in one batch.
@@ -800,10 +839,33 @@ const Payroll = () => {
 
           // Honour the per-employee statutory toggles. Defaults match
           // Nigerian regulatory baseline: PAYE + Pension on, NHF off.
+          // Sprint A: pension uses (basic+housing+transport) and NHF uses
+          // basic only when the employee has opted into salary components.
+          const useComps      = !!e.use_salary_components;
+          const compBasic     = Number(e.basic_ngn || 0);
+          const compHousing   = Number(e.housing_ngn || 0);
+          const compTransport = Number(e.transport_ngn || 0);
+          const compOther     = Number(e.other_allowances_ngn || 0);
+          const pensionBaseM  = useComps ? (compBasic + compHousing + compTransport) : empGross;
+          const nhfBaseM      = useComps ? compBasic : empGross;
           const payeBase   = empGross + taxableEarningsAdd;
-          const empPaye    = e.paye_enabled    !== false ? computePayslip({ grossMonthlyNgn: payeBase, pensionEnabled: e.pension_enabled !== false, nhfEnabled: e.nhf_enabled === true }).payeMonthlyNgn : 0;
-          const empPension = e.pension_enabled !== false ? empGross * PENSION_RATE                : 0;
-          const empNhf     = e.nhf_enabled     === true  ? empGross * NHF_RATE                    : 0;
+          const empBreak   = computePayslip({
+            grossMonthlyNgn: payeBase,
+            pensionEnabled: e.pension_enabled !== false,
+            nhfEnabled: e.nhf_enabled === true,
+            nhisEnabled: e.nhis_enabled === true,
+            useComponents: useComps,
+            basicMonthlyNgn: compBasic,
+            housingMonthlyNgn: compHousing,
+            transportMonthlyNgn: compTransport,
+            otherAllowancesMonthlyNgn: compOther,
+          });
+          const empPaye    = e.paye_enabled    !== false ? empBreak.payeMonthlyNgn          : 0;
+          const empPension = e.pension_enabled !== false ? pensionBaseM * PENSION_RATE      : 0;
+          const empNhf     = e.nhf_enabled     === true  ? nhfBaseM     * NHF_RATE          : 0;
+          // Employer-side amounts surfaced on the payslip (informational).
+          const empPensionEmployer = e.pension_enabled !== false ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
+          const empNsitf           = nsitfEnabled ? empGross * NSITF_RATE : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
@@ -870,14 +932,31 @@ const Payroll = () => {
             // Earnings — Nigerian convention splits base salary into
             // basic 60% / housing 20% / transport 20%, then appends any
             // one-off allowances, bonus and overtime entered for this run.
-            earnings: {
-              basic_ngn:     Math.round(empGross * 0.60),
-              housing_ngn:   Math.round(empGross * 0.20),
-              transport_ngn: Math.round(empGross * 0.20),
-              ...(allowanceLines.length ? { other_allowances: allowanceLines } : {}),
-              ...(bonusSum    ? { bonus_ngn: bonusSum }       : {}),
-              ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),
-            },
+            // Earnings: when this employee has been migrated to real salary
+            // components, use the actual breakdown; otherwise fall back to
+            // the 60/20/20 statutory-friendly split (legacy behavior).
+            earnings: useComps
+              ? {
+                  basic_ngn:     compBasic,
+                  housing_ngn:   compHousing,
+                  transport_ngn: compTransport,
+                  ...(compOther > 0 ? {
+                    other_allowances: [
+                      { description: 'Other Allowances', amount_ngn: compOther },
+                      ...allowanceLines,
+                    ],
+                  } : (allowanceLines.length ? { other_allowances: allowanceLines } : {})),
+                  ...(bonusSum    ? { bonus_ngn: bonusSum }       : {}),
+                  ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),
+                }
+              : {
+                  basic_ngn:     Math.round(empGross * 0.60),
+                  housing_ngn:   Math.round(empGross * 0.20),
+                  transport_ngn: Math.round(empGross * 0.20),
+                  ...(allowanceLines.length ? { other_allowances: allowanceLines } : {}),
+                  ...(bonusSum    ? { bonus_ngn: bonusSum }       : {}),
+                  ...(overtimeSum ? { overtime_ngn: overtimeSum } : {}),
+                },
 
             // Stats — gross includes one-off earnings so the payslip reconciles.
             gross_ngn:   empGrossTotal,

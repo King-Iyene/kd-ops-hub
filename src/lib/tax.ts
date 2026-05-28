@@ -138,6 +138,18 @@ export interface PayslipInput {
   annualLifeAssuranceNgn?: number;
   /** Other extra deductions (loans, advances, etc.) — applied AFTER tax. */
   extraDeductionsMonthlyNgn?: number;
+
+  // ─── NEW (Sprint A): salary component breakdown ─────────────────────────
+  // When `useComponents` is TRUE these override the statutory bases:
+  //   pension base = basic + housing + transport       (PRA 2014 s.4)
+  //   NHF base     = basic only                         (NHF Act s.4)
+  // When FALSE (default), pension and NHF still apply to full gross —
+  // preserves the legacy (and over-conservative) behavior.
+  useComponents?: boolean;
+  basicMonthlyNgn?: number;
+  housingMonthlyNgn?: number;
+  transportMonthlyNgn?: number;
+  otherAllowancesMonthlyNgn?: number;
 }
 
 export interface PayslipBreakdown {
@@ -162,6 +174,14 @@ export interface PayslipBreakdown {
   netMonthlyNgn: number;
   /** Effective tax rate (PAYE / gross), as a decimal. */
   effectiveTaxRate: number;
+
+  // ─── NEW: bases used for statutory calcs (transparency for audit/payslip) ──
+  pensionBaseMonthlyNgn: number;
+  nhfBaseMonthlyNgn: number;
+  usedComponents: boolean;
+
+  // ─── NEW: employer-borne costs surfaced on payslip ─────────────────────
+  nsitfMonthlyNgn: number;
 }
 
 /**
@@ -181,23 +201,46 @@ export interface PayslipBreakdown {
 export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const grossMonthlyNgn = Math.max(0, input.grossMonthlyNgn || 0);
 
+  // Resolve the statutory deduction bases. With components enabled:
+  //   pension base = basic + housing + transport
+  //   NHF base     = basic only
+  // Without components (legacy): both bases = gross.
+  const usedComponents = !!input.useComponents;
+  const basicComp     = Math.max(0, input.basicMonthlyNgn      || 0);
+  const housingComp   = Math.max(0, input.housingMonthlyNgn    || 0);
+  const transportComp = Math.max(0, input.transportMonthlyNgn  || 0);
+
+  const pensionBaseMonthlyNgn = usedComponents
+    ? basicComp + housingComp + transportComp
+    : grossMonthlyNgn;
+  const nhfBaseMonthlyNgn = usedComponents
+    ? basicComp
+    : grossMonthlyNgn;
+
   const pensionEmployeeMonthlyNgn = input.pensionEnabled !== false
-    ? grossMonthlyNgn * PENSION_EMPLOYEE_RATE
+    ? pensionBaseMonthlyNgn * PENSION_EMPLOYEE_RATE
     : 0;
   const pensionEmployerMonthlyNgn = input.pensionEnabled !== false
-    ? grossMonthlyNgn * PENSION_EMPLOYER_RATE
+    ? pensionBaseMonthlyNgn * PENSION_EMPLOYER_RATE
     : 0;
 
   const nhfMonthlyNgn = input.nhfEnabled
-    ? grossMonthlyNgn * NHF_RATE
+    ? nhfBaseMonthlyNgn * NHF_RATE
     : 0;
 
+  // NHIS employee/employer is calculated on basic salary when components
+  // are active; otherwise gross (legacy behavior).
+  const nhisBase = usedComponents ? basicComp : grossMonthlyNgn;
   const nhisEmployeeMonthlyNgn = input.nhisEnabled
-    ? grossMonthlyNgn * NHIS_EMPLOYEE_RATE
+    ? nhisBase * NHIS_EMPLOYEE_RATE
     : 0;
   const nhisEmployerMonthlyNgn = input.nhisEnabled
-    ? grossMonthlyNgn * NHIS_EMPLOYER_RATE
+    ? nhisBase * NHIS_EMPLOYER_RATE
     : 0;
+
+  // NSITF — 1% of gross, employer-borne. Always shown for transparency;
+  // payroll consumer decides whether to add it to employer cost.
+  const nsitfMonthlyNgn = grossMonthlyNgn * NSITF_RATE;
 
   const annualRent = Math.max(0, input.annualRentNgn || 0);
   const rentReliefAnnual = Math.min(annualRent * RENT_RELIEF_RATE, RENT_RELIEF_CAP_ANNUAL);
@@ -245,6 +288,10 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     extraDeductionsMonthlyNgn: round(extraDeductionsMonthlyNgn),
     netMonthlyNgn: round(netMonthlyNgn),
     effectiveTaxRate: Number(effectiveTaxRate.toFixed(4)),
+    pensionBaseMonthlyNgn: round(pensionBaseMonthlyNgn),
+    nhfBaseMonthlyNgn: round(nhfBaseMonthlyNgn),
+    usedComponents,
+    nsitfMonthlyNgn: round(nsitfMonthlyNgn),
   };
 }
 

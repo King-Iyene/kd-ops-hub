@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -107,6 +108,18 @@ interface EmployeeData {
   nhis_enabled: boolean | null;
   paye_enabled: boolean | null;
   tax_id: string | null;
+  // Sprint A — salary components
+  use_salary_components: boolean | null;
+  basic_ngn: number | null;
+  housing_ngn: number | null;
+  transport_ngn: number | null;
+  other_allowances_ngn: number | null;
+  // Sprint B — profile completeness
+  reporting_manager_id: string | null;
+  contract_start_date: string | null;
+  contract_end_date: string | null;
+  pfa_name: string | null;
+  state_of_residence: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -1089,9 +1102,25 @@ const EmployeeProfile = () => {
                       <Button size="sm" variant="ghost" onClick={cancelEdit}>Cancel</Button>
                       <Button
                         size="sm"
-                        onClick={() => saveSection('Compensation', {
-                          salary_ngn: Number(form.salary_ngn) || 0,
-                        })}
+                        onClick={() => {
+                          // When components are on, gross = sum of components;
+                          // we still persist salary_ngn so legacy queries keep working.
+                          const useComps = !!form.use_salary_components;
+                          const computedGross = useComps
+                            ? (Number(form.basic_ngn || 0)
+                              + Number(form.housing_ngn || 0)
+                              + Number(form.transport_ngn || 0)
+                              + Number(form.other_allowances_ngn || 0))
+                            : Number(form.salary_ngn) || 0;
+                          saveSection('Compensation', {
+                            salary_ngn: computedGross,
+                            use_salary_components: useComps,
+                            basic_ngn: useComps ? (Number(form.basic_ngn || 0) || null) : null,
+                            housing_ngn: useComps ? (Number(form.housing_ngn || 0) || null) : null,
+                            transport_ngn: useComps ? (Number(form.transport_ngn || 0) || null) : null,
+                            other_allowances_ngn: useComps ? (Number(form.other_allowances_ngn || 0) || null) : null,
+                          });
+                        }}
                         disabled={sectionSaving}
                       >
                         {sectionSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
@@ -1107,19 +1136,94 @@ const EmployeeProfile = () => {
                 </div>
               </CardHeader>
               {editingSection === 'compensation' && (
-                <div className="px-4 pb-4 pt-1">
-                  <div className="space-y-1.5 max-w-xs">
-                    <Label className="text-xs">Monthly gross salary (₦)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={form.salary_ngn ?? ''}
-                      onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                <div className="px-4 pb-4 pt-1 space-y-3">
+                  {/* Salary-components toggle. OFF (default) = legacy single-gross
+                      behavior. ON = split into basic/housing/transport/other so
+                      pension uses (basic+housing+transport) and NHF uses basic. */}
+                  <div className="flex items-start gap-3 rounded-lg border bg-muted/30 p-3">
+                    <Switch
+                      checked={!!form.use_salary_components}
+                      onCheckedChange={(v) => patch({ use_salary_components: v })}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Use the + button to log this as a formal salary increment with history.
-                    </p>
+                    <div className="flex-1">
+                      <Label className="text-xs font-semibold">Use salary components (Nigerian compliance)</Label>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        When ON, pension (8% / 10%) is calculated on Basic + Housing + Transport (PRA 2014),
+                        and NHF (2.5%) on Basic only — instead of full gross. This is the legally correct base.
+                        OFF preserves the current flat-gross behavior.
+                      </p>
+                    </div>
                   </div>
+
+                  {!form.use_salary_components ? (
+                    <div className="space-y-1.5 max-w-xs">
+                      <Label className="text-xs">Monthly gross salary (₦)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={form.salary_ngn ?? ''}
+                        onChange={(e) => patch({ salary_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use the + button to log this as a formal salary increment with history.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 max-w-md">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Basic (₦)</Label>
+                        <Input
+                          type="number" min={0}
+                          value={form.basic_ngn ?? ''}
+                          onChange={(e) => patch({ basic_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Housing (₦)</Label>
+                        <Input
+                          type="number" min={0}
+                          value={form.housing_ngn ?? ''}
+                          onChange={(e) => patch({ housing_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Transport (₦)</Label>
+                        <Input
+                          type="number" min={0}
+                          value={form.transport_ngn ?? ''}
+                          onChange={(e) => patch({ transport_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Other Allowances (₦)</Label>
+                        <Input
+                          type="number" min={0}
+                          value={form.other_allowances_ngn ?? ''}
+                          onChange={(e) => patch({ other_allowances_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
+                        />
+                      </div>
+                      <div className="col-span-2 text-[11px] text-muted-foreground border-t pt-2">
+                        Computed gross: <span className="font-semibold currency">
+                          {formatNaira(
+                            (Number(form.basic_ngn || 0) +
+                              Number(form.housing_ngn || 0) +
+                              Number(form.transport_ngn || 0) +
+                              Number(form.other_allowances_ngn || 0))
+                          )}
+                        </span>
+                        {' · Pension base: '}
+                        <span className="font-medium currency">
+                          {formatNaira(
+                            (Number(form.basic_ngn || 0) +
+                              Number(form.housing_ngn || 0) +
+                              Number(form.transport_ngn || 0))
+                          )}
+                        </span>
+                        {' · NHF base: '}
+                        <span className="font-medium currency">{formatNaira(Number(form.basic_ngn || 0))}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <CardContent className="p-0">
