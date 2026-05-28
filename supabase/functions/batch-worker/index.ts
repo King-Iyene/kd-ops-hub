@@ -40,9 +40,33 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 // ──────────────────────────────────────────────────────────────────────────
 const PAYSTACK_BASE      = "https://api.paystack.co";
 const TIME_BUDGET_MS     = 120_000;    // stay under 150 s edge timeout
-const CHUNK_SIZE         = 50;          // items per pull
-const CONCURRENCY        = 8;           // parallel dispatches per chunk
+const CHUNK_SIZE         = 50;          // items per pull (per-item dispatch path)
+const CONCURRENCY        = 8;           // parallel dispatches per chunk (per-item path)
 const ORPHAN_THRESHOLD_S = 60;          // cron picks up batches stale > this
+
+// Bulk-transfer path constants. Used when KDOPS_DISPATCH_MODE === "bulk" —
+// the permanent dispatch path for scaling to 1k+ recipients. Paystack
+// /transfer/bulk accepts 100 transfers per call, spaced ≥5 s apart to stay
+// under the rate limit. With a 120 s edge budget that's enough for one
+// invocation to dispatch ~24 chunks (~2,400 recipients); cron resumes any
+// remainder on the next tick. Per-item path stays available as a fallback.
+const BULK_CHUNK_SIZE       = 100;
+const BULK_INTER_CHUNK_MS   = 5_000;
+const RECIPIENT_CONCURRENCY = 4;        // pre-warm missing recipients before bulk
+
+/**
+ * Dispatch mode for this worker invocation:
+ *   "per_item" — legacy serial path (one /transfer call per item, concurrency 8).
+ *   "bulk"     — permanent path (groups of 100 via /transfer/bulk, 5 s apart).
+ * Set via the KDOPS_DISPATCH_MODE env var on the deployed edge function so the
+ * switch is a single config change and easy to revert. Default = per_item
+ * (no-op for existing deployments; flip to "bulk" after Paystack-test-key
+ * validation).
+ */
+function dispatchMode(): "per_item" | "bulk" {
+  const v = (Deno.env.get("KDOPS_DISPATCH_MODE") || "per_item").toLowerCase();
+  return v === "bulk" ? "bulk" : "per_item";
+}
 
 const ALLOWED_ORIGINS = [
   "https://ops.kdsquares.com",
@@ -230,6 +254,132 @@ async function dispatchItem(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
+// BULK dispatch — the permanent scaling path. Send up to 100 transfers in a
+// single /transfer/bulk call. The cost vs the per-item path: 1,000 partners
+// goes from ~1,000 API calls (per-item) to ~10 calls (bulk), an order of
+// magnitude less pressure on Paystack's rate limits and ~100× faster end-to-end.
+//
+// Idempotency rule (CRITICAL — money path):
+//   1. Pre-warm any missing recipients (one /transferrecipient each, conc=4).
+//   2. PRE-WRITE the deterministic kdops_<id> reference + recipient_code to
+//      each batch_item BEFORE issuing the bulk call. If the bulk response is
+//      lost (connection drop) but Paystack actually accepted, the next worker
+//      tick skips these items (refs are set) and the reconciliation cron
+//      verifies their real status via /transfer/verify — no double-dispatch.
+//   3. POST /transfer/bulk once. paystackPost handles 429 with Retry-After
+//      backoff and only retries safe (rejected) responses.
+//   4. Map each returned transfer to its batch_item by reference and persist
+//      transfer_code + status. Items missing from the response are left with
+//      their pre-written ref; reconciliation will resolve them.
+// ──────────────────────────────────────────────────────────────────────────
+async function dispatchChunkBulk(
+  svc: SupabaseClient,
+  secret: string,
+  items: any[],
+  batchName: string,
+): Promise<{ dispatched: number; failed: number; error?: string }> {
+  // ── 1. Pre-warm recipients for items that don't have a code yet ─────────
+  const needRecipient = items.filter((it) => !it.paystack_recipient_code);
+  if (needRecipient.length > 0) {
+    await drainConcurrent(needRecipient, RECIPIENT_CONCURRENCY, async (it) => {
+      try {
+        const bankCode = getBankCode(it.bank_name);
+        if (!bankCode) throw new Error(`Unknown bank "${it.bank_name}" — no Paystack code`);
+        const r = await paystackPost(secret, "/transferrecipient", {
+          type: "nuban",
+          name: it.full_name || "Unknown Recipient",
+          account_number: it.account_number,
+          bank_code: bankCode,
+          currency: "NGN",
+        });
+        it.paystack_recipient_code = r.recipient_code;
+        await svc.from("batch_items")
+          .update({ paystack_recipient_code: r.recipient_code })
+          .eq("id", it.id);
+      } catch (err) {
+        // Mark this item failed and drop it from the bulk payload. The rest of
+        // the chunk still goes through — one bad row never blocks the run.
+        it._failed_reason = (err as Error)?.message || "Recipient creation failed";
+        await svc.from("batch_items")
+          .update({ status: "failed", failure_reason: it._failed_reason })
+          .eq("id", it.id);
+      }
+    });
+  }
+
+  const sendable = items.filter(
+    (it) => !it._failed_reason && it.paystack_recipient_code && Number(it.amount_ngn) >= 1,
+  );
+  const failedFromPrewarm = items.length - sendable.length;
+  if (sendable.length === 0) return { dispatched: 0, failed: failedFromPrewarm };
+
+  // ── 2. Assign + pre-write deterministic references (idempotency) ────────
+  for (const it of sendable) it._ref = generateRef(it.id);
+  await Promise.all(sendable.map((it) =>
+    svc.from("batch_items").update({
+      paystack_reference: it._ref,
+      status:             "pending",
+      failure_reason:     null,
+    }).eq("id", it.id),
+  ));
+
+  // ── 3. Issue the bulk call ──────────────────────────────────────────────
+  const transfers = sendable.map((it) => ({
+    reference: it._ref,
+    recipient: it.paystack_recipient_code,
+    amount:    Math.round(Number(it.amount_ngn) * 100),
+    reason:    `KDOps · ${batchName}`,
+  }));
+
+  let bulkData: any;
+  try {
+    bulkData = await paystackPost(secret, "/transfer/bulk", {
+      source:    "balance",
+      transfers,
+    });
+  } catch (err) {
+    // The references are already written; reconciliation will verify each one
+    // and resolve actual status from Paystack. Items remain status='pending'.
+    const reason = (err as Error)?.message || "Bulk transfer call failed";
+    console.error(`[batch-worker] /transfer/bulk failed (${sendable.length} items): ${reason}`);
+    return { dispatched: 0, failed: failedFromPrewarm, error: reason };
+  }
+
+  // ── 4. Map response → items ─────────────────────────────────────────────
+  // Paystack /transfer/bulk returns data as an array (or { data: [...] }
+  // depending on path). Index by reference for safety.
+  const arr: any[] = Array.isArray(bulkData) ? bulkData : (bulkData?.data || []);
+  const byRef = new Map<string, any>();
+  for (const t of arr) if (t?.reference) byRef.set(String(t.reference), t);
+
+  let dispatched = 0;
+  let failed = failedFromPrewarm;
+  for (const it of sendable) {
+    const t = byRef.get(it._ref);
+    if (!t) {
+      // Paystack didn't echo this item back. Leave the ref in place; the
+      // reconciliation cron will verify via /transfer/verify.
+      console.warn(`[batch-worker] item ${it.id} not echoed in bulk response`);
+      continue;
+    }
+    const sub = String(t.status || "").toLowerCase();
+    const mapped =
+      sub === "success"               ? "succeeded"
+      : sub === "failed" || sub === "reversed" ? sub
+      : "pending"; // pending / otp / queued — let webhook/reconcile finalise
+    await svc.from("batch_items").update({
+      paystack_transfer_code: t.transfer_code ?? null,
+      status:                 mapped,
+      failure_reason:         mapped === "failed" ? (t.reason || "Bulk transfer rejected") : null,
+      processed_at:           mapped === "succeeded" ? new Date().toISOString() : null,
+    }).eq("id", it.id);
+    if (mapped === "failed") failed++; else dispatched++;
+  }
+
+  return { dispatched, failed };
+}
+
+// ──────────────────────────────────────────────────────────────────────────
 // Drain pull-queue with bounded concurrency.
 // ──────────────────────────────────────────────────────────────────────────
 async function drainConcurrent<T, R>(
@@ -301,10 +451,22 @@ async function workBatch(
   }
 
   const secret = await getPaystackSecret(svc);
+  const mode = dispatchMode();
+  const pullSize = mode === "bulk" ? BULK_CHUNK_SIZE : CHUNK_SIZE;
   let dispatched = 0;
   let failed     = 0;
+  let chunkIndex = 0;
+
+  console.log(`[batch-worker] batch=${batchId} mode=${mode} pull_size=${pullSize}`);
 
   while (Date.now() - startedAt < TIME_BUDGET_MS) {
+    // Bulk path: enforce ≥5 s spacing between consecutive /transfer/bulk calls
+    // (Paystack rate-limit guidance). First chunk fires immediately.
+    if (mode === "bulk" && chunkIndex > 0) {
+      await sleep(BULK_INTER_CHUNK_MS);
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
+    }
+
     const { data: chunk, error: pullErr } = await svc
       .from("batch_items")
       .select("id, full_name, amount_ngn, bank_name, account_number, paystack_recipient_code")
@@ -312,7 +474,7 @@ async function workBatch(
       .is("paystack_reference", null)
       .not("status", "in", '("succeeded","failed","rejected")')
       .order("created_at", { ascending: true })
-      .limit(CHUNK_SIZE);
+      .limit(pullSize);
 
     if (pullErr) {
       console.error("[batch-worker] pull error:", pullErr.message);
@@ -325,10 +487,24 @@ async function workBatch(
       .update({ updated_at: new Date().toISOString() })
       .eq("id", batchId);
 
-    const results = await drainConcurrent(chunk, CONCURRENCY, (it) =>
-      dispatchItem(svc, secret, it, batch.name),
-    );
-    for (const r of results) (r.ok ? dispatched++ : failed++);
+    if (mode === "bulk") {
+      const r = await dispatchChunkBulk(svc, secret, chunk, batch.name);
+      dispatched += r.dispatched;
+      failed     += r.failed;
+      // A whole-bulk-call failure (network / account-level error) leaves refs
+      // pre-written for reconciliation to resolve. Stop the loop so cron picks
+      // it up cleanly on the next tick rather than hammering a failing bulk.
+      if (r.error) {
+        console.warn(`[batch-worker] bulk chunk failed, deferring to next tick: ${r.error}`);
+        break;
+      }
+    } else {
+      const results = await drainConcurrent(chunk, CONCURRENCY, (it) =>
+        dispatchItem(svc, secret, it, batch.name),
+      );
+      for (const r of results) (r.ok ? dispatched++ : failed++);
+    }
+    chunkIndex++;
   }
 
   // Are there still undispatched items? (i.e. we hit the time budget)
