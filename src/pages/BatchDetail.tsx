@@ -342,7 +342,14 @@ const BatchDetail = () => {
       } else if (unstarted.length > 0 && succeededCount > 0) {
         correctStatus = 'partially_processed';  // Some sent, some never started
       } else if (unstarted.length > 0 && succeededCount === 0) {
-        correctStatus = 'funded';               // Nothing sent — allow full retry
+        // Nothing dispatched yet — leave the batch in its current state. The
+        // state machine disallows rolling backwards (processing → funded), and
+        // doing so isn't right anyway: the worker is the authoritative
+        // dispatcher and either resumes via cron orphan recovery or the
+        // operator clicks Process again. Trying to "reset to funded" here was
+        // silently producing the noisy 23514 errors in the console whenever
+        // a worker invocation failed before sending anything.
+        correctStatus = b.status;
       } else if (anyFailed) {
         correctStatus = 'partially_processed';  // All dispatched, some failed
       } else {
