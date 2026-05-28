@@ -934,12 +934,60 @@ const BatchDetail = () => {
       setProcessingName('Dispatching via worker…');
       void customNarration; // legacy override; worker uses default narration
       const ACCOUNT_LEVEL_ERR = /third[\- ]?party payouts|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
+
+      // Resolve a fresh JWT and attach it explicitly. supabase.functions.invoke
+      // does NOT reliably auto-attach the auth header in every environment
+      // (PWA cold-start, stale session, multi-tab) — when it doesn't, the
+      // worker rejects with 401 and the UI sees a generic "non-2xx" error.
+      // The proven paystack-transfer client does the same explicit-header
+      // pattern (see src/lib/paystack.ts edgeCall).
+      let { data: { session: workerSession } } = await supabase.auth.getSession();
+      if (!workerSession?.access_token) {
+        const refreshed = await supabase.auth.refreshSession();
+        workerSession = refreshed.data.session;
+      }
+      if (!workerSession?.access_token) {
+        toast({
+          title: 'Session expired',
+          description: 'Please refresh the page and sign in again, then retry.',
+          variant: 'destructive',
+        });
+        await fetchBatch();
+        setProcessingTotal(0);
+        setProcessingName('');
+        return;
+      }
+
       const { data: workerResp, error: workerErr } = await supabase.functions.invoke('batch-worker', {
         body: { batch_id: id },
+        headers: { Authorization: `Bearer ${workerSession.access_token}` },
       });
+
+      // Edge-function errors arrive as a non-2xx Response; try to pull the real
+      // message out of error.context so the operator sees what actually broke
+      // (auth / cap / Paystack) rather than just "non-2xx status code".
+      let workerErrMsg: string | null = null;
+      if (workerErr) {
+        try {
+          const ctx: any = (workerErr as any).context;
+          if (ctx && typeof ctx.text === 'function') {
+            const raw = await ctx.text();
+            if (raw) {
+              try {
+                const parsed = JSON.parse(raw);
+                workerErrMsg = parsed.error || parsed.message || raw;
+              } catch {
+                workerErrMsg = raw;
+              }
+            }
+          }
+        } catch { /* ignore parse failures */ }
+        if (!workerErrMsg) workerErrMsg = workerErr.message || 'Dispatch worker failed';
+      }
+
       const workerOk = !workerErr && (workerResp as any)?.ok !== false;
       if (!workerOk) {
-        const reason = (workerResp as any)?.error || workerErr?.message || 'Dispatch worker failed';
+        const reason = workerErrMsg || (workerResp as any)?.error || 'Dispatch worker failed';
         toast({
           title: ACCOUNT_LEVEL_ERR.test(reason)
             ? 'Batch halted — Paystack account issue'

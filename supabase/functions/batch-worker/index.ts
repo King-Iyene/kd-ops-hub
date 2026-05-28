@@ -620,8 +620,19 @@ serve(async (req) => {
     });
   }
 
-  const result = await workBatch(svc, body.batch_id, userRes.user.id);
-  return new Response(JSON.stringify(result), {
-    headers: { ...cors, "Content-Type": "application/json" },
-  });
+  // Surface any unhandled error as a structured 200 JSON payload so the UI
+  // gets a useful message instead of an opaque "Edge Function returned a
+  // non-2xx status code". Real auth/role failures already returned earlier.
+  try {
+    const result = await workBatch(svc, body.batch_id, userRes.user.id);
+    return new Response(JSON.stringify(result), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    const msg = (err as Error)?.message || "Worker failed";
+    console.error("[batch-worker] unhandled error:", msg);
+    return new Response(JSON.stringify({ ok: false, error: msg }), {
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
 });
