@@ -923,41 +923,38 @@ const BatchDetail = () => {
         return;
       }
 
-      // Process each item serially in the browser using the deployed
-      // paystack-transfer edge function. Tab must stay open during processing.
-      // Account-level error short-circuit: if Paystack rejects with an error
-      // that affects the whole account (transfers not enabled, balance too
-      // low, account restricted) every subsequent recipient will fail with
-      // the same message. Abort the batch loop after the first such error
-      // so the operator gets to fix the root cause instead of watching 100
-      // identical failures stream in.
-      // Halt the whole run on any error that affects the account/run as a whole
-      // — transfers disabled, balance too low, account restricted, OR a
-      // daily/monthly/batch transfer CAP being hit — since every remaining
-      // recipient would fail identically. The operator fixes the root cause
-      // (raise the cap / top up) and retries the remaining items.
-      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
-      let accountLevelHit = false;
-      for (let i = 0; i < toProcess.length; i++) {
-        const it = toProcess[i];
-        setProcessingIdx(i + 1);
-        setProcessingName(it.full_name);
-        const result = await processOneItem(it, customNarration);
-        if (!result.ok && result.reason && ACCOUNT_LEVEL_ERR.test(result.reason)) {
-          accountLevelHit = true;
-          toast({
-            title: 'Batch halted — Paystack account issue',
-            description: `${result.reason} — fix on dashboard.paystack.co before retrying any items.`,
-            variant: 'destructive',
-            duration: 12000,
-          });
-          break;
-        }
+      // Permanent dispatch path: hand the batch off to the `batch-worker` edge
+      // function. The worker dispatches as much as fits in its 120s edge
+      // budget (in bulk mode that's ~2,400 recipients per invocation), and the
+      // existing cron orphan-recovery resumes any remainder on the next tick.
+      // This replaces the legacy in-browser serial loop that required the
+      // operator to keep the tab open for the entire run — that approach was
+      // fine for ~50 items but does not scale to 1k+ partners. Per-item retry
+      // (the Retry button on a failed row) still uses processOneItem.
+      setProcessingName('Dispatching via worker…');
+      void customNarration; // legacy override; worker uses default narration
+      const ACCOUNT_LEVEL_ERR = /third[\- ]?party payouts|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
+      const { data: workerResp, error: workerErr } = await supabase.functions.invoke('batch-worker', {
+        body: { batch_id: id },
+      });
+      const workerOk = !workerErr && (workerResp as any)?.ok !== false;
+      if (!workerOk) {
+        const reason = (workerResp as any)?.error || workerErr?.message || 'Dispatch worker failed';
+        toast({
+          title: ACCOUNT_LEVEL_ERR.test(reason)
+            ? 'Batch halted — Paystack account issue'
+            : 'Dispatch failed',
+          description: reason,
+          variant: 'destructive',
+          duration: 12000,
+        });
+        await fetchBatch();
+        setProcessingTotal(0);
+        setProcessingName('');
+        return;
       }
-      if (accountLevelHit) {
-        // Mark remaining unprocessed items as still pending — don't burn
-        // their state. The operator retries after fixing Paystack.
-      }
+      const workerRemaining  = Number((workerResp as any)?.remaining ?? 0);
+      const workerDispatched = Number((workerResp as any)?.dispatched ?? 0);
 
       const { data: refreshed } = await supabase
         .from('batch_items').select('status').eq('batch_id', id);
@@ -985,16 +982,20 @@ const BatchDetail = () => {
       }
       await logAudit(
         'batch_processed',
-        `Batch "${batch?.name}" dispatched via Paystack — ${batchStatus.replace('_', ' ')} (${succeededCount} sent, ${failedCount} failed)`,
+        `Batch "${batch?.name}" dispatched via worker — ${batchStatus.replace('_', ' ')} (${workerDispatched} dispatched, ${failedCount} failed${workerRemaining > 0 ? `, ${workerRemaining} remaining — cron will resume` : ''})`,
         profile,
       );
       toast({
-        title: failedCount > 0
+        title: workerRemaining > 0
+          ? `Dispatched ${workerDispatched} — ${workerRemaining} remaining`
+          : failedCount > 0
           ? 'Batch dispatched with failures'
           : pendingCount > 0
           ? 'Batch dispatched — polling Paystack'
           : 'Batch processed successfully',
-        description: failedCount > 0
+        description: workerRemaining > 0
+          ? 'The worker hit its time budget; the rest resumes automatically on the next cron tick.'
+          : failedCount > 0
           ? 'Some transfers could not be initiated — retry from the row.'
           : pendingCount > 0
           ? 'KDOps will poll Paystack every 30s until every transfer settles.'
@@ -1854,10 +1855,22 @@ const BatchDetail = () => {
         <div className="px-1 py-2 text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin shrink-0" />
           <span>
-            Processing payment <span className="font-semibold text-foreground">{processingIdx}</span> of{' '}
-            <span className="font-semibold text-foreground">{processingTotal}</span>
-            {processingName && (
-              <> — <span className="font-semibold text-foreground">{processingName}</span></>
+            {processingIdx > 0 ? (
+              <>
+                Processing payment <span className="font-semibold text-foreground">{processingIdx}</span> of{' '}
+                <span className="font-semibold text-foreground">{processingTotal}</span>
+                {processingName && (
+                  <> — <span className="font-semibold text-foreground">{processingName}</span></>
+                )}
+              </>
+            ) : (
+              <>
+                {processingName || 'Dispatching via worker…'}
+                {' '}
+                <span className="text-muted-foreground/80">
+                  ({processingTotal} recipient{processingTotal === 1 ? '' : 's'})
+                </span>
+              </>
             )}
           </span>
         </div>
