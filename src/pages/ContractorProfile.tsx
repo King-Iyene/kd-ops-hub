@@ -151,8 +151,9 @@ const ContractorProfile = () => {
     const [payRes, docRes, auditRes, deductRes] = await Promise.all([
       supabase
         .from('batch_items')
-        .select('*, payment_batches!inner(name, payment_description, status, created_at)')
+        .select('*, payment_batches!inner(name, payment_description, status, created_at, deleted_at)')
         .eq('contractor_id', id)
+        .is('payment_batches.deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(30),
       supabase.from('documents').select('*').eq('entity_id', id).is('deleted_at', null)
@@ -164,7 +165,10 @@ const ContractorProfile = () => {
         .eq('entity_id', id).eq('entity_type', 'contractor')
         .order('created_at', { ascending: false }),
     ]);
-    setPayments(payRes.data || []);
+    // Belt-and-braces: even if the PostgREST embedded filter somehow lets a
+    // row through (older postgrest builds), strip rows whose parent batch is
+    // soft-deleted so archived batches never leak into the partner's profile.
+    setPayments((payRes.data || []).filter((p: any) => !p.payment_batches?.deleted_at));
     setDocuments(docRes.data || []);
     setAuditLogs(auditRes.data || []);
     setDeductions(deductRes.data || []);

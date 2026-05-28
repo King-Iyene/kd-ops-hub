@@ -319,8 +319,12 @@ const BatchDetail = () => {
   }, [items]);
 
   const fetchBatch = async () => {
+    // Filter archived (soft-deleted) batches at the query layer so a leaked
+    // URL can't open a row that has been removed from the active workflow.
+    // RLS will also enforce this for non-admin roles (see migration
+    // 20260926000000_payment_batches_hide_archived).
     const [batchRes, itemsRes] = await Promise.all([
-      supabase.from('payment_batches').select('*').eq('id', id).single(),
+      supabase.from('payment_batches').select('*').eq('id', id).is('deleted_at', null).maybeSingle(),
       supabase.from('batch_items').select('*').eq('batch_id', id).order('created_at'),
     ]);
     const b = batchRes.data;
@@ -1499,7 +1503,16 @@ const BatchDetail = () => {
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     );
-  if (!batch) return <div className="text-center py-12 text-muted-foreground">Batch not found</div>;
+  if (!batch) return (
+    <div className="text-center py-16 max-w-md mx-auto">
+      <p className="text-base font-medium mb-1">Batch not found</p>
+      <p className="text-sm text-muted-foreground">
+        This batch may have been archived, or the link is invalid. Archived
+        batches are not accessible — ask a super admin if you need a copy
+        retrieved before the 90-day purge.
+      </p>
+    </div>
+  );
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin';
   const isFinance = profile?.role === 'finance';
