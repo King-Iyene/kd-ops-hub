@@ -19,6 +19,8 @@ type EmployeeLite = {
   full_name?: string | null;
   salary_ngn?: number | null;
   status?: string | null;
+  // Sprint D — needed for gratuity calc
+  start_date?: string | null;
 };
 
 const TYPE_OPTIONS = [
@@ -61,6 +63,13 @@ export default function OffboardingTab({
   const [unusedLeaveDays, setUnusedLeaveDays] = useState(0);
   const [busy, setBusy] = useState(false);
 
+  // Sprint D — company-level F&F policy. Defaults preserve the legacy
+  // behavior (gratuity off, pro-rated salary on).
+  const [policy, setPolicy] = useState<{
+    gratuity_months_per_year: number;
+    last_month_prorated: boolean;
+  }>({ gratuity_months_per_year: 0, last_month_prorated: true });
+
   // Start form
   const [form, setForm] = useState({
     termination_type: 'resignation',
@@ -76,12 +85,17 @@ export default function OffboardingTab({
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: t }, { data: ass }, { data: adv }, { data: bal }] = await Promise.all([
+    const [{ data: t }, { data: ass }, { data: adv }, { data: bal }, { data: settings }] = await Promise.all([
       (supabase as any).from('terminations').select('*').eq('employee_id', employee.id)
         .order('created_at', { ascending: false }).limit(1),
       supabase.from('assets').select('id, asset_number, name, status').eq('assigned_to', employee.id).is('deleted_at', null),
       supabase.from('employee_advances').select('outstanding_ngn').eq('employee_id', employee.id).eq('status', 'active'),
       supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', employee.id).eq('year', new Date().getFullYear()).maybeSingle(),
+      // F&F policy. New columns are nullable; safely fall back to legacy
+      // defaults if the Sprint D migration hasn't been applied yet.
+      (supabase as any).from('company_settings')
+        .select('gratuity_months_per_year, last_month_prorated')
+        .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle(),
     ]);
     const rec = ((t as any[]) || [])[0] || null;
     setTerm(rec);
@@ -92,20 +106,76 @@ export default function OffboardingTab({
     const q = Number((bal as any)?.annual_quota || 0);
     const u = Number((bal as any)?.annual_used || 0);
     setUnusedLeaveDays(Math.max(0, q - u));
+    setPolicy({
+      gratuity_months_per_year: Number((settings as any)?.gratuity_months_per_year || 0),
+      last_month_prorated: (settings as any)?.last_month_prorated !== false,
+    });
     setLoading(false);
   }, [employee.id]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Final-settlement estimate: accrued unused-leave payout minus outstanding
-  // advances. Daily rate = monthly salary / 22 working days. Indicative only.
+  // Final-settlement estimate (Sprint D — extended):
+  //   + Pro-rated final-month salary (days worked between 1st of month
+  //     and last_working_day) — only when policy.last_month_prorated.
+  //   + Gratuity: months_per_year × completed years of service × monthly salary
+  //   + Accrued unused-leave payout — daily rate × unused days
+  //   − Outstanding advances
+  //
+  // Daily rate uses 22 working days as a stable indicative divisor; the
+  // helper text below the panel always reminds the operator it's an
+  // estimate and the agreed figure must be confirmed.
   const estimate = useMemo(() => {
     const salary = Number(employee.salary_ngn || 0);
     const dailyRate = salary > 0 ? salary / 22 : 0;
+
+    // Pro-rated final-month salary
+    let proratedSalary = 0;
+    const lwd = term?.last_working_day as string | undefined;
+    if (policy.last_month_prorated && salary > 0 && lwd) {
+      const d = new Date(`${lwd}T00:00:00Z`);
+      if (!Number.isNaN(d.getTime())) {
+        // Count working days (Mon–Fri) from the 1st of the last_working_day's
+        // month through last_working_day inclusive. Holidays are ignored at
+        // this estimate stage — operator can override the agreed figure.
+        let count = 0;
+        const cur = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+        while (cur.getTime() <= d.getTime()) {
+          const dow = cur.getUTCDay();
+          if (dow !== 0 && dow !== 6) count += 1;
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+        proratedSalary = Math.round(dailyRate * count);
+      }
+    }
+
+    // Gratuity: completed years of service × months_per_year × monthly salary
+    let gratuity = 0;
+    let yearsOfService = 0;
+    if (policy.gratuity_months_per_year > 0 && salary > 0 && employee.start_date && lwd) {
+      const start = new Date(`${employee.start_date}T00:00:00Z`);
+      const end = new Date(`${lwd}T00:00:00Z`);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end.getTime() >= start.getTime()) {
+        const ms = end.getTime() - start.getTime();
+        const years = ms / (365.25 * 24 * 3600 * 1000);
+        yearsOfService = Math.floor(years); // only completed years
+        gratuity = Math.round(yearsOfService * policy.gratuity_months_per_year * salary);
+      }
+    }
+
     const leavePayout = Math.round(dailyRate * unusedLeaveDays);
-    const net = leavePayout - advancesOutstanding;
-    return { dailyRate, leavePayout, advancesOutstanding, net };
-  }, [employee.salary_ngn, unusedLeaveDays, advancesOutstanding]);
+    const gross = proratedSalary + gratuity + leavePayout;
+    const net = gross - advancesOutstanding;
+    return {
+      dailyRate, proratedSalary, gratuity, yearsOfService,
+      leavePayout, advancesOutstanding, gross, net,
+    };
+  }, [
+    employee.salary_ngn, employee.start_date,
+    unusedLeaveDays, advancesOutstanding,
+    term?.last_working_day,
+    policy.gratuity_months_per_year, policy.last_month_prorated,
+  ]);
 
   const startOffboarding = async () => {
     if (!form.last_working_day) { toast({ title: 'Last working day is required', variant: 'destructive' }); return; }
@@ -227,11 +297,43 @@ export default function OffboardingTab({
         <CardHeader className="pb-2"><CardTitle className="text-base">Final settlement</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between"><span className="text-muted-foreground">Accrued unused leave ({unusedLeaveDays} day{unusedLeaveDays === 1 ? '' : 's'})</span><span className="tabular-nums">{formatNaira(estimate.leavePayout)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Less: outstanding advances</span><span className="tabular-nums text-destructive">−{formatNaira(estimate.advancesOutstanding)}</span></div>
-            <div className="flex justify-between border-t pt-1.5 font-semibold"><span>Estimated net settlement</span><span className="tabular-nums">{formatNaira(estimate.net)}</span></div>
+            {estimate.proratedSalary > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Pro-rated final-month salary</span>
+                <span className="tabular-nums">{formatNaira(estimate.proratedSalary)}</span>
+              </div>
+            )}
+            {estimate.gratuity > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Gratuity ({estimate.yearsOfService} year{estimate.yearsOfService === 1 ? '' : 's'} × {policy.gratuity_months_per_year} month{policy.gratuity_months_per_year === 1 ? '' : 's'}/yr)
+                </span>
+                <span className="tabular-nums">{formatNaira(estimate.gratuity)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Accrued unused leave ({unusedLeaveDays} day{unusedLeaveDays === 1 ? '' : 's'})</span>
+              <span className="tabular-nums">{formatNaira(estimate.leavePayout)}</span>
+            </div>
+            {(estimate.proratedSalary > 0 || estimate.gratuity > 0) && (
+              <div className="flex justify-between font-medium pt-1.5">
+                <span>Gross settlement</span>
+                <span className="tabular-nums">{formatNaira(estimate.gross)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Less: outstanding advances</span>
+              <span className="tabular-nums text-destructive">−{formatNaira(estimate.advancesOutstanding)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1.5 font-semibold">
+              <span>Estimated net settlement</span>
+              <span className="tabular-nums">{formatNaira(estimate.net)}</span>
+            </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">Estimate only (leave payout at salary ÷ 22 working days). Excludes final-month salary, gratuity and statutory adjustments — confirm before paying.</p>
+          <p className="text-[11px] text-muted-foreground">
+            Estimate only (leave payout at salary ÷ 22 working days; gratuity at {policy.gratuity_months_per_year || 0} month/yr; pro-rate {policy.last_month_prorated ? 'on' : 'off'}).
+            Statutory PAYE and pension adjustments are excluded — confirm the agreed figure before paying.
+          </p>
           {!isComplete && (
             <div className="flex items-end gap-2">
               <div className="space-y-1 flex-1 max-w-xs">

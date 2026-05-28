@@ -2852,7 +2852,14 @@ const EmployeeProfile = () => {
 
       {activeTab === 'offboarding' && canManage && employee && (
         <OffboardingTab
-          employee={{ id: employee.id, full_name: employee.full_name, salary_ngn: employee.salary_ngn, status: employee.status }}
+          employee={{
+            id: employee.id,
+            full_name: employee.full_name,
+            salary_ngn: employee.salary_ngn,
+            status: employee.status,
+            // Sprint D — used for gratuity / years-of-service calc
+            start_date: employee.start_date,
+          }}
           onChanged={load}
         />
       )}
