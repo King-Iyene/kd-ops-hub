@@ -12,8 +12,12 @@ import {
   Info,
   Trash2,
   RefreshCw,
+  Baby,
+  Heart,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import LeaveCalendar from '@/components/leave/LeaveCalendar';
+import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -84,7 +88,7 @@ import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
-type LeaveType = 'annual' | 'sick' | 'unpaid';
+type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'paternity';
 type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 interface LeaveRequest {
@@ -107,6 +111,10 @@ interface LeaveBalance {
   annual_used: number;
   sick_used: number;
   unpaid_used: number;
+  // Sprint C — Labour-Act-aligned leave types
+  maternity_used?: number;
+  paternity_used?: number;
+  carryover_days?: number;
 }
 
 interface ProfileRow {
@@ -120,6 +128,8 @@ interface ProfileRow {
 const LEAVE_TYPES: { value: LeaveType; label: string; icon: typeof Plane }[] = [
   { value: 'annual', label: 'Annual', icon: Plane },
   { value: 'sick', label: 'Sick', icon: Stethoscope },
+  { value: 'maternity', label: 'Maternity', icon: Baby },
+  { value: 'paternity', label: 'Paternity', icon: Heart },
   { value: 'unpaid', label: 'Unpaid', icon: Clock },
 ];
 
@@ -127,6 +137,8 @@ const TYPE_BADGE: Record<LeaveType, string> = {
   annual: 'bg-info/10 text-info border-info/20',
   sick: 'bg-destructive/10 text-destructive border-destructive/20',
   unpaid: 'bg-muted text-muted-foreground border-border',
+  maternity: 'bg-pink-100 text-pink-700 border-pink-200',
+  paternity: 'bg-violet-100 text-violet-700 border-violet-200',
 };
 
 
@@ -202,7 +214,7 @@ const Leave = () => {
     profile?.role === 'admin';
   const canApprovePerm = usePermission('leave.approve');
 
-  const [tab, setTab] = useState<'mine' | 'team'>(isManager ? 'team' : 'mine');
+  const [tab, setTab] = useState<'mine' | 'team' | 'calendar'>(isManager ? 'team' : 'mine');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
@@ -370,13 +382,33 @@ const Leave = () => {
         `Leave requested: ${form.leave_type} ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`,
         profile,
       );
-      await notifyRoles({
-        roles: ['super_admin', 'admin', 'operations'],
-        type: 'leave_requested',
-        module: 'leave',
-        title: 'Leave request submitted',
-        body: `${form.leave_type} · ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`,
-      });
+      // Route the notification to the employee's reporting manager first
+      // (Sprint B), then fall back to broad role-based notify so an unassigned
+      // employee still gets approval coverage.
+      const { data: routing } = await supabase
+        .from('profiles')
+        .select('reporting_manager_id')
+        .eq('id', profile?.id || '')
+        .maybeSingle();
+      const managerId = (routing as any)?.reporting_manager_id || null;
+      const body = `${form.leave_type} · ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`;
+      if (managerId) {
+        await notifyUser({
+          userId: managerId,
+          type: 'leave_requested',
+          module: 'leave',
+          title: 'Leave request from your team',
+          body,
+        });
+      } else {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'operations'],
+          type: 'leave_requested',
+          module: 'leave',
+          title: 'Leave request submitted',
+          body,
+        });
+      }
       toast({ title: 'Leave request submitted' });
       setShowForm(false);
       setForm({
@@ -419,11 +451,16 @@ const Leave = () => {
       annual_used: 0,
       sick_used: 0,
       unpaid_used: 0,
+      maternity_used: 0,
+      paternity_used: 0,
+      carryover_days: 0,
     };
     const updates = { ...base };
     if (req.leave_type === 'annual') updates.annual_used += req.days_requested;
     if (req.leave_type === 'sick') updates.sick_used += req.days_requested;
     if (req.leave_type === 'unpaid') updates.unpaid_used += req.days_requested;
+    if (req.leave_type === 'maternity') updates.maternity_used = (updates.maternity_used || 0) + req.days_requested;
+    if (req.leave_type === 'paternity') updates.paternity_used = (updates.paternity_used || 0) + req.days_requested;
     await supabase
       .from('leave_balances')
       .upsert(updates, { onConflict: 'employee_id,year' });
@@ -461,6 +498,8 @@ const Leave = () => {
         if (req.leave_type === 'annual') updates.annual_used = Math.max(0, updates.annual_used - req.days_requested);
         if (req.leave_type === 'sick') updates.sick_used = Math.max(0, updates.sick_used - req.days_requested);
         if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
+        if (req.leave_type === 'maternity') updates.maternity_used = Math.max(0, (updates.maternity_used || 0) - req.days_requested);
+        if (req.leave_type === 'paternity') updates.paternity_used = Math.max(0, (updates.paternity_used || 0) - req.days_requested);
         await supabase
           .from('leave_balances')
           .upsert(updates, { onConflict: 'employee_id,year' });
@@ -765,13 +804,20 @@ const Leave = () => {
         />
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as 'mine' | 'team')}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as 'mine' | 'team' | 'calendar')}>
         <TabsList>
           <TabsTrigger value="mine">My Leave</TabsTrigger>
           {isManager && <TabsTrigger value="team">Team Leave</TabsTrigger>}
+          {isManager && <TabsTrigger value="calendar">Calendar</TabsTrigger>}
         </TabsList>
 
-        <TabsContent value={tab} className="mt-4">
+        {tab === 'calendar' && isManager && (
+          <div className="mt-4">
+            <LeaveCalendar />
+          </div>
+        )}
+
+        <TabsContent value={tab} className={cn('mt-4', tab === 'calendar' && 'hidden')}>
           <Card className="rounded-xl">
             <div className="p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
