@@ -589,7 +589,8 @@ serve(async (req) => {
   const authHeader = req.headers.get("authorization") || "";
   const jwt        = authHeader.replace(/^Bearer\s+/i, "");
   if (!jwt) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
+    console.warn("[batch-worker] 401: no Authorization header");
+    return new Response(JSON.stringify({ error: "unauthorized: no auth header" }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -599,9 +600,10 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: `Bearer ${jwt}` } } },
   );
-  const { data: userRes } = await userClient.auth.getUser();
-  if (!userRes?.user) {
-    return new Response(JSON.stringify({ error: "unauthorized" }), {
+  const { data: userRes, error: userErr } = await userClient.auth.getUser();
+  if (userErr || !userRes?.user) {
+    console.warn("[batch-worker] 401: getUser failed —", userErr?.message || "no user", "; jwt_prefix=", jwt.slice(0, 16));
+    return new Response(JSON.stringify({ error: `unauthorized: ${userErr?.message || "session invalid"}` }), {
       status: 401, headers: { ...cors, "Content-Type": "application/json" },
     });
   }

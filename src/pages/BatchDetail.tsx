@@ -965,41 +965,50 @@ const BatchDetail = () => {
         return;
       }
 
-      const { data: workerResp, error: workerErr } = await supabase.functions.invoke('batch-worker', {
-        body: { batch_id: id },
-        headers: { Authorization: `Bearer ${workerSession.access_token}` },
-      });
-
-      // Edge-function errors arrive as a non-2xx Response; try to pull the real
-      // message out of error.context so the operator sees what actually broke
-      // (auth / cap / Paystack) rather than just "non-2xx status code".
+      // Direct fetch instead of supabase.functions.invoke: in some supabase-js
+      // versions the invoke helper silently overrides custom Authorization
+      // headers with the anon key, so the worker (correctly) rejected with
+      // 401 even though the UI was logged in. Direct fetch guarantees the
+      // user's JWT (and the project apikey) reach the function exactly as set.
+      const supabaseUrl    = (import.meta.env.VITE_SUPABASE_URL as string)?.trim();
+      const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string)?.trim();
+      let workerResp: any = null;
       let workerErrMsg: string | null = null;
-      if (workerErr) {
-        try {
-          const ctx: any = (workerErr as any).context;
-          if (ctx && typeof ctx.text === 'function') {
-            const raw = await ctx.text();
-            if (raw) {
-              try {
-                const parsed = JSON.parse(raw);
-                workerErrMsg = parsed.error || parsed.message || raw;
-              } catch {
-                workerErrMsg = raw;
-              }
-            }
-          }
-        } catch { /* ignore parse failures */ }
-        if (!workerErrMsg) workerErrMsg = workerErr.message || 'Dispatch worker failed';
+      let workerHttpStatus = 0;
+      try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/batch-worker`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${workerSession.access_token}`,
+            'apikey':        supabaseAnonKey,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({ batch_id: id }),
+        });
+        workerHttpStatus = resp.status;
+        const raw = await resp.text();
+        if (raw) {
+          try { workerResp = JSON.parse(raw); } catch { workerResp = { error: raw }; }
+        }
+        if (!resp.ok) {
+          workerErrMsg = workerResp?.error || workerResp?.message || `HTTP ${resp.status}`;
+        }
+      } catch (err) {
+        workerErrMsg = (err as Error)?.message || 'Network error reaching worker';
       }
 
-      const workerOk = !workerErr && (workerResp as any)?.ok !== false;
+      const workerOk = !workerErrMsg && (workerResp as any)?.ok !== false;
       if (!workerOk) {
         const reason = workerErrMsg || (workerResp as any)?.error || 'Dispatch worker failed';
         toast({
-          title: ACCOUNT_LEVEL_ERR.test(reason)
-            ? 'Batch halted — Paystack account issue'
-            : 'Dispatch failed',
-          description: reason,
+          title: workerHttpStatus === 401
+            ? 'Session expired'
+            : ACCOUNT_LEVEL_ERR.test(reason)
+              ? 'Batch halted — Paystack account issue'
+              : 'Dispatch failed',
+          description: workerHttpStatus === 401
+            ? 'Please refresh the page (Ctrl/Cmd+Shift+R) and try again.'
+            : reason,
           variant: 'destructive',
           duration: 12000,
         });
