@@ -24,7 +24,12 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import * as webPush from "https://esm.sh/web-push@3.6.7";
+// Use the `npm:` specifier instead of esm.sh: web-push depends on Node's
+// native crypto/http modules and the esm.sh polyfill build has historically
+// thrown at runtime inside Deno (the source of the noisy `send-push 500`s).
+// Deno's native npm support (enabled by Supabase Edge Functions) handles
+// Node compat correctly for this package.
+import webPush from "npm:web-push@3.6.7";
 
 const ALLOWED_ORIGINS = [
   "https://ops.kdsquares.com",
@@ -80,15 +85,31 @@ serve(async (req) => {
     const subject = (settings as any)?.vapid_subject ?? "mailto:support@kdsquares.com";
 
     if (!pub || !priv) {
+      // Return 200 ok:false rather than 412 — keeps the browser console clean
+      // for the fire-and-forget caller; the diagnostic body still surfaces in
+      // dev tools and in the function logs.
       return new Response(JSON.stringify({
+        ok: false,
         error: "VAPID keys not configured. Generate them in Settings → Notifications.",
       }), {
-        status: 412, // Precondition Failed
+        status: 200,
         headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
-    webPush.setVapidDetails(subject, pub, priv);
+    try {
+      webPush.setVapidDetails(subject, pub, priv);
+    } catch (vapidErr) {
+      const m = vapidErr instanceof Error ? vapidErr.message : String(vapidErr);
+      console.error("[send-push] invalid VAPID config:", m);
+      return new Response(JSON.stringify({
+        ok: false,
+        error: `VAPID config invalid: ${m}. Regenerate keys in Settings → Notifications.`,
+      }), {
+        status: 200,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
 
     // Filter by user-level category preference. If a user has muted
     // 'transfers' in their prefs, skip them for transfer pushes.
@@ -172,10 +193,15 @@ serve(async (req) => {
       headers: { ...headers, "Content-Type": "application/json" },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    // send-push is a fire-and-forget delivery side-effect — never return 500.
+    // The originating action (batch approval, expense submission, etc.) doesn't
+    // depend on this call succeeding, and a 500 just clutters every operator's
+    // browser console with a red error. Log the real cause to the function
+    // log and return ok:false 200 instead.
+    const message = err instanceof Error ? `${err.message}${err.stack ? "\n" + err.stack : ""}` : String(err);
     console.error("[send-push] fatal:", message);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+    return new Response(JSON.stringify({ ok: false, error: message }), {
+      status: 200,
       headers: { ...headers, "Content-Type": "application/json" },
     });
   }
