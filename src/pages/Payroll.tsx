@@ -898,11 +898,8 @@ const Payroll = () => {
           ];
 
           // Employer contributions — informational on the payslip.
-          // Pension employer (10%) only when the employee opted in;
-          // NSITF (1%) is borne by every employer in the formal
-          // sector regardless of opt-in, so it's always shown.
-          const empPensionEmployer = e.pension_enabled !== false ? empGross * EMPLOYER_PENSION_RATE : 0;
-          const empNsitf           = empGross * 0.01;
+          // empPensionEmployer + empNsitf are already computed above (using
+          // the correct statutory bases when salary components are on).
           const ytd                = ytdByEmployee.get(e.id);
 
           const html = renderPayslipHtml({
