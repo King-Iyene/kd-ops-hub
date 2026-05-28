@@ -217,6 +217,27 @@ export function QuickPayDialog() {
       });
 
       const recipientName = bank.account_name || bank.account_number;
+
+      // Link the payment to a known contractor (or employee) when the bank
+      // account matches an existing record, so the payment shows up in their
+      // profile's Payments tab. Without this, Quick Pay to a saved contractor
+      // looked like an orphan transfer with no payment history on the partner.
+      // Account-number match (cleaned of whitespace) is a strong key — same
+      // partner can have multiple banks, but a given account belongs to one.
+      let contractorId: string | null = null;
+      let employeeId:   string | null = null;
+      const cleanedAccount = String(bank.account_number || '').replace(/\D/g, '');
+      if (cleanedAccount) {
+        const [{ data: cMatch }, { data: eMatch }] = await Promise.all([
+          supabase.from('contractors').select('id')
+            .eq('account_number', cleanedAccount).is('deleted_at', null).maybeSingle(),
+          supabase.from('profiles').select('id')
+            .eq('bank_account_number', cleanedAccount).maybeSingle(),
+        ]);
+        contractorId = (cMatch as any)?.id ?? null;
+        employeeId   = (eMatch as any)?.id ?? null;
+      }
+
       // Insert the batch item BEFORE generating a deterministic ref from its
       // id. The `reference` column holds the operator-supplied label (defaults
       // to "Quick Pay"); `paystack_reference` is the machine-readable
@@ -230,6 +251,8 @@ export function QuickPayDialog() {
         reference: 'Quick Pay',
         status: 'pending',
         paystack_recipient_code: recipient.recipient_code,
+        contractor_id: contractorId,
+        employee_id:   employeeId,
       }).select('id').single();
       if (itemErr || !insertedItem) {
         throw new Error(`Could not create payment record: ${itemErr?.message || 'no item id'}`);

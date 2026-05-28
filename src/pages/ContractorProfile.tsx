@@ -151,7 +151,7 @@ const ContractorProfile = () => {
     const [payRes, docRes, auditRes, deductRes] = await Promise.all([
       supabase
         .from('batch_items')
-        .select('*, payment_batches!inner(description, status, created_at)')
+        .select('*, payment_batches!inner(name, payment_description, status, created_at)')
         .eq('contractor_id', id)
         .order('created_at', { ascending: false })
         .limit(30),
@@ -899,7 +899,7 @@ const ContractorProfile = () => {
                       <div>
                         <p className="font-medium">{p.recipient_name || ctrName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDate(p.created_at)} · {p.payment_batches?.description || 'Batch payment'}
+                          {formatDate(p.created_at)} · {p.payment_batches?.payment_description || p.payment_batches?.name || 'Batch payment'}
                         </p>
                       </div>
                       <div className="text-right">
