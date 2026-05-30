@@ -37,6 +37,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { notifyRoles } from '@/lib/notify';
 import MfaSettings from '@/components/settings/MfaSettings';
 import PrivacyPanel from '@/components/PrivacyPanel';
 import { StickyActionBar } from '@/components/ui-kit/StickyActionBar';
@@ -464,18 +465,44 @@ const ProfilePage = () => {
     if (!(amt > 0)) { toast({ title: 'Enter an amount greater than ₦0', variant: 'destructive' }); return; }
     if (!(months >= 1 && months <= 24)) { toast({ title: 'Repayment must be 1–24 months', variant: 'destructive' }); return; }
     setSubmittingAdvance(true);
+    const reasonText = advanceForm.reason.trim() || null;
     const { error } = await (supabase as any).from('advance_requests').insert({
       employee_id: profile?.id,
       amount_ngn: amt,
       repayment_months: months,
-      reason: advanceForm.reason.trim() || null,
+      reason: reasonText,
     });
     setSubmittingAdvance(false);
     if (error) { toast({ title: 'Request failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Advance request submitted', description: 'Your manager will review it.' });
     setShowAdvanceForm(false);
     setAdvanceForm({ amount: '', months: '3', reason: '' });
+    // Fire-and-forget — page the approvers so they don't miss the request.
+    // Failure here is silent: the request is already saved and visible in their
+    // queue; the toast already confirmed it to the employee.
+    void notifyRoles({
+      roles: ['super_admin', 'admin', 'finance'],
+      type: 'advance_request_submitted',
+      module: 'payroll',
+      priority: 'normal',
+      title: 'Salary advance request',
+      body: `${profile?.full_name || profile?.email || 'An employee'} requested ${formatNaira(amt)} over ${months} month${months === 1 ? '' : 's'}${reasonText ? ` — ${reasonText}` : ''}`,
+    });
     loadAll();
+  };
+
+  // "Resubmit" a cancelled / rejected request: pre-fill the form with the
+  // previous amount / months / reason so the employee can tweak and re-send
+  // (the underlying record stays in its terminal state — this is just a
+  // shortcut to creating a fresh request, which the RPCs don't allow against
+  // the old row).
+  const resubmitAdvance = (a: any) => {
+    setAdvanceForm({
+      amount: String(Number(a.amount_ngn) || ''),
+      months: String(Number(a.repayment_months) || 3),
+      reason: a.reason || '',
+    });
+    setShowAdvanceForm(true);
   };
 
   const cancelAdvance = async (id: string) => {
@@ -1090,6 +1117,11 @@ const ProfilePage = () => {
                         </Badge>
                         {(a.status === 'pending' || a.status === 'approved') && (
                           <Button size="sm" variant="ghost" onClick={() => cancelAdvance(a.id)}>Cancel</Button>
+                        )}
+                        {(a.status === 'cancelled' || a.status === 'rejected') && (
+                          <Button size="sm" variant="outline" onClick={() => resubmitAdvance(a)}>
+                            Resubmit
+                          </Button>
                         )}
                       </div>
                     </div>

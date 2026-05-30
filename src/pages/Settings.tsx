@@ -1279,11 +1279,12 @@ const SettingsPage = () => {
                   <tbody className="divide-y divide-border/40">
                     {[
                       { module: 'Dashboard',             sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
+                      { module: 'Payments (batches)',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
-                      { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: false, fs: false },
+                      { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: false, fs: false },
                       { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: false, fs: false },
+                      { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
                       { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Performance Reviews',   sa: true,  ad: true,  fi: true,  op: true,  fs: false },
@@ -1300,7 +1301,7 @@ const SettingsPage = () => {
                       { module: 'Projects',              sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Tasks',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Goals',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
-                      { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Documents',             sa: true,  ad: true,  fi: true,  op: false, fs: false },
                       { module: 'Audit Log',             sa: true,  ad: true,  fi: false, op: false, fs: false },
                       { module: 'Settings',              sa: true,  ad: false, fi: false, op: false, fs: false },
                     ].map(({ module, sa, ad, fi, op, fs }) => (
@@ -1321,6 +1322,13 @@ const SettingsPage = () => {
               <p className="text-[11px] text-muted-foreground mt-3 border-t pt-2">
                 Role changes are applied by editing the employee's profile in the <strong>Employees</strong> page.
                 Changes take effect on the employee's next page load (no restart required).
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                <strong>Operations scope:</strong> within <em>Payments</em>, <em>Transactions</em> and contractor
+                profiles, Operations sees <strong>only contractor batches</strong> (no Quick Pay, no salary runs, no
+                advances, no bonuses, no expense pay-outs). Archived batches are hidden for all roles except
+                super_admin / admin. These rules are enforced at the database (RLS) — they hold even against
+                direct API calls.
               </p>
             </CardContent>
           </Card>
