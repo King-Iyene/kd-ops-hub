@@ -67,6 +67,96 @@ export type PermissionKey =
 
 export type PermissionsMap = Record<string, boolean>;
 
+/**
+ * Server-side role gates for permissions whose underlying action is enforced
+ * at the database (SECURITY DEFINER RPCs that hard-check role, or RLS
+ * policies that scope the role out of the data). For these permissions a
+ * permission-flag toggle is a no-op when the user's role isn't in the allowed
+ * set — the action will fail at the server regardless. PermissionsEditor uses
+ * this table to disable / lock the toggle so an admin doesn't think they've
+ * granted something they actually haven't.
+ *
+ * Keep this in sync with the RPC role checks (see migrations 20260813000000,
+ * 20260817000000, 20260920000000, 20260924000000, 20260926000000,
+ * 20260927000000) and the role gates in src/lib/navConfig.ts.
+ */
+export const PERMISSION_ROLE_GATES: Partial<Record<PermissionKey, { requires: string[]; reason: string }>> = {
+  // ── Money: approval / dispatch / Quick Pay ────────────────────────────────
+  'payments.approve_batches':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'approve_payment_batch / confirm_second_approval / mark_batch_funded RPCs hard-check role.' },
+  'payments.quick_pay':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Quick Pay is restricted to approver roles by the Payments UI gate and RLS scope.' },
+
+  // ── Batch types: RLS scopes Operations to contractor batches only ────────
+  'payments.batch.salary':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Operations is RLS-scoped to contractor batches only (migration 20260927000000).' },
+  'payments.batch.advance':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Operations is RLS-scoped to contractor batches only (migration 20260927000000).' },
+  'payments.batch.bonus':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Operations is RLS-scoped to contractor batches only (migration 20260927000000).' },
+
+  // ── Payroll: route + RPCs finance-only ────────────────────────────────────
+  'payroll.view':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Payroll module is finance-only at the route level.' },
+  'payroll.create':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Payroll creation is finance-only.' },
+  'payroll.approve':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'approve_payroll_run RPC hard-checks role.' },
+  'payroll.generate_payslips':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Payslip generation requires payroll access (finance-only).' },
+
+  // ── Expenses: approval / payment-processing finance-only ──────────────────
+  'expenses.approve':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'approve_expense / confirm_second_expense_approval RPCs hard-check role.' },
+  'expenses.process_payments':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'mark_expense_paid RPC and the expense-payment edge function hard-check role.' },
+
+  // ── Sensitive user-admin actions ──────────────────────────────────────────
+  'employees.change_roles':
+    { requires: ['super_admin'],
+      reason: 'Changing user roles requires super_admin.' },
+  'employees.manage_permissions':
+    { requires: ['super_admin', 'admin'],
+      reason: 'Editing another user\'s permissions is admin / super_admin only.' },
+
+  // ── Contractor / Disciplinary / Settings ──────────────────────────────────
+  'contractors.delete':
+    { requires: ['super_admin', 'admin'],
+      reason: 'Contractor delete RPC is admin / super_admin only.' },
+  'invoices.view':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Invoices module is finance-only.' },
+  'invoices.manage':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Invoices module is finance-only.' },
+  'assets.view':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Assets module is finance-only.' },
+  'assets.manage':
+    { requires: ['super_admin', 'admin', 'finance'],
+      reason: 'Assets module is finance-only.' },
+  'disciplinary.view':
+    { requires: ['super_admin', 'admin'],
+      reason: 'Disciplinary records are admin / super_admin only (RLS).' },
+  'settings.access':
+    { requires: ['super_admin'],
+      reason: '/settings route is super_admin only.' },
+  'settings.manage_integrations':
+    { requires: ['super_admin'],
+      reason: 'Integrations management is super_admin only.' },
+};
+
 interface PermissionItem {
   key: PermissionKey;
   label: string;
@@ -248,15 +338,34 @@ interface Props {
    *  even when no explicit value is stored. Other keys default OFF.
    */
   roleDefaults?: PermissionKey[];
+  /** Role of the user being edited. When set, toggles whose action is
+   *  server-side role-gated (see PERMISSION_ROLE_GATES) and where the user's
+   *  role isn't in the allowed list become disabled + visually locked so an
+   *  admin doesn't think they've granted something the server will refuse. */
+  userRole?: string;
 }
 
-export function PermissionsEditor({ value, onChange, disabled, roleDefaults = [] }: Props) {
+export function PermissionsEditor({ value, onChange, disabled, roleDefaults = [], userRole }: Props) {
   const defaultsSet = new Set<string>(roleDefaults);
+
+  /** A permission is "blocked by role" when there's a server-side gate AND
+   *  the user's role isn't in the gate's allowed set. We render those toggles
+   *  off, disabled, and badged so the admin knows the grant is moot. */
+  const blockedByRole = (key: PermissionKey): { blocked: boolean; reason?: string; requires?: string[] } => {
+    const gate = PERMISSION_ROLE_GATES[key];
+    if (!gate || !userRole) return { blocked: false };
+    if (gate.requires.includes(userRole)) return { blocked: false };
+    return { blocked: true, reason: gate.reason, requires: gate.requires };
+  };
 
   // A toggle is ON when:
   //   - the value is explicitly true, OR
   //   - the value is undefined and the role grants this permission by default
+  //   - AND the permission isn't blocked by role (blocked → forced OFF
+  //     regardless of stored value or role default, matching what the server
+  //     actually does)
   const isChecked = (key: PermissionKey) => {
+    if (blockedByRole(key).blocked) return false;
     const v = value[key];
     if (v === true) return true;
     if (v === false) return false;
@@ -264,6 +373,7 @@ export function PermissionsEditor({ value, onChange, disabled, roleDefaults = []
   };
 
   const toggle = (key: PermissionKey) => {
+    if (blockedByRole(key).blocked) return; // defence: clicks shouldn't reach here, but be safe
     onChange({ ...value, [key]: !isChecked(key) });
   };
 
@@ -278,30 +388,46 @@ export function PermissionsEditor({ value, onChange, disabled, roleDefaults = []
           </CardHeader>
           <CardContent className="space-y-3">
             {group.permissions.map((perm) => {
+              const blocked = blockedByRole(perm.key);
               const checked = isChecked(perm.key);
               const explicit = value[perm.key] === true || value[perm.key] === false;
+              const friendlyRoles = blocked.requires?.map((r) =>
+                r === 'super_admin' ? 'super admin' : r,
+              ).join(' / ');
               return (
-                <div key={perm.key} className="flex items-center justify-between">
+                <div
+                  key={perm.key}
+                  className={`flex items-center justify-between ${blocked.blocked ? 'opacity-60' : ''}`}
+                  title={blocked.blocked ? blocked.reason : undefined}
+                >
                   <Label
                     htmlFor={perm.key}
-                    className="text-sm font-normal cursor-pointer flex items-center gap-2"
+                    className={`text-sm font-normal flex items-center gap-2 ${blocked.blocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <span>{perm.label}</span>
-                    {!explicit && checked && (
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">role</span>
-                    )}
-                    {explicit && value[perm.key] === true && !defaultsSet.has(perm.key) && (
-                      <span className="text-[10px] uppercase tracking-wider text-success">granted</span>
-                    )}
-                    {explicit && value[perm.key] === false && (
-                      <span className="text-[10px] uppercase tracking-wider text-destructive">denied</span>
+                    {blocked.blocked ? (
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border/60 rounded px-1.5 py-0.5">
+                        {`needs ${friendlyRoles || 'higher role'}`}
+                      </span>
+                    ) : (
+                      <>
+                        {!explicit && checked && (
+                          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">role</span>
+                        )}
+                        {explicit && value[perm.key] === true && !defaultsSet.has(perm.key) && (
+                          <span className="text-[10px] uppercase tracking-wider text-success">granted</span>
+                        )}
+                        {explicit && value[perm.key] === false && (
+                          <span className="text-[10px] uppercase tracking-wider text-destructive">denied</span>
+                        )}
+                      </>
                     )}
                   </Label>
                   <Switch
                     id={perm.key}
                     checked={checked}
                     onCheckedChange={() => toggle(perm.key)}
-                    disabled={disabled}
+                    disabled={disabled || blocked.blocked}
                   />
                 </div>
               );

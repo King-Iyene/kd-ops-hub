@@ -2839,11 +2839,15 @@ const EmployeeProfile = () => {
                 <p>
                   <span className="font-semibold">OFF · DENIED</span> — explicitly switched off, even though the role would normally allow it. Use sparingly — better to change the role.
                 </p>
+                <p>
+                  <span className="font-semibold">NEEDS &lt;role&gt;</span> — locked. The action is enforced at the database (RPC or RLS) for a higher role, so the toggle is meaningless for this user's role. Hover for the specific reason; change their role if they should be able to perform this action.
+                </p>
               </div>
               <PermissionsEditor
                 value={permissions}
                 onChange={setPermissions}
                 roleDefaults={ROLE_DEFAULT_PERMISSIONS[employee?.role as string] || []}
+                userRole={employee?.role as string}
               />
             </CardContent>
           </Card>
