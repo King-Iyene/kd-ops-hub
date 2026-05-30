@@ -18,7 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { friendlyPaystackError, paystackTransferFee } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useEffectiveRole } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatDateTime, formatNaira, toIsoDate, maskAccountNumber } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -175,11 +175,35 @@ const Transactions = () => {
     return Array.from(s).sort();
   }, [rows]);
 
+  // Operations is scoped at the DB (RLS) to contractor non-quick-pay batches.
+  // RLS uses the JWT role, so a super_admin using "View as → Operations" still
+  // gets every row back from the server. Mirror the predicate client-side so
+  // the simulation matches what a real Operations user sees: hide quick_pay
+  // and any payment_category that's an employee flavour (salary / advance /
+  // bonus). Other categories (fuel / expense) also fall outside Operations'
+  // scope and are hidden.
+  const effectiveRole = useEffectiveRole();
+  const isOpsView = effectiveRole === 'operations';
+
+  const roleScopedRows = useMemo(() => {
+    if (!isOpsView) return rows;
+    return rows.filter((r) => {
+      if (r.txn_type === 'quick_pay') return false;
+      const cat = (r.category || '').toLowerCase();
+      return (
+        cat === '' ||
+        cat === 'transfer' ||
+        cat === 'contractor' ||
+        cat === 'contractor_payment'
+      );
+    });
+  }, [rows, isOpsView]);
+
   const filtered = useMemo(() => {
     const q = debouncedSearch.trim().toLowerCase();
     const fromMs = from ? new Date(from).getTime() : -Infinity;
     const toMs = to ? new Date(to).getTime() + 24 * 60 * 60 * 1000 - 1 : Infinity;
-    return rows.filter((r) => {
+    return roleScopedRows.filter((r) => {
       if (typeFilter !== 'all' && r.txn_type !== typeFilter) return false;
       if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
       if (statusFilter !== 'all') {
@@ -312,7 +336,7 @@ const Transactions = () => {
     <div className="space-y-6">
       <PageHeader
         title="Transactions"
-        description={`All financial activity across KDOps — ${rows.length.toLocaleString()} transactions`}
+        description={`All financial activity across KDOps — ${roleScopedRows.length.toLocaleString()} transactions`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => window.print()}>
@@ -330,11 +354,15 @@ const Transactions = () => {
           big mono count, small uppercase label. No status dots
           (those are German). Holographic hover stays — it's a
           Mercury Treasury pattern, not a German one. */}
-      <div className="rounded-lg border border-border/70 bg-card grid grid-cols-3 sm:divide-x divide-border/70 overflow-hidden print:hidden">
+      <div className={cn(
+        'rounded-lg border border-border/70 bg-card grid sm:divide-x divide-border/70 overflow-hidden print:hidden',
+        isOpsView ? 'grid-cols-2' : 'grid-cols-3',
+      )}>
         {([
-          { type: 'all' as const, label: 'All transactions', count: rows.length },
-          { type: 'transfer' as const, label: 'Transfers',  count: rows.filter((r) => r.txn_type === 'transfer').length },
-          { type: 'quick_pay' as const, label: 'Quick Pay', count: rows.filter((r) => r.txn_type === 'quick_pay').length },
+          { type: 'all' as const, label: 'All transactions', count: roleScopedRows.length },
+          { type: 'transfer' as const, label: 'Transfers',  count: roleScopedRows.filter((r) => r.txn_type === 'transfer').length },
+          // Hide the Quick Pay stat tile for Operations — they never have any.
+          ...(isOpsView ? [] : [{ type: 'quick_pay' as const, label: 'Quick Pay', count: roleScopedRows.filter((r) => r.txn_type === 'quick_pay').length }]),
         ]).map(({ type, label, count }) => {
           const isActive = typeFilter === type;
           return (

@@ -3,6 +3,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { useEffectiveRole } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,7 @@ interface PaymentBatch {
   created_at: string;
   notes: string;
   batch_type?: string;
+  is_quick_pay?: boolean | null;
 }
 
 interface BatchStats {
@@ -288,11 +290,23 @@ const Payments = () => {
 
   const { lastUpdatedLabel, refresh: manualRefresh } = useAutoRefresh(fetchBatches);
 
+  // Operations is scoped at the DB (RLS) to contractor non-quick-pay batches.
+  // RLS uses the JWT role, so a super_admin using "View as → Operations" would
+  // still get every row back from the server — the simulation wouldn't match
+  // what a real Operations user sees. Mirror the same predicate client-side
+  // when the effective role is operations so the preview is accurate.
+  const effectiveRole = useEffectiveRole();
   const filtered = useMemo(() => {
-    if (!debouncedSearch) return batches;
+    let rows = batches;
+    if (effectiveRole === 'operations') {
+      rows = rows.filter(
+        (b) => b.batch_type === 'contractor' && !b.is_quick_pay,
+      );
+    }
+    if (!debouncedSearch) return rows;
     const s = debouncedSearch.toLowerCase();
-    return batches.filter((b) => b.name.toLowerCase().includes(s));
-  }, [batches, debouncedSearch]);
+    return rows.filter((b) => b.name.toLowerCase().includes(s));
+  }, [batches, debouncedSearch, effectiveRole]);
 
   return (
     <div className="space-y-5">
