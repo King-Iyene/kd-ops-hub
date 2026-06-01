@@ -121,6 +121,27 @@ async function sendRecipientPaymentEmail(
   sentAtIso: string,
 ): Promise<void> {
   try {
+    // Read the audience preference up front. Hot-toggleable from
+    // Settings → Notifications without redeploying this function.
+    // Falls back to 'all' on any failure so a settings hiccup never
+    // silently breaks payment notifications.
+    let audience: 'all' | 'employees_only' | 'contractors_only' | 'none' = 'all';
+    try {
+      const { data: settings } = await supabase
+        .from('company_settings')
+        .select('payment_email_audience')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const v = (settings as any)?.payment_email_audience;
+      if (v === 'employees_only' || v === 'contractors_only' || v === 'none') audience = v;
+    } catch (_e) { /* keep default */ }
+    if (audience === 'none') return;
+
+    const targetIsEmployee   = !!item.employee_id;
+    const targetIsContractor = !!item.contractor_id && !item.employee_id;
+    if (audience === 'employees_only'   && !targetIsEmployee)   return;
+    if (audience === 'contractors_only' && !targetIsContractor) return;
+
     let recipientEmail: string | null = null;
     let recipientName: string = item.full_name || "there";
 

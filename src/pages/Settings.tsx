@@ -91,6 +91,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
 import { NotificationsCard } from '@/components/settings/NotificationsCard';
+import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
@@ -742,6 +743,8 @@ const SettingsPage = () => {
           </Card>
 
           <NotificationsCard />
+
+          <PaymentEmailAudienceCard />
 
           <Card>
             <CardHeader>
