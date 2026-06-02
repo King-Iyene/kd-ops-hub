@@ -161,32 +161,205 @@ async function paystackPost(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Bank code resolution (kept inline so the function is self-contained).
-// Mirrors src/lib/nigerian-banks.ts for the major banks. The recipient-create
-// path will surface a clear error if a niche bank isn't here yet — and the
-// row is marked failed so the rest of the batch keeps moving.
+// Bank-code resolution — Paystack /bank is the source of truth.
+//
+// The previous implementation was a small inline map with no fuzzy matching.
+// It failed for verbose names like "OPay Digital Services Limited (OPay)"
+// (the form Paystack's /bank/resolve returns) and every time Paystack added
+// a new fintech bank it silently drifted further from the client-side list.
+// THIS implementation:
+//
+//   1. Fetches the live Nigerian bank list from /bank at first need and
+//      caches it in module memory for the function instance's lifetime.
+//      A 1-hour TTL means any new bank Paystack adds shows up within the
+//      hour without a redeploy.
+//   2. Falls back to an embedded BANK_BASELINE (the client's known-good
+//      list) when /bank is unreachable on cold start. Dispatch never stops
+//      because of a Paystack API hiccup. The cache also memoises the
+//      baseline so a brief outage doesn't hammer /bank on every call.
+//   3. Runs a 4-step fuzzy match (alias → exact → contains → prefix) that
+//      mirrors src/lib/nigerian-banks.ts. Verbose names, prefix names and
+//      common short aliases all resolve through one matcher.
+//
+// dispatchItem / dispatchChunkBulk still call getBankCode() synchronously
+// (no change to those signatures) — workBatch warms the cache once via
+// loadPaystackBanks() right after fetching the secret, so every subsequent
+// per-item lookup is an in-memory hit.
 // ──────────────────────────────────────────────────────────────────────────
-const BANK_CODES: Record<string, string> = {
-  "access bank": "044", "access bank (diamond)": "063", "citibank nigeria": "023",
-  "coronation bank": "559", "ecobank nigeria": "050", "fidelity bank": "070",
-  "first bank of nigeria": "011", "first city monument bank": "214", "fcmb": "214",
-  "first city monument bank (fcmb)": "214",
-  "globus bank": "103", "gtbank": "058", "guaranty trust bank": "058",
-  "jaiz bank": "301", "keystone bank": "082", "lotus bank": "303",
-  "nova merchant bank": "060", "parallex bank": "104", "polaris bank": "076",
-  "premium trust bank": "105", "providus bank": "101", "rubies bank": "125",
-  "stanbic ibtc bank": "221", "standard chartered bank nigeria": "068",
-  "sterling bank": "232", "suntrust bank": "100", "taj bank": "302",
-  "titan trust bank": "102", "union bank of nigeria": "032",
-  "united bank for africa": "033", "uba": "033", "unity bank": "215",
-  "wema bank": "035", "zenith bank": "057",
-  "kuda bank": "50211", "kuda": "50211", "opay": "999992", "palmpay": "999991",
-  "moniepoint mfb": "50515", "moniepoint": "50515", "fairmoney mfb": "50211",
+
+interface BankRow { code: string; name: string }
+
+const BANK_BASELINE: BankRow[] = [
+  // Commercial / merchant banks
+  { code: '044', name: 'Access Bank' },
+  { code: '063', name: 'Access Bank (Diamond)' },
+  { code: '023', name: 'Citibank Nigeria' },
+  { code: '559', name: 'Coronation Bank' },
+  { code: '050', name: 'Ecobank Nigeria' },
+  { code: '070', name: 'Fidelity Bank' },
+  { code: '011', name: 'First Bank of Nigeria' },
+  { code: '214', name: 'First City Monument Bank (FCMB)' },
+  { code: '103', name: 'Globus Bank' },
+  { code: '058', name: 'GTBank' },
+  { code: '058', name: 'Guaranty Trust Bank' },
+  { code: '058', name: 'Guaranty Trust Bank Plc' },
+  { code: '301', name: 'Jaiz Bank' },
+  { code: '082', name: 'Keystone Bank' },
+  { code: '303', name: 'Lotus Bank' },
+  { code: '060', name: 'Nova Merchant Bank' },
+  { code: '104', name: 'Parallex Bank' },
+  { code: '076', name: 'Polaris Bank' },
+  { code: '105', name: 'Premium Trust Bank' },
+  { code: '101', name: 'Providus Bank' },
+  { code: '125', name: 'Rubies Bank' },
+  { code: '221', name: 'Stanbic IBTC Bank' },
+  { code: '068', name: 'Standard Chartered Bank Nigeria' },
+  { code: '232', name: 'Sterling Bank' },
+  { code: '100', name: 'SunTrust Bank Nigeria' },
+  { code: '302', name: 'TAJ Bank' },
+  { code: '102', name: 'Titan Trust Bank' },
+  { code: '032', name: 'Union Bank of Nigeria' },
+  { code: '033', name: 'United Bank for Africa (UBA)' },
+  { code: '033', name: 'United Bank for Africa' },
+  { code: '215', name: 'Unity Bank' },
+  { code: '035', name: 'Wema Bank' },
+  { code: '057', name: 'Zenith Bank' },
+  // Digital banks / fintechs
+  { code: '035A', name: 'ALAT by WEMA' },
+  { code: '565', name: 'Carbon' },
+  { code: '50126', name: 'Eyowo' },
+  { code: '090311', name: 'FairMoney Microfinance Bank' },
+  { code: '50211', name: 'Kuda Microfinance Bank' },
+  { code: '50515', name: 'Moniepoint Microfinance Bank' },
+  { code: '999992', name: 'OPay Digital Services Limited (OPay)' },
+  { code: '999991', name: 'PalmPay' },
+  { code: '51310', name: 'Sparkle Microfinance Bank' },
+  { code: '566', name: 'VFD Microfinance Bank' },
+  { code: '50117', name: 'Branch International Finance Company Ltd' },
+  // PSBs
+  { code: '120001', name: '9mobile 9Payment Service Bank' },
+  { code: '120003', name: 'Airtel Smartcash PSB' },
+  { code: '120002', name: 'Hope PSBank' },
+  { code: '120004', name: 'MTN MoMo PSB' },
+  // Microfinance / others (used by some partners)
+  { code: '602', name: 'ACCION Microfinance Bank' },
+  { code: '50162', name: 'DOT Microfinance Bank' },
+  { code: '50383', name: 'Hasal Microfinance Bank' },
+  { code: '51244', name: 'IBILE Microfinance Bank' },
+  { code: '090177', name: 'LAPO Microfinance Bank' },
+  { code: '100002', name: 'Paga' },
+  { code: '50200', name: 'RenMoney Microfinance Bank' },
+  { code: '51113', name: 'Safe Haven Microfinance Bank' },
+  { code: '090264', name: 'Tangerine Bank' },
+];
+
+const BANK_ALIASES: Record<string, string> = {
+  // Short forms operators type in place of the official Paystack name.
+  // These bypass the live list and resolve immediately — covers the most
+  // common typo / abbreviation surface for Nigerian banks.
+  'gtb': '058',
+  'gtbank': '058',
+  'guaranty trust bank': '058',
+  'guaranty trust bank plc': '058',
+  'uba': '033',
+  'united bank for africa': '033',
+  'fcmb': '214',
+  'first city monument bank': '214',
+  'opay': '999992',
+  'palmpay': '999991',
+  'kuda': '50211',
+  'kuda bank': '50211',
+  'moniepoint': '50515',
+  'moniepoint mfb': '50515',
+  'fairmoney mfb': '090311',
+  'fairmoney': '090311',
 };
 
+let _bankCache: BankRow[] | null = null;
+let _bankCacheAt: number = 0;
+const BANK_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/**
+ * Loads the Paystack Nigerian bank list and caches it. Safe to call repeatedly:
+ * the first call awaits the network round-trip, subsequent calls return the
+ * cached list until the TTL expires. On any failure (network error, HTTP
+ * non-2xx, suspiciously short response), falls back to BANK_BASELINE and
+ * memoises THAT so the next call doesn't immediately re-hit a failing API.
+ * Always returns a non-empty list — the worker can rely on the cache being
+ * usable afterwards.
+ */
+async function loadPaystackBanks(secret: string): Promise<BankRow[]> {
+  const now = Date.now();
+  if (_bankCache && (now - _bankCacheAt) < BANK_CACHE_TTL_MS) return _bankCache;
+
+  try {
+    const res = await fetch('https://api.paystack.co/bank?country=nigeria&perPage=300', {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const rows: BankRow[] = (json?.data || [])
+        .filter((b: any) => b?.name && b?.code)
+        .map((b: any) => ({ code: String(b.code), name: String(b.name) }));
+      // Sanity: a real Paystack /bank returns hundreds of entries. Anything
+      // smaller is almost certainly an error / throttled response we should
+      // not trust as the source of truth.
+      if (rows.length >= 10) {
+        _bankCache = rows;
+        _bankCacheAt = now;
+        return _bankCache;
+      }
+      console.warn(`[batch-worker] /bank returned only ${rows.length} rows; using baseline`);
+    } else {
+      console.warn(`[batch-worker] /bank HTTP ${res.status}; using baseline`);
+    }
+  } catch (e) {
+    console.warn('[batch-worker] /bank fetch failed; using baseline:', (e as Error)?.message);
+  }
+
+  _bankCache = BANK_BASELINE;
+  _bankCacheAt = now;
+  return _bankCache;
+}
+
+/**
+ * 4-step bank-name → code resolver. Mirrors src/lib/nigerian-banks.ts so the
+ * client and the worker agree. Reads the in-memory cache (warmed by
+ * loadPaystackBanks at the top of workBatch) — if for any reason the cache
+ * isn't populated yet, falls through to BANK_BASELINE so resolution never
+ * crashes the dispatch path.
+ */
 function getBankCode(name: string | null | undefined): string | null {
   if (!name) return null;
-  return BANK_CODES[name.trim().toLowerCase()] ?? null;
+  const n = String(name).trim().toLowerCase();
+  if (!n) return null;
+
+  // 1. Short-form aliases first — operators frequently type "UBA" / "GTB".
+  if (BANK_ALIASES[n]) return BANK_ALIASES[n];
+
+  const banks = _bankCache || BANK_BASELINE;
+
+  // 2. Exact match against the live list.
+  const exact = banks.find((b) => b.name.toLowerCase() === n);
+  if (exact) return exact.code;
+
+  // 3. Stored name CONTAINS a registered bank name — handles the verbose
+  //    /bank/resolve form like "OPay Digital Services Limited (OPay)" which
+  //    contains "OPay Digital Services Limited". Pick the LONGEST match.
+  const contained = banks
+    .filter((b) => {
+      const bn = b.name.toLowerCase();
+      return bn.length >= 4 && n.includes(bn);
+    })
+    .sort((a, b) => b.name.length - a.name.length);
+  if (contained.length > 0) return contained[0].code;
+
+  // 4. Registered name STARTS WITH query — handles "opay" → full official
+  //    name. Only accept when exactly one bank matches (else ambiguous).
+  const prefix = banks.filter((b) => b.name.toLowerCase().startsWith(n));
+  if (prefix.length === 1) return prefix[0].code;
+
+  return null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -451,6 +624,12 @@ async function workBatch(
   }
 
   const secret = await getPaystackSecret(svc);
+  // Warm the bank-code cache once per invocation. After this awaits, every
+  // per-item getBankCode() in dispatchItem / dispatchChunkBulk is an in-memory
+  // lookup against the live Paystack /bank list (or the embedded baseline if
+  // /bank was unreachable). Pre-warming here means dispatch stays synchronous
+  // and the worker never silently falls back per-item.
+  await loadPaystackBanks(secret);
   const mode = dispatchMode();
   const pullSize = mode === "bulk" ? BULK_CHUNK_SIZE : CHUNK_SIZE;
   let dispatched = 0;
