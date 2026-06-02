@@ -184,6 +184,11 @@ const NewPaymentBatch = () => {
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Hide deactivated contractors from the picker by default — keeps the
+  // payment-prep view focused on people the operator actually expects to
+  // pay this month. Set to true to include offboarded partners (e.g. for a
+  // final settlement); the toggle below makes it a one-click opt-in.
+  const [showInactiveContractors, setShowInactiveContractors] = useState(false);
   const debouncedSearch = useDebounce(searchTerm);
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
 
@@ -212,11 +217,14 @@ const NewPaymentBatch = () => {
   }, []);
 
   // Contractors load server-side so the search spans the ENTIRE roster (700+),
-  // not just a first page. A client-side filter over a `.limit(500)` page
-  // silently hid contractors whose name sorts past the cap (e.g. a search that
-  // matched a later-alphabet partner returned nothing). Lifecycle/HeyReach
-  // status no longer blocks payment — all contractors load, status is shown as
-  // a row indicator. Mirrors the Contractors page search (name/account/email).
+  // not just a first page. Mirrors the Contractors page search (name / account
+  // / email). Lifecycle / HeyReach status is shown as a row indicator but
+  // doesn't block payment.
+  //
+  // Active-only by default: deactivated contractors are excluded from the
+  // picker so a month-end run isn't cluttered with offboarded partners. The
+  // "Include inactive" toggle below lets the operator opt in (final
+  // settlement edge cases) without redeploying.
   useEffect(() => {
     const term = debouncedSearch.trim().replace(/[,()%]/g, ' ').trim();
     let q = supabase
@@ -224,13 +232,16 @@ const NewPaymentBatch = () => {
       .select('*')
       .order('full_name')
       .limit(term ? 200 : 500);
+    if (!showInactiveContractors) {
+      q = q.eq('status', 'active');
+    }
     if (term) {
       q = q.or(
         `full_name.ilike.%${term}%,account_number.ilike.%${term}%,email.ilike.%${term}%,heyreach_email.ilike.%${term}%`,
       );
     }
     q.then(({ data }) => setContractors((data as Contractor[]) || []));
-  }, [debouncedSearch]);
+  }, [debouncedSearch, showInactiveContractors]);
 
   // Pre-populate a single contractor when navigated from ContractorProfile
   useEffect(() => {
@@ -965,13 +976,21 @@ const NewPaymentBatch = () => {
                       className="pl-9"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button size="sm" variant="outline" onClick={() => selectAllVisible(filteredContractors)} disabled={selectableVisibleCount === 0}>
                       Select all {selectableVisibleCount ? `(${selectableVisibleCount})` : ''}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => clearAllVisible(filteredContractors)} disabled={filteredContractors.length === 0}>
                       Clear visible
                     </Button>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none ml-1" title="Off by default — month-end runs ignore offboarded partners. Tick to include them (e.g. final settlement payouts).">
+                      <Checkbox
+                        checked={showInactiveContractors}
+                        onCheckedChange={(v) => setShowInactiveContractors(Boolean(v))}
+                        className="h-3.5 w-3.5"
+                      />
+                      Include inactive
+                    </label>
                     <span className="text-muted-foreground text-xs ml-auto">{items.length} selected</span>
                   </div>
                   {/* Compact picker — row = 36px tall. Beneficiary on
