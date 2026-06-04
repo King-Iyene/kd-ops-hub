@@ -27,13 +27,22 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
+import {
+  PAYMENT_CATEGORIES,
+  paymentCategoryLabel,
+  paymentCategoryGroupLabel,
+  defaultCategoryFor,
+  type PaymentCategoryDef,
+} from '@/lib/payment-categories';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 
@@ -58,6 +67,11 @@ export function QuickPayDialog() {
   const [form, setForm] = useState({
     amount: '',
     description: '',
+    /** Required at Quick Pay time so every one-off feeds Reports cleanly.
+     *  Empty string means "not chosen yet" → disables Pay until set.
+     *  Smart-defaulted (see below) when the bank lookup matched a known
+     *  contractor or employee. */
+    category: '',
   });
   const [showConfirm, setShowConfirm] = useState(false);
   const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
@@ -101,9 +115,36 @@ export function QuickPayDialog() {
 
   const reset = () => {
     setBank(emptyBank);
-    setForm({ amount: '', description: '' });
+    setForm({ amount: '', description: '', category: '' });
     setResult(null);
   };
+
+  // Smart-default the category when the bank verification matches a known
+  // contractor or employee, so the operator can click through without picking
+  // the obvious category every time. Only fires when no category is already
+  // picked — never overrides a manual choice.
+  useEffect(() => {
+    if (!bank.verified || !bank.account_number) return;
+    if (form.category) return; // respect operator's manual choice
+    const cleaned = String(bank.account_number).replace(/\D/g, '');
+    if (!cleaned) return;
+    let cancelled = false;
+    void (async () => {
+      const [{ data: cMatch }, { data: eMatch }] = await Promise.all([
+        supabase.from('contractors').select('id')
+          .eq('account_number', cleaned).is('deleted_at', null).maybeSingle(),
+        supabase.from('profiles').select('id')
+          .eq('bank_account_number', cleaned).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      const suggested = defaultCategoryFor({
+        hasContractor: !!(cMatch as any)?.id,
+        hasEmployee:   !!(eMatch as any)?.id,
+      });
+      if (suggested) setForm((f) => f.category ? f : { ...f, category: suggested });
+    })();
+    return () => { cancelled = true; };
+  }, [bank.verified, bank.account_number, form.category]);
 
   const amountNum = parseFloat(form.amount) || 0;
   const willRequireCoApproval = isCoApprovalRequired(coThreshold, amountNum);
@@ -117,6 +158,14 @@ export function QuickPayDialog() {
     const amount = parseFloat(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    if (!form.category) {
+      toast({
+        title: 'Pick a category',
+        description: 'Every Quick Pay needs a category so it shows up correctly in Transactions and Reports.',
+        variant: 'destructive',
+      });
       return;
     }
     setShowConfirm(true);
@@ -153,6 +202,7 @@ export function QuickPayDialog() {
             is_quick_pay: true,
             created_by: profile?.id,
             payment_description: customNarration?.trim() || form.description?.trim() || null,
+            payment_category: form.category || null,
           })
           .select('id')
           .single();
@@ -201,6 +251,8 @@ export function QuickPayDialog() {
           status: 'funded',
           is_quick_pay: true,
           created_by: profile?.id,
+          payment_category: form.category || null,
+          payment_description: customNarration?.trim() || form.description?.trim() || null,
         })
         .select()
         .single();
@@ -435,6 +487,53 @@ export function QuickPayDialog() {
                   placeholder="e.g. Freelancer payout"
                 />
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="qp-category" className="flex items-center gap-1.5">
+                Category
+                <span className="text-destructive" aria-hidden>*</span>
+                <span className="text-[11px] text-muted-foreground font-normal ml-auto">
+                  Required — feeds Transactions / Reports
+                </span>
+              </Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) => setForm({ ...form, category: v })}
+              >
+                <SelectTrigger id="qp-category" className={form.category ? '' : 'text-muted-foreground'}>
+                  <SelectValue placeholder="Pick what this payment is for…" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[60vh]">
+                  {(['frequent', 'compensation', 'other'] as const).map((g) => {
+                    const items = PAYMENT_CATEGORIES.filter((c) => c.group === g);
+                    if (items.length === 0) return null;
+                    return (
+                      <SelectGroup key={g}>
+                        <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 px-2 py-1">
+                          {paymentCategoryGroupLabel[g]}
+                        </SelectLabel>
+                        {items.map((opt: PaymentCategoryDef) => (
+                          <SelectItem key={opt.key} value={opt.key} className="pr-3">
+                            <div className="flex flex-col items-start py-0.5">
+                              <span className="text-sm">{opt.label}</span>
+                              {opt.hint && (
+                                <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                  {opt.hint}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {form.category && (
+                <p className="text-[11px] text-muted-foreground">
+                  Tagged as <span className="font-medium text-foreground">{paymentCategoryLabel(form.category)}</span> — will appear in Reports under this category.
+                </p>
+              )}
             </div>
             {bank.verified && form.amount && (
               <p className="text-sm text-muted-foreground">
