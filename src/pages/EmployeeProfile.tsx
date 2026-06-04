@@ -66,6 +66,7 @@ import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from
 import { FilePreviewTrigger } from '@/components/FilePreview';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { notifyRoles } from '@/lib/notify';
+import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 
 interface EmployeeData {
   id: string;
@@ -1516,7 +1517,32 @@ const EmployeeProfile = () => {
                   <dl className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">Department</dt>
-                      <dd className="font-medium">{employee.departments?.name ?? '—'}</dd>
+                      <dd className="font-medium">
+                        {(() => {
+                          // Resolve from the embedded join first; fall back to
+                          // the in-memory departments list (loaded for the
+                          // Edit select) using department_id. Two-layer
+                          // defence so a PostgREST embed glitch doesn't make
+                          // the field display as "—" when the id is set.
+                          const name =
+                            employee.departments?.name
+                            ?? departments.find((d) => d.id === employee.department_id)?.name
+                            ?? null;
+                          if (!name) return '—';
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold"
+                              style={deptBadgeStyle(name)}
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={deptDotStyle(name)}
+                              />
+                              {name}
+                            </span>
+                          );
+                        })()}
+                      </dd>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">Role</dt>

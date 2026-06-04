@@ -63,6 +63,7 @@ import {
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
+import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
 
 interface Tag {
   id: string;
@@ -137,6 +138,9 @@ const Employees = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
+  // 'all' = every employee, 'none' = those with no department set,
+  // otherwise the selected department id.
+  const [deptFilter, setDeptFilter] = useState<'all' | 'none' | string>('all');
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
@@ -438,6 +442,8 @@ const Employees = () => {
   const filtered = employees.filter((e) => {
     const q = search.trim().toLowerCase();
     if (roleFilter !== 'all' && e.role !== roleFilter) return false;
+    if (deptFilter === 'none' && e.department_id) return false;
+    if (deptFilter !== 'all' && deptFilter !== 'none' && e.department_id !== deptFilter) return false;
     if (!q) return true;
     return (
       displayName(e.first_name, e.last_name, e.full_name).toLowerCase().includes(q) ||
@@ -506,6 +512,20 @@ const Employees = () => {
               ))}
             </SelectContent>
           </Select>
+          <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v as any)}>
+            <SelectTrigger className="w-[170px] h-8 text-[12px] bg-transparent border-border/60">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All departments</SelectItem>
+              <SelectItem value="none">No department</SelectItem>
+              {departments.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
             <Switch
               checked={showInactive}
@@ -544,6 +564,7 @@ const Employees = () => {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Department</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Joined</TableHead>
@@ -589,6 +610,27 @@ const Employees = () => {
                         </div>
                       </TableCell>
                       <TableCell className="capitalize">{roleLabel(e.role)}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const name =
+                            e.department?.name
+                            ?? departments.find((d) => d.id === e.department_id)?.name
+                            ?? null;
+                          if (!name) return <span className="text-muted-foreground/60">—</span>;
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap"
+                              style={deptBadgeStyle(name)}
+                            >
+                              <span
+                                className="h-1.5 w-1.5 rounded-full"
+                                style={deptDotStyle(name)}
+                              />
+                              {name}
+                            </span>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">
                         {e.email}
                       </TableCell>
@@ -687,7 +729,28 @@ const Employees = () => {
                         />
                         <div className="min-w-0 flex-1">
                           <MobileCardTitle>{displayName(e.first_name, e.last_name, e.full_name)}</MobileCardTitle>
-                          <p className="text-[11px] text-muted-foreground capitalize mt-0.5">{roleLabel(e.role)}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <p className="text-[11px] text-muted-foreground capitalize">{roleLabel(e.role)}</p>
+                            {(() => {
+                              const name =
+                                e.department?.name
+                                ?? departments.find((d) => d.id === e.department_id)?.name
+                                ?? null;
+                              if (!name) return null;
+                              return (
+                                <>
+                                  <span className="text-muted-foreground/40 text-[10px]">·</span>
+                                  <span
+                                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                                    style={deptBadgeStyle(name)}
+                                  >
+                                    <span className="h-1 w-1 rounded-full" style={deptDotStyle(name)} />
+                                    {name}
+                                  </span>
+                                </>
+                              );
+                            })()}
+                          </div>
                           {e.tags && e.tags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1.5">
                               {e.tags.map((tid) => {
