@@ -38,8 +38,8 @@ import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import {
   PAYMENT_CATEGORIES,
-  paymentCategoryLabel,
   paymentCategoryGroupLabel,
+  paymentCategoryDef,
   defaultCategoryFor,
   type PaymentCategoryDef,
 } from '@/lib/payment-categories';
@@ -492,48 +492,66 @@ export function QuickPayDialog() {
               <Label htmlFor="qp-category" className="flex items-center gap-1.5">
                 Category
                 <span className="text-destructive" aria-hidden>*</span>
-                <span className="text-[11px] text-muted-foreground font-normal ml-auto">
-                  Required — feeds Transactions / Reports
-                </span>
               </Label>
               <Select
                 value={form.category}
                 onValueChange={(v) => setForm({ ...form, category: v })}
               >
                 <SelectTrigger id="qp-category" className={form.category ? '' : 'text-muted-foreground'}>
-                  <SelectValue placeholder="Pick what this payment is for…" />
+                  {(() => {
+                    const def = paymentCategoryDef(form.category);
+                    if (!def) {
+                      return <SelectValue placeholder="Pick what this payment is for…" />;
+                    }
+                    const Icon = def.icon;
+                    return (
+                      <span className="flex items-center gap-2 truncate">
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate text-sm">{def.label}</span>
+                      </span>
+                    );
+                  })()}
                 </SelectTrigger>
-                <SelectContent className="max-h-[60vh]">
-                  {(['frequent', 'compensation', 'other'] as const).map((g) => {
+                <SelectContent className="max-h-[55vh]">
+                  {(['frequent', 'compensation', 'other'] as const).map((g, gi) => {
                     const items = PAYMENT_CATEGORIES.filter((c) => c.group === g);
                     if (items.length === 0) return null;
                     return (
                       <SelectGroup key={g}>
-                        <SelectLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/70 px-2 py-1">
+                        <SelectLabel className={`text-[10px] uppercase tracking-wider text-muted-foreground/60 px-2 ${gi === 0 ? 'pt-1.5 pb-1' : 'pt-2 pb-1 border-t border-border/40 mt-1'}`}>
                           {paymentCategoryGroupLabel[g]}
                         </SelectLabel>
-                        {items.map((opt: PaymentCategoryDef) => (
-                          <SelectItem key={opt.key} value={opt.key} className="pr-3">
-                            <div className="flex flex-col items-start py-0.5">
-                              <span className="text-sm">{opt.label}</span>
-                              {opt.hint && (
-                                <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                  {opt.hint}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {items.map((opt: PaymentCategoryDef) => {
+                          const Icon = opt.icon;
+                          return (
+                            <SelectItem key={opt.key} value={opt.key} className="py-1.5">
+                              <span className="flex items-center gap-2 min-w-0">
+                                <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <span className="truncate text-sm">{opt.label}</span>
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectGroup>
                     );
                   })}
                 </SelectContent>
               </Select>
-              {form.category && (
-                <p className="text-[11px] text-muted-foreground">
-                  Tagged as <span className="font-medium text-foreground">{paymentCategoryLabel(form.category)}</span> — will appear in Reports under this category.
-                </p>
-              )}
+              {(() => {
+                const def = paymentCategoryDef(form.category);
+                if (!def) {
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      Required — what this payment is for. Feeds Transactions and Reports so Quick Pays roll up cleanly.
+                    </p>
+                  );
+                }
+                return (
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    {def.hint}
+                  </p>
+                );
+              })()}
             </div>
             {bank.verified && form.amount && (
               <p className="text-sm text-muted-foreground">
