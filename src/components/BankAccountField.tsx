@@ -136,13 +136,68 @@ export function BankAccountField({
           ]);
           if (cancelled) return;
           if (fresh.length > 0) setBanks(fresh);
+
+          // ── Tier 1 recovery: same name, fresh code ──────────────────────
+          // If Paystack rotated this bank's code, the freshly-fetched list
+          // returns a different code for the same name. Retry once with it.
           const refreshedCode = getBankCode(bank_name);
           if (refreshedCode && refreshedCode !== initialBankCode) {
-            const retried = await tryResolve(refreshedCode);
-            if (cancelled) return;
-            lastKeyRef.current = `${refreshedCode}:${account_number}`;
-            setVerifiedState({ ...value, account_name: retried.account_name, verified: true });
-            return;
+            try {
+              const retried = await tryResolve(refreshedCode);
+              if (cancelled) return;
+              lastKeyRef.current = `${refreshedCode}:${account_number}`;
+              setVerifiedState({ ...value, account_name: retried.account_name, verified: true });
+              return;
+            } catch { /* fall through to Tier 2 */ }
+          }
+
+          // ── Tier 2 recovery: fuzzy across all matching candidate banks ───
+          // The real root cause this addresses: Paystack's own dashboard
+          // tries multiple candidate codes when one fails, and one of the
+          // alternates actually resolves the account. Our strict one-shot
+          // missed that. Example we hit in production: account on Airtel
+          // Smartcash PSB — /bank returns code 120003 for that name, but
+          // /bank/resolve rejects 120003 for that account. Some adjacent
+          // Paystack entry resolves it. So when the same-name retry fails,
+          // walk the fresh bank list, find every bank whose name contains
+          // a significant word from the user-chosen bank, and try resolve
+          // against each candidate code. First success wins, and we update
+          // the recorded bank_name to the one that Paystack accepted so
+          // downstream (recipient create + transfer) uses the SAME code.
+          const STOPWORDS = new Set([
+            'psb', 'bank', 'plc', 'ltd', 'limited', 'nigeria', 'microfinance',
+            'mfb', 'digital', 'services', 'and', 'the', 'of', 'company',
+          ]);
+          const significantTokens = bank_name
+            .toLowerCase()
+            .replace(/[^a-z\s]/g, ' ')
+            .split(/\s+/)
+            .filter((t) => t.length >= 4 && !STOPWORDS.has(t));
+
+          if (significantTokens.length > 0 && fresh.length > 0) {
+            const seenCodes = new Set<string>([initialBankCode, refreshedCode || '']);
+            const candidates = fresh.filter((b) => {
+              if (seenCodes.has(b.code)) return false;
+              const lc = b.name.toLowerCase();
+              return significantTokens.some((t) => lc.includes(t));
+            });
+            // Bound the work — at most 8 candidates per verify so a single
+            // failed lookup can never spam Paystack with 100 resolve calls.
+            for (const cand of candidates.slice(0, 8)) {
+              if (cancelled) return;
+              try {
+                const ok = await tryResolve(cand.code);
+                if (cancelled) return;
+                lastKeyRef.current = `${cand.code}:${account_number}`;
+                setVerifiedState({
+                  ...value,
+                  bank_name: cand.name,
+                  account_name: ok.account_name,
+                  verified: true,
+                });
+                return;
+              } catch { /* try the next candidate */ }
+            }
           }
         } catch (_recoveryErr) { /* fall through to the original error */ }
 
