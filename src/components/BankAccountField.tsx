@@ -7,6 +7,7 @@ import {
   fetchBanks,
   getBankCode,
   resolveAccount,
+  clearBankCache,
 } from '@/lib/paystack';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { BankCombobox } from '@/components/BankCombobox';
@@ -80,36 +81,60 @@ export function BankAccountField({
 
   useEffect(() => {
     const { account_number, bank_name } = value;
-    const bankCode = getBankCode(bank_name);
+    const initialBankCode = getBankCode(bank_name);
 
     // Only verify when we have 10 digits + a mapped bank code, and this exact
     // pair hasn't already been resolved.
-    if (!bankCode || account_number.length !== 10) return;
-    const key = `${bankCode}:${account_number}`;
+    if (!initialBankCode || account_number.length !== 10) return;
+    const key = `${initialBankCode}:${account_number}`;
     if (key === lastKeyRef.current && value.verified) return;
 
     let cancelled = false;
     const run = async () => {
       setLoading(true);
       setError(null);
+
+      /** Hit Paystack /bank/resolve once with the given bank code. Returns
+       *  the resolved result on success, throws the original error on
+       *  failure. */
+      const tryResolve = async (code: string) => resolveAccount(account_number, code);
+
       try {
-        const result = await resolveAccount(account_number, bankCode);
+        // First attempt with the cached code lookup.
+        const result = await tryResolve(initialBankCode);
         if (cancelled) return;
         lastKeyRef.current = key;
-        setVerifiedState({
-          ...value,
-          account_name: result.account_name,
-          verified: true,
-        });
+        setVerifiedState({ ...value, account_name: result.account_name, verified: true });
       } catch (err: any) {
+        if (cancelled) return;
+
+        // Auto-recovery: Paystack occasionally rotates PSB / fintech codes
+        // (Airtel Smartcash, MTN MoMo, PalmPay sub-codes). When the resolve
+        // fails because the cached code is stale, clear the local bank list,
+        // refetch the current list from Paystack's /bank, look the code up
+        // again, and retry ONCE with the fresh code. This silently fixes the
+        // common "Could not resolve account" for valid accounts that Paystack
+        // itself can resolve. NEVER touches transfer / dispatch — this is
+        // the verify path only.
+        try {
+          clearBankCache();
+          const fresh = await fetchBanks();
+          if (cancelled) return;
+          if (fresh.length > 0) setBanks(fresh);
+          const refreshedCode = getBankCode(bank_name);
+          if (refreshedCode && refreshedCode !== initialBankCode) {
+            const retried = await tryResolve(refreshedCode);
+            if (cancelled) return;
+            lastKeyRef.current = `${refreshedCode}:${account_number}`;
+            setVerifiedState({ ...value, account_name: retried.account_name, verified: true });
+            return;
+          }
+        } catch (_recoveryErr) { /* fall through to the original error */ }
+
         if (cancelled) return;
         lastKeyRef.current = '';
         setError(err?.message || 'Could not verify account');
-        setVerifiedState({
-          ...value,
-          account_name: '',
-          verified: false,
-        });
+        setVerifiedState({ ...value, account_name: '', verified: false });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -120,6 +145,20 @@ export function BankAccountField({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.account_number, value.bank_name]);
+
+  /** Manual escape hatch — operator clicks "Refresh bank list" on an error.
+   *  Forces a fresh fetch and re-triggers the resolve effect by clearing the
+   *  dedup key. */
+  const refreshAndRetry = async () => {
+    setError(null);
+    clearBankCache();
+    try {
+      const fresh = await fetchBanks();
+      if (fresh.length > 0) setBanks(fresh);
+    } catch { /* surface no error here; the effect will re-run and surface its own */ }
+    lastKeyRef.current = '';
+    setVerifiedState({ ...value, account_name: '', verified: false });
+  };
 
   return (
     <div className="space-y-3">
@@ -159,9 +198,17 @@ export function BankAccountField({
           </span>
         )}
         {!loading && error && (
-          <span className="text-destructive flex items-center gap-2">
-            <AlertCircle className="h-4 w-4" />
-            {error}
+          <span className="text-destructive flex items-center gap-2 flex-wrap">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={refreshAndRetry}
+              className="underline text-xs text-destructive/80 hover:text-destructive ml-1"
+              title="Some bank codes (PSBs / fintechs) change occasionally. Refresh fetches the current Paystack list and retries."
+            >
+              Refresh bank list
+            </button>
           </span>
         )}
         {!loading &&

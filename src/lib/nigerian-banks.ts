@@ -91,7 +91,14 @@ export const NIGERIAN_BANKS: NigerianBank[] = [
 // Cached in localStorage for 24 hours.
 // ---------------------------------------------------------------------------
 const CACHE_KEY = 'kdops_bank_list';
-const CACHE_TTL = 24 * 60 * 60 * 1000;
+// 2 hours — Paystack occasionally rotates PSB / fintech codes (Airtel
+// Smartcash, MTN MoMo, PalmPay sub-codes, etc.). The previous 24h was long
+// enough that a stale cached code could survive long after Paystack updated
+// it, causing /bank/resolve to reject the verify. 2h matches "long enough
+// to not hit list_banks on every page load" with "short enough to recover
+// from a Paystack code change the same business day". Auto-recovery on
+// resolve failure (see BankAccountField) covers the gap inside that window.
+const CACHE_TTL = 2 * 60 * 60 * 1000;
 
 // Module-level bank registry — starts with static list, upgraded once dynamic
 // fetch completes. getBankCode searches this, so dynamically-fetched banks are
