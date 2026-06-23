@@ -79,6 +79,7 @@ import {
   CalendarClock,
   Search,
   Info,
+  Pencil,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -297,6 +298,9 @@ const BatchDetail = () => {
   const [deleting, setDeleting] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
   const [retryingAll, setRetryingAll] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [recurFrequency, setRecurFrequency] = useState<'weekly' | 'biweekly' | 'monthly' | 'custom'>('monthly');
@@ -1536,6 +1540,50 @@ const BatchDetail = () => {
     batch.status === 'draft' &&
     (batch.created_by === profile?.id || isAdmin || isFinance || isOperations);
 
+  // The batch NAME is a label only — not part of the payment payload, not in the
+  // signed payload_hash, not used by the worker, and not in the
+  // enforce_batch_approval_state_writes protected-columns list. So renaming is
+  // safe at any status (incl. funded/processing/completed). Restrict to roles
+  // who own batch curation so a random viewer can't relabel another team's run.
+  const canRenameBatch =
+    !batch.deleted_at &&
+    (isAdmin || isFinance ||
+      (isOperations &&
+        batch.batch_type === 'contractor' &&
+        !batch.is_quick_pay));
+
+  const submitRename = async () => {
+    const next = renameValue.trim();
+    if (!next || next === batch.name) {
+      setRenameOpen(false);
+      return;
+    }
+    setRenameSaving(true);
+    try {
+      const { error } = await supabase
+        .from('payment_batches')
+        .update({ name: next })
+        .eq('id', batch.id);
+      if (error) throw error;
+      setBatch((prev: any) => (prev ? { ...prev, name: next } : prev));
+      await logAudit(
+        'batch_renamed',
+        `Batch renamed from "${batch.name}" to "${next}"`,
+        profile,
+      );
+      toast({ title: 'Batch renamed', description: `Now "${next}"` });
+      setRenameOpen(false);
+    } catch (err: any) {
+      toast({
+        title: 'Could not rename batch',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRenameSaving(false);
+    }
+  };
+
   const filteredItems = items.filter((i) => {
     if (itemFilter === 'succeeded' && i.status !== 'succeeded') return false;
     if (itemFilter === 'failed' && i.status !== 'failed') return false;
@@ -1569,6 +1617,21 @@ const BatchDetail = () => {
             <div className="min-w-0">
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h1 className="text-xl font-bold tracking-tight truncate">{batch.name}</h1>
+                {canRenameBatch && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground"
+                    aria-label="Rename batch"
+                    title="Rename batch"
+                    onClick={() => {
+                      setRenameValue(batch.name || '');
+                      setRenameOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <StatusBadge status={batch.status} />
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">{batch.period || 'No period set'}</p>
@@ -2669,6 +2732,43 @@ const BatchDetail = () => {
             >
               {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cancel transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Rename batch</DialogTitle>
+            <DialogDescription>
+              Updates the display name only. Recipients, amounts, status, and
+              payment processing are unaffected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="batch-rename">Batch name</Label>
+            <Input
+              id="batch-rename"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              maxLength={120}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !renameSaving) submitRename();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)} disabled={renameSaving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitRename}
+              disabled={renameSaving || !renameValue.trim() || renameValue.trim() === batch.name}
+            >
+              {renameSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>
