@@ -73,6 +73,73 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // ─── AUTH GATE ────────────────────────────────────────────────────────
+    // Deploy uses --no-verify-jwt (Supabase's recommended pattern for edge
+    // functions that authenticate in code). Without this block anyone with
+    // the function URL could POST arbitrary title/body/URL to any subscribed
+    // user — a phishing surface, since the OS-level push looks like it came
+    // from KDOps. Accept three paths:
+    //   1. Internal cross-function / cron caller with X-Cron-Secret
+    //   2. Service-role bearer (used by future server-side workers)
+    //   3. Authenticated staff JWT (browser callers via supabase-js)
+    // Anonymous / anon-key requests are rejected.
+    const authHeader = req.headers.get("authorization") || "";
+    const bearer     = authHeader.replace(/^Bearer\s+/i, "");
+    const cronSecret = req.headers.get("x-cron-secret");
+    const expectedCron   = Deno.env.get("CRON_SHARED_SECRET");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey        = Deno.env.get("SUPABASE_ANON_KEY");
+
+    const isCronCall    = !!(cronSecret && expectedCron && cronSecret === expectedCron);
+    const isServiceRole = !!(bearer && serviceRoleKey && bearer === serviceRoleKey);
+
+    let authorized = isCronCall || isServiceRole;
+
+    if (!authorized) {
+      // A raw anon-key bearer is NOT a real user session — reject it explicitly
+      // so we don't fall through into getUser with a token that will fail
+      // cleanly but confusingly.
+      if (!bearer || (anonKey && bearer === anonKey)) {
+        return new Response(JSON.stringify({ error: "unauthorized: staff sign-in required" }), {
+          status: 401,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+
+      // Validate the JWT against auth.users. Pass the token explicitly —
+      // supabase-js v2 otherwise looks for an internal session that doesn't
+      // exist server-side and returns "Auth session missing!".
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        anonKey!,
+        { global: { headers: { Authorization: `Bearer ${bearer}` } } },
+      );
+      const { data: userRes, error: userErr } = await userClient.auth.getUser(bearer);
+      if (userErr || !userRes?.user) {
+        return new Response(JSON.stringify({ error: "unauthorized: invalid session" }), {
+          status: 401,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+      // Any active staff profile can enqueue pushes to teammates; deactivated
+      // accounts cannot. We deliberately do NOT restrict by role here — every
+      // module in the app has a legitimate reason to notify (approvals, HR,
+      // fleet alerts, expense-side, chatbot handoff), and the per-user push
+      // preference table already lets recipients opt out.
+      const { data: profile } = await service
+        .from("profiles")
+        .select("id, status")
+        .eq("id", userRes.user.id)
+        .maybeSingle();
+      if (!profile || ((profile as any).status && (profile as any).status !== "active")) {
+        return new Response(JSON.stringify({ error: "forbidden: inactive account" }), {
+          status: 403,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
+      }
+      authorized = true;
+    }
+
     // VAPID keys live on company_settings — single-tenant for now.
     const { data: settings } = await service
       .from("company_settings")
