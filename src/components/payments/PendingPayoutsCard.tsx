@@ -132,16 +132,15 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
       // The row-list UI reads .total_amount, so alias here to keep the shape.
       const listRows = (listRes.data ?? []) as any[];
       if (listRes.error || !Array.isArray(listRes.data)) {
-        // Fallback while migration 20260930001000 is still deploying:
-        // fetch straight from the table. Includes failed batches whose
-        // items may already be cancelled, so we filter those out below —
-        // costs one extra RPC to check outstanding items per failed batch.
+        // Fallback path (only used if the RPC is temporarily unavailable).
+        // No LIMIT — the KPI must never silently truncate. PostgREST caps
+        // rows at its server-side max (default 1000; raise via the
+        // `db.max_rows` project setting if you cross that threshold).
         const fbRes = await supabase.from('payment_batches')
           .select('id, name, status, total_amount, beneficiary_count, payment_date, created_at, approved_at')
           .in('status', PENDING_ALL)
           .is('deleted_at', null)
-          .order('payment_date', { ascending: true, nullsFirst: false })
-          .limit(500);
+          .order('payment_date', { ascending: true, nullsFirst: false });
         setBatches(((fbRes.data ?? []) as any[]) as PendingBatch[]);
       } else {
         setBatches(listRows.map((r) => ({
