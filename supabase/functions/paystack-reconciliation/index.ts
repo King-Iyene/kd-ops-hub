@@ -104,21 +104,18 @@ serve(async (req) => {
       const secret = await getPaystackSecret(service);
 
       // ── Pass 1: resolve stuck items (pending/retry older than threshold) ──
-      // Filter on updated_at rather than created_at so we don't hammer
-      // /transfer/verify on items that were dispatched only minutes ago inside
-      // a batch that happens to have been created hours earlier (e.g. a batch
-      // sat in draft for 3h, then Process was clicked). updated_at tracks the
-      // dispatch write, so a row is only considered stuck once it has been
-      // sitting on 'pending' / 'retry' for STUCK_THRESHOLD_HOURS since its
-      // last state change — the definition operators would expect.
+      // NOTE: batch_items has no updated_at column, so we filter on created_at.
+      // A batch that sat in draft for hours before Process was clicked will
+      // have its items eagerly verified; acceptable trade-off. Proper fix
+      // requires adding batch_items.updated_at with a trigger — deferred.
       const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
       const { data: stuckItems, error: fetchErr } = await service
         .from("batch_items")
         .select("id, paystack_reference, full_name, status, batch_id")
         .in("status", ["pending", "retry"])
         .not("paystack_reference", "is", null)
-        .lt("updated_at", cutoff)
-        .order("updated_at", { ascending: true })
+        .lt("created_at", cutoff)
+        .order("created_at", { ascending: true })
         .limit(MAX_ITEMS_PER_RUN);
       if (fetchErr) throw fetchErr;
 
