@@ -210,28 +210,25 @@ serve(async (req) => {
         }
       }
 
-      // Recompute parent batch statuses for any batch we touched. One query for
-      // all touched batches' items (grouped in memory) instead of N queries.
+      // Recompute parent batch statuses for any batch we touched. We now
+      // delegate to the sync_batch_status_from_items RPC instead of doing the
+      // status math client-side + writing directly. Two reasons:
+      //   1. The direct .update() ran as service_role, which the state-machine
+      //      trigger's `current_user <> 'authenticated'` guard let through
+      //      unconditionally — so a reversed item arriving late could shove a
+      //      'processed' batch backward to 'processing', silently re-opening a
+      //      closed batch and re-triggering polling / emails.
+      //   2. The client-side math missed the 'completed' transition and never
+      //      stamped processing_finalized_at.
+      // sync_batch_status_from_items has both fixes built in: it early-returns
+      // for terminal statuses and drives the transitions through the guarded
+      // paths. Idempotent, safe to call once per touched batch.
       const touchedBatches = Array.from(new Set(items.map((i: any) => i.batch_id)));
-      if (touchedBatches.length > 0) {
-        const { data: allRows } = await service
-          .from("batch_items").select("batch_id, status").in("batch_id", touchedBatches);
-        const byBatch = new Map<string, any[]>();
-        for (const r of (allRows || []) as any[]) {
-          if (!byBatch.has(r.batch_id)) byBatch.set(r.batch_id, []);
-          byBatch.get(r.batch_id)!.push(r);
-        }
-        for (const bid of touchedBatches) {
-          const all = byBatch.get(bid) || [];
-          if (all.length === 0) continue;
-          const anyPending = all.some((r: any) => ["pending", "retry"].includes(r.status));
-          const anyFailed = all.some((r: any) => r.status === "failed");
-          const allOk = all.every((r: any) => r.status === "succeeded");
-          const correct = anyPending ? "processing"
-            : allOk ? "processed"
-            : anyFailed ? "partially_processed"
-            : "processing";
-          await service.from("payment_batches").update({ status: correct }).eq("id", bid);
+      for (const bid of touchedBatches) {
+        try {
+          await service.rpc("sync_batch_status_from_items", { p_batch_id: bid });
+        } catch (e) {
+          console.warn("[reconciliation] sync_batch_status_from_items failed for", bid, e);
         }
       }
 

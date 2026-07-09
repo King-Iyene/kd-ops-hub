@@ -1120,36 +1120,48 @@ const BatchDetail = () => {
         try {
           const res = await verifyTransfer(it.paystack_reference);
           if (cancelled) return;
-          if (res.status === 'success') {
-            await supabase
-              .from('batch_items')
-              .update({
-                status: 'succeeded',
-                failure_reason: null,
-                processed_at: new Date().toISOString(),
-                paystack_raw: res.raw,
-                paystack_fee_ngn: Number(res.raw?.fee || 0) / 100,
-              })
-              .eq('id', it.id);
+          // Route status writes through client_finalize_transfer so this
+          // poll and the Paystack webhook share the SAME idempotency claim
+          // (webhook_idempotency table). First writer wins; the loser gets
+          // outcome='duplicate' and no side-effects run. This kills the
+          // duplicate "Payment Completed" emails / audit rows that used to
+          // fire when an operator had the batch open while dispatch settled.
+          let event: 'transfer.success' | 'transfer.failed' | 'transfer.reversed' | null = null;
+          if (res.status === 'success') event = 'transfer.success';
+          else if (res.status === 'failed') event = 'transfer.failed';
+          else if (res.status === 'reversed') event = 'transfer.reversed';
+          if (!event) continue;
+
+          const feeNgn = event === 'transfer.success'
+            ? Number(res.raw?.fee || 0) / 100
+            : 0;
+
+          const { data: outcome, error: rpcErr } = await supabase.rpc('client_finalize_transfer', {
+            p_event:            event,
+            p_reference:        it.paystack_reference,
+            p_failure_reason:   event === 'transfer.success' ? null : (res.reason || `Paystack ${res.status}`),
+            p_paystack_raw:     res.raw ?? null,
+            p_paystack_fee_ngn: feeNgn,
+          });
+          if (rpcErr) {
+            // Fall back to a raw update ONLY if the RPC itself failed to
+            // execute (e.g. transient DB unavailability). We still avoid
+            // logAudit here in the fallback so a later real webhook remains
+            // the audit source of truth.
+            console.warn('[KDOps] client_finalize_transfer failed, skipping tick', rpcErr);
+            continue;
+          }
+          // Only the WINNING writer gets outcome='processed' back — that's
+          // the one whose logAudit + notify should run. Duplicate / stale /
+          // no_match callers just move on.
+          if ((outcome as any)?.outcome === 'processed') {
             await logAudit(
-              'paystack_transfer_succeeded',
-              `Transfer succeeded for ${it.full_name} (ref ${it.paystack_reference})`,
-              profile,
-            );
-            changed = true;
-          } else if (['failed', 'reversed'].includes(res.status)) {
-            await supabase
-              .from('batch_items')
-              .update({
-                status: 'failed',
-                failure_reason: res.reason || `Paystack ${res.status}`,
-                processed_at: new Date().toISOString(),
-                paystack_raw: res.raw,
-              })
-              .eq('id', it.id);
-            await logAudit(
-              'paystack_transfer_failed',
-              `Transfer ${res.status} for ${it.full_name}: ${res.reason || '—'}`,
+              event === 'transfer.success'
+                ? 'paystack_transfer_succeeded'
+                : 'paystack_transfer_failed',
+              event === 'transfer.success'
+                ? `Transfer succeeded for ${it.full_name} (ref ${it.paystack_reference})`
+                : `Transfer ${res.status} for ${it.full_name}: ${res.reason || '—'}`,
               profile,
             );
             changed = true;
@@ -1236,12 +1248,19 @@ const BatchDetail = () => {
     }
     setRetryingId(item.id);
     try {
-      // Mark as retrying, then run the real Paystack flow again. A brand new
-      // reference is minted so Paystack accepts the retry even if the previous
-      // one is still on file.
+      // Mark as retrying and let processOneItem re-run the Paystack flow.
+      //
+      // We deliberately do NOT null out paystack_reference here. The generate
+      // function is deterministic per batch_item.id, and initiateTransferIdempotent
+      // self-heals on Paystack "duplicate reference" errors by verifying the
+      // original ref. Nulling the reference between this write and the Paystack
+      // call created a crash window: if the browser died mid-retry, the row
+      // was left with no reference — and the reconciliation cron filters
+      // `paystack_reference IS NOT NULL`, so it would never verify it again.
+      // The row would silently orphan.
       await supabase
         .from('batch_items')
-        .update({ status: 'retry', failure_reason: null, paystack_reference: null })
+        .update({ status: 'retry', failure_reason: null })
         .eq('id', item.id);
       const result = await processOneItem(item);
       await logAudit(
