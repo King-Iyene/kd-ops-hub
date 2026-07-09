@@ -59,4 +59,13 @@ jobs:
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
       - name: Push migrations to production
-        run: supabase db push
+        # --include-all forces the CLI to apply any local migration file whose
+        # timestamp precedes the most-recent remote migration. Three legacy
+        # files (20260811 sprint_a_b, 20260812 sprint_c_leave, 20260813
+        # sprint_d_probation) sit at earlier timestamps than what remote has
+        # already applied; without this flag the CLI refuses the whole push
+        # with "Found local migration files to be inserted…" and every
+        # migration since Aug went undeployed. All three legacy files are
+        # written with IF NOT EXISTS / DROP POLICY IF EXISTS guards, so
+        # re-applying them is a no-op.
+        run: supabase db push --include-all
