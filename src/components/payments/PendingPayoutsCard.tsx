@@ -49,7 +49,11 @@ interface Props {
 const AWAITING_APPROVAL = ['pending_approval', 'pending_second_approval'];
 const AWAITING_FUNDING  = ['approved'];
 const IN_FLIGHT         = ['funded', 'processing', 'partially_processed'];
-const PENDING_ALL       = [...AWAITING_APPROVAL, ...AWAITING_FUNDING, ...IN_FLIGHT];
+// 'failed' batches (every item failed) also need attention — they show up
+// under All / Stuck so operators can patch and resubmit rather than having
+// the money silently disappear from the Pending KPI.
+const NEEDS_ATTENTION   = ['failed'];
+const PENDING_ALL       = [...AWAITING_APPROVAL, ...AWAITING_FUNDING, ...IN_FLIGHT, ...NEEDS_ATTENTION];
 
 const STUCK_APPROVAL_HOURS = 72;
 const STUCK_INFLIGHT_HOURS = 24;
@@ -59,6 +63,9 @@ function isStuck(b: PendingBatch): boolean {
     iso ? (now - new Date(iso).getTime()) / 3_600_000 : 0;
   if (AWAITING_APPROVAL.includes(b.status)) return ageHrs(b.created_at) > STUCK_APPROVAL_HOURS;
   if (IN_FLIGHT.includes(b.status))         return ageHrs(b.approved_at ?? b.created_at) > STUCK_INFLIGHT_HOURS;
+  // Any failed batch is unresolved money — always classify as stuck so
+  // operators see them at the top of their "to-do" pile.
+  if (NEEDS_ATTENTION.includes(b.status))   return true;
   return false;
 }
 
@@ -76,6 +83,17 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
   const navigate = useNavigate();
   const [batches, setBatches] = useState<PendingBatch[]>([]);
   const [paidThisMonth, setPaidThisMonth] = useState(0);
+  // Server-computed totals that IGNORE the 50-row row-list limit. Without
+  // these the KPI was truncating at whichever 50 batches happened to be at
+  // the top of the payment-date ordering, so finance saw a moving lower
+  // bound. The RPC sums outstanding liability across every non-draft,
+  // non-closed batch — no cap — and adjusts partially_processed / failed
+  // batches to only count their unpaid items.
+  const [summary, setSummary] = useState<{
+    total: number;
+    count: number;
+    monthPending: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Bucket>('all');
 
@@ -87,13 +105,21 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-      const [pendRes, paidRes] = await Promise.all([
+      const [pendRes, paidRes, summaryRes] = await Promise.all([
         supabase.from('payment_batches')
           .select('id, name, status, total_amount, beneficiary_count, payment_date, created_at, approved_at')
           .in('status', PENDING_ALL)
           .is('deleted_at', null)
           .order('payment_date', { ascending: true, nullsFirst: false })
-          .limit(50),
+          // Row-list depth for the sub-tab breakdown. Bumped from the
+          // original 50 because that cap fed the KPI aggregate too and
+          // caused the total to shift as batches moved through the pipeline
+          // (root cause: only the top 50 by payment_date were being summed).
+          // The KPI now comes from the pending_payouts_summary RPC (no cap),
+          // and this query serves the tab counts + preview rows only. 500
+          // gives generous headroom for the sub-tab counters to stay
+          // accurate even during heavy month-ends.
+          .limit(500),
         // "Paid this month" sums actual money out — succeeded items
         // that were NOT manually resolved. Cancelled and paid-externally
         // items are excluded because no Paystack-rail money moved (in
@@ -104,28 +130,42 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
           p_start: monthStart.toISOString().slice(0, 10),
           p_end:   monthEnd.toISOString().slice(0, 10),
         }),
+        // Complete Pending totals (no 50-batch cap). See RPC docstring.
+        supabase.rpc('pending_payouts_summary'),
       ]);
       if (cancelled) return;
 
       setBatches(((pendRes.data ?? []) as any[]) as PendingBatch[]);
       setPaidThisMonth(Number(paidRes.data ?? 0));
+      const s = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
+      if (s) {
+        setSummary({
+          total:        Number((s as any).total_amount ?? 0),
+          count:        Number((s as any).batch_count ?? 0),
+          monthPending: Number((s as any).month_pending_amount ?? 0),
+        });
+      } else {
+        setSummary(null);
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const pendingTotal = useMemo(
-    () => batches.reduce((s, b) => s + Number(b.total_amount || 0), 0),
-    [batches],
-  );
+  // KPIs prefer the server-side summary; only fall back to the client sum
+  // of the (capped) row list if the RPC hasn't returned yet or errored.
+  const pendingTotal = summary?.total
+    ?? batches.reduce((s, b) => s + Number(b.total_amount || 0), 0);
+  const pendingCount = summary?.count ?? batches.length;
 
   const monthPlanned = useMemo(() => {
+    if (summary) return paidThisMonth + summary.monthPending;
     const ymPrefix = new Date().toISOString().slice(0, 7);
     const monthPending = batches
       .filter((b) => b.payment_date?.startsWith(ymPrefix))
       .reduce((s, b) => s + Number(b.total_amount || 0), 0);
     return paidThisMonth + monthPending;
-  }, [batches, paidThisMonth]);
+  }, [batches, paidThisMonth, summary]);
 
   const fundingGap = walletBalanceNgn != null
     ? Math.max(0, pendingTotal - walletBalanceNgn)
@@ -170,12 +210,12 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
           <KpiCell
             label="Pending"
             value={loading ? null : formatNaira(pendingTotal)}
-            sub={loading ? '' : `${batches.length} batch${batches.length === 1 ? '' : 'es'}`}
+            sub={loading ? '' : `${pendingCount} batch${pendingCount === 1 ? '' : 'es'}`}
             tone={pendingTotal > 0 ? 'warning' : 'neutral'}
             icon={<Wallet className="h-3 w-3" />}
             hint={
               <>
-                <span className="block mb-1"><b>Pending</b> = batches in pending_approval, approved, funded, processing, or partially_processed.</span>
+                <span className="block mb-1"><b>Pending</b> = outstanding money across every batch in pending_approval, approved, funded, processing, partially_processed, or failed. Partial / failed batches contribute only their unpaid items.</span>
                 <span className="block mb-1"><b>This month</b> = pending dated this month + already paid this month.</span>
                 <span className="block"><b>Gap</b> = pending − wallet balance (zero or negative means covered).</span>
               </>
