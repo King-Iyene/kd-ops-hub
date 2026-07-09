@@ -59,6 +59,7 @@ jobs:
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
       - name: Push migrations to production
+        id: push
         # --include-all forces the CLI to apply any local migration file whose
         # timestamp precedes the most-recent remote migration. Three legacy
         # files (20260811 sprint_a_b, 20260812 sprint_c_leave, 20260813
@@ -69,3 +70,42 @@ jobs:
         # written with IF NOT EXISTS / DROP POLICY IF EXISTS guards, so
         # re-applying them is a no-op.
         run: supabase db push --include-all
+
+      - name: Alert on failure (email via GitHub)
+        if: ${{ failure() }}
+        # When this step runs, GitHub auto-emails the workflow author + repo
+        # admins with the failed-run link. That's already on by default at
+        # your account level. This step also raises a repository issue so
+        # the failure is IMPOSSIBLE to miss in the normal PR / issue flow.
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha  = context.sha.substring(0, 7);
+            const url  = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = `[migration deploy] failed on ${sha}`;
+            const body  = [
+              `The Supabase migration deploy for commit \`${sha}\` FAILED.`,
+              ``,
+              `Nothing in \`supabase/migrations/\` has reached production for this push.`,
+              ``,
+              `Investigate: ${url}`,
+              ``,
+              `> This issue was opened by the deploy-supabase-migrations workflow.`,
+              `> Close it once the underlying failure is resolved and a re-run succeeds.`,
+            ].join("\n");
+            // De-dupe: if there's already an open failure issue for this
+            // commit, reuse it instead of stacking new ones.
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "migration-deploy-failure",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: match.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner, repo, title, body, labels: ["migration-deploy-failure"],
+              });
+            }

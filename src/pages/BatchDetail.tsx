@@ -1571,6 +1571,55 @@ const BatchDetail = () => {
         batch.batch_type === 'contractor' &&
         !batch.is_quick_pay));
 
+  const [cancelBatchOpen, setCancelBatchOpen] = useState(false);
+  const [cancelBatchNote, setCancelBatchNote] = useState('');
+  const [cancelBatchSaving, setCancelBatchSaving] = useState(false);
+
+  // Bulk-cancel every unresolved item in a failed / partially_processed
+  // batch. Root-cause fix for the "batch renamed to (CANCELLED) but Pending
+  // KPI still counts it" case — the KPI (pending_payouts_summary) only
+  // excludes batches whose ITEMS are marked cancelled, so renaming alone
+  // did nothing. This action flips every outstanding item's
+  // is_manually_resolved to true with method='cancelled' in one call.
+  const canCancelWholeBatch =
+    (isAdmin || isFinance) &&
+    !batch.deleted_at &&
+    ['failed', 'partially_processed'].includes(batch.status) &&
+    items.some((i) => i.status !== 'succeeded' && !i.is_manually_resolved);
+
+  const submitCancelBatch = async () => {
+    setCancelBatchSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('cancel_batch_bulk', {
+        p_batch_id: batch.id,
+        p_note:     cancelBatchNote.trim() || null,
+      });
+      if (error) throw error;
+      const cancelled = (data as any)?.cancelled_count ?? 0;
+      const skipped   = (data as any)?.skipped_count   ?? 0;
+      await logAudit(
+        'batch_cancelled_bulk',
+        `Batch "${batch?.name}" cancelled in bulk — ${cancelled} item(s) closed${skipped ? `, ${skipped} skipped` : ''}`,
+        profile,
+      );
+      toast({
+        title: 'Batch cancelled',
+        description: `${cancelled} item(s) marked cancelled${skipped ? ` (${skipped} skipped)` : ''}.`,
+      });
+      setCancelBatchOpen(false);
+      setCancelBatchNote('');
+      await fetchBatch();
+    } catch (err: any) {
+      toast({
+        title: 'Cancel failed',
+        description: err?.message || 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCancelBatchSaving(false);
+    }
+  };
+
   const submitRename = async () => {
     const next = renameValue.trim();
     if (!next || next === batch.name) {
@@ -1656,16 +1705,29 @@ const BatchDetail = () => {
               <p className="text-sm text-muted-foreground mt-0.5">{batch.period || 'No period set'}</p>
             </div>
           </div>
-          {canExport && (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={downloadReceipt}>
-                <FileText className="mr-1.5 h-3.5 w-3.5" /> Receipt
+          <div className="flex flex-wrap gap-2">
+            {canCancelWholeBatch && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCancelBatchOpen(true)}
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                title="Mark every outstanding recipient in this batch as cancelled"
+              >
+                <X className="mr-1.5 h-3.5 w-3.5" /> Cancel batch
               </Button>
-              <Button variant="outline" size="sm" onClick={exportCsv}>
-                <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
-              </Button>
-            </div>
-          )}
+            )}
+            {canExport && (
+              <>
+                <Button variant="outline" size="sm" onClick={downloadReceipt}>
+                  <FileText className="mr-1.5 h-3.5 w-3.5" /> Receipt
+                </Button>
+                <Button variant="outline" size="sm" onClick={exportCsv}>
+                  <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Metadata row */}
@@ -2751,6 +2813,45 @@ const BatchDetail = () => {
             >
               {resolving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cancel transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelBatchOpen} onOpenChange={setCancelBatchOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel this batch?</DialogTitle>
+            <DialogDescription>
+              Marks every outstanding recipient in "{batch?.name}" as cancelled
+              — the same as clicking Cancel on each row one by one. This closes
+              the batch out for accounting: the amounts drop off the Pending
+              KPI immediately. No money moves. You can Undo any individual
+              recipient later from the row menu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="cancel-batch-note">Note (optional)</Label>
+            <Textarea
+              id="cancel-batch-note"
+              value={cancelBatchNote}
+              onChange={(e) => setCancelBatchNote(e.target.value)}
+              placeholder="Why is this batch being cancelled?"
+              maxLength={500}
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelBatchOpen(false)} disabled={cancelBatchSaving}>
+              Keep
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={submitCancelBatch}
+              disabled={cancelBatchSaving}
+            >
+              {cancelBatchSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cancel batch
             </Button>
           </DialogFooter>
         </DialogContent>
