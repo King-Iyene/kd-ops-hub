@@ -49,12 +49,13 @@ interface Props {
 const AWAITING_APPROVAL = ['pending_approval', 'pending_second_approval'];
 const AWAITING_FUNDING  = ['approved'];
 const IN_FLIGHT         = ['funded', 'processing', 'partially_processed'];
-// Operator convention on this platform: batches that finished in 'failed'
-// are treated as cancelled / closed-out and MUST NOT appear in Pending.
-// Genuinely mixed batches (some items succeeded, some still failing) remain
-// visible via 'partially_processed', and only their outstanding item amounts
-// contribute to the KPI (handled server-side in pending_payouts_summary).
-const PENDING_ALL       = [...AWAITING_APPROVAL, ...AWAITING_FUNDING, ...IN_FLIGHT];
+// 'failed' batches stay in Pending as long as they still have uncancelled
+// items — those recipients still need to be patched / retried. Once every
+// item is cancelled via the "Cancel" action (mark_batch_item_resolved with
+// method='cancelled'), the RPC's outstanding-items filter drops the batch's
+// contribution to 0 and it disappears from both the KPI total and count.
+// Undoing any cancel automatically pulls it back.
+const PENDING_ALL       = [...AWAITING_APPROVAL, ...AWAITING_FUNDING, ...IN_FLIGHT, 'failed'];
 
 const STUCK_APPROVAL_HOURS = 72;
 const STUCK_INFLIGHT_HOURS = 24;
@@ -64,6 +65,10 @@ function isStuck(b: PendingBatch): boolean {
     iso ? (now - new Date(iso).getTime()) / 3_600_000 : 0;
   if (AWAITING_APPROVAL.includes(b.status)) return ageHrs(b.created_at) > STUCK_APPROVAL_HOURS;
   if (IN_FLIGHT.includes(b.status))         return ageHrs(b.approved_at ?? b.created_at) > STUCK_INFLIGHT_HOURS;
+  // Any failed batch that made it into this list still has uncancelled items
+  // (the row list filters out fully-resolved failed batches implicitly via
+  // the KPI check below). Always classify as stuck so it surfaces at the top.
+  if (b.status === 'failed')                return true;
   return false;
 }
 
@@ -213,7 +218,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
             icon={<Wallet className="h-3 w-3" />}
             hint={
               <>
-                <span className="block mb-1"><b>Pending</b> = outstanding money across every batch in pending_approval, approved, funded, processing, or partially_processed. Partially processed batches contribute only their unpaid items. Batches with status 'failed' are treated as cancelled and excluded.</span>
+                <span className="block mb-1"><b>Pending</b> = outstanding money across every batch in pending_approval, approved, funded, processing, partially_processed, or failed. Partial / failed batches count only their uncancelled items. Fully cancelled batches disappear automatically; undoing a cancel puts them back.</span>
                 <span className="block mb-1"><b>This month</b> = pending dated this month + already paid this month.</span>
                 <span className="block"><b>Gap</b> = pending − wallet balance (zero or negative means covered).</span>
               </>
