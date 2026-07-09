@@ -104,14 +104,21 @@ serve(async (req) => {
       const secret = await getPaystackSecret(service);
 
       // ── Pass 1: resolve stuck items (pending/retry older than threshold) ──
+      // Filter on updated_at rather than created_at so we don't hammer
+      // /transfer/verify on items that were dispatched only minutes ago inside
+      // a batch that happens to have been created hours earlier (e.g. a batch
+      // sat in draft for 3h, then Process was clicked). updated_at tracks the
+      // dispatch write, so a row is only considered stuck once it has been
+      // sitting on 'pending' / 'retry' for STUCK_THRESHOLD_HOURS since its
+      // last state change — the definition operators would expect.
       const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
       const { data: stuckItems, error: fetchErr } = await service
         .from("batch_items")
         .select("id, paystack_reference, full_name, status, batch_id")
         .in("status", ["pending", "retry"])
         .not("paystack_reference", "is", null)
-        .lt("created_at", cutoff)
-        .order("created_at", { ascending: true })
+        .lt("updated_at", cutoff)
+        .order("updated_at", { ascending: true })
         .limit(MAX_ITEMS_PER_RUN);
       if (fetchErr) throw fetchErr;
 
@@ -244,13 +251,33 @@ serve(async (req) => {
         .not("paystack_reference", "is", null)
         .limit(200);
 
+      // Paystack rate-limits the verify endpoint at ~100 req/min for most
+      // merchants. This loop can hit up to 200 items — without spacing it
+      // 429s halfway through and every subsequent request is dropped, so
+      // fees stay 0 for that half and the Transactions report is wrong.
+      // 700ms per call yields ~85 req/min — comfortably under the limit,
+      // finishes 200 items in ~140s (well within the function timeout).
+      // Also honours Retry-After when we do get an occasional 429.
+      const FEE_BACKFILL_MIN_MS = 700;
       let feesBackfilled = 0;
+      let lastCallAt = 0;
       for (const it of (feeItems || []) as any[]) {
+        const wait = FEE_BACKFILL_MIN_MS - (Date.now() - lastCallAt);
+        if (wait > 0) await new Promise((r) => setTimeout(r, wait));
         try {
+          lastCallAt = Date.now();
           const res = await fetch(
             `${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(it.paystack_reference)}`,
             { headers: { Authorization: `Bearer ${secret}` } },
           );
+          if (res.status === 429) {
+            // Rate-limited even with the pacing. Sleep the Retry-After (Paystack
+            // returns 1–60s here) and skip this item; the next run picks it up.
+            const retryAfter = Math.min(60, Math.max(1, Number(res.headers.get('retry-after')) || 5));
+            console.warn(`[reconciliation] fee backfill 429; sleeping ${retryAfter}s and stopping this run`);
+            await new Promise((r) => setTimeout(r, retryAfter * 1000));
+            break;
+          }
           const body = await res.json();
           const feeKobo = Number(body.data?.fee) || 0;
           if (feeKobo > 0) {
