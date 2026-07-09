@@ -35,6 +35,10 @@ interface PendingBatch {
   id: string;
   name: string;
   status: string;
+  // effective_amount = money-still-to-move for this batch. For pre-dispatch
+  // statuses this equals batch.total_amount; for partially_processed / failed
+  // it's the sum of items that are neither succeeded nor manually resolved.
+  // The RPC always returns > 0 (fully-cancelled batches are pre-filtered out).
   total_amount: number;
   beneficiary_count: number | null;
   payment_date: string | null;
@@ -108,37 +112,49 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-      const [pendRes, paidRes, summaryRes] = await Promise.all([
-        supabase.from('payment_batches')
-          .select('id, name, status, total_amount, beneficiary_count, payment_date, created_at, approved_at')
-          .in('status', PENDING_ALL)
-          .is('deleted_at', null)
-          .order('payment_date', { ascending: true, nullsFirst: false })
-          // Row-list depth for the sub-tab breakdown. Bumped from the
-          // original 50 because that cap fed the KPI aggregate too and
-          // caused the total to shift as batches moved through the pipeline
-          // (root cause: only the top 50 by payment_date were being summed).
-          // The KPI now comes from the pending_payouts_summary RPC (no cap),
-          // and this query serves the tab counts + preview rows only. 500
-          // gives generous headroom for the sub-tab counters to stay
-          // accurate even during heavy month-ends.
-          .limit(500),
-        // "Paid this month" sums actual money out — succeeded items
-        // that were NOT manually resolved. Cancelled and paid-externally
-        // items are excluded because no Paystack-rail money moved (in
-        // the cancelled case nothing moved at all; in the externally-paid
-        // case it moved but the operator records it elsewhere). The RPC
-        // does the join + filter on the server.
+      const [listRes, paidRes, summaryRes] = await Promise.all([
+        // Row list + sub-tab counts come from pending_batches_list — the
+        // SAME server function used by pending_payouts_summary. So the
+        // header count / total / gap and the row-list count / sub-tabs
+        // agree by construction, and fully-cancelled failed batches
+        // (effective_amount = 0) are pre-excluded server-side.
+        supabase.rpc('pending_batches_list'),
+        // "Paid this month" sums actual money out.
         supabase.rpc('paid_total_in_period', {
           p_start: monthStart.toISOString().slice(0, 10),
           p_end:   monthEnd.toISOString().slice(0, 10),
         }),
-        // Complete Pending totals (no 50-batch cap). See RPC docstring.
         supabase.rpc('pending_payouts_summary'),
       ]);
       if (cancelled) return;
 
-      setBatches(((pendRes.data ?? []) as any[]) as PendingBatch[]);
+      // The list RPC returns `effective_amount` instead of `total_amount`.
+      // The row-list UI reads .total_amount, so alias here to keep the shape.
+      const listRows = (listRes.data ?? []) as any[];
+      if (listRes.error || !Array.isArray(listRes.data)) {
+        // Fallback while migration 20260930001000 is still deploying:
+        // fetch straight from the table. Includes failed batches whose
+        // items may already be cancelled, so we filter those out below —
+        // costs one extra RPC to check outstanding items per failed batch.
+        const fbRes = await supabase.from('payment_batches')
+          .select('id, name, status, total_amount, beneficiary_count, payment_date, created_at, approved_at')
+          .in('status', PENDING_ALL)
+          .is('deleted_at', null)
+          .order('payment_date', { ascending: true, nullsFirst: false })
+          .limit(500);
+        setBatches(((fbRes.data ?? []) as any[]) as PendingBatch[]);
+      } else {
+        setBatches(listRows.map((r) => ({
+          id:                r.id,
+          name:              r.name,
+          status:            r.status,
+          total_amount:      Number(r.effective_amount ?? 0),
+          beneficiary_count: r.beneficiary_count,
+          payment_date:      r.payment_date,
+          created_at:        r.created_at,
+          approved_at:       r.approved_at,
+        })) as PendingBatch[]);
+      }
       setPaidThisMonth(Number(paidRes.data ?? 0));
       const s = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
       if (s) {
