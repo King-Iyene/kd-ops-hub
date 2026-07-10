@@ -955,7 +955,13 @@ const BatchDetail = () => {
       // fine for ~50 items but does not scale to 1k+ partners. Per-item retry
       // (the Retry button on a failed row) still uses processOneItem.
       setProcessingName('Dispatching via worker…');
-      void customNarration; // legacy override; worker uses default narration
+      // Forward the operator's typed narration to the worker. The worker
+      // snapshots it into payment_batches.payment_narration_at_dispatch on
+      // the first tick and uses that value verbatim (capped at 100 chars,
+      // Paystack's limit) for every /transfer call — kills the previous
+      // behaviour where the modal's edit box was a lie ("legacy override;
+      // worker uses default narration").
+      const narrationForWorker = (customNarration || '').trim();
       const ACCOUNT_LEVEL_ERR = /third[\- ]?party payouts|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
 
       // Resolve a fresh JWT and attach it explicitly. supabase.functions.invoke
@@ -999,7 +1005,10 @@ const BatchDetail = () => {
             'apikey':        supabaseAnonKey,
             'Content-Type':  'application/json',
           },
-          body: JSON.stringify({ batch_id: id }),
+          body: JSON.stringify({
+            batch_id: id,
+            ...(narrationForWorker ? { narration: narrationForWorker } : {}),
+          }),
         });
         workerHttpStatus = resp.status;
         const raw = await resp.text();
@@ -1304,25 +1313,45 @@ const BatchDetail = () => {
 
   const exportCsv = () => {
     const header = [
-      'full_name',
+      // account_name is what the recipient's bank actually shows (from
+      // Paystack /transferrecipient echo). typed_name is the operator's
+      // free-text input from batch creation. Splitting the two lets finance
+      // spot typos vs verified names during reconciliation.
+      'account_name',
+      'typed_name',
       'bank_name',
       'account_number',
       'amount_ngn',
       'paystack_fee_ngn',
+      'stamp_duty_ngn',
       'fee_basis',
       'reference',
       'status',
     ];
-    const rows = items.map((i) => [
-      i.full_name ?? '',
-      i.bank_name ?? '',
-      i.account_number ?? '',
-      i.amount_ngn ?? 0,
-      getItemFee(i),
-      getItemFeeBasis(i),
-      i.reference ?? '',
-      i.status ?? '',
-    ]);
+    const rows = items.map((i) => {
+      const totalFee = getItemFee(i);
+      const paystackFeeDb = Number(i.paystack_fee_ngn || 0);
+      const rawFeeKobo = Number(i.paystack_raw?.fee || 0);
+      const paystackFee = paystackFeeDb > 0
+        ? paystackFeeDb
+        : (rawFeeKobo > 0 ? rawFeeKobo / 100 : 0);
+      // If we have a confirmed Paystack fee, stamp duty is the residual.
+      // If we don't, totalFee is the estimate that already sums both.
+      const stampDuty = paystackFee > 0 ? Math.max(0, totalFee - paystackFee) : 0;
+      const paystackFeeColumn = paystackFee > 0 ? paystackFee : totalFee;
+      return [
+        i.account_name ?? '',
+        i.full_name ?? '',
+        i.bank_name ?? '',
+        i.account_number ?? '',
+        i.amount_ngn ?? 0,
+        paystackFeeColumn,
+        stampDuty,
+        getItemFeeBasis(i),
+        i.reference ?? '',
+        i.status ?? '',
+      ];
+    });
     const csv = [header, ...rows]
       .map((r) => r.map(csvEscape).join(','))
       .join('\n');
@@ -1454,7 +1483,7 @@ const BatchDetail = () => {
         .map((it, i) => `
           <tr${it.status === 'failed' ? ' style="background:#fff8f8"' : ''}>
             <td>${i + 1}</td>
-            <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
+            <td>${escapeHtml(it.account_name || it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(maskAccountNumber(it.account_number))}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
@@ -1489,7 +1518,7 @@ const BatchDetail = () => {
       <tbody>
         ${failedRows.map((it) => `
           <tr>
-            <td>${escapeHtml(it.full_name || 'Unknown Recipient')}</td>
+            <td>${escapeHtml(it.account_name || it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(maskAccountNumber(it.account_number))}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>

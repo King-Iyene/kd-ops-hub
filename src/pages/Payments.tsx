@@ -157,20 +157,29 @@ const Payments = () => {
     const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const monthEndDate   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
 
-    const [pendingRes, processingRes, paidRes] = await Promise.all([
-      supabase.from('payment_batches').select('total_amount').eq('status', 'pending_approval').is('deleted_at', null),
-      supabase.from('payment_batches').select('id', { count: 'exact', head: true }).eq('status', 'processing').is('deleted_at', null),
-      // "Paid this month" — actual money out only. Cancelled and
-      // paid-externally items are excluded server-side via the RPC
-      // (see migration 20260508220000) so the figure tracks Paystack-
-      // rail spend exclusively.
+    // Use the same server-side aggregate the KPI card uses so this tile
+    // cannot silently truncate — the previous plain SELECT hit PostgREST's
+    // default 1000-row cap if pending_approval ever crossed that count.
+    // pending_payouts_summary excludes fully-cancelled batches, which is
+    // the same rule the KPI applies; using COUNT(*) here on the same set
+    // means both stat surfaces agree.
+    const [summaryRes, pendingApprovalCountRes, processingRes, paidRes] = await Promise.all([
+      supabase.rpc('pending_payouts_summary'),
+      supabase.from('payment_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_approval')
+        .is('deleted_at', null),
+      supabase.from('payment_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'processing')
+        .is('deleted_at', null),
       supabase.rpc('paid_total_in_period', { p_start: monthStartDate, p_end: monthEndDate }),
     ]);
 
-    const pendingRows = (pendingRes.data || []) as { total_amount: number }[];
+    const summary = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
     setStats({
-      pendingCount: pendingRows.length,
-      pendingAmount: pendingRows.reduce((s, r) => s + (r.total_amount || 0), 0),
+      pendingCount:    pendingApprovalCountRes.count || 0,
+      pendingAmount:   Number((summary as any)?.total_amount ?? 0),
       processingCount: processingRes.count || 0,
       thisMonthAmount: Number(paidRes.data ?? 0),
     });

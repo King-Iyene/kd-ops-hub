@@ -381,6 +381,7 @@ async function dispatchItem(
     // diverged when a super_admin raised them — closes H-7.
 
     let recipientCode: string | null = it.paystack_recipient_code || null;
+    let verifiedAccountName: string | null = null;
     if (!recipientCode) {
       const bankCode = getBankCode(it.bank_name);
       if (!bankCode) return fail(`Unknown bank "${it.bank_name}" — no Paystack code`);
@@ -388,17 +389,29 @@ async function dispatchItem(
       const recipient = await paystackPost(secret, "/transferrecipient", {
         type: "nuban",
         name: it.full_name || "Unknown Recipient",
-        account_number: it.account_number,
+        // Strip non-digits — copy-pasted account numbers sometimes carry
+        // NBSP or full-width digits that Paystack rejects opaquely.
+        account_number: String(it.account_number || "").replace(/\D/g, ""),
         bank_code: bankCode,
         currency: "NGN",
       });
       recipientCode = recipient.recipient_code;
+      // Paystack's /transferrecipient response echoes the bank-verified name
+      // from NIBSS. Capture it so downstream receipts / emails / CSV can
+      // display the name the recipient's bank actually uses, not the operator
+      // typo they may have entered in full_name.
+      verifiedAccountName = recipient.details?.account_name || null;
     }
 
     const reference = generateRef(it.id);
+    // `batchName` is now the pre-computed narration snapshot from workBatch
+    // (see narration snapshot block). It already includes the KDOps · prefix
+    // only when we fell back to the batch name; explicit operator narration
+    // and payment_description flow through verbatim.
+    const reason = batchName.slice(0, 100);
     const transfer = await paystackPost(secret, "/transfer", {
       source: "balance",
-      reason: `KDOps · ${batchName}`,
+      reason,
       amount: Math.round(amount * 100),
       recipient: recipientCode,
       reference,
@@ -410,6 +423,10 @@ async function dispatchItem(
       paystack_transfer_code:  transfer.transfer_code,
       paystack_reference:      transfer.reference,
       failure_reason:          null,
+      // Only write account_name if we just learned it. Never overwrite an
+      // existing value — a retry after a partial success mustn't clobber
+      // what the original dispatch captured.
+      ...(verifiedAccountName ? { account_name: verifiedAccountName } : {}),
     }).eq("id", it.id);
 
     return { ok: true };
@@ -461,13 +478,19 @@ async function dispatchChunkBulk(
         const r = await paystackPost(secret, "/transferrecipient", {
           type: "nuban",
           name: it.full_name || "Unknown Recipient",
-          account_number: it.account_number,
+          // Same non-digit strip as the per-item path.
+          account_number: String(it.account_number || "").replace(/\D/g, ""),
           bank_code: bankCode,
           currency: "NGN",
         });
         it.paystack_recipient_code = r.recipient_code;
+        // Bank-verified name from Paystack /transferrecipient echo.
+        const verifiedName = r.details?.account_name || null;
         await svc.from("batch_items")
-          .update({ paystack_recipient_code: r.recipient_code })
+          .update({
+            paystack_recipient_code: r.recipient_code,
+            ...(verifiedName ? { account_name: verifiedName } : {}),
+          })
           .eq("id", it.id);
       } catch (err) {
         // Mark this item failed and drop it from the bulk payload. The rest of
@@ -497,11 +520,15 @@ async function dispatchChunkBulk(
   ));
 
   // ── 3. Issue the bulk call ──────────────────────────────────────────────
+  // `batchName` here is the pre-computed narration snapshot from workBatch —
+  // already contains the KDOps · prefix only when we fell back to the batch
+  // name, and is already capped at 100 chars. Slice again defensively.
+  const reason = batchName.slice(0, 100);
   const transfers = sendable.map((it) => ({
     reference: it._ref,
     recipient: it.paystack_recipient_code,
     amount:    Math.round(Number(it.amount_ngn) * 100),
-    reason:    `KDOps · ${batchName}`,
+    reason,
   }));
 
   let bulkData: any;
@@ -578,12 +605,13 @@ async function workBatch(
   svc: SupabaseClient,
   batchId: string,
   actorId?: string | null,
+  narrationOverride?: string | null,
 ) {
   const startedAt = Date.now();
 
   const { data: batch, error: bErr } = await svc
     .from("payment_batches")
-    .select("id, name, status")
+    .select("id, name, status, payment_description, payment_narration_at_dispatch")
     .eq("id", batchId)
     .single();
   if (bErr || !batch) return { ok: false, error: "batch not found" };
@@ -630,6 +658,33 @@ async function workBatch(
   // /bank was unreachable). Pre-warming here means dispatch stays synchronous
   // and the worker never silently falls back per-item.
   await loadPaystackBanks(secret);
+
+  // ── Narration snapshot ─────────────────────────────────────────────────
+  // Compute + persist the narration the first time this batch is dispatched.
+  // Priority: caller override (typed in the pre-flight modal), then batch's
+  // payment_description, then the raw batch name. Always capped at 100 (the
+  // Paystack /transfer `reason` limit). Once set, we never overwrite it — a
+  // resumption tick reuses the same value so recipients on chunk 5 see the
+  // same text as chunk 1 even if someone renamed the batch mid-run.
+  let narrationForDispatch: string = (batch as any).payment_narration_at_dispatch || "";
+  if (!narrationForDispatch) {
+    const raw = (narrationOverride ?? (batch as any).payment_description ?? batch.name ?? "")
+      .toString()
+      .trim();
+    // If the caller provided their own text, respect it verbatim (up to 100).
+    // If we fell back to the batch name, keep the "KDOps · " brand prefix
+    // that recipients have historically seen.
+    if (narrationOverride && narrationOverride.trim().length > 0) {
+      narrationForDispatch = raw.slice(0, 100);
+    } else if ((batch as any).payment_description) {
+      narrationForDispatch = raw.slice(0, 100);
+    } else {
+      narrationForDispatch = `KDOps · ${raw}`.slice(0, 100);
+    }
+    await svc.from("payment_batches")
+      .update({ payment_narration_at_dispatch: narrationForDispatch })
+      .eq("id", batchId);
+  }
   const mode = dispatchMode();
   const pullSize = mode === "bulk" ? BULK_CHUNK_SIZE : CHUNK_SIZE;
   let dispatched = 0;
@@ -667,7 +722,7 @@ async function workBatch(
       .eq("id", batchId);
 
     if (mode === "bulk") {
-      const r = await dispatchChunkBulk(svc, secret, chunk, batch.name);
+      const r = await dispatchChunkBulk(svc, secret, chunk, narrationForDispatch);
       dispatched += r.dispatched;
       failed     += r.failed;
       // A whole-bulk-call failure (network / account-level error) leaves refs
@@ -679,7 +734,7 @@ async function workBatch(
       }
     } else {
       const results = await drainConcurrent(chunk, CONCURRENCY, (it) =>
-        dispatchItem(svc, secret, it, batch.name),
+        dispatchItem(svc, secret, it, narrationForDispatch),
       );
       for (const r of results) (r.ok ? dispatched++ : failed++);
     }
@@ -732,7 +787,7 @@ async function workOrphans(svc: SupabaseClient) {
     .limit(1);
 
   if (!orphans || orphans.length === 0) return { ok: true, orphans_processed: 0 };
-  return await workBatch(svc, orphans[0].id);
+  return await workBatch(svc, orphans[0].id, null, null);
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -756,8 +811,11 @@ serve(async (req) => {
   const cronSecret = req.headers.get("x-cron-secret");
   const expectedCron = Deno.env.get("CRON_SHARED_SECRET");
   if (cronSecret && expectedCron && cronSecret === expectedCron) {
+    // Cron doesn't set narration — always uses whatever snapshot the batch
+    // already has (or falls back to payment_description / name if the
+    // batch has never dispatched before).
     const result = body?.batch_id
-      ? await workBatch(svc, body.batch_id, null)
+      ? await workBatch(svc, body.batch_id, null, null)
       : await workOrphans(svc);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
@@ -810,7 +868,14 @@ serve(async (req) => {
   // gets a useful message instead of an opaque "Edge Function returned a
   // non-2xx status code". Real auth/role failures already returned earlier.
   try {
-    const result = await workBatch(svc, body.batch_id, userRes.user.id);
+    // Client sends the narration typed in the pre-flight modal ("What
+    // recipients will see on their bank statement"). It's a one-shot
+    // override: workBatch snapshots it into payment_narration_at_dispatch
+    // the first time, and reuses that snapshot for every subsequent tick.
+    const narrationOverride = typeof body?.narration === "string" && body.narration.trim().length > 0
+      ? body.narration.trim()
+      : null;
+    const result = await workBatch(svc, body.batch_id, userRes.user.id, narrationOverride);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

@@ -143,7 +143,12 @@ async function sendRecipientPaymentEmail(
     if (audience === 'contractors_only' && !targetIsContractor) return;
 
     let recipientEmail: string | null = null;
-    let recipientName: string = item.full_name || "there";
+    // Prefer the Paystack-verified account_name over the operator-typed
+    // full_name / profiles.full_name / contractors.full_name — it's the
+    // exact string on the recipient's bank statement, so the email matches
+    // the money movement they actually see. Fall back through typed name
+    // sources if account_name is missing (older items, verify never ran).
+    let recipientName: string = (item.account_name || item.full_name || "there") as string;
 
     if (item.employee_id) {
       const { data } = await supabase
@@ -153,7 +158,11 @@ async function sendRecipientPaymentEmail(
         .maybeSingle();
       if (data) {
         recipientEmail = (data as any).email ?? null;
-        recipientName = (data as any).full_name || recipientName;
+        // Only overwrite with profile name if we don't have a bank-verified
+        // one — profile names are often casual first names.
+        if (!item.account_name) {
+          recipientName = (data as any).full_name || recipientName;
+        }
       }
     }
     if (!recipientEmail && item.contractor_id) {
@@ -164,7 +173,9 @@ async function sendRecipientPaymentEmail(
         .maybeSingle();
       if (data) {
         recipientEmail = (data as any).email ?? null;
-        recipientName = (data as any).full_name || recipientName;
+        if (!item.account_name) {
+          recipientName = (data as any).full_name || recipientName;
+        }
       }
     }
     if (!recipientEmail) return;
@@ -336,6 +347,11 @@ serve(async (req) => {
     id: (rpcData as any).item_id,
     batch_id: (rpcData as any).batch_id,
     full_name: (rpcData as any).full_name,
+    // Paystack-verified account name (from /transferrecipient echo, written
+    // back by batch-worker). Prefer this over full_name / profile name in
+    // recipient-facing surfaces so the greeting matches the recipient's
+    // actual bank statement. See migration 20260930001200.
+    account_name: (rpcData as any).account_name,
     account_number: (rpcData as any).account_number,
     bank_name: (rpcData as any).bank_name,
     amount_ngn: (rpcData as any).amount_ngn,
