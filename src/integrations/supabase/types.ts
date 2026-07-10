@@ -9258,6 +9258,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_batch_bulk: {
+        Args: { p_batch_id: string; p_note?: string }
+        Returns: Json
+      }
       cancel_ewa: { Args: { p_request_id: string }; Returns: Json }
       canonical_batch_payload_hash: {
         Args: { p_batch_id: string }
@@ -9277,25 +9281,47 @@ export type Database = {
           employees_notified: number
         }[]
       }
-      check_transfer_caps: {
+      check_transfer_caps:
+        | {
+            Args: { p_amount_ngn: number; p_user_id: string }
+            Returns: {
+              allowed: boolean
+              applied_limit_kind: string
+              applied_limit_ngn: number
+              reason: string
+              used_month_ngn: number
+              used_today_ngn: number
+            }[]
+          }
+        | {
+            Args: {
+              p_action?: string
+              p_amount_ngn: number
+              p_check_batch_cap?: boolean
+              p_intent?: boolean
+              p_ip_hash?: string
+              p_user_agent?: string
+              p_user_id: string
+            }
+            Returns: {
+              allowed: boolean
+              applied_limit_kind: string
+              applied_limit_ngn: number
+              intent_audit_id: string
+              reason: string
+              used_month_ngn: number
+              used_today_ngn: number
+            }[]
+          }
+      client_finalize_transfer: {
         Args: {
-          p_action?: string
-          p_amount_ngn: number
-          p_check_batch_cap?: boolean
-          p_intent?: boolean
-          p_ip_hash?: string
-          p_user_agent?: string
-          p_user_id: string
+          p_event: string
+          p_failure_reason: string
+          p_paystack_fee_ngn?: number
+          p_paystack_raw: Json
+          p_reference: string
         }
-        Returns: {
-          allowed: boolean
-          applied_limit_kind: string
-          applied_limit_ngn: number
-          intent_audit_id: string
-          reason: string
-          used_month_ngn: number
-          used_today_ngn: number
-        }[]
+        Returns: Json
       }
       complete_offboarding: {
         Args: { p_termination_id: string }
@@ -9762,6 +9788,27 @@ export type Database = {
       paid_total_in_period: {
         Args: { p_end: string; p_start: string }
         Returns: number
+      }
+      pending_batches_list: {
+        Args: never
+        Returns: {
+          approved_at: string
+          beneficiary_count: number
+          created_at: string
+          effective_amount: number
+          id: string
+          name: string
+          payment_date: string
+          status: string
+        }[]
+      }
+      pending_payouts_summary: {
+        Args: never
+        Returns: {
+          batch_count: number
+          month_pending_amount: number
+          total_amount: number
+        }[]
       }
       process_paystack_webhook: {
         Args: {
