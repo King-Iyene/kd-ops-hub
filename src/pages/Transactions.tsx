@@ -151,11 +151,43 @@ const Transactions = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    // Push the status + date filters SERVER-SIDE, then apply the limit.
+    // Without this the page fetched the newest 500 rows regardless of filter
+    // and then filtered client-side — so a "Failed" filter only showed
+    // failed rows that happened to be in the newest 500 total, hiding older
+    // failures completely. Same class of hidden-cap bug we just fixed on
+    // the Payments card.
+    //
+    // Raw batch_items.status values that map to each ledger bucket
+    // (mirrors LEDGER_STATUS at the top of the file):
+    const STATUS_RAW: Record<string, string[]> = {
+      succeeded: ['succeeded', 'processed'],
+      pending:   ['pending', 'processing', 'retry'],
+      failed:    ['failed', 'rejected'],
+      reversed:  ['reversed'],
+    };
+
+    let q = supabase
       .from('transactions_view')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(500);
+      .order('created_at', { ascending: false });
+
+    if (statusFilter !== 'all' && STATUS_RAW[statusFilter]) {
+      q = q.in('status', STATUS_RAW[statusFilter]);
+    }
+    if (from) q = q.gte('created_at', new Date(from).toISOString());
+    if (to) {
+      // Inclusive end-of-day.
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      q = q.lte('created_at', end.toISOString());
+    }
+    // 2000 is generous — 500 was truncating even a single month of dispatch
+    // activity for a company running 700+ partners. PostgREST caps at
+    // db.max_rows (default 1000 on Supabase); the tighter of the two wins.
+    q = q.limit(2000);
+
+    const { data, error } = await q;
     if (error) {
       console.error('[transactions] view error:', error.message);
       setRows([]);
@@ -163,7 +195,7 @@ const Transactions = () => {
       setRows((data as Transaction[]) || []);
     }
     setLoading(false);
-  }, []);
+  }, [statusFilter, from, to]);
 
   useEffect(() => {
     load();
