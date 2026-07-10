@@ -298,6 +298,14 @@ const BatchDetail = () => {
   const [deleting, setDeleting] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [savingResubmit, setSavingResubmit] = useState(false);
+  // Bulk-cancel-batch dialog state. MUST live at the top with the other
+  // useState calls — a previous version had these below the loading /
+  // !batch early returns, which meant they were skipped on the initial
+  // render and threw React error #310 (rendered fewer hooks than expected)
+  // once the batch loaded.
+  const [cancelBatchOpen, setCancelBatchOpen] = useState(false);
+  const [cancelBatchNote, setCancelBatchNote] = useState('');
+  const [cancelBatchSaving, setCancelBatchSaving] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [renameSaving, setRenameSaving] = useState(false);
@@ -1571,16 +1579,15 @@ const BatchDetail = () => {
         batch.batch_type === 'contractor' &&
         !batch.is_quick_pay));
 
-  const [cancelBatchOpen, setCancelBatchOpen] = useState(false);
-  const [cancelBatchNote, setCancelBatchNote] = useState('');
-  const [cancelBatchSaving, setCancelBatchSaving] = useState(false);
-
   // Bulk-cancel every unresolved item in a failed / partially_processed
   // batch. Root-cause fix for the "batch renamed to (CANCELLED) but Pending
   // KPI still counts it" case — the KPI (pending_payouts_summary) only
   // excludes batches whose ITEMS are marked cancelled, so renaming alone
   // did nothing. This action flips every outstanding item's
   // is_manually_resolved to true with method='cancelled' in one call.
+  // Related useState calls live at the top of the component (React hook
+  // ordering); this derived value can safely sit down here with the other
+  // permission gates.
   const canCancelWholeBatch =
     (isAdmin || isFinance) &&
     !batch.deleted_at &&
