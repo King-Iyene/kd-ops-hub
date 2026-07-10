@@ -66,28 +66,17 @@ jobs:
       - name: Link project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Repair migration history for pre-applied legacy files
-        # Three legacy files (sprint_a_b / sprint_c_leave / sprint_d_probation)
-        # sit at earlier timestamps than what remote has already applied,
-        # AND their version rows are already recorded in
-        # supabase_migrations.schema_migrations. Without repair, --include-all
-        # succeeds on the idempotent SQL body but then bombs on the version
-        # INSERT ("duplicate key … schema_migrations_pkey"). Repair syncs the
-        # CLI's view with the remote applied-list so the next `db push` skips
-        # them silently. `|| true` because repair on an already-consistent
-        # version is a no-op that the CLI treats as informational, not error.
-        run: |
-          supabase migration repair --status applied 20260811000000 || true
-          supabase migration repair --status applied 20260812000000 || true
-          supabase migration repair --status applied 20260813000000 || true
-
       - name: Push migrations to production
         id: push
-        # Standard push — no --include-all. The repair step above already
-        # tells the CLI those three legacy files are applied; any other
-        # local file with a timestamp older than the remote head would still
-        # trip the "Found local migration files to be inserted" guard, in
-        # which case we'd repair-mark them the same way.
+        # Standard push. Three legacy files that sit at timestamps older than
+        # the remote head (20260811 sprint_a_b, 20260812 sprint_c_leave,
+        # 20260813 sprint_d_probation) live in supabase/migrations/_pre_applied/
+        # — outside the CLI's scan path — because their content is already
+        # applied on production and `supabase migration repair` alone could not
+        # resolve the schema_migrations conflict cleanly. See that folder's
+        # README.md for the full history. New migrations should be added to
+        # supabase/migrations/ (top level) as normal; the CLI now only sees
+        # files it can legitimately push.
         run: supabase db push
 
       - name: Alert on failure (email via GitHub)
