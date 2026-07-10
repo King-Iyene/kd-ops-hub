@@ -31,12 +31,20 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+      # Also trigger when this workflow file changes so we can iterate on
+      # deploy logic without waiting for the next migration commit.
+      - '.github/workflows/deploy-supabase-migrations.yml'
   workflow_dispatch:
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # issues: write is required so the "Alert on failure" step can open a
+    # tracking issue when a deploy dies. Default GITHUB_TOKEN is read-only.
+    permissions:
+      contents: read
+      issues: write
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -58,18 +66,29 @@ jobs:
       - name: Link project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
+      - name: Repair migration history for pre-applied legacy files
+        # Three legacy files (sprint_a_b / sprint_c_leave / sprint_d_probation)
+        # sit at earlier timestamps than what remote has already applied,
+        # AND their version rows are already recorded in
+        # supabase_migrations.schema_migrations. Without repair, --include-all
+        # succeeds on the idempotent SQL body but then bombs on the version
+        # INSERT ("duplicate key … schema_migrations_pkey"). Repair syncs the
+        # CLI's view with the remote applied-list so the next `db push` skips
+        # them silently. `|| true` because repair on an already-consistent
+        # version is a no-op that the CLI treats as informational, not error.
+        run: |
+          supabase migration repair --status applied 20260811000000 || true
+          supabase migration repair --status applied 20260812000000 || true
+          supabase migration repair --status applied 20260813000000 || true
+
       - name: Push migrations to production
         id: push
-        # --include-all forces the CLI to apply any local migration file whose
-        # timestamp precedes the most-recent remote migration. Three legacy
-        # files (20260811 sprint_a_b, 20260812 sprint_c_leave, 20260813
-        # sprint_d_probation) sit at earlier timestamps than what remote has
-        # already applied; without this flag the CLI refuses the whole push
-        # with "Found local migration files to be inserted…" and every
-        # migration since Aug went undeployed. All three legacy files are
-        # written with IF NOT EXISTS / DROP POLICY IF EXISTS guards, so
-        # re-applying them is a no-op.
-        run: supabase db push --include-all
+        # Standard push — no --include-all. The repair step above already
+        # tells the CLI those three legacy files are applied; any other
+        # local file with a timestamp older than the remote head would still
+        # trip the "Found local migration files to be inserted" guard, in
+        # which case we'd repair-mark them the same way.
+        run: supabase db push
 
       - name: Alert on failure (email via GitHub)
         if: ${{ failure() }}
