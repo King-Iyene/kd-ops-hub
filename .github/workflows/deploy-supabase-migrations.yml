@@ -66,17 +66,26 @@ jobs:
       - name: Link project
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
+      - name: Detach pre-applied legacy versions from history table
+        # Three legacy files live in supabase/migrations/_pre_applied/ (see
+        # that folder's README). Their version rows were recorded in remote's
+        # supabase_migrations.schema_migrations when they originally ran.
+        # Because those files are no longer in the scan path, `db push` now
+        # complains: "Remote migration versions not found in local migrations
+        # directory". `repair --status reverted` removes those version rows
+        # from the tracking table — it does NOT run any DROP SQL, so the
+        # columns / tables those migrations created stay in place. Idempotent:
+        # the second run on a project that's already been repaired is a
+        # silent no-op the CLI treats as informational.
+        run: |
+          supabase migration repair --status reverted 20260811000000 || true
+          supabase migration repair --status reverted 20260812000000 || true
+          supabase migration repair --status reverted 20260813000000 || true
+
       - name: Push migrations to production
         id: push
-        # Standard push. Three legacy files that sit at timestamps older than
-        # the remote head (20260811 sprint_a_b, 20260812 sprint_c_leave,
-        # 20260813 sprint_d_probation) live in supabase/migrations/_pre_applied/
-        # — outside the CLI's scan path — because their content is already
-        # applied on production and `supabase migration repair` alone could not
-        # resolve the schema_migrations conflict cleanly. See that folder's
-        # README.md for the full history. New migrations should be added to
-        # supabase/migrations/ (top level) as normal; the CLI now only sees
-        # files it can legitimately push.
+        # Standard push. After the detach step above, remote's applied list
+        # matches the scan path exactly, so this is a clean forward-only push.
         run: supabase db push
 
       - name: Alert on failure (email via GitHub)
