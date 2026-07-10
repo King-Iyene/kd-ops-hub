@@ -150,7 +150,33 @@ serve(async (req) => {
               paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : 0,
             }).eq("id", it.id);
             succeeded++;
-          } else if (["failed", "reversed", "abandoned"].includes(status as string)) {
+          } else if (status === "reversed") {
+            // reversed is its own terminal state — Paystack settled the
+            // transfer then clawed the money back. Collapsing this into
+            // 'failed' USED TO be attempted, but the batch_item state
+            // machine only allows succeeded→reversed (not succeeded→failed),
+            // so the update was silently rejected as a check_violation and
+            // the batch stayed 'processed' while money was actually clawed
+            // back. Now we write 'reversed' via the webhook RPC so its
+            // terminal-state precedence guard applies and the batch status
+            // downstreams cleanly through sync_batch_status_from_items.
+            const rpcRes = await service.rpc('process_paystack_webhook', {
+              p_event:            'transfer.reversed',
+              p_reference:        it.paystack_reference,
+              p_failure_reason:   reason || 'Paystack reversed',
+              p_paystack_raw:     body.data,
+              p_paystack_fee_ngn: 0,
+            });
+            if (rpcRes.error) {
+              console.warn('[reconciliation] reversed via RPC failed for', it.id, rpcRes.error);
+              unchanged++;
+            } else {
+              failed++;
+            }
+          } else if (["failed", "abandoned"].includes(status as string)) {
+            // abandoned = Paystack dropped it from their queue without
+            // sending it. failed = bank rejected. Both map to our 'failed'
+            // status because the money did not leave our wallet.
             await service.from("batch_items").update({
               status: "failed",
               failure_reason: reason || `Paystack ${status}`,
