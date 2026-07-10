@@ -84,9 +84,16 @@ jobs:
 
       - name: Push migrations to production
         id: push
-        # Standard push. After the detach step above, remote's applied list
-        # matches the scan path exactly, so this is a clean forward-only push.
-        run: supabase db push
+        # --include-all is required because two other local files share the
+        # 20260811 / 20260813 version prefixes with the pre-applied legacy
+        # ones (approval_framework.sql and payment_state_rpcs.sql). Those
+        # timestamps sit before the remote head, so the CLI refuses without
+        # this flag. Because the detach step above `reverted` those version
+        # rows, --include-all now runs the SQL bodies (idempotent — all
+        # top-level DDL uses IF NOT EXISTS / CREATE OR REPLACE / DROP …
+        # IF EXISTS guards) and re-INSERTs their schema_migrations rows
+        # cleanly, no unique-key conflict.
+        run: supabase db push --include-all
 
       - name: Alert on failure (email via GitHub)
         if: ${{ failure() }}
