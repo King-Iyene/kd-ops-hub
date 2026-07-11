@@ -157,13 +157,18 @@ const Payments = () => {
     const monthStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
     const monthEndDate   = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
 
-    // pending_pipeline_summary spans pending_approval + pending_second_approval
-    // + approved + funded — the whole "money still to move but not yet
-    // on Paystack's rail" pile. Count + amount agree because they come from
-    // the SAME server aggregate (no client-side cap, no divergence between
-    // the number and the sub-line).
-    const [pipelineRes, processingRes, paidRes] = await Promise.all([
-      supabase.rpc('pending_pipeline_summary'),
+    // Use the same server-side aggregate the KPI card uses so this tile
+    // cannot silently truncate — the previous plain SELECT hit PostgREST's
+    // default 1000-row cap if pending_approval ever crossed that count.
+    // pending_payouts_summary excludes fully-cancelled batches, which is
+    // the same rule the KPI applies; using COUNT(*) here on the same set
+    // means both stat surfaces agree.
+    const [summaryRes, pendingApprovalCountRes, processingRes, paidRes] = await Promise.all([
+      supabase.rpc('pending_payouts_summary'),
+      supabase.from('payment_batches')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_approval')
+        .is('deleted_at', null),
       supabase.from('payment_batches')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'processing')
@@ -171,10 +176,10 @@ const Payments = () => {
       supabase.rpc('paid_total_in_period', { p_start: monthStartDate, p_end: monthEndDate }),
     ]);
 
-    const pipeline = Array.isArray(pipelineRes.data) ? pipelineRes.data[0] : pipelineRes.data;
+    const summary = Array.isArray(summaryRes.data) ? summaryRes.data[0] : summaryRes.data;
     setStats({
-      pendingCount:    Number((pipeline as any)?.batch_count ?? 0),
-      pendingAmount:   Number((pipeline as any)?.total_amount ?? 0),
+      pendingCount:    pendingApprovalCountRes.count || 0,
+      pendingAmount:   Number((summary as any)?.total_amount ?? 0),
       processingCount: processingRes.count || 0,
       thisMonthAmount: Number(paidRes.data ?? 0),
     });
@@ -387,10 +392,7 @@ const Payments = () => {
       <div className="rounded-lg border border-border/70 bg-card grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/70 overflow-hidden">
         {[
           {
-            // Covers pending_approval + pending_second_approval + approved
-            // + funded — everything queued but not yet on Paystack. Matches
-            // pending_pipeline_summary() on the server.
-            label: 'Pending payment',
+            label: 'Pending approval',
             value: stats.pendingCount,
             sub: formatNaira(stats.pendingAmount),
           },
