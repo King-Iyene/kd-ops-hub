@@ -453,9 +453,11 @@ const Payments = () => {
               <TabsList className="h-8 bg-transparent border-b border-border rounded-none inline-flex w-max sm:flex sm:w-auto sm:flex-wrap p-0 gap-0">
                 {[
                   { value: 'all', label: 'All' },
-                  // Virtual multi-status filter — see fetchBatches for
-                  // the exact status list this maps to.
-                  { value: 'pending', label: 'Pending' },
+                  // Virtual multi-status filter covering the entire
+                  // pre-dispatch pipeline (pending_approval,
+                  // pending_second_approval, approved, funded).
+                  // See fetchBatches for the exact status mapping.
+                  { value: 'pending', label: 'Awaiting Dispatch' },
                   { value: 'processing', label: 'Processing' },
                   { value: 'processed', label: 'Done' },
                   { value: 'partially_processed', label: 'Partial' },
