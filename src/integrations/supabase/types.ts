@@ -5186,6 +5186,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -5225,6 +5226,7 @@ export type Database = {
           payment_category?: string | null
           payment_date: string
           payment_description?: string | null
+          payment_narration_at_dispatch?: string | null
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
@@ -5264,6 +5266,7 @@ export type Database = {
           payment_category?: string | null
           payment_date?: string
           payment_description?: string | null
+          payment_narration_at_dispatch?: string | null
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
@@ -9212,6 +9215,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -9394,6 +9398,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -9485,6 +9490,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -9557,6 +9563,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -9695,6 +9702,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -9807,6 +9815,13 @@ export type Database = {
         Returns: {
           batch_count: number
           month_pending_amount: number
+          total_amount: number
+        }[]
+      }
+      pending_pipeline_summary: {
+        Args: never
+        Returns: {
+          batch_count: number
           total_amount: number
         }[]
       }
@@ -9982,6 +9997,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10035,6 +10051,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10221,6 +10238,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10269,6 +10287,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10317,6 +10336,7 @@ export type Database = {
           payment_category: string | null
           payment_date: string
           payment_description: string | null
+          payment_narration_at_dispatch: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
