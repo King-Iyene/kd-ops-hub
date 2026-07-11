@@ -194,7 +194,24 @@ const Payments = () => {
       .order('created_at', { ascending: false })
       .range(page * 1000, (page + 1) * 1000 - 1);
 
-    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (statusFilter !== 'all') {
+      // 'pending' is a VIRTUAL tab covering the whole pre-dispatch pipeline
+      // (pending_approval + pending_second_approval + approved + funded).
+      // Anything else maps 1:1 to a single DB status value — the existing
+      // .eq path is preserved for those. No payment-processing paths are
+      // touched by this filter change; it's purely a client-side display
+      // query against the read-only payment_batches list.
+      if (statusFilter === 'pending') {
+        query = query.in('status', [
+          'pending_approval',
+          'pending_second_approval',
+          'approved',
+          'funded',
+        ]);
+      } else {
+        query = query.eq('status', statusFilter);
+      }
+    }
 
     const { data, error } = await query;
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -436,7 +453,9 @@ const Payments = () => {
               <TabsList className="h-8 bg-transparent border-b border-border rounded-none inline-flex w-max sm:flex sm:w-auto sm:flex-wrap p-0 gap-0">
                 {[
                   { value: 'all', label: 'All' },
-                  { value: 'pending_approval', label: 'Pending' },
+                  // Virtual multi-status filter — see fetchBatches for
+                  // the exact status list this maps to.
+                  { value: 'pending', label: 'Pending' },
                   { value: 'processing', label: 'Processing' },
                   { value: 'processed', label: 'Done' },
                   { value: 'partially_processed', label: 'Partial' },
