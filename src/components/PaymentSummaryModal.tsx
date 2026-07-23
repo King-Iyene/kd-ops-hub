@@ -127,11 +127,17 @@ export function PaymentSummaryModal({
     label,
   });
 
-  // Initialise (and reset) the editable narration whenever the modal opens or
-  // the auto-generated sample changes (e.g. different batch kind).
+  // Initialise the editable narration exactly once per modal open. Only
+  // depends on `open` — leaving sampleNarration out is intentional: if it
+  // recomputes mid-editing (e.g. an items refetch changes the reference but
+  // not the value, or the first item's name resolves after a data hydration)
+  // we must NOT clobber whatever the operator has typed. This is what
+  // silently made the "What recipients will see" edit box behave like a
+  // read-only default in the wild.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open) setCustomNarration(sampleNarration);
-  }, [open, sampleNarration]);
+  }, [open]);
 
   const narrationLen = customNarration.length;
   const narrationOverLimit = narrationLen > 60;
