@@ -132,8 +132,14 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   const txnDateStr = item.processed_at || item.created_at
     ? formatReceiptDateTime(item.processed_at || item.created_at)
     : '—';
+  // Priority: per-item override → the exact string the worker sent to Paystack
+  // (payment_narration_at_dispatch) → legacy description/notes → last-resort
+  // brand + batch name. Reading the snapshot column is critical because
+  // that's what the recipient's bank statement actually says — showing
+  // batch.name here (as we used to) let the receipt disagree with reality.
   const narration =
     item.narration
+    || batch?.payment_narration_at_dispatch
     || batch?.description
     || batch?.notes
     || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
