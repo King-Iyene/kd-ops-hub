@@ -140,7 +140,7 @@ async function dispatchItem(
   svc: SupabaseClient,
   secret: string,
   it: any,
-  batchName: string,
+  batch: { name: string; payment_narration_at_dispatch?: string | null },
 ): Promise<{ ok: boolean; reason?: string }> {
   try {
     const amount = Number(it.amount_ngn || 0);
@@ -165,10 +165,18 @@ async function dispatchItem(
       recipientCode = recipient.recipient_code;
     }
 
+    // Prefer the operator's snapshotted override so bank statements show
+    // what they typed in "What recipients will see"; fall back to the
+    // KDOps · {name} default only when the column is null/blank.
+    // Sliced defensively — Paystack rejects reasons > ~100 chars.
+    const narrationOverride = batch.payment_narration_at_dispatch?.trim();
     const reference = generateRef(it.id);
     const transfer = await paystackPost(secret, "/transfer", {
       source: "balance",
-      reason: `KDOps · ${batchName}`,
+      reason: (narrationOverride && narrationOverride.length > 0
+        ? narrationOverride
+        : `KDOps · ${batch.name}`
+      ).slice(0, 100),
       amount: Math.round(amount * 100),
       recipient: recipientCode,
       reference,
@@ -227,7 +235,7 @@ async function workBatch(
 
   const { data: batch, error: bErr } = await svc
     .from("payment_batches")
-    .select("id, name, status")
+    .select("id, name, status, payment_narration_at_dispatch")
     .eq("id", batchId)
     .single();
   if (bErr || !batch) return { ok: false, error: "batch not found" };
@@ -293,7 +301,7 @@ async function workBatch(
       .eq("id", batchId);
 
     const results = await drainConcurrent(chunk, CONCURRENCY, (it) =>
-      dispatchItem(svc, secret, it, batch.name),
+      dispatchItem(svc, secret, it, batch),
     );
     for (const r of results) (r.ok ? dispatched++ : failed++);
   }

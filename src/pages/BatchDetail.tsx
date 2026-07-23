@@ -913,6 +913,24 @@ const BatchDetail = () => {
         return;
       }
 
+      // Snapshot the operator's narration override onto the batch record
+      // so the batch-worker edge function (server-side dispatch, orphan
+      // recovery, and cron retries) honors what was typed in the modal.
+      // Best-effort — a failed write does not block dispatch; the worker
+      // just falls back to "KDOps · {batch.name}" as before. Sliced to
+      // match the DB CHECK constraint and Paystack's practical limit.
+      if (customNarration && customNarration.trim() && id) {
+        const snapshot = customNarration.trim().slice(0, 100);
+        try {
+          await supabase
+            .from('payment_batches')
+            .update({ payment_narration_at_dispatch: snapshot })
+            .eq('id', id);
+        } catch {
+          // Silent — payment flow is unaffected.
+        }
+      }
+
       // Process each item serially in the browser using the deployed
       // paystack-transfer edge function. Tab must stay open during processing.
       // Account-level error short-circuit: if Paystack rejects with an error
