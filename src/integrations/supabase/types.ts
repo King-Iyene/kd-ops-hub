@@ -680,6 +680,10 @@ export type Database = {
           employee_id: string | null
           failed_at: string | null
           failure_reason: string | null
+          flutterwave_fee_ngn: number
+          flutterwave_raw: Json | null
+          flutterwave_reference: string | null
+          flutterwave_transfer_id: string | null
           full_name: string
           id: string
           is_manually_resolved: boolean
@@ -695,6 +699,7 @@ export type Database = {
           paystack_reference: string | null
           paystack_transfer_code: string | null
           processed_at: string | null
+          provider: string | null
           receipt_url: string | null
           reference: string | null
           source_usd_minor: number | null
@@ -713,6 +718,10 @@ export type Database = {
           employee_id?: string | null
           failed_at?: string | null
           failure_reason?: string | null
+          flutterwave_fee_ngn?: number
+          flutterwave_raw?: Json | null
+          flutterwave_reference?: string | null
+          flutterwave_transfer_id?: string | null
           full_name: string
           id?: string
           is_manually_resolved?: boolean
@@ -728,6 +737,7 @@ export type Database = {
           paystack_reference?: string | null
           paystack_transfer_code?: string | null
           processed_at?: string | null
+          provider?: string | null
           receipt_url?: string | null
           reference?: string | null
           source_usd_minor?: number | null
@@ -746,6 +756,10 @@ export type Database = {
           employee_id?: string | null
           failed_at?: string | null
           failure_reason?: string | null
+          flutterwave_fee_ngn?: number
+          flutterwave_raw?: Json | null
+          flutterwave_reference?: string | null
+          flutterwave_transfer_id?: string | null
           full_name?: string
           id?: string
           is_manually_resolved?: boolean
@@ -761,6 +775,7 @@ export type Database = {
           paystack_reference?: string | null
           paystack_transfer_code?: string | null
           processed_at?: string | null
+          provider?: string | null
           receipt_url?: string | null
           reference?: string | null
           source_usd_minor?: number | null
@@ -1396,6 +1411,7 @@ export type Database = {
       }
       company_settings: {
         Row: {
+          active_payment_provider: string
           address: string | null
           affiliate_rate_tier2_usd_minor: number
           affiliate_rate_usd_minor: number
@@ -1421,6 +1437,10 @@ export type Database = {
           facebook_url: string | null
           fiscal_year_preset: string | null
           fiscal_year_start_month: number
+          flutterwave_funding_account_name: string | null
+          flutterwave_funding_account_number: string | null
+          flutterwave_funding_bank: string | null
+          flutterwave_mode: string
           fuel_weekly_budgets: Json
           fx_deviation_threshold_pct: number
           gratuity_months_per_year: number
@@ -1450,6 +1470,8 @@ export type Database = {
           paystack_webhook_url: string | null
           probation_period_days: number
           probation_review_enabled: boolean
+          provider_switched_at: string | null
+          provider_switched_by: string | null
           quick_pay_enabled: boolean
           rc_number: string | null
           referral_qualifying_days: number
@@ -1482,6 +1504,7 @@ export type Database = {
           whatsapp_enabled: boolean | null
         }
         Insert: {
+          active_payment_provider?: string
           address?: string | null
           affiliate_rate_tier2_usd_minor?: number
           affiliate_rate_usd_minor?: number
@@ -1507,6 +1530,10 @@ export type Database = {
           facebook_url?: string | null
           fiscal_year_preset?: string | null
           fiscal_year_start_month?: number
+          flutterwave_funding_account_name?: string | null
+          flutterwave_funding_account_number?: string | null
+          flutterwave_funding_bank?: string | null
+          flutterwave_mode?: string
           fuel_weekly_budgets?: Json
           fx_deviation_threshold_pct?: number
           gratuity_months_per_year?: number
@@ -1536,6 +1563,8 @@ export type Database = {
           paystack_webhook_url?: string | null
           probation_period_days?: number
           probation_review_enabled?: boolean
+          provider_switched_at?: string | null
+          provider_switched_by?: string | null
           quick_pay_enabled?: boolean
           rc_number?: string | null
           referral_qualifying_days?: number
@@ -1568,6 +1597,7 @@ export type Database = {
           whatsapp_enabled?: boolean | null
         }
         Update: {
+          active_payment_provider?: string
           address?: string | null
           affiliate_rate_tier2_usd_minor?: number
           affiliate_rate_usd_minor?: number
@@ -1593,6 +1623,10 @@ export type Database = {
           facebook_url?: string | null
           fiscal_year_preset?: string | null
           fiscal_year_start_month?: number
+          flutterwave_funding_account_name?: string | null
+          flutterwave_funding_account_number?: string | null
+          flutterwave_funding_bank?: string | null
+          flutterwave_mode?: string
           fuel_weekly_budgets?: Json
           fx_deviation_threshold_pct?: number
           gratuity_months_per_year?: number
@@ -1622,6 +1656,8 @@ export type Database = {
           paystack_webhook_url?: string | null
           probation_period_days?: number
           probation_review_enabled?: boolean
+          provider_switched_at?: string | null
+          provider_switched_by?: string | null
           quick_pay_enabled?: boolean
           rc_number?: string | null
           referral_qualifying_days?: number
@@ -1654,6 +1690,27 @@ export type Database = {
           whatsapp_enabled?: boolean | null
         }
         Relationships: [
+          {
+            foreignKeyName: "company_settings_provider_switched_by_fkey"
+            columns: ["provider_switched_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "company_settings_provider_switched_by_fkey"
+            columns: ["provider_switched_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "company_settings_provider_switched_by_fkey"
+            columns: ["provider_switched_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "company_settings_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -5190,6 +5247,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -5230,6 +5288,7 @@ export type Database = {
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
+          provider?: string | null
           recurring_schedule_id?: string | null
           rejection_reason?: string | null
           repayment_months?: number
@@ -5270,6 +5329,7 @@ export type Database = {
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
+          provider?: string | null
           recurring_schedule_id?: string | null
           rejection_reason?: string | null
           repayment_months?: number
@@ -6507,6 +6567,97 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provider_canary_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          provider: string
+          reference: string | null
+          started_at: string
+          succeeded: boolean | null
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          provider: string
+          reference?: string | null
+          started_at?: string
+          succeeded?: boolean | null
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          provider?: string
+          reference?: string | null
+          started_at?: string
+          succeeded?: boolean | null
+        }
+        Relationships: []
+      }
+      provider_switches: {
+        Row: {
+          actor_ip_hash: string | null
+          actor_user_agent: string | null
+          auto: boolean
+          from_provider: string
+          id: string
+          preflight_result: Json | null
+          reason: string | null
+          switched_at: string
+          switched_by: string | null
+          to_provider: string
+        }
+        Insert: {
+          actor_ip_hash?: string | null
+          actor_user_agent?: string | null
+          auto?: boolean
+          from_provider: string
+          id?: string
+          preflight_result?: Json | null
+          reason?: string | null
+          switched_at?: string
+          switched_by?: string | null
+          to_provider: string
+        }
+        Update: {
+          actor_ip_hash?: string | null
+          actor_user_agent?: string | null
+          auto?: boolean
+          from_provider?: string
+          id?: string
+          preflight_result?: Json | null
+          reason?: string | null
+          switched_at?: string
+          switched_by?: string | null
+          to_provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_switches_switched_by_fkey"
+            columns: ["switched_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "provider_switches_switched_by_fkey"
+            columns: ["switched_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "provider_switches_switched_by_fkey"
+            columns: ["switched_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -7961,6 +8112,7 @@ export type Database = {
           ip_hash: string | null
           metadata: Json
           outcome: string
+          provider: string | null
           reason: string | null
           recipient_code: string | null
           reference: string | null
@@ -7976,6 +8128,7 @@ export type Database = {
           ip_hash?: string | null
           metadata?: Json
           outcome?: string
+          provider?: string | null
           reason?: string | null
           recipient_code?: string | null
           reference?: string | null
@@ -7991,6 +8144,7 @@ export type Database = {
           ip_hash?: string | null
           metadata?: Json
           outcome?: string
+          provider?: string | null
           reason?: string | null
           recipient_code?: string | null
           reference?: string | null
@@ -9219,6 +9373,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -9285,26 +9440,38 @@ export type Database = {
           employees_notified: number
         }[]
       }
-      check_transfer_caps: {
-        Args: {
-          p_action?: string
-          p_amount_ngn: number
-          p_check_batch_cap?: boolean
-          p_intent?: boolean
-          p_ip_hash?: string
-          p_user_agent?: string
-          p_user_id: string
-        }
-        Returns: {
-          allowed: boolean
-          applied_limit_kind: string
-          applied_limit_ngn: number
-          intent_audit_id: string
-          reason: string
-          used_month_ngn: number
-          used_today_ngn: number
-        }[]
-      }
+      check_transfer_caps:
+        | {
+            Args: { p_amount_ngn: number; p_user_id: string }
+            Returns: {
+              allowed: boolean
+              applied_limit_kind: string
+              applied_limit_ngn: number
+              reason: string
+              used_month_ngn: number
+              used_today_ngn: number
+            }[]
+          }
+        | {
+            Args: {
+              p_action?: string
+              p_amount_ngn: number
+              p_check_batch_cap?: boolean
+              p_intent?: boolean
+              p_ip_hash?: string
+              p_user_agent?: string
+              p_user_id: string
+            }
+            Returns: {
+              allowed: boolean
+              applied_limit_kind: string
+              applied_limit_ngn: number
+              intent_audit_id: string
+              reason: string
+              used_month_ngn: number
+              used_today_ngn: number
+            }[]
+          }
       client_finalize_transfer: {
         Args: {
           p_event: string
@@ -9390,6 +9557,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -9482,6 +9650,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -9555,6 +9724,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -9694,6 +9864,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -9812,6 +9983,17 @@ export type Database = {
           batch_count: number
           total_amount: number
         }[]
+      }
+      process_flutterwave_webhook: {
+        Args: {
+          p_event: string
+          p_failure_reason: string
+          p_flutterwave_fee_ngn?: number
+          p_flutterwave_raw: Json
+          p_processed_at?: string
+          p_reference: string
+        }
+        Returns: Json
       }
       process_paystack_webhook: {
         Args: {
@@ -9989,6 +10171,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -10043,6 +10226,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -10230,6 +10414,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -10279,6 +10464,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
@@ -10328,6 +10514,7 @@ export type Database = {
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
+          provider: string | null
           recurring_schedule_id: string | null
           rejection_reason: string | null
           repayment_months: number
