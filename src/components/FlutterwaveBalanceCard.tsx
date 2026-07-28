@@ -16,7 +16,7 @@
 // so a failure fetching one balance never hides the other.
 
 import { useEffect, useState } from 'react';
-import { Wallet, RefreshCw, Eye, EyeOff, Copy, Check } from 'lucide-react';
+import { Wallet, RefreshCw, Eye, EyeOff, Copy, Check, Plus, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getProviderBalance } from '@/lib/payments/item-facade';
@@ -148,8 +148,34 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: {
         {error && <div className="text-[10px] text-red-600">{error}</div>}
       </div>
 
+      {/* Fund / Transactions — quick links into Flutterwave dashboard. Same
+          pattern as the Paystack card. Opens in a new tab so operators don't
+          lose their KDOps context. Uses www subdomain so the URLs work
+          regardless of whether the operator's session is on app. or dashboard.
+          Flutterwave. */}
+      <div className="flex items-center gap-1 mt-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-[11px] font-medium flex-1"
+          onClick={() => window.open('https://app.flutterwave.com/dashboard/wallets', '_blank')}
+          title="Open Flutterwave wallet page in a new tab"
+        >
+          <Plus className="mr-0.5 h-3 w-3" /> Fund Wallet
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-[11px] font-medium flex-1"
+          onClick={() => window.open('https://app.flutterwave.com/dashboard/payouts', '_blank')}
+          title="Open Flutterwave payouts / transfers page in a new tab"
+        >
+          Transfers <ArrowUpRight className="ml-0.5 h-3 w-3" />
+        </Button>
+      </div>
+
       {(funding.accountNumber || funding.bank) && (
-        <div className="pt-2 border-t border-border/60 space-y-0.5">
+        <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
           <div className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide mb-0.5">Fund via bank transfer</div>
           {funding.bank && (
             <div className="text-xs flex items-center justify-between gap-1">
