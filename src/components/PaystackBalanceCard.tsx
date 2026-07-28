@@ -33,6 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { supabase } from '@/lib/supabase';
 
 const LOW_BALANCE_THRESHOLD = 50_000;
 const CRITICAL_BALANCE_THRESHOLD = 5_000;
@@ -133,12 +134,28 @@ export function PaystackBalanceCard({
     !!funding.bank || !!funding.accountName || !!funding.accountNumber
   );
 
+  // Which provider is currently active — decides whether we show "● LIVE"
+  // (green pulse) or "○ Standby" (muted). Kept in local state so this card
+  // is self-contained (matches FlutterwaveBalanceCard's pattern).
+  const [isActive, setIsActive] = useState<boolean>(true);
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      setIsActive(((data as any)?.active_payment_provider || 'paystack') === 'paystack');
+    })();
+  }, []);
+
   return (
     <div
       className={cn(
         'relative rounded-2xl border bg-card overflow-hidden',
         'shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] kd-transition',
         'w-full sm:w-auto sm:min-w-[300px] sm:max-w-[340px]',
+        // Standby state: subtle opacity so eye lands on the active card first.
+        !isActive && 'opacity-80',
       )}
     >
       {/* Top accent strip — colour cues the tone without flooding the card */}
@@ -155,7 +172,15 @@ export function PaystackBalanceCard({
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Paystack Wallet
               </p>
-              <p className="text-[10px] text-muted-foreground/60">NGN · live</p>
+              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
+                <span>NGN · live</span>
+                <span className={cn(
+                  'text-[9px] font-bold leading-none',
+                  isActive ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground',
+                )}>
+                  {isActive ? '● LIVE' : '○ Standby'}
+                </span>
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-0.5">

@@ -1,32 +1,108 @@
-// src/components/FlutterwaveBalanceCard.tsx
-//
-// Compact Flutterwave wallet card for the Payments page. Mirrors the essential
-// display of PaystackBalanceCard (balance + funding info) but keeps the
-// chrome smaller — it's the SECONDARY card most of the time and only becomes
-// primary when Flutterwave is the active provider.
-//
-// Displays:
-//   • Current Flutterwave NGN wallet balance (hide/show + refresh)
-//   • Whether the active provider is Flutterwave (● LIVE pill) or not (○ Standby)
-//   • Funding-account details from company_settings.flutterwave_funding_*
-//     so an operator can copy-paste into a banking app to top up
-//
-// Reads its own balance via getProviderBalance('flutterwave') on mount +
-// on Refresh click. Deliberately doesn't share state with PaystackBalanceCard
-// so a failure fetching one balance never hides the other.
-
+/**
+ * FlutterwaveBalanceCard
+ *
+ * Mirrors PaystackBalanceCard's structure exactly so the two wallets sit
+ * side-by-side without visual drift — same rounded-2xl chrome, same
+ * accent-strip, same tone-based colour bands, same funding-rows and
+ * action grid.
+ *
+ * Additions unique to Flutterwave:
+ *   - "● LIVE" vs "○ Standby" indicator so operators can tell at a glance
+ *     which rail is currently paying (mirrored on both cards; only one
+ *     card shows LIVE at any moment).
+ *   - TEST / LIVE mode pill in the header row — Flutterwave lets us hold
+ *     both key sets and switch modes, so this is the source-of-truth
+ *     indicator for whether the wallet you're looking at is play-money
+ *     or real-money.
+ *
+ * Self-fetches balance + mode + funding + active-provider on mount so it
+ * doesn't have to receive them as props — this keeps Payments.tsx
+ * changes minimal and lets the card stand alone anywhere it's dropped.
+ */
 import { useEffect, useState } from 'react';
-import { Wallet, RefreshCw, Eye, EyeOff, Copy, Check, Plus, ArrowUpRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
+import {
+  Wallet, RefreshCw, AlertTriangle, Eye, EyeOff, Copy, Check,
+  Plus, ArrowUpRight,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { getProviderBalance } from '@/lib/payments/item-facade';
 import { supabase } from '@/lib/supabase';
 
 const LOW_BALANCE_THRESHOLD = 50_000;
 const CRITICAL_BALANCE_THRESHOLD = 5_000;
 
-const fmtNaira = (n: number | null | undefined, hidden = false) =>
-  hidden ? '••••••' : (n == null ? '—' : `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`);
+type Tone = 'healthy' | 'low' | 'critical' | 'unknown';
+
+const toneFor = (available: number | null): Tone => {
+  if (available === null) return 'unknown';
+  if (available < CRITICAL_BALANCE_THRESHOLD) return 'critical';
+  if (available < LOW_BALANCE_THRESHOLD) return 'low';
+  return 'healthy';
+};
+
+// Same tone table as PaystackBalanceCard so the two cards read as one
+// system. The only place we deviate from Paystack is the DEFAULT 'healthy'
+// tone when Flutterwave is the ACTIVE provider — we swap the emerald
+// accent for amber so the active card visually announces "Flutterwave is
+// paying right now" without needing to read the pill. When Flutterwave is
+// standby, we keep the neutral tone so it doesn't compete with Paystack.
+const TONE: Record<Tone, {
+  accentBar:  string;
+  iconWrap:   string;
+  icon:       string;
+  dot:        string;
+  dotPulse:   string;
+  amount:     string;
+  banner?:    string;
+  bannerText?: string;
+  caption:    string;
+}> = {
+  healthy: {
+    accentBar:  'bg-gradient-to-r from-amber-400/40 via-amber-500 to-orange-400/40',
+    iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
+    icon:       'text-amber-600 dark:text-amber-400',
+    dot:        'bg-amber-500',
+    dotPulse:   'kd-status-live-warning',
+    amount:     'text-foreground',
+    caption:    'text-muted-foreground',
+  },
+  low: {
+    accentBar:  'bg-gradient-to-r from-amber-500/50 via-amber-600 to-amber-400/40',
+    iconWrap:   'bg-amber-500/10 dark:bg-amber-400/10',
+    icon:       'text-amber-700 dark:text-amber-300',
+    dot:        'bg-amber-500',
+    dotPulse:   'kd-status-live-warning',
+    amount:     'text-foreground',
+    banner:     'bg-amber-500/10 border border-amber-500/20 dark:bg-amber-400/10 dark:border-amber-400/20',
+    bannerText: 'text-amber-700 dark:text-amber-300',
+    caption:    'text-amber-700 dark:text-amber-300/90',
+  },
+  critical: {
+    accentBar:  'bg-gradient-to-r from-red-500/40 via-red-500 to-rose-400/40',
+    iconWrap:   'bg-red-500/10 dark:bg-red-400/10',
+    icon:       'text-red-600 dark:text-red-400',
+    dot:        'bg-red-500',
+    dotPulse:   'kd-status-live-danger',
+    amount:     'text-red-600 dark:text-red-400',
+    banner:     'bg-red-500/10 border border-red-500/20 dark:bg-red-400/10 dark:border-red-400/20',
+    bannerText: 'text-red-700 dark:text-red-300',
+    caption:    'text-red-700 dark:text-red-300/90',
+  },
+  unknown: {
+    accentBar:  'bg-gradient-to-r from-slate-400/30 via-slate-500/40 to-slate-400/30',
+    iconWrap:   'bg-muted',
+    icon:       'text-muted-foreground',
+    dot:        'bg-muted-foreground',
+    dotPulse:   '',
+    amount:     'text-foreground',
+    caption:    'text-muted-foreground',
+  },
+};
+
+const fmtCompactNgn = (n: number) =>
+  n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 interface Funding {
   bank: string | null;
@@ -34,33 +110,41 @@ interface Funding {
   accountNumber: string | null;
 }
 
-export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: {
+interface Props {
   balanceHidden: boolean;
   toggleBalanceHidden: () => void;
-}) {
+}
+
+export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: Props) {
+  const navigate = useNavigate();
   const [balance, setBalance] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isActive, setIsActive] = useState<boolean | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
+  const [balanceError, setBalanceError] = useState(false);
+  const [balanceUpdatedAt, setBalanceUpdatedAt] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState<'test' | 'live'>('test');
   const [funding, setFunding] = useState<Funding>({ bank: null, accountName: null, accountNumber: null });
-  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => { void loadAll(); }, []);
 
   async function loadAll() {
-    setLoading(true);
-    setError(null);
+    setBalanceLoading(true);
+    setBalanceError(false);
     try {
       const [balRes, settingsRes] = await Promise.all([
-        getProviderBalance('flutterwave'),
+        getProviderBalance('flutterwave').catch(() => ({ available: null, error: 'fetch-failed' } as any)),
         supabase.from('company_settings')
           .select('active_payment_provider, flutterwave_mode, flutterwave_funding_bank, flutterwave_funding_account_name, flutterwave_funding_account_number')
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
       ]);
-      if (balRes.error) setError(balRes.error);
-      else setBalance(balRes.available);
+      if ((balRes as any).error) {
+        setBalanceError(true);
+      } else {
+        setBalance((balRes as any).available);
+        setBalanceError(false);
+      }
+      setBalanceUpdatedAt(new Date().toISOString());
       const s = (settingsRes.data as any) || {};
       setIsActive(s.active_payment_provider === 'flutterwave');
       setMode(s.flutterwave_mode === 'live' ? 'live' : 'test');
@@ -70,139 +154,318 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: {
         accountNumber: s.flutterwave_funding_account_number ?? null,
       });
     } finally {
-      setLoading(false);
+      setBalanceLoading(false);
     }
   }
 
-  async function copy(label: string, text: string | null) {
-    if (!text) return;
+  async function refreshBalance() {
+    setBalanceLoading(true);
+    setBalanceError(false);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(label);
-      setTimeout(() => setCopied((c) => (c === label ? null : c)), 1500);
-    } catch { /* ignore */ }
+      const balRes = await getProviderBalance('flutterwave').catch(() => ({ available: null, error: 'fetch-failed' } as any));
+      if ((balRes as any).error) setBalanceError(true);
+      else { setBalance((balRes as any).available); setBalanceError(false); }
+      setBalanceUpdatedAt(new Date().toISOString());
+    } finally {
+      setBalanceLoading(false);
+    }
   }
 
-  // Tone by balance — dim when standby, brighter when active.
-  const tone: 'critical' | 'low' | 'healthy' | 'unknown' =
-    balance == null ? 'unknown'
-    : balance < CRITICAL_BALANCE_THRESHOLD ? 'critical'
-    : balance < LOW_BALANCE_THRESHOLD ? 'low'
-    : 'healthy';
-
-  const activeStyles = isActive
-    ? 'border-2 border-amber-300 bg-amber-50/30 dark:bg-amber-950/20 shadow-sm'
-    : 'border opacity-70 grayscale-[30%]';
+  const tone = toneFor(balance);
+  const t = TONE[tone];
+  const hasFunding = !!funding && (!!funding.bank || !!funding.accountName || !!funding.accountNumber);
 
   return (
-    <div className={cn('rounded-lg p-3 min-w-[220px]', activeStyles)}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          <div className={cn(
-            'p-1 rounded',
-            isActive ? 'bg-amber-100 dark:bg-amber-900/40' : 'bg-muted',
-          )}>
-            <Wallet className={cn('h-3.5 w-3.5', isActive ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')} />
-          </div>
-          <span className="text-xs font-semibold text-muted-foreground">Flutterwave</span>
-          {isActive ? (
-            <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300">● LIVE</span>
-          ) : (
-            <span className="text-[10px] font-medium text-muted-foreground">○ Standby</span>
-          )}
-          <span className={cn(
-            'text-[9px] px-1 py-0.5 rounded font-bold',
-            mode === 'live' ? 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300',
-          )}>
-            {mode.toUpperCase()}
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={toggleBalanceHidden}
-            className="p-1 rounded hover:bg-muted"
-            title={balanceHidden ? 'Show balance' : 'Hide balance'}
-          >
-            {balanceHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-          </button>
-          <button
-            onClick={loadAll}
-            className="p-1 rounded hover:bg-muted"
-            disabled={loading}
-            title="Refresh balance"
-          >
-            <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-1">
-        <div className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide">Available</div>
-        <div className={cn(
-          'text-lg font-mono font-semibold tabular-nums',
-          tone === 'critical' && 'text-red-600',
-          tone === 'low' && 'text-amber-700',
-        )}>
-          {loading ? '…' : fmtNaira(balance, balanceHidden)}
-        </div>
-        {error && <div className="text-[10px] text-red-600">{error}</div>}
-      </div>
-
-      {/* Fund / Transactions — quick links into Flutterwave dashboard. Same
-          pattern as the Paystack card. Opens in a new tab so operators don't
-          lose their KDOps context. Uses www subdomain so the URLs work
-          regardless of whether the operator's session is on app. or dashboard.
-          Flutterwave. */}
-      <div className="flex items-center gap-1 mt-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-[11px] font-medium flex-1"
-          onClick={() => window.open('https://app.flutterwave.com/dashboard/wallets', '_blank')}
-          title="Open Flutterwave wallet page in a new tab"
-        >
-          <Plus className="mr-0.5 h-3 w-3" /> Fund Wallet
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-[11px] font-medium flex-1"
-          onClick={() => window.open('https://app.flutterwave.com/dashboard/payouts', '_blank')}
-          title="Open Flutterwave payouts / transfers page in a new tab"
-        >
-          Transfers <ArrowUpRight className="ml-0.5 h-3 w-3" />
-        </Button>
-      </div>
-
-      {(funding.accountNumber || funding.bank) && (
-        <div className="pt-2 mt-2 border-t border-border/60 space-y-0.5">
-          <div className="text-[10px] uppercase text-muted-foreground font-medium tracking-wide mb-0.5">Fund via bank transfer</div>
-          {funding.bank && (
-            <div className="text-xs flex items-center justify-between gap-1">
-              <span className="text-muted-foreground">Bank</span>
-              <span className="font-medium truncate">{funding.bank}</span>
-            </div>
-          )}
-          {funding.accountName && (
-            <div className="text-xs flex items-center justify-between gap-1">
-              <span className="text-muted-foreground">Name</span>
-              <span className="font-medium truncate">{funding.accountName}</span>
-            </div>
-          )}
-          {funding.accountNumber && (
-            <div className="text-xs flex items-center justify-between gap-1">
-              <span className="text-muted-foreground">Acct #</span>
-              <button
-                onClick={() => copy('acct', funding.accountNumber)}
-                className="font-mono font-medium flex items-center gap-1 hover:text-primary"
-              >
-                {funding.accountNumber}
-                {copied === 'acct' ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-              </button>
-            </div>
-          )}
-        </div>
+    <div
+      className={cn(
+        'relative rounded-2xl border bg-card overflow-hidden',
+        'shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] kd-transition',
+        'w-full sm:w-auto sm:min-w-[300px] sm:max-w-[340px]',
+        // Standby cards read as a secondary surface — slight opacity + tiny
+        // grayscale so the eye lands on the active card first. When active,
+        // full colour.
+        !isActive && 'opacity-80',
       )}
+    >
+      {/* Top accent strip */}
+      <div className={cn('h-[3px] w-full', t.accentBar)} />
+
+      <div className="p-4">
+        {/* ── Header ────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={cn('flex h-7 w-7 items-center justify-center rounded-lg', t.iconWrap)}>
+              <Wallet className={cn('h-3.5 w-3.5', t.icon)} />
+            </div>
+            <div className="leading-tight">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                Flutterwave Wallet
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
+                <span>NGN · {mode}</span>
+                <span
+                  className={cn(
+                    'text-[9px] px-1 py-0 rounded font-bold leading-none',
+                    mode === 'live'
+                      ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+                  )}
+                >
+                  {mode.toUpperCase()}
+                </span>
+                <span className={cn(
+                  'text-[9px] font-bold leading-none',
+                  isActive ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground',
+                )}>
+                  {isActive ? '● LIVE' : '○ Standby'}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <IconButton
+              onClick={toggleBalanceHidden}
+              label={balanceHidden ? 'Show balance' : 'Hide balance'}
+            >
+              {balanceHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+            </IconButton>
+            <IconButton
+              onClick={refreshBalance}
+              disabled={balanceLoading}
+              label="Refresh balance"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', balanceLoading && 'animate-spin')} />
+            </IconButton>
+          </div>
+        </div>
+
+        {/* ── Balance ──────────────────────────────────────────── */}
+        {balanceLoading && balance === null ? (
+          <div className="space-y-1.5">
+            <div className="h-9 w-40 kd-skeleton rounded" />
+            <div className="h-3 w-28 kd-skeleton rounded" />
+          </div>
+        ) : balanceError ? (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5">
+            <p className="text-xs font-medium text-destructive">Could not load balance</p>
+            <button
+              onClick={refreshBalance}
+              className="text-[11px] text-destructive/80 hover:text-destructive underline underline-offset-2 mt-0.5"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-baseline gap-1">
+              <span className={cn('text-base font-medium leading-none mt-1', t.amount)}>₦</span>
+              <span className={cn('text-3xl font-bold tracking-tight tabular-nums leading-none', t.amount)}>
+                {balanceHidden ? '•••••••' : (balance != null ? fmtCompactNgn(balance) : '—')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', t.dot, t.dotPulse)} />
+                <span className={cn('text-[11px] truncate', t.caption)}>
+                  {tone === 'critical'
+                    ? 'Critical — fund now'
+                    : tone === 'low'
+                      ? 'Low — fund before processing'
+                      : 'Available for transfers'}
+                </span>
+              </div>
+              {balanceUpdatedAt && (
+                <RelativeAge iso={balanceUpdatedAt} className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0" />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Low / critical banner ────────────────────────────── */}
+        {(tone === 'low' || tone === 'critical') && t.banner && (
+          <div className={cn('flex items-start gap-2 mt-3 rounded-lg px-2.5 py-2', t.banner)}>
+            <AlertTriangle className={cn('h-3.5 w-3.5 shrink-0 mt-0.5', t.bannerText)} />
+            <p className={cn('text-[11px] leading-snug font-medium', t.bannerText)}>
+              {tone === 'critical'
+                ? 'Wallet is critically low. Fund this account before any new transfers.'
+                : 'Top up before your next batch — funded transfers won\'t go out otherwise.'}
+            </p>
+          </div>
+        )}
+
+        {/* ── Funding details ──────────────────────────────────── */}
+        <div className="mt-3 pt-3 border-t border-border/60">
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80">
+              Fund this account
+            </p>
+            {hasFunding && (
+              <button
+                onClick={() => navigate('/settings#payment-rails')}
+                className="text-[10px] text-muted-foreground/60 hover:text-foreground kd-transition"
+                title="Edit funding details in Settings"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
+          {hasFunding ? (
+            <div className="space-y-0.5">
+              {funding.bank && <FundingRow label="Bank" value={funding.bank} />}
+              {funding.accountName && <FundingRow label="Name" value={funding.accountName} />}
+              {funding.accountNumber && <FundingRow label="Account" value={funding.accountNumber} mono />}
+            </div>
+          ) : (
+            <button
+              onClick={() => navigate('/settings#payment-rails')}
+              className={cn(
+                'group flex w-full items-center justify-between gap-2 rounded-lg',
+                'border border-dashed border-border/80 hover:border-primary/40',
+                'bg-muted/30 hover:bg-primary/5',
+                'px-2.5 py-2 kd-transition',
+              )}
+              title="Add Flutterwave funding details in Settings"
+            >
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground group-hover:text-foreground">
+                <Plus className="h-3 w-3" />
+                Add funding account
+              </span>
+              <ArrowUpRight className="h-3 w-3 text-muted-foreground/60 group-hover:text-primary" />
+            </button>
+          )}
+        </div>
+
+        {/* ── Actions ──────────────────────────────────────────── */}
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px] font-medium"
+            onClick={() => window.open('https://app.flutterwave.com/dashboard/wallets', '_blank')}
+          >
+            Fund Wallet
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-[11px] font-medium"
+            onClick={() => window.open('https://app.flutterwave.com/dashboard/payouts', '_blank')}
+          >
+            Transfers
+            <ArrowUpRight className="ml-0.5 h-3 w-3" />
+          </Button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+// ── Sub-components (identical to PaystackBalanceCard so the two feel
+// like one system) ────────────────────────────────────────────────────
+
+function IconButton({
+  children, onClick, disabled, label,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={cn(
+        'flex h-7 w-7 items-center justify-center rounded-md',
+        'text-muted-foreground/70 hover:text-foreground hover:bg-muted',
+        'kd-transition disabled:opacity-40 disabled:hover:bg-transparent',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FundingRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const onCopy = async () => {
+    try { await navigator.clipboard.writeText(value); } catch { /* ignore */ }
+  };
+  return (
+    <CopyButton onCopy={onCopy} label={label}>
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 shrink-0 w-14">{label}</span>
+      <span className={cn(
+        'text-[11.5px] font-medium text-foreground truncate flex-1 text-right',
+        mono && 'font-mono tracking-tight',
+      )}>{value}</span>
+    </CopyButton>
+  );
+}
+
+function CopyButton({
+  children, onCopy, label,
+}: {
+  children: React.ReactNode;
+  onCopy: () => void;
+  label: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const handle = async () => {
+    onCopy();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+  return (
+    <button
+      type="button"
+      onClick={handle}
+      className={cn(
+        'group flex w-full items-center justify-between gap-2 text-left',
+        'rounded-md px-1.5 -mx-1.5 py-1 hover:bg-muted/60 kd-transition',
+      )}
+      title={`Copy ${label.toLowerCase()}`}
+    >
+      {children}
+      {copied ? (
+        <Check className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+      ) : (
+        <Copy className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground shrink-0 kd-transition" />
+      )}
+    </button>
+  );
+}
+
+function RelativeAge({ iso, className }: { iso: string; className?: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  const ageMs = now - new Date(iso).getTime();
+
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    const interval = ageMs < 60_000 ? 5_000 : 30_000;
+    const id = setInterval(tick, interval);
+    return () => clearInterval(id);
+  }, [ageMs]);
+
+  let label: string;
+  if (ageMs < 5_000) label = 'just now';
+  else if (ageMs < 60_000) label = `${Math.round(ageMs / 1_000)} sec ago`;
+  else if (ageMs < 3_600_000) {
+    const m = Math.round(ageMs / 60_000);
+    label = `${m} min${m === 1 ? '' : 's'} ago`;
+  } else if (ageMs < 86_400_000) {
+    const h = Math.round(ageMs / 3_600_000);
+    label = `${h}h ago`;
+  } else {
+    const d = Math.round(ageMs / 86_400_000);
+    label = `${d}d ago`;
+  }
+
+  return (
+    <span className={className} title={new Date(iso).toLocaleString('en-NG')}>
+      Updated {label}
+    </span>
   );
 }
