@@ -191,6 +191,21 @@ export function QuickPayDialog() {
       // BatchDetail. This is the single-source-of-truth way to enforce
       // co-approval for high-value Quick Pays without forking the flow.
       if (isCoApprovalRequired(coThreshold, amount)) {
+        // Stamp provider even on the approval-routed path so the receipt +
+        // BatchDetail know which rail will pay when the approver processes.
+        // Read active_payment_provider at creation time. It is IMMUTABLE
+        // after this — if an operator flips the toggle before the approval
+        // completes, this batch still uses the provider it was born under
+        // (avoids the "I approved a Paystack batch, why did money go via
+        // Flutterwave?" foot-gun).
+        const { data: settingsRow } = await supabase
+          .from('company_settings')
+          .select('active_payment_provider')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle();
+        const providerAtCreation: 'paystack' | 'flutterwave' =
+          (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+
         const { data: batch, error: batchErr } = await supabase
           .from('payment_batches')
           .insert({
@@ -203,6 +218,7 @@ export function QuickPayDialog() {
             created_by: profile?.id,
             payment_description: customNarration?.trim() || form.description?.trim() || null,
             payment_category: form.category || null,
+            provider: providerAtCreation,
           })
           .select('id')
           .single();
@@ -216,6 +232,7 @@ export function QuickPayDialog() {
           amount_ngn: amount,
           reference: 'Quick Pay',
           status: 'pending',
+          provider: providerAtCreation,
         });
         if (itemErr) throw itemErr;
 
@@ -241,6 +258,19 @@ export function QuickPayDialog() {
       // is technically blocked by the no-self-approval CHECK constraint —
       // we set approved_by=NULL here because the dispatch path doesn't need
       // it, and trying to set approved_by=profile.id would violate the CHECK.
+
+      // Provider-aware routing: read active_payment_provider from settings
+      // and stamp it on the batch + batch_item so the receipt, transactions
+      // view, and reconciliation all know which rail moved the money.
+      // Dispatch itself branches below on this value.
+      const { data: settingsRow } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const activeProvider: 'paystack' | 'flutterwave' =
+        (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
@@ -253,6 +283,7 @@ export function QuickPayDialog() {
           created_by: profile?.id,
           payment_category: form.category || null,
           payment_description: customNarration?.trim() || form.description?.trim() || null,
+          provider: activeProvider,
         })
         .select()
         .single();
@@ -261,12 +292,17 @@ export function QuickPayDialog() {
       const bankCode = getBankCode(bank.bank_name);
       if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
 
-      // 2. Create recipient via Edge Function.
-      const recipient = await createTransferRecipient({
-        name: bank.account_name || bank.account_number,
-        account_number: bank.account_number,
-        bank_code: bankCode,
-      });
+      // Recipient creation is Paystack-specific (Paystack requires a
+      // pre-created recipient_code for transfers). Flutterwave's /transfers
+      // endpoint takes bank_code + account_number directly — no separate
+      // recipient step. So only create a recipient on the Paystack path.
+      const recipient = activeProvider === 'paystack'
+        ? await createTransferRecipient({
+            name: bank.account_name || bank.account_number,
+            account_number: bank.account_number,
+            bank_code: bankCode,
+          })
+        : ({ recipient_code: null } as { recipient_code: string | null });
 
       const recipientName = bank.account_name || bank.account_number;
 
@@ -292,8 +328,9 @@ export function QuickPayDialog() {
 
       // Insert the batch item BEFORE generating a deterministic ref from its
       // id. The `reference` column holds the operator-supplied label (defaults
-      // to "Quick Pay"); `paystack_reference` is the machine-readable
-      // idempotency key that flows to Paystack.
+      // to "Quick Pay"); the provider-specific reference (paystack_reference
+      // or flutterwave_reference) is the machine-readable idempotency key
+      // that flows to the provider.
       const { data: insertedItem, error: itemErr } = await supabase.from('batch_items').insert({
         batch_id: (batch as any).id,
         full_name: recipientName,
@@ -302,15 +339,26 @@ export function QuickPayDialog() {
         amount_ngn: amount,
         reference: 'Quick Pay',
         status: 'pending',
-        paystack_recipient_code: recipient.recipient_code,
+        paystack_recipient_code: recipient.recipient_code, // NULL on Flutterwave path
         contractor_id: contractorId,
         employee_id:   employeeId,
+        provider: activeProvider,
       }).select('id').single();
       if (itemErr || !insertedItem) {
         throw new Error(`Could not create payment record: ${itemErr?.message || 'no item id'}`);
       }
-      const ref = generateKdopsRef(insertedItem.id);
-      await supabase.from('batch_items').update({ paystack_reference: ref }).eq('id', insertedItem.id);
+
+      // Deterministic reference — prefix differs so the two providers can
+      // never confuse each other in dashboards or webhook lookups.
+      const compactId = String(insertedItem.id).replace(/-/g, '').slice(0, 20);
+      const ref = activeProvider === 'flutterwave' ? `kdopsfw_${compactId}` : `kdops_${compactId}`;
+      await supabase.from('batch_items')
+        .update(
+          activeProvider === 'flutterwave'
+            ? { flutterwave_reference: ref }
+            : { paystack_reference: ref },
+        )
+        .eq('id', insertedItem.id);
 
       // Use the operator's custom narration from the pre-flight modal (editable
       // there), then fall back to the description field, then auto-build.
@@ -318,31 +366,72 @@ export function QuickPayDialog() {
         || (form.description?.trim() ? form.description.trim().slice(0, 60) : '')
         || buildNarration({ kind: 'quick_pay', recipientName });
 
-      const transfer = await initiateTransferIdempotent({
-        recipient_code: recipient.recipient_code,
-        amount_ngn: amount,
-        reference: ref,
-        reason: narration,
-      });
+      // ── Provider-branched dispatch ────────────────────────────────────
+      // Both branches produce the same downstream outcome — batch_item is
+      // updated to succeeded/failed/pending with the provider's fee + ref.
+      // The Paystack branch is BYTE-IDENTICAL to the pre-Flutterwave code
+      // path so existing payroll behaviour cannot change.
+      let itemStatus: 'pending' | 'succeeded' | 'failed' | 'reversed' = 'pending';
+      let updatePayload: Record<string, unknown> = {};
 
-      // Map recovered duplicate-ref into the right batch_item status.
-      const recoveredStatus = transfer.recovered
-        ? (transfer.verified_status || transfer.status || '').toLowerCase()
-        : null;
-      const itemStatus =
-        recoveredStatus === 'success' ? 'succeeded'
-        : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
-        : 'pending';
-
-      const { error: updateErr } = await supabase
-        .from('batch_items')
-        .update({
+      if (activeProvider === 'flutterwave') {
+        // Route to flutterwave-transfer edge function.
+        const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
+          body: {
+            action: 'initiate_transfer',
+            reference: ref,
+            bank_code: bankCode,
+            account_number: bank.account_number,
+            amount_ngn: amount,
+            reason: narration,
+          },
+        });
+        if (fwErr) throw new Error((fwErr as any)?.message || 'Flutterwave transfer failed');
+        const fwData = (fwRes as any)?.data;
+        if (!fwData || (fwRes as any)?.ok === false) {
+          throw new Error((fwRes as any)?.error || 'Flutterwave transfer rejected');
+        }
+        const fwStatus = String(fwData.status || '').toLowerCase();
+        itemStatus =
+          fwStatus === 'succeeded' ? 'succeeded'
+          : fwStatus === 'failed' || fwStatus === 'reversed' ? (fwStatus as 'failed' | 'reversed')
+          : 'pending';
+        updatePayload = {
+          status: itemStatus,
+          flutterwave_transfer_id: fwData.transfer_id || null,
+          flutterwave_fee_ngn: Number(fwData.fee_ngn || 0) || 0,
+          flutterwave_raw: fwData.raw ?? null,
+          narration,
+          processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
+          failure_reason: itemStatus === 'failed' ? 'Recovered: Flutterwave rejected the transfer' : null,
+        };
+      } else {
+        // Paystack path — unchanged from pre-Flutterwave behaviour.
+        const transfer = await initiateTransferIdempotent({
+          recipient_code: recipient.recipient_code!,
+          amount_ngn: amount,
+          reference: ref,
+          reason: narration,
+        });
+        const recoveredStatus = transfer.recovered
+          ? (transfer.verified_status || transfer.status || '').toLowerCase()
+          : null;
+        itemStatus =
+          recoveredStatus === 'success' ? 'succeeded'
+          : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? (recoveredStatus as 'failed' | 'reversed')
+          : 'pending';
+        updatePayload = {
           status: itemStatus,
           paystack_transfer_code: transfer.transfer_code,
           narration,
           processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
           failure_reason: itemStatus === 'failed' ? 'Recovered: Paystack rejected the transfer' : null,
-        })
+        };
+      }
+
+      const { error: updateErr } = await supabase
+        .from('batch_items')
+        .update(updatePayload)
         .eq('id', insertedItem.id);
       if (updateErr) {
         console.warn('[KDOps] could not stamp transfer_code on batch_item:', updateErr.message);
