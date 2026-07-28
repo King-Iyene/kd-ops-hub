@@ -611,12 +611,44 @@ async function workBatch(
 
   const { data: batch, error: bErr } = await svc
     .from("payment_batches")
-    .select("id, name, status, payment_description, payment_narration_at_dispatch")
+    .select("id, name, status, payment_description, payment_narration_at_dispatch, provider")
     .eq("id", batchId)
     .single();
   if (bErr || !batch) return { ok: false, error: "batch not found" };
   if (batch.status !== "processing" && batch.status !== "partially_processed") {
     return { ok: true, skipped: `batch in ${batch.status}` };
+  }
+
+  // ── Provider stamping ──────────────────────────────────────────────────
+  // If this is the batch's first dispatch tick, stamp provider from the
+  // current company_settings.active_payment_provider. Once stamped, we
+  // NEVER change it — the batch runs on whichever provider it was born
+  // under, so mid-flight toggle flips never cross-contaminate a batch.
+  let provider = ((batch as any).provider || null) as "paystack" | "flutterwave" | null;
+  if (!provider) {
+    const { data: settings } = await svc
+      .from("company_settings")
+      .select("active_payment_provider")
+      .eq("id", "00000000-0000-0000-0000-000000000001")
+      .maybeSingle();
+    provider = ((settings as any)?.active_payment_provider === "flutterwave"
+      ? "flutterwave"
+      : "paystack") as "paystack" | "flutterwave";
+    // Stamp the batch AND every one of its items so downstream queries
+    // (webhook lookups, reconciliation, receipt display) can pick the
+    // right column set without consulting settings on every read.
+    await svc.from("payment_batches").update({ provider }).eq("id", batchId);
+    await svc.from("batch_items")
+      .update({ provider })
+      .eq("batch_id", batchId)
+      .is("provider", null);
+  }
+
+  // Route by provider. Flutterwave path lives in workFlutterwaveBatch at
+  // the bottom of this file; Paystack path is the original body below,
+  // unchanged so today's dispatch behaves byte-identically.
+  if (provider === "flutterwave") {
+    return await workFlutterwaveBatch(svc, batchId, actorId ?? null, narrationOverride ?? null, batch);
   }
 
   // Cap enforcement: when a real user kicks the batch, sum undispatched
@@ -887,3 +919,304 @@ serve(async (req) => {
     });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FLUTTERWAVE DISPATCH PATH
+// ═══════════════════════════════════════════════════════════════════════════
+// Everything below runs ONLY when batch.provider = 'flutterwave'. The Paystack
+// path above stays byte-identical — its behaviour cannot change from this
+// file.
+//
+// Design parity with the Paystack path:
+//   - Deterministic reference (kdopsfw_<itemId>) — same idempotency
+//   - Pre-write reference before the API call — bulk-response loss recoverable
+//   - 429 retry with jitter; 5xx never retried
+//   - Cap enforcement via check_transfer_caps (per-actor, provider-agnostic)
+//   - Narration snapshot on first dispatch, reused on subsequent ticks
+//
+// Flutterwave specifics:
+//   - v3 API base
+//   - Mode-aware secret pick (FLUTTERWAVE_SECRET_KEY_TEST vs _LIVE)
+//   - Bulk endpoint: POST /v3/bulk-transfers with { title, bulk_data:[...] }
+//   - Per-item outcomes arrive by webhook OR by polling /bulk-transfers/{id}
+// ═══════════════════════════════════════════════════════════════════════════
+
+const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
+const FW_BULK_CHUNK_SIZE = 100;
+const FW_BULK_INTER_CHUNK_MS = 5_000;
+
+async function getFlutterwaveSecret(svc: SupabaseClient): Promise<string> {
+  const { data } = await svc
+    .from("company_settings")
+    .select("flutterwave_mode")
+    .eq("id", "00000000-0000-0000-0000-000000000001")
+    .maybeSingle();
+  const mode = ((data as any)?.flutterwave_mode || "test") as "test" | "live";
+  const envName = mode === "live"
+    ? "FLUTTERWAVE_SECRET_KEY_LIVE"
+    : "FLUTTERWAVE_SECRET_KEY_TEST";
+  const s = Deno.env.get(envName);
+  if (!s) throw new Error(`${envName} not set in Supabase secrets`);
+  // Paste-safety: refuse to fire if key prefix contradicts mode.
+  const looksTest = s.startsWith("FLWSECK_TEST-");
+  const looksLive = s.startsWith("FLWSECK-") && !looksTest;
+  if (mode === "test" && !looksTest) {
+    throw new Error(`Mode TEST but ${envName} is not a test key. Refusing.`);
+  }
+  if (mode === "live" && !looksLive) {
+    throw new Error(`Mode LIVE but ${envName} is not a live key. Refusing.`);
+  }
+  return s;
+}
+
+function generateFwRef(itemId: string): string {
+  return `kdopsfw_${itemId.replace(/-/g, "").slice(0, 20)}`;
+}
+
+async function flutterwavePost(secret: string, path: string, body: unknown): Promise<any> {
+  for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
+    const res = await fetch(`${FLUTTERWAVE_BASE}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${secret}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 429 && attempt < PAYSTACK_MAX_RETRIES) {
+      const waitMs = retryDelayMs(res, attempt);
+      console.warn(`[batch-worker/fw] 429 on ${path}; retry ${attempt + 1} in ${waitMs}ms`);
+      try { await res.text(); } catch {/* ignore */}
+      await sleep(waitMs);
+      continue;
+    }
+    const json = await res.json();
+    if (!res.ok || json?.status === "error") {
+      throw new Error(json?.message || `Flutterwave ${res.status}`);
+    }
+    return json.data;
+  }
+  throw new Error("Flutterwave rate-limited after retries (HTTP 429)");
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dispatch a chunk via Flutterwave /bulk-transfers.
+// Pre-writes each item's kdopsfw_ reference BEFORE the API call so if the
+// bulk response is lost, reconciliation resolves each via /transfers?reference=.
+// ─────────────────────────────────────────────────────────────────────────
+async function fwDispatchChunkBulk(
+  svc: SupabaseClient,
+  secret: string,
+  items: any[],
+  narration: string,
+): Promise<{ dispatched: number; failed: number; error?: string }> {
+  // Filter to items with amount ≥ 1 and non-empty account + bank.
+  const sendable: any[] = [];
+  let preFail = 0;
+  for (const it of items) {
+    const amt = Number(it.amount_ngn || 0);
+    if (amt < 1) {
+      await svc.from("batch_items")
+        .update({ status: "failed", failure_reason: "Minimum transfer amount is ₦1" })
+        .eq("id", it.id);
+      preFail++;
+      continue;
+    }
+    if (!it.bank_name || !it.account_number) {
+      await svc.from("batch_items")
+        .update({ status: "failed", failure_reason: "Missing bank or account number" })
+        .eq("id", it.id);
+      preFail++;
+      continue;
+    }
+    // Resolve bank code from cached Paystack /bank list (Nigerian codes
+    // are identical across providers — Flutterwave uses NIBSS codes too).
+    const bankCode = getBankCode(it.bank_name);
+    if (!bankCode) {
+      await svc.from("batch_items")
+        .update({ status: "failed", failure_reason: `Unknown bank "${it.bank_name}" — no code` })
+        .eq("id", it.id);
+      preFail++;
+      continue;
+    }
+    it._bank_code = bankCode;
+    sendable.push(it);
+  }
+  if (sendable.length === 0) return { dispatched: 0, failed: preFail };
+
+  // Pre-write refs so a lost bulk response is recoverable.
+  for (const it of sendable) it._ref = generateFwRef(it.id);
+  await Promise.all(sendable.map((it) =>
+    svc.from("batch_items").update({
+      flutterwave_reference: it._ref,
+      status: "pending",
+      failure_reason: null,
+    }).eq("id", it.id),
+  ));
+
+  const title = narration.slice(0, 100);
+  const bulk_data = sendable.map((it) => ({
+    bank_code: it._bank_code,
+    account_number: String(it.account_number).replace(/\D/g, ""),
+    amount: Number(it.amount_ngn),
+    currency: "NGN",
+    narration: title,
+    reference: it._ref,
+  }));
+
+  let bulkData: any;
+  try {
+    bulkData = await flutterwavePost(secret, "/bulk-transfers", { title, bulk_data });
+  } catch (err) {
+    // Refs already written — reconciliation will resolve each via /transfers.
+    const reason = (err as Error)?.message || "Flutterwave bulk-transfers call failed";
+    console.error(`[batch-worker/fw] bulk failed (${sendable.length} items): ${reason}`);
+    return { dispatched: 0, failed: preFail, error: reason };
+  }
+
+  // Flutterwave returns a single batch id; per-recipient statuses come by
+  // webhook (transfer.completed) OR by polling /bulk-transfers/{id}. We stamp
+  // every item with the bulk batch id so reconciliation can group them; the
+  // webhook (flutterwave-webhook) will flip individual items to
+  // succeeded/failed/reversed asynchronously.
+  const batchIdFw = String(bulkData?.id ?? "");
+  if (batchIdFw) {
+    await Promise.all(sendable.map((it) =>
+      svc.from("batch_items")
+        .update({ flutterwave_transfer_id: batchIdFw })
+        .eq("id", it.id),
+    ));
+  }
+
+  return { dispatched: sendable.length, failed: preFail };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Main Flutterwave worker — mirrors workBatch but on the FW rail.
+// Uses bulk dispatch exclusively (per-item would blow the rate limit on
+// large payrolls; we already learned this from Paystack).
+// ─────────────────────────────────────────────────────────────────────────
+async function workFlutterwaveBatch(
+  svc: SupabaseClient,
+  batchId: string,
+  actorId: string | null,
+  narrationOverride: string | null,
+  batch: any,
+) {
+  const startedAt = Date.now();
+
+  // Cap enforcement (identical to Paystack path — check_transfer_caps is
+  // provider-agnostic; sums by actor across all providers).
+  if (actorId) {
+    const { data: pendingItems } = await svc
+      .from("batch_items")
+      .select("amount_ngn")
+      .eq("batch_id", batchId)
+      .is("flutterwave_reference", null)
+      .not("status", "in", '("succeeded","failed","rejected")');
+    const totalNgn = (pendingItems || []).reduce(
+      (sum: number, it: any) => sum + Number(it.amount_ngn || 0), 0,
+    );
+    if (totalNgn > 0) {
+      const { data: capRows, error: capErr } = await svc.rpc(
+        "check_transfer_caps",
+        { p_user_id: actorId, p_amount_ngn: totalNgn },
+      );
+      if (capErr) {
+        console.error("[batch-worker/fw] cap check failed:", capErr.message);
+        return { ok: false, error: "Could not verify transfer limits — try again." };
+      }
+      const cap = Array.isArray(capRows) ? capRows[0] : capRows;
+      if (cap && cap.allowed === false) {
+        return { ok: false, error: cap.reason, cap_blocked: true };
+      }
+    }
+  }
+
+  const secret = await getFlutterwaveSecret(svc);
+  // Bank codes: NIBSS codes are identical across Nigerian providers, so we
+  // reuse the same Paystack-warmed cache. Warm it here so getBankCode()
+  // stays synchronous in fwDispatchChunkBulk.
+  await loadPaystackBanks(Deno.env.get("PAYSTACK_SECRET_KEY") || secret);
+
+  // Narration snapshot — same rules as Paystack.
+  let narrationForDispatch: string = (batch as any).payment_narration_at_dispatch || "";
+  if (!narrationForDispatch) {
+    const raw = (narrationOverride ?? (batch as any).payment_description ?? batch.name ?? "")
+      .toString().trim();
+    if (narrationOverride && narrationOverride.trim().length > 0) {
+      narrationForDispatch = raw.slice(0, 100);
+    } else if ((batch as any).payment_description) {
+      narrationForDispatch = raw.slice(0, 100);
+    } else {
+      narrationForDispatch = `KDOps · ${raw}`.slice(0, 100);
+    }
+    await svc.from("payment_batches")
+      .update({ payment_narration_at_dispatch: narrationForDispatch })
+      .eq("id", batchId);
+  }
+
+  let dispatched = 0;
+  let failed = 0;
+  let chunkIndex = 0;
+
+  console.log(`[batch-worker/fw] batch=${batchId} mode=bulk pull_size=${FW_BULK_CHUNK_SIZE}`);
+
+  while (Date.now() - startedAt < TIME_BUDGET_MS) {
+    if (chunkIndex > 0) {
+      await sleep(FW_BULK_INTER_CHUNK_MS);
+      if (Date.now() - startedAt >= TIME_BUDGET_MS) break;
+    }
+
+    const { data: chunk, error: pullErr } = await svc
+      .from("batch_items")
+      .select("id, full_name, amount_ngn, bank_name, account_number")
+      .eq("batch_id", batchId)
+      .is("flutterwave_reference", null)
+      .not("status", "in", '("succeeded","failed","rejected")')
+      .order("created_at", { ascending: true })
+      .limit(FW_BULK_CHUNK_SIZE);
+    if (pullErr) {
+      console.error("[batch-worker/fw] pull error:", pullErr.message);
+      return { ok: false, error: pullErr.message };
+    }
+    if (!chunk || chunk.length === 0) break;
+
+    await svc.from("payment_batches")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", batchId);
+
+    const r = await fwDispatchChunkBulk(svc, secret, chunk, narrationForDispatch);
+    dispatched += r.dispatched;
+    failed += r.failed;
+    if (r.error) {
+      console.warn(`[batch-worker/fw] bulk chunk failed, deferring to next tick: ${r.error}`);
+      break;
+    }
+    chunkIndex++;
+  }
+
+  const { count: remaining } = await svc
+    .from("batch_items")
+    .select("id", { count: "exact", head: true })
+    .eq("batch_id", batchId)
+    .is("flutterwave_reference", null)
+    .not("status", "in", '("succeeded","failed","rejected")');
+
+  if ((remaining ?? 0) === 0) {
+    const { error: finalizeErr } = await svc.rpc("finalize_batch", { p_batch_id: batchId });
+    if (finalizeErr) {
+      console.warn("[batch-worker/fw] finalize_batch failed:", finalizeErr.message);
+    }
+  }
+
+  return {
+    ok: true,
+    batch_id: batchId,
+    provider: "flutterwave",
+    dispatched,
+    failed,
+    remaining: remaining ?? 0,
+    elapsed_ms: Date.now() - startedAt,
+  };
+}
