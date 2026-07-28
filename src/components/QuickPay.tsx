@@ -453,8 +453,12 @@ export function QuickPayDialog() {
         profile,
       );
 
-      setResult({ ok: true, ref: transfer.reference || ref });
-      toast({ title: 'Quick Pay sent', description: `Ref: ${transfer.reference || ref}` });
+      // Use `ref` (our deterministic kdops_/kdopsfw_ reference) rather than
+      // any provider-specific transfer variable — both branches populate `ref`
+      // identically, and referencing `transfer` here would leak out of the
+      // Paystack-only else block from the dispatch refactor above.
+      setResult({ ok: true, ref });
+      toast({ title: 'Quick Pay sent', description: `Ref: ${ref}` });
     } catch (err: any) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
@@ -488,7 +492,7 @@ export function QuickPayDialog() {
             <Zap className="h-5 w-5 text-accent" /> Quick Pay
           </span>
         }
-        description="Send a one-off payment without creating a batch. Verifies the account, creates a recipient, and initiates the transfer via Paystack immediately."
+        description="Send a one-off payment without creating a batch. Verifies the account and initiates the transfer via your currently active provider (Paystack or Flutterwave)."
         footer={
           result ? (
             <Button
