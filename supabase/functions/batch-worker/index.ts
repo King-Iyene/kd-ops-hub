@@ -620,20 +620,62 @@ async function workBatch(
   }
 
   // ── Provider stamping ──────────────────────────────────────────────────
-  // If this is the batch's first dispatch tick, stamp provider from the
-  // current company_settings.active_payment_provider. Once stamped, we
-  // NEVER change it — the batch runs on whichever provider it was born
-  // under, so mid-flight toggle flips never cross-contaminate a batch.
+  // If this is the batch's first dispatch tick, decide provider. Order:
+  //   1. Existing dispatched items win — if any batch_item already has a
+  //      paystack_reference OR flutterwave_reference, we're resuming an
+  //      in-flight batch and MUST use whichever provider owns those refs.
+  //      This prevents a catastrophic scenario: pre-migration Paystack
+  //      batches (provider=NULL, items have paystack_reference) getting
+  //      re-dispatched through Flutterwave because the operator flipped
+  //      the toggle in the meantime — which would double-charge every
+  //      recipient in the batch.
+  //   2. If no dispatched items exist yet (batch never processed), use
+  //      the current company_settings.active_payment_provider.
+  //
+  // Once stamped, provider is IMMUTABLE for the rest of dispatch — mid-
+  // flight toggle flips never cross-contaminate a batch.
   let provider = ((batch as any).provider || null) as "paystack" | "flutterwave" | null;
   if (!provider) {
-    const { data: settings } = await svc
-      .from("company_settings")
-      .select("active_payment_provider")
-      .eq("id", "00000000-0000-0000-0000-000000000001")
-      .maybeSingle();
-    provider = ((settings as any)?.active_payment_provider === "flutterwave"
-      ? "flutterwave"
-      : "paystack") as "paystack" | "flutterwave";
+    const [{ count: paystackDispatched }, { count: flutterwaveDispatched }] = await Promise.all([
+      svc.from("batch_items")
+        .select("id", { count: "exact", head: true })
+        .eq("batch_id", batchId)
+        .not("paystack_reference", "is", null),
+      svc.from("batch_items")
+        .select("id", { count: "exact", head: true })
+        .eq("batch_id", batchId)
+        .not("flutterwave_reference", "is", null),
+    ]);
+    const psCount = paystackDispatched ?? 0;
+    const fwCount = flutterwaveDispatched ?? 0;
+
+    // Defensive: a well-formed batch never has BOTH providers' refs. If it
+    // does, something is very wrong and we refuse to proceed rather than
+    // guess and potentially double-charge.
+    if (psCount > 0 && fwCount > 0) {
+      console.error(`[batch-worker] batch ${batchId} has mixed provider refs (ps=${psCount}, fw=${fwCount}); refusing to dispatch`);
+      return {
+        ok: false,
+        error: "batch has both Paystack and Flutterwave references — refusing to dispatch. Contact engineering.",
+      };
+    }
+    if (psCount > 0) {
+      provider = "paystack";
+    } else if (fwCount > 0) {
+      provider = "flutterwave";
+    } else {
+      // No dispatched items yet — this is a first-time process. Fall back
+      // to whichever provider is currently active on company_settings.
+      const { data: settings } = await svc
+        .from("company_settings")
+        .select("active_payment_provider")
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .maybeSingle();
+      provider = ((settings as any)?.active_payment_provider === "flutterwave"
+        ? "flutterwave"
+        : "paystack") as "paystack" | "flutterwave";
+    }
+
     // Stamp the batch AND every one of its items so downstream queries
     // (webhook lookups, reconciliation, receipt display) can pick the
     // right column set without consulting settings on every read.
