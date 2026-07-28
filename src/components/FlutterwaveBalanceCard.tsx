@@ -178,13 +178,22 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
   return (
     <div
       className={cn(
-        'relative rounded-2xl border bg-card overflow-hidden',
-        'shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] kd-transition',
+        'relative rounded-2xl border bg-card overflow-hidden kd-transition',
         'w-full sm:w-auto sm:min-w-[300px] sm:max-w-[340px]',
-        // Standby cards read as a secondary surface — slight opacity + tiny
-        // grayscale so the eye lands on the active card first. When active,
-        // full colour.
-        !isActive && 'opacity-80',
+        // Two visual states — dramatically different so operators never
+        // mistake which rail is active. Mercury / Ramp / Brex do exactly
+        // this: active card sits forward with a subtle brand halo, standby
+        // recedes with heavy grayscale + reduced opacity + slight scale-down.
+        isActive
+          ? [
+              'shadow-[0_2px_16px_-4px_rgba(245,158,11,0.20)]',
+              'hover:shadow-[0_4px_24px_-4px_rgba(245,158,11,0.30)]',
+              'ring-1 ring-amber-500/25 dark:ring-amber-400/25',
+            ]
+          : [
+              'opacity-55 saturate-[0.35] scale-[0.97] hover:opacity-70 hover:saturate-100 hover:scale-100',
+              'shadow-none border-border/50',
+            ],
       )}
     >
       {/* Top accent strip */}
@@ -201,26 +210,45 @@ export function FlutterwaveBalanceCard({ balanceHidden, toggleBalanceHidden }: P
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 Flutterwave Wallet
               </p>
-              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1.5">
-                <span>NGN · {mode}</span>
+              <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1">
+                <span>NGN</span>
+                {/* Mode pill — TEST (amber gradient) vs LIVE (red gradient).
+                    Instantly readable so operators can never confuse test-mode
+                    balance with real money. */}
                 <span
                   className={cn(
-                    'text-[9px] px-1 py-0 rounded font-bold leading-none',
+                    'inline-flex items-center px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-wider leading-[1.4]',
                     mode === 'live'
-                      ? 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+                      ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white'
+                      : 'bg-gradient-to-r from-amber-500 to-orange-400 text-white',
                   )}
                 >
-                  {mode.toUpperCase()}
-                </span>
-                <span className={cn(
-                  'text-[9px] font-bold leading-none',
-                  isActive ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground',
-                )}>
-                  {isActive ? '● LIVE' : '○ Standby'}
+                  {mode}
                 </span>
               </p>
             </div>
+            {/* LIVE / Standby status badge — full pill with gradient bg when
+                active, pulsing dot to draw the eye. When standby, muted
+                outlined pill with quiet dot. Same visual grammar as the
+                Paystack card so the two feel like one system. */}
+            <span
+              className={cn(
+                'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider leading-none whitespace-nowrap kd-transition',
+                isActive
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-[0_2px_8px_-2px_rgba(245,158,11,0.5)]'
+                  : 'border border-border/60 text-muted-foreground bg-muted/30',
+              )}
+            >
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full',
+                  isActive
+                    ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.9)] kd-status-live-warning'
+                    : 'bg-muted-foreground/50',
+                )}
+              />
+              {isActive ? 'LIVE' : 'Standby'}
+            </span>
           </div>
           <div className="flex items-center gap-0.5">
             <IconButton
