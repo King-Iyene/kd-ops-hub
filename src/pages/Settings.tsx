@@ -92,6 +92,7 @@ import TransferAuthSettings from '@/components/settings/TransferAuthSettings';
 import EmailTemplatesSettings from '@/components/settings/EmailTemplatesSettings';
 import { NotificationsCard } from '@/components/settings/NotificationsCard';
 import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
+import { PaymentRailsCard } from '@/components/settings/PaymentRailsCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
@@ -647,6 +648,9 @@ const SettingsPage = () => {
 
         {/* INTEGRATIONS -------------------------------------------------- */}
         <TabsContent value="integrations" className="mt-4 space-y-4">
+          {/* Payment Rails: super_admin-only toggle between Paystack and
+              Flutterwave, with preflight + typed confirmation + audit trail. */}
+          <PaymentRailsCard isSuperAdmin={profile?.role === 'super_admin'} />
           <Card id="paystack" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="text-base">Paystack</CardTitle>
