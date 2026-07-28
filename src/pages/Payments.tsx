@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { QuickPayDialog } from '@/components/QuickPay';
 import { PaystackBalanceCard } from '@/components/PaystackBalanceCard';
+import { FlutterwaveBalanceCard } from '@/components/FlutterwaveBalanceCard';
 import { PendingPayoutsCard } from '@/components/payments/PendingPayoutsCard';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { getPaystackBalance } from '@/lib/paystack';
@@ -369,6 +370,18 @@ const Payments = () => {
             fetchBalance={fetchBalance}
             funding={funding}
           />}
+
+          {/* Flutterwave balance card — always visible alongside Paystack so
+              finance can see both wallets at a glance. When Flutterwave is the
+              active provider it appears full-colour with a "● LIVE" pill;
+              otherwise it renders dimmed with "○ Standby" so there's no
+              confusion about which rail is currently paying. */}
+          {canSeeWallet && (
+            <FlutterwaveBalanceCard
+              balanceHidden={balanceHidden}
+              toggleBalanceHidden={toggleBalanceHidden}
+            />
+          )}
 
           {/* Action buttons — full-width row on mobile so taps are easy */}
           <div className="flex gap-2 w-full sm:w-auto flex-wrap">
