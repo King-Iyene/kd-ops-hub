@@ -1432,6 +1432,8 @@ export type Database = {
           created_at: string
           currency_code: string
           dual_approval_threshold_ngn: number
+          employer_rc_number: string | null
+          employer_tin: string | null
           expense_limits: Json
           external_monthly_burn_ngn: number | null
           facebook_url: string | null
@@ -1446,6 +1448,7 @@ export type Database = {
           gratuity_months_per_year: number
           id: string
           instagram_url: string | null
+          itf_employer_code: string | null
           itf_enabled: boolean
           last_month_prorated: boolean
           leave_carryover_enabled: boolean
@@ -1456,6 +1459,8 @@ export type Database = {
           max_single_transfer_ngn: number | null
           mfa_required_for_all_users: boolean
           monthly_revenue_estimate_ngn: number | null
+          nhf_employer_code: string | null
+          nsitf_employer_code: string | null
           nsitf_enabled: boolean
           partner_pay_usd_minor: number
           paternity_leave_days: number
@@ -1468,6 +1473,7 @@ export type Database = {
           paystack_secret_configured: boolean
           paystack_secret_key_enc: string | null
           paystack_webhook_url: string | null
+          pencom_employer_code: string | null
           probation_period_days: number
           probation_review_enabled: boolean
           provider_switched_at: string | null
@@ -1487,6 +1493,7 @@ export type Database = {
           smtp_password_enc: string | null
           smtp_port: number | null
           smtp_username: string | null
+          state_of_business: string | null
           tenant_id: string | null
           termii_api_key_configured: boolean | null
           termii_api_key_enc: string | null
@@ -1525,6 +1532,8 @@ export type Database = {
           created_at?: string
           currency_code?: string
           dual_approval_threshold_ngn?: number
+          employer_rc_number?: string | null
+          employer_tin?: string | null
           expense_limits?: Json
           external_monthly_burn_ngn?: number | null
           facebook_url?: string | null
@@ -1539,6 +1548,7 @@ export type Database = {
           gratuity_months_per_year?: number
           id?: string
           instagram_url?: string | null
+          itf_employer_code?: string | null
           itf_enabled?: boolean
           last_month_prorated?: boolean
           leave_carryover_enabled?: boolean
@@ -1549,6 +1559,8 @@ export type Database = {
           max_single_transfer_ngn?: number | null
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
+          nhf_employer_code?: string | null
+          nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
@@ -1561,6 +1573,7 @@ export type Database = {
           paystack_secret_configured?: boolean
           paystack_secret_key_enc?: string | null
           paystack_webhook_url?: string | null
+          pencom_employer_code?: string | null
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
@@ -1580,6 +1593,7 @@ export type Database = {
           smtp_password_enc?: string | null
           smtp_port?: number | null
           smtp_username?: string | null
+          state_of_business?: string | null
           tenant_id?: string | null
           termii_api_key_configured?: boolean | null
           termii_api_key_enc?: string | null
@@ -1618,6 +1632,8 @@ export type Database = {
           created_at?: string
           currency_code?: string
           dual_approval_threshold_ngn?: number
+          employer_rc_number?: string | null
+          employer_tin?: string | null
           expense_limits?: Json
           external_monthly_burn_ngn?: number | null
           facebook_url?: string | null
@@ -1632,6 +1648,7 @@ export type Database = {
           gratuity_months_per_year?: number
           id?: string
           instagram_url?: string | null
+          itf_employer_code?: string | null
           itf_enabled?: boolean
           last_month_prorated?: boolean
           leave_carryover_enabled?: boolean
@@ -1642,6 +1659,8 @@ export type Database = {
           max_single_transfer_ngn?: number | null
           mfa_required_for_all_users?: boolean
           monthly_revenue_estimate_ngn?: number | null
+          nhf_employer_code?: string | null
+          nsitf_employer_code?: string | null
           nsitf_enabled?: boolean
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
@@ -1654,6 +1673,7 @@ export type Database = {
           paystack_secret_configured?: boolean
           paystack_secret_key_enc?: string | null
           paystack_webhook_url?: string | null
+          pencom_employer_code?: string | null
           probation_period_days?: number
           probation_review_enabled?: boolean
           provider_switched_at?: string | null
@@ -1673,6 +1693,7 @@ export type Database = {
           smtp_password_enc?: string | null
           smtp_port?: number | null
           smtp_username?: string | null
+          state_of_business?: string | null
           tenant_id?: string | null
           termii_api_key_configured?: boolean | null
           termii_api_key_enc?: string | null
@@ -2488,6 +2509,7 @@ export type Database = {
       documents: {
         Row: {
           category: string
+          certificate_type: string | null
           created_at: string | null
           deleted_at: string | null
           department_id: string | null
@@ -2510,6 +2532,7 @@ export type Database = {
         }
         Insert: {
           category?: string
+          certificate_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
           department_id?: string | null
@@ -2532,6 +2555,7 @@ export type Database = {
         }
         Update: {
           category?: string
+          certificate_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
           department_id?: string | null
@@ -6246,6 +6270,7 @@ export type Database = {
           pension_enabled: boolean | null
           pension_pin: string | null
           permissions: Json | null
+          pfa_code: string | null
           pfa_name: string | null
           phone: string | null
           photo_url: string | null
@@ -6255,6 +6280,7 @@ export type Database = {
           reporting_manager_id: string | null
           role: string
           salary_ngn: number | null
+          staff_number: string | null
           start_date: string | null
           state_of_residence: string | null
           status: string | null
@@ -6318,6 +6344,7 @@ export type Database = {
           pension_enabled?: boolean | null
           pension_pin?: string | null
           permissions?: Json | null
+          pfa_code?: string | null
           pfa_name?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -6327,6 +6354,7 @@ export type Database = {
           reporting_manager_id?: string | null
           role?: string
           salary_ngn?: number | null
+          staff_number?: string | null
           start_date?: string | null
           state_of_residence?: string | null
           status?: string | null
@@ -6390,6 +6418,7 @@ export type Database = {
           pension_enabled?: boolean | null
           pension_pin?: string | null
           permissions?: Json | null
+          pfa_code?: string | null
           pfa_name?: string | null
           phone?: string | null
           photo_url?: string | null
@@ -6399,6 +6428,7 @@ export type Database = {
           reporting_manager_id?: string | null
           role?: string
           salary_ngn?: number | null
+          staff_number?: string | null
           start_date?: string | null
           state_of_residence?: string | null
           status?: string | null
