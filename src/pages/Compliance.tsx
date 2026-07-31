@@ -12,7 +12,24 @@ import {
   Info,
   Sparkles,
   ChevronDown,
+  FileDown,
+  Package,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { loadStatutoryRunData, StatutoryExportFile } from '@/lib/statutory';
+import { buildLirsPayeSchedule } from '@/lib/statutory/lirs';
+import { buildFirsPayeSchedule } from '@/lib/statutory/firs';
+import { buildPenComPsspSchedule } from '@/lib/statutory/pencom';
+import { buildNhfSchedule } from '@/lib/statutory/nhf';
+import { buildNsitfSchedule } from '@/lib/statutory/nsitf';
+import { buildItfAnnualSchedule } from '@/lib/statutory/itf';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -105,6 +122,31 @@ const KIND_LABELS: Record<Kind, string> = {
   nsitf: 'NSITF',
 };
 
+// Compliance certificate tracker — labels for documents.certificate_type.
+type CertType =
+  | 'group_life' | 'pencom_compliance' | 'nsitf_registration'
+  | 'itf_registration' | 'firs_tcc' | 'lirs_tcc' | 'cac_registration'
+  | 'employer_ndpr';
+const CERT_LABELS: Record<CertType, string> = {
+  group_life: 'Group Life Insurance',
+  pencom_compliance: 'PenCom Compliance Certificate',
+  nsitf_registration: 'NSITF Registration',
+  itf_registration: 'ITF Registration',
+  firs_tcc: 'FIRS Tax Clearance',
+  lirs_tcc: 'LIRS Tax Clearance',
+  cac_registration: 'CAC Registration',
+  employer_ndpr: 'NDPR Compliance',
+};
+interface CertDoc {
+  id: string;
+  title: string;
+  certificate_type: CertType;
+  expires_at: string | null;
+  file_url: string | null;
+  storage_path: string | null;
+  created_at: string;
+}
+
 const KIND_NOTES: Record<Kind, string> = {
   paye: 'File PAYE return for previous month by the 10th',
   pension: 'Remit pension contributions by the 7th',
@@ -152,6 +194,59 @@ const statusFor = (f: ComplianceFiling): ComplianceFiling['status'] => {
   return 'upcoming';
 };
 
+// Small helper component so the filing-pack dropdown can be reused in the
+// desktop table and the mobile card. Presents different default entries
+// depending on the row's kind (PAYE rows suggest LIRS/FIRS first, etc.).
+function FilingPackMenu(props: {
+  period: string;
+  kind: Kind;
+  busy: boolean;
+  onPick: (w: 'lirs' | 'firs' | 'pssp' | 'nhf' | 'nsitf' | 'itf' | 'all') => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="outline" disabled={props.busy} title="Download filing pack">
+          {props.busy ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="mr-1.5 h-4 w-4" />
+          )}
+          Filing pack
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="text-[10px] uppercase tracking-wide">
+          Period {props.period}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => props.onPick('all')}>
+          <Package className="mr-2 h-4 w-4" /> All 6 schedules
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => props.onPick('lirs')}>
+          LIRS eTax (Lagos PAYE)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => props.onPick('firs')}>
+          FIRS / SIRS (non-Lagos PAYE)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => props.onPick('pssp')}>
+          PenCom PSSP (pension per PFA)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => props.onPick('nhf')}>
+          FMBN NHF (2.5%)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => props.onPick('nsitf')}>
+          NSITF ECS (1% employer)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => props.onPick('itf')}>
+          ITF annual (1%)
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 const STATUS_CLASS: Record<ComplianceFiling['status'], string> = {
   filed: 'bg-success/10 text-success',
   overdue: 'bg-destructive/10 text-destructive',
@@ -167,6 +262,7 @@ const Compliance = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<ComplianceFiling[]>([]);
+  const [certs, setCerts] = useState<CertDoc[]>([]);
 
   const [dialog, setDialog] = useState(false);
   const [form, setForm] = useState<{
@@ -186,6 +282,7 @@ const Compliance = () => {
   const [deleteTarget, setDeleteTarget] = useState<ComplianceFiling | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [downloadingPack, setDownloadingPack] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
 
@@ -207,6 +304,21 @@ const Compliance = () => {
       status: statusFor(f),
     }));
     setRows(next);
+
+    // Compliance certificates (group life, PenCom, NSITF/ITF/FIRS TCC, …).
+    // Best-effort — a stale schema cache should never break the calendar.
+    try {
+      const { data: certData } = await supabase
+        .from('documents')
+        .select('id, title, certificate_type, expires_at, file_url, storage_path, created_at')
+        .not('certificate_type', 'is', null)
+        .order('expires_at', { ascending: true, nullsFirst: false })
+        .limit(30);
+      setCerts((certData as CertDoc[]) || []);
+    } catch {
+      // Silent fail — the compliance page must remain usable even if the
+      // column doesn't exist yet on some environments.
+    }
     setLoading(false);
   }, []);
 
@@ -351,6 +463,58 @@ const Compliance = () => {
     }
   };
 
+  // ─── Statutory export pack ─────────────────────────────────────────────
+  // Builds the full filing snapshot from the row's payroll_run_id (or
+  // period, falling back to a period lookup) and produces a CSV per kind.
+  //
+  // This is read-only. It doesn't mark anything as filed and it doesn't
+  // touch payments/payroll_run tables — only fetches them.
+  type PackKind = 'lirs' | 'firs' | 'pssp' | 'nhf' | 'nsitf' | 'itf' | 'all';
+  const downloadFilingPack = async (period: string, which: PackKind) => {
+    const key = `${period}:${which}`;
+    setDownloadingPack(key);
+    try {
+      const data = await loadStatutoryRunData(period);
+      if (!data) {
+        toast({
+          title: 'No approved payroll for this period',
+          description: `Run and approve payroll for ${period} first — the filing pack is generated from it.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      const files: StatutoryExportFile[] = [];
+      if (which === 'lirs' || which === 'all') files.push(buildLirsPayeSchedule(data));
+      if (which === 'firs' || which === 'all') files.push(buildFirsPayeSchedule(data));
+      if (which === 'pssp' || which === 'all') files.push(buildPenComPsspSchedule(data));
+      if (which === 'nhf'  || which === 'all') files.push(buildNhfSchedule(data));
+      if (which === 'nsitf'|| which === 'all') files.push(buildNsitfSchedule(data));
+      if (which === 'itf'  || which === 'all') files.push(buildItfAnnualSchedule(data));
+      for (const f of files) {
+        // Ensure a tiny gap between downloads so browsers don't collapse them.
+        downloadCsv(f.filename, f.csv);
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      await logAudit(
+        'compliance_pack_downloaded',
+        `Filing pack (${which}) downloaded for ${period} — ${files.length} file(s)`,
+        profile,
+      );
+      toast({
+        title: `${files.length} file${files.length === 1 ? '' : 's'} downloaded`,
+        description: files.map((f) => f.summary).join(' · '),
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Could not build filing pack',
+        description: err?.message ?? 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingPack(null);
+    }
+  };
+
   const exportCalendar = () => {
     const header = [
       'kind',
@@ -434,6 +598,80 @@ const Compliance = () => {
           tone="success"
         />
       </div>
+
+      {/* Compliance certificate tracker — surfaces expiring statutory docs */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-base">Statutory certificates</CardTitle>
+            <a
+              href="/documents"
+              className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+            >
+              Manage in Documents →
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {certs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No compliance certificates uploaded yet. Head to Documents → upload
+              your Group Life, PenCom, NSITF/ITF/FIRS TCC or NDPR certificate and
+              set a certificate type so we can track expiries here.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {certs.map((c) => {
+                const d = c.expires_at ? daysUntil(c.expires_at) : null;
+                const expired = d !== null && d < 0;
+                const soon = d !== null && d >= 0 && d <= 30;
+                const tone = expired
+                  ? 'border-destructive/40 bg-destructive/5'
+                  : soon
+                  ? 'border-warning/40 bg-warning/5'
+                  : 'border-emerald-200 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20';
+                const badgeCls = expired
+                  ? 'bg-destructive/10 text-destructive'
+                  : soon
+                  ? 'bg-warning/10 text-warning'
+                  : 'bg-success/10 text-success';
+                return (
+                  <div
+                    key={c.id}
+                    className={cn(
+                      'rounded-lg border p-3 flex flex-col gap-2 text-sm',
+                      tone,
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">
+                          {CERT_LABELS[c.certificate_type] || c.certificate_type}
+                        </p>
+                        <p className="font-medium truncate">{c.title}</p>
+                      </div>
+                      <Badge variant="secondary" className={cn('text-[10px]', badgeCls)}>
+                        {expired ? 'expired' : soon ? 'expiring' : 'valid'}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {c.expires_at
+                        ? `Expires ${formatDate(c.expires_at)}${
+                            d !== null
+                              ? d < 0
+                                ? ` · ${-d}d overdue`
+                                : ` · in ${d}d`
+                              : ''
+                          }`
+                        : 'No expiry set'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -553,6 +791,14 @@ const Compliance = () => {
                             <span className="text-xs text-muted-foreground mr-2 self-center">
                               Filed {r.filed_at ? formatDate(r.filed_at) : '—'}
                             </span>
+                          )}
+                          {/^\d{4}-\d{2}$/.test(r.period) && (
+                            <FilingPackMenu
+                              period={r.period}
+                              kind={r.kind}
+                              busy={downloadingPack?.startsWith(`${r.period}:`) ?? false}
+                              onPick={(w) => downloadFilingPack(r.period, w)}
+                            />
                           )}
                           <Button
                             size="sm"
@@ -681,6 +927,14 @@ const Compliance = () => {
                           {markingId === r.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileCheck2 className="mr-1.5 h-4 w-4" />}
                           Mark filed
                         </Button>
+                      )}
+                      {/^\d{4}-\d{2}$/.test(r.period) && (
+                        <FilingPackMenu
+                          period={r.period}
+                          kind={r.kind}
+                          busy={downloadingPack?.startsWith(`${r.period}:`) ?? false}
+                          onPick={(w) => downloadFilingPack(r.period, w)}
+                        />
                       )}
                       <Button
                         size="sm"

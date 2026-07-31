@@ -101,6 +101,41 @@ export async function notifyAnomalyToAdmins(args: {
   );
 }
 
+/**
+ * Payslip ready — sent to an employee when payslip generation completes
+ * for a payroll period. Best-effort email dispatch; the in-app/WhatsApp
+ * paths run separately via notifyChannels.
+ */
+export async function notifyPayslipReady(args: {
+  employeeEmail: string | null | undefined;
+  employeeName: string;
+  period: string;
+  grossFormatted: string;
+  deductionsFormatted: string;
+  netFormatted: string;
+  payslipUrl: string;
+}): Promise<void> {
+  if (!args.employeeEmail) return;
+  const { data: cs } = await supabase
+    .from('company_settings')
+    .select('company_name')
+    .eq('id', '00000000-0000-0000-0000-000000000001')
+    .maybeSingle();
+  await sendTemplatedEmail({
+    templateKey: 'payslip.ready',
+    to: args.employeeEmail,
+    vars: {
+      employee_name: args.employeeName,
+      period: args.period,
+      gross: args.grossFormatted,
+      deductions: args.deductionsFormatted,
+      net: args.netFormatted,
+      payslip_url: args.payslipUrl,
+      company_name: (cs as any)?.company_name ?? 'KD Squares',
+    },
+  }).catch(swallow('payslip.ready'));
+}
+
 export async function notifySalaryProcessed(args: {
   employeeEmail: string | null | undefined;
   employeeName: string;
