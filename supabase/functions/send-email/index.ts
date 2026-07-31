@@ -254,7 +254,13 @@ serve(async (req) => {
         );
       }
 
-      const senderId = Deno.env.get("TERMII_SENDER_ID") ?? "KDOps";
+      // WhatsApp requires a registered WhatsApp Business sender — a text
+      // sender ID like "KDOps" only works for SMS.  Use a separate secret
+      // TERMII_WHATSAPP_SENDER (your WhatsApp Business number or "Termii"
+      // for Termii's shared sender) and fall back to "Termii" if not set.
+      const smsSenderId = Deno.env.get("TERMII_SENDER_ID") ?? "KDOps";
+      const waSenderId  = Deno.env.get("TERMII_WHATSAPP_SENDER") ?? "Termii";
+      const senderId    = channel === "whatsapp" ? waSenderId : smsSenderId;
       // Termii uses "generic" for SMS and "whatsapp" for WhatsApp.
       const termiiChannel = channel === "whatsapp" ? "whatsapp" : "generic";
 
@@ -276,12 +282,16 @@ serve(async (req) => {
       try {
         data = JSON.parse(rawText);
       } catch {
-        // Termii returned non-JSON (e.g. HTML error page) — surface the raw body
+        // Termii returned non-JSON (e.g. HTML error page or empty body).
+        // Include the sender/channel in the error so it's easy to diagnose.
+        const hint = rawText.trim().length > 0
+          ? rawText.slice(0, 500)
+          : `(empty body) — check that the WhatsApp sender "${senderId}" is registered on your Termii account, or set TERMII_WHATSAPP_SENDER to a valid WhatsApp Business number.`;
         return new Response(
           JSON.stringify({
             ok: false,
             error: `Termii returned non-JSON response (HTTP ${res.status})`,
-            termii_raw: rawText.slice(0, 500),
+            termii_raw: hint,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
