@@ -29,9 +29,13 @@ const Login = () => {
 
     // Pre-flight rate-limit check. Best-effort: if the function is down
     // or unreachable, we still let Supabase's own rate limit do its job.
+    // A timeout is required here — without one, a network stall (rather
+    // than a fast connection error) never reaches the catch block, and
+    // this await blocks the entire login indefinitely.
     try {
       const { data: gate } = await supabase.functions.invoke('record-failed-login', {
         body: { action: 'check', email },
+        timeout: 8000,
       });
       if (gate?.blocked) {
         setLoginError(
@@ -48,6 +52,7 @@ const Login = () => {
       try {
         const { data: rec } = await supabase.functions.invoke('record-failed-login', {
           body: { action: 'record', email, reason: error.message },
+          timeout: 8000,
         });
         if (rec?.blocked) {
           setLoginError('Too many failed attempts. Try again in 15 minutes, or use "Forgot password".');
