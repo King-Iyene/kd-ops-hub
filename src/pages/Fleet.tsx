@@ -73,6 +73,8 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
+import { hashFile, watermarkImage, checkPumpPrice, checkOdometerRegression } from '@/lib/receipts';
+import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 
 interface FieldStaff {
   id: string;
@@ -334,6 +336,53 @@ function detectAnomalies(distanceKm: number | null, durationMin: number): { isAn
     if (avgKmH > 150) flags.push(`Average speed ${avgKmH.toFixed(0)} km/h exceeds 150 km/h`);
   }
   return flags.length > 0 ? { isAnomaly: true, reason: flags.join('; ') } : { isAnomaly: false, reason: null };
+}
+
+// ---------------------------------------------------------------------------
+// Receipt accountability — a driver with an unreceipted fuel payment or
+// repair older than RECEIPT_DEBT_HARD_BLOCK_DAYS cannot submit a new
+// request of that kind until it's resolved. Below that age, they still see
+// a soft reminder banner but aren't blocked.
+// ---------------------------------------------------------------------------
+
+const RECEIPT_DEBT_HARD_BLOCK_DAYS = 7;
+
+interface ReceiptDebt {
+  fuelCount: number;
+  fuelOldestDays: number | null;
+  repairCount: number;
+  repairOldestDays: number | null;
+}
+
+function daysSinceIso(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  return Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+}
+
+async function getReceiptDebt(employeeId: string): Promise<ReceiptDebt> {
+  const [{ data: fuelPending }, { data: repairPending }] = await Promise.all([
+    supabase
+      .from('fuel_requests')
+      .select('payment_sent_at')
+      .eq('driver_id', employeeId)
+      .eq('status', 'payment_sent')
+      .is('deleted_at', null)
+      .order('payment_sent_at', { ascending: true }),
+    supabase
+      .from('expenses')
+      .select('created_at')
+      .eq('submitted_by', employeeId)
+      .eq('category', 'repair')
+      .is('receipt_url', null)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true }),
+  ]);
+  return {
+    fuelCount: fuelPending?.length ?? 0,
+    fuelOldestDays: daysSinceIso(fuelPending?.[0]?.payment_sent_at),
+    repairCount: repairPending?.length ?? 0,
+    repairOldestDays: daysSinceIso(repairPending?.[0]?.created_at),
+  };
 }
 
 // Convert rows to a downloadable CSV file. Keys become headers.
@@ -1416,6 +1465,16 @@ function FleetAnalyticsDashboard({
   );
 }
 
+const SERVICE_TYPES = [
+  'Oil Change',
+  'Tyre Rotation',
+  'Brake Service',
+  'Full Service',
+  'Air Filter',
+  'Transmission Service',
+  'Custom',
+];
+
 const Fleet = () => {
   usePageTitle('Fleet');
   const { profile } = useAuthStore();
@@ -1477,10 +1536,53 @@ const Fleet = () => {
   // Phase 4 — repair request form
   const EMPTY_REPAIR_BANK: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
   const [showRepairForm, setShowRepairForm] = useState(false);
-  const [repairForm, setRepairForm] = useState({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
+  const [repairForm, setRepairForm] = useState({
+    employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '',
+    vehicle_id: '', service_type: '', odometer: '',
+  });
   const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
   const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
   const [repairIsReimbursement, setRepairIsReimbursement] = useState(true);
+  // Pending vehicle_maintenance items for the vehicle selected on the repair
+  // form — lets the driver pick which scheduled service item this closes.
+  const [repairMatchingItems, setRepairMatchingItems] = useState<MaintenanceRecord[]>([]);
+  const [repairMaintenanceItemId, setRepairMaintenanceItemId] = useState('');
+
+  // Receipt accountability — outstanding fuel/repair receipts block new
+  // requests once they age past RECEIPT_DEBT_HARD_BLOCK_DAYS.
+  const [myReceiptDebt, setMyReceiptDebt] = useState<ReceiptDebt | null>(null);
+  const [myOpenRepairs, setMyOpenRepairs] = useState<Array<{
+    id: string; description: string | null; amount_ngn: number; created_at: string;
+    vehicle_id: string | null; service_type: string | null;
+    maintenance_item_id: string | null; repair_odometer_km: number | null;
+  }>>([]);
+  const refreshMyReceiptDebt = useCallback(async () => {
+    if (!profile?.id) return;
+    const [debt, { data: openRepairs }] = await Promise.all([
+      getReceiptDebt(profile.id),
+      supabase
+        .from('expenses')
+        .select('id, description, amount_ngn, created_at, vehicle_id, service_type, maintenance_item_id, repair_odometer_km')
+        .eq('submitted_by', profile.id)
+        .eq('category', 'repair')
+        .is('receipt_url', null)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true }),
+    ]);
+    setMyReceiptDebt(debt);
+    setMyOpenRepairs((openRepairs as any) || []);
+  }, [profile?.id]);
+
+  // Post-payment receipt upload for repairs (mirrors the fuel receipt flow).
+  const [uploadingRepairReceiptFor, setUploadingRepairReceiptFor] = useState<{
+    id: string; description: string | null; amount_ngn: number; vehicle_id: string | null;
+    service_type: string | null; maintenance_item_id: string | null; repair_odometer_km: number | null;
+  } | null>(null);
+  const [repairReceiptUploadFile, setRepairReceiptUploadFile] = useState<File | null>(null);
+  const [submittingRepairReceipt, setSubmittingRepairReceipt] = useState(false);
+
+  // Pump-price benchmark for the anomaly cross-check (Phase 5).
+  const [fuelPriceBenchmark, setFuelPriceBenchmark] = useState<number | null>(null);
   const [fuelIsReimbursement, setFuelIsReimbursement] = useState(true);
 
   // Trip log form
@@ -1748,7 +1850,7 @@ const Fleet = () => {
         .limit(100);
       const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
 
-      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes] = await Promise.all([
+      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, settingsRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, email')
@@ -1769,6 +1871,11 @@ const Fleet = () => {
           .select('*')
           .eq('status', 'active')
           .order('name'),
+        supabase
+          .from('company_settings')
+          .select('fuel_price_ngn_per_litre')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle(),
       ]);
 
       const fieldStaff = (staffRes.data as FieldStaff[]) || [];
@@ -1789,6 +1896,8 @@ const Fleet = () => {
       setTripLogs(enrich(tripRes.data || [], lookup));
       setActivityLogs(activityRes.data || []);
       setVehicles((vehicleRes.data as VehicleSummary[]) || []);
+      setFuelPriceBenchmark((settingsRes.data as any)?.fuel_price_ngn_per_litre ?? null);
+      void refreshMyReceiptDebt();
     } catch (err) {
       console.error('[Fleet] fetchData failed:', err);
     } finally {
@@ -1844,6 +1953,37 @@ const Fleet = () => {
   };
 
   // Phase 4 — submit repair reimbursement (creates expense with category='repair')
+  // Marks a matching vehicle_maintenance item done from a repair receipt —
+  // shared by both the inline (>₦10k, receipt-at-submission) and the
+  // post-hoc (attach-later) repair receipt paths. Fetches the item fresh
+  // rather than reading component state, since callers may run right after
+  // a setState whose value isn't visible yet in this render's closure.
+  const closeMaintenanceItemFromRepair = async (
+    itemId: string, expenseId: string, receiptUrl: string | null, odometerKm: number | null,
+  ) => {
+    const { data: item } = await supabase
+      .from('vehicle_maintenance')
+      .select('recurrence, due_date, due_mileage_km, last_done_mileage_km')
+      .eq('id', itemId)
+      .maybeSingle();
+    const today = new Date().toISOString().slice(0, 10);
+    const isRecurring = item && item.recurrence !== 'one_time' && item.recurrence !== 'custom';
+    let nextDueDate: string | null = null;
+    let nextDueMileage: number | null = null;
+    if (item?.recurrence === 'every_3_months') nextDueDate = addMonths(today, 3);
+    if (item?.recurrence === 'every_6_months') nextDueDate = addMonths(today, 6);
+    if (item?.recurrence === 'every_10000_km') nextDueMileage = (odometerKm ?? item.last_done_mileage_km ?? 0) + 10_000;
+    await supabase.from('vehicle_maintenance').update({
+      status: isRecurring ? 'pending' : 'done',
+      last_done_date: today,
+      last_done_mileage_km: odometerKm ?? item?.last_done_mileage_km ?? null,
+      due_date: isRecurring ? nextDueDate : item?.due_date,
+      due_mileage_km: isRecurring ? nextDueMileage : item?.due_mileage_km,
+      expense_id: expenseId,
+      receipt_url: receiptUrl,
+    }).eq('id', itemId);
+  };
+
   const submitRepairRequest = async () => {
     if (!repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn) {
       toast({ title: 'Employee, description and amount are required', variant: 'destructive' });
@@ -1854,11 +1994,27 @@ const Fleet = () => {
       toast({ title: 'A receipt is required for repairs over ₦10,000', variant: 'destructive' });
       return;
     }
+
+    // Receipt accountability — block a new repair request if this driver
+    // has an older repair still missing its receipt.
+    const debt = await getReceiptDebt(repairForm.employee_id);
+    if (debt.repairOldestDays !== null && debt.repairOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
+      toast({
+        title: 'Receipt required first',
+        description: `This driver has a repair from ${debt.repairOldestDays} day${debt.repairOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       let receiptUrl: string | null = null;
+      let receiptSha256: string | null = null;
       if (repairReceipt) {
-        const compressed = await compressImage(repairReceipt);
+        const watermarked = await watermarkImage(repairReceipt, { driverName: profile?.full_name || 'Employee' });
+        receiptSha256 = await hashFile(watermarked);
+        const compressed = await compressImage(watermarked);
         const ext = compressed.name.split('.').pop();
         const path = `repairs/${profile?.id}/${Date.now()}.${ext}`;
         const { data: upData } = await supabase.storage
@@ -1869,7 +2025,8 @@ const Fleet = () => {
           receiptUrl = urlData.publicUrl;
         }
       }
-      const { error: repairExpErr } = await supabase.from('expenses').insert({
+      const odometerNum = parseFloat(repairForm.odometer) || null;
+      const { data: insertedExpense, error: repairExpErr } = await supabase.from('expenses').insert({
         submitted_by: repairForm.employee_id,
         category: 'repair',
         budget_category: 'repair',
@@ -1878,13 +2035,18 @@ const Fleet = () => {
         description: repairForm.description,
         status: 'pending',
         receipt_url: receiptUrl,
+        receipt_sha256: receiptSha256,
         is_reimbursement: repairIsReimbursement,
+        vehicle_id: repairForm.vehicle_id || null,
+        service_type: repairForm.service_type || null,
+        repair_odometer_km: odometerNum,
+        maintenance_item_id: repairMaintenanceItemId || null,
         ...(repairBank.verified ? {
           bank_name: repairBank.bank_name,
           account_number: repairBank.account_number,
           account_name: repairBank.account_name,
         } : {}),
-      });
+      }).select('id').single();
       if (repairExpErr) {
         // Surface — silent failure here means the repair was never logged
         // as an expense and finance never sees it.
@@ -1896,6 +2058,11 @@ const Fleet = () => {
         setSubmitting(false);
         return;
       }
+      // Receipt was already attached at submission (>₦10k path or driver
+      // chose to) — close the matching maintenance item right away.
+      if (receiptUrl && repairMaintenanceItemId && insertedExpense?.id) {
+        await closeMaintenanceItemFromRepair(repairMaintenanceItemId, insertedExpense.id, receiptUrl, odometerNum);
+      }
       await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
       await notifyRoles({
         roles: ['super_admin', 'admin', 'finance'],
@@ -1906,14 +2073,86 @@ const Fleet = () => {
       });
       toast({ title: 'Repair request submitted' });
       setShowRepairForm(false);
-      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' });
+      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
       setRepairBank(EMPTY_REPAIR_BANK);
       setRepairReceipt(null);
+      setRepairMatchingItems([]);
+      setRepairMaintenanceItemId('');
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
     }
     setSubmitting(false);
+  };
+
+  // Loads pending vehicle_maintenance items for the vehicle selected on the
+  // repair form, so the driver can flag which scheduled service this closes.
+  const loadRepairMatchingItems = async (vehicleId: string) => {
+    setRepairMaintenanceItemId('');
+    if (!vehicleId) { setRepairMatchingItems([]); return; }
+    const { data } = await supabase
+      .from('vehicle_maintenance')
+      .select('*')
+      .eq('vehicle_id', vehicleId)
+      .neq('status', 'done')
+      .order('due_date', { ascending: true, nullsFirst: false });
+    setRepairMatchingItems((data as MaintenanceRecord[]) || []);
+  };
+
+  // Attach a receipt to a repair that was submitted without one — mirrors
+  // submitFuelReceipt. Closes the matching maintenance item if one is set.
+  const submitRepairReceiptUpload = async () => {
+    if (!uploadingRepairReceiptFor || !repairReceiptUploadFile) {
+      toast({ title: 'Please select a receipt file', variant: 'destructive' });
+      return;
+    }
+    setSubmittingRepairReceipt(true);
+    try {
+      const watermarked = await watermarkImage(repairReceiptUploadFile, { driverName: profile?.full_name || 'Employee' });
+      const receiptSha256 = await hashFile(watermarked);
+      const compressed = await compressImage(watermarked);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `repairs/${profile?.id}/${uploadingRepairReceiptFor.id}-${safeName}`;
+      const { data: upData, error: upErr } = await supabase.storage
+        .from('receipts')
+        .upload(path, compressed, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+      const receiptUrl = urlData.publicUrl;
+      const { error } = await supabase
+        .from('expenses')
+        .update({ receipt_url: receiptUrl, receipt_sha256: receiptSha256 })
+        .eq('id', uploadingRepairReceiptFor.id);
+      if (error) throw error;
+      if (uploadingRepairReceiptFor.maintenance_item_id) {
+        await closeMaintenanceItemFromRepair(
+          uploadingRepairReceiptFor.maintenance_item_id,
+          uploadingRepairReceiptFor.id,
+          receiptUrl,
+          uploadingRepairReceiptFor.repair_odometer_km,
+        );
+      }
+      await logAudit(
+        'repair_receipt_uploaded',
+        `Receipt uploaded for repair (${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)})`,
+        profile,
+      );
+      await notifyRoles({
+        roles: ['super_admin', 'admin', 'finance'],
+        type: 'repair_receipt_uploaded',
+        module: 'fleet',
+        title: 'Repair receipt uploaded',
+        body: `${profile?.full_name || 'Employee'} uploaded a receipt for ${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}`,
+      });
+      toast({ title: 'Receipt submitted' });
+      setUploadingRepairReceiptFor(null);
+      setRepairReceiptUploadFile(null);
+      await refreshMyReceiptDebt();
+      fetchData();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message ?? String(err), variant: 'destructive' });
+    }
+    setSubmittingRepairReceipt(false);
   };
 
   // ---- Trip clock-in helpers ----
@@ -2281,6 +2520,22 @@ const Fleet = () => {
     if (amountVal > 5_000_000) {
       toast({ title: 'Amount too high', description: 'Single fuel request cannot exceed ₦5,000,000.', variant: 'destructive' });
       return;
+    }
+
+    // Receipt accountability — block a new fuel request if this driver has
+    // a fuel payment sent RECEIPT_DEBT_HARD_BLOCK_DAYS+ ago with no receipt.
+    // Re-checked live (not from cached state) so it also covers admins
+    // submitting on behalf of a different employee.
+    {
+      const debt = await getReceiptDebt(fuelForm.employee_id);
+      if (debt.fuelOldestDays !== null && debt.fuelOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
+        toast({
+          title: 'Receipt required first',
+          description: `This driver has a fuel payment from ${debt.fuelOldestDays} day${debt.fuelOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     // Block fuel requests for vehicles currently out of service
@@ -2938,7 +3193,9 @@ const Fleet = () => {
     }
     setSubmittingReceipt(true);
     try {
-      const compressed = await compressImage(receiptFile);
+      const watermarked = await watermarkImage(receiptFile, { driverName: profile?.full_name || 'Employee' });
+      const receiptSha256 = await hashFile(watermarked);
+      const compressed = await compressImage(watermarked);
       const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `fuel-receipts/${uploadingReceiptFor.id}-${safeName}`;
       const { data: upData, error: upErr } = await supabase.storage
@@ -2946,14 +3203,26 @@ const Fleet = () => {
         .upload(path, compressed, { upsert: true });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+
+      // Free anomaly cross-check — pump price divergence — surfaced to the
+      // admin reviewer via admin_note since there's no dedicated column for
+      // a receipt-time (vs request-time) anomaly flag.
+      const litresNum = parseFloat(receiptForm.litres_filled) || 0;
+      const priceCheck = fuelPriceBenchmark
+        ? checkPumpPrice(uploadingReceiptFor.amount_ngn || 0, litresNum, fuelPriceBenchmark)
+        : { flagged: false, reason: null };
+      const noteParts = [receiptForm.notes.trim()].filter(Boolean);
+      if (priceCheck.flagged && priceCheck.reason) noteParts.push(`⚠ ${priceCheck.reason}`);
+
       const { error } = await supabase
         .from('fuel_requests')
         .update({
           status: 'receipt_uploaded',
           receipt_url: urlData.publicUrl,
+          receipt_sha256: receiptSha256,
           fuel_station_name: receiptForm.fuel_station_name.trim() || null,
           litres_filled: parseFloat(receiptForm.litres_filled) || null,
-          admin_note: receiptForm.notes.trim() || null,
+          admin_note: noteParts.join(' — ') || null,
         })
         .eq('id', uploadingReceiptFor.id);
       if (error) throw error;
@@ -2961,7 +3230,7 @@ const Fleet = () => {
       // it on the Expenses page without switching to Fleet.
       await supabase
         .from('expenses')
-        .update({ receipt_url: urlData.publicUrl })
+        .update({ receipt_url: urlData.publicUrl, receipt_sha256: receiptSha256 })
         .eq('fuel_request_id', uploadingReceiptFor.id);
       // CHANGE 2 — bump vehicle fuel level from actual litres filled
       const litresFilledNum = parseFloat(receiptForm.litres_filled) || 0;
@@ -4121,42 +4390,107 @@ const Fleet = () => {
 
         {/* MY REQUESTS */}
         <TabsContent value="my_requests" className="mt-4 space-y-4">
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowRepairForm(true)}>
-              <Wrench className="mr-2 h-4 w-4" /> Repair Request
-            </Button>
-            <Button onClick={() => setShowFuelForm(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New Fuel Request
-            </Button>
-          </div>
-
-          {/* Yellow action banners for payment_sent requests */}
-          {myFuelRequests.filter((r) => r.status === 'payment_sent').map((r) => (
-            <div
-              key={r.id}
-              className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200"
-            >
-              <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-amber-600" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">Payment sent for {r.station_name} — {formatNaira(r.amount_ngn || 0)}</p>
-                <p className="text-xs mt-0.5">
-                  {r.payment_sent_at ? `Sent on ${formatDate(r.payment_sent_at)}. ` : ''}
-                  Please upload your fuel receipt to complete this request.
-                </p>
+          {(() => {
+            const fuelBlocked = (myReceiptDebt?.fuelOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
+            const repairBlocked = (myReceiptDebt?.repairOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
+            return (
+              <div className="flex justify-end gap-2">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={repairBlocked ? 'cursor-not-allowed' : undefined}>
+                      <Button variant="outline" disabled={repairBlocked} onClick={() => setShowRepairForm(true)}>
+                        <Wrench className="mr-2 h-4 w-4" /> Repair Request
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {repairBlocked && <TooltipContent>Attach the receipt for your outstanding repair before requesting another.</TooltipContent>}
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={fuelBlocked ? 'cursor-not-allowed' : undefined}>
+                      <Button disabled={fuelBlocked} onClick={() => setShowFuelForm(true)}>
+                        <Plus className="mr-2 h-4 w-4" /> New Fuel Request
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {fuelBlocked && <TooltipContent>Upload the receipt for your outstanding fuel payment before requesting again.</TooltipContent>}
+                </Tooltip>
               </div>
-              <Button
-                size="sm"
-                className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
-                onClick={() => {
-                  setUploadingReceiptFor(r);
-                  setReceiptFile(null);
-                  setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
-                }}
+            );
+          })()}
+
+          {/* Yellow action banners for payment_sent fuel requests */}
+          {myFuelRequests.filter((r) => r.status === 'payment_sent').map((r) => {
+            const days = daysSinceIso(r.payment_sent_at);
+            const blocked = (days ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
+            return (
+              <div
+                key={r.id}
+                className={cn(
+                  'flex items-start gap-3 rounded-md border px-4 py-3',
+                  blocked
+                    ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200'
+                    : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200',
+                )}
               >
-                <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
-              </Button>
-            </div>
-          ))}
+                <AlertTriangle className={cn('h-5 w-5 mt-0.5 shrink-0', blocked ? 'text-red-600' : 'text-amber-600')} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">Payment sent for {r.station_name} — {formatNaira(r.amount_ngn || 0)}</p>
+                  <p className="text-xs mt-0.5">
+                    {r.payment_sent_at ? `Sent on ${formatDate(r.payment_sent_at)}. ` : ''}
+                    {blocked
+                      ? `${days} days overdue — you cannot submit new fuel requests until this is resolved.`
+                      : 'Please upload your fuel receipt to complete this request.'}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className={cn('shrink-0 text-white', blocked ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
+                  onClick={() => {
+                    setUploadingReceiptFor(r);
+                    setReceiptFile(null);
+                    setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
+                  }}
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
+                </Button>
+              </div>
+            );
+          })}
+
+          {/* Banners for repairs still missing a receipt */}
+          {myOpenRepairs.map((r) => {
+            const days = daysSinceIso(r.created_at);
+            const blocked = (days ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
+            return (
+              <div
+                key={r.id}
+                className={cn(
+                  'flex items-start gap-3 rounded-md border px-4 py-3',
+                  blocked
+                    ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-200'
+                    : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200',
+                )}
+              >
+                <Wrench className={cn('h-5 w-5 mt-0.5 shrink-0', blocked ? 'text-red-600' : 'text-amber-600')} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">Repair receipt needed — {r.description || 'Repair'} — {formatNaira(r.amount_ngn || 0)}</p>
+                  <p className="text-xs mt-0.5">
+                    {blocked
+                      ? `${days} days overdue — you cannot submit new repair requests until this is resolved.`
+                      : `Submitted ${formatDate(r.created_at)}. Attach the receipt when you have it.`}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className={cn('shrink-0 text-white', blocked ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
+                  onClick={() => { setUploadingRepairReceiptFor(r); setRepairReceiptUploadFile(null); }}
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1.5" /> Attach Receipt
+                </Button>
+              </div>
+            );
+          })}
 
           <Card>
             <CardHeader>
@@ -5583,23 +5917,7 @@ const Fleet = () => {
               <p className="text-muted-foreground text-xs">Fuel request</p>
               <p className="font-medium">{uploadingReceiptFor?.station_name} — {formatNaira(uploadingReceiptFor?.amount_ngn || 0)}</p>
             </div>
-            <div className="space-y-1">
-              <Label>Station Name <span className="text-muted-foreground font-normal text-xs">(confirm or correct)</span></Label>
-              <Input
-                value={receiptForm.fuel_station_name}
-                onChange={(e) => setReceiptForm({ ...receiptForm, fuel_station_name: e.target.value })}
-                placeholder="e.g. Total Energies, Lekki"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Litres Filled <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
-              <Input
-                type="number"
-                value={receiptForm.litres_filled}
-                onChange={(e) => setReceiptForm({ ...receiptForm, litres_filled: e.target.value })}
-                placeholder="e.g. 25.5"
-              />
-            </div>
+
             <div className="space-y-1">
               <Label>Receipt <span className="text-destructive">*</span></Label>
               <Input
@@ -5621,6 +5939,47 @@ const Fleet = () => {
                   {' '}— {(receiptFile.size / 1024).toFixed(1)} KB
                 </p>
               )}
+              <OcrReceiptScanner
+                extractLitres
+                onExtracted={(result: OcrResult, file: File) => {
+                  setReceiptFile(file);
+                  setReceiptForm((f) => ({
+                    ...f,
+                    fuel_station_name: result.description || f.fuel_station_name,
+                    litres_filled: result.litres || f.litres_filled,
+                  }));
+                }}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Station Name <span className="text-muted-foreground font-normal text-xs">(confirm or correct)</span></Label>
+              <Input
+                value={receiptForm.fuel_station_name}
+                onChange={(e) => setReceiptForm({ ...receiptForm, fuel_station_name: e.target.value })}
+                placeholder="e.g. Total Energies, Lekki"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Litres Filled <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Input
+                type="number"
+                value={receiptForm.litres_filled}
+                onChange={(e) => setReceiptForm({ ...receiptForm, litres_filled: e.target.value })}
+                placeholder="e.g. 25.5"
+              />
+              {(() => {
+                if (!fuelPriceBenchmark) return null;
+                const litresNum = parseFloat(receiptForm.litres_filled);
+                if (!litresNum) return null;
+                const check = checkPumpPrice(uploadingReceiptFor?.amount_ngn || 0, litresNum, fuelPriceBenchmark);
+                if (!check.flagged) return null;
+                return (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" /> {check.reason}
+                  </p>
+                );
+              })()}
             </div>
             <div className="space-y-1">
               <Label>Notes <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
@@ -5646,7 +6005,17 @@ const Fleet = () => {
       </Dialog>
 
       {/* Phase 4 — Repair request dialog */}
-      <Dialog open={showRepairForm} onOpenChange={(v) => { setShowRepairForm(v); if (!v) { setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '' }); setRepairBank(EMPTY_REPAIR_BANK); setRepairReceipt(null); setRepairIsReimbursement(true); } }}>
+      <Dialog open={showRepairForm} onOpenChange={(v) => {
+        setShowRepairForm(v);
+        if (!v) {
+          setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
+          setRepairBank(EMPTY_REPAIR_BANK);
+          setRepairReceipt(null);
+          setRepairIsReimbursement(true);
+          setRepairMatchingItems([]);
+          setRepairMaintenanceItemId('');
+        }
+      }}>
         <DialogContent className="max-w-lg p-0 max-h-[90vh] flex flex-col gap-0">
           {/* Header */}
           <div className="px-6 pt-6 pb-4 border-b shrink-0">
@@ -5700,6 +6069,66 @@ const Fleet = () => {
               </div>
             </div>
 
+            {/* Vehicle & service — links this repair to a car and (optionally)
+                closes a scheduled service item so maintenance history stays accurate. */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle & service</Label>
+              <div className="space-y-1.5">
+                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Select
+                  value={repairForm.vehicle_id || '__none__'}
+                  onValueChange={(v) => {
+                    const vid = v === '__none__' ? '' : v;
+                    setRepairForm((f) => ({ ...f, vehicle_id: vid }));
+                    loadRepairMatchingItems(vid);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Not linked to a vehicle</SelectItem>
+                    {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {repairForm.vehicle_id && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Service type <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Select value={repairForm.service_type || '__none__'} onValueChange={(v) => setRepairForm((f) => ({ ...f, service_type: v === '__none__' ? '' : v }))}>
+                        <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">—</SelectItem>
+                          {SERVICE_TYPES.filter((t) => t !== 'Custom').map((t) => (<SelectItem key={t} value={t}>{t}</SelectItem>))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Odometer (km) <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Input type="number" value={repairForm.odometer} onChange={(e) => setRepairForm((f) => ({ ...f, odometer: e.target.value }))} placeholder="e.g. 42500" />
+                    </div>
+                  </div>
+                  {repairMatchingItems.length > 0 && (
+                    <div className="space-y-1.5">
+                      <Label>This closes a scheduled item <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Select value={repairMaintenanceItemId || '__none__'} onValueChange={(v) => setRepairMaintenanceItemId(v === '__none__' ? '' : v)}>
+                        <SelectTrigger><SelectValue placeholder="Not linked to a service item" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Not linked to a service item</SelectItem>
+                          {repairMatchingItems.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.service_type}{m.due_date ? ` — due ${formatDate(m.due_date)}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">Marks this service item done and updates the vehicle's maintenance schedule once the receipt is attached.</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
             {/* Details */}
             <div className="space-y-3">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Repair details</Label>
@@ -5727,7 +6156,7 @@ const Fleet = () => {
               </div>
               <div className="space-y-1.5">
                 <Label>
-                  Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs font-normal">(optional)</span>}
+                  Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs font-normal">(optional — you can attach it later, but you won't be able to submit another repair until you do)</span>}
                 </Label>
                 <label className={cn('flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 cursor-pointer kd-transition', repairReceipt ? 'border-green-400 bg-green-50 dark:bg-green-950/20' : 'border-border hover:border-primary/40 hover:bg-muted/30')}>
                   <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)} />
@@ -5736,6 +6165,16 @@ const Fleet = () => {
                     : <><Upload className="h-4 w-4 text-muted-foreground shrink-0" /><span className="text-sm text-muted-foreground">Upload receipt (photo or PDF)</span></>
                   }
                 </label>
+                <OcrReceiptScanner
+                  onExtracted={(result: OcrResult, file: File) => {
+                    setRepairReceipt(file);
+                    setRepairForm((f) => ({
+                      ...f,
+                      amount_ngn: result.amount_ngn || f.amount_ngn,
+                      description: f.description || (result.description ? `Repair — ${result.description}` : f.description),
+                    }));
+                  }}
+                />
               </div>
             </div>
 
@@ -5759,6 +6198,56 @@ const Fleet = () => {
               Submit Repair
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* REPAIR RECEIPT UPLOAD DIALOG — attach a receipt to a repair submitted without one */}
+      <Dialog
+        open={!!uploadingRepairReceiptFor}
+        onOpenChange={(v) => { if (!v) { setUploadingRepairReceiptFor(null); setRepairReceiptUploadFile(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Attach Repair Receipt</DialogTitle>
+            <DialogDescription>
+              Upload a photo or PDF of the receipt for this repair.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-0.5">
+              <p className="text-muted-foreground text-xs">Repair</p>
+              <p className="font-medium">{uploadingRepairReceiptFor?.description} — {formatNaira(uploadingRepairReceiptFor?.amount_ngn || 0)}</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Receipt <span className="text-destructive">*</span></Label>
+              <Input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  if (!validateFileSize(f, toast)) {
+                    (e.target as HTMLInputElement).value = '';
+                    return;
+                  }
+                  setRepairReceiptUploadFile(f);
+                }}
+              />
+              {repairReceiptUploadFile && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{repairReceiptUploadFile.name}</span>
+                  {' '}— {(repairReceiptUploadFile.size / 1024).toFixed(1)} KB
+                </p>
+              )}
+              <OcrReceiptScanner onExtracted={(_result: OcrResult, file: File) => setRepairReceiptUploadFile(file)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadingRepairReceiptFor(null)}>Cancel</Button>
+            <Button onClick={submitRepairReceiptUpload} disabled={submittingRepairReceipt || !repairReceiptUploadFile}>
+              {submittingRepairReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Upload className="mr-2 h-4 w-4" /> Submit Receipt
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -5935,6 +6424,8 @@ interface MaintenanceRecord {
   status: string;
   notes: string | null;
   created_at: string;
+  expense_id: string | null;
+  receipt_url: string | null;
 }
 
 interface FuelLevelLog {
@@ -6897,16 +7388,6 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
 // VehicleMaintenanceDialog
 // ---------------------------------------------------------------------------
 
-const SERVICE_TYPES = [
-  'Oil Change',
-  'Tyre Rotation',
-  'Brake Service',
-  'Full Service',
-  'Air Filter',
-  'Transmission Service',
-  'Custom',
-];
-
 const RECURRENCE_OPTIONS: { value: string; label: string }[] = [
   { value: 'one_time',       label: 'One-time' },
   { value: 'every_3_months', label: 'Every 3 months' },
@@ -7144,9 +7625,18 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                               <TableCell className="text-sm">{item.last_done_mileage_km != null ? item.last_done_mileage_km.toLocaleString() + ' km' : '—'}</TableCell>
                               <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{item.notes || '—'}</TableCell>
                               <TableCell>
-                                <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                                <div className="flex gap-1 items-center">
+                                  {item.receipt_url && (
+                                    <FilePreviewTrigger
+                                      url={item.receipt_url}
+                                      label="Receipt"
+                                      fileName={`${item.service_type}-receipt`}
+                                    />
+                                  )}
+                                  <Button size="sm" variant="ghost" onClick={() => handleDelete(item.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}

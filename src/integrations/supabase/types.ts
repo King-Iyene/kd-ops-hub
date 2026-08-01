@@ -1470,6 +1470,7 @@ export type Database = {
           flutterwave_funding_account_number: string | null
           flutterwave_funding_bank: string | null
           flutterwave_mode: string
+          fuel_price_ngn_per_litre: number
           fuel_weekly_budgets: Json
           fx_deviation_threshold_pct: number
           gratuity_months_per_year: number
@@ -1570,6 +1571,7 @@ export type Database = {
           flutterwave_funding_account_number?: string | null
           flutterwave_funding_bank?: string | null
           flutterwave_mode?: string
+          fuel_price_ngn_per_litre?: number
           fuel_weekly_budgets?: Json
           fx_deviation_threshold_pct?: number
           gratuity_months_per_year?: number
@@ -1670,6 +1672,7 @@ export type Database = {
           flutterwave_funding_account_number?: string | null
           flutterwave_funding_bank?: string | null
           flutterwave_mode?: string
+          fuel_price_ngn_per_litre?: number
           fuel_weekly_budgets?: Json
           fx_deviation_threshold_pct?: number
           gratuity_months_per_year?: number
@@ -3295,6 +3298,7 @@ export type Database = {
           fuel_request_id: string | null
           id: string
           is_reimbursement: boolean
+          maintenance_item_id: string | null
           mileage_km: number | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
@@ -3302,13 +3306,17 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
+          repair_odometer_km: number | null
           resubmitted_from_id: string | null
           second_approved_at: string | null
           second_approver_id: string | null
+          service_type: string | null
           status: string
           submitted_by: string
+          vehicle_id: string | null
         }
         Insert: {
           account_name?: string | null
@@ -3328,6 +3336,7 @@ export type Database = {
           fuel_request_id?: string | null
           id?: string
           is_reimbursement?: boolean
+          maintenance_item_id?: string | null
           mileage_km?: number | null
           payload_hash_at_approval?: string | null
           payment_reference?: string | null
@@ -3335,13 +3344,17 @@ export type Database = {
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
+          receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
+          repair_odometer_km?: number | null
           resubmitted_from_id?: string | null
           second_approved_at?: string | null
           second_approver_id?: string | null
+          service_type?: string | null
           status?: string
           submitted_by: string
+          vehicle_id?: string | null
         }
         Update: {
           account_name?: string | null
@@ -3361,6 +3374,7 @@ export type Database = {
           fuel_request_id?: string | null
           id?: string
           is_reimbursement?: boolean
+          maintenance_item_id?: string | null
           mileage_km?: number | null
           payload_hash_at_approval?: string | null
           payment_reference?: string | null
@@ -3368,13 +3382,17 @@ export type Database = {
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
+          receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
+          repair_odometer_km?: number | null
           resubmitted_from_id?: string | null
           second_approved_at?: string | null
           second_approver_id?: string | null
+          service_type?: string | null
           status?: string
           submitted_by?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {
@@ -3403,6 +3421,20 @@ export type Database = {
             columns: ["fuel_request_id"]
             isOneToOne: false
             referencedRelation: "fuel_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_maintenance_item_id_fkey"
+            columns: ["maintenance_item_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_maintenance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
           {
@@ -3568,6 +3600,7 @@ export type Database = {
           odometer: number | null
           payment_sent_at: string | null
           reason: string | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
           request_doc_url: string | null
@@ -3601,6 +3634,7 @@ export type Database = {
           odometer?: number | null
           payment_sent_at?: string | null
           reason?: string | null
+          receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
           request_doc_url?: string | null
@@ -3634,6 +3668,7 @@ export type Database = {
           odometer?: number | null
           payment_sent_at?: string | null
           reason?: string | null
+          receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
           request_doc_url?: string | null
@@ -8938,40 +8973,81 @@ export type Database = {
         Row: {
           cost_ngn: number | null
           created_at: string
+          created_by: string | null
+          due_date: string | null
+          due_mileage_km: number | null
+          expense_id: string | null
           id: string
+          last_done_date: string | null
+          last_done_mileage_km: number | null
           logged_by: string | null
           next_service_due: string | null
           notes: string | null
           odometer: number | null
-          service_date: string
+          receipt_url: string | null
+          recurrence: string
+          service_date: string | null
           service_type: string
+          status: string
           vehicle_id: string
         }
         Insert: {
           cost_ngn?: number | null
           created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage_km?: number | null
+          expense_id?: string | null
           id?: string
+          last_done_date?: string | null
+          last_done_mileage_km?: number | null
           logged_by?: string | null
           next_service_due?: string | null
           notes?: string | null
           odometer?: number | null
-          service_date: string
+          receipt_url?: string | null
+          recurrence?: string
+          service_date?: string | null
           service_type: string
+          status?: string
           vehicle_id: string
         }
         Update: {
           cost_ngn?: number | null
           created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          due_mileage_km?: number | null
+          expense_id?: string | null
           id?: string
+          last_done_date?: string | null
+          last_done_mileage_km?: number | null
           logged_by?: string | null
           next_service_due?: string | null
           notes?: string | null
           odometer?: number | null
-          service_date?: string
+          receipt_url?: string | null
+          recurrence?: string
+          service_date?: string | null
           service_type?: string
+          status?: string
           vehicle_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_maintenance_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicle_maintenance_logged_by_fkey"
             columns: ["logged_by"]

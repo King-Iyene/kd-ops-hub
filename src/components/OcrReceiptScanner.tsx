@@ -23,11 +23,14 @@ export interface OcrResult {
   amount_ngn?: string;   // numeric string e.g. "12500"
   date?: string;         // ISO date string e.g. "2026-05-05"
   description?: string;  // merchant name / first meaningful line
+  litres?: string;       // numeric string e.g. "42.5" — fuel receipts only
 }
 
 interface Props {
   onExtracted: (result: OcrResult, file: File) => void;
   className?: string;
+  /** Also try to pull a litres reading off the receipt (fuel stations print it). */
+  extractLitres?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +93,22 @@ function extractDate(text: string): string | undefined {
   return undefined;
 }
 
+function extractLitres(text: string): string | undefined {
+  // Patterns: "42.5 L", "Litres: 42.5", "Qty(L) 42.50", "Volume 42.5L"
+  const patterns = [
+    /(?:litres?|liters?|volume|qty\s*\(?l\)?)\s*[:\-]?\s*(\d{1,3}(?:\.\d{1,2})?)\s*l?\b/i,
+    /\b(\d{1,3}(?:\.\d{1,2})?)\s*(?:litres?|liters?|ltrs?|l)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = parseFloat(m[1]);
+      if (!isNaN(n) && n > 0 && n < 500) return String(n);
+    }
+  }
+  return undefined;
+}
+
 function extractVendor(text: string): string | undefined {
   // Take the first non-empty, non-numeric, non-very-short line as vendor name.
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -109,7 +128,7 @@ function extractVendor(text: string): string | undefined {
 
 type ScanState = 'idle' | 'loading' | 'done' | 'error';
 
-export function OcrReceiptScanner({ onExtracted, className }: Props) {
+export function OcrReceiptScanner({ onExtracted, className, extractLitres: shouldExtractLitres }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setScanState] = useState<ScanState>('idle');
   const [progress, setProgress] = useState(0);
@@ -142,6 +161,7 @@ export function OcrReceiptScanner({ onExtracted, className }: Props) {
         amount_ngn: extractAmount(text),
         date:       extractDate(text),
         description: extractVendor(text),
+        litres:     shouldExtractLitres ? extractLitres(text) : undefined,
       };
 
       setScanState('done');
