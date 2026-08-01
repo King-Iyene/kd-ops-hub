@@ -16,7 +16,6 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
 import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
-import EmployeeLoansPanel from '@/components/hr/EmployeeLoansPanel';
 import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
@@ -176,7 +175,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'loans'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'|'total_cost'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'|'total_cost'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -1081,7 +1080,6 @@ const EmployeeProfile = () => {
           { key: 'leave',     label: `Leave (${leaves.length})`         },
           { key: 'expenses',  label: `Expenses (${expenses.length})`    },
           { key: 'payroll',   label: 'Payroll'                          },
-          { key: 'loans',     label: 'Loans'                            },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -2739,12 +2737,6 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      {activeTab === 'loans' && id && (
-        <div className="mt-4">
-          <EmployeeLoansPanel employeeId={id} />
         </div>
       )}
 
