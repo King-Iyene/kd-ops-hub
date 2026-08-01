@@ -3431,13 +3431,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "expenses_vehicle_id_fkey"
-            columns: ["vehicle_id"]
-            isOneToOne: false
-            referencedRelation: "vehicles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "expenses_processed_by_fkey"
             columns: ["processed_by"]
             isOneToOne: false
@@ -3505,6 +3498,13 @@ export type Database = {
             columns: ["submitted_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]
@@ -9038,6 +9038,20 @@ export type Database = {
             foreignKeyName: "vehicle_maintenance_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -9752,6 +9766,7 @@ export type Database = {
           fuel_request_id: string | null
           id: string
           is_reimbursement: boolean
+          maintenance_item_id: string | null
           mileage_km: number | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
@@ -9759,13 +9774,17 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
+          repair_odometer_km: number | null
           resubmitted_from_id: string | null
           second_approved_at: string | null
           second_approver_id: string | null
+          service_type: string | null
           status: string
           submitted_by: string
+          vehicle_id: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10028,6 +10047,7 @@ export type Database = {
           fuel_request_id: string | null
           id: string
           is_reimbursement: boolean
+          maintenance_item_id: string | null
           mileage_km: number | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
@@ -10035,13 +10055,17 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
+          repair_odometer_km: number | null
           resubmitted_from_id: string | null
           second_approved_at: string | null
           second_approver_id: string | null
+          service_type: string | null
           status: string
           submitted_by: string
+          vehicle_id: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10339,6 +10363,7 @@ export type Database = {
           fuel_request_id: string | null
           id: string
           is_reimbursement: boolean
+          maintenance_item_id: string | null
           mileage_km: number | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
@@ -10346,13 +10371,17 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
+          repair_odometer_km: number | null
           resubmitted_from_id: string | null
           second_approved_at: string | null
           second_approver_id: string | null
+          service_type: string | null
           status: string
           submitted_by: string
+          vehicle_id: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10551,6 +10580,7 @@ export type Database = {
           fuel_request_id: string | null
           id: string
           is_reimbursement: boolean
+          maintenance_item_id: string | null
           mileage_km: number | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
@@ -10558,13 +10588,17 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
+          repair_odometer_km: number | null
           resubmitted_from_id: string | null
           second_approved_at: string | null
           second_approver_id: string | null
+          service_type: string | null
           status: string
           submitted_by: string
+          vehicle_id: string | null
         }
         SetofOptions: {
           from: "*"
