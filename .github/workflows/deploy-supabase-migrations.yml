@@ -82,6 +82,60 @@ jobs:
           supabase migration repair --status reverted 20260812000000 || true
           supabase migration repair --status reverted 20260813000000 || true
 
+      - name: Self-heal any additional orphan remote versions
+        # SELF-HEALING GUARD.
+        #
+        # Anything that lands in remote schema_migrations WITHOUT a matching
+        # local file (e.g. a hotfix executed in the Supabase SQL editor, a
+        # migration file deleted after being applied, or a preview branch
+        # replaying an older history) will otherwise abort `db push` with:
+        #
+        #   "Remote migration versions not found in local migrations directory"
+        #
+        # This step compares remote versions (from `supabase migration list`)
+        # against local files and `repair --status reverted`s every orphan.
+        # `repair` only removes the tracking row — it never drops schema —
+        # so the objects those migrations created stay intact. Idempotent:
+        # repairing an already-reverted version is a no-op.
+        #
+        # Failure of this step never blocks the push; if migration list
+        # can't be parsed the push will surface a clearer error itself.
+        run: |
+          set -uo pipefail
+
+          # Local versions (14-digit timestamp at the start of each filename).
+          LOCAL=$(ls supabase/migrations/*.sql 2>/dev/null \
+            | xargs -n1 basename \
+            | grep -oE '^[0-9]{14}' \
+            | sort -u)
+
+          # Remote versions from the CLI. `migration list` when linked prints
+          # a table; extract every 14-digit token that appears in the REMOTE
+          # column. We fall back gracefully if the column header ever moves.
+          REMOTE=$(supabase migration list 2>/dev/null \
+            | grep -oE '\b[0-9]{14}\b' \
+            | sort -u)
+
+          if [ -z "$REMOTE" ]; then
+            echo "No remote migration versions detected — nothing to self-heal."
+            exit 0
+          fi
+
+          # Orphans = versions on remote that have no local file.
+          ORPHANS=$(comm -23 <(echo "$REMOTE") <(echo "$LOCAL"))
+
+          if [ -z "$ORPHANS" ]; then
+            echo "No orphan remote versions — history is in sync."
+            exit 0
+          fi
+
+          echo "Detected orphan remote versions:"
+          echo "$ORPHANS"
+          for v in $ORPHANS; do
+            echo "→ Reverting orphan $v"
+            supabase migration repair --status reverted "$v" || true
+          done
+
       - name: Push migrations to production
         id: push
         # --include-all is required because two other local files share the
