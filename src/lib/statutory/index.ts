@@ -119,7 +119,7 @@ export async function loadStatutoryRunData(
       ? supabase
           .from('profiles')
           .select(
-            'id, first_name, last_name, full_name, email, tin, nin, nhf_number, nhis_number, pension_pin, pfa_code, state_of_residence, staff_number, bank_name, bank_account_number, bank_account_name, nhis_enabled',
+            'id, first_name, last_name, full_name, email, tin, tax_id, nin, nhf_number, nhis_number, pension_pin, pfa_code, state_of_residence, staff_number, employee_number, bank_name, bank_account_number, bank_account_name, nhis_enabled',
           )
           .in('id', employeeIds)
       : Promise.resolve({ data: [] as any[], error: null }),
@@ -134,7 +134,11 @@ export async function loadStatutoryRunData(
     supabase
       .from('company_settings')
       .select(
-        'company_name, company_address, employer_tin, employer_rc_number, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code',
+        // Includes both the new statutory-export fields (employer_tin,
+        // employer_rc_number, state_of_business, per-scheme employer codes)
+        // AND the pre-existing tin/rc_number/address so we can fall back
+        // when the finance team hasn't yet duplicated them.
+        'company_name, address, company_address, tin, rc_number, employer_tin, employer_rc_number, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code',
       )
       .eq('id', '00000000-0000-0000-0000-000000000001')
       .maybeSingle(),
@@ -166,9 +170,12 @@ export async function loadStatutoryRunData(
       employee_name: it.employee_name || p?.full_name || 'Unknown',
       first_name: p?.first_name ?? null,
       last_name: p?.last_name ?? null,
-      staff_number: p?.staff_number ?? null,
+      // Fallback order: explicit statutory staff_number → HR employee_number.
+      // Avoids duplicating data — HR only needs to fill one.
+      staff_number: p?.staff_number ?? p?.employee_number ?? null,
       email: p?.email ?? null,
-      tin: p?.tin ?? null,
+      // Fallback order: profile.tin (FIRS) → profile.tax_id (legacy alias).
+      tin: p?.tin ?? p?.tax_id ?? null,
       nin: p?.nin ?? null,
       nhf_number: p?.nhf_number ?? null,
       nhis_number: p?.nhis_number ?? null,
@@ -223,14 +230,15 @@ export async function loadStatutoryRunData(
     payroll_run_id: run.id as string,
     employer: {
       company_name: cs.company_name || 'KD Squares Ltd',
-      employer_tin: cs.employer_tin ?? null,
-      employer_rc_number: cs.employer_rc_number ?? null,
+      // Fall back to the canonical fields most sites already populate.
+      employer_tin: cs.employer_tin ?? cs.tin ?? null,
+      employer_rc_number: cs.employer_rc_number ?? cs.rc_number ?? null,
       state_of_business: cs.state_of_business ?? null,
       pencom_employer_code: cs.pencom_employer_code ?? null,
       nhf_employer_code: cs.nhf_employer_code ?? null,
       nsitf_employer_code: cs.nsitf_employer_code ?? null,
       itf_employer_code: cs.itf_employer_code ?? null,
-      company_address: cs.company_address ?? null,
+      company_address: cs.company_address ?? cs.address ?? null,
     },
     items: lineItems,
     totals,

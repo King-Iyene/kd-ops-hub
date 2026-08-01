@@ -120,6 +120,7 @@ interface EmployeeData {
   contract_start_date: string | null;
   contract_end_date: string | null;
   pfa_name: string | null;
+  pfa_code: string | null;
   state_of_residence: string | null;
 }
 
@@ -1340,6 +1341,7 @@ const EmployeeProfile = () => {
                         reporting_manager_id: form.reporting_manager_id || null,
                         contract_end_date: form.contract_end_date || null,
                         pfa_name: form.pfa_name || null,
+                        pfa_code: form.pfa_code || null,
                         state_of_residence: form.state_of_residence || null,
                       })}
                       disabled={sectionSaving}
@@ -1490,6 +1492,19 @@ const EmployeeProfile = () => {
                         />
                       </div>
                       <div className="space-y-1.5">
+                        <Label className="text-xs">PFA code</Label>
+                        <Input
+                          value={form.pfa_code || ''}
+                          onChange={(e) => patch({ pfa_code: e.target.value || null })}
+                          placeholder="e.g. PENCOM-issued PSSP code"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Required on the PenCom PSSP schedule export.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
                         <Label className="text-xs">State of residence</Label>
                         <Select
                           value={form.state_of_residence || '__none__'}
@@ -1604,6 +1619,12 @@ const EmployeeProfile = () => {
                       <dt className="text-muted-foreground">PFA</dt>
                       <dd className="font-medium">{employee.pfa_name || '—'}</dd>
                     </div>
+                    {employee.pfa_code && (
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">PFA code</dt>
+                        <dd className="font-mono text-xs">{employee.pfa_code}</dd>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">State of residence</dt>
                       <dd className="font-medium">{employee.state_of_residence || '—'}</dd>
