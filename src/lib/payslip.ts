@@ -624,3 +624,31 @@ export const downloadPayslipPdfFromHtml = (
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
+
+/**
+ * Open an ALREADY-RENDERED payslip document (e.g. HTML fetched back from
+ * Supabase Storage) in a new tab — the preview path for stored payslips.
+ * Do not confuse with openPayslipPrintWindow, which takes raw PayslipData
+ * and renders it fresh; passing a plain HTML string there silently
+ * produces a blank/default payslip instead of throwing, since accessing
+ * properties on a string never errors in JS.
+ */
+export const openStoredPayslipHtml = (html: string): void => {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
+
+/** Download an already-rendered payslip HTML document as a file. */
+export const downloadStoredPayslipHtml = (html: string, filename: string): void => {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.html') ? filename : `${filename}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};

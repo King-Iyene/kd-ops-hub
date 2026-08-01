@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Save, KeyRound, Mail, Phone, CalendarDays, Download,
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
-  CheckCircle2, Clock, XCircle,
+  CheckCircle2, Clock, XCircle, ExternalLink,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -27,7 +27,7 @@ import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatNaira, formatDateTime } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -563,52 +563,70 @@ const ProfilePage = () => {
   };
 
   const [downloadingSlip, setDownloadingSlip] = useState<string | null>(null);
+  const [previewingSlip, setPreviewingSlip] = useState<string | null>(null);
 
-  const downloadPayslip = async (p: Payslip) => {
-    setDownloadingSlip(p.id);
+  const fallbackPayslipData = (p: Payslip) => ({
+    company_name: 'KD Squares Ltd',
+    employee_name: profile.full_name || profile.email,
+    employee_email: profile.email,
+    employee_role: profile.role,
+    period: p.period,
+    gross_ngn: p.gross_ngn,
+    paye_ngn: p.paye_ngn,
+    pension_ngn: p.pension_ngn,
+    nhf_ngn: p.nhf_ngn,
+    net_ngn: p.net_ngn,
+    generated_by: profile.full_name || profile.email,
+  });
+
+  const previewPayslip = async (p: Payslip) => {
+    setPreviewingSlip(p.id);
     try {
-      // Preferred: fetch the stored payslip HTML and render it to a real PDF
-      // download (no browser print dialog).
+      // Preferred: open the exact stored HTML document, not a re-render.
       if (p.storage_path) {
         const { data } = await supabase.storage.from('payslips').createSignedUrl(p.storage_path, 60);
         if (data?.signedUrl) {
           const res = await fetch(data.signedUrl);
           if (res.ok) {
             const html = await res.text();
-            await downloadPayslipPdfFromHtml(html, `payslip-${p.period}`);
+            openStoredPayslipHtml(html);
             return;
           }
         }
       }
       // Fallback: rebuild from stored figures and open the printable version.
-      openPayslipPrintWindow({
-        company_name: 'KD Squares Ltd',
-        employee_name: profile.full_name || profile.email,
-        employee_email: profile.email,
-        employee_role: profile.role,
-        period: p.period,
-        gross_ngn: p.gross_ngn,
-        paye_ngn: p.paye_ngn,
-        pension_ngn: p.pension_ngn,
-        nhf_ngn: p.nhf_ngn,
-        net_ngn: p.net_ngn,
-        generated_by: profile.full_name || profile.email,
-      });
+      openPayslipPrintWindow(fallbackPayslipData(p), { autoPrint: false });
+    } catch {
+      toast({ title: 'Could not open payslip', description: 'Showing the printable version instead.', variant: 'destructive' });
+      openPayslipPrintWindow(fallbackPayslipData(p), { autoPrint: false });
+    } finally {
+      setPreviewingSlip(null);
+    }
+  };
+
+  const downloadPayslip = async (p: Payslip) => {
+    setDownloadingSlip(p.id);
+    try {
+      // Preferred: fetch the stored payslip HTML exactly as generated and
+      // download that document — not a re-render from raw figures, which
+      // matters because a plain HTML string handed to openPayslipPrintWindow
+      // would silently produce a blank/default payslip instead of erroring.
+      if (p.storage_path) {
+        const { data } = await supabase.storage.from('payslips').createSignedUrl(p.storage_path, 60);
+        if (data?.signedUrl) {
+          const res = await fetch(data.signedUrl);
+          if (res.ok) {
+            const html = await res.text();
+            downloadStoredPayslipHtml(html, `payslip-${p.period}`);
+            return;
+          }
+        }
+      }
+      // Fallback: rebuild from stored figures and open the printable version.
+      openPayslipPrintWindow(fallbackPayslipData(p));
     } catch {
       toast({ title: 'Could not build the PDF', description: 'Opening the printable version instead.', variant: 'destructive' });
-      openPayslipPrintWindow({
-        company_name: 'KD Squares Ltd',
-        employee_name: profile.full_name || profile.email,
-        employee_email: profile.email,
-        employee_role: profile.role,
-        period: p.period,
-        gross_ngn: p.gross_ngn,
-        paye_ngn: p.paye_ngn,
-        pension_ngn: p.pension_ngn,
-        nhf_ngn: p.nhf_ngn,
-        net_ngn: p.net_ngn,
-        generated_by: profile.full_name || profile.email,
-      });
+      openPayslipPrintWindow(fallbackPayslipData(p));
     } finally {
       setDownloadingSlip(null);
     }
@@ -1258,6 +1276,11 @@ const ProfilePage = () => {
                           <p className="text-xs text-muted-foreground">Net pay</p>
                           <p className="font-semibold currency tabular-nums">{formatNaira(p.net_ngn)}</p>
                         </div>
+                        <Button size="sm" variant="ghost" onClick={() => previewPayslip(p)} disabled={previewingSlip === p.id}>
+                          {previewingSlip === p.id
+                            ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            : <ExternalLink className="mr-2 h-4 w-4" />} Preview
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingSlip === p.id}>
                           {downloadingSlip === p.id
                             ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />

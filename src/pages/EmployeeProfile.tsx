@@ -14,7 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
 import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
 import EmployeeLoansPanel from '@/components/hr/EmployeeLoansPanel';
 import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
@@ -224,39 +224,58 @@ const EmployeeProfile = () => {
     setEditingSection(null);
   };
 
+  // Shared fallback data for payslips with no stored HTML (e.g. legacy
+  // batch-item payslips) — rendered fresh client-side from the raw figures.
+  const fallbackPayslipData = (slip: any) => ({
+    company_name: companySetting.company_name,
+    logo_url: companySetting.logo_url,
+    employee_name: slip.employee_name || employee?.full_name || '',
+    employee_email: employee?.email || slip.employee_email || null,
+    employee_role: employee?.role || null,
+    employee_number: employee?.employee_number || null,
+    bank_name: employee?.bank_name || null,
+    bank_account: employee?.bank_account_number || null,
+    period: slip.period || '',
+    gross_ngn: Number(slip.gross_ngn || 0),
+    paye_ngn: Number(slip.paye_ngn || 0),
+    pension_ngn: Number(slip.pension_ngn || 0),
+    nhf_ngn: Number(slip.nhf_ngn || 0),
+    net_ngn: Number(slip.net_ngn || 0),
+    generated_by: currentUser?.full_name || currentUser?.email || null,
+    payslip_ref: slip.id?.slice(0, 8).toUpperCase() || null,
+  });
+
+  const previewPayslip = async (slip: any) => {
+    if (!slip.storage_path && !slip.file_url) {
+      openPayslipPrintWindow(fallbackPayslipData(slip), { autoPrint: false });
+      return;
+    }
+    // Real payroll-module payslips are stored as fully-rendered HTML —
+    // open that exact document rather than re-rendering it from scratch,
+    // so what you preview always matches what was actually generated.
+    const path = slip.storage_path || slip.file_url;
+    const { data, error } = await supabase.storage.from('payslips').download(path);
+    if (error) { toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' }); return; }
+    const html = await data.text();
+    openStoredPayslipHtml(html);
+  };
+
   const downloadPayslip = async (slip: any) => {
     // Batch-item payslips have no stored file — generate HTML client-side
     if (!slip.storage_path && !slip.file_url) {
-      openPayslipPrintWindow({
-        company_name: companySetting.company_name,
-        logo_url: companySetting.logo_url,
-        employee_name: slip.employee_name || employee?.full_name || '',
-        employee_email: employee?.email || slip.employee_email || null,
-        employee_role: employee?.role || null,
-        employee_number: employee?.employee_number || null,
-        bank_name: employee?.bank_name || null,
-        bank_account: employee?.bank_account_number || null,
-        period: slip.period || '',
-        gross_ngn: Number(slip.gross_ngn || 0),
-        paye_ngn: Number(slip.paye_ngn || 0),
-        pension_ngn: Number(slip.pension_ngn || 0),
-        nhf_ngn: Number(slip.nhf_ngn || 0),
-        net_ngn: Number(slip.net_ngn || 0),
-        generated_by: currentUser?.full_name || currentUser?.email || null,
-        payslip_ref: slip.id?.slice(0, 8).toUpperCase() || null,
-      });
+      openPayslipPrintWindow(fallbackPayslipData(slip));
       return;
     }
-    // Payroll-module payslips are stored as HTML in Supabase Storage — render
-    // them to a real PDF download (same path as the employee self-service view).
+    // Payroll-module payslips are stored as HTML in Supabase Storage —
+    // download that exact document (same path as the employee self-service view).
     const path = slip.storage_path || slip.file_url;
     const { data, error } = await supabase.storage.from('payslips').download(path);
     if (error) { toast({ title: 'Download failed', description: error.message, variant: 'destructive' }); return; }
     try {
       const html = await data.text();
-      await downloadPayslipPdfFromHtml(html, `payslip-${slip.period || path.split('/').pop()}`);
+      downloadStoredPayslipHtml(html, `payslip-${slip.period || path.split('/').pop()}`);
     } catch {
-      // Fallback: hand back the raw stored file if PDF rendering fails.
+      // Fallback: hand back the raw stored file if reading it as text fails.
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -1868,16 +1887,29 @@ const EmployeeProfile = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button
-                      size="sm"
-                      className="w-full gap-1.5"
-                      onClick={() => {
-                        const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
-                        if (slip) downloadPayslip(slip);
-                      }}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download Payslip
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
+                          if (slip) previewPayslip(slip);
+                        }}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Preview
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
+                          if (slip) downloadPayslip(slip);
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -2730,14 +2762,24 @@ const EmployeeProfile = () => {
                   {payslips.map((slip: any) => (
                     <div key={slip.id} className="flex items-center justify-between px-4 py-3">
                       <span className="text-sm font-medium">{slip.period || '—'}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => downloadPayslip(slip)}
-                      >
-                        <Download className="h-4 w-4" /> Download
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5"
+                          onClick={() => previewPayslip(slip)}
+                        >
+                          <ExternalLink className="h-4 w-4" /> Preview
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => downloadPayslip(slip)}
+                        >
+                          <Download className="h-4 w-4" /> Download
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
