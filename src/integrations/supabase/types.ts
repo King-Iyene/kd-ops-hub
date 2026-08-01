@@ -390,7 +390,16 @@ export type Database = {
       attendance_records: {
         Row: {
           clock_in: string | null
+          clock_in_accuracy_m: number | null
+          clock_in_lat: number | null
+          clock_in_lng: number | null
+          clock_in_selfie_path: string | null
+          clock_in_via: string | null
           clock_out: string | null
+          clock_out_accuracy_m: number | null
+          clock_out_lat: number | null
+          clock_out_lng: number | null
+          clock_out_via: string | null
           created_at: string
           employee_id: string
           id: string
@@ -403,7 +412,16 @@ export type Database = {
         }
         Insert: {
           clock_in?: string | null
+          clock_in_accuracy_m?: number | null
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
+          clock_in_selfie_path?: string | null
+          clock_in_via?: string | null
           clock_out?: string | null
+          clock_out_accuracy_m?: number | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
+          clock_out_via?: string | null
           created_at?: string
           employee_id: string
           id?: string
@@ -416,7 +434,16 @@ export type Database = {
         }
         Update: {
           clock_in?: string | null
+          clock_in_accuracy_m?: number | null
+          clock_in_lat?: number | null
+          clock_in_lng?: number | null
+          clock_in_selfie_path?: string | null
+          clock_in_via?: string | null
           clock_out?: string | null
+          clock_out_accuracy_m?: number | null
+          clock_out_lat?: number | null
+          clock_out_lng?: number | null
+          clock_out_via?: string | null
           created_at?: string
           employee_id?: string
           id?: string
@@ -4906,6 +4933,45 @@ export type Database = {
           },
         ]
       }
+      offer_letter_templates: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          description: string | null
+          html_body: string
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          html_body: string
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          html_body?: string
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       onboarding_checklists: {
         Row: {
           checklist_type: string
@@ -6143,6 +6209,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      performance_review_templates: {
+        Row: {
+          active: boolean
+          applies_to: string
+          code: string
+          competencies: Json
+          created_at: string
+          description: string | null
+          id: string
+          is_system: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          applies_to?: string
+          code: string
+          competencies?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          applies_to?: string
+          code?: string
+          competencies?: Json
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       performance_reviews: {
         Row: {
@@ -7626,6 +7731,142 @@ export type Database = {
           {
             foreignKeyName: "saved_filters_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signed_documents: {
+        Row: {
+          countersigned_at: string | null
+          countersigner_id: string | null
+          countersigner_signature_png: string | null
+          created_at: string
+          document_hash: string
+          document_html: string
+          document_kind: string
+          document_title: string
+          employee_id: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          signature_png: string
+          signed_at: string
+          signed_geo: Json | null
+          signed_ip: string | null
+          signed_user_agent: string | null
+          signer_email: string
+          signer_id: string | null
+          signer_name: string
+          storage_path: string | null
+        }
+        Insert: {
+          countersigned_at?: string | null
+          countersigner_id?: string | null
+          countersigner_signature_png?: string | null
+          created_at?: string
+          document_hash: string
+          document_html: string
+          document_kind: string
+          document_title: string
+          employee_id?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          signature_png: string
+          signed_at?: string
+          signed_geo?: Json | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          signer_email: string
+          signer_id?: string | null
+          signer_name: string
+          storage_path?: string | null
+        }
+        Update: {
+          countersigned_at?: string | null
+          countersigner_id?: string | null
+          countersigner_signature_png?: string | null
+          created_at?: string
+          document_hash?: string
+          document_html?: string
+          document_kind?: string
+          document_title?: string
+          employee_id?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          signature_png?: string
+          signed_at?: string
+          signed_geo?: Json | null
+          signed_ip?: string | null
+          signed_user_agent?: string | null
+          signer_email?: string
+          signer_id?: string | null
+          signer_name?: string
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signed_documents_countersigner_id_fkey"
+            columns: ["countersigner_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_countersigner_id_fkey"
+            columns: ["countersigner_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_countersigner_id_fkey"
+            columns: ["countersigner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signed_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signed_documents_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_signer_id_fkey"
+            columns: ["signer_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "signed_documents_signer_id_fkey"
+            columns: ["signer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
