@@ -115,9 +115,14 @@ export default function Assistant() {
   const isSuperAdmin = profile?.role === 'super_admin';
 
   const fetchConversations = async () => {
+    // Explicit user_id filter so super_admin doesn't see other users'
+    // conversations (RLS grants super_admin blanket SELECT). Same reason
+    // the widget's loadConversations() filters explicitly.
+    if (!profile?.id) return;
     const { data } = await supabase
       .from('chatbot_conversations')
       .select('*')
+      .eq('user_id', profile.id)
       .order('pinned', { ascending: false })
       .order('updated_at', { ascending: false })
       .limit(50);

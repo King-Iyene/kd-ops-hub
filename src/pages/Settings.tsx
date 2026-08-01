@@ -94,6 +94,7 @@ import { NotificationsCard } from '@/components/settings/NotificationsCard';
 import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
 import { PaymentRailsCard } from '@/components/settings/PaymentRailsCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
+import OfferLetterTemplatesAdmin from '@/components/hr/OfferLetterTemplatesAdmin';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -684,6 +685,8 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          <OfferLetterTemplatesAdmin />
 
           <Card>
             <CardHeader>

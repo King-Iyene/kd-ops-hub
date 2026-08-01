@@ -15,6 +15,8 @@ import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
+import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
+import EmployeeLoansPanel from '@/components/hr/EmployeeLoansPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
@@ -170,7 +172,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'loans'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -1011,6 +1013,7 @@ const EmployeeProfile = () => {
           { key: 'leave',     label: `Leave (${leaves.length})`         },
           { key: 'expenses',  label: `Expenses (${expenses.length})`    },
           { key: 'payroll',   label: 'Payroll'                          },
+          { key: 'loans',     label: 'Loans'                            },
         ] as const).map(({ key, label }) => (
           <button
             key={key}
@@ -2235,7 +2238,22 @@ const EmployeeProfile = () => {
       )}
 
       {activeTab === 'documents' && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          {/* Signed HR documents (offer letters, contracts, policy acks…) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Signed HR documents</CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Every offer letter, contract or policy acknowledgement signed
+                by or for this employee. Each row can be re-verified against
+                its SHA-256 hash — tampering is visually flagged.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <SignedDocumentsList employeeId={id} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Documents</CardTitle>
@@ -2619,6 +2637,12 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {activeTab === 'loans' && id && (
+        <div className="mt-4">
+          <EmployeeLoansPanel employeeId={id} />
         </div>
       )}
 
