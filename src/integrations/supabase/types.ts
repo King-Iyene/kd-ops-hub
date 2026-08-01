@@ -4421,6 +4421,63 @@ export type Database = {
           },
         ]
       }
+      leave_policies: {
+        Row: {
+          accrual_type: string
+          active: boolean
+          carry_over_days: number
+          code: string
+          color: string | null
+          created_at: string
+          default_days: number
+          description: string | null
+          gender: string | null
+          id: string
+          is_system: boolean
+          min_tenure_months: number
+          name: string
+          paid: boolean
+          requires_medical_cert: boolean
+          updated_at: string
+        }
+        Insert: {
+          accrual_type?: string
+          active?: boolean
+          carry_over_days?: number
+          code: string
+          color?: string | null
+          created_at?: string
+          default_days?: number
+          description?: string | null
+          gender?: string | null
+          id?: string
+          is_system?: boolean
+          min_tenure_months?: number
+          name: string
+          paid?: boolean
+          requires_medical_cert?: boolean
+          updated_at?: string
+        }
+        Update: {
+          accrual_type?: string
+          active?: boolean
+          carry_over_days?: number
+          code?: string
+          color?: string | null
+          created_at?: string
+          default_days?: number
+          description?: string | null
+          gender?: string | null
+          id?: string
+          is_system?: boolean
+          min_tenure_months?: number
+          name?: string
+          paid?: boolean
+          requires_medical_cert?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       leave_requests: {
         Row: {
           created_at: string
