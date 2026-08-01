@@ -4354,6 +4354,36 @@ export type Database = {
           },
         ]
       }
+      leave_accrual_runs: {
+        Row: {
+          balances_credited: number
+          balances_reset: number
+          employees_processed: number
+          id: string
+          notes: string | null
+          period: string
+          ran_at: string
+        }
+        Insert: {
+          balances_credited?: number
+          balances_reset?: number
+          employees_processed?: number
+          id?: string
+          notes?: string | null
+          period: string
+          ran_at?: string
+        }
+        Update: {
+          balances_credited?: number
+          balances_reset?: number
+          employees_processed?: number
+          id?: string
+          notes?: string | null
+          period?: string
+          ran_at?: string
+        }
+        Relationships: []
+      }
       leave_balances: {
         Row: {
           annual_quota: number
@@ -10082,6 +10112,7 @@ export type Database = {
         }
         Returns: Json
       }
+      process_leave_accruals: { Args: never; Returns: Json }
       process_paystack_webhook: {
         Args: {
           p_event: string
