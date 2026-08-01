@@ -790,16 +790,17 @@ const Payroll = () => {
       const yearPrefix = run.period.split('-')[0] + '-';
       const { data: ytdRows } = await supabase
         .from('payslips')
-        .select('employee_id, gross_ngn, paye_ngn, pension_ngn, net_ngn, period, payroll_run_id')
+        .select('employee_id, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, period, payroll_run_id')
         .like('period', `${yearPrefix}%`)
         .neq('payroll_run_id', run.id);
-      const ytdByEmployee = new Map<string, { gross: number; paye: number; pension: number; net: number }>();
+      const ytdByEmployee = new Map<string, { gross: number; paye: number; pension: number; nhf: number; net: number }>();
       for (const r of (ytdRows || []) as any[]) {
         if (!r.employee_id) continue;
-        const acc = ytdByEmployee.get(r.employee_id) ?? { gross: 0, paye: 0, pension: 0, net: 0 };
+        const acc = ytdByEmployee.get(r.employee_id) ?? { gross: 0, paye: 0, pension: 0, nhf: 0, net: 0 };
         acc.gross   += Number(r.gross_ngn   || 0);
         acc.paye    += Number(r.paye_ngn    || 0);
         acc.pension += Number(r.pension_ngn || 0);
+        acc.nhf     += Number(r.nhf_ngn     || 0);
         acc.net     += Number(r.net_ngn     || 0);
         ytdByEmployee.set(r.employee_id, acc);
       }
@@ -930,10 +931,10 @@ const Payroll = () => {
             // Earnings — Nigerian convention splits base salary into
             // basic 60% / housing 20% / transport 20%, then appends any
             // one-off allowances, bonus and overtime entered for this run.
-            // Earnings: when this employee has been migrated to real salary
+            // Components: when this employee has been migrated to real salary
             // components, use the actual breakdown; otherwise fall back to
             // the 60/20/20 statutory-friendly split (legacy behavior).
-            earnings: useComps
+            components: useComps
               ? {
                   basic_ngn:     compBasic,
                   housing_ngn:   compHousing,
@@ -965,7 +966,7 @@ const Payroll = () => {
             extra_deductions: allEmpDeductionLines,
 
             // Employer contributions (informational)
-            employer_contrib: {
+            employer_costs: {
               pension_employer_ngn: empPensionEmployer,
               nsitf_ngn:            empNsitf,
               // ITF is annual + conditional (≥ 5 staff or ≥ ₦50M
@@ -980,6 +981,7 @@ const Payroll = () => {
               gross_ngn:   ytd.gross   + empGrossTotal,
               paye_ngn:    ytd.paye    + empPaye,
               pension_ngn: ytd.pension + empPension,
+              nhf_ngn:     ytd.nhf     + empNhf,
               net_ngn:     ytd.net     + empNet,
             } : undefined,
 

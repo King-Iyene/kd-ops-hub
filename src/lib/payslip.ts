@@ -25,14 +25,24 @@ import { formatDate, formatDateTime, formatNaira } from '@/lib/format';
 export interface PayslipData {
   company_name: string;
   company_address?: string | null;
+  company_rc?: string | null;
+  company_tin?: string | null;
   logo_url?: string | null;
   employee_name: string;
   employee_email?: string | null;
   employee_role?: string | null;
   employee_number?: string | null;
+  employee_department?: string | null;
+  employee_tax_id?: string | null;
+  employee_pension_pin?: string | null;
+  employee_nhf_number?: string | null;
   bank_name?: string | null;
   bank_account?: string | null;
+  bank_account_name?: string | null;
   period: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  pay_date?: string | null;
   gross_ngn: number;
   paye_ngn: number;
   pension_ngn: number;
@@ -46,6 +56,11 @@ export interface PayslipData {
     basic_ngn?: number;
     housing_ngn?: number;
     transport_ngn?: number;
+    bonus_ngn?: number;
+    overtime_ngn?: number;
+    /** Itemised allowance lines — preferred when available. */
+    other_allowances?: { description: string; amount_ngn: number }[] | null;
+    /** Flat allowance total — fallback when itemised lines aren't provided. */
     other_allowances_ngn?: number;
   } | null;
 
@@ -128,6 +143,11 @@ export const renderPayslipHtml = (
   const logoHtml = data.logo_url
     ? `<img src="${esc(data.logo_url)}" alt="${esc(data.company_name)} logo" class="logo-img" />`
     : `<div class="logo-fallback">${esc(initials(data.company_name || 'KD'))}</div>`;
+
+  const companyIdLine = [
+    data.company_rc  ? `RC ${data.company_rc}`   : '',
+    data.company_tin ? `TIN ${data.company_tin}` : '',
+  ].filter(Boolean).join(' · ');
 
   return `<!doctype html>
 <html lang="en">
@@ -402,7 +422,7 @@ export const renderPayslipHtml = (
           ${logoHtml}
           <div class="brand-text">
             <div class="co">${esc(data.company_name)}</div>
-            <div class="sub">${esc(data.company_address || 'KDOps · Operations Platform')}</div>
+            <div class="sub">${esc(data.company_address || 'KDOps · Operations Platform')}${companyIdLine ? ' · ' + esc(companyIdLine) : ''}</div>
           </div>
         </div>
         <div class="doc-badge">Payslip · ${esc(periodLabel)}</div>
@@ -430,10 +450,13 @@ export const renderPayslipHtml = (
       </div>
       ${data.employee_number ? `<div class="meta-item"><div class="k">Staff No.</div><div class="v mono">${esc(data.employee_number)}</div></div>` : ''}
       ${data.employee_role ? `<div class="meta-item"><div class="k">Role</div><div class="v">${esc(data.employee_role)}</div></div>` : ''}
+      ${data.employee_department ? `<div class="meta-item"><div class="k">Department</div><div class="v">${esc(data.employee_department)}</div></div>` : ''}
       <div class="meta-item">
         <div class="k">Pay Period</div>
         <div class="v">${esc(periodLabel)}</div>
+        ${data.period_start && data.period_end ? `<div class="s" style="font-size:11px;color:#64748b;margin-top:2px;">${esc(formatDate(data.period_start))} – ${esc(formatDate(data.period_end))}</div>` : ''}
       </div>
+      ${data.pay_date ? `<div class="meta-item"><div class="k">Pay Date</div><div class="v">${esc(formatDate(data.pay_date))}</div></div>` : ''}
     </div>
 
     <!-- ── BODY ── -->
@@ -475,7 +498,11 @@ export const renderPayslipHtml = (
                   data.components.basic_ngn      ? `<tr><td>Basic Salary</td><td class="right tabular">${esc(formatNaira(data.components.basic_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
                   data.components.housing_ngn    ? `<tr><td>Housing Allowance</td><td class="right tabular">${esc(formatNaira(data.components.housing_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
                   data.components.transport_ngn  ? `<tr><td>Transport Allowance</td><td class="right tabular">${esc(formatNaira(data.components.transport_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
-                  data.components.other_allowances_ngn ? `<tr><td>Other Allowances</td><td class="right tabular">${esc(formatNaira(data.components.other_allowances_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
+                  ...(data.components.other_allowances?.length
+                    ? data.components.other_allowances.map((a) => `<tr><td>${esc(a.description)}</td><td class="right tabular">${esc(formatNaira(a.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`)
+                    : (data.components.other_allowances_ngn ? [`<tr><td>Other Allowances</td><td class="right tabular">${esc(formatNaira(data.components.other_allowances_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`] : [])),
+                  data.components.bonus_ngn      ? `<tr><td>Bonus</td><td class="right tabular">${esc(formatNaira(data.components.bonus_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
+                  data.components.overtime_ngn   ? `<tr><td>Overtime</td><td class="right tabular">${esc(formatNaira(data.components.overtime_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : '',
                 ].filter(Boolean).join('')
               : `<tr><td>Basic Salary</td><td class="right tabular">${esc(formatNaira(data.gross_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.gross_ngn))}</td>` : ''}</tr>`}
             <tr class="subtotal gross">
@@ -550,12 +577,16 @@ export const renderPayslipHtml = (
         <div class="info-box">
           <div class="k">Payment Method</div>
           <div class="v">${esc(data.bank_name || '—')}</div>
+          ${data.bank_account_name ? `<div class="s">${esc(data.bank_account_name)}</div>` : ''}
           ${data.bank_account ? `<div class="s mono">${esc(data.bank_account)}</div>` : ''}
         </div>` : '<div></div>'}
         <div class="info-box">
           <div class="k">Issued To</div>
           <div class="v">${esc(data.employee_name)}</div>
           ${data.employee_email ? `<div class="s">${esc(data.employee_email)}</div>` : ''}
+          ${data.employee_tax_id ? `<div class="s mono">TIN ${esc(data.employee_tax_id)}</div>` : ''}
+          ${data.employee_pension_pin ? `<div class="s mono">PenCom PIN ${esc(data.employee_pension_pin)}</div>` : ''}
+          ${data.employee_nhf_number ? `<div class="s mono">NHF No. ${esc(data.employee_nhf_number)}</div>` : ''}
         </div>
       </div>
 
