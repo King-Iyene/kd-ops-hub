@@ -12,7 +12,9 @@ import {
   UserX,
   Info,
   Check,
+  Upload,
 } from 'lucide-react';
+import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
@@ -143,6 +145,7 @@ const Employees = () => {
   const [deptFilter, setDeptFilter] = useState<'all' | 'none' | string>('all');
 
   const [showForm, setShowForm] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -469,6 +472,11 @@ const Employees = () => {
         </div>
         <div className="flex gap-2 flex-wrap">
           {isAdmin && (
+            <Button variant="outline" onClick={() => setShowCsvImport(true)}>
+              <Upload className="mr-2 h-4 w-4" /> Import CSV
+            </Button>
+          )}
+          {isAdmin && (
             <Button
               onClick={() => {
                 resetForm();
@@ -481,6 +489,13 @@ const Employees = () => {
           )}
         </div>
       </div>
+
+      <EmployeeCsvImport
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        departments={departments}
+        onComplete={fetchEmployees}
+      />
 
       {/* Mercury-style list wrapper: hairline-bordered surface, sticky
           filter strip, no card chrome. Replaces shadcn Card so the

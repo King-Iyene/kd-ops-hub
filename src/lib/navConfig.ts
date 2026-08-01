@@ -116,6 +116,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
+  { title: 'HR Analytics',     url: '/hr-analytics',      icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
   // CRM
   { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'clients.view' },
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
@@ -132,7 +133,7 @@ export const NAV_GROUPS = [
   { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Budgets', 'Anomalies'] },
   { key: 'treasury',   label: 'Treasury',   titles: ['Subscriptions', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Cash Flow'] },
   { key: 'operations', label: 'Operations', titles: ['My Requests', 'Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports'] },
+  { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
   { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
 ] as const;
