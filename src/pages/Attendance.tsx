@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import ClockInWidget from '@/components/hr/ClockInWidget';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -210,6 +211,11 @@ export default function Attendance() {
           </Button>
         }
       />
+
+      {/* Employee-facing clock in / out with geo + selfie */}
+      <div className="max-w-md">
+        <ClockInWidget />
+      </div>
 
       {/* Month navigator */}
       <div className="flex items-center gap-3">

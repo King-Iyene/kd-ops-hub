@@ -5,6 +5,8 @@ import {
   CheckCircle2, XCircle, ArrowRight, Sparkles,
 } from 'lucide-react';
 import HireApplicantDialog from '@/components/hr/HireApplicantDialog';
+import OfferLetterDialog from '@/components/hr/OfferLetterDialog';
+import { FileSignature } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
@@ -163,6 +165,7 @@ export default function Recruitment() {
 
   // Hire flow
   const [hiring, setHiring] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
+  const [issuingOffer, setIssuingOffer] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -495,6 +498,17 @@ export default function Recruitment() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                {app.stage === 'offer' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => setIssuingOffer({ applicant: app, opening })}
+                                    title="Generate & sign offer letter"
+                                  >
+                                    <FileSignature className="h-3.5 w-3.5 mr-1" /> Offer
+                                  </Button>
+                                )}
                                 {(app.stage === 'offer' || app.stage === 'interview_2') && (
                                   <Button
                                     variant="ghost"
@@ -746,6 +760,24 @@ export default function Recruitment() {
         departments={departments}
         onHired={() => {
           setHiring(null);
+          load();
+        }}
+      />
+
+      <OfferLetterDialog
+        open={!!issuingOffer}
+        onOpenChange={(v) => { if (!v) setIssuingOffer(null); }}
+        applicant={issuingOffer?.applicant ?? null}
+        opening={issuingOffer?.opening ?? null}
+        departments={departments}
+        startDate={new Date().toISOString().slice(0, 10)}
+        monthlySalary={
+          issuingOffer?.applicant?.offer_amount_ngn
+            ? String(Math.round(issuingOffer.applicant.offer_amount_ngn / 12))
+            : ''
+        }
+        onSigned={() => {
+          setIssuingOffer(null);
           load();
         }}
       />
