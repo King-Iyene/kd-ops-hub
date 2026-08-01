@@ -11,9 +11,10 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Users, TrendingUp, DollarSign, UserCheck, UserMinus, Building2, Activity,
+  Users, TrendingUp, DollarSign, UserCheck, UserMinus, Building2, Activity, Archive,
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import HrDataExport from '@/components/hr/HrDataExport';
 
 /**
  * HR Analytics dashboard — headcount, attrition, salary, tenure, gender split,
@@ -278,6 +279,9 @@ const HrAnalytics = () => {
           <TabsTrigger value="org">
             <UserCheck className="mr-2 h-4 w-4" /> Org chart
           </TabsTrigger>
+          <TabsTrigger value="export">
+            <Archive className="mr-2 h-4 w-4" /> Data export
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -423,6 +427,10 @@ const HrAnalytics = () => {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="export" className="mt-4">
+          <HrDataExport />
         </TabsContent>
 
         <TabsContent value="org" className="mt-4">
