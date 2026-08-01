@@ -17,6 +17,7 @@ import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/li
 import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
 import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
 import EmployeeLoansPanel from '@/components/hr/EmployeeLoansPanel';
+import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
@@ -2520,8 +2521,16 @@ const EmployeeProfile = () => {
         </div>
       )}
 
-      {activeTab === 'leave' && (
+      {activeTab === 'leave' && id && (
         <div className="mt-4">
+          {/* World-class leave balances hero + all-policies grid + recent requests */}
+          <div className="mb-6">
+            <LeaveBalancesPanel
+              employeeId={id}
+              employeeStartDate={employee?.start_date}
+              employeeGender={employee?.gender}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <Card>
               <CardContent className="p-4">
