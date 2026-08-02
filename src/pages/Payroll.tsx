@@ -39,6 +39,12 @@ import { notifyChannels } from '@/lib/notify';
 import { notifyPayslipReady } from '@/lib/notify-events';
 import { scanPayrollRunAnomaliesSafe } from '@/lib/anomalies';
 import {
+  fetchPayrollSegments,
+  fetchSegmentRules,
+  filterEmployeesForSegment,
+  type PayrollSegment,
+} from '@/lib/payroll-segments';
+import {
   formatDate,
   formatDateTime,
   formatNaira,
@@ -141,6 +147,7 @@ interface PayrollRun {
   status: 'draft' | 'pending_approval' | 'approved' | 'paid';
   created_at: string;
   approved_by: string | null;
+  payroll_segment_id?: string | null;
 }
 
 const monthLabel = (period: string, periodType?: string): string => {
@@ -183,6 +190,14 @@ const BONUS_TYPES = [
   'Other',
 ] as const;
 
+const PAYROLL_CATEGORY_LABELS: Record<string, string> = {
+  administrative: 'Administrative',
+  executive: 'Executive / Director',
+  domestic: 'Domestic staff',
+  security: 'Security',
+  contractor: 'Contractor',
+};
+
 const Payroll = () => {
   usePageTitle('Payroll');
   const { profile } = useAuthStore();
@@ -224,6 +239,7 @@ const Payroll = () => {
     housing_allowance_pct: number;
     transport_per_emp: number;
     meal_per_emp: number;
+    payroll_segment_id: string;
   }>({
     period: monthPeriod(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)),
     period_type: 'monthly',
@@ -231,7 +247,94 @@ const Payroll = () => {
     housing_allowance_pct: 0,
     transport_per_emp: 0,
     meal_per_emp: 0,
+    payroll_segment_id: '',
   });
+  // Payroll segments — reusable named filters ("Staff excl. Directors", etc.)
+  // that pick which employees are included in a draft. Empty selection means
+  // no filter — the exact legacy behavior (every active, salaried, non-driver
+  // employee).
+  const [segments, setSegments] = useState<PayrollSegment[]>([]);
+  const [segmentDialog, setSegmentDialog] = useState(false);
+  const [segmentDepartments, setSegmentDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [segmentSaving, setSegmentSaving] = useState(false);
+  const [segmentForm, setSegmentForm] = useState<{
+    name: string;
+    description: string;
+    exclude_employee_categories: string[];
+    exclude_department_ids: string[];
+  }>({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [] });
+
+  const loadSegments = useCallback(() => {
+    fetchPayrollSegments().then(setSegments).catch(() => setSegments([]));
+  }, []);
+
+  useEffect(() => {
+    loadSegments();
+    supabase.from('departments').select('id, name').order('name').then(({ data }) => {
+      setSegmentDepartments((data as { id: string; name: string }[]) || []);
+    }).catch(() => { /* departments are optional for the segment builder */ });
+  }, [loadSegments]);
+
+  const toggleSegmentCategory = (cat: string) =>
+    setSegmentForm((f) => ({
+      ...f,
+      exclude_employee_categories: f.exclude_employee_categories.includes(cat)
+        ? f.exclude_employee_categories.filter((c) => c !== cat)
+        : [...f.exclude_employee_categories, cat],
+    }));
+
+  const toggleSegmentDepartment = (deptId: string) =>
+    setSegmentForm((f) => ({
+      ...f,
+      exclude_department_ids: f.exclude_department_ids.includes(deptId)
+        ? f.exclude_department_ids.filter((d) => d !== deptId)
+        : [...f.exclude_department_ids, deptId],
+    }));
+
+  const saveSegment = async () => {
+    if (!segmentForm.name.trim()) {
+      toast({ title: 'Pay group name is required', variant: 'destructive' });
+      return;
+    }
+    setSegmentSaving(true);
+    try {
+      const filter_rules: Record<string, string[]> = {};
+      if (segmentForm.exclude_employee_categories.length > 0) {
+        filter_rules.exclude_employee_categories = segmentForm.exclude_employee_categories;
+      }
+      if (segmentForm.exclude_department_ids.length > 0) {
+        filter_rules.exclude_department_ids = segmentForm.exclude_department_ids;
+      }
+      const { error } = await (supabase as any).from('payroll_segments').insert({
+        name: segmentForm.name.trim(),
+        description: segmentForm.description.trim() || null,
+        filter_rules,
+        created_by: profile?.id || null,
+      });
+      if (error) throw error;
+      toast({ title: 'Pay group created' });
+      setSegmentForm({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [] });
+      loadSegments();
+    } catch (err: any) {
+      toast({ title: 'Could not create pay group', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSegmentSaving(false);
+    }
+  };
+
+  const deleteSegment = async (segmentId: string, name: string) => {
+    // Soft-deactivate rather than hard delete — payroll_runs.payroll_segment_id
+    // references this row, and past runs should keep showing which pay group
+    // they used even after it's retired from the picker.
+    const { error } = await (supabase as any).from('payroll_segments').update({ is_active: false }).eq('id', segmentId);
+    if (error) {
+      toast({ title: 'Could not remove pay group', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `"${name}" removed from pay groups` });
+    if (form.payroll_segment_id === segmentId) setForm((f) => ({ ...f, payroll_segment_id: '' }));
+    loadSegments();
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -348,7 +451,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn')
+          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, department_id, employee_category, employment_type')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -365,6 +468,15 @@ const Payroll = () => {
           .lte('start_period', form.period),
       ]);
 
+      // Apply the selected payroll segment's filter (if any). An empty
+      // selection (form.payroll_segment_id === '') matches legacy behavior
+      // exactly — every active, salaried, non-driver employee, unfiltered.
+      const selectedSegment = segments.find((s) => s.id === form.payroll_segment_id) || null;
+      const filteredEmployees = filterEmployeesForSegment(
+        (employeeRes.data || []) as any[],
+        selectedSegment?.filter_rules,
+      );
+
       const totalContractor =
         (contractorRes.data || []).reduce(
           (s, r: any) => s + Number(r.total_amount || 0),
@@ -376,11 +488,11 @@ const Payroll = () => {
           0,
         ) || 0;
       const totalEmployee =
-        (employeeRes.data || []).reduce(
+        filteredEmployees.reduce(
           (s, r: any) => s + Number(r.salary_ngn || 0),
           0,
         ) || 0;
-      const empCount = (employeeRes.data || []).length;
+      const empCount = filteredEmployees.length;
       // PAYE, pension and NHF are statutory obligations on employment income only —
       // contractor payments are handled via WHT separately. PAYE is per-employee
       // and progressive, and chargeable income is gross MINUS pension/NHF, so we
@@ -391,7 +503,7 @@ const Payroll = () => {
       //   NHF base     = basic only                   (NHF Act)
       // Otherwise (toggle OFF, default) fall back to gross — preserves
       // today's behavior for everyone whose row hasn't been migrated.
-      const paye = (employeeRes.data || []).reduce((s: number, r: any) => {
+      const paye = filteredEmployees.reduce((s: number, r: any) => {
         if (r.paye_enabled === false) return s;
         const useComps = !!r.use_salary_components;
         const basic = Number(r.basic_ngn || 0);
@@ -418,11 +530,11 @@ const Payroll = () => {
       };
       const nhfBaseFor = (r: any) =>
         r.use_salary_components ? Number(r.basic_ngn || 0) : Number(r.salary_ngn || 0);
-      const pension = (employeeRes.data || []).reduce(
+      const pension = filteredEmployees.reduce(
         (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * PENSION_RATE : 0), 0);
-      const nhf = (employeeRes.data || []).reduce(
+      const nhf = filteredEmployees.reduce(
         (s: number, r: any) => s + (r.nhf_enabled === true ? nhfBaseFor(r) * NHF_RATE : 0), 0);
-      const employerPension = (employeeRes.data || []).reduce(
+      const employerPension = filteredEmployees.reduce(
         (s: number, r: any) => s + (r.pension_enabled !== false ? pensionBaseFor(r) * EMPLOYER_PENSION_RATE : 0), 0);
       const bonusTotal = form.bonuses.reduce((s, b) => s + Number(b.amount || 0), 0);
       const housingAllowance = totalEmployee * (form.housing_allowance_pct / 100);
@@ -481,6 +593,7 @@ const Payroll = () => {
         allowances_json: totalAllowances > 0
           ? { housing_pct: form.housing_allowance_pct, transport_per_emp: form.transport_per_emp, meal_per_emp: form.meal_per_emp, total: totalAllowances }
           : null,
+        payroll_segment_id: form.payroll_segment_id || null,
       } as any).eq('period', form.period);
       if (error) throw error;
       await logAudit(
@@ -684,6 +797,7 @@ const Payroll = () => {
           use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn,
           tax_id, pension_pin, nhf_number, employee_number,
           bank_name, bank_account_number, bank_account_name,
+          department_id, employee_category, employment_type,
           department:departments!department_id(name)
         `)
         .eq('status', 'active')
@@ -692,11 +806,19 @@ const Payroll = () => {
         .limit(500);
       if (fetchErr) throw fetchErr;
 
-      const list = (employees || []) as any[];
+      // Apply the same payroll segment filter that was used when this run was
+      // drafted, so payslip generation always matches the draft's headcount.
+      // A run with no segment (payroll_segment_id null — the legacy case)
+      // is unaffected: fetchSegmentRules(null) resolves to null, and
+      // filterEmployeesForSegment treats null rules as "match everyone".
+      const runSegmentRules = await fetchSegmentRules(run.payroll_segment_id);
+      const list = filterEmployeesForSegment((employees || []) as any[], runSegmentRules);
       if (list.length === 0) {
         toast({
           title: 'No active employees with salaries configured',
-          description: 'Add salary amounts in employee profiles first.',
+          description: run.payroll_segment_id
+            ? 'No employees match this run\'s pay group. Check the pay group filter or employee categories.'
+            : 'Add salary amounts in employee profiles first.',
           variant: 'destructive',
         });
         return;
@@ -2038,6 +2160,35 @@ const Payroll = () => {
               </div>
             </div>
 
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5">
+                  Pay group
+                  <InfoHint>Run payroll for a subset of staff instead of everyone — e.g. exclude directors or domestic staff. Leave as "All employees" for the default, unfiltered run. Tag employees with a payroll category on their profile, then create a custom pay group to reuse the filter every month.</InfoHint>
+                </Label>
+                <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSegmentDialog(true)}>
+                  Manage
+                </Button>
+              </div>
+              <Select
+                value={form.payroll_segment_id || '__all__'}
+                onValueChange={(v) => setForm({ ...form, payroll_segment_id: v === '__all__' ? '' : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All employees (no filter)</SelectItem>
+                  {segments.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.payroll_segment_id && (
+                <p className="text-xs text-muted-foreground">
+                  {segments.find((s) => s.id === form.payroll_segment_id)?.description || 'Only employees matching this pay group will be included.'}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Bonuses &amp; Extras</Label>
               {form.bonuses.map((b, i) => (
@@ -2116,6 +2267,97 @@ const Payroll = () => {
               {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Draft
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage pay groups — reusable payroll segment filters */}
+      <Dialog open={segmentDialog} onOpenChange={setSegmentDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage pay groups</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            {segments.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Existing pay groups</Label>
+                {segments.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{s.name}</p>
+                      {s.description && <p className="text-xs text-muted-foreground truncate">{s.description}</p>}
+                    </div>
+                    {s.name !== 'All Staff' && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => deleteSegment(s.id, s.name)} aria-label={`Remove ${s.name}`}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-xs text-muted-foreground">New pay group</Label>
+              <div className="space-y-1">
+                <Label className="text-xs">Name</Label>
+                <Input
+                  placeholder="e.g. Staff (excl. Directors)"
+                  value={segmentForm.name}
+                  onChange={(e) => setSegmentForm({ ...segmentForm, name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Description (optional)</Label>
+                <Input
+                  placeholder="Shown as a hint when this pay group is selected"
+                  value={segmentForm.description}
+                  onChange={(e) => setSegmentForm({ ...segmentForm, description: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Exclude payroll categories</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(PAYROLL_CATEGORY_LABELS).map(([value, label]) => (
+                    <Badge
+                      key={value}
+                      variant={segmentForm.exclude_employee_categories.includes(value) ? 'default' : 'outline'}
+                      className="cursor-pointer kd-transition"
+                      onClick={() => toggleSegmentCategory(value)}
+                    >
+                      {label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Employees are tagged with a payroll category on their profile page. Uncategorized employees are never excluded by this filter.
+                </p>
+              </div>
+              {segmentDepartments.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Exclude departments</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {segmentDepartments.map((d) => (
+                      <Badge
+                        key={d.id}
+                        variant={segmentForm.exclude_department_ids.includes(d.id) ? 'default' : 'outline'}
+                        className="cursor-pointer kd-transition"
+                        onClick={() => toggleSegmentDepartment(d.id)}
+                      >
+                        {d.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Button size="sm" onClick={saveSegment} disabled={segmentSaving || !segmentForm.name.trim()}>
+                {segmentSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <Plus className="mr-1 h-3.5 w-3.5" /> Create pay group
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSegmentDialog(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
