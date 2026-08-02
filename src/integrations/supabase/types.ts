@@ -10826,6 +10826,7 @@ export type Database = {
       }
       scan_daily_anomalies: { Args: never; Returns: number }
       scan_ewa_anomalies: { Args: { p_ewa_id: string }; Returns: number }
+      scan_expense_anomalies: { Args: never; Returns: number }
       scan_payroll_run_anomalies: {
         Args: { p_run_id: string }
         Returns: number
