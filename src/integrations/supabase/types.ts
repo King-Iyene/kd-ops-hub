@@ -9976,38 +9976,26 @@ export type Database = {
           employees_notified: number
         }[]
       }
-      check_transfer_caps:
-        | {
-            Args: { p_amount_ngn: number; p_user_id: string }
-            Returns: {
-              allowed: boolean
-              applied_limit_kind: string
-              applied_limit_ngn: number
-              reason: string
-              used_month_ngn: number
-              used_today_ngn: number
-            }[]
-          }
-        | {
-            Args: {
-              p_action?: string
-              p_amount_ngn: number
-              p_check_batch_cap?: boolean
-              p_intent?: boolean
-              p_ip_hash?: string
-              p_user_agent?: string
-              p_user_id: string
-            }
-            Returns: {
-              allowed: boolean
-              applied_limit_kind: string
-              applied_limit_ngn: number
-              intent_audit_id: string
-              reason: string
-              used_month_ngn: number
-              used_today_ngn: number
-            }[]
-          }
+      check_transfer_caps: {
+        Args: {
+          p_action?: string
+          p_amount_ngn: number
+          p_check_batch_cap?: boolean
+          p_intent?: boolean
+          p_ip_hash?: string
+          p_user_agent?: string
+          p_user_id: string
+        }
+        Returns: {
+          allowed: boolean
+          applied_limit_kind: string
+          applied_limit_ngn: number
+          intent_audit_id: string
+          reason: string
+          used_month_ngn: number
+          used_today_ngn: number
+        }[]
+      }
       client_finalize_transfer: {
         Args: {
           p_event: string
