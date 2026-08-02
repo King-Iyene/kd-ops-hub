@@ -8062,10 +8062,12 @@ export type Database = {
       subscriptions: {
         Row: {
           amount_ngn: number
+          amount_usd: number | null
           billing_cycle: string
           category: string
           created_at: string | null
           created_by: string | null
+          currency: string
           department_id: string | null
           id: string
           last_renewed_at: string | null
@@ -8079,10 +8081,12 @@ export type Database = {
         }
         Insert: {
           amount_ngn?: number
+          amount_usd?: number | null
           billing_cycle?: string
           category?: string
           created_at?: string | null
           created_by?: string | null
+          currency?: string
           department_id?: string | null
           id?: string
           last_renewed_at?: string | null
@@ -8096,10 +8100,12 @@ export type Database = {
         }
         Update: {
           amount_ngn?: number
+          amount_usd?: number | null
           billing_cycle?: string
           category?: string
           created_at?: string | null
           created_by?: string | null
+          currency?: string
           department_id?: string | null
           id?: string
           last_renewed_at?: string | null
