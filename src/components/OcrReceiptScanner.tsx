@@ -128,6 +128,36 @@ function extractVendor(text: string): string | undefined {
 
 type ScanState = 'idle' | 'loading' | 'done' | 'error';
 
+// Tesseract.js v7's createWorker() swallows load failures internally
+// (worker/createWorker.js ends its init chain with `.catch(() => {})`), so a
+// blocked or failed CDN fetch for the core/language files leaves the
+// returned promise pending forever — no resolve, no reject. Without an
+// external timeout the UI is stuck at "Scanning… 0%" indefinitely.
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+// createWorker's logger only reports granular progress for 'recognizing
+// text' — the core WASM download and language traineddata download (which
+// dominate a first-time or slow-connection scan) fire once at progress 0
+// and once at progress 1 with no steps between, so without this mapping
+// the bar sits at 0% through the entire download.
+const OCR_PHASE_RANGES: Record<string, [number, number]> = {
+  'loading tesseract core': [0, 10],
+  'loading language traineddata': [10, 30],
+  'initializing tesseract': [30, 35],
+  'recognizing text': [35, 100],
+};
+
+const OCR_LOAD_TIMEOUT_MS = 45_000;
+const OCR_RECOGNIZE_TIMEOUT_MS = 30_000;
+
 export function OcrReceiptScanner({ onExtracted, className, extractLitres: shouldExtractLitres }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setScanState] = useState<ScanState>('idle');
@@ -146,15 +176,25 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
     setErrorMsg('');
 
     try {
-      const worker = await createWorker('eng', 1, {
-        logger: (m: any) => {
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round((m.progress || 0) * 100));
-          }
-        },
-      });
+      const worker = await withTimeout(
+        createWorker('eng', 1, {
+          logger: (m: any) => {
+            const range = OCR_PHASE_RANGES[m.status];
+            if (range) {
+              const [start, end] = range;
+              setProgress(Math.round(start + (m.progress || 0) * (end - start)));
+            }
+          },
+        }),
+        OCR_LOAD_TIMEOUT_MS,
+        'OCR engine took too long to load. Check your connection and try again.',
+      );
 
-      const { data: { text } } = await worker.recognize(file);
+      const { data: { text } } = await withTimeout(
+        worker.recognize(file),
+        OCR_RECOGNIZE_TIMEOUT_MS,
+        'Scan took too long. Try a clearer or smaller photo.',
+      );
       await worker.terminate();
 
       const result: OcrResult = {
@@ -170,9 +210,9 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       // Reset back to idle after a brief success flash.
       setTimeout(() => setScanState('idle'), 2500);
     } catch (err: any) {
-      setErrorMsg('Scan failed — try a clearer photo.');
+      setErrorMsg(err?.message || 'Scan failed — try a clearer photo.');
       setScanState('error');
-      setTimeout(() => setScanState('idle'), 3000);
+      setTimeout(() => setScanState('idle'), 4000);
     }
   };
 
