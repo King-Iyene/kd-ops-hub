@@ -373,7 +373,7 @@ const Employees = () => {
     setSubmitting(true);
     try {
       const roleChanged = form.role !== editing.role;
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('profiles')
         .update({
           first_name: form.first_name,
@@ -384,8 +384,19 @@ const Employees = () => {
           tags: selectedTagIds,
           department_id: form.department_id || null,
         })
-        .eq('id', editing.id);
+        .eq('id', editing.id)
+        .select('id, role');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        toast({ title: 'Update blocked', description: 'Your account does not have permission to edit this employee. Check your role — only admin and super_admin can edit profiles.', variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
+      if (roleChanged && updated[0]?.role !== form.role) {
+        toast({ title: 'Role change blocked', description: `The database rejected the role change. Your role may not have permission to assign "${roleLabel(form.role)}".`, variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
       if (roleChanged) {
         await logAudit(
           'role_changed',
@@ -399,7 +410,7 @@ const Employees = () => {
           profile,
         );
       }
-      toast({ title: 'Employee updated' });
+      toast({ title: roleChanged ? `Role changed to ${roleLabel(form.role)}` : 'Employee updated' });
       setShowForm(false);
       setEditing(null);
       resetForm();
