@@ -99,6 +99,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'finance', label: 'Finance' },
   { value: 'operations', label: 'Operations' },
   { value: 'field_staff', label: 'Field Staff' },
+  { value: 'driver', label: 'Driver' },
 ];
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [

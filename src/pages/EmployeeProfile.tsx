@@ -934,8 +934,8 @@ const EmployeeProfile = () => {
   const canEditRole = !isSelf && (isSuperAdmin || (canManage && !targetRoleIsAdminOrAbove));
   // Roles that the current user is allowed to assign.
   const assignableRoles = isSuperAdmin
-    ? ['super_admin', 'admin', 'finance', 'operations', 'field_staff']
-    : ['finance', 'operations', 'field_staff'];
+    ? ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver']
+    : ['finance', 'operations', 'field_staff', 'driver'];
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -1474,6 +1474,7 @@ const EmployeeProfile = () => {
                                   : r === 'admin' ? 'Admin'
                                   : r === 'finance' ? 'Finance'
                                   : r === 'operations' ? 'Operations'
+                                  : r === 'driver' ? 'Driver'
                                   : 'Field Staff'}
                               </SelectItem>
                             ))}
