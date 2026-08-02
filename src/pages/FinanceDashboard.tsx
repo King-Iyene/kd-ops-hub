@@ -3,13 +3,15 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
+import { SERIES, SEQ_BLUE, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
+import { formatNaira as chartFmtNaira } from '@/lib/format';
 import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
@@ -262,14 +264,14 @@ export default function FinanceDashboard() {
             <>
               <div className="h-[260px] mb-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deptChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={11} />
-                    <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
-                    <ReTooltip formatter={(v: number) => formatNaira(v)} />
-                    <Bar dataKey="gross" stackId="a" name="Gross salary" fill="hsl(var(--primary))" />
-                    <Bar dataKey="employerPension" stackId="a" name="Employer pension" fill="hsl(var(--primary) / 0.6)" />
-                    <Bar dataKey="nsitf" stackId="a" name="NSITF" fill="hsl(var(--primary) / 0.35)" radius={[4, 4, 0, 0]} />
+                  <BarChart data={deptChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={20}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="name" {...AXIS_TICK} />
+                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
+                    <ReTooltip content={<ChartTooltip valueFormatter={chartFmtNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                    <Bar dataKey="gross" stackId="a" name="Gross salary" fill={SEQ_BLUE[2]} />
+                    <Bar dataKey="employerPension" stackId="a" name="Employer pension" fill={SEQ_BLUE[1]} />
+                    <Bar dataKey="nsitf" stackId="a" name="NSITF" fill={SEQ_BLUE[0]} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -322,13 +324,19 @@ export default function FinanceDashboard() {
             </p>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" fontSize={11} />
-                <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
-                <ReTooltip formatter={(v: number) => formatNaira(v)} labelFormatter={(l: string) => `Period ${l}`} />
-                <Line type="monotone" dataKey="burn" name="Total payroll burn" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-              </LineChart>
+              <AreaChart data={trendChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="burnGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={SERIES[0]} stopOpacity={0.12} />
+                    <stop offset="100%" stopColor={SERIES[0]} stopOpacity={0.01} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid {...GRID} />
+                <XAxis dataKey="label" {...AXIS_TICK} />
+                <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
+                <ReTooltip content={<ChartTooltip valueFormatter={chartFmtNaira} />} />
+                <Area type="monotone" dataKey="burn" name="Total payroll burn" stroke={SERIES[0]} strokeWidth={2} fill="url(#burnGrad)" dot={false} />
+              </AreaChart>
             </ResponsiveContainer>
           )}
         </CardContent>

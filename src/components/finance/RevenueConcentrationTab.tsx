@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, PieChart, Pie, Cell, Tooltip as ReTooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from 'recharts';
 import { PieChart as PieChartIcon, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { fetchRevenueConcentration, type ConcentrationResult, type ConcentrationBand } from '@/lib/revenue-concentration';
+import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 
 const BAND_STYLE: Record<ConcentrationBand, { tone: string; label: string; Icon: typeof ShieldCheck }> = {
   diversified:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Diversified',   Icon: ShieldCheck },
@@ -19,18 +21,7 @@ const BAND_STYLE: Record<ConcentrationBand, { tone: string; label: string; Icon:
   concentrated:  { tone: 'bg-destructive/15 text-destructive border-destructive/30',  label: 'Concentrated',  Icon: ShieldAlert },
 };
 
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  '#3FAE6F',
-  '#dc6b1f',
-  '#6366f1',
-  '#0ea5e9',
-  '#ec4899',
-  '#f59e0b',
-  '#8b5cf6',
-  '#14b8a6',
-  '#ef4444',
-];
+const PIE_DEEMPHASIS = '#d4d3cd';
 
 export default function RevenueConcentrationTab() {
   const { toast } = useToast();
@@ -53,8 +44,8 @@ export default function RevenueConcentrationTab() {
 
   const pieData = useMemo(() => {
     if (!data || data.clients.length === 0) return [];
-    const top = data.clients.slice(0, 8);
-    const rest = data.clients.slice(8);
+    const top = data.clients.slice(0, 6);
+    const rest = data.clients.slice(6);
     const result = top.map((c) => ({ name: c.client_name, value: c.total_ngn }));
     if (rest.length > 0) {
       result.push({ name: `${rest.length} others`, value: rest.reduce((s, c) => s + c.total_ngn, 0) });
@@ -130,15 +121,36 @@ export default function RevenueConcentrationTab() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                  {pieData.map((d, i) => (
+                    <div key={d.name} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span
+                        className="w-2 h-2 rounded-[2px] shrink-0"
+                        style={{ background: i < SERIES.length ? SERIES[i] : PIE_DEEMPHASIS }}
+                      />
+                      {d.name}
+                    </div>
+                  ))}
+                </div>
                 <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={52}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        strokeWidth={0}
+                      >
                         {pieData.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          <Cell key={i} fill={i < SERIES.length ? SERIES[i] : PIE_DEEMPHASIS} />
                         ))}
                       </Pie>
-                      <ReTooltip formatter={(v: number) => formatNaira(v)} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -150,14 +162,14 @@ export default function RevenueConcentrationTab() {
                 <CardTitle className="text-sm">Top 10 clients by revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[260px]">
+                <div className="h-[310px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
-                      <YAxis type="category" dataKey="name" fontSize={10} width={100} />
-                      <ReTooltip formatter={(v: number) => formatNaira(v)} />
-                      <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={14}>
+                      <CartesianGrid {...GRID} horizontal={false} vertical />
+                      <XAxis type="number" {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <YAxis type="category" dataKey="name" {...AXIS_TICK} width={100} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                      <Bar dataKey="revenue" name="Revenue" fill={SERIES[0]} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -189,9 +201,9 @@ export default function RevenueConcentrationTab() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, c.share_pct)}%` }} />
+                            <div className="h-full rounded-full" style={{ width: `${Math.min(100, c.share_pct)}%`, background: SERIES[0] }} />
                           </div>
-                          <span className="text-muted-foreground text-xs w-12 text-right">{c.share_pct.toFixed(1)}%</span>
+                          <span className="text-muted-foreground text-xs w-12 text-right tabular-nums">{c.share_pct.toFixed(1)}%</span>
                         </div>
                       </TableCell>
                     </TableRow>

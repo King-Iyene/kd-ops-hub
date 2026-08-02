@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis,
+  ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip as ReTooltip, Cell,
 } from 'recharts';
+import { SERIES, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
 import { Coins, Activity, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -102,13 +103,19 @@ export default function FxExposureTab() {
               </div>
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" fontSize={11} />
-                    <YAxis fontSize={11} domain={['auto', 'auto']} tickFormatter={(v: number) => `₦${v.toFixed(0)}`} />
-                    <ReTooltip formatter={(v: number) => formatRate(v)} labelFormatter={(l: string) => `On ${l}`} />
-                    <Line type="stepAfter" dataKey="rate" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  </LineChart>
+                  <AreaChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="fxGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={SERIES[0]} stopOpacity={0.12} />
+                        <stop offset="100%" stopColor={SERIES[0]} stopOpacity={0.01} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="label" {...AXIS_TICK} />
+                    <YAxis {...AXIS_TICK} domain={['auto', 'auto']} tickFormatter={(v: number) => `₦${v.toFixed(0)}`} />
+                    <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatRate(v)} />} />
+                    <Area type="stepAfter" dataKey="rate" name="USD/NGN rate" stroke={SERIES[0]} strokeWidth={2} fill="url(#fxGrad)" dot={false} />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </>
@@ -150,14 +157,14 @@ export default function FxExposureTab() {
 
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sensitivityData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" fontSize={11} />
-                    <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
-                    <ReTooltip formatter={(v: number) => formatNgn(v)} />
-                    <Bar dataKey="monthly_ngn" radius={[4, 4, 0, 0]}>
+                  <BarChart data={sensitivityData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={20}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="label" {...AXIS_TICK} />
+                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
+                    <ReTooltip content={<ChartTooltip valueFormatter={formatNgn} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                    <Bar dataKey="monthly_ngn" name="Monthly cost" radius={[4, 4, 0, 0]}>
                       {sensitivityData.map((d, i) => (
-                        <Cell key={i} fill={d.shock === 0 ? 'hsl(var(--primary))' : d.shock > 0 ? '#dc6b1f' : '#3FAE6F'} />
+                        <Cell key={i} fill={d.shock === 0 ? SERIES[0] : d.shock > 0 ? SERIES[1] : SERIES[2]} />
                       ))}
                     </Bar>
                   </BarChart>

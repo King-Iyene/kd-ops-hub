@@ -24,11 +24,46 @@ import {
   type CostComparisonResult,
   type CompensationBand,
 } from '@/lib/talent-cost';
+import { SERIES, GRID, AXIS_TICK, fmtMillions } from '@/lib/chart-theme';
 
 const TERMINATION_TYPE_LABEL: Record<string, string> = {
   resignation: 'Resignation', dismissal: 'Dismissal', redundancy: 'Redundancy',
   retirement: 'Retirement', end_of_contract: 'End of contract', other: 'Other',
 };
+
+function BandTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  return (
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2.5 shadow-lg ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+      <p className="text-[11px] font-medium text-popover-foreground mb-1.5">{d.name}</p>
+      <div className="space-y-1 text-[11px]">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-[2px] rounded-sm shrink-0" style={{ background: SERIES[0] }} />
+          <span className="text-muted-foreground">Range</span>
+          <span className="ml-auto font-semibold tabular-nums text-popover-foreground pl-3">
+            {formatNaira(d.min)} – {formatNaira(d.max)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: SERIES[1] }} />
+          <span className="text-muted-foreground">Median</span>
+          <span className="ml-auto font-semibold tabular-nums text-popover-foreground pl-3">
+            {formatNaira(d.median)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-[2px] rounded-sm shrink-0 opacity-0" />
+          <span className="text-muted-foreground">Headcount</span>
+          <span className="ml-auto font-semibold tabular-nums text-popover-foreground pl-3">
+            {d.headcount}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TalentCostTab() {
   const { toast } = useToast();
@@ -132,25 +167,31 @@ export default function TalentCostTab() {
           {bandChartData.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No salaried employees found yet.</p>
           ) : (
-            <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={bandChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" fontSize={11} />
-                  <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
-                  <ReTooltip
-                    formatter={(value: number, name: string, props: any) => {
-                      if (name === 'range') return [formatNaira(props.payload.min) + ' – ' + formatNaira(props.payload.max), 'Range'];
-                      if (name === 'median') return [formatNaira(value), 'Median'];
-                      return [formatNaira(value), name];
-                    }}
-                  />
-                  <Bar dataKey="base" stackId="band" fill="transparent" />
-                  <Bar dataKey="range" stackId="band" fill="hsl(var(--primary) / 0.35)" radius={[4, 4, 4, 4]} />
-                  <Scatter dataKey="median" fill="hsl(var(--primary))" />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="w-3 h-2 rounded-[2px]" style={{ background: SERIES[0], opacity: 0.3 }} />
+                  Min–Max range
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full" style={{ background: SERIES[1] }} />
+                  Median
+                </div>
+              </div>
+              <div className="h-[280px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={bandChartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={20}>
+                    <CartesianGrid {...GRID} />
+                    <XAxis dataKey="name" {...AXIS_TICK} />
+                    <YAxis {...AXIS_TICK} tickFormatter={fmtMillions} />
+                    <ReTooltip content={<BandTooltip />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                    <Bar dataKey="base" stackId="band" fill="transparent" />
+                    <Bar dataKey="range" stackId="band" fill={SERIES[0]} fillOpacity={0.25} radius={[4, 4, 4, 4]} />
+                    <Scatter dataKey="median" fill={SERIES[1]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </>
           )}
           {bands.length > 0 && (
             <div className="overflow-x-auto mt-4">
@@ -168,10 +209,10 @@ export default function TalentCostTab() {
                   {bands.map((b) => (
                     <TableRow key={b.department_id ?? 'none'}>
                       <TableCell className="font-medium">{b.department_name}</TableCell>
-                      <TableCell className="text-right">{b.headcount}</TableCell>
-                      <TableCell className="text-right">{formatNaira(b.min_ngn)}</TableCell>
-                      <TableCell className="text-right font-medium">{formatNaira(b.median_ngn)}</TableCell>
-                      <TableCell className="text-right">{formatNaira(b.max_ngn)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{b.headcount}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNaira(b.min_ngn)}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{formatNaira(b.median_ngn)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNaira(b.max_ngn)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -207,7 +248,7 @@ export default function TalentCostTab() {
               </TooltipProvider>
             </Label>
             <Slider min={0} max={12} step={1} value={replacementMonths} onValueChange={setReplacementMonths} className="flex-1" />
-            <span className="text-sm font-medium w-16 text-right">{replacementMonths[0]} mo</span>
+            <span className="text-sm font-medium w-16 text-right tabular-nums">{replacementMonths[0]} mo</span>
           </div>
 
           <p className="text-sm">
@@ -241,10 +282,10 @@ export default function TalentCostTab() {
                       <TableCell className="text-muted-foreground">{a.department_name}</TableCell>
                       <TableCell><Badge variant="outline">{TERMINATION_TYPE_LABEL[a.termination_type] ?? a.termination_type}</Badge></TableCell>
                       <TableCell className="text-muted-foreground">{a.last_working_day ? formatDate(a.last_working_day) : '—'}</TableCell>
-                      <TableCell className="text-right">{a.tenure_months == null ? '—' : `${(a.tenure_months / 12).toFixed(1)}y`}</TableCell>
-                      <TableCell className="text-right">{formatNaira(a.final_settlement_ngn)}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">{formatNairaCompact(a.estimated_backfill_cost_ngn)}</TableCell>
-                      <TableCell className="text-right font-medium">{formatNaira(a.total_cost_ngn)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{a.tenure_months == null ? '—' : `${(a.tenure_months / 12).toFixed(1)}y`}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNaira(a.final_settlement_ngn)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">{formatNairaCompact(a.estimated_backfill_cost_ngn)}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">{formatNaira(a.total_cost_ngn)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

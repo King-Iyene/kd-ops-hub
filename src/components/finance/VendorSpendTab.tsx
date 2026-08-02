@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as ReTooltip, LineChart, Line,
+  Tooltip as ReTooltip, AreaChart, Area,
 } from 'recharts';
 import { Store, Layers, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,14 +12,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { fetchVendorSpendBoard, type VendorSpendBoard } from '@/lib/vendor-spend';
-
-function formatCompact(n: number): string {
-  if (n >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `₦${(n / 1_000).toFixed(0)}K`;
-  return `₦${n.toFixed(0)}`;
-}
-
-const BAR_COLORS = ['hsl(var(--primary))', '#3FAE6F', '#dc6b1f', '#6366f1', '#0ea5e9'];
+import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 
 export default function VendorSpendTab() {
   const { toast } = useToast();
@@ -81,7 +74,7 @@ export default function VendorSpendTab() {
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Total spend (12mo)</p>
-                <p className="text-xl font-bold">{formatCompact(data.total_spend_ngn)}</p>
+                <p className="text-xl font-bold">{fmtCompact(data.total_spend_ngn)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -123,12 +116,12 @@ export default function VendorSpendTab() {
               ) : (
                 <div className="h-[280px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" fontSize={11} tickFormatter={(v: number) => formatCompact(v)} />
-                      <YAxis type="category" dataKey="name" fontSize={10} width={120} />
-                      <ReTooltip formatter={(v: number) => formatNaira(v)} />
-                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={16}>
+                      <CartesianGrid {...GRID} horizontal={false} vertical />
+                      <XAxis type="number" {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <YAxis type="category" dataKey="name" {...AXIS_TICK} width={120} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
+                      <Bar dataKey="total" name="Total spend" fill={SERIES[0]} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -145,24 +138,41 @@ export default function VendorSpendTab() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+                  {trendVendors.map((vendor, i) => (
+                    <div key={vendor} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span className="w-3 h-[2px] rounded-full" style={{ background: SERIES[i] }} />
+                      {vendor}
+                    </div>
+                  ))}
+                </div>
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" fontSize={11} />
-                      <YAxis fontSize={11} tickFormatter={(v: number) => formatCompact(v)} />
-                      <ReTooltip formatter={(v: number) => formatNaira(v)} />
+                    <AreaChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                      <defs>
+                        {trendVendors.map((_, i) => (
+                          <linearGradient key={i} id={`vg${i}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={SERIES[i]} stopOpacity={0.10} />
+                            <stop offset="100%" stopColor={SERIES[i]} stopOpacity={0.01} />
+                          </linearGradient>
+                        ))}
+                      </defs>
+                      <CartesianGrid {...GRID} />
+                      <XAxis dataKey="month" {...AXIS_TICK} />
+                      <YAxis {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={formatNaira} />} />
                       {trendVendors.map((vendor, i) => (
-                        <Line
+                        <Area
                           key={vendor}
                           type="monotone"
                           dataKey={vendor}
-                          stroke={BAR_COLORS[i % BAR_COLORS.length]}
+                          stroke={SERIES[i]}
                           strokeWidth={2}
-                          dot={{ r: 3 }}
+                          fill={`url(#vg${i})`}
+                          dot={false}
                         />
                       ))}
-                    </LineChart>
+                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>

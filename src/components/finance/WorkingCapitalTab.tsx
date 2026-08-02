@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { fetchWorkingCapitalData, type WorkingCapitalResult, type WcBand } from '@/lib/working-capital';
+import { GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
 
 const BAND_STYLE: Record<WcBand, { tone: string; label: string }> = {
   strong:   { tone: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30', label: 'Strong' },
@@ -18,11 +19,8 @@ const BAND_STYLE: Record<WcBand, { tone: string; label: string }> = {
   negative: { tone: 'bg-destructive/15 text-destructive border-destructive/30',  label: 'Negative' },
 };
 
-function formatCompact(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(n) >= 1_000) return `₦${(n / 1_000).toFixed(0)}K`;
-  return `₦${n.toFixed(0)}`;
-}
+const INFLOW_COLOR = '#1baf7a';
+const OUTFLOW_COLOR = '#e34948';
 
 function RatioGauge({ label, value, threshold, thresholdLabel }: {
   label: string;
@@ -142,7 +140,7 @@ export default function WorkingCapitalTab() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <ArrowUpRight className="h-4 w-4 text-emerald-500" /> Current Assets
+                  <ArrowUpRight className="h-4 w-4" style={{ color: INFLOW_COLOR }} /> Current Assets
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -151,18 +149,18 @@ export default function WorkingCapitalTab() {
                     <Banknote className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">Cash on hand</span>
                   </div>
-                  <span className="text-sm font-semibold">{formatNaira(snap.cash_on_hand_ngn)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatNaira(snap.cash_on_hand_ngn)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Receipt className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">Accounts receivable</span>
                   </div>
-                  <span className="text-sm font-semibold">{formatNaira(snap.accounts_receivable_ngn)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatNaira(snap.accounts_receivable_ngn)}</span>
                 </div>
                 <div className="border-t pt-2 flex items-center justify-between">
                   <span className="text-sm font-semibold">Total current assets</span>
-                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatNaira(snap.current_assets_ngn)}</span>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: INFLOW_COLOR }}>{formatNaira(snap.current_assets_ngn)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -170,7 +168,7 @@ export default function WorkingCapitalTab() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <ArrowDownRight className="h-4 w-4 text-red-500" /> Current Liabilities
+                  <ArrowDownRight className="h-4 w-4" style={{ color: OUTFLOW_COLOR }} /> Current Liabilities
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -179,18 +177,18 @@ export default function WorkingCapitalTab() {
                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">Accounts payable</span>
                   </div>
-                  <span className="text-sm font-semibold">{formatNaira(snap.accounts_payable_ngn)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatNaira(snap.accounts_payable_ngn)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">Upcoming payroll</span>
                   </div>
-                  <span className="text-sm font-semibold">{formatNaira(snap.upcoming_payroll_ngn)}</span>
+                  <span className="text-sm font-semibold tabular-nums">{formatNaira(snap.upcoming_payroll_ngn)}</span>
                 </div>
                 <div className="border-t pt-2 flex items-center justify-between">
                   <span className="text-sm font-semibold">Total current liabilities</span>
-                  <span className="text-sm font-bold text-red-600 dark:text-red-400">{formatNaira(snap.current_liabilities_ngn)}</span>
+                  <span className="text-sm font-bold tabular-nums" style={{ color: OUTFLOW_COLOR }}>{formatNaira(snap.current_liabilities_ngn)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -206,22 +204,32 @@ export default function WorkingCapitalTab() {
                 </p>
               </CardHeader>
               <CardContent>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="w-3 h-2 rounded-[2px]" style={{ background: INFLOW_COLOR }} />
+                    Inflows
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="w-3 h-2 rounded-[2px]" style={{ background: OUTFLOW_COLOR }} />
+                    Outflows
+                  </div>
+                </div>
                 <div className="h-[240px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={waterfallData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" fontSize={11} />
-                      <YAxis fontSize={11} tickFormatter={(v: number) => formatCompact(v)} />
-                      <ReTooltip formatter={(v: number) => formatNaira(Math.abs(v))} />
-                      <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} strokeOpacity={0.3} />
+                    <BarChart data={waterfallData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }} barSize={18}>
+                      <CartesianGrid {...GRID} />
+                      <XAxis dataKey="label" {...AXIS_TICK} />
+                      <YAxis {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatNaira(Math.abs(v))} />} />
+                      <ReferenceLine y={0} stroke="currentColor" strokeWidth={1} strokeOpacity={0.2} />
                       <Bar dataKey="inflows" name="Inflows" radius={[4, 4, 0, 0]}>
                         {waterfallData.map((_, i) => (
-                          <Cell key={`in-${i}`} fill="#3FAE6F" />
+                          <Cell key={`in-${i}`} fill={INFLOW_COLOR} />
                         ))}
                       </Bar>
                       <Bar dataKey="outflows" name="Outflows" radius={[0, 0, 4, 4]}>
                         {waterfallData.map((_, i) => (
-                          <Cell key={`out-${i}`} fill="#ef4444" />
+                          <Cell key={`out-${i}`} fill={OUTFLOW_COLOR} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -232,10 +240,10 @@ export default function WorkingCapitalTab() {
                     <div key={w.label}>
                       <p className="text-[10px] text-muted-foreground">{w.label}</p>
                       <p className={cn(
-                        'text-xs font-semibold',
+                        'text-xs font-semibold tabular-nums',
                         w.running_wc_ngn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                       )}>
-                        {formatCompact(w.running_wc_ngn)}
+                        {fmtCompact(w.running_wc_ngn)}
                       </p>
                     </div>
                   ))}
