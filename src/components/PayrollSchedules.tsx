@@ -451,6 +451,13 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
 // Inline manager that lets Finance bind employees / contractors / drivers to
 // specific pay schedules.
 
+interface GroupMember {
+  id: string;
+  full_name: string | null;
+  email: string;
+  department_name: string | null;
+}
+
 function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
@@ -466,6 +473,14 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
     role_filter: string[];
   }>({ name: '', description: '', pay_schedule_id: '', role_filter: [] });
   const [saving, setSaving] = useState(false);
+
+  // Member management state
+  const [membersDialogOpen, setMembersDialogOpen] = useState(false);
+  const [membersGroup, setMembersGroup] = useState<PayGroup | null>(null);
+  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [availableEmployees, setAvailableEmployees] = useState<GroupMember[]>([]);
+  const [memberSearch, setMemberSearch] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -545,6 +560,78 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
     }
   };
 
+  const openMembers = async (g: PayGroup) => {
+    setMembersGroup(g);
+    setMembersDialogOpen(true);
+    setMembersLoading(true);
+    setMemberSearch('');
+    const [membersRes, allRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, department:departments!profiles_department_id_fkey(name)')
+        .eq('pay_group_id', g.id)
+        .order('full_name'),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, department:departments!profiles_department_id_fkey(name)')
+        .eq('status', 'active')
+        .is('pay_group_id', null)
+        .order('full_name'),
+    ]);
+    setMembers(
+      (membersRes.data ?? []).map((r: any) => ({
+        id: r.id,
+        full_name: r.full_name,
+        email: r.email,
+        department_name: r.department?.name ?? null,
+      })),
+    );
+    setAvailableEmployees(
+      (allRes.data ?? []).map((r: any) => ({
+        id: r.id,
+        full_name: r.full_name,
+        email: r.email,
+        department_name: r.department?.name ?? null,
+      })),
+    );
+    setMembersLoading(false);
+  };
+
+  const addMember = async (emp: GroupMember) => {
+    if (!membersGroup) return;
+    const { error } = await supabase.from('profiles').update({ pay_group_id: membersGroup.id }).eq('id', emp.id);
+    if (error) {
+      toast({ title: 'Could not add member', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setMembers((prev) => [...prev, emp]);
+    setAvailableEmployees((prev) => prev.filter((e) => e.id !== emp.id));
+    setMemberCounts((prev) => ({ ...prev, [membersGroup.id]: (prev[membersGroup.id] ?? 0) + 1 }));
+  };
+
+  const removeMember = async (emp: GroupMember) => {
+    if (!membersGroup) return;
+    const { error } = await supabase.from('profiles').update({ pay_group_id: null }).eq('id', emp.id);
+    if (error) {
+      toast({ title: 'Could not remove member', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setMembers((prev) => prev.filter((e) => e.id !== emp.id));
+    setAvailableEmployees((prev) => [...prev, emp].sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email)));
+    setMemberCounts((prev) => ({ ...prev, [membersGroup.id]: Math.max(0, (prev[membersGroup.id] ?? 0) - 1) }));
+  };
+
+  const filteredAvailable = useMemo(() => {
+    if (!memberSearch.trim()) return availableEmployees;
+    const q = memberSearch.toLowerCase();
+    return availableEmployees.filter(
+      (e) =>
+        (e.full_name ?? '').toLowerCase().includes(q) ||
+        e.email.toLowerCase().includes(q) ||
+        (e.department_name ?? '').toLowerCase().includes(q),
+    );
+  }, [availableEmployees, memberSearch]);
+
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -608,9 +695,17 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        <span className="font-medium">{memberCounts[g.id] ?? 0}</span> employee{memberCounts[g.id] === 1 ? '' : 's'}
+                        <button
+                          className="hover:underline text-left"
+                          onClick={() => openMembers(g)}
+                        >
+                          <span className="font-medium">{memberCounts[g.id] ?? 0}</span> employee{memberCounts[g.id] === 1 ? '' : 's'}
+                        </button>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
+                        <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openMembers(g)}>
+                          <Users className="h-3.5 w-3.5 mr-1" /> Members
+                        </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(g)}>
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -676,6 +771,95 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {editing ? 'Save changes' : 'Create group'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Members management dialog ─────────────────────────────── */}
+      <Dialog open={membersDialogOpen} onOpenChange={(v) => { if (!v) setMembersDialogOpen(false); }}>
+        <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>
+              {membersGroup?.name} — Members
+            </DialogTitle>
+          </DialogHeader>
+          {membersLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
+              {members.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">
+                    Current members ({members.length})
+                  </p>
+                  <div className="space-y-1">
+                    {members.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <div>
+                          <p className="text-sm font-medium">{m.full_name || m.email}</p>
+                          {m.department_name && (
+                            <p className="text-xs text-muted-foreground">{m.department_name}</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-destructive hover:text-destructive"
+                          onClick={() => removeMember(m)}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Add employees
+                </p>
+                <Input
+                  placeholder="Search by name, email, or department…"
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  className="mb-2"
+                />
+                {filteredAvailable.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {availableEmployees.length === 0
+                      ? 'All active employees are already in a pay group.'
+                      : 'No matches.'}
+                  </p>
+                ) : (
+                  <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    {filteredAvailable.slice(0, 50).map((e) => (
+                      <div key={e.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <div>
+                          <p className="text-sm">{e.full_name || e.email}</p>
+                          {e.department_name && (
+                            <p className="text-xs text-muted-foreground">{e.department_name}</p>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm" className="h-7 px-2" onClick={() => addMember(e)}>
+                          <Plus className="h-3 w-3 mr-1" /> Add
+                        </Button>
+                      </div>
+                    ))}
+                    {filteredAvailable.length > 50 && (
+                      <p className="text-xs text-muted-foreground text-center py-1">
+                        {filteredAvailable.length - 50} more — narrow your search
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMembersDialogOpen(false)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

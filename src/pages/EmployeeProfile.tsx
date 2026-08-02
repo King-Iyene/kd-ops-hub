@@ -125,6 +125,7 @@ interface EmployeeData {
   pfa_name: string | null;
   pfa_code: string | null;
   state_of_residence: string | null;
+  pay_group_id: string | null;
 }
 
 const EmployeeProfile = () => {
@@ -204,6 +205,7 @@ const EmployeeProfile = () => {
   const [bankRejectReason, setBankRejectReason] = useState('');
   const [bankHistoryLoading, setBankHistoryLoading] = useState(false);
   const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
+  const [payGroups, setPayGroups] = useState<Array<{ id: string; name: string }>>([]);
   // Active employees (used as the Reports-to dropdown).
   const [managers, setManagers] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
   const [selectedPayslipId, setSelectedPayslipId] = useState<string>('');
@@ -335,6 +337,11 @@ const EmployeeProfile = () => {
     supabase.from('departments').select('id, name').order('name').then(({ data }) => {
       setDepartments((data as Array<{ id: string; name: string }>) || []);
     }).catch(() => { /* departments are non-critical; edit select degrades gracefully */ });
+
+    // Pay groups for the Employment Details dropdown.
+    supabase.from('pay_groups').select('id, name').order('name').then(({ data }) => {
+      setPayGroups((data as Array<{ id: string; name: string }>) || []);
+    }).catch(() => {});
 
     // Active employees for the Reports-to dropdown. Excludes the employee
     // being viewed so they can't pick themselves. Read-only — managers can
@@ -1418,10 +1425,10 @@ const EmployeeProfile = () => {
                         employee_number: form.employee_number || null,
                         employment_type: form.employment_type || null,
                         employee_category: form.employee_category || null,
+                        pay_group_id: form.pay_group_id || null,
                         start_date: form.start_date || null,
                         annual_leave_days: form.annual_leave_days ?? 20,
                         status: form.status,
-                        // Sprint B additions
                         reporting_manager_id: form.reporting_manager_id || null,
                         contract_end_date: form.contract_end_date || null,
                         pfa_name: form.pfa_name || null,
@@ -1506,19 +1513,37 @@ const EmployeeProfile = () => {
                         </Select>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Payroll category</Label>
-                      <Select value={form.employee_category || ''} onValueChange={(v) => patch({ employee_category: v || null })}>
-                        <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="administrative">Administrative</SelectItem>
-                          <SelectItem value="executive">Executive / Director</SelectItem>
-                          <SelectItem value="domestic">Domestic staff</SelectItem>
-                          <SelectItem value="security">Security</SelectItem>
-                          <SelectItem value="contractor">Contractor</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground">Used by payroll segments to include/exclude this person from a selective payroll run.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Payroll category</Label>
+                        <Select value={form.employee_category || ''} onValueChange={(v) => patch({ employee_category: v || null })}>
+                          <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="administrative">Administrative</SelectItem>
+                            <SelectItem value="executive">Executive / Director</SelectItem>
+                            <SelectItem value="domestic">Domestic staff</SelectItem>
+                            <SelectItem value="security">Security</SelectItem>
+                            <SelectItem value="contractor">Contractor</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">Used by payroll segments.</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Pay group</Label>
+                        <Select
+                          value={form.pay_group_id || '__none__'}
+                          onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
+                        >
+                          <SelectTrigger><SelectValue placeholder="No group" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">— No group —</SelectItem>
+                            {payGroups.map((g) => (
+                              <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-[11px] text-muted-foreground">Pay schedule group (Payroll module).</p>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
@@ -1685,6 +1710,14 @@ const EmployeeProfile = () => {
                             {employee.employment_type}
                           </Badge>
                         ) : <span className="font-medium">—</span>}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <dt className="text-muted-foreground">Pay group</dt>
+                      <dd className="font-medium">
+                        {employee.pay_group_id
+                          ? payGroups.find((g) => g.id === employee.pay_group_id)?.name ?? '—'
+                          : '—'}
                       </dd>
                     </div>
                     <div className="flex items-center justify-between text-sm">
