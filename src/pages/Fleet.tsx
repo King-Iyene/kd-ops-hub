@@ -73,7 +73,7 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
-import { hashFile, watermarkImage, checkPumpPrice, checkOdometerRegression, blendBenchmark, median } from '@/lib/receipts';
+import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, blendBenchmark, median } from '@/lib/receipts';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 
 interface FieldStaff {
@@ -135,6 +135,9 @@ interface FuelRequest {
   payment_sent_at: string | null;
   fuel_station_name: string | null;
   litres_filled: number | null;
+  receipt_amount_ngn: number | null;
+  receipt_sha256: string | null;
+  receipt_original_sha256: string | null;
   budget_exception: boolean;
   budget_exception_by: string | null;
   budget_exception_at: string | null;
@@ -1515,7 +1518,8 @@ const Fleet = () => {
   // Post-payment receipt upload
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<FuelRequest | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', litres_filled: '', notes: '' });
+  const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' });
+  const [receiptScanWarning, setReceiptScanWarning] = useState('');
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Phase 1 — vehicle & weekly budget state
@@ -3207,6 +3211,13 @@ const Fleet = () => {
     }
     setSubmittingReceipt(true);
     try {
+      // Hash the RAW file before watermarking — the watermark burns in the
+      // current timestamp, so two uploads of the identical source photo
+      // would otherwise hash differently every time and duplicate
+      // detection would never fire. This hash is used only for duplicate
+      // detection; receiptSha256 (below, post-watermark) stays the
+      // tamper-evidence hash matched against what's actually in storage.
+      const originalSha256 = await hashFile(receiptFile);
       const watermarked = await watermarkImage(receiptFile, { driverName: profile?.full_name || 'Employee' });
       const receiptSha256 = await hashFile(watermarked);
       const compressed = await compressImage(watermarked);
@@ -3218,15 +3229,43 @@ const Fleet = () => {
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
 
-      // Free anomaly cross-check — pump price divergence — surfaced to the
-      // admin reviewer via admin_note since there's no dedicated column for
-      // a receipt-time (vs request-time) anomaly flag.
+      // Free anomaly cross-checks — all client-computable, no paid API:
+      //   1. Pump-price divergence — implied ₦/L vs the fleet benchmark.
+      //   2. Amount mismatch — receipt total vs what was requested.
+      //   3. Duplicate receipt — this exact image already used elsewhere.
+      //   4. OCR low-confidence — scan ran but found nothing decision-critical
+      //      (e.g. the wrong kind of document was photographed).
+      // Every trip both (a) sets is_anomaly/anomaly_type so it surfaces in
+      // the same Anomalies view as request-time flags, and (b) notifies
+      // admin/finance immediately — this used to only land in a free-text
+      // admin_note nobody was pinged about.
       const litresNum = parseFloat(receiptForm.litres_filled) || 0;
+      const amountNum = parseFloat(receiptForm.amount_ngn) || 0;
       const priceCheck = fuelPriceBenchmark
-        ? checkPumpPrice(uploadingReceiptFor.amount_ngn || 0, litresNum, fuelPriceBenchmark)
+        ? checkPumpPrice(amountNum, litresNum, fuelPriceBenchmark)
         : { flagged: false, reason: null };
-      const noteParts = [receiptForm.notes.trim()].filter(Boolean);
-      if (priceCheck.flagged && priceCheck.reason) noteParts.push(`⚠ ${priceCheck.reason}`);
+      const divergenceCheck = checkReceiptRequestDivergence(amountNum, uploadingReceiptFor.amount_ngn || 0);
+
+      const { data: dupRows } = await supabase
+        .from('fuel_requests')
+        .select('id')
+        .eq('receipt_original_sha256', originalSha256)
+        .neq('id', uploadingReceiptFor.id)
+        .limit(1);
+      const isDuplicateReceipt = !!(dupRows && dupRows.length > 0);
+
+      const flags: { type: string; reason: string }[] = [];
+      if (isDuplicateReceipt) flags.push({ type: 'duplicate_receipt', reason: 'This receipt image matches one already uploaded on another fuel request' });
+      if (priceCheck.flagged && priceCheck.reason) flags.push({ type: 'price_divergence', reason: priceCheck.reason });
+      if (divergenceCheck.flagged && divergenceCheck.reason) flags.push({ type: 'amount_mismatch', reason: divergenceCheck.reason });
+      if (receiptScanWarning) flags.push({ type: 'ocr_low_confidence', reason: 'Automatic scan could not read an amount or litres off this receipt' });
+
+      const noteParts = [receiptForm.notes.trim(), ...flags.map((f) => `⚠ ${f.reason}`)].filter(Boolean);
+      const existingAnomalyType = uploadingReceiptFor.anomaly_type;
+      const newAnomalyTypes = Array.from(new Set([
+        ...(existingAnomalyType ? existingAnomalyType.split(',') : []),
+        ...flags.map((f) => f.type),
+      ]));
 
       const { error } = await supabase
         .from('fuel_requests')
@@ -3234,12 +3273,26 @@ const Fleet = () => {
           status: 'receipt_uploaded',
           receipt_url: urlData.publicUrl,
           receipt_sha256: receiptSha256,
+          receipt_original_sha256: originalSha256,
+          receipt_amount_ngn: amountNum || null,
           fuel_station_name: receiptForm.fuel_station_name.trim() || null,
           litres_filled: parseFloat(receiptForm.litres_filled) || null,
           admin_note: noteParts.join(' — ') || null,
+          is_anomaly: uploadingReceiptFor.is_anomaly || flags.length > 0,
+          anomaly_type: newAnomalyTypes.length > 0 ? newAnomalyTypes.join(',') : null,
         })
         .eq('id', uploadingReceiptFor.id);
       if (error) throw error;
+
+      if (flags.length > 0) {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'fuel_receipt_anomaly',
+          module: 'fleet',
+          title: 'Fuel receipt flagged for review',
+          body: `${profile?.full_name || 'Employee'}'s receipt for ${uploadingReceiptFor.station_name}: ${flags.map((f) => f.reason).join('; ')}`,
+        });
+      }
       // Propagate receipt_url to the linked expense row so finance can see
       // it on the Expenses page without switching to Fleet.
       await supabase
@@ -3282,7 +3335,8 @@ const Fleet = () => {
       toast({ title: 'Receipt submitted. Admin will review.' });
       setUploadingReceiptFor(null);
       setReceiptFile(null);
-      setReceiptForm({ fuel_station_name: '', litres_filled: '', notes: '' });
+      setReceiptScanWarning('');
+      setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' });
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error uploading receipt', description: err.message, variant: 'destructive' });
@@ -3759,9 +3813,17 @@ const Fleet = () => {
                   {visibleFuel.map((r) => (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.employee_name}</TableCell>
-                      <TableCell>{r.station_name}</TableCell>
+                      <TableCell>
+                        {r.fuel_station_name || r.station_name}
+                        {r.fuel_station_name && r.fuel_station_name !== r.station_name && (
+                          <p className="text-xs text-muted-foreground">requested: {r.station_name}</p>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right currency">
-                        {formatNaira(r.amount_ngn || 0)}
+                        {formatNaira(r.receipt_amount_ngn ?? r.amount_ngn ?? 0)}
+                        {r.receipt_amount_ngn != null && r.receipt_amount_ngn !== r.amount_ngn && (
+                          <p className="text-xs text-muted-foreground font-normal">requested: {formatNaira(r.amount_ngn || 0)}</p>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-xs text-muted-foreground">
                         {(() => {
@@ -3771,7 +3833,12 @@ const Fleet = () => {
                           return <span title="Awaiting Paystack webhook">…</span>;
                         })()}
                       </TableCell>
-                      <TableCell className="text-right">{r.litres_est ?? '—'}</TableCell>
+                      <TableCell className="text-right">
+                        {r.litres_filled ?? r.litres_est ?? '—'}
+                        {r.litres_filled != null && r.litres_est != null && r.litres_filled !== r.litres_est && (
+                          <p className="text-xs text-muted-foreground">est: {r.litres_est}</p>
+                        )}
+                      </TableCell>
                       <TableCell className="text-xs">
                         <FuelRequestFuelLevel vehicleId={(r as any).vehicle_id} vehicles={vehicles} />
                       </TableCell>
@@ -3792,6 +3859,27 @@ const Fleet = () => {
                         {r.status === 'budget_blocked'
                           ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
                           : <StatusBadge status={r.status} />}
+                        {r.is_anomaly && !r.anomaly_reviewed_at && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  'ml-1.5 gap-1 cursor-default',
+                                  r.anomaly_type?.includes('duplicate_receipt')
+                                    ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
+                                    : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                                )}
+                              >
+                                <AlertTriangle className="h-3 w-3" />
+                                {r.anomaly_type?.includes('duplicate_receipt') ? 'High Risk' : 'Review'}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs text-xs">
+                              {r.admin_note || r.anomaly_type || 'Flagged for review'}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatDate(r.created_at)}
@@ -4463,7 +4551,8 @@ const Fleet = () => {
                   onClick={() => {
                     setUploadingReceiptFor(r);
                     setReceiptFile(null);
-                    setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
+                    setReceiptScanWarning('');
+                    setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', notes: '' });
                   }}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
@@ -4548,7 +4637,8 @@ const Fleet = () => {
                             onClick={() => {
                               setUploadingReceiptFor(r);
                               setReceiptFile(null);
-                              setReceiptForm({ fuel_station_name: r.station_name || '', litres_filled: '', notes: '' });
+                              setReceiptScanWarning('');
+                              setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', notes: '' });
                             }}
                           >
                             <Upload className="h-3 w-3 mr-1" /> Upload Receipt
@@ -5916,7 +6006,7 @@ const Fleet = () => {
       <Dialog
         open={!!uploadingReceiptFor}
         onOpenChange={(v) => {
-          if (!v) { setUploadingReceiptFor(null); setReceiptFile(null); setReceiptForm({ fuel_station_name: '', litres_filled: '', notes: '' }); }
+          if (!v) { setUploadingReceiptFor(null); setReceiptFile(null); setReceiptScanWarning(''); setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' }); }
         }}
       >
         <DialogContent>
@@ -5957,13 +6047,25 @@ const Fleet = () => {
                 extractLitres
                 onExtracted={(result: OcrResult, file: File) => {
                   setReceiptFile(file);
+                  setReceiptScanWarning(
+                    result.lowConfidence
+                      ? "This scan couldn't confidently read an amount or litres off the photo. Double-check it's a clear photo of the receipt, then fill in Amount and Litres yourself — this upload will still be flagged for admin review either way."
+                      : '',
+                  );
                   setReceiptForm((f) => ({
                     ...f,
                     fuel_station_name: result.description || f.fuel_station_name,
+                    amount_ngn: result.amount_ngn || f.amount_ngn,
                     litres_filled: result.litres || f.litres_filled,
                   }));
                 }}
               />
+              {receiptScanWarning && (
+                <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>{receiptScanWarning}</span>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -5975,7 +6077,27 @@ const Fleet = () => {
               />
             </div>
             <div className="space-y-1">
-              <Label>Litres Filled <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Label>Amount Paid <span className="text-destructive">*</span> <span className="text-muted-foreground font-normal text-xs">(confirm or correct)</span></Label>
+              <Input
+                type="number"
+                value={receiptForm.amount_ngn}
+                onChange={(e) => setReceiptForm({ ...receiptForm, amount_ngn: e.target.value })}
+                placeholder="e.g. 50000"
+              />
+              {(() => {
+                const amountNum = parseFloat(receiptForm.amount_ngn);
+                if (!amountNum) return null;
+                const check = checkReceiptRequestDivergence(amountNum, uploadingReceiptFor?.amount_ngn || 0);
+                if (!check.flagged) return null;
+                return (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" /> {check.reason}
+                  </p>
+                );
+              })()}
+            </div>
+            <div className="space-y-1">
+              <Label>Litres Filled <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 value={receiptForm.litres_filled}
@@ -5985,8 +6107,9 @@ const Fleet = () => {
               {(() => {
                 if (!fuelPriceBenchmark) return null;
                 const litresNum = parseFloat(receiptForm.litres_filled);
-                if (!litresNum) return null;
-                const check = checkPumpPrice(uploadingReceiptFor?.amount_ngn || 0, litresNum, fuelPriceBenchmark);
+                const amountNum = parseFloat(receiptForm.amount_ngn);
+                if (!litresNum || !amountNum) return null;
+                const check = checkPumpPrice(amountNum, litresNum, fuelPriceBenchmark);
                 if (!check.flagged) return null;
                 return (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
@@ -6009,7 +6132,7 @@ const Fleet = () => {
             <Button variant="outline" onClick={() => setUploadingReceiptFor(null)}>Cancel</Button>
             <Button
               onClick={submitFuelReceipt}
-              disabled={submittingReceipt || !receiptFile}
+              disabled={submittingReceipt || !receiptFile || !receiptForm.amount_ngn || !receiptForm.litres_filled}
             >
               {submittingReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Upload className="mr-2 h-4 w-4" /> Submit Receipt

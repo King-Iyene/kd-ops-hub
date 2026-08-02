@@ -24,6 +24,13 @@ export interface OcrResult {
   date?: string;         // ISO date string e.g. "2026-05-05"
   description?: string;  // merchant name / first meaningful line
   litres?: string;       // numeric string e.g. "42.5" — fuel receipts only
+  /** True when the scan ran but found none of the decision-critical fields
+   *  (amount, litres). Vendor-line matching alone is too weak a signal to
+   *  trust — almost any document's first text line passes it, which is
+   *  exactly how an ID card photo can "succeed" a scan with nothing useful
+   *  extracted. Callers should treat this as "verify manually", not a hard
+   *  failure. */
+  lowConfidence?: boolean;
 }
 
 interface Props {
@@ -126,7 +133,7 @@ function extractVendor(text: string): string | undefined {
 // Component
 // ---------------------------------------------------------------------------
 
-type ScanState = 'idle' | 'loading' | 'done' | 'error';
+type ScanState = 'idle' | 'loading' | 'done' | 'warning' | 'error';
 
 // Tesseract.js v7's createWorker() swallows load failures internally
 // (worker/createWorker.js ends its init chain with `.catch(() => {})`), so a
@@ -197,18 +204,32 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       );
       await worker.terminate();
 
+      const amount_ngn = extractAmount(text);
+      const litres = shouldExtractLitres ? extractLitres(text) : undefined;
+      // Vendor-line matching accepts the first plausible-looking line of
+      // ANY document — it's how a national ID card photo can extract
+      // "FEDERAL REPUBLIC OF NIGERIA" as a "vendor" and look successful.
+      // Only amount/litres are decision-critical enough to count as real
+      // confidence that this was actually a receipt.
+      const lowConfidence = !amount_ngn && !litres;
       const result: OcrResult = {
-        amount_ngn: extractAmount(text),
-        date:       extractDate(text),
+        amount_ngn,
+        date: extractDate(text),
         description: extractVendor(text),
-        litres:     shouldExtractLitres ? extractLitres(text) : undefined,
+        litres,
+        lowConfidence,
       };
 
-      setScanState('done');
+      if (lowConfidence) {
+        setErrorMsg("Couldn't read an amount or litres off this photo — please check it and fill in the fields manually.");
+        setScanState('warning');
+        setTimeout(() => setScanState('idle'), 6000);
+      } else {
+        setScanState('done');
+        // Reset back to idle after a brief success flash.
+        setTimeout(() => setScanState('idle'), 2500);
+      }
       onExtracted(result, file);
-
-      // Reset back to idle after a brief success flash.
-      setTimeout(() => setScanState('idle'), 2500);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Scan failed — try a clearer photo.');
       setScanState('error');
@@ -220,6 +241,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
     idle:    'Scan receipt',
     loading: `Scanning… ${progress}%`,
     done:    'Scanned!',
+    warning: 'Check photo',
     error:   errorMsg || 'Scan failed',
   }[state];
 
@@ -231,8 +253,9 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
         size="sm"
         className={cn(
           'gap-2 relative overflow-hidden',
-          state === 'done'  && 'border-emerald-500 text-emerald-600 bg-emerald-50',
-          state === 'error' && 'border-destructive text-destructive bg-destructive/5',
+          state === 'done'    && 'border-emerald-500 text-emerald-600 bg-emerald-50',
+          state === 'warning' && 'border-amber-500 text-amber-700 bg-amber-50',
+          state === 'error'   && 'border-destructive text-destructive bg-destructive/5',
         )}
         disabled={state === 'loading'}
         onClick={() => {
@@ -252,13 +275,17 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
           <Loader2 className="h-3.5 w-3.5 animate-spin relative z-10" />
         ) : state === 'done' ? (
           <CheckCircle2 className="h-3.5 w-3.5 relative z-10" />
-        ) : state === 'error' ? (
+        ) : state === 'warning' || state === 'error' ? (
           <AlertTriangle className="h-3.5 w-3.5 relative z-10" />
         ) : (
           <ScanLine className="h-3.5 w-3.5 relative z-10" />
         )}
         <span className="relative z-10 text-xs">{label}</span>
       </Button>
+
+      {state === 'warning' && (
+        <p className="text-[10px] text-amber-700 leading-tight">{errorMsg}</p>
+      )}
 
       <input
         ref={inputRef}

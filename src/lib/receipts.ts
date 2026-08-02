@@ -147,6 +147,32 @@ export function median(values: number[]): number | null {
     : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+export interface AmountDivergenceCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Flags when the amount confirmed on the receipt differs sharply from what
+ * was originally requested — catches a typo'd request amount, or a driver
+ * padding the receipt total after the transfer already went out.
+ */
+export function checkReceiptRequestDivergence(
+  receiptAmountNgn: number,
+  requestedAmountNgn: number,
+): AmountDivergenceCheck {
+  if (!receiptAmountNgn || !requestedAmountNgn) return { flagged: false, reason: null };
+  const deviationPct = Math.abs(receiptAmountNgn - requestedAmountNgn) / requestedAmountNgn;
+  if (deviationPct > 0.2) {
+    const direction = receiptAmountNgn > requestedAmountNgn ? 'more' : 'less';
+    return {
+      flagged: true,
+      reason: `Receipt amount ₦${receiptAmountNgn.toLocaleString()} is ${Math.round(deviationPct * 100)}% ${direction} than the ₦${requestedAmountNgn.toLocaleString()} requested`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
 /** True when a new odometer reading is implausible relative to the last known one. */
 export function checkOdometerRegression(newOdometer: number, lastKnownOdometer: number | null): string | null {
   if (lastKnownOdometer == null) return null;
