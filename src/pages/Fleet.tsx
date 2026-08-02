@@ -56,7 +56,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -74,6 +74,7 @@ import {
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
 import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, blendBenchmark, median } from '@/lib/receipts';
+import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 
 interface FieldStaff {
@@ -138,6 +139,7 @@ interface FuelRequest {
   receipt_amount_ngn: number | null;
   receipt_sha256: string | null;
   receipt_original_sha256: string | null;
+  receipt_has_exif: boolean | null;
   budget_exception: boolean;
   budget_exception_by: string | null;
   budget_exception_at: string | null;
@@ -1521,6 +1523,15 @@ const Fleet = () => {
   const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' });
   const [receiptScanWarning, setReceiptScanWarning] = useState('');
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
+
+  // Tamper-analysis (ELA) — an on-demand, admin-triggered visual aid.
+  // Never runs automatically and never sets a flag on its own; see
+  // receiptForensics.ts for why an automated pass/fail threshold here
+  // would be unreliable.
+  const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
+  const [elaResult, setElaResult] = useState<{ heatmapDataUrl: string } | null>(null);
+  const [elaLoading, setElaLoading] = useState(false);
+  const [elaError, setElaError] = useState('');
 
   // Phase 1 — vehicle & weekly budget state
   const [vehicles, setVehicles] = useState<VehicleSummary[]>([]);
@@ -3204,6 +3215,21 @@ const Fleet = () => {
     fetchData();
   };
 
+  const openElaAnalysis = async (id: string, url: string) => {
+    setElaTarget({ id, url });
+    setElaResult(null);
+    setElaError('');
+    setElaLoading(true);
+    try {
+      const result = await generateElaHeatmap(url);
+      setElaResult({ heatmapDataUrl: result.heatmapDataUrl });
+    } catch (err: any) {
+      setElaError(err?.message || "Couldn't generate analysis for this image.");
+    } finally {
+      setElaLoading(false);
+    }
+  };
+
   const submitFuelReceipt = async () => {
     if (!uploadingReceiptFor || !receiptFile) {
       toast({ title: 'Please select a receipt file', variant: 'destructive' });
@@ -3218,6 +3244,11 @@ const Fleet = () => {
       // detection; receiptSha256 (below, post-watermark) stays the
       // tamper-evidence hash matched against what's actually in storage.
       const originalSha256 = await hashFile(receiptFile);
+      // Informational only — see receiptForensics.ts for why this must
+      // never drive is_anomaly on its own. Also read on the raw file:
+      // watermarking/compression re-encodes via canvas, which strips
+      // EXIF from every image regardless of origin.
+      const hasExif = await hasJpegExif(receiptFile);
       const watermarked = await watermarkImage(receiptFile, { driverName: profile?.full_name || 'Employee' });
       const receiptSha256 = await hashFile(watermarked);
       const compressed = await compressImage(watermarked);
@@ -3260,7 +3291,14 @@ const Fleet = () => {
       if (divergenceCheck.flagged && divergenceCheck.reason) flags.push({ type: 'amount_mismatch', reason: divergenceCheck.reason });
       if (receiptScanWarning) flags.push({ type: 'ocr_low_confidence', reason: 'Automatic scan could not read an amount or litres off this receipt' });
 
-      const noteParts = [receiptForm.notes.trim(), ...flags.map((f) => `⚠ ${f.reason}`)].filter(Boolean);
+      // EXIF absence is too common on legitimate photos (WhatsApp/Telegram
+      // strip it) to justify a flag on its own — it only ever rides along
+      // as extra context on a receipt something else has already flagged.
+      const noteParts = [
+        receiptForm.notes.trim(),
+        ...flags.map((f) => `⚠ ${f.reason}`),
+        ...(flags.length > 0 && hasExif === false ? ['ℹ No camera metadata found on this photo'] : []),
+      ].filter(Boolean);
       const existingAnomalyType = uploadingReceiptFor.anomaly_type;
       const newAnomalyTypes = Array.from(new Set([
         ...(existingAnomalyType ? existingAnomalyType.split(',') : []),
@@ -3274,6 +3312,7 @@ const Fleet = () => {
           receipt_url: urlData.publicUrl,
           receipt_sha256: receiptSha256,
           receipt_original_sha256: originalSha256,
+          receipt_has_exif: hasExif,
           receipt_amount_ngn: amountNum || null,
           fuel_station_name: receiptForm.fuel_station_name.trim() || null,
           litres_filled: parseFloat(receiptForm.litres_filled) || null,
@@ -3944,6 +3983,17 @@ const Fleet = () => {
                                   label="View Receipt"
                                   fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
                                 />
+                              )}
+                              {r.receipt_url && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs"
+                                  title="Visual aid only — not proof of anything, use your judgment"
+                                  onClick={() => openElaAnalysis(r.id, r.receipt_url!)}
+                                >
+                                  <Search className="h-3 w-3 mr-1" /> Tamper Analysis
+                                </Button>
                               )}
                               <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
                                 <Check className="h-3 w-3 mr-1" /> Complete
@@ -6138,6 +6188,40 @@ const Fleet = () => {
               <Upload className="mr-2 h-4 w-4" /> Submit Receipt
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tamper-analysis (ELA) preview — on-demand visual aid, not a verdict. */}
+      <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tamper Analysis</DialogTitle>
+            <DialogDescription>
+              Highlights areas that carry a different compression history than the rest of the photo.
+              This is a visual aid, not proof of tampering — ordinary re-compression (e.g. a receipt
+              forwarded through WhatsApp) produces similar patterns. Use your judgment alongside other context.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {elaLoading && (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating analysis…
+              </div>
+            )}
+            {elaError && (
+              <div className="flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{elaError}</span>
+              </div>
+            )}
+            {elaResult && (
+              <img
+                src={elaResult.heatmapDataUrl}
+                alt="Error-level analysis heatmap"
+                className="w-full rounded-md border"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
