@@ -4,16 +4,21 @@
  * Shown before any batch is dispatched (BatchDetail.handleProcess, QuickPay,
  * Expenses, Fleet auto-pay, etc.) so the operator sees:
  *   - Total amount that will be paid out
- *   - Paystack transfer fees + ₦50 stamp duty (≥ ₦10,000 transfers)
- *   - Grand total deducted from the Paystack balance
- *   - Whether the current Paystack balance covers the run
+ *   - Transfer fees + ₦50 stamp duty (≥ ₦10,000 transfers) — same fee
+ *     schedule for both providers in Nigeria, so the NUMBER is correct
+ *     either way; the LABEL is provider-aware (reads
+ *     company_settings.active_payment_provider)
+ *   - Grand total deducted from the active provider's balance
+ *   - Whether the active provider's CURRENT balance covers the run —
+ *     fetched via the same provider (was hardcoded to Paystack; checked
+ *     the wrong wallet whenever Flutterwave was active)
  *   - A live preview of what each recipient will see on their bank statement
  *   - The fields that will appear on each receipt (so non-tech users know
  *     exactly what's being recorded)
  *
  * The modal is fully self-contained: pass an array of items and a kind, and
- * it does its own balance fetch and fee math. Callers receive an onConfirm
- * callback when the operator agrees to proceed.
+ * it does its own provider lookup, balance fetch, and fee math. Callers
+ * receive an onConfirm callback when the operator agrees to proceed.
  */
 
 import { useEffect, useState } from 'react';
@@ -36,9 +41,10 @@ import { formatNaira } from '@/lib/format';
 import {
   batchCostBreakdown,
   buildNarration,
-  getPaystackBalance,
   type NarrationKind,
 } from '@/lib/paystack';
+import { getProviderBalance, providerLabel, type Provider } from '@/lib/payments/item-facade';
+import { supabase } from '@/lib/supabase';
 
 export interface PaymentSummaryItem {
   /** Recipient display name shown in the preview list. */
@@ -100,15 +106,35 @@ export function PaymentSummaryModal({
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [customNarration, setCustomNarration] = useState('');
+  // Which provider will actually pay this batch — was previously hardcoded
+  // to Paystack, so this modal checked the WRONG wallet's balance whenever
+  // Flutterwave was the active provider (an operator could see "insufficient
+  // Paystack balance" while Flutterwave had plenty, or vice versa — the
+  // check was meaningless either way once Flutterwave went live).
+  const [activeProvider, setActiveProvider] = useState<Provider>('paystack');
 
   useEffect(() => {
     if (!open) return;
     setBalanceLoading(true);
     setBalanceError(null);
-    getPaystackBalance()
-      .then((b) => setBalance(b.available))
-      .catch((e) => setBalanceError(e?.message || 'Could not check balance'))
-      .finally(() => setBalanceLoading(false));
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('company_settings')
+          .select('active_payment_provider')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle();
+        const provider: Provider = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+        setActiveProvider(provider);
+        const b = await getProviderBalance(provider);
+        if (b.error) throw new Error(b.error);
+        setBalance(b.available);
+      } catch (e: any) {
+        setBalanceError(e?.message || 'Could not check balance');
+      } finally {
+        setBalanceLoading(false);
+      }
+    })();
   }, [open]);
 
   const cost = batchCostBreakdown(
@@ -170,7 +196,7 @@ export function PaymentSummaryModal({
         <div className="space-y-1 rounded-lg border bg-muted/30 p-4 text-sm">
           <Row label={`Recipients (${cost.recipientCount})`} value={formatNaira(cost.totalAmount)} />
           <Row
-            label={`Paystack transfer fees`}
+            label={`${providerLabel(activeProvider)} transfer fees`}
             value={formatNaira(cost.paystackFees)}
             muted
           />
@@ -179,7 +205,7 @@ export function PaymentSummaryModal({
               label={
                 <span className="flex items-center gap-1">
                   Stamp duty (₦50 × transfers ≥ ₦10,000)
-                  <InfoTip text="Government levy under the Nigeria Tax Act 2025. Deducted by Paystack from your balance." />
+                  <InfoTip text={`Government levy under the Nigeria Tax Act 2025. Deducted by ${providerLabel(activeProvider)} from your balance.`} />
                 </span>
               }
               value={formatNaira(cost.stampDuty)}
@@ -196,7 +222,7 @@ export function PaymentSummaryModal({
         {/* Balance check */}
         <div className="rounded-lg border p-4 text-sm space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Paystack balance</span>
+            <span className="text-muted-foreground">{providerLabel(activeProvider)} balance</span>
             <span>
               {balanceLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

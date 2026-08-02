@@ -95,21 +95,29 @@ function actualDisbursed(
  * Avoids unnecessary DB hits when no batches need item-level reconciliation.
  */
 /**
- * Sums the real Paystack transfer fee per batch from batch_items.
- * Only uses rows where paystack_fee_ngn > 0 (populated by webhook) and
- * status = 'succeeded' — failed transfers get their fee refunded by Paystack.
+ * Sums the real provider transfer fee per batch from batch_items.
+ * Only uses rows where a fee is recorded (populated by webhook) and
+ * status = 'succeeded' — failed transfers get their fee refunded.
+ *
+ * Provider-aware: previously this only selected/filtered on
+ * paystack_fee_ngn, so every Flutterwave-dispatched batch (whose real fee
+ * lives in flutterwave_fee_ngn — paystack_fee_ngn is always 0 for those
+ * rows) was silently excluded from every fee total on this page — P&L,
+ * "Payment costs", the fees stat card, all undercounted once Flutterwave
+ * carried any volume. Now sums whichever column is non-zero per row.
  */
 async function fetchFeesByBatch(batchIds: string[]): Promise<Map<string, number>> {
   if (batchIds.length === 0) return new Map();
   const { data } = await supabase
     .from('batch_items')
-    .select('batch_id, paystack_fee_ngn')
+    .select('batch_id, paystack_fee_ngn, flutterwave_fee_ngn')
     .in('batch_id', batchIds)
     .eq('status', 'succeeded')
-    .gt('paystack_fee_ngn', 0);
+    .or('paystack_fee_ngn.gt.0,flutterwave_fee_ngn.gt.0');
   const sums = new Map<string, number>();
   for (const it of (data || []) as any[]) {
-    sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + Number(it.paystack_fee_ngn || 0));
+    const fee = Number(it.paystack_fee_ngn || 0) || Number(it.flutterwave_fee_ngn || 0);
+    sums.set(it.batch_id, (sums.get(it.batch_id) ?? 0) + fee);
   }
   return sums;
 }

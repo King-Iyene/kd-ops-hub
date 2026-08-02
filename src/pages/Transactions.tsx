@@ -270,14 +270,18 @@ const Transactions = () => {
   useEffect(() => {
     const candidates = pagination.slice.filter((r) => {
       const ledger = LEDGER_STATUS[r.status] || r.status;
-      // Only call verify_transfer with a real Paystack-shaped reference.
+      // Only call verify_transfer with a real provider-shaped reference.
       // The transactions_view falls back to the item UUID when no ref is
-      // recorded — a UUID would 404 and waste the round-trip.
+      // recorded — a UUID would 404 and waste the round-trip. Previously
+      // this regex only matched Paystack shapes (kdops_ / TRF_), which
+      // correctly excluded kdopsfw_ (Flutterwave) refs from a WRONG-API
+      // call — but also meant Flutterwave fees never lazy-backfilled here.
+      // Now matches either shape and routes to the correct provider below.
       const ref = r.reference || '';
-      const looksLikePsRef = /^(kdops_|TRF_)/i.test(ref);
+      const looksLikeRef = /^(kdops_|kdopsfw_|TRF_)/i.test(ref);
       return ledger === 'succeeded'
         && (!r.paystack_fee_ngn || Number(r.paystack_fee_ngn) === 0)
-        && looksLikePsRef
+        && looksLikeRef
         && !backfilledRefs.current.has(r.id);
     });
     if (candidates.length === 0) return;
@@ -285,21 +289,24 @@ const Transactions = () => {
     let cancelled = false;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      // Sequential to avoid hammering Paystack — these are diagnostic
+      // Sequential to avoid hammering the provider — these are diagnostic
       // backfills, not on the critical path. Each call ~250ms.
       for (const r of candidates) {
         if (cancelled) break;
         try {
-          const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+          const isFlutterwave = String(r.reference || '').toLowerCase().startsWith('kdopsfw_');
+          const fnName = isFlutterwave ? 'flutterwave-transfer' : 'paystack-transfer';
+          const { data, error } = await supabase.functions.invoke(fnName, {
             body: { action: 'verify_transfer', reference: r.reference },
             headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
           });
           if (error) continue;
-          const d: any = data;
+          const d: any = data?.data ?? data;
           const feeNgn = Number(d?.fee_ngn || 0)
             || (Number(d?.raw?.fee || 0) > 0 ? Number(d.raw.fee) / 100 : 0);
           if (feeNgn > 0) {
-            await supabase.from('batch_items').update({ paystack_fee_ngn: feeNgn }).eq('id', r.id);
+            const feeColumn = isFlutterwave ? 'flutterwave_fee_ngn' : 'paystack_fee_ngn';
+            await supabase.from('batch_items').update({ [feeColumn]: feeNgn }).eq('id', r.id);
             if (!cancelled) {
               setRows((prev) => prev.map((row) =>
                 row.id === r.id ? { ...row, paystack_fee_ngn: feeNgn } : row,
