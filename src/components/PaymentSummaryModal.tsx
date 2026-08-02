@@ -112,13 +112,6 @@ export function PaymentSummaryModal({
   // Paystack balance" while Flutterwave had plenty, or vice versa — the
   // check was meaningless either way once Flutterwave went live).
   const [activeProvider, setActiveProvider] = useState<Provider>('paystack');
-  // Flutterwave's test-mode wallet is play money (top up via "Simulate
-  // top-up" in their dashboard) — an operator testing the flow shouldn't
-  // be HARD-BLOCKED by a ₦0 test balance the way they must be for real
-  // money. Live mode (and Paystack, which has no test/live split here)
-  // keeps the strict block. Test mode still shows the warning — it's
-  // just not a submit-blocker.
-  const [flutterwaveMode, setFlutterwaveMode] = useState<'test' | 'live'>('test');
 
   useEffect(() => {
     if (!open) return;
@@ -128,12 +121,11 @@ export function PaymentSummaryModal({
       try {
         const { data } = await supabase
           .from('company_settings')
-          .select('active_payment_provider, flutterwave_mode')
+          .select('active_payment_provider')
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle();
         const provider: Provider = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
         setActiveProvider(provider);
-        setFlutterwaveMode((data as any)?.flutterwave_mode === 'live' ? 'live' : 'test');
         const b = await getProviderBalance(provider);
         if (b.error) throw new Error(b.error);
         setBalance(b.available);
@@ -150,14 +142,7 @@ export function PaymentSummaryModal({
     exempt,
   );
   const balanceAfter = balance != null ? balance - cost.grandTotal : null;
-  const balanceInsufficient = balanceAfter != null && balanceAfter < 0;
-  // Only hard-block the Send button on real money: Paystack (always live)
-  // or Flutterwave in live mode. Flutterwave test-mode balance is play
-  // money — the operator is warned (banner still shows) but not stopped,
-  // since a ₦0 test wallet is expected until they fund it via Flutterwave's
-  // "Simulate top-up" and shouldn't prevent testing the dispatch flow.
-  const isRealMoney = activeProvider === 'paystack' || flutterwaveMode === 'live';
-  const balanceShort = balanceInsufficient && isRealMoney;
+  const balanceShort = balanceAfter != null && balanceAfter < 0;
   const balanceTight = balanceAfter != null && balanceAfter >= 0 && balanceAfter < LOW_BALANCE_HEADROOM;
 
   const sampleRecipient = items[0]?.full_name || 'John Doe';
@@ -251,7 +236,7 @@ export function PaymentSummaryModal({
           {balance != null && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Balance after this payment</span>
-              <span className={balanceInsufficient ? (isRealMoney ? 'text-destructive font-semibold' : 'text-warning font-semibold') : balanceTight ? 'text-warning font-semibold' : ''}>
+              <span className={balanceShort ? 'text-destructive font-semibold' : balanceTight ? 'text-warning font-semibold' : ''}>
                 {formatNaira(balanceAfter ?? 0)}
               </span>
             </div>
@@ -266,22 +251,9 @@ export function PaymentSummaryModal({
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Insufficient balance</AlertTitle>
               <AlertDescription>
-                Top up your {providerLabel(activeProvider)} wallet by at least{' '}
+                Top up your Paystack wallet by at least{' '}
                 <strong>{formatNaira(Math.abs(balanceAfter ?? 0))}</strong>{' '}
                 before processing, otherwise some transfers will fail.
-              </AlertDescription>
-            </Alert>
-          )}
-          {balanceInsufficient && !isRealMoney && (
-            <Alert className="mt-2 border-warning/40 bg-warning/10">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Flutterwave TEST wallet is low</AlertTitle>
-              <AlertDescription>
-                This is play money, not blocking — but the actual transfer
-                will still fail at Flutterwave if the test wallet can't
-                cover it. Fund it via Flutterwave dashboard → Wallet →
-                "Simulate top-up" if you want this test to succeed
-                end-to-end.
               </AlertDescription>
             </Alert>
           )}
