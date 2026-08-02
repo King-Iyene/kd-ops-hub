@@ -4835,9 +4835,9 @@ const Fleet = () => {
                   </div>
                   {vehicles.length > 0 && (
                     <div className="space-y-1.5">
-                      <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                      <Label>Vehicle <span className="text-destructive">*</span></Label>
                       <Select value={fuelVehicleId} onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}>
-                        <SelectTrigger><SelectValue placeholder="Select vehicle (optional)" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                         <SelectContent>
                           {vehicles.map((v) => (
                             <SelectItem key={v.id} value={v.id}>
@@ -4997,12 +4997,12 @@ const Fleet = () => {
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => setShowFuelForm(false)}>Cancel</Button>
                   {isOverBudget ? (
-                    <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50" onClick={() => submitFuelRequest(true)} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}>
+                    <Button variant="outline" className="border-amber-400 text-amber-700 hover:bg-amber-50" onClick={() => submitFuelRequest(true)} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn || !fuelVehicleId}>
                       {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Request Budget Exception
                     </Button>
                   ) : (
-                    <Button onClick={() => submitFuelRequest()} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn}>
+                    <Button onClick={() => submitFuelRequest()} disabled={submitting || !fuelForm.employee_id || !fuelForm.station_name || !fuelForm.amount_ngn || !fuelVehicleId}>
                       {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Submit Request
                     </Button>
@@ -6088,7 +6088,7 @@ const Fleet = () => {
             <div className="space-y-3">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vehicle & service</Label>
               <div className="space-y-1.5">
-                <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+                <Label>Vehicle <span className="text-destructive">*</span></Label>
                 <Select
                   value={repairForm.vehicle_id || '__none__'}
                   onValueChange={(v) => {
@@ -6099,7 +6099,6 @@ const Fleet = () => {
                 >
                   <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none__">Not linked to a vehicle</SelectItem>
                     {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
                   </SelectContent>
                 </Select>
@@ -6170,7 +6169,7 @@ const Fleet = () => {
               </div>
               <div className="space-y-1.5">
                 <Label>
-                  Receipt {parseFloat(repairForm.amount_ngn) > 10000 ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-xs font-normal">(optional — you can attach it later, but you won't be able to submit another repair until you do)</span>}
+                  Receipt <span className="text-muted-foreground text-xs font-normal">(optional)</span>
                 </Label>
                 <label className={cn('flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 cursor-pointer kd-transition', repairReceipt ? 'border-green-400 bg-green-50 dark:bg-green-950/20' : 'border-border hover:border-primary/40 hover:bg-muted/30')}>
                   <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)} />
@@ -6205,7 +6204,7 @@ const Fleet = () => {
             <Button variant="outline" onClick={() => setShowRepairForm(false)}>Cancel</Button>
             <Button
               onClick={submitRepairRequest}
-              disabled={submitting || !repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn}
+              disabled={submitting || !repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn || !repairForm.vehicle_id}
               className="min-w-[130px]"
             >
               {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wrench className="mr-2 h-4 w-4" />}
