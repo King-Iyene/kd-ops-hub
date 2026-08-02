@@ -3601,6 +3601,7 @@ export type Database = {
           payment_sent_at: string | null
           reason: string | null
           receipt_amount_ngn: number | null
+          receipt_has_exif: boolean | null
           receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
@@ -3637,6 +3638,7 @@ export type Database = {
           payment_sent_at?: string | null
           reason?: string | null
           receipt_amount_ngn?: number | null
+          receipt_has_exif?: boolean | null
           receipt_original_sha256?: string | null
           receipt_sha256?: string | null
           receipt_url?: string | null
@@ -3673,6 +3675,7 @@ export type Database = {
           payment_sent_at?: string | null
           reason?: string | null
           receipt_amount_ngn?: number | null
+          receipt_has_exif?: boolean | null
           receipt_original_sha256?: string | null
           receipt_sha256?: string | null
           receipt_url?: string | null
