@@ -1,10 +1,25 @@
 # Pre-applied legacy migrations
 
-These three files are **already applied** to the production Supabase
+These five files are **already applied** to the production Supabase
 database (`supabase_migrations.schema_migrations` has their version rows).
 They live in this subfolder — not the top-level `supabase/migrations/`
 scan path — so the Supabase CLI stops trying to re-reconcile them on
 every `supabase db push`.
+
+## 2026-08-01 update — two more files moved here
+
+`20260811000000_approval_framework.sql` and `20260813000000_payment_state_rpcs.sql`
+were originally kept at the top level and re-applied on every push via
+`--include-all`. That worked with older Supabase CLI versions because
+`migration repair --status reverted` DELETED the schema_migrations row.
+The newer CLI (2.110+) treats `repair --status reverted` as a status
+update — the row remains — so `db push --include-all` collides on the
+PK when it tries to re-INSERT.
+
+Both files are idempotent (all DDL uses `IF NOT EXISTS` / `CREATE OR
+REPLACE`) and their SQL is live in production, so moving them here is
+safe. Any future changes to their contracts should ship as a NEW
+migration file with a later timestamp, not by editing these.
 
 ## Why they got moved
 

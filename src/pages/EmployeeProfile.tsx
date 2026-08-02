@@ -4,7 +4,7 @@ import {
   ArrowLeft, Mail, Phone, CalendarDays, Save, Loader2, Briefcase,
   FileText, Shield, Trash2, TrendingUp, TrendingDown, Plus, Download,
   ChevronDown, AlertTriangle, ExternalLink, Camera, History, CheckCircle2, XCircle,
-  ClipboardList, Activity, Receipt,
+  ClipboardList, Activity, Receipt, Wallet, Package, HeartPulse,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import OffboardingTab from '@/components/employee/OffboardingTab';
@@ -14,7 +14,9 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
-import { openPayslipPrintWindow, downloadPayslipPdfFromHtml } from '@/lib/payslip';
+import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
+import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
+import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
@@ -121,6 +123,7 @@ interface EmployeeData {
   contract_start_date: string | null;
   contract_end_date: string | null;
   pfa_name: string | null;
+  pfa_code: string | null;
   state_of_residence: string | null;
 }
 
@@ -153,6 +156,9 @@ const EmployeeProfile = () => {
   const [increments, setIncrements] = useState<any[]>([]);
   const [advances, setAdvances] = useState<any[]>([]);
   const [deductions, setDeductions] = useState<any[]>([]);
+  const [benefits, setBenefits] = useState<any[]>([]);
+  const [assignedAssets, setAssignedAssets] = useState<any[]>([]);
+  const [nsitfEnabled, setNsitfEnabled] = useState(true);
   const [showDeductionDialog, setShowDeductionDialog] = useState(false);
   const [savingDeduction, setSavingDeduction] = useState(false);
   const [deductionForm, setDeductionForm] = useState({
@@ -170,7 +176,7 @@ const EmployeeProfile = () => {
     reason: '',
     effective_date: new Date().toISOString().slice(0, 10),
   });
-  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'>('job_pay');
+  const [activeTab, setActiveTab] = useState<'job_pay'|'personal'|'statutory'|'documents'|'tasks'|'logs'|'leave'|'expenses'|'payroll'|'increments'|'permissions'|'advances'|'deductions'|'offboarding'|'total_cost'>('job_pay');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
@@ -218,39 +224,58 @@ const EmployeeProfile = () => {
     setEditingSection(null);
   };
 
+  // Shared fallback data for payslips with no stored HTML (e.g. legacy
+  // batch-item payslips) — rendered fresh client-side from the raw figures.
+  const fallbackPayslipData = (slip: any) => ({
+    company_name: companySetting.company_name,
+    logo_url: companySetting.logo_url,
+    employee_name: slip.employee_name || employee?.full_name || '',
+    employee_email: employee?.email || slip.employee_email || null,
+    employee_role: employee?.role || null,
+    employee_number: employee?.employee_number || null,
+    bank_name: employee?.bank_name || null,
+    bank_account: employee?.bank_account_number || null,
+    period: slip.period || '',
+    gross_ngn: Number(slip.gross_ngn || 0),
+    paye_ngn: Number(slip.paye_ngn || 0),
+    pension_ngn: Number(slip.pension_ngn || 0),
+    nhf_ngn: Number(slip.nhf_ngn || 0),
+    net_ngn: Number(slip.net_ngn || 0),
+    generated_by: currentUser?.full_name || currentUser?.email || null,
+    payslip_ref: slip.id?.slice(0, 8).toUpperCase() || null,
+  });
+
+  const previewPayslip = async (slip: any) => {
+    if (!slip.storage_path && !slip.file_url) {
+      openPayslipPrintWindow(fallbackPayslipData(slip), { autoPrint: false });
+      return;
+    }
+    // Real payroll-module payslips are stored as fully-rendered HTML —
+    // open that exact document rather than re-rendering it from scratch,
+    // so what you preview always matches what was actually generated.
+    const path = slip.storage_path || slip.file_url;
+    const { data, error } = await supabase.storage.from('payslips').download(path);
+    if (error) { toast({ title: 'Could not open payslip', description: error.message, variant: 'destructive' }); return; }
+    const html = await data.text();
+    openStoredPayslipHtml(html);
+  };
+
   const downloadPayslip = async (slip: any) => {
     // Batch-item payslips have no stored file — generate HTML client-side
     if (!slip.storage_path && !slip.file_url) {
-      openPayslipPrintWindow({
-        company_name: companySetting.company_name,
-        logo_url: companySetting.logo_url,
-        employee_name: slip.employee_name || employee?.full_name || '',
-        employee_email: employee?.email || slip.employee_email || null,
-        employee_role: employee?.role || null,
-        employee_number: employee?.employee_number || null,
-        bank_name: employee?.bank_name || null,
-        bank_account: employee?.bank_account_number || null,
-        period: slip.period || '',
-        gross_ngn: Number(slip.gross_ngn || 0),
-        paye_ngn: Number(slip.paye_ngn || 0),
-        pension_ngn: Number(slip.pension_ngn || 0),
-        nhf_ngn: Number(slip.nhf_ngn || 0),
-        net_ngn: Number(slip.net_ngn || 0),
-        generated_by: currentUser?.full_name || currentUser?.email || null,
-        payslip_ref: slip.id?.slice(0, 8).toUpperCase() || null,
-      });
+      openPayslipPrintWindow(fallbackPayslipData(slip));
       return;
     }
-    // Payroll-module payslips are stored as HTML in Supabase Storage — render
-    // them to a real PDF download (same path as the employee self-service view).
+    // Payroll-module payslips are stored as HTML in Supabase Storage —
+    // download that exact document (same path as the employee self-service view).
     const path = slip.storage_path || slip.file_url;
     const { data, error } = await supabase.storage.from('payslips').download(path);
     if (error) { toast({ title: 'Download failed', description: error.message, variant: 'destructive' }); return; }
     try {
       const html = await data.text();
-      await downloadPayslipPdfFromHtml(html, `payslip-${slip.period || path.split('/').pop()}`);
+      downloadStoredPayslipHtml(html, `payslip-${slip.period || path.split('/').pop()}`);
     } catch {
-      // Fallback: hand back the raw stored file if PDF rendering fails.
+      // Fallback: hand back the raw stored file if reading it as text fails.
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
@@ -323,14 +348,15 @@ const EmployeeProfile = () => {
       .catch(() => { /* dropdown degrades to empty */ });
 
     // Company settings for payslip generation
-    supabase.from('company_settings').select('company_name, logo_url')
+    supabase.from('company_settings').select('company_name, logo_url, nsitf_enabled')
       .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
       .then(({ data: cs }) => {
         if (cs) setCompanySetting({ company_name: (cs as any).company_name || 'KD Squares Ltd', logo_url: (cs as any).logo_url || null });
+        setNsitfEnabled((cs as any)?.nsitf_enabled !== false);
       })
       .catch(() => { /* company name is cosmetic on the payslip */ });
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, benefitRes, assetRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
@@ -359,6 +385,14 @@ const EmployeeProfile = () => {
       supabase.from('employee_deductions').select('*')
         .eq('entity_id', id).eq('entity_type', 'employee')
         .order('created_at', { ascending: false }).limit(20),
+      // Benefits the company pays a real premium for (HMO, group life, etc).
+      // Excludes 'pension_pfa' rows — pension employer cost is derived from
+      // payslips instead, so summing both here would double-count it.
+      supabase.from('employee_benefits').select('benefit_type, premium_ngn, premium_frequency, status')
+        .eq('employee_id', id).eq('status', 'active'),
+      // Equipment currently assigned — book value only, not a recurring cost.
+      supabase.from('assets').select('id, name, category, cost_ngn')
+        .eq('assigned_to', id).is('disposal_date', null).is('deleted_at', null),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -369,6 +403,8 @@ const EmployeeProfile = () => {
     setIncrements(incrRes.data || []);
     setAdvances(advRes.data || []);
     setDeductions(deductRes.data || []);
+    setBenefits(benefitRes.data || []);
+    setAssignedAssets(assetRes.data || []);
     setLoading(false);
   }, [id, navigate, toast]);
 
@@ -857,6 +893,40 @@ const EmployeeProfile = () => {
   const isSuperAdmin = currentUser?.role === 'super_admin';
   const canFinance   = ['super_admin', 'admin', 'finance'].includes(currentUser?.role ?? '');
 
+  // ── Total cost of employment (trailing 12 months) ────────────────────────
+  // Payroll: employer pension is back-derived from the employee-side pension
+  // actually withheld on each payslip (pension_ngn × 1.25 = 10%/8%), so it
+  // reflects what was really withheld that period rather than re-estimating
+  // from today's salary structure. NSITF has no employee-side figure to back
+  // out of, so it's recomputed from gross at the current company toggle —
+  // the one figure here that assumes today's setting applied throughout.
+  // Loans and advances are deliberately excluded: they're repayable cash the
+  // employee already owes back, not new cost to the company.
+  const costCutoff = new Date();
+  costCutoff.setMonth(costCutoff.getMonth() - 12);
+  const payslipsInRange = payslips.filter((p: any) => p.created_at && new Date(p.created_at) >= costCutoff);
+  const payrollGross          = payslipsInRange.reduce((s: number, p: any) => s + Number(p.gross_ngn || 0), 0);
+  const payrollEmployerPension = payslipsInRange.reduce((s: number, p: any) => s + Number(p.pension_ngn || 0) * 1.25, 0);
+  const payrollEmployerNsitf   = nsitfEnabled ? Math.round(payrollGross * 0.01) : 0;
+  const payrollTotal = payrollGross + payrollEmployerPension + payrollEmployerNsitf;
+
+  const approvedExpenses = expenses.filter((e: any) => e.status === 'approved' && (!e.date || new Date(e.date) >= costCutoff));
+  const expensesTotal = approvedExpenses.reduce((s: number, e: any) => s + Number(e.amount_ngn || 0), 0);
+
+  // Benefits: only HMO / group life / other are real employer spend — pension_pfa
+  // rows are excluded because employer pension cost is already counted above.
+  const BENEFIT_MONTHS: Record<string, number> = { monthly: 1, quarterly: 3, annually: 12 };
+  const costedBenefits = benefits.filter((b: any) => b.benefit_type !== 'pension_pfa');
+  const benefitsMonthly = costedBenefits.reduce((s: number, b: any) => {
+    const months = BENEFIT_MONTHS[b.premium_frequency] || 1;
+    return s + Number(b.premium_ngn || 0) / months;
+  }, 0);
+  const benefitsAnnualized = benefitsMonthly * 12;
+
+  const assetsBookValue = assignedAssets.reduce((s: number, a: any) => s + Number(a.cost_ngn || 0), 0);
+
+  const totalCostOfEmployment = payrollTotal + expensesTotal + benefitsAnnualized;
+
   // Role-editing guards.
   const isSelf = currentUser?.id === id;
   const targetRoleIsAdminOrAbove = ['admin', 'super_admin'].includes(employee?.role ?? '');
@@ -865,8 +935,8 @@ const EmployeeProfile = () => {
   const canEditRole = !isSelf && (isSuperAdmin || (canManage && !targetRoleIsAdminOrAbove));
   // Roles that the current user is allowed to assign.
   const assignableRoles = isSuperAdmin
-    ? ['super_admin', 'admin', 'finance', 'operations', 'field_staff']
-    : ['finance', 'operations', 'field_staff'];
+    ? ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver']
+    : ['finance', 'operations', 'field_staff', 'driver'];
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -1062,6 +1132,19 @@ const EmployeeProfile = () => {
             )}
           >
             {`Advances (${advances.filter((a) => a.status === 'active').length})`}
+          </button>
+        )}
+        {canFinance && (
+          <button
+            onClick={() => setActiveTab('total_cost')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'total_cost'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            Total Cost
           </button>
         )}
         {canManage && (
@@ -1342,6 +1425,7 @@ const EmployeeProfile = () => {
                         reporting_manager_id: form.reporting_manager_id || null,
                         contract_end_date: form.contract_end_date || null,
                         pfa_name: form.pfa_name || null,
+                        pfa_code: form.pfa_code || null,
                         state_of_residence: form.state_of_residence || null,
                       })}
                       disabled={sectionSaving}
@@ -1392,6 +1476,7 @@ const EmployeeProfile = () => {
                                   : r === 'admin' ? 'Admin'
                                   : r === 'finance' ? 'Finance'
                                   : r === 'operations' ? 'Operations'
+                                  : r === 'driver' ? 'Driver'
                                   : 'Field Staff'}
                               </SelectItem>
                             ))}
@@ -1505,6 +1590,19 @@ const EmployeeProfile = () => {
                           placeholder="e.g. ARM Pension, Stanbic IBTC"
                         />
                       </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">PFA code</Label>
+                        <Input
+                          value={form.pfa_code || ''}
+                          onChange={(e) => patch({ pfa_code: e.target.value || null })}
+                          placeholder="e.g. PENCOM-issued PSSP code"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Required on the PenCom PSSP schedule export.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs">State of residence</Label>
                         <Select
@@ -1620,6 +1718,12 @@ const EmployeeProfile = () => {
                       <dt className="text-muted-foreground">PFA</dt>
                       <dd className="font-medium">{employee.pfa_name || '—'}</dd>
                     </div>
+                    {employee.pfa_code && (
+                      <div className="flex items-center justify-between text-sm">
+                        <dt className="text-muted-foreground">PFA code</dt>
+                        <dd className="font-mono text-xs">{employee.pfa_code}</dd>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">State of residence</dt>
                       <dd className="font-medium">{employee.state_of_residence || '—'}</dd>
@@ -1798,16 +1902,29 @@ const EmployeeProfile = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Button
-                      size="sm"
-                      className="w-full gap-1.5"
-                      onClick={() => {
-                        const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
-                        if (slip) downloadPayslip(slip);
-                      }}
-                    >
-                      <Download className="h-3.5 w-3.5" /> Download Payslip
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
+                          if (slip) previewPayslip(slip);
+                        }}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> Preview
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5"
+                        onClick={() => {
+                          const slip = payslips.find((p: any) => p.id === (selectedPayslipId || payslips[0]?.id));
+                          if (slip) downloadPayslip(slip);
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" /> Download
+                      </Button>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -2230,7 +2347,22 @@ const EmployeeProfile = () => {
       )}
 
       {activeTab === 'documents' && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
+          {/* Signed HR documents (offer letters, contracts, policy acks…) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Signed HR documents</CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Every offer letter, contract or policy acknowledgement signed
+                by or for this employee. Each row can be re-verified against
+                its SHA-256 hash — tampering is visually flagged.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <SignedDocumentsList employeeId={id} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Documents</CardTitle>
@@ -2497,8 +2629,16 @@ const EmployeeProfile = () => {
         </div>
       )}
 
-      {activeTab === 'leave' && (
+      {activeTab === 'leave' && id && (
         <div className="mt-4">
+          {/* World-class leave balances hero + all-policies grid + recent requests */}
+          <div className="mb-6">
+            <LeaveBalancesPanel
+              employeeId={id}
+              employeeStartDate={employee?.start_date}
+              employeeGender={employee?.gender}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-3 mb-4">
             <Card>
               <CardContent className="p-4">
@@ -2631,20 +2771,114 @@ const EmployeeProfile = () => {
                   {payslips.map((slip: any) => (
                     <div key={slip.id} className="flex items-center justify-between px-4 py-3">
                       <span className="text-sm font-medium">{slip.period || '—'}</span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5"
-                        onClick={() => downloadPayslip(slip)}
-                      >
-                        <Download className="h-4 w-4" /> Download
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gap-1.5"
+                          onClick={() => previewPayslip(slip)}
+                        >
+                          <ExternalLink className="h-4 w-4" /> Preview
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => downloadPayslip(slip)}
+                        >
+                          <Download className="h-4 w-4" /> Download
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {activeTab === 'total_cost' && canFinance && (
+        <div className="mt-4 space-y-4">
+          <Card className="overflow-hidden">
+            <CardContent className="pt-5">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                Total cost of employment · trailing 12 months
+              </p>
+              <p className="text-3xl font-bold tabular-nums">{formatNaira(totalCostOfEmployment)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Payroll (gross + employer pension + employer NSITF) + approved expenses + employer-paid benefits.
+                Loans and salary advances are excluded — see the Advances tab — because that's repayable cash, not new cost.
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5" /> Payroll
+                </p>
+                <p className="text-2xl font-bold tabular-nums">{formatNaira(payrollTotal)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatNaira(payrollGross)} gross + {formatNaira(payrollEmployerPension)} employer pension
+                  {nsitfEnabled ? ` + ${formatNaira(payrollEmployerNsitf)} NSITF` : ''} · {payslipsInRange.length} payslip{payslipsInRange.length === 1 ? '' : 's'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                  <Receipt className="h-3.5 w-3.5" /> Approved expenses
+                </p>
+                <p className="text-2xl font-bold tabular-nums">{formatNaira(expensesTotal)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {approvedExpenses.length} approved claim{approvedExpenses.length === 1 ? '' : 's'}
+                  {expenses.length >= 20
+                    ? ' — capped at the latest 20 claims on this profile, may understate a high submitter.'
+                    : ' — see the Expenses tab for the full list.'}
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                  <HeartPulse className="h-3.5 w-3.5" /> Benefits (annualised)
+                </p>
+                <p className="text-2xl font-bold tabular-nums">{formatNaira(benefitsAnnualized)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {costedBenefits.length === 0
+                    ? 'No active HMO / group life / other benefits on file.'
+                    : `${costedBenefits.length} active enrolment${costedBenefits.length === 1 ? '' : 's'}, at current premiums.`}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {assignedAssets.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" /> Equipment assigned
+                </CardTitle>
+                <span className="text-sm font-semibold tabular-nums">{formatNaira(assetsBookValue)}</span>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y">
+                  {assignedAssets.map((a: any) => (
+                    <div key={a.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                      <span className="font-medium">{a.name}</span>
+                      <span className="text-muted-foreground capitalize">{a.category}</span>
+                      <span className="tabular-nums">{formatNaira(a.cost_ngn || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="px-4 py-2 text-xs text-muted-foreground border-t">
+                  Purchase cost of equipment currently assigned — a one-time capital cost, shown for reference and not added to the total above.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 

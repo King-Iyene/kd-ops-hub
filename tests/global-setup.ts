@@ -30,9 +30,37 @@ setup('authenticate', async ({ page }) => {
   await page.fill('input[type="password"]', password);
   await page.click('button[type="submit"]');
 
-  // Wait for the dashboard to render — this confirms auth succeeded and the
-  // profile loaded without a double-redirect.
-  await page.waitForURL('**/dashboard', { timeout: 20_000 });
+  // Wait for EITHER the dashboard OR a redirect to an auth-followup page
+  // (MFA challenge, unauthorized, reset-password). Timeout bumped to 40s
+  // because CI cold-start can be slow to hydrate the profile.
+  await page.waitForURL(
+    (url) => /\/(dashboard|mfa-challenge|unauthorized|reset-password)/.test(url.pathname),
+    { timeout: 40_000 },
+  );
+
+  // If we landed on MFA challenge, the test user needs a TOTP secret set
+  // in TEST_USER_TOTP_SECRET (base32). Without it, the CI can't proceed
+  // past this gate — instruct the reviewer to disable MFA for the test
+  // user or wire up the secret.
+  const pathname = new URL(page.url()).pathname;
+  if (pathname.includes('mfa-challenge')) {
+    throw new Error(
+      'MFA is enabled for the test user — either disable MFA for this account, or ' +
+      'set TEST_USER_TOTP_SECRET (base32) and wire in an authenticator-lib step here.',
+    );
+  }
+  if (pathname.includes('unauthorized')) {
+    throw new Error(
+      'Test user has an inactive / pending profile. Activate the profile in Supabase ' +
+      `profiles table (status=active) for ${email}.`,
+    );
+  }
+  if (pathname.includes('reset-password')) {
+    throw new Error(
+      'Login redirected to reset-password — the test user password may have expired or ' +
+      'this account was created via invite and hasn\'t completed setup. Set a fresh password.',
+    );
+  }
 
   // The dashboard renders a personalised greeting h1 (e.g. "Good morning, Alice"),
   // NOT a literal "Dashboard" heading — wait for any h1 to confirm the page loaded.

@@ -36,9 +36,14 @@ export default defineConfig({
 
   projects: [
     // global-setup.ts authenticates once and saves storage state.
+    // Own timeout is longer than the default 30s: CI cold-start plus the
+    // internal 40s waitForURL (for MFA/reset-password redirects) can
+    // together exceed the global test timeout, killing the test before
+    // that internal wait ever gets to resolve or report its own error.
     {
       name: 'setup',
       testMatch: /global-setup\.ts/,
+      timeout: 90_000,
     },
     // All spec files run after setup, reusing the saved session.
     {

@@ -96,9 +96,16 @@ export function ChatWidget() {
   // ── Data helpers ─────────────────────────────────────────────────────────
 
   async function loadConversations() {
+    // IMPORTANT: filter by user_id explicitly. RLS grants super_admin SELECT
+    // on ALL conversations — without this filter the sidebar would show
+    // other users' history and auto-load-latest would pick a foreign row,
+    // which then fails the edge function's ownership check with
+    // "Conversation not found".
+    if (!user?.id) return;
     const { data } = await supabase
       .from('chatbot_conversations')
       .select('id, title, updated_at')
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(20);
     setConversations((data ?? []) as Conversation[]);
@@ -129,10 +136,14 @@ export function ChatWidget() {
     setUnread(false);
     if (!convId) {
       loadConversations().then(async () => {
-        // Auto-load the most recent conversation
+        // Auto-load the most recent conversation OWNED BY THIS USER. See
+        // loadConversations() for why the explicit user_id filter is
+        // required even though RLS technically restricts SELECTs.
+        if (!user?.id) return;
         const { data } = await supabase
           .from('chatbot_conversations')
           .select('id')
+          .eq('user_id', user.id)
           .order('updated_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -223,10 +234,36 @@ export function ChatWidget() {
           const body = await (error as any)?.context?.json?.().catch(() => null);
           throw new Error(body?.error ?? error.message);
         }
-        if (data?.error) throw new Error(data.error);
-        reply = data.reply;
-        newConvId = data.conversation_id;
-        toolsUsed = data.tools_used ?? [];
+        if (data?.error) {
+          // Self-heal: if the cached convId no longer belongs to this
+          // user (e.g. deleted, or picked up from a stale localStorage
+          // entry), drop it and retry once as a NEW conversation.
+          if (/conversation not found/i.test(data.error) && convId) {
+            setConvId(null);
+            const { data: retryData, error: retryErr } = await supabase.functions.invoke('chatbot-chat', {
+              headers: session?.access_token
+                ? { Authorization: `Bearer ${session.access_token}` }
+                : undefined,
+              body: {
+                conversation_id: null,
+                message: text,
+                attachments: [],
+                use_web_search: useWebSearch,
+              },
+            });
+            if (retryErr) throw new Error(retryErr.message);
+            if (retryData?.error) throw new Error(retryData.error);
+            reply = retryData.reply;
+            newConvId = retryData.conversation_id;
+            toolsUsed = retryData.tools_used ?? [];
+          } else {
+            throw new Error(data.error);
+          }
+        } else {
+          reply = data.reply;
+          newConvId = data.conversation_id;
+          toolsUsed = data.tools_used ?? [];
+        }
         setUseWebSearch(false);
       }
 

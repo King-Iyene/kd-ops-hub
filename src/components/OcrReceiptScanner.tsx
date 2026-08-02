@@ -23,11 +23,21 @@ export interface OcrResult {
   amount_ngn?: string;   // numeric string e.g. "12500"
   date?: string;         // ISO date string e.g. "2026-05-05"
   description?: string;  // merchant name / first meaningful line
+  litres?: string;       // numeric string e.g. "42.5" — fuel receipts only
+  /** True when the scan ran but found none of the decision-critical fields
+   *  (amount, litres). Vendor-line matching alone is too weak a signal to
+   *  trust — almost any document's first text line passes it, which is
+   *  exactly how an ID card photo can "succeed" a scan with nothing useful
+   *  extracted. Callers should treat this as "verify manually", not a hard
+   *  failure. */
+  lowConfidence?: boolean;
 }
 
 interface Props {
   onExtracted: (result: OcrResult, file: File) => void;
   className?: string;
+  /** Also try to pull a litres reading off the receipt (fuel stations print it). */
+  extractLitres?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +100,22 @@ function extractDate(text: string): string | undefined {
   return undefined;
 }
 
+function extractLitres(text: string): string | undefined {
+  // Patterns: "42.5 L", "Litres: 42.5", "Qty(L) 42.50", "Volume 42.5L"
+  const patterns = [
+    /(?:litres?|liters?|volume|qty\s*\(?l\)?)\s*[:\-]?\s*(\d{1,3}(?:\.\d{1,2})?)\s*l?\b/i,
+    /\b(\d{1,3}(?:\.\d{1,2})?)\s*(?:litres?|liters?|ltrs?|l)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const n = parseFloat(m[1]);
+      if (!isNaN(n) && n > 0 && n < 500) return String(n);
+    }
+  }
+  return undefined;
+}
+
 function extractVendor(text: string): string | undefined {
   // Take the first non-empty, non-numeric, non-very-short line as vendor name.
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -107,9 +133,39 @@ function extractVendor(text: string): string | undefined {
 // Component
 // ---------------------------------------------------------------------------
 
-type ScanState = 'idle' | 'loading' | 'done' | 'error';
+type ScanState = 'idle' | 'loading' | 'done' | 'warning' | 'error';
 
-export function OcrReceiptScanner({ onExtracted, className }: Props) {
+// Tesseract.js v7's createWorker() swallows load failures internally
+// (worker/createWorker.js ends its init chain with `.catch(() => {})`), so a
+// blocked or failed CDN fetch for the core/language files leaves the
+// returned promise pending forever — no resolve, no reject. Without an
+// external timeout the UI is stuck at "Scanning… 0%" indefinitely.
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+// createWorker's logger only reports granular progress for 'recognizing
+// text' — the core WASM download and language traineddata download (which
+// dominate a first-time or slow-connection scan) fire once at progress 0
+// and once at progress 1 with no steps between, so without this mapping
+// the bar sits at 0% through the entire download.
+const OCR_PHASE_RANGES: Record<string, [number, number]> = {
+  'loading tesseract core': [0, 10],
+  'loading language traineddata': [10, 30],
+  'initializing tesseract': [30, 35],
+  'recognizing text': [35, 100],
+};
+
+const OCR_LOAD_TIMEOUT_MS = 45_000;
+const OCR_RECOGNIZE_TIMEOUT_MS = 30_000;
+
+export function OcrReceiptScanner({ onExtracted, className, extractLitres: shouldExtractLitres }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setScanState] = useState<ScanState>('idle');
   const [progress, setProgress] = useState(0);
@@ -127,32 +183,57 @@ export function OcrReceiptScanner({ onExtracted, className }: Props) {
     setErrorMsg('');
 
     try {
-      const worker = await createWorker('eng', 1, {
-        logger: (m: any) => {
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round((m.progress || 0) * 100));
-          }
-        },
-      });
+      const worker = await withTimeout(
+        createWorker('eng', 1, {
+          logger: (m: any) => {
+            const range = OCR_PHASE_RANGES[m.status];
+            if (range) {
+              const [start, end] = range;
+              setProgress(Math.round(start + (m.progress || 0) * (end - start)));
+            }
+          },
+        }),
+        OCR_LOAD_TIMEOUT_MS,
+        'OCR engine took too long to load. Check your connection and try again.',
+      );
 
-      const { data: { text } } = await worker.recognize(file);
+      const { data: { text } } = await withTimeout(
+        worker.recognize(file),
+        OCR_RECOGNIZE_TIMEOUT_MS,
+        'Scan took too long. Try a clearer or smaller photo.',
+      );
       await worker.terminate();
 
+      const amount_ngn = extractAmount(text);
+      const litres = shouldExtractLitres ? extractLitres(text) : undefined;
+      // Vendor-line matching accepts the first plausible-looking line of
+      // ANY document — it's how a national ID card photo can extract
+      // "FEDERAL REPUBLIC OF NIGERIA" as a "vendor" and look successful.
+      // Only amount/litres are decision-critical enough to count as real
+      // confidence that this was actually a receipt.
+      const lowConfidence = !amount_ngn && !litres;
       const result: OcrResult = {
-        amount_ngn: extractAmount(text),
-        date:       extractDate(text),
+        amount_ngn,
+        date: extractDate(text),
         description: extractVendor(text),
+        litres,
+        lowConfidence,
       };
 
-      setScanState('done');
+      if (lowConfidence) {
+        setErrorMsg("Couldn't read an amount or litres off this photo — please check it and fill in the fields manually.");
+        setScanState('warning');
+        setTimeout(() => setScanState('idle'), 6000);
+      } else {
+        setScanState('done');
+        // Reset back to idle after a brief success flash.
+        setTimeout(() => setScanState('idle'), 2500);
+      }
       onExtracted(result, file);
-
-      // Reset back to idle after a brief success flash.
-      setTimeout(() => setScanState('idle'), 2500);
     } catch (err: any) {
-      setErrorMsg('Scan failed — try a clearer photo.');
+      setErrorMsg(err?.message || 'Scan failed — try a clearer photo.');
       setScanState('error');
-      setTimeout(() => setScanState('idle'), 3000);
+      setTimeout(() => setScanState('idle'), 4000);
     }
   };
 
@@ -160,6 +241,7 @@ export function OcrReceiptScanner({ onExtracted, className }: Props) {
     idle:    'Scan receipt',
     loading: `Scanning… ${progress}%`,
     done:    'Scanned!',
+    warning: 'Check photo',
     error:   errorMsg || 'Scan failed',
   }[state];
 
@@ -171,8 +253,9 @@ export function OcrReceiptScanner({ onExtracted, className }: Props) {
         size="sm"
         className={cn(
           'gap-2 relative overflow-hidden',
-          state === 'done'  && 'border-emerald-500 text-emerald-600 bg-emerald-50',
-          state === 'error' && 'border-destructive text-destructive bg-destructive/5',
+          state === 'done'    && 'border-emerald-500 text-emerald-600 bg-emerald-50',
+          state === 'warning' && 'border-amber-500 text-amber-700 bg-amber-50',
+          state === 'error'   && 'border-destructive text-destructive bg-destructive/5',
         )}
         disabled={state === 'loading'}
         onClick={() => {
@@ -192,13 +275,17 @@ export function OcrReceiptScanner({ onExtracted, className }: Props) {
           <Loader2 className="h-3.5 w-3.5 animate-spin relative z-10" />
         ) : state === 'done' ? (
           <CheckCircle2 className="h-3.5 w-3.5 relative z-10" />
-        ) : state === 'error' ? (
+        ) : state === 'warning' || state === 'error' ? (
           <AlertTriangle className="h-3.5 w-3.5 relative z-10" />
         ) : (
           <ScanLine className="h-3.5 w-3.5 relative z-10" />
         )}
         <span className="relative z-10 text-xs">{label}</span>
       </Button>
+
+      {state === 'warning' && (
+        <p className="text-[10px] text-amber-700 leading-tight">{errorMsg}</p>
+      )}
 
       <input
         ref={inputRef}

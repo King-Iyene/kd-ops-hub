@@ -12,7 +12,9 @@ import {
   UserX,
   Info,
   Check,
+  Upload,
 } from 'lucide-react';
+import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { supabase } from '@/lib/supabase';
@@ -97,6 +99,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'finance', label: 'Finance' },
   { value: 'operations', label: 'Operations' },
   { value: 'field_staff', label: 'Field Staff' },
+  { value: 'driver', label: 'Driver' },
 ];
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
@@ -143,6 +146,7 @@ const Employees = () => {
   const [deptFilter, setDeptFilter] = useState<'all' | 'none' | string>('all');
 
   const [showForm, setShowForm] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -369,7 +373,7 @@ const Employees = () => {
     setSubmitting(true);
     try {
       const roleChanged = form.role !== editing.role;
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('profiles')
         .update({
           first_name: form.first_name,
@@ -380,8 +384,19 @@ const Employees = () => {
           tags: selectedTagIds,
           department_id: form.department_id || null,
         })
-        .eq('id', editing.id);
+        .eq('id', editing.id)
+        .select('id, role');
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+        toast({ title: 'Update blocked', description: 'Your account does not have permission to edit this employee. Check your role — only admin and super_admin can edit profiles.', variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
+      if (roleChanged && updated[0]?.role !== form.role) {
+        toast({ title: 'Role change blocked', description: `The database rejected the role change. Your role may not have permission to assign "${roleLabel(form.role)}".`, variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
       if (roleChanged) {
         await logAudit(
           'role_changed',
@@ -395,7 +410,7 @@ const Employees = () => {
           profile,
         );
       }
-      toast({ title: 'Employee updated' });
+      toast({ title: roleChanged ? `Role changed to ${roleLabel(form.role)}` : 'Employee updated' });
       setShowForm(false);
       setEditing(null);
       resetForm();
@@ -469,6 +484,11 @@ const Employees = () => {
         </div>
         <div className="flex gap-2 flex-wrap">
           {isAdmin && (
+            <Button variant="outline" onClick={() => setShowCsvImport(true)}>
+              <Upload className="mr-2 h-4 w-4" /> Import CSV
+            </Button>
+          )}
+          {isAdmin && (
             <Button
               onClick={() => {
                 resetForm();
@@ -481,6 +501,13 @@ const Employees = () => {
           )}
         </div>
       </div>
+
+      <EmployeeCsvImport
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        departments={departments}
+        onComplete={fetchEmployees}
+      />
 
       {/* Mercury-style list wrapper: hairline-bordered surface, sticky
           filter strip, no card chrome. Replaces shadcn Card so the

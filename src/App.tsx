@@ -22,6 +22,7 @@ import ResetPassword from './pages/ResetPassword';
 import JoinForm from './pages/JoinForm';
 import Privacy from './pages/legal/Privacy';
 import Terms from './pages/legal/Terms';
+import Careers from './pages/Careers';
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 
@@ -50,6 +51,7 @@ const ContractorProfile= lazy(() => import('./pages/ContractorProfile'));
 const Leave            = lazy(() => import('./pages/Leave'));
 const Compliance       = lazy(() => import('./pages/Compliance'));
 const Reports          = lazy(() => import('./pages/Reports'));
+const HrAnalytics      = lazy(() => import('./pages/HrAnalytics'));
 const Documents        = lazy(() => import('./pages/Documents'));
 const Tasks            = lazy(() => import('./pages/Tasks'));
 const Knowledge        = lazy(() => import('./pages/Knowledge'));
@@ -141,6 +143,8 @@ function AppRoutes() {
       {/* Legal — public, no auth. */}
       <Route path="/legal/privacy" element={<Privacy />} />
       <Route path="/legal/terms" element={<Terms />} />
+      {/* Public careers page — reads job_openings.status='published'. */}
+      <Route path="/careers" element={<Careers />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
@@ -292,6 +296,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <Reports />
+            </RoleGuard>
+          }
+        />
+
+        {/* HR Analytics — headcount, attrition, cost/head, org chart. */}
+        <Route
+          path="/hr-analytics"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <HrAnalytics />
             </RoleGuard>
           }
         />

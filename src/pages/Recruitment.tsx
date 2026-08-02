@@ -2,8 +2,11 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, UserPlus2,
   Briefcase, Users, ChevronDown, ChevronUp, Calendar,
-  CheckCircle2, XCircle, ArrowRight,
+  CheckCircle2, XCircle, ArrowRight, Sparkles,
 } from 'lucide-react';
+import HireApplicantDialog from '@/components/hr/HireApplicantDialog';
+import OfferLetterDialog from '@/components/hr/OfferLetterDialog';
+import { FileSignature } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
@@ -159,6 +162,10 @@ export default function Recruitment() {
   const [applicantForm, setApplicantForm] = useState({ ...EMPTY_APPLICANT_FORM });
   const [savingApplicant, setSavingApplicant] = useState(false);
   const [deleteApplicant, setDeleteApplicant] = useState<JobApplicant | null>(null);
+
+  // Hire flow
+  const [hiring, setHiring] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
+  const [issuingOffer, setIssuingOffer] = useState<{ applicant: JobApplicant; opening: JobOpening } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -491,6 +498,27 @@ export default function Recruitment() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                {app.stage === 'offer' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8"
+                                    onClick={() => setIssuingOffer({ applicant: app, opening })}
+                                    title="Generate & sign offer letter"
+                                  >
+                                    <FileSignature className="h-3.5 w-3.5 mr-1" /> Offer
+                                  </Button>
+                                )}
+                                {(app.stage === 'offer' || app.stage === 'interview_2') && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                                    onClick={() => setHiring({ applicant: app, opening })}
+                                  >
+                                    <Sparkles className="h-3.5 w-3.5 mr-1" /> Hire
+                                  </Button>
+                                )}
                                 <Button variant="ghost" size="icon" onClick={() => openEditApplicant(app)} aria-label="Edit applicant"><Pencil className="h-4 w-4" /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => setDeleteApplicant(app)} aria-label="Remove applicant"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                               </div>
@@ -723,6 +751,36 @@ export default function Recruitment() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <HireApplicantDialog
+        open={!!hiring}
+        onOpenChange={(v) => { if (!v) setHiring(null); }}
+        applicant={hiring?.applicant ?? null}
+        opening={hiring?.opening ?? null}
+        departments={departments}
+        onHired={() => {
+          setHiring(null);
+          load();
+        }}
+      />
+
+      <OfferLetterDialog
+        open={!!issuingOffer}
+        onOpenChange={(v) => { if (!v) setIssuingOffer(null); }}
+        applicant={issuingOffer?.applicant ?? null}
+        opening={issuingOffer?.opening ?? null}
+        departments={departments}
+        startDate={new Date().toISOString().slice(0, 10)}
+        monthlySalary={
+          issuingOffer?.applicant?.offer_amount_ngn
+            ? String(Math.round(issuingOffer.applicant.offer_amount_ngn / 12))
+            : ''
+        }
+        onSigned={() => {
+          setIssuingOffer(null);
+          load();
+        }}
+      />
     </div>
   );
 }

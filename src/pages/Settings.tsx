@@ -94,6 +94,7 @@ import { NotificationsCard } from '@/components/settings/NotificationsCard';
 import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
 import { PaymentRailsCard } from '@/components/settings/PaymentRailsCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
+import OfferLetterTemplatesAdmin from '@/components/hr/OfferLetterTemplatesAdmin';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -141,6 +142,14 @@ interface CompanySettings {
   facebook_url: string | null;
   twitter_url: string | null;
   timezone: string;
+  // Statutory filing identifiers — used by the Compliance filing pack
+  // exporters (LIRS/FIRS/PenCom/NHF/NSITF/ITF). Optional; when blank the
+  // export header prints "(missing — set in Settings)".
+  state_of_business: string | null;
+  pencom_employer_code: string | null;
+  nhf_employer_code: string | null;
+  nsitf_employer_code: string | null;
+  itf_employer_code: string | null;
 }
 
 const EXPENSE_CATEGORIES = EXPENSE_CATEGORY_KEYS;
@@ -288,6 +297,12 @@ const SettingsPage = () => {
         facebook_url: settings.facebook_url || null,
         twitter_url: settings.twitter_url || null,
         timezone: settings.timezone || 'Africa/Lagos',
+        // Statutory filing identifiers (Compliance → filing pack)
+        state_of_business: settings.state_of_business?.trim() || null,
+        pencom_employer_code: settings.pencom_employer_code?.trim() || null,
+        nhf_employer_code: settings.nhf_employer_code?.trim() || null,
+        nsitf_employer_code: settings.nsitf_employer_code?.trim() || null,
+        itf_employer_code: settings.itf_employer_code?.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', SINGLETON_ID);
@@ -591,6 +606,87 @@ const SettingsPage = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Statutory filing identifiers — printed on the LIRS / FIRS /
+              PenCom / NHF / NSITF / ITF filing pack exports on the
+              Compliance page. All optional; the pack still generates when
+              blank, just prints "(missing — set in Settings)" in the header. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Statutory filing identifiers</CardTitle>
+              <p className="text-xs text-muted-foreground pt-1">
+                Employer codes printed on statutory return schedules
+                downloaded from the Compliance page. TIN and RC number are
+                shared with the Company profile above.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Default state of business</Label>
+                  <Select
+                    value={settings.state_of_business || '__none__'}
+                    onValueChange={(v) =>
+                      patch({ state_of_business: v === '__none__' ? null : v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— Not set —</SelectItem>
+                      {[
+                        'Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno',
+                        'Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT - Abuja','Gombe',
+                        'Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos',
+                        'Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto',
+                        'Taraba','Yobe','Zamfara',
+                      ].map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Used when an employee has no explicit state of residence.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <Label>PenCom employer code</Label>
+                  <Input
+                    value={settings.pencom_employer_code || ''}
+                    onChange={(e) => patch({ pencom_employer_code: e.target.value })}
+                    placeholder="Prints on PSSP schedule"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>NHF employer code</Label>
+                  <Input
+                    value={settings.nhf_employer_code || ''}
+                    onChange={(e) => patch({ nhf_employer_code: e.target.value })}
+                    placeholder="FMBN-issued"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>NSITF employer code</Label>
+                  <Input
+                    value={settings.nsitf_employer_code || ''}
+                    onChange={(e) => patch({ nsitf_employer_code: e.target.value })}
+                    placeholder="NSITF ECS registration"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>ITF employer code</Label>
+                  <Input
+                    value={settings.itf_employer_code || ''}
+                    onChange={(e) => patch({ itf_employer_code: e.target.value })}
+                    placeholder="ITF annual return"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <OfferLetterTemplatesAdmin />
 
           <Card>
             <CardHeader>
