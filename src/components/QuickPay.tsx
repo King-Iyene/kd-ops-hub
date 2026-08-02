@@ -10,6 +10,7 @@ import {
   getBankCode,
   buildNarration,
 } from '@/lib/paystack';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
 import { formatNaira } from '@/lib/format';
 import {
   isQuickPayEnabled,
@@ -289,8 +290,21 @@ export function QuickPayDialog() {
         .single();
       if (batchErr) throw batchErr;
 
-      const bankCode = getBankCode(bank.bank_name);
-      if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
+      // ROOT CAUSE FIX: bank codes are provider-specific. Most CBN commercial
+      // banks share the same NIBSS code across providers, but Flutterwave's
+      // own registry can differ for some fintech/PSB entries (this is what
+      // caused live "Account resolve failed" rejections when we reused
+      // Paystack's code for a Flutterwave dispatch). Resolve through EACH
+      // provider's own bank list — never cross-use.
+      let bankCode: string | undefined;
+      if (activeProvider === 'flutterwave') {
+        await fetchFlutterwaveBanks();
+        bankCode = getFlutterwaveBankCode(bank.bank_name);
+        if (!bankCode) throw new Error(`Unknown bank on Flutterwave: ${bank.bank_name}`);
+      } else {
+        bankCode = getBankCode(bank.bank_name);
+        if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
+      }
 
       // Recipient creation is Paystack-specific (Paystack requires a
       // pre-created recipient_code for transfers). Flutterwave's /transfers

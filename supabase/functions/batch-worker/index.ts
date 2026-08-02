@@ -1015,6 +1015,80 @@ function generateFwRef(itemId: string): string {
   return `kdopsfw_${itemId.replace(/-/g, "").slice(0, 20)}`;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Flutterwave's OWN bank registry — separate from Paystack's.
+//
+// ROOT CAUSE this fixes: fwDispatchChunkBulk used to call the shared
+// getBankCode() (populated by loadPaystackBanks / BANK_BASELINE, Paystack's
+// registry). Most CBN commercial banks share the same NIBSS code across
+// providers, but Flutterwave's own /banks/NG can assign a DIFFERENT code for
+// some fintech/PSB entries than Paystack's /bank does. Sending Paystack's
+// code to Flutterwave's /transfers caused live "Account resolve failed"
+// rejections. Every Flutterwave dispatch must resolve through Flutterwave's
+// own registry — never Paystack's — so this cache and resolver are entirely
+// separate from _bankCache / getBankCode above.
+// ─────────────────────────────────────────────────────────────────────────
+interface FwBankRow { code: string; name: string }
+
+let _fwBankCache: FwBankRow[] | null = null;
+let _fwBankCacheAt = 0;
+const FW_BANK_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour, same as Paystack's
+
+async function loadFlutterwaveBanks(secret: string): Promise<FwBankRow[]> {
+  const now = Date.now();
+  if (_fwBankCache && (now - _fwBankCacheAt) < FW_BANK_CACHE_TTL_MS) return _fwBankCache;
+
+  try {
+    const res = await fetch(`${FLUTTERWAVE_BASE}/banks/NG`, {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    if (res.ok) {
+      const json = await res.json();
+      const rows: FwBankRow[] = (json?.data || [])
+        .filter((b: any) => b?.name && b?.code)
+        .map((b: any) => ({ code: String(b.code), name: String(b.name) }));
+      if (rows.length >= 10) {
+        _fwBankCache = rows;
+        _fwBankCacheAt = now;
+        return _fwBankCache;
+      }
+      console.warn(`[batch-worker/fw] /banks/NG returned only ${rows.length} rows; retrying next call`);
+    } else {
+      console.warn(`[batch-worker/fw] /banks/NG HTTP ${res.status}`);
+    }
+  } catch (e) {
+    console.warn("[batch-worker/fw] /banks/NG fetch failed:", (e as Error)?.message);
+  }
+
+  // No safe static fallback here (unlike Paystack's BANK_BASELINE) — a
+  // wrong guess at a Flutterwave-specific code is exactly the bug we're
+  // fixing. Return whatever we have (possibly empty); getFlutterwaveBankCode
+  // will fail closed (return null) rather than risk a cross-provider code.
+  return _fwBankCache || [];
+}
+
+function getFlutterwaveBankCode(name: string | null | undefined): string | null {
+  if (!name) return null;
+  const n = String(name).trim().toLowerCase();
+  if (!n || !_fwBankCache) return null;
+
+  const exact = _fwBankCache.find((b) => b.name.toLowerCase() === n);
+  if (exact) return exact.code;
+
+  const contained = _fwBankCache
+    .filter((b) => {
+      const bn = b.name.toLowerCase();
+      return bn.length >= 4 && n.includes(bn);
+    })
+    .sort((a, b) => b.name.length - a.name.length);
+  if (contained.length > 0) return contained[0].code;
+
+  const prefix = _fwBankCache.filter((b) => b.name.toLowerCase().startsWith(n));
+  if (prefix.length === 1) return prefix[0].code;
+
+  return null;
+}
+
 async function flutterwavePost(secret: string, path: string, body: unknown): Promise<any> {
   for (let attempt = 0; attempt <= PAYSTACK_MAX_RETRIES; attempt++) {
     const res = await fetch(`${FLUTTERWAVE_BASE}${path}`, {
@@ -1071,12 +1145,13 @@ async function fwDispatchChunkBulk(
       preFail++;
       continue;
     }
-    // Resolve bank code from cached Paystack /bank list (Nigerian codes
-    // are identical across providers — Flutterwave uses NIBSS codes too).
-    const bankCode = getBankCode(it.bank_name);
+    // Resolve bank code from Flutterwave's OWN registry — never Paystack's
+    // (that cross-provider reuse was the root cause of live "Account
+    // resolve failed" rejections; see loadFlutterwaveBanks above).
+    const bankCode = getFlutterwaveBankCode(it.bank_name);
     if (!bankCode) {
       await svc.from("batch_items")
-        .update({ status: "failed", failure_reason: `Unknown bank "${it.bank_name}" — no code` })
+        .update({ status: "failed", failure_reason: `Unknown bank "${it.bank_name}" on Flutterwave — no matching code` })
         .eq("id", it.id);
       preFail++;
       continue;
@@ -1176,10 +1251,10 @@ async function workFlutterwaveBatch(
   }
 
   const secret = await getFlutterwaveSecret(svc);
-  // Bank codes: NIBSS codes are identical across Nigerian providers, so we
-  // reuse the same Paystack-warmed cache. Warm it here so getBankCode()
-  // stays synchronous in fwDispatchChunkBulk.
-  await loadPaystackBanks(Deno.env.get("PAYSTACK_SECRET_KEY") || secret);
+  // Warm Flutterwave's OWN bank registry (never Paystack's — see
+  // loadFlutterwaveBanks for why cross-provider reuse is unsafe) so
+  // getFlutterwaveBankCode stays synchronous in fwDispatchChunkBulk.
+  await loadFlutterwaveBanks(secret);
 
   // Narration snapshot — same rules as Paystack.
   let narrationForDispatch: string = (batch as any).payment_narration_at_dispatch || "";

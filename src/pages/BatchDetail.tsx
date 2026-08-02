@@ -38,6 +38,7 @@ import {
   friendlyPaystackError,
   type NarrationKind,
 } from '@/lib/paystack';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
@@ -805,6 +806,94 @@ const BatchDetail = () => {
   };
 
   /**
+   * Kick one batch_item through FLUTTERWAVE. Mirrors processOneItem's
+   * contract exactly (same return shape, same status writes) but:
+   *   - Resolves the bank code via Flutterwave's OWN registry
+   *     (fetchFlutterwaveBanks/getFlutterwaveBankCode) — never Paystack's.
+   *     Root cause fixed: retrying a Flutterwave item used to fall through
+   *     to processOneItem, which created a PAYSTACK recipient and dispatched
+   *     via Paystack for what should have been a Flutterwave transfer.
+   *   - No separate recipient-creation step — Flutterwave's /transfers takes
+   *     bank_code + account_number directly.
+   *   - Writes flutterwave_reference / flutterwave_transfer_id / _fee_ngn /
+   *     _raw instead of the paystack_* columns.
+   */
+  const processOneFlutterwaveItem = async (
+    it: any,
+    customNarration?: string,
+  ): Promise<{ ok: boolean; reason?: string }> => {
+    const markFailed = async (reason: string) => {
+      await supabase.from('batch_items')
+        .update({ status: 'failed', failure_reason: reason })
+        .eq('id', it.id);
+      await logAudit('flutterwave_transfer_failed', `Transfer failed for ${it.full_name}: ${reason}`, profile);
+      return { ok: false, reason };
+    };
+    try {
+      const amount = Number(it.amount_ngn || 0);
+      if (amount < 1) return markFailed('Minimum transfer amount is ₦1.');
+
+      await fetchFlutterwaveBanks();
+      const bankCode = getFlutterwaveBankCode(it.bank_name);
+      if (!bankCode) return markFailed(`Unknown bank "${it.bank_name}" on Flutterwave — no matching code`);
+
+      const cleanedAccount = String(it.account_number || '').replace(/\D/g, '');
+      if (!cleanedAccount) return markFailed('Account number is empty after stripping non-digits — re-enter it.');
+      if (cleanedAccount !== String(it.account_number)) {
+        await supabase.from('batch_items').update({ account_number: cleanedAccount }).eq('id', it.id);
+      }
+
+      const compactId = String(it.id).replace(/-/g, '').slice(0, 20);
+      const ref = it.flutterwave_reference || `kdopsfw_${compactId}`;
+      const finalNarration = customNarration || it.narration || narrationForBatchItem(batch, it);
+
+      const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
+        body: {
+          action: 'initiate_transfer',
+          reference: ref,
+          bank_code: bankCode,
+          account_number: cleanedAccount,
+          amount_ngn: amount,
+          reason: finalNarration,
+        },
+      });
+      if (fwErr) return markFailed((fwErr as any)?.message || 'Flutterwave transfer failed');
+      const fwData = (fwRes as any)?.data;
+      if (!fwData || (fwRes as any)?.ok === false) {
+        return markFailed((fwRes as any)?.error || 'Flutterwave transfer rejected');
+      }
+
+      const fwStatus = String(fwData.status || '').toLowerCase();
+      const mappedStatus =
+        fwStatus === 'succeeded' ? 'succeeded'
+        : fwStatus === 'failed' || fwStatus === 'reversed' ? fwStatus
+        : 'pending';
+
+      await supabase
+        .from('batch_items')
+        .update({
+          status: mappedStatus,
+          flutterwave_reference: ref,
+          flutterwave_transfer_id: fwData.transfer_id || null,
+          flutterwave_fee_ngn: Number(fwData.fee_ngn || 0) || 0,
+          flutterwave_raw: fwData.raw ?? null,
+          narration: finalNarration,
+          processed_at: mappedStatus === 'succeeded' ? new Date().toISOString() : null,
+          failure_reason: mappedStatus === 'failed' ? 'Flutterwave rejected the transfer' : null,
+        })
+        .eq('id', it.id);
+      await logAudit(
+        fwData.recovered ? 'flutterwave_transfer_recovered' : 'flutterwave_transfer_initiated',
+        `Transfer ${fwData.recovered ? 'recovered' : 'initiated'} for ${it.full_name} (${formatNaira(amount)}) ref ${ref}`,
+        profile,
+      );
+      return { ok: mappedStatus !== 'failed' };
+    } catch (err: any) {
+      return markFailed(err?.message || 'Transfer failed');
+    }
+  };
+
+  /**
    * Reconcile the batch with Paystack. For every batch_item that already has
    * a paystack_reference, query the live transfer status and patch the row
    * if the platform's view is out of date. This is the self-healing escape
@@ -821,8 +910,9 @@ const BatchDetail = () => {
     let unchanged = 0;
     let errors = 0;
     try {
-      const dispatched = items.filter((i: any) => i.paystack_reference);
-      for (const it of dispatched) {
+      // Paystack items — verify via lib/paystack's verifyTransfer.
+      const paystackDispatched = items.filter((i: any) => i.provider !== 'flutterwave' && i.paystack_reference);
+      for (const it of paystackDispatched) {
         try {
           const v = await verifyTransfer(it.paystack_reference);
           const live = (v.status || '').toLowerCase();
@@ -854,9 +944,52 @@ const BatchDetail = () => {
           errors++;
         }
       }
+
+      // Flutterwave items — same reconcile intent, but via flutterwave-transfer's
+      // verify_transfer action + flutterwave_* columns. Previously this button
+      // silently skipped every Flutterwave item (filter only checked
+      // paystack_reference), so a stuck Flutterwave payment could never be
+      // manually reconciled from this page — only the server-side cron did it.
+      const flutterwaveDispatched = items.filter((i: any) => i.provider === 'flutterwave' && i.flutterwave_reference);
+      for (const it of flutterwaveDispatched) {
+        try {
+          const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
+            body: { action: 'verify_transfer', reference: it.flutterwave_reference },
+          });
+          if (fwErr) { errors++; continue; }
+          const v = (fwRes as any)?.data;
+          const live = String(v?.status || '').toLowerCase();
+          const targetStatus =
+            live === 'succeeded' ? 'succeeded'
+            : live === 'failed' || live === 'reversed' ? live
+            : null;
+          if (!targetStatus || targetStatus === it.status) {
+            unchanged++;
+            continue;
+          }
+          await supabase
+            .from('batch_items')
+            .update({
+              status: targetStatus,
+              processed_at: targetStatus === 'succeeded' ? new Date().toISOString() : it.processed_at || null,
+              flutterwave_raw: v?.raw ?? null,
+              flutterwave_fee_ngn: Number(v?.fee_ngn || 0) || it.flutterwave_fee_ngn || 0,
+              failure_reason: targetStatus === 'failed'
+                ? (v?.reason || it.failure_reason || 'Transfer rejected')
+                : targetStatus === 'reversed'
+                ? 'Transfer reversed by Flutterwave'
+                : null,
+            })
+            .eq('id', it.id);
+          synced++;
+        } catch {
+          errors++;
+        }
+      }
+
       await logAudit(
         'batch_reconciled',
-        `Batch "${batch?.name}" reconciled with Paystack — ${synced} updated, ${unchanged} unchanged, ${errors} errors`,
+        `Batch "${batch?.name}" reconciled — ${synced} updated, ${unchanged} unchanged, ${errors} errors`,
         profile,
       );
       toast({
@@ -1279,9 +1412,16 @@ const BatchDetail = () => {
         .from('batch_items')
         .update({ status: 'retry', failure_reason: null })
         .eq('id', item.id);
-      const result = await processOneItem(item);
+      // Route by provider — a Flutterwave item retried through
+      // processOneItem would create a PAYSTACK recipient and dispatch via
+      // the wrong rail. See processOneFlutterwaveItem for the fix.
+      const result = item.provider === 'flutterwave'
+        ? await processOneFlutterwaveItem(item)
+        : await processOneItem(item);
       await logAudit(
-        result.ok ? 'paystack_transfer_retried' : 'paystack_transfer_failed',
+        result.ok
+          ? (item.provider === 'flutterwave' ? 'flutterwave_transfer_retried' : 'paystack_transfer_retried')
+          : (item.provider === 'flutterwave' ? 'flutterwave_transfer_failed' : 'paystack_transfer_failed'),
         `Beneficiary "${item.full_name}" retry ${result.ok ? 'initiated' : `failed: ${result.reason}`}`,
         profile,
       );
@@ -2073,18 +2213,21 @@ const BatchDetail = () => {
               })()}
             </Button>
           )}
-          {/* Reconcile: ask Paystack for the latest status of every dispatched
-               item and update our records. Lets finance recover items that are
-               'success' on Paystack but stuck on the platform — no SQL needed. */}
-          {items.some((i: any) => i.paystack_reference) && (
+          {/* Reconcile: ask the provider(s) for the latest status of every
+               dispatched item and update our records. Lets finance recover
+               items that are 'success' on the provider but stuck on the
+               platform — no SQL needed. Shows for either provider now —
+               previously this only appeared for Paystack items, silently
+               hiding the button on Flutterwave-only batches. */}
+          {items.some((i: any) => i.paystack_reference || i.flutterwave_reference) && (
             <Button
               variant="outline"
               onClick={runReconcile}
               disabled={reconciling || actionLoading}
-              title="Re-check every dispatched transfer with Paystack and sync the status"
+              title="Re-check every dispatched transfer with its provider and sync the status"
             >
               {reconciling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCw className="mr-2 h-4 w-4" />}
-              {reconciling ? 'Reconciling…' : 'Reconcile with Paystack'}
+              {reconciling ? 'Reconciling…' : 'Reconcile'}
             </Button>
           )}
           {(batch.status === 'approved' || batch.status === 'funded' || batch.status === 'processed') && (
