@@ -5801,6 +5801,7 @@ export type Database = {
           pay_group_id: string | null
           pay_schedule_id: string | null
           paye_ngn: number
+          payroll_segment_id: string | null
           pension_ngn: number
           period: string
           period_type: string | null
@@ -5828,6 +5829,7 @@ export type Database = {
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
+          payroll_segment_id?: string | null
           pension_ngn?: number
           period: string
           period_type?: string | null
@@ -5855,6 +5857,7 @@ export type Database = {
           pay_group_id?: string | null
           pay_schedule_id?: string | null
           paye_ngn?: number
+          payroll_segment_id?: string | null
           pension_ngn?: number
           period?: string
           period_type?: string | null
@@ -5921,6 +5924,68 @@ export type Database = {
             columns: ["pay_schedule_id"]
             isOneToOne: false
             referencedRelation: "pay_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_runs_payroll_segment_id_fkey"
+            columns: ["payroll_segment_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_segments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          filter_rules: Json
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter_rules?: Json
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          filter_rules?: Json
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "payroll_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "payroll_segments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -6474,6 +6539,7 @@ export type Database = {
           deleted_at: string | null
           department_id: string | null
           email: string | null
+          employee_category: string | null
           employee_number: string | null
           employee_role: string | null
           employment_type: string | null
@@ -6548,6 +6614,7 @@ export type Database = {
           deleted_at?: string | null
           department_id?: string | null
           email?: string | null
+          employee_category?: string | null
           employee_number?: string | null
           employee_role?: string | null
           employment_type?: string | null
@@ -6622,6 +6689,7 @@ export type Database = {
           deleted_at?: string | null
           department_id?: string | null
           email?: string | null
+          employee_category?: string | null
           employee_number?: string | null
           employee_role?: string | null
           employment_type?: string | null
