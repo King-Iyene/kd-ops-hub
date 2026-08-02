@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 
 export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
 export type AnomalyStatus = 'open' | 'acknowledged' | 'dismissed' | 'escalated';
-export type AnomalyModule = 'payroll' | 'payments' | 'ewa' | 'profile' | 'compliance';
+export type AnomalyModule = 'payroll' | 'payments' | 'ewa' | 'profile' | 'compliance' | 'expenses';
 
 export type AnomalyRuleCode =
   | 'salary_spike_30pct'
@@ -18,7 +18,10 @@ export type AnomalyRuleCode =
   | 'new_beneficiary_paid'
   | 'ewa_velocity_3in7d'
   | 'ewa_at_max_eligibility'
-  | 'ewa_after_status_inactive';
+  | 'ewa_after_status_inactive'
+  | 'expense_above_category_avg'
+  | 'duplicate_expense_claim'
+  | 'expense_backdated_over_60d';
 
 export interface PaymentAnomaly {
   id: string;
@@ -59,6 +62,9 @@ export const RULE_LABEL: Record<AnomalyRuleCode, string> = {
   ewa_velocity_3in7d: 'Frequent EWA requests',
   ewa_at_max_eligibility: 'EWA at maximum eligibility',
   ewa_after_status_inactive: 'EWA approved for inactive employee',
+  expense_above_category_avg: 'Expense far above category average',
+  duplicate_expense_claim: 'Possible duplicate expense claim',
+  expense_backdated_over_60d: 'Expense claimed long after spend date',
 };
 
 export const SEVERITY_ORDER: AnomalySeverity[] = ['critical', 'high', 'medium', 'low'];
@@ -134,6 +140,21 @@ export async function scanEwaAnomaliesSafe(ewaRequestId: string): Promise<number
     return Number(data ?? 0);
   } catch (err: any) {
     console.warn('[anomalies] scan_ewa_anomalies threw:', err?.message);
+    return 0;
+  }
+}
+
+/** Fire-and-forget expense sweep. Runs nightly via cron; this lets a caller trigger it on demand too. */
+export async function scanExpenseAnomaliesSafe(): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('scan_expense_anomalies');
+    if (error) {
+      console.warn('[anomalies] scan_expense_anomalies failed:', error.message);
+      return 0;
+    }
+    return Number(data ?? 0);
+  } catch (err: any) {
+    console.warn('[anomalies] scan_expense_anomalies threw:', err?.message);
     return 0;
   }
 }

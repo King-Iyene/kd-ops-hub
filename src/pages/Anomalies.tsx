@@ -277,6 +277,7 @@ export default function Anomalies() {
               <SelectItem value="payments">Payments</SelectItem>
               <SelectItem value="ewa">EWA</SelectItem>
               <SelectItem value="profile">Profile</SelectItem>
+              <SelectItem value="expenses">Expenses</SelectItem>
             </SelectContent>
           </Select>
         </CardHeader>
