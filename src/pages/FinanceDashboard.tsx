@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,7 @@ import CashTimingTab from '@/components/finance/CashTimingTab';
 import TalentCostTab from '@/components/finance/TalentCostTab';
 import AutopilotTab from '@/components/finance/AutopilotTab';
 import FxExposureTab from '@/components/finance/FxExposureTab';
+import BoardReportTab from '@/components/finance/BoardReportTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -141,6 +142,7 @@ export default function FinanceDashboard() {
           <TabsTrigger value="talent-cost" className="gap-1.5"><Users2 className="h-3.5 w-3.5" /> Talent Cost</TabsTrigger>
           <TabsTrigger value="autopilot" className="gap-1.5"><Bot className="h-3.5 w-3.5" /> Autopilot</TabsTrigger>
           <TabsTrigger value="fx-exposure" className="gap-1.5"><Coins className="h-3.5 w-3.5" /> FX Exposure</TabsTrigger>
+          <TabsTrigger value="board-report" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Board Report</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-0">
@@ -435,6 +437,10 @@ export default function FinanceDashboard() {
 
         <TabsContent value="fx-exposure" className="mt-0">
           <FxExposureTab />
+        </TabsContent>
+
+        <TabsContent value="board-report" className="mt-0">
+          <BoardReportTab />
         </TabsContent>
       </Tabs>
     </div>
