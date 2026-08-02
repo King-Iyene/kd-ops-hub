@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,6 +31,9 @@ import FxExposureTab from '@/components/finance/FxExposureTab';
 import BoardReportTab from '@/components/finance/BoardReportTab';
 import CashConversionTab from '@/components/finance/CashConversionTab';
 import RevenueConcentrationTab from '@/components/finance/RevenueConcentrationTab';
+import HealthScoreTab from '@/components/finance/HealthScoreTab';
+import VendorSpendTab from '@/components/finance/VendorSpendTab';
+import WorkingCapitalTab from '@/components/finance/WorkingCapitalTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -145,7 +148,10 @@ export default function FinanceDashboard() {
           <TabsTrigger value="autopilot" className="gap-1.5"><Bot className="h-3.5 w-3.5" /> Autopilot</TabsTrigger>
           <TabsTrigger value="fx-exposure" className="gap-1.5"><Coins className="h-3.5 w-3.5" /> FX Exposure</TabsTrigger>
           <TabsTrigger value="cash-conversion" className="gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Cash Cycle</TabsTrigger>
-          <TabsTrigger value="revenue-concentration" className="gap-1.5"><PieChart className="h-3.5 w-3.5" /> Revenue Risk</TabsTrigger>
+          <TabsTrigger value="revenue-concentration" className="gap-1.5"><PieChartIcon className="h-3.5 w-3.5" /> Revenue Risk</TabsTrigger>
+          <TabsTrigger value="health-score" className="gap-1.5"><Activity className="h-3.5 w-3.5" /> Health Score</TabsTrigger>
+          <TabsTrigger value="vendor-spend" className="gap-1.5"><Store className="h-3.5 w-3.5" /> Vendor Spend</TabsTrigger>
+          <TabsTrigger value="working-capital" className="gap-1.5"><Scale className="h-3.5 w-3.5" /> Working Capital</TabsTrigger>
           <TabsTrigger value="board-report" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Board Report</TabsTrigger>
         </TabsList>
 
@@ -449,6 +455,18 @@ export default function FinanceDashboard() {
 
         <TabsContent value="revenue-concentration" className="mt-0">
           <RevenueConcentrationTab />
+        </TabsContent>
+
+        <TabsContent value="health-score" className="mt-0">
+          <HealthScoreTab />
+        </TabsContent>
+
+        <TabsContent value="vendor-spend" className="mt-0">
+          <VendorSpendTab />
+        </TabsContent>
+
+        <TabsContent value="working-capital" className="mt-0">
+          <WorkingCapitalTab />
         </TabsContent>
 
         <TabsContent value="board-report" className="mt-0">
