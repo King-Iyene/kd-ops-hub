@@ -44,6 +44,7 @@ const EarnedWageAccess = lazy(() => import('./pages/EarnedWageAccess'));
 const Anomalies        = lazy(() => import('./pages/Anomalies'));
 const Communications   = lazy(() => import('./pages/Communications'));
 const CashFlow         = lazy(() => import('./pages/CashFlow'));
+const FinanceDashboard = lazy(() => import('./pages/FinanceDashboard'));
 const Employees        = lazy(() => import('./pages/Employees'));
 const EmployeeProfile  = lazy(() => import('./pages/EmployeeProfile'));
 const Contractors      = lazy(() => import('./pages/Contractors'));
@@ -425,6 +426,17 @@ function AppRoutes() {
           element={
             <RoleGuard roles={APPROVER_ROLES}>
               <CashFlow />
+            </RoleGuard>
+          }
+        />
+
+        {/* Finance — the board-level CFO dashboard: people cost, runway,
+            compliance and obligations in one view. */}
+        <Route
+          path="/finance"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <FinanceDashboard />
             </RoleGuard>
           }
         />
