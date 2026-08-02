@@ -9694,12 +9694,11 @@ export type Database = {
           employee_id: string | null
           failed_count: number | null
           id: string | null
-          is_manually_resolved: boolean | null
-          manual_resolution_method: string | null
           notes: string | null
           parent_batch_id: string | null
           payment_date: string | null
           paystack_fee_ngn: number | null
+          provider: string | null
           receipt_url: string | null
           reference: string | null
           rejection_reason: string | null
