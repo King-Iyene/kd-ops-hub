@@ -89,10 +89,9 @@ export interface PumpPriceCheck {
 }
 
 /**
- * Cross-checks amount vs litres against a benchmark pump price
- * (company_settings.fuel_price_ngn_per_litre). Flags a >25% divergence
- * either direction — wide enough to tolerate premium/discount stations
- * and rounding, tight enough to catch typos and inflated claims.
+ * Cross-checks amount vs litres against a blended benchmark pump price
+ * (60% fleet rolling median + 40% company_settings fallback). Flags a
+ * >25% divergence either direction.
  */
 export function checkPumpPrice(
   amountNgn: number,
@@ -113,6 +112,39 @@ export function checkPumpPrice(
     };
   }
   return { flagged: false, reason: null, impliedPricePerLitre: implied };
+}
+
+/**
+ * Computes a blended fuel-price benchmark from two sources:
+ *   1. Fleet median — rolling 30-day median of implied ₦/L from your own
+ *      fuel receipts (amount_ngn / litres_filled). Naturally adapts to
+ *      actual station prices your drivers pay.
+ *   2. Manual/external — the company_settings.fuel_price_ngn_per_litre
+ *      value (set manually or by a future auto-updater).
+ *
+ * When both are available the result is a weighted average (60% fleet,
+ * 40% external) so that the fleet's real-world data dominates but an
+ * external reference anchors it against collusion or market shocks.
+ * When only one source is available, it's used alone.
+ */
+export function blendBenchmark(
+  fleetMedian: number | null,
+  externalPrice: number | null,
+): number | null {
+  if (fleetMedian && externalPrice) {
+    return Math.round(fleetMedian * 0.6 + externalPrice * 0.4);
+  }
+  return fleetMedian || externalPrice || null;
+}
+
+/** Median of a numeric array (returns null for empty input). */
+export function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 /** True when a new odometer reading is implausible relative to the last known one. */

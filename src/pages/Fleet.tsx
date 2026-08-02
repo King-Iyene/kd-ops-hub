@@ -73,7 +73,7 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
-import { hashFile, watermarkImage, checkPumpPrice, checkOdometerRegression } from '@/lib/receipts';
+import { hashFile, watermarkImage, checkPumpPrice, checkOdometerRegression, blendBenchmark, median } from '@/lib/receipts';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 
 interface FieldStaff {
@@ -1850,7 +1850,9 @@ const Fleet = () => {
         .limit(100);
       const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
 
-      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, settingsRes] = await Promise.all([
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+
+      const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, settingsRes, fleetPricesRes] = await Promise.all([
         supabase
           .from('profiles')
           .select('id, full_name, email')
@@ -1876,6 +1878,13 @@ const Fleet = () => {
           .select('fuel_price_ngn_per_litre')
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
+        supabase
+          .from('fuel_requests')
+          .select('amount_ngn, litres_filled')
+          .not('litres_filled', 'is', null)
+          .gt('litres_filled', 0)
+          .gte('created_at', thirtyDaysAgo)
+          .is('deleted_at', null),
       ]);
 
       const fieldStaff = (staffRes.data as FieldStaff[]) || [];
@@ -1896,7 +1905,12 @@ const Fleet = () => {
       setTripLogs(enrich(tripRes.data || [], lookup));
       setActivityLogs(activityRes.data || []);
       setVehicles((vehicleRes.data as VehicleSummary[]) || []);
-      setFuelPriceBenchmark((settingsRes.data as any)?.fuel_price_ngn_per_litre ?? null);
+      const externalPrice: number | null = (settingsRes.data as any)?.fuel_price_ngn_per_litre ?? null;
+      const impliedPrices = ((fleetPricesRes.data as any[]) || [])
+        .map((r: any) => r.amount_ngn / r.litres_filled)
+        .filter((p: number) => p > 100 && p < 5000);
+      const fleetMedian = impliedPrices.length >= 3 ? median(impliedPrices) : null;
+      setFuelPriceBenchmark(blendBenchmark(fleetMedian, externalPrice));
       void refreshMyReceiptDebt();
     } catch (err) {
       console.error('[Fleet] fetchData failed:', err);
