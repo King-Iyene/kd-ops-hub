@@ -10,11 +10,12 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -22,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import CostIntelligenceTab from '@/components/finance/CostIntelligenceTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -126,6 +128,14 @@ export default function FinanceDashboard() {
         description="The board-level view — people cost, cash runway, compliance and upcoming obligations in one place. Airtable stays your granular base; this is the summary."
         icon={Gauge}
       />
+
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" /> Overview</TabsTrigger>
+          <TabsTrigger value="cost-intelligence" className="gap-1.5"><Calculator className="h-3.5 w-3.5" /> Cost Intelligence</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 mt-0">
 
       {/* ─── Financial pulse ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -396,6 +406,13 @@ export default function FinanceDashboard() {
           </CardContent>
         </Card>
       )}
+
+        </TabsContent>
+
+        <TabsContent value="cost-intelligence" className="mt-0">
+          <CostIntelligenceTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
