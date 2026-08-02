@@ -138,16 +138,19 @@ jobs:
 
       - name: Push migrations to production
         id: push
-        # No `--include-all` — approval_framework.sql and payment_state_rpcs.sql
-        # (which shared timestamps 20260811 / 20260813 with legacy pre-applied
-        # files) were moved into supabase/migrations/_pre_applied/ so they no
-        # longer appear in the scan. That eliminates the PK-conflict class of
-        # failure the older CLI silently swallowed: newer CLI versions treat
-        # `repair --status reverted` as a status update (not a delete), so
-        # re-pushing on top would collide with the existing schema_migrations
-        # row. The self-heal step above still reconciles any true remote-only
-        # orphans that appear later (e.g. hotfixes run in the SQL editor).
-        run: supabase db push
+        # --include-all restored (2026-08-02). Its removal was scoped to one
+        # specific PK-conflict that _pre_applied fixed — but the CLI's
+        # "local migration file is before the last migration on remote"
+        # ordering check is a SEPARATE failure mode that showed up as soon
+        # as remote's latest-applied version happened to sit ahead of a
+        # freshly-added local file (observed on 20261001000700 — nothing
+        # else in git was ahead of it, so this is purely a CLI ordering
+        # quirk, not a real conflict). Every migration in this repo uses
+        # IF NOT EXISTS / CREATE OR REPLACE / DROP ... IF EXISTS, so
+        # --include-all re-running an already-applied file is a no-op —
+        # safe by construction. The self-heal step above still handles
+        # true remote-only orphans (e.g. hotfixes run in the SQL editor).
+        run: supabase db push --include-all
 
       - name: Alert on failure (email via GitHub)
         if: ${{ failure() }}
