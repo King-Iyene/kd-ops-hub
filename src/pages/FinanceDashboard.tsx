@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import CostIntelligenceTab from '@/components/finance/CostIntelligenceTab';
+import CashTimingTab from '@/components/finance/CashTimingTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -133,6 +134,7 @@ export default function FinanceDashboard() {
         <TabsList>
           <TabsTrigger value="overview" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" /> Overview</TabsTrigger>
           <TabsTrigger value="cost-intelligence" className="gap-1.5"><Calculator className="h-3.5 w-3.5" /> Cost Intelligence</TabsTrigger>
+          <TabsTrigger value="cash-timing" className="gap-1.5"><CalendarRange className="h-3.5 w-3.5" /> Cash Timing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-0">
@@ -411,6 +413,10 @@ export default function FinanceDashboard() {
 
         <TabsContent value="cost-intelligence" className="mt-0">
           <CostIntelligenceTab />
+        </TabsContent>
+
+        <TabsContent value="cash-timing" className="mt-0">
+          <CashTimingTab />
         </TabsContent>
       </Tabs>
     </div>
