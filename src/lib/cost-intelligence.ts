@@ -89,7 +89,7 @@ export async function fetchSalaryChangeHistory(months = 12): Promise<SalaryChang
     .from('salary_increments')
     .select(
       'id, employee_id, old_salary_ngn, new_salary_ngn, effective_date, reason, ' +
-        'employee:profiles!salary_increments_employee_id_fkey(full_name, department_id, pension_enabled, department:departments(name)), ' +
+        'employee:profiles!salary_increments_employee_id_fkey(full_name, department_id, pension_enabled, department:departments!profiles_department_id_fkey(name)), ' +
         'approver:profiles!salary_increments_approved_by_fkey(full_name)',
     )
     .gte('effective_date', cutoffStr)

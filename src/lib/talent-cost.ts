@@ -80,7 +80,7 @@ export async function fetchTerminationRecords(months = 12): Promise<TerminationR
     .from('terminations')
     .select(
       'id, employee_id, termination_type, last_working_day, final_settlement_ngn, ' +
-        'employee:profiles!terminations_employee_id_fkey(full_name, salary_ngn, start_date, department:departments(name))',
+        'employee:profiles!terminations_employee_id_fkey(full_name, salary_ngn, start_date, department:departments!profiles_department_id_fkey(name))',
     )
     .eq('status', 'completed')
     .gte('last_working_day', cutoffStr)
