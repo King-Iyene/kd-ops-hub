@@ -99,6 +99,7 @@ interface EmployeeData {
   next_of_kin_email: string | null;
   employee_number: string | null;
   employment_type: string | null;
+  employee_category: string | null;
   start_date: string | null;
   nin: string | null;
   nhf_number: string | null;
@@ -1333,6 +1334,7 @@ const EmployeeProfile = () => {
                         job_title: form.job_title || null,
                         employee_number: form.employee_number || null,
                         employment_type: form.employment_type || null,
+                        employee_category: form.employee_category || null,
                         start_date: form.start_date || null,
                         annual_leave_days: form.annual_leave_days ?? 20,
                         status: form.status,
@@ -1418,6 +1420,20 @@ const EmployeeProfile = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Payroll category</Label>
+                      <Select value={form.employee_category || ''} onValueChange={(v) => patch({ employee_category: v || null })}>
+                        <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="administrative">Administrative</SelectItem>
+                          <SelectItem value="executive">Executive / Director</SelectItem>
+                          <SelectItem value="domestic">Domestic staff</SelectItem>
+                          <SelectItem value="security">Security</SelectItem>
+                          <SelectItem value="contractor">Contractor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">Used by payroll segments to include/exclude this person from a selective payroll run.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
