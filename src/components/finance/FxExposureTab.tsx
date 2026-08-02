@@ -120,21 +120,34 @@ export default function FxExposureTab() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Coins className="h-4 w-4 text-primary" /> Partner pay — rate sensitivity
+            <Coins className="h-4 w-4 text-primary" /> Total USD exposure — rate sensitivity
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            {board?.usdExposure.active_partner_count ?? 0} active USD-paid contractors — what a rate swing does to the monthly NGN cost.
+            All USD-denominated obligations (contractors + subscriptions) — what a rate swing does to the monthly NGN cost.
           </p>
         </CardHeader>
         <CardContent>
-          {(board?.usdExposure.active_partner_count ?? 0) === 0 && !loading ? (
-            <p className="text-sm text-muted-foreground text-center py-10">No active USD-denominated contractors — no exposure to model.</p>
+          {(board?.usdExposure.monthly_usd_minor ?? 0) === 0 && !loading ? (
+            <p className="text-sm text-muted-foreground text-center py-10">No active USD-denominated obligations — no exposure to model.</p>
           ) : (
             <>
               <p className="text-sm mb-4">
                 Current monthly cost: <span className="font-semibold">{formatNgn(board?.usdExposure.monthly_ngn_at_current_rate ?? 0)}</span>
                 <span className="text-muted-foreground"> at {formatRate(board?.usdExposure.current_rate ?? null)}</span>
               </p>
+
+              {(board?.usdExposure.sources?.length ?? 0) > 1 && (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {board!.usdExposure.sources.map((src) => (
+                    <div key={src.label} className="rounded-md border p-2.5">
+                      <p className="text-xs text-muted-foreground">{src.label}</p>
+                      <p className="text-sm font-semibold">{formatNgn(src.monthly_ngn)}</p>
+                      <p className="text-[10px] text-muted-foreground">{src.count} active</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={sensitivityData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>

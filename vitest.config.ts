@@ -4,6 +4,14 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+      process.env.VITE_SUPABASE_URL || "https://placeholder.supabase.co"
+    ),
+    "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(
+      process.env.VITE_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder"
+    ),
+  },
   test: {
     environment: "jsdom",
     globals: true,

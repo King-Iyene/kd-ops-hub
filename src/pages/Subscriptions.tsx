@@ -74,6 +74,8 @@ interface Subscription {
   vendor: string | null;
   category: string;
   amount_ngn: number;
+  currency: 'NGN' | 'USD';
+  amount_usd: number | null;
   billing_cycle: 'monthly' | 'quarterly' | 'yearly';
   next_renewal_date: string;
   last_renewed_at: string | null;
@@ -116,7 +118,9 @@ interface FormState {
   name: string;
   vendor: string;
   category: string;
+  currency: 'NGN' | 'USD';
   amount_ngn: string;
+  amount_usd: string;
   billing_cycle: Subscription['billing_cycle'];
   next_renewal_date: string;
   notes: string;
@@ -126,7 +130,9 @@ const emptyForm: FormState = {
   name: '',
   vendor: '',
   category: 'software',
+  currency: 'NGN',
   amount_ngn: '',
+  amount_usd: '',
   billing_cycle: 'monthly',
   next_renewal_date: toIsoDate(new Date()),
   notes: '',
@@ -253,7 +259,9 @@ const Subscriptions = () => {
       name: s.name,
       vendor: s.vendor || '',
       category: s.category,
+      currency: s.currency || 'NGN',
       amount_ngn: String(s.amount_ngn),
+      amount_usd: s.amount_usd != null ? String(s.amount_usd) : '',
       billing_cycle: s.billing_cycle,
       next_renewal_date: s.next_renewal_date,
       notes: s.notes || '',
@@ -270,10 +278,25 @@ const Subscriptions = () => {
       toast({ title: 'Next renewal date is required', variant: 'destructive' });
       return;
     }
-    const amount = parseFloat(form.amount_ngn);
-    if (!Number.isFinite(amount) || amount < 0) {
-      toast({ title: 'Enter a valid amount', variant: 'destructive' });
-      return;
+
+    let amountNgn: number;
+    let amountUsd: number | null = null;
+
+    if (form.currency === 'USD') {
+      const usd = parseFloat(form.amount_usd);
+      if (!Number.isFinite(usd) || usd < 0) {
+        toast({ title: 'Enter a valid USD amount', variant: 'destructive' });
+        return;
+      }
+      amountUsd = usd;
+      amountNgn = parseFloat(form.amount_ngn) || 0;
+    } else {
+      const ngn = parseFloat(form.amount_ngn);
+      if (!Number.isFinite(ngn) || ngn < 0) {
+        toast({ title: 'Enter a valid amount', variant: 'destructive' });
+        return;
+      }
+      amountNgn = ngn;
     }
 
     setSaving(true);
@@ -282,7 +305,9 @@ const Subscriptions = () => {
         name: form.name.trim(),
         vendor: form.vendor || null,
         category: form.category,
-        amount_ngn: amount,
+        currency: form.currency,
+        amount_ngn: amountNgn,
+        amount_usd: amountUsd,
         billing_cycle: form.billing_cycle,
         next_renewal_date: form.next_renewal_date,
         notes: form.notes || null,
@@ -308,7 +333,7 @@ const Subscriptions = () => {
         if (error) throw error;
         await logAudit(
           'subscription_added',
-          `Subscription "${payload.name}" added (${formatNaira(amount)} / ${cycleLabel(form.billing_cycle)})`,
+          `Subscription "${payload.name}" added (${form.currency === 'USD' ? `$${amountUsd}` : formatNaira(amountNgn)} / ${cycleLabel(form.billing_cycle)})`,
           profile,
         );
         toast({ title: 'Subscription added' });
@@ -596,7 +621,9 @@ const Subscriptions = () => {
                       </TableCell>
                       <TableCell className="capitalize">{s.category}</TableCell>
                       <TableCell className="text-right currency font-medium">
-                        {formatNaira(s.amount_ngn)}
+                        {s.currency === 'USD' && s.amount_usd != null
+                          ? `$${Number(s.amount_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : formatNaira(s.amount_ngn)}
                       </TableCell>
                       <TableCell className="capitalize">{s.billing_cycle}</TableCell>
                       <TableCell>{formatDate(s.next_renewal_date)}</TableCell>
@@ -728,15 +755,42 @@ const Subscriptions = () => {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
-                <Label>Amount (₦)</Label>
-                <Input
-                  type="number"
-                  value={form.amount_ngn}
-                  onChange={(e) => setForm({ ...form, amount_ngn: e.target.value })}
-                />
+                <Label>Currency</Label>
+                <Select
+                  value={form.currency}
+                  onValueChange={(v) => setForm({ ...form, currency: v as 'NGN' | 'USD' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NGN">NGN (₦)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              {form.currency === 'USD' ? (
+                <div className="space-y-1">
+                  <Label>Amount ($)</Label>
+                  <Input
+                    type="number"
+                    value={form.amount_usd}
+                    onChange={(e) => setForm({ ...form, amount_usd: e.target.value })}
+                    placeholder="USD amount"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Label>Amount (₦)</Label>
+                  <Input
+                    type="number"
+                    value={form.amount_ngn}
+                    onChange={(e) => setForm({ ...form, amount_ngn: e.target.value })}
+                  />
+                </div>
+              )}
               <div className="space-y-1">
                 <Label>Billing cycle</Label>
                 <Select

@@ -10,7 +10,7 @@ import {
   CartesianGrid,
   Tooltip as ReTooltip,
 } from 'recharts';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +29,8 @@ import TalentCostTab from '@/components/finance/TalentCostTab';
 import AutopilotTab from '@/components/finance/AutopilotTab';
 import FxExposureTab from '@/components/finance/FxExposureTab';
 import BoardReportTab from '@/components/finance/BoardReportTab';
+import CashConversionTab from '@/components/finance/CashConversionTab';
+import RevenueConcentrationTab from '@/components/finance/RevenueConcentrationTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -142,6 +144,8 @@ export default function FinanceDashboard() {
           <TabsTrigger value="talent-cost" className="gap-1.5"><Users2 className="h-3.5 w-3.5" /> Talent Cost</TabsTrigger>
           <TabsTrigger value="autopilot" className="gap-1.5"><Bot className="h-3.5 w-3.5" /> Autopilot</TabsTrigger>
           <TabsTrigger value="fx-exposure" className="gap-1.5"><Coins className="h-3.5 w-3.5" /> FX Exposure</TabsTrigger>
+          <TabsTrigger value="cash-conversion" className="gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Cash Cycle</TabsTrigger>
+          <TabsTrigger value="revenue-concentration" className="gap-1.5"><PieChart className="h-3.5 w-3.5" /> Revenue Risk</TabsTrigger>
           <TabsTrigger value="board-report" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Board Report</TabsTrigger>
         </TabsList>
 
@@ -437,6 +441,14 @@ export default function FinanceDashboard() {
 
         <TabsContent value="fx-exposure" className="mt-0">
           <FxExposureTab />
+        </TabsContent>
+
+        <TabsContent value="cash-conversion" className="mt-0">
+          <CashConversionTab />
+        </TabsContent>
+
+        <TabsContent value="revenue-concentration" className="mt-0">
+          <RevenueConcentrationTab />
         </TabsContent>
 
         <TabsContent value="board-report" className="mt-0">

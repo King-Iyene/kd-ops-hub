@@ -1,22 +1,20 @@
 /**
- * FX Exposure Command Center — Phase 5 of the CFO Finance Module (scoped).
+ * FX Exposure Command Center — Phase 5 of the CFO Finance Module.
  *
- * KDOps has no multi-currency invoicing or expense tracking today — every
- * money column outside contractor pay is NGN-only, so a full multi-currency
- * P&L isn't something this module can honestly build without a schema
- * change. What DOES already exist: an authoritative FX rate ledger
- * (fx_rates) and a real USD-denominated obligation — partner/contractor pay
- * (see src/lib/money.ts, 20260904000000_partner_pay_config.sql). This
- * module gives that the board-level treatment: a rate trend/volatility
- * view, and a sensitivity table showing what a rate swing does to the NGN
- * cost of that obligation.
+ * Models the company's total USD exposure from two sources:
+ *   1. Partner/contractor pay (from contractors table + company_settings)
+ *   2. USD-denominated subscriptions (from subscriptions table, currency='USD')
+ *
+ * The FX rate ledger (fx_rates) provides an authoritative rate trend and
+ * volatility analysis. Sensitivity tables show what a rate swing does to
+ * the total NGN cost of all USD obligations before it happens.
  *
  * Pure functions are independently tested in fx-exposure.test.ts; `fetch*`
  * wrappers only do I/O.
  */
 
 import { supabase } from '@/lib/supabase';
-import { usdMinorToNgnMinor, toMajor } from '@/lib/money';
+import { usdMinorToNgnMinor, toMajor, toMinor } from '@/lib/money';
 
 const COMPANY_SETTINGS_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -98,25 +96,37 @@ export interface UsdExposureSensitivity {
   delta_ngn: number;
 }
 
+export interface UsdExposureSource {
+  label: string;
+  count: number;
+  monthly_usd_minor: number;
+  monthly_ngn: number;
+}
+
 export interface UsdExposureSummary {
   active_partner_count: number;
   monthly_usd_minor: number;
   current_rate: number;
   monthly_ngn_at_current_rate: number;
   sensitivity: UsdExposureSensitivity[];
+  sources: UsdExposureSource[];
 }
 
 const SENSITIVITY_SHOCKS_PCT = [-10, -5, 0, 5, 10];
 
 /**
- * Models the NGN cost of the recurring USD partner-pay obligation under a
- * range of rate shocks, so a rate move shows up as a cost number before it
- * happens rather than as a surprise on the next payment run.
+ * Models the NGN cost of all recurring USD obligations under a range of
+ * rate shocks, so a rate move shows up as a cost number before it happens
+ * rather than as a surprise on the next payment run.
+ *
+ * Sources are broken down so the UI can show where USD exposure comes from
+ * (contractor pay vs. USD subscriptions vs. future sources).
  */
 export function computeUsdExposure(
   activePartnerCount: number,
   totalMonthlyUsdMinor: number,
   currentRate: number,
+  sources: UsdExposureSource[] = [],
 ): UsdExposureSummary {
   const baselineNgnMinor = currentRate > 0 ? usdMinorToNgnMinor(totalMonthlyUsdMinor, currentRate) : 0;
   const baselineNgn = toMajor(baselineNgnMinor);
@@ -139,6 +149,7 @@ export function computeUsdExposure(
     current_rate: currentRate,
     monthly_ngn_at_current_rate: baselineNgn,
     sensitivity,
+    sources,
   };
 }
 
@@ -152,11 +163,12 @@ export interface FxExposureBoard {
 }
 
 export async function fetchFxExposureBoard(days = 90): Promise<FxExposureBoard> {
-  const [history, contractorsRes, settingsRes, rateRes] = await Promise.all([
+  const [history, contractorsRes, settingsRes, rateRes, usdSubsRes] = await Promise.all([
     fetchFxRateHistory(days),
     supabase.from('contractors').select('id, pay_amount_usd_minor').eq('status', 'active'),
     supabase.from('company_settings').select('partner_pay_usd_minor, fx_deviation_threshold_pct').eq('id', COMPANY_SETTINGS_ID).maybeSingle(),
     supabase.rpc('get_current_rate', { p_base: 'USD', p_quote: 'NGN' }),
+    supabase.from('subscriptions').select('id, amount_usd, billing_cycle').eq('status', 'active').eq('currency', 'USD'),
   ]);
   if (contractorsRes.error) throw contractorsRes.error;
 
@@ -164,15 +176,44 @@ export async function fetchFxExposureBoard(days = 90): Promise<FxExposureBoard> 
   const currentRate = Number(rateRes.data || 0);
   const contractors = (contractorsRes.data || []) as Array<{ id: string; pay_amount_usd_minor: number | null }>;
 
-  const totalMonthlyUsdMinor = contractors.reduce(
+  const contractorMonthlyUsdMinor = contractors.reduce(
     (s, c) => s + (c.pay_amount_usd_minor != null ? Number(c.pay_amount_usd_minor) : globalUsdMinor),
     0,
   );
 
+  const usdSubs = (usdSubsRes.data || []) as Array<{ id: string; amount_usd: number | null; billing_cycle: string }>;
+  const subMonthlyUsd = usdSubs.reduce((s, sub) => {
+    const amt = Number(sub.amount_usd || 0);
+    if (sub.billing_cycle === 'yearly') return s + amt / 12;
+    if (sub.billing_cycle === 'quarterly') return s + amt / 3;
+    return s + amt;
+  }, 0);
+  const subMonthlyUsdMinor = toMinor(subMonthlyUsd);
+
+  const totalMonthlyUsdMinor = contractorMonthlyUsdMinor + subMonthlyUsdMinor;
+
+  const sources: UsdExposureSource[] = [];
+  if (contractors.length > 0) {
+    sources.push({
+      label: 'Contractor pay',
+      count: contractors.length,
+      monthly_usd_minor: contractorMonthlyUsdMinor,
+      monthly_ngn: currentRate > 0 ? toMajor(usdMinorToNgnMinor(contractorMonthlyUsdMinor, currentRate)) : 0,
+    });
+  }
+  if (usdSubs.length > 0) {
+    sources.push({
+      label: 'USD subscriptions',
+      count: usdSubs.length,
+      monthly_usd_minor: subMonthlyUsdMinor,
+      monthly_ngn: currentRate > 0 ? toMajor(usdMinorToNgnMinor(subMonthlyUsdMinor, currentRate)) : 0,
+    });
+  }
+
   return {
     history,
     volatility: computeFxVolatility(history),
-    usdExposure: computeUsdExposure(contractors.length, totalMonthlyUsdMinor, currentRate),
+    usdExposure: computeUsdExposure(contractors.length + usdSubs.length, totalMonthlyUsdMinor, currentRate, sources),
     deviationThresholdPct: Number((settingsRes.data as any)?.fx_deviation_threshold_pct ?? 5),
   };
 }
