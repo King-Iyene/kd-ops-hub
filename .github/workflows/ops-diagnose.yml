@@ -1,0 +1,88 @@
+name: Ops Diagnose
+
+# ─── PURPOSE ──────────────────────────────────────────────────────────────────
+#
+# On-demand diagnostic tool: invokes any Supabase Edge Function through a
+# REAL authenticated browser session (same login flow the E2E suite uses)
+# and prints the raw JSON response in the run log.
+#
+# Replaces the "paste JS into browser console" / "run SQL in Supabase SQL
+# Editor" workflow for checking stuck batches, forcing reconciliation, etc.
+# Faster, no copy-paste, no risk of pasting into the wrong tool.
+#
+# Usage: Actions tab → "Ops Diagnose" → "Run workflow" → fill in:
+#   function — edge function name, e.g. flutterwave-reconciliation
+#   body     — JSON body, e.g. {"batch_id":"<uuid>"}  (default: {})
+#
+# Runs ONLY the ops-diagnose.spec.ts test — not the full E2E suite — so it
+# finishes in under a minute instead of ~30.
+#
+# Required GitHub Secrets (same ones the Playwright E2E workflow already
+# uses — no new secrets needed):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+#   TEST_USER_EMAIL, TEST_USER_PASSWORD
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch:
+    inputs:
+      function:
+        description: 'Edge function name to invoke (e.g. flutterwave-reconciliation)'
+        required: true
+        type: string
+      body:
+        description: 'JSON body to send (default: {})'
+        required: false
+        type: string
+        default: '{}'
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      # Only set here — never in the Vercel production build — so the test
+      # hook in src/integrations/supabase/client.ts never ships to real users.
+      VITE_EXPOSE_TEST_HOOKS: 'true'
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      OPS_FUNCTION: ${{ inputs.function }}
+      OPS_BODY: ${{ inputs.body }}
+      CI: true
+      BASE_URL: http://localhost:4173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app (with test hooks enabled)
+        run: npm run build
+
+      - name: Start preview server
+        run: npx vite preview --port 4173 &
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for http://localhost:4173..."
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 | grep -q "^[23]"; then
+              echo "Server is ready."
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run ops-diagnose test only
+        run: npx playwright test ops-diagnose

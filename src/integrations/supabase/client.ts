@@ -17,3 +17,15 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ── Test-only hook (Playwright ops diagnostics) ────────────────────────────
+// Exposes the client on window ONLY when VITE_EXPOSE_TEST_HOOKS=true, which
+// is set exclusively in the Playwright CI workflow's build step — never in
+// the real Vercel production build. Lets tests/ops-diagnose.spec.ts invoke
+// any edge function through the SAME authenticated session Playwright's
+// global-setup created, instead of requiring a human to paste JS into the
+// browser console (error-prone — easy to paste into the wrong tool, as
+// happened once already).
+if ((import.meta.env.VITE_EXPOSE_TEST_HOOKS as string | undefined) === 'true') {
+  (window as unknown as { __kdops_supabase__?: typeof supabase }).__kdops_supabase__ = supabase;
+}
