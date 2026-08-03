@@ -1730,7 +1730,10 @@ const BatchDetail = () => {
   const canCancelWholeBatch =
     (isAdmin || isFinance) &&
     !batch.deleted_at &&
-    ['failed', 'partially_processed'].includes(batch.status) &&
+    // 'processing' included so a batch stuck on a pending/processing item
+    // (not yet failed) can also be closed out from here, not just per-item —
+    // same underlying cancel_batch_bulk RPC either way.
+    ['failed', 'partially_processed', 'processing'].includes(batch.status) &&
     items.some((i) => i.status !== 'succeeded' && !i.is_manually_resolved);
 
   const submitCancelBatch = async () => {

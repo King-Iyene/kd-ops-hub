@@ -493,6 +493,7 @@ const Payments = () => {
                   { value: 'processed', label: 'Done' },
                   { value: 'partially_processed', label: 'Partial' },
                   { value: 'failed', label: 'Failed' },
+                  { value: 'cancelled', label: 'Cancelled' },
                   { value: 'rejected', label: 'Rejected' },
                   { value: 'draft', label: 'Draft' },
                 ].map(({ value, label }) => (
