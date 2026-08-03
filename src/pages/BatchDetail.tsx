@@ -2986,7 +2986,7 @@ const BatchDetail = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="cancel-batch-note">Note (optional)</Label>
+            <Label htmlFor="cancel-batch-note">Reason for cancelling *</Label>
             <Textarea
               id="cancel-batch-note"
               value={cancelBatchNote}
@@ -3003,7 +3003,7 @@ const BatchDetail = () => {
             <Button
               variant="destructive"
               onClick={submitCancelBatch}
-              disabled={cancelBatchSaving}
+              disabled={cancelBatchSaving || !cancelBatchNote.trim()}
             >
               {cancelBatchSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cancel batch

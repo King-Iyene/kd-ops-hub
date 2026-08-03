@@ -308,27 +308,52 @@ const Dashboard = () => {
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
       const [
-        batchesRes, fuelRes, activityRes, subsRes, budgetsRes,
+        disbursedItemsRes, fuelRes, activityRes, subsRes, budgetsRes,
         expensesRes, processedBatchesRes, upcomingPaymentsRes, employeesRes,
       ] = await Promise.all([
-        // Disbursed = money that actually left the bank. Includes 'processed'
-        // (all items succeeded) and 'partially_processed' (some failed — failed
-        // items are netted out below by joining batch_items).
-        supabase.from('payment_batches').select('id, total_amount, beneficiary_count, status').in('status', ['processed', 'partially_processed']).is('deleted_at', null).gte('created_at', monthStart),
+        // "Total Disbursed" tile = money that actually left the bank THIS
+        // MONTH. Keyed off batch_items.processed_at — the moment a transfer
+        // was confirmed succeeded — not payment_batches.created_at or
+        // .payment_date. Those two are editable/target dates that can drift
+        // from reality (confirmed: several batches carry a payment_date
+        // weeks after their items actually processed), so anything reading
+        // off them silently disagrees with what really happened this month.
+        // processed_at is the single source of truth, same field
+        // paid_total_in_period (Payments page) uses — the two tiles must
+        // agree by construction now.
+        supabase.from('batch_items')
+          .select('amount_ngn, processed_at, is_manually_resolved, payment_batches!inner(deleted_at)')
+          .eq('status', 'succeeded')
+          .eq('is_manually_resolved', false)
+          .is('payment_batches.deleted_at', null)
+          .gte('processed_at', monthStart)
+          .limit(5000),
         supabase.from('fuel_requests').select('amount_ngn').eq('status', 'approved').is('deleted_at', null).gte('created_at', weekStart),
         supabase.from('audit_logs').select('id, action_type, description, performed_by_name, created_at').order('created_at', { ascending: false }).limit(15),
         supabase.from('subscriptions').select('id, name, amount_ngn, next_renewal_date').eq('status', 'active').lte('next_renewal_date', inThirtyDays.toISOString().slice(0, 10)).order('next_renewal_date', { ascending: true }).limit(6),
         supabase.from('budgets').select('id, name, total_amount_ngn, period_start, period_end, status').eq('status', 'approved').is('deleted_at', null).limit(20),
         supabase.from('expenses').select('amount_ngn, date, status').eq('status', 'approved').is('deleted_at', null).limit(2000),
+        // Used only by the Budget Utilization chart below (buckets actual
+        // spend into each budget's period_start/period_end window).
         supabase.from('payment_batches').select('id, total_amount, payment_date, status').in('status', ['processed', 'partially_processed']).is('deleted_at', null).limit(500),
         supabase.from('payment_batches').select('id, name, total_amount, scheduled_date, status').gte('scheduled_date', today).lte('scheduled_date', sevenDaysFromNow).eq('status', 'scheduled').is('deleted_at', null).order('scheduled_date', { ascending: true }).limit(5),
         supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('status', 'active').neq('is_anonymised', true),
       ]);
 
-      // Subtract failed batch_items from partially_processed batches so the
-      // KPIs reflect actual money moved, not the gross intended amount.
-      const allDisbursed = [...(batchesRes.data || []), ...(processedBatchesRes.data || [])] as any[];
-      const partialIds = allDisbursed.filter((b) => b.status === 'partially_processed').map((b) => b.id);
+      const totalDisbursed = (disbursedItemsRes.data || []).reduce(
+        (sum: number, it: any) => sum + Number(it.amount_ngn || 0), 0,
+      );
+      const totalEmployees = employeesRes.count ?? 0;
+      const fuelSpend = fuelRes.data?.reduce((sum, f) => sum + (f.amount_ngn || 0), 0) || 0;
+
+      setStats({ totalEmployees, totalDisbursed, fuelSpend });
+
+      // Budget Utilization chart's "actual" figure — separate from the Total
+      // Disbursed tile above, still needs the batch-level netted amount
+      // (failed items subtracted from partially_processed batches) bucketed
+      // by payment_date into each budget's period window.
+      const partialIds = (processedBatchesRes.data || [] as any[])
+        .filter((b: any) => b.status === 'partially_processed').map((b: any) => b.id);
       const succeededByBatch = new Map<string, number>();
       if (partialIds.length > 0) {
         const { data: items } = await supabase
@@ -346,12 +371,6 @@ const Dashboard = () => {
         if (b.status === 'partially_processed') return succeededByBatch.get(b.id) ?? 0;
         return 0;
       };
-
-      const totalDisbursed = (batchesRes.data || []).reduce((sum: number, b: any) => sum + actualDisbursedAmount(b), 0);
-      const totalEmployees = employeesRes.count ?? 0;
-      const fuelSpend = fuelRes.data?.reduce((sum, f) => sum + (f.amount_ngn || 0), 0) || 0;
-
-      setStats({ totalEmployees, totalDisbursed, fuelSpend });
       setActivity((activityRes.data as AuditLogRow[]) || []);
       setUpcoming((subsRes.data as UpcomingSub[]) || []);
       setUpcomingPayments((upcomingPaymentsRes.data as UpcomingPayment[]) || []);
