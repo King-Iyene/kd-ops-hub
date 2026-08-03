@@ -6090,32 +6090,13 @@ const Fleet = () => {
 
             <div className="space-y-1">
               <Label>Receipt <span className="text-destructive">*</span></Label>
-              <Input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  if (!validateFileSize(f, toast)) {
-                    (e.target as HTMLInputElement).value = '';
-                    return;
-                  }
-                  setReceiptFile(f);
-                }}
-              />
-              <p className="text-xs text-muted-foreground">Photo or PDF of the fuel station receipt.</p>
-              {receiptFile && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{receiptFile.name}</span>
-                  {' '}— {(receiptFile.size / 1024).toFixed(1)} KB
-                </p>
-              )}
               <OcrReceiptScanner
                 extractLitres
                 onExtracted={(result: OcrResult, file: File) => {
                   setReceiptFile(file);
                   setReceiptScanWarning(
                     result.lowConfidence
-                      ? "This scan couldn't confidently read an amount or litres off the photo. Double-check it's a clear photo of the receipt, then fill in Amount and Litres yourself — this upload will still be flagged for admin review either way."
+                      ? "Scan couldn't read amount or litres — fill them in manually below."
                       : '',
                   );
                   setReceiptForm((f) => ({
@@ -6126,11 +6107,36 @@ const Fleet = () => {
                   }));
                 }}
               />
+              {receiptFile && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">{receiptFile.name}</span>
+                  {' '}— {(receiptFile.size / 1024).toFixed(1)} KB
+                </p>
+              )}
               {receiptScanWarning && (
                 <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                   <span>{receiptScanWarning}</span>
                 </div>
+              )}
+              {!receiptFile && (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                    <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                  </div>
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (!validateFileSize(f, toast)) {
+                        (e.target as HTMLInputElement).value = '';
+                        return;
+                      }
+                      setReceiptFile(f);
+                    }}
+                  />
+                </>
               )}
             </div>
 
@@ -6147,7 +6153,11 @@ const Fleet = () => {
               <Input
                 type="number"
                 value={receiptForm.amount_ngn}
-                onChange={(e) => setReceiptForm({ ...receiptForm, amount_ngn: e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setReceiptForm({ ...receiptForm, amount_ngn: v });
+                  if (v && receiptForm.litres_filled) setReceiptScanWarning('');
+                }}
                 placeholder="e.g. 50000"
               />
               {(() => {
@@ -6167,7 +6177,11 @@ const Fleet = () => {
               <Input
                 type="number"
                 value={receiptForm.litres_filled}
-                onChange={(e) => setReceiptForm({ ...receiptForm, litres_filled: e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setReceiptForm({ ...receiptForm, litres_filled: v });
+                  if (v && receiptForm.amount_ngn) setReceiptScanWarning('');
+                }}
                 placeholder="e.g. 25.5"
               />
               {(() => {
@@ -6456,25 +6470,32 @@ const Fleet = () => {
             </div>
             <div className="space-y-1">
               <Label>Receipt <span className="text-destructive">*</span></Label>
-              <Input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  if (!validateFileSize(f, toast)) {
-                    (e.target as HTMLInputElement).value = '';
-                    return;
-                  }
-                  setRepairReceiptUploadFile(f);
-                }}
-              />
+              <OcrReceiptScanner onExtracted={(_result: OcrResult, file: File) => setRepairReceiptUploadFile(file)} />
               {repairReceiptUploadFile && (
                 <p className="text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">{repairReceiptUploadFile.name}</span>
                   {' '}— {(repairReceiptUploadFile.size / 1024).toFixed(1)} KB
                 </p>
               )}
-              <OcrReceiptScanner onExtracted={(_result: OcrResult, file: File) => setRepairReceiptUploadFile(file)} />
+              {!repairReceiptUploadFile && (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                    <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                  </div>
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (!validateFileSize(f, toast)) {
+                        (e.target as HTMLInputElement).value = '';
+                        return;
+                      }
+                      setRepairReceiptUploadFile(f);
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
           <DialogFooter>

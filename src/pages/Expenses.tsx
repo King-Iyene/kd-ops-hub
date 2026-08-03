@@ -1823,33 +1823,42 @@ const Expenses = () => {
                   setReceiptFile(file);
                 }}
               />
-              <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50 kd-transition w-full">
-                <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="flex-1 truncate text-muted-foreground">
-                  {receiptFile ? receiptFile.name : 'Attach image or PDF…'}
-                </span>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,application/pdf"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    if (!validateFileSize(f, toast)) {
-                      e.target.value = '';
-                      return;
-                    }
-                    setReceiptFile(f);
-                  }}
-                />
-              </label>
-              {receiptFile && (
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-destructive"
-                  onClick={() => setReceiptFile(null)}
-                >
-                  Remove
-                </button>
+              {receiptFile ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                  <span className="font-medium text-foreground truncate">{receiptFile.name}</span>
+                  <span>— {(receiptFile.size / 1024).toFixed(1)} KB</span>
+                  <button
+                    type="button"
+                    className="ml-auto text-muted-foreground hover:text-destructive"
+                    onClick={() => setReceiptFile(null)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                    <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted/50 kd-transition w-full">
+                    <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate text-muted-foreground">Attach image or PDF…</span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        if (!validateFileSize(f, toast)) {
+                          e.target.value = '';
+                          return;
+                        }
+                        setReceiptFile(f);
+                      }}
+                    />
+                  </label>
+                </>
               )}
             </div>
 
