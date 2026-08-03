@@ -112,11 +112,22 @@ export function PaymentSummaryModal({
   // Paystack balance" while Flutterwave had plenty, or vice versa — the
   // check was meaningless either way once Flutterwave went live).
   const [activeProvider, setActiveProvider] = useState<Provider>('paystack');
+  // Flutterwave's transfer-fee tiers are NOT the same as Paystack's — this
+  // used to reuse Paystack's fee math (₦10/₦25/₦50 tiers) for both
+  // providers, showing an inaccurate number on every Flutterwave
+  // confirmation screen. When Flutterwave is active, fetch the REAL fee per
+  // unique amount from Flutterwave's own fee-quote endpoint instead of
+  // guessing. null = not fetched yet / not applicable (Paystack active).
+  const [fwFeeTotal, setFwFeeTotal] = useState<number | null>(null);
+  const [fwFeeLoading, setFwFeeLoading] = useState(false);
+  const [fwFeeError, setFwFeeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setBalanceLoading(true);
     setBalanceError(null);
+    setFwFeeTotal(null);
+    setFwFeeError(null);
     (async () => {
       try {
         const { data } = await supabase
@@ -129,6 +140,31 @@ export function PaymentSummaryModal({
         const b = await getProviderBalance(provider);
         if (b.error) throw new Error(b.error);
         setBalance(b.available);
+
+        if (provider === 'flutterwave') {
+          setFwFeeLoading(true);
+          try {
+            // One quote call per UNIQUE amount, not per item — a 50-person
+            // payroll with 3 distinct amounts costs 3 calls, not 50.
+            const amounts = Array.from(new Set(items.map((i) => Number(i.amount_ngn) || 0).filter((a) => a > 0)));
+            const feeByAmount = new Map<number, number>();
+            await Promise.all(amounts.map(async (amt) => {
+              const { data: feeRes, error: feeErr } = await supabase.functions.invoke('flutterwave-transfer', {
+                body: { action: 'get_transfer_fee', amount_ngn: amt },
+              });
+              if (feeErr || (feeRes as any)?.ok === false) throw new Error('fee quote failed');
+              feeByAmount.set(amt, Number((feeRes as any)?.data?.fee_ngn ?? 0) || 0);
+            }));
+            const total = items.reduce(
+              (sum, i) => sum + (feeByAmount.get(Number(i.amount_ngn) || 0) ?? 0), 0,
+            );
+            setFwFeeTotal(total);
+          } catch {
+            setFwFeeError('Could not fetch live Flutterwave fees — showing an estimate instead.');
+          } finally {
+            setFwFeeLoading(false);
+          }
+        }
       } catch (e: any) {
         setBalanceError(e?.message || 'Could not check balance');
       } finally {
@@ -141,7 +177,14 @@ export function PaymentSummaryModal({
     items.map((i) => Number(i.amount_ngn) || 0),
     exempt,
   );
-  const balanceAfter = balance != null ? balance - cost.grandTotal : null;
+  // Prefer the live Flutterwave quote when available; fall back to the
+  // Paystack-tier estimate only while loading or if the live quote failed
+  // (clearly labelled as an estimate in that case — see fwFeeError below).
+  const effectiveTransferFees = activeProvider === 'flutterwave' && fwFeeTotal != null
+    ? fwFeeTotal
+    : cost.paystackFees;
+  const effectiveGrandTotal = cost.totalAmount + effectiveTransferFees + cost.stampDuty;
+  const balanceAfter = balance != null ? balance - effectiveGrandTotal : null;
   const balanceShort = balanceAfter != null && balanceAfter < 0;
   const balanceTight = balanceAfter != null && balanceAfter >= 0 && balanceAfter < LOW_BALANCE_HEADROOM;
 
@@ -196,8 +239,18 @@ export function PaymentSummaryModal({
         <div className="space-y-1 rounded-lg border bg-muted/30 p-4 text-sm">
           <Row label={`Recipients (${cost.recipientCount})`} value={formatNaira(cost.totalAmount)} />
           <Row
-            label={`${providerLabel(activeProvider)} transfer fees`}
-            value={formatNaira(cost.paystackFees)}
+            label={
+              <span className="flex items-center gap-1">
+                {providerLabel(activeProvider)} transfer fees
+                {activeProvider === 'flutterwave' && fwFeeLoading && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                )}
+                {activeProvider === 'flutterwave' && fwFeeError && (
+                  <InfoTip text={fwFeeError} />
+                )}
+              </span>
+            }
+            value={formatNaira(effectiveTransferFees)}
             muted
           />
           {cost.stampDuty > 0 && (
@@ -215,7 +268,7 @@ export function PaymentSummaryModal({
           <Separator className="my-2" />
           <Row
             label={<span className="font-semibold">Total deducted from balance</span>}
-            value={<span className="font-semibold">{formatNaira(cost.grandTotal)}</span>}
+            value={<span className="font-semibold">{formatNaira(effectiveGrandTotal)}</span>}
           />
         </div>
 
@@ -251,7 +304,7 @@ export function PaymentSummaryModal({
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Insufficient balance</AlertTitle>
               <AlertDescription>
-                Top up your Paystack wallet by at least{' '}
+                Top up your {providerLabel(activeProvider)} wallet by at least{' '}
                 <strong>{formatNaira(Math.abs(balanceAfter ?? 0))}</strong>{' '}
                 before processing, otherwise some transfers will fail.
               </AlertDescription>

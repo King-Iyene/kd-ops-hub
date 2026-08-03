@@ -32,14 +32,12 @@ import {
   verifyTransfer,
   getBankCode,
   resolveAccount,
-  paystackTransferFee,
-  stampDutyFor,
   buildNarration,
   friendlyPaystackError,
   type NarrationKind,
 } from '@/lib/paystack';
 import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
-import { providerLabel as providerLabelFor } from '@/lib/payments/item-facade';
+import { providerLabel as providerLabelFor, itemFeeNgn, itemFeeSource } from '@/lib/payments/item-facade';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
@@ -113,17 +111,6 @@ const escapeHtml = (v: any): string => {
 };
 
 /**
- * Total platform deduction (Paystack fee + stamp duty if applicable) for a
- * single transfer amount. Stamp duty is ₦50 on transfers ≥ ₦10,000 from
- * 18 Feb 2026 (Nigeria Tax Act 2025). Payroll merchant exemption is honored
- * via the `exempt` flag — keep at false unless your Paystack account is
- * explicitly registered as exempt.
- */
-function fullChargeForAmount(amountNgn: number): number {
-  return paystackTransferFee(amountNgn) + stampDutyFor(amountNgn);
-}
-
-/**
  * Map a payment_batches row + batch_item to a NarrationKind so we know what
  * narration to send. Falls back to "generic" if the type is unknown.
  */
@@ -160,26 +147,22 @@ function narrationForBatchItem(batch: any, item: any): string {
  *      fired yet.
  *   4. Zero for non-succeeded items.
  */
+// Was Paystack-only (checked paystack_fee_ngn / paystack_raw.fee exclusively),
+// so every completed Flutterwave item silently fell through to a guessed
+// Paystack-tier estimate here — never the real flutterwave_fee_ngn already
+// sitting in the row. Delegates to the provider-aware facade, which checks
+// the right columns for whichever provider actually dispatched the item.
 function getItemFee(item: any): number {
-  const direct = Number(item?.paystack_fee_ngn || 0);
-  if (direct > 0) return direct;
-
-  const rawFeeKobo = Number(item?.paystack_raw?.fee || 0);
-  if (rawFeeKobo > 0) return rawFeeKobo / 100;
-
-  if (item?.status === 'succeeded') {
-    return fullChargeForAmount(Number(item?.amount_ngn || 0));
-  }
-  return 0;
+  return itemFeeNgn(item);
 }
 
-// Whether getItemFee returned a real Paystack-confirmed fee or a tier estimate.
-// Surfaced in the CSV export so finance never mistakes an estimate for an actual.
+// Whether getItemFee returned a real provider-confirmed fee or a tier
+// estimate. Surfaced in the CSV export so finance never mistakes an
+// estimate for an actual — same fix as getItemFee above.
 function getItemFeeBasis(item: any): 'actual' | 'estimated' | '' {
-  if (Number(item?.paystack_fee_ngn || 0) > 0) return 'actual';
-  if (Number(item?.paystack_raw?.fee || 0) > 0) return 'actual';
-  if (item?.status === 'succeeded') return 'estimated';
-  return '';
+  const source = itemFeeSource(item);
+  if (source === 'actual') return 'actual';
+  return item?.status === 'succeeded' ? 'estimated' : '';
 }
 
 

@@ -300,6 +300,34 @@ serve(async (req) => {
     }
 
     // ────────────────────────────────────────────────────────────────
+    // get_transfer_fee: open — no money moves, no sensitive data. Queries
+    // Flutterwave's OWN fee-quote endpoint so the pre-dispatch estimate the
+    // operator sees is Flutterwave's real fee for this exact amount, not a
+    // guess reusing Paystack's fee tiers (₦10/₦25/₦50 — Flutterwave's own
+    // tiers are NOT identical; conflating them showed an inaccurate number
+    // on every Flutterwave payment's confirmation screen).
+    // ────────────────────────────────────────────────────────────────
+    if (action === "get_transfer_fee") {
+      const amount = Number(params.amount_ngn ?? 0);
+      if (!(amount > 0)) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "amount_ngn must be > 0" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const qs = new URLSearchParams({ amount: String(amount), currency: "NGN" });
+      const body = await flutterwaveFetch(serviceClient, `/transfers/fee?${qs}`);
+      const row = Array.isArray(body.data) ? body.data[0] : body.data;
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: { fee_ngn: Number(row?.fee ?? 0) || 0 },
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // All other actions require a logged-in user + admin/finance role.
     // ────────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("Authorization") ?? "";
