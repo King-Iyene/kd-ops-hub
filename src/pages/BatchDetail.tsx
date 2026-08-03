@@ -2509,9 +2509,12 @@ const BatchDetail = () => {
                       <div className="font-mono text-[12px] truncate max-w-[160px]" title={item.reference || '—'}>
                         {item.reference || '—'}
                       </div>
-                      {item.paystack_reference && (
-                        <div className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[160px]" title={item.paystack_reference}>
-                          {item.paystack_reference}
+                      {(item.paystack_reference || item.flutterwave_reference) && (
+                        <div
+                          className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[160px]"
+                          title={item.paystack_reference || item.flutterwave_reference}
+                        >
+                          {item.paystack_reference || item.flutterwave_reference}
                         </div>
                       )}
                     </TableCell>
