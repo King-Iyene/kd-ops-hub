@@ -564,9 +564,17 @@ const EmployeeProfile = () => {
         return;
       }
     }
-    const { error } = await supabase.from('profiles').update(payload).eq('id', id);
+    // .select() lets us tell a real save apart from an RLS-silent no-op —
+    // PostgREST returns no error when a row is filtered out by policy, just
+    // zero rows back, which would otherwise show a false "saved" toast.
+    const { data, error } = await supabase.from('profiles').update(payload).eq('id', id).select('id');
     if (error) {
       toast({ title: `Save failed`, description: error.message, variant: 'destructive' });
+      setSectionSaving(false);
+      return;
+    }
+    if (!data?.length) {
+      toast({ title: 'Save failed', description: "You don't have permission to change one or more of these fields.", variant: 'destructive' });
       setSectionSaving(false);
       return;
     }

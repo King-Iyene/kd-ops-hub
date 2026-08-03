@@ -17,6 +17,8 @@ export interface PayrollSegmentFilterRules {
   exclude_department_ids?: string[];
   include_employment_types?: string[];
   exclude_employment_types?: string[];
+  include_pay_group_ids?: string[];
+  exclude_pay_group_ids?: string[];
   exclude_employee_ids?: string[];
 }
 
@@ -34,6 +36,7 @@ export interface SegmentableEmployee {
   employee_category?: string | null;
   department_id?: string | null;
   employment_type?: string | null;
+  pay_group_id?: string | null;
 }
 
 /** True if an employee passes every configured dimension of a segment's rules. */
@@ -62,6 +65,12 @@ export function matchesSegment(
     if (!empType || !rules.include_employment_types.includes(empType)) return false;
   }
   if (empType && rules.exclude_employment_types?.includes(empType)) return false;
+
+  const payGroup = employee.pay_group_id ?? null;
+  if (rules.include_pay_group_ids?.length) {
+    if (!payGroup || !rules.include_pay_group_ids.includes(payGroup)) return false;
+  }
+  if (payGroup && rules.exclude_pay_group_ids?.includes(payGroup)) return false;
 
   return true;
 }

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { matchesSegment, filterEmployeesForSegment, isSegmentFilterEmpty } from './payroll-segments';
 
-const alice = { id: 'alice', employee_category: 'administrative', department_id: 'dept-ops', employment_type: 'full_time' };
-const bob = { id: 'bob', employee_category: 'executive', department_id: 'dept-exec', employment_type: 'full_time' };
-const carol = { id: 'carol', employee_category: 'domestic', department_id: null, employment_type: 'part_time' };
-const dave = { id: 'dave', employee_category: null, department_id: 'dept-ops', employment_type: 'full_time' };
+const alice = { id: 'alice', employee_category: 'administrative', department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
+const bob = { id: 'bob', employee_category: 'executive', department_id: 'dept-exec', employment_type: 'full_time', pay_group_id: 'grp-directors' };
+const carol = { id: 'carol', employee_category: 'domestic', department_id: null, employment_type: 'part_time', pay_group_id: null };
+const dave = { id: 'dave', employee_category: null, department_id: 'dept-ops', employment_type: 'full_time', pay_group_id: 'grp-staff' };
 
 describe('matchesSegment', () => {
   it('matches everyone when rules are null or empty', () => {
@@ -41,6 +41,21 @@ describe('matchesSegment', () => {
     const rules = { exclude_employment_types: ['part_time'] };
     expect(matchesSegment(carol, rules)).toBe(false);
     expect(matchesSegment(alice, rules)).toBe(true);
+  });
+
+  it('includes only listed pay_group_ids', () => {
+    const rules = { include_pay_group_ids: ['grp-directors'] };
+    expect(matchesSegment(bob, rules)).toBe(true);
+    expect(matchesSegment(alice, rules)).toBe(false);
+    // Employees with no pay group don't match an include-list filter.
+    expect(matchesSegment(carol, rules)).toBe(false);
+  });
+
+  it('excludes by pay_group_id', () => {
+    const rules = { exclude_pay_group_ids: ['grp-directors'] };
+    expect(matchesSegment(bob, rules)).toBe(false);
+    expect(matchesSegment(alice, rules)).toBe(true);
+    expect(matchesSegment(carol, rules)).toBe(true);
   });
 
   it('excludes specific employee ids as a manual override', () => {

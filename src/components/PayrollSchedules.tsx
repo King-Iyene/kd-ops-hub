@@ -456,6 +456,7 @@ interface GroupMember {
   full_name: string | null;
   email: string;
   department_name: string | null;
+  salary_ngn: number | null;
 }
 
 function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
@@ -464,6 +465,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const [groups, setGroups] = useState<PayGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [memberCosts, setMemberCosts] = useState<Record<string, number>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PayGroup | null>(null);
   const [form, setForm] = useState<{
@@ -488,15 +490,20 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       supabase.from('pay_groups').select('*').order('created_at', { ascending: true }),
       supabase
         .from('profiles')
-        .select('pay_group_id')
+        .select('pay_group_id, salary_ngn, status')
         .not('pay_group_id', 'is', null),
     ]);
     setGroups((groupsRes.data as PayGroup[]) ?? []);
     const counts: Record<string, number> = {};
+    const costs: Record<string, number> = {};
     (countsRes.data ?? []).forEach((r: any) => {
       counts[r.pay_group_id] = (counts[r.pay_group_id] ?? 0) + 1;
+      if (r.status === 'active') {
+        costs[r.pay_group_id] = (costs[r.pay_group_id] ?? 0) + (r.salary_ngn ?? 0);
+      }
     });
     setMemberCounts(counts);
+    setMemberCosts(costs);
     setLoading(false);
   }, []);
 
@@ -568,12 +575,12 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
     const [membersRes, allRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, full_name, email, department:departments!profiles_department_id_fkey(name)')
+        .select('id, full_name, email, salary_ngn, department:departments!profiles_department_id_fkey(name)')
         .eq('pay_group_id', g.id)
         .order('full_name'),
       supabase
         .from('profiles')
-        .select('id, full_name, email, department:departments!profiles_department_id_fkey(name)')
+        .select('id, full_name, email, salary_ngn, department:departments!profiles_department_id_fkey(name)')
         .eq('status', 'active')
         .is('pay_group_id', null)
         .order('full_name'),
@@ -583,6 +590,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
         id: r.id,
         full_name: r.full_name,
         email: r.email,
+        salary_ngn: r.salary_ngn,
         department_name: r.department?.name ?? null,
       })),
     );
@@ -591,6 +599,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
         id: r.id,
         full_name: r.full_name,
         email: r.email,
+        salary_ngn: r.salary_ngn,
         department_name: r.department?.name ?? null,
       })),
     );
@@ -599,26 +608,48 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
 
   const addMember = async (emp: GroupMember) => {
     if (!membersGroup) return;
-    const { error } = await supabase.from('profiles').update({ pay_group_id: membersGroup.id }).eq('id', emp.id);
+    // .select() lets us detect the RLS-silent-no-op case: PostgREST returns
+    // no error when a row is filtered out by policy, just zero rows back.
+    // Without this check the UI would optimistically show the employee as
+    // added even though nothing was actually written.
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ pay_group_id: membersGroup.id })
+      .eq('id', emp.id)
+      .select('id');
     if (error) {
       toast({ title: 'Could not add member', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!data?.length) {
+      toast({ title: 'Could not add member', description: "You don't have permission to change this employee's pay group.", variant: 'destructive' });
       return;
     }
     setMembers((prev) => [...prev, emp]);
     setAvailableEmployees((prev) => prev.filter((e) => e.id !== emp.id));
     setMemberCounts((prev) => ({ ...prev, [membersGroup.id]: (prev[membersGroup.id] ?? 0) + 1 }));
+    setMemberCosts((prev) => ({ ...prev, [membersGroup.id]: (prev[membersGroup.id] ?? 0) + (emp.salary_ngn ?? 0) }));
   };
 
   const removeMember = async (emp: GroupMember) => {
     if (!membersGroup) return;
-    const { error } = await supabase.from('profiles').update({ pay_group_id: null }).eq('id', emp.id);
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ pay_group_id: null })
+      .eq('id', emp.id)
+      .select('id');
     if (error) {
       toast({ title: 'Could not remove member', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!data?.length) {
+      toast({ title: 'Could not remove member', description: "You don't have permission to change this employee's pay group.", variant: 'destructive' });
       return;
     }
     setMembers((prev) => prev.filter((e) => e.id !== emp.id));
     setAvailableEmployees((prev) => [...prev, emp].sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email)));
     setMemberCounts((prev) => ({ ...prev, [membersGroup.id]: Math.max(0, (prev[membersGroup.id] ?? 0) - 1) }));
+    setMemberCosts((prev) => ({ ...prev, [membersGroup.id]: Math.max(0, (prev[membersGroup.id] ?? 0) - (emp.salary_ngn ?? 0)) }));
   };
 
   const filteredAvailable = useMemo(() => {
@@ -666,6 +697,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                   <TableHead>Group</TableHead>
                   <TableHead>Schedule</TableHead>
                   <TableHead>Members</TableHead>
+                  <TableHead className="text-right">Monthly cost</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -701,6 +733,9 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                         >
                           <span className="font-medium">{memberCounts[g.id] ?? 0}</span> employee{memberCounts[g.id] === 1 ? '' : 's'}
                         </button>
+                      </TableCell>
+                      <TableCell className="text-right text-sm font-medium tabular-nums">
+                        {formatNaira(memberCosts[g.id] ?? 0)}
                       </TableCell>
                       <TableCell className="text-right space-x-1">
                         <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => openMembers(g)}>
@@ -791,9 +826,14 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
             <div className="flex-1 overflow-y-auto space-y-4 min-h-0">
               {members.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">
-                    Current members ({members.length})
-                  </p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Current members ({members.length})
+                    </p>
+                    <p className="text-xs font-semibold tabular-nums">
+                      {formatNaira(members.reduce((s, m) => s + (m.salary_ngn ?? 0), 0))}/mo
+                    </p>
+                  </div>
                   <div className="space-y-1">
                     {members.map((m) => (
                       <div key={m.id} className="flex items-center justify-between rounded-md border px-3 py-2">
@@ -803,14 +843,17 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                             <p className="text-xs text-muted-foreground">{m.department_name}</p>
                           )}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-destructive hover:text-destructive"
-                          onClick={() => removeMember(m)}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" /> Remove
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs tabular-nums text-muted-foreground">{formatNaira(m.salary_ngn ?? 0)}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            onClick={() => removeMember(m)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" /> Remove
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
