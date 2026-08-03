@@ -907,85 +907,37 @@ const BatchDetail = () => {
       return;
     }
     setReconciling(true);
-    let synced = 0;
-    let unchanged = 0;
-    let errors = 0;
     try {
-      // Paystack items — verify via lib/paystack's verifyTransfer.
-      const paystackDispatched = items.filter((i: any) => i.provider !== 'flutterwave' && i.paystack_reference);
-      for (const it of paystackDispatched) {
-        try {
-          const v = await verifyTransfer(it.paystack_reference);
-          const live = (v.status || '').toLowerCase();
-          const targetStatus =
-            live === 'success' ? 'succeeded'
-            : live === 'failed' || live === 'reversed' ? live
-            : null;
-          if (!targetStatus || targetStatus === it.status) {
-            unchanged++;
-            continue;
-          }
-          const feeKobo = Number(v.raw?.fee || 0);
-          await supabase
-            .from('batch_items')
-            .update({
-              status: targetStatus,
-              processed_at: targetStatus === 'succeeded' ? new Date().toISOString() : it.processed_at || null,
-              paystack_raw: v.raw,
-              paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : it.paystack_fee_ngn || 0,
-              failure_reason: targetStatus === 'failed'
-                ? (v.reason || it.failure_reason || 'Transfer rejected')
-                : targetStatus === 'reversed'
-                ? 'Transfer reversed by Paystack'
-                : null,
-            })
-            .eq('id', it.id);
-          synced++;
-        } catch {
-          errors++;
-        }
-      }
+      // Delegate to the same server-side reconciliation edge functions the
+      // Payments page's global "Reconcile Now" already uses, instead of
+      // doing per-item raw batch_items updates from the client. Two reasons:
+      //   1. The raw client update path (previous implementation) silently
+      //      failed to stick for Flutterwave items even when the live
+      //      status genuinely came back terminal — the reconciliation
+      //      functions write through process_flutterwave_webhook /
+      //      process_paystack_webhook (SECURITY DEFINER RPCs), the same
+      //      atomic path the webhook itself uses, which is provably correct.
+      //   2. It's one call instead of N sequential per-item roundtrips.
+      // These sweep every stuck item system-wide (not just this batch), but
+      // that's strictly more thorough and just as safe — idempotent, no-op
+      // on anything already terminal.
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeader = { Authorization: `Bearer ${session?.access_token}` };
+      const [psResult, fwResult] = await Promise.allSettled([
+        supabase.functions.invoke('paystack-reconciliation', { body: {}, headers: authHeader }),
+        supabase.functions.invoke('flutterwave-reconciliation', { body: {}, headers: authHeader }),
+      ]);
 
-      // Flutterwave items — same reconcile intent, but via flutterwave-transfer's
-      // verify_transfer action + flutterwave_* columns. Previously this button
-      // silently skipped every Flutterwave item (filter only checked
-      // paystack_reference), so a stuck Flutterwave payment could never be
-      // manually reconciled from this page — only the server-side cron did it.
-      const flutterwaveDispatched = items.filter((i: any) => i.provider === 'flutterwave' && i.flutterwave_reference);
-      for (const it of flutterwaveDispatched) {
-        try {
-          const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
-            body: { action: 'verify_transfer', reference: it.flutterwave_reference },
-          });
-          if (fwErr) { errors++; continue; }
-          const v = (fwRes as any)?.data;
-          const live = String(v?.status || '').toLowerCase();
-          const targetStatus =
-            live === 'succeeded' ? 'succeeded'
-            : live === 'failed' || live === 'reversed' ? live
-            : null;
-          if (!targetStatus || targetStatus === it.status) {
-            unchanged++;
-            continue;
-          }
-          await supabase
-            .from('batch_items')
-            .update({
-              status: targetStatus,
-              processed_at: targetStatus === 'succeeded' ? new Date().toISOString() : it.processed_at || null,
-              flutterwave_raw: v?.raw ?? null,
-              flutterwave_fee_ngn: Number(v?.fee_ngn || 0) || it.flutterwave_fee_ngn || 0,
-              failure_reason: targetStatus === 'failed'
-                ? (v?.reason || it.failure_reason || 'Transfer rejected')
-                : targetStatus === 'reversed'
-                ? 'Transfer reversed by Flutterwave'
-                : null,
-            })
-            .eq('id', it.id);
-          synced++;
-        } catch {
-          errors++;
-        }
+      let synced = 0;
+      let unchanged = 0;
+      let errors = 0;
+      for (const r of [psResult, fwResult]) {
+        if (r.status !== 'fulfilled') { errors++; continue; }
+        const { data, error } = r.value;
+        if (error || (data as any)?.error) { errors++; continue; }
+        synced += (data as any)?.succeeded ?? 0;
+        synced += (data as any)?.failed ?? 0;
+        unchanged += (data as any)?.unchanged ?? 0;
       }
 
       await logAudit(
