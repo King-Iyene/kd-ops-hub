@@ -453,7 +453,7 @@ const Payments = () => {
           {
             label: 'Paid this month',
             value: formatNaira(stats.thisMonthAmount),
-            sub: 'Settled via Paystack',
+            sub: 'Settled — Paystack + Flutterwave',
           },
         ].map(({ label, value, sub, pulse }) => (
           <div key={label} className="kd-holographic relative px-4 py-3.5 kd-transition">
