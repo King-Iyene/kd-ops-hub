@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Building2,
   Link as LinkIcon,
@@ -171,6 +171,12 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
+  // Snapshot of the Paystack mode/keys as loaded from the DB, so save() can
+  // tell whether the operator actually touched that section THIS session.
+  // Without this, saving an unrelated field (e.g. session timeout) re-runs
+  // live/test key-prefix validation against whatever was already stored —
+  // blocking the entire save on a pre-existing value nobody is editing.
+  const loadedPaystackRef = useRef<{ mode: string | null; pub: string; sec: string } | null>(null);
 
   // Notification preferences are per-user, not company-wide.
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
@@ -198,6 +204,13 @@ const SettingsPage = () => {
     ]);
     const s = (settingsRes.data as CompanySettings) || null;
     setSettings(s);
+    loadedPaystackRef.current = s
+      ? {
+          mode: (s as any).paystack_mode ?? null,
+          pub: (s as any).paystack_public_key || '',
+          sec: (s as any).paystack_secret_key_enc || '',
+        }
+      : null;
     if (s?.timezone) setTimezoneCache(s.timezone);
     if ((notifRes as any).data) {
       const d = (notifRes as any).data;
@@ -224,11 +237,17 @@ const SettingsPage = () => {
   const save = async () => {
     if (!settings) return;
 
-    // Validate Paystack mode matches key prefixes.
+    // Validate Paystack mode matches key prefixes — but only if the operator
+    // actually touched mode/keys this session. Otherwise saving an unrelated
+    // field (e.g. session timeout) re-validates a pre-existing stored value
+    // nobody is editing right now and blocks the whole save on it.
     const mode = settings.paystack_mode;
     const pub = (settings as any).paystack_public_key || '';
     const sec = (settings as any).paystack_secret_key_enc || '';
-    if (mode === 'live') {
+    const loaded = loadedPaystackRef.current;
+    const paystackSectionTouched =
+      !loaded || loaded.mode !== mode || loaded.pub !== pub || loaded.sec !== sec;
+    if (mode === 'live' && paystackSectionTouched) {
       if (pub && !pub.startsWith('pk_live_')) {
         toast({
           title: 'Live mode requires live public key',
