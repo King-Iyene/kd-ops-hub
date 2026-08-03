@@ -552,19 +552,29 @@ async function dispatchChunkBulk(
         it.paystack_recipient_code = r.recipient_code;
         // Bank-verified name from Paystack /transferrecipient echo.
         const verifiedName = r.details?.account_name || null;
-        await svc.from("batch_items")
+        const { error: cacheErr } = await svc.from("batch_items")
           .update({
             paystack_recipient_code: r.recipient_code,
             ...(verifiedName ? { account_name: verifiedName } : {}),
           })
           .eq("id", it.id);
+        // Non-fatal for THIS run — it.paystack_recipient_code is already set
+        // in memory, so `sendable` below still includes this item. But if the
+        // DB write didn't land, the next tick's pull-queue re-does recipient
+        // creation for it. Log so a persistent failure here is visible.
+        if (cacheErr) console.error(`[batch-worker] recipient cache write failed for ${it.id}:`, cacheErr.message);
       } catch (err) {
         // Mark this item failed and drop it from the bulk payload. The rest of
         // the chunk still goes through — one bad row never blocks the run.
         it._failed_reason = (err as Error)?.message || "Recipient creation failed";
-        await svc.from("batch_items")
+        const { error: failWriteErr } = await svc.from("batch_items")
           .update({ status: "failed", failure_reason: it._failed_reason })
           .eq("id", it.id);
+        // If this write itself fails, the row stays whatever it was before —
+        // the item is still excluded from `sendable` this run (via
+        // it._failed_reason in memory), and since its status never flipped to
+        // a terminal state, the next tick's pull-queue naturally retries it.
+        if (failWriteErr) console.error(`[batch-worker] failed-status write failed for ${it.id}:`, failWriteErr.message);
       }
     });
   }
@@ -576,21 +586,35 @@ async function dispatchChunkBulk(
   if (sendable.length === 0) return { dispatched: 0, failed: failedFromPrewarm };
 
   // ── 2. Assign + pre-write deterministic references (idempotency) ────────
+  // Fail closed: if a reference can't be recorded, drop that item from THIS
+  // bulk call rather than sending it under a reference the DB has no record
+  // of — an untracked in-flight transfer would be invisible to reconciliation
+  // and could be re-sent under a NEW reference on the next pass, causing an
+  // actual double-payment. The item stays 'pending' with no reference, so the
+  // next tick's pull-queue picks it up and tries again cleanly.
   for (const it of sendable) it._ref = generateRef(it.id);
-  await Promise.all(sendable.map((it) =>
-    svc.from("batch_items").update({
+  const refWriteResults = await Promise.all(sendable.map(async (it) => {
+    const { error } = await svc.from("batch_items").update({
       paystack_reference: it._ref,
       status:             "pending",
       failure_reason:     null,
-    }).eq("id", it.id),
-  ));
+    }).eq("id", it.id);
+    if (error) {
+      console.error(`[batch-worker] reference pre-write failed for ${it.id}, excluding from this bulk call:`, error.message);
+      it._ref = undefined;
+    }
+    return !error;
+  }));
+  const bulkSendable = sendable.filter((it, i) => refWriteResults[i] && it._ref);
+  const failedFromRefWrite = sendable.length - bulkSendable.length;
+  if (bulkSendable.length === 0) return { dispatched: 0, failed: failedFromPrewarm + failedFromRefWrite };
 
   // ── 3. Issue the bulk call ──────────────────────────────────────────────
   // `batchName` here is the pre-computed narration snapshot from workBatch —
   // already contains the KDOps · prefix only when we fell back to the batch
   // name, and is already capped at 100 chars. Slice again defensively.
   const reason = batchName.slice(0, 100);
-  const transfers = sendable.map((it) => ({
+  const transfers = bulkSendable.map((it) => ({
     reference: it._ref,
     recipient: it.paystack_recipient_code,
     amount:    Math.round(Number(it.amount_ngn) * 100),
@@ -607,8 +631,8 @@ async function dispatchChunkBulk(
     // The references are already written; reconciliation will verify each one
     // and resolve actual status from Paystack. Items remain status='pending'.
     const reason = (err as Error)?.message || "Bulk transfer call failed";
-    console.error(`[batch-worker] /transfer/bulk failed (${sendable.length} items): ${reason}`);
-    return { dispatched: 0, failed: failedFromPrewarm, error: reason };
+    console.error(`[batch-worker] /transfer/bulk failed (${bulkSendable.length} items): ${reason}`);
+    return { dispatched: 0, failed: failedFromPrewarm + failedFromRefWrite, error: reason };
   }
 
   // ── 4. Map response → items ─────────────────────────────────────────────
@@ -619,8 +643,8 @@ async function dispatchChunkBulk(
   for (const t of arr) if (t?.reference) byRef.set(String(t.reference), t);
 
   let dispatched = 0;
-  let failed = failedFromPrewarm;
-  for (const it of sendable) {
+  let failed = failedFromPrewarm + failedFromRefWrite;
+  for (const it of bulkSendable) {
     const t = byRef.get(it._ref);
     if (!t) {
       // Paystack didn't echo this item back. Leave the ref in place; the
@@ -633,12 +657,19 @@ async function dispatchChunkBulk(
       sub === "success"               ? "succeeded"
       : sub === "failed" || sub === "reversed" ? sub
       : "pending"; // pending / otp / queued — let webhook/reconcile finalise
-    await svc.from("batch_items").update({
+    const { error: mapWriteErr } = await svc.from("batch_items").update({
       paystack_transfer_code: t.transfer_code ?? null,
       status:                 mapped,
       failure_reason:         mapped === "failed" ? (t.reason || "Bulk transfer rejected") : null,
       processed_at:           mapped === "succeeded" ? new Date().toISOString() : null,
     }).eq("id", it.id);
+    if (mapWriteErr) {
+      // Transfer already happened at Paystack (mapped reflects its real
+      // status) — this is a bookkeeping write failure, not a payment
+      // failure. Log distinctly so ops verifies the record instead of
+      // trusting a row that may still show the stale pre-dispatch state.
+      console.error(`[batch-worker] bulk status-write failed for ${it.id} (should be ${mapped}):`, mapWriteErr.message);
+    }
     if (mapped === "failed") failed++; else dispatched++;
   }
 
