@@ -54,6 +54,7 @@ import {
   Siren,
   Activity,
   Gauge,
+  Link2,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -123,6 +124,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'clients.view' },
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Public Links',     url: '/public-links',      icon: Link2,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
   // Admin — strict role only (see comment block above).
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
@@ -136,7 +138,7 @@ export const NAV_GROUPS = [
   { key: 'treasury',   label: 'Treasury',   titles: ['Subscriptions', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Cash Flow', 'Finance'] },
   { key: 'operations', label: 'Operations', titles: ['My Requests', 'Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
-  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Communications'] },
+  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
 ] as const;
 

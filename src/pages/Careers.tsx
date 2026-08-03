@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { formatDate, formatNaira } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,6 +52,12 @@ const EMPLOYMENT_TONE: Record<Opening['employment_type'], string> = {
 
 const Careers = () => {
   usePageTitle('Careers');
+  const [searchParams] = useSearchParams();
+  // A shared listing page, but recruiters need to share a link to ONE role
+  // (e.g. from Recruitment or the Public Links page). No separate /jobs/:id
+  // route — just scroll to and highlight the matching card on this page.
+  const highlightedId = searchParams.get('opening');
+  const highlightRef = useRef<HTMLDivElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [openings, setOpenings] = useState<Opening[]>([]);
   const [company, setCompany] = useState<{
@@ -91,6 +97,11 @@ const Careers = () => {
       setLoading(false);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!highlightedId || loading || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [highlightedId, loading]);
 
   const totalRoles = openings.reduce((s, o) => s + (o.opening_count || 1), 0);
 
@@ -196,8 +207,17 @@ const Careers = () => {
               )}&body=${encodeURIComponent(
                 `Hi,\n\nI'd like to apply for the ${o.title} role at ${company.company_name}.\n\nMy CV is attached.\n\nRegards,\n`,
               )}`;
+              const isHighlighted = o.id === highlightedId;
               return (
-                <Card key={o.id} className="hover:shadow-md transition-shadow">
+                <Card
+                  key={o.id}
+                  ref={isHighlighted ? highlightRef : undefined}
+                  className={
+                    isHighlighted
+                      ? 'ring-2 ring-primary shadow-lg transition-shadow'
+                      : 'hover:shadow-md transition-shadow'
+                  }
+                >
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>

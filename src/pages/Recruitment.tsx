@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, UserPlus2,
   Briefcase, Users, ChevronDown, ChevronUp, Calendar,
-  CheckCircle2, XCircle, ArrowRight, Sparkles,
+  CheckCircle2, XCircle, ArrowRight, Sparkles, Link2,
 } from 'lucide-react';
 import HireApplicantDialog from '@/components/hr/HireApplicantDialog';
 import OfferLetterDialog from '@/components/hr/OfferLetterDialog';
@@ -445,6 +445,20 @@ export default function Recruitment() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {opening.status === 'published' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Copy public link"
+                          title="Copy the public apply link for this opening"
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/careers?opening=${opening.id}`);
+                            toast({ title: 'Public link copied' });
+                          }}
+                        >
+                          <Link2 className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button variant="ghost" size="icon" onClick={() => openEditOpening(opening)} aria-label="Edit opening"><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => setDeleteOpening(opening)} aria-label="Remove opening"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       <Button variant="ghost" size="icon" onClick={() => setExpandedOpening(isExpanded ? null : opening.id)} aria-label={isExpanded ? 'Collapse opening' : 'Expand opening'}>

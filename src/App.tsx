@@ -60,6 +60,7 @@ const Goals            = lazy(() => import('./pages/Goals'));
 const Contacts         = lazy(() => import('./pages/Contacts'));
 const ContactProfile   = lazy(() => import('./pages/ContactProfile'));
 const Referrals        = lazy(() => import('./pages/Referrals'));
+const PublicLinks      = lazy(() => import('./pages/PublicLinks'));
 const Clients          = lazy(() => import('./pages/Clients'));
 const ClientProfile    = lazy(() => import('./pages/ClientProfile'));
 const VirtualCards     = lazy(() => import('./pages/VirtualCards'));
@@ -548,6 +549,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <Recruitment />
+            </RoleGuard>
+          }
+        />
+
+        {/* Public Links — every externally-shareable URL, in one place. Managers. */}
+        <Route
+          path="/public-links"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <PublicLinks />
             </RoleGuard>
           }
         />
