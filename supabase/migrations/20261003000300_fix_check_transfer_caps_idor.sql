@@ -60,7 +60,7 @@ BEGIN
     IF v_caller IS NULL OR p_user_id IS DISTINCT FROM v_caller THEN
       SELECT role INTO v_caller_role FROM public.profiles WHERE id = v_caller;
 
-      IF v_caller_role IS DISTINCT FROM ALL (ARRAY['super_admin','admin','finance']) THEN
+      IF v_caller_role IS NULL OR v_caller_role <> ALL (ARRAY['super_admin','admin','finance']) THEN
         RAISE EXCEPTION 'Not authorized to check another user''s transfer caps'
           USING ERRCODE = 'insufficient_privilege';
       END IF;
