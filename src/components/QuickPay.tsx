@@ -77,6 +77,24 @@ export function QuickPayDialog() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [quickPayEnabled, setQuickPayEnabled] = useState<boolean | null>(null);
   const [coThreshold, setCoThreshold] = useState<number | null>(null);
+  // Fetched as soon as the dialog opens (not just at dispatch time) so
+  // BankAccountField verifies the account against the CORRECT provider's
+  // registry from the very first keystroke — previously the bank-verify
+  // step always used Paystack regardless of which provider was active,
+  // so a Flutterwave dispatch could carry an account only ever checked
+  // against Paystack's registry.
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  useEffect(() => {
+    if (!open) return;
+    void (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
+    })();
+  }, [open]);
 
   // Quick Pay master switch + caller's effective co-approval threshold are
   // fetched once on mount. The threshold is the amount above which a single
@@ -572,7 +590,7 @@ export function QuickPayDialog() {
                 </AlertDescription>
               </Alert>
             )}
-            <BankAccountField value={bank} onChange={setBank} />
+            <BankAccountField value={bank} onChange={setBank} provider={activeProvider} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (₦)</Label>

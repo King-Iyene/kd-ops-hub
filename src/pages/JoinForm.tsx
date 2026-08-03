@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { resolveAccount } from '@/lib/paystack';
 import { NIGERIAN_BANKS, getBankCode, fetchBanks } from '@/lib/nigerian-banks';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,11 @@ const JoinForm = () => {
       .catch(() => { /* social links are cosmetic, non-blocking */ });
   }, []);
 
-  // Bank list — starts with static fallback, upgraded to 300+ in background
+  // Bank list — starts with static fallback, upgraded to 300+ in background.
+  // Loaded again below (after activeProvider resolves) with the CORRECT
+  // provider's list — showing Paystack bank names while verifying against
+  // Flutterwave's registry (or vice versa) risks a name that exists in one
+  // list but not the other, or resolves to the wrong code.
   const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
   useEffect(() => {
     fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
@@ -76,6 +81,37 @@ const JoinForm = () => {
   const [verifying, setVerifying] = useState(false);
   const [accountName, setAccountName] = useState('');
   const [verifyError, setVerifyError] = useState('');
+  // Which provider to verify against — was previously hardcoded to
+  // Paystack regardless of the active provider. This is a public,
+  // unauthenticated form, so we read the setting via a lightweight
+  // unauthenticated-safe query (company_settings.active_payment_provider
+  // has no sensitive data). Verification here is a one-time UX confirmation
+  // — actual disbursement later re-resolves the bank code fresh against
+  // whichever provider is active AT THAT TIME (Payroll.tsx / batch-worker),
+  // so staleness here has no money-safety impact.
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  useEffect(() => {
+    void (async () => {
+      try {
+        const { data } = await supabase
+          .from('company_settings')
+          .select('active_payment_provider')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .maybeSingle();
+        setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
+      } catch { /* keep default 'paystack' */ }
+    })();
+  }, []);
+
+  // Swap the bank dropdown to Flutterwave's own list once we know that's
+  // the active provider — showing a Paystack-only bank name while verifying
+  // against Flutterwave risks a name mismatch or wrong-code resolution.
+  useEffect(() => {
+    if (activeProvider !== 'flutterwave') return;
+    fetchFlutterwaveBanks().then((fwBanks) => {
+      if (fwBanks.length > 0) setBanks(fwBanks);
+    }).catch(() => { /* keep whatever list is currently loaded */ });
+  }, [activeProvider]);
 
   const isValidNuban = /^\d{10}$/.test(form.account_number);
   const isValidLinkedIn = LINKEDIN_RE.test(form.linkedin_url.trim());
@@ -88,11 +124,20 @@ const JoinForm = () => {
     setVerifyError('');
     setAccountName('');
     try {
-      const bankCode = getBankCode(form.bank_name);
-      if (!bankCode) throw new Error('Unknown bank — cannot verify');
-      const result = await resolveAccount(form.account_number, bankCode);
-      if (!result.account_name) throw new Error('No account name returned');
-      setAccountName(result.account_name);
+      if (activeProvider === 'flutterwave') {
+        await fetchFlutterwaveBanks();
+        const bankCode = getFlutterwaveBankCode(form.bank_name);
+        if (!bankCode) throw new Error('Unknown bank on Flutterwave — cannot verify');
+        const result = await resolveFlutterwaveAccount(form.account_number, bankCode);
+        if (!result.account_name) throw new Error('No account name returned');
+        setAccountName(result.account_name);
+      } else {
+        const bankCode = getBankCode(form.bank_name);
+        if (!bankCode) throw new Error('Unknown bank — cannot verify');
+        const result = await resolveAccount(form.account_number, bankCode);
+        if (!result.account_name) throw new Error('No account name returned');
+        setAccountName(result.account_name);
+      }
     } catch (err: any) {
       setVerifyError(err?.message || 'Could not verify account');
     } finally {

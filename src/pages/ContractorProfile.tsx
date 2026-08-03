@@ -51,6 +51,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { NIGERIAN_BANKS, fetchBanks, getBankCode } from '@/lib/nigerian-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
+import { fetchFlutterwaveBanks } from '@/lib/flutterwave-banks';
 import { BankCombobox } from '@/components/BankCombobox';
 import { heyreachDisplayStatus, formatSyncedAt } from '@/lib/heyreach-status';
 import { cn } from '@/lib/utils';
@@ -109,6 +110,12 @@ const ContractorProfile = () => {
   const [showPwdEdit, setShowPwdEdit] = useState(false);
   const [showPwdDisplay, setShowPwdDisplay] = useState(false);
   const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
+  // Which provider the bank-edit verify calls — was previously hardcoded
+  // to Paystack (paystack-transfer resolve_account) regardless of the
+  // active provider. Swapping `banks` to Flutterwave's own list when
+  // active means the combobox only ever offers Flutterwave-valid codes,
+  // so bankForm.bank_code is correct for whichever provider verifies it.
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
   const [bankEditMode, setBankEditMode] = useState(false);
   const [bankForm, setBankForm] = useState({ account_number: '', bank_code: '' });
   const [bankVerifying, setBankVerifying] = useState(false);
@@ -177,7 +184,20 @@ const ContractorProfile = () => {
 
   useEffect(() => {
     load();
-    fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
+    void (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const p = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+      setActiveProvider(p);
+      if (p === 'flutterwave') {
+        fetchFlutterwaveBanks().then((b) => { if (b.length > 0) setBanks(b); }).catch(() => { /* keep static */ });
+      } else {
+        fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
+      }
+    })();
   }, [load]);
 
   useEffect(() => {
@@ -190,7 +210,13 @@ const ContractorProfile = () => {
       if (account_number.length !== 10 || !bank_code) return;
       setBankVerifying(true);
       try {
-        const { data, error } = await supabase.functions.invoke('paystack-transfer', {
+        // Route to the active provider — was previously hardcoded to
+        // paystack-transfer regardless. Since `banks` is already sourced
+        // from the correct provider's own list (see the load effect
+        // above), bank_code is guaranteed valid for whichever function
+        // we call here.
+        const fnName = activeProvider === 'flutterwave' ? 'flutterwave-transfer' : 'paystack-transfer';
+        const { data, error } = await supabase.functions.invoke(fnName, {
           body: { action: 'resolve_account', account_number, bank_code },
         });
         if (error || !data?.ok || !data?.data?.account_name) {
@@ -205,7 +231,7 @@ const ContractorProfile = () => {
       }
     };
     void verify();
-  }, [bankForm.account_number, bankForm.bank_code, bankEditMode]);
+  }, [bankForm.account_number, bankForm.bank_code, bankEditMode, activeProvider]);
 
   const beginEdit = () => {
     if (!contractor) return;

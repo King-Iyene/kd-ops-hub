@@ -97,6 +97,7 @@ import {
   generateKdopsRef,
   buildNarration,
 } from '@/lib/paystack';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { displayName } from '@/lib/name';
@@ -1303,6 +1304,23 @@ const Payroll = () => {
       const today = new Date().toISOString().slice(0, 10);
       const totalNet = payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0);
 
+      // ROOT CAUSE FIX: this dispatch path was a THIRD independent
+      // Paystack-only money-mover (alongside QuickPay and batch-worker),
+      // completely bypassing the active_payment_provider toggle. Running
+      // Payroll while Flutterwave was active would have silently disbursed
+      // salaries through Paystack anyway. Read the active provider once,
+      // stamp the batch with it, and branch every subsequent call.
+      const { data: settingsRow } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const activeProvider: 'paystack' | 'flutterwave' =
+        (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+      if (activeProvider === 'flutterwave') {
+        await fetchFlutterwaveBanks();
+      }
+
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
@@ -1311,6 +1329,7 @@ const Payroll = () => {
           payment_date: today,
           total_amount: totalNet,
           beneficiary_count: payslips.length,
+          provider: activeProvider,
         })
         .select()
         .single();
@@ -1327,9 +1346,11 @@ const Payroll = () => {
             errors.push(`${slip.employee_name}: could not load profile`);
             continue;
           }
-          const bankCode = getBankCode((emp as any).bank_name);
+          const bankCode = activeProvider === 'flutterwave'
+            ? getFlutterwaveBankCode((emp as any).bank_name)
+            : getBankCode((emp as any).bank_name);
           if (!bankCode) {
-            errors.push(`${slip.employee_name}: unknown bank "${(emp as any).bank_name}"`);
+            errors.push(`${slip.employee_name}: unknown bank "${(emp as any).bank_name}" on ${activeProvider}`);
             continue;
           }
           if (!(emp as any).bank_account_number) {
@@ -1352,6 +1373,7 @@ const Payroll = () => {
               account_number: (emp as any).bank_account_number,
               amount_ngn: Number(slip.net_ngn || 0),
               status: 'pending',
+              provider: activeProvider,
             })
             .select()
             .single();
@@ -1360,6 +1382,62 @@ const Payroll = () => {
             continue;
           }
 
+          const narration = buildNarration({
+            kind: 'salary',
+            recipientName: empName,
+            period: monthLabel(run.period),
+          });
+
+          if (activeProvider === 'flutterwave') {
+            // Flutterwave path: no separate recipient step — /transfers
+            // takes bank_code + account_number directly.
+            const compactId = String((item as any).id).replace(/-/g, '').slice(0, 20);
+            const ref = `kdopsfw_${compactId}`;
+            const { data: fwRes, error: fwErr } = await supabase.functions.invoke('flutterwave-transfer', {
+              body: {
+                action: 'initiate_transfer',
+                reference: ref,
+                bank_code: bankCode,
+                account_number: (emp as any).bank_account_number,
+                amount_ngn: Number(slip.net_ngn || 0),
+                reason: narration,
+              },
+            });
+            if (fwErr) throw new Error((fwErr as any)?.message || 'Flutterwave transfer failed');
+            const fwData = (fwRes as any)?.data;
+            if (!fwData || (fwRes as any)?.ok === false) {
+              throw new Error((fwRes as any)?.error || 'Flutterwave transfer rejected');
+            }
+            const fwStatus = String(fwData.status || '').toLowerCase();
+            const itemStatus =
+              fwStatus === 'succeeded' ? 'succeeded'
+              : fwStatus === 'failed' || fwStatus === 'reversed' ? fwStatus
+              : 'pending';
+
+            await supabase
+              .from('batch_items')
+              .update({
+                status: itemStatus,
+                flutterwave_reference: ref,
+                flutterwave_transfer_id: fwData.transfer_id || null,
+                flutterwave_fee_ngn: Number(fwData.fee_ngn || 0) || 0,
+                flutterwave_raw: fwData.raw ?? null,
+                narration,
+                failure_reason: itemStatus === 'failed' ? 'Flutterwave rejected the transfer' : null,
+                processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
+              } as any)
+              .eq('id', (item as any).id);
+
+            await logAudit(
+              'flutterwave_transfer_initiated',
+              `Salary transfer initiated for ${empName} (${formatNaira(Number(slip.net_ngn || 0))}) ref ${ref}`,
+              profile,
+            );
+            succeeded++;
+            continue;
+          }
+
+          // Paystack path — unchanged from pre-Flutterwave behaviour.
           // Reuse the cached Paystack recipient code from the employee
           // profile if we have one — saves a /transferrecipient API call
           // for every employee on every payroll run. The DB trigger clears
@@ -1382,11 +1460,6 @@ const Payroll = () => {
               .eq('id', (emp as any).id);
           }
           const ref = generateKdopsRef((item as any).id);
-          const narration = buildNarration({
-            kind: 'salary',
-            recipientName: empName,
-            period: monthLabel(run.period),
-          });
           const transfer = await initiateTransferIdempotent({
             recipient_code: recipientCode,
             amount_ngn: Number(slip.net_ngn || 0),
@@ -1442,7 +1515,7 @@ const Payroll = () => {
       if (errors.length === 0) {
         toast({
           title: `${succeeded} salary transfer${succeeded === 1 ? '' : 's'} initiated`,
-          description: `Payroll ${monthLabel(run.period)} sent via Paystack. Status updates arrive via webhook.`,
+          description: `Payroll ${monthLabel(run.period)} sent via ${activeProvider === 'flutterwave' ? 'Flutterwave' : 'Paystack'}. Status updates arrive via webhook.`,
         });
         setDisburseTarget(null);
         load();

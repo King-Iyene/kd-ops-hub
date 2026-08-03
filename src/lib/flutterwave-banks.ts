@@ -89,6 +89,34 @@ export function isFlutterwaveBankRegistryWarm(): boolean {
   return _warmed;
 }
 
+export interface FlutterwaveResolveResult {
+  account_name: string;
+  account_number: string;
+}
+
+/**
+ * Verify a bank account via Flutterwave's own resolve_account action —
+ * NEVER Paystack's. This is the missing piece that let a real Flutterwave
+ * dispatch reach the API with an unverified/wrong-provider account: the
+ * shared BankAccountField component previously always called Paystack's
+ * resolveAccount regardless of which provider was active, so even
+ * Flutterwave's own official sandbox test account failed to "resolve" —
+ * we were asking Paystack about an account Paystack has never heard of.
+ */
+export async function resolveFlutterwaveAccount(
+  accountNumber: string,
+  bankCode: string,
+): Promise<FlutterwaveResolveResult> {
+  const { supabase } = await import('@/lib/supabase');
+  const { data, error } = await supabase.functions.invoke('flutterwave-transfer', {
+    body: { action: 'resolve_account', account_number: accountNumber, bank_code: bankCode },
+  });
+  if (error) throw new Error((error as any)?.message || 'Could not resolve account');
+  const d = (data as any)?.data;
+  if (!d?.account_name) throw new Error('Could not resolve account name. Check parameters or try again.');
+  return { account_name: d.account_name, account_number: d.account_number };
+}
+
 /** Look up a Flutterwave bank code by display name. Same 3-step matching
  *  order as getBankCode in nigerian-banks.ts (alias → exact → prefix), but
  *  searches ONLY Flutterwave's own registry — never falls back to Paystack

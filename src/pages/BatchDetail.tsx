@@ -38,7 +38,8 @@ import {
   friendlyPaystackError,
   type NarrationKind,
 } from '@/lib/paystack';
-import { fetchFlutterwaveBanks, getFlutterwaveBankCode } from '@/lib/flutterwave-banks';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
+import { providerLabel as providerLabelFor } from '@/lib/payments/item-facade';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { BatchRiskFlags } from '@/components/BatchRiskFlags';
@@ -287,7 +288,7 @@ const BatchDetail = () => {
       setUnresolvingId(null);
     }
   };
-  const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string } | null>(null);
+  const [diagnosis, setDiagnosis] = useState<{ itemId: string; ok: boolean; bankCode: string; account: string; bank: string; result: string; provider: 'paystack' | 'flutterwave' } | null>(null);
   const [processingIdx, setProcessingIdx] = useState(0);
   const [processingTotal, setProcessingTotal] = useState(0);
   const [processingName, setProcessingName] = useState('');
@@ -1352,26 +1353,42 @@ const BatchDetail = () => {
   }, [batch?.status]);
 
   /**
-   * Standalone Paystack /bank/resolve diagnostic. Calls the resolve endpoint
-   * with the same bank_code + sanitised account_number we'd send for a real
-   * transfer and shows the verbatim Paystack response. Lets finance compare
-   * against what dashboard.paystack.co returns for the same account so we
-   * can tell whether the failure is on our side or Paystack's.
+   * Standalone /bank-resolve diagnostic — provider-aware. Calls the resolve
+   * endpoint with the same bank_code + sanitised account_number we'd send
+   * for a real transfer and shows the verbatim provider response. Lets
+   * finance compare against the provider's own dashboard for the same
+   * account so we can tell whether the failure is on our side or theirs.
+   * Previously this always called Paystack regardless of item.provider —
+   * running it on a Flutterwave item silently checked the wrong registry.
    */
   const diagnoseItem = async (item: any) => {
     setDiagnosingId(item.id);
     setDiagnosis(null);
-    const bankCode = getBankCode(item.bank_name) || '(unknown)';
+    const isFlutterwave = item.provider === 'flutterwave';
+    const bankCode = (isFlutterwave ? getFlutterwaveBankCode(item.bank_name) : getBankCode(item.bank_name)) || '(unknown)';
     const cleaned = String(item.account_number || '').replace(/\D/g, '');
+    const providerLabel = isFlutterwave ? 'Flutterwave' : 'Paystack';
     try {
-      const r = await resolveAccount(cleaned, bankCode);
+      let accountName: string;
+      let accountNumber: string;
+      if (isFlutterwave) {
+        await fetchFlutterwaveBanks();
+        const r = await resolveFlutterwaveAccount(cleaned, bankCode);
+        accountName = r.account_name;
+        accountNumber = r.account_number;
+      } else {
+        const r = await resolveAccount(cleaned, bankCode);
+        accountName = r.account_name;
+        accountNumber = r.account_number;
+      }
       setDiagnosis({
         itemId: item.id,
         ok: true,
         bankCode,
         account: cleaned,
         bank: item.bank_name,
-        result: `Paystack resolved account name: "${r.account_name}" for account ${r.account_number}. The recipient/transfer call should work — if it does not, Paystack's wallet or recipient cache is the issue.`,
+        result: `${providerLabel} resolved account name: "${accountName}" for account ${accountNumber}. The transfer call should work — if it does not, ${providerLabel}'s wallet or account status is the issue.`,
+        provider: isFlutterwave ? 'flutterwave' : 'paystack',
       });
     } catch (err: any) {
       setDiagnosis({
@@ -1381,6 +1398,7 @@ const BatchDetail = () => {
         account: cleaned,
         bank: item.bank_name,
         result: err?.message || 'Unknown error',
+        provider: isFlutterwave ? 'flutterwave' : 'paystack',
       });
     } finally {
       setDiagnosingId(null);
@@ -2697,11 +2715,11 @@ const BatchDetail = () => {
       <Dialog open={!!diagnosis} onOpenChange={(v) => { if (!v) setDiagnosis(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Paystack resolve diagnostic</DialogTitle>
+            <DialogTitle>{diagnosis ? providerLabelFor(diagnosis.provider) : 'Provider'} resolve diagnostic</DialogTitle>
             <DialogDescription>
-              Verbatim response from Paystack's <code className="text-xs">/bank/resolve</code> endpoint
-              for the exact bank code and account number we send. Compare this with what dashboard.paystack.co
-              returns for the same details.
+              Verbatim response from {diagnosis ? providerLabelFor(diagnosis.provider) : 'the provider'}'s <code className="text-xs">/bank/resolve</code> endpoint
+              for the exact bank code and account number we send. Compare this with what the provider's own
+              dashboard returns for the same details.
             </DialogDescription>
           </DialogHeader>
           {diagnosis && (
@@ -2716,14 +2734,14 @@ const BatchDetail = () => {
               </div>
               <div className={`rounded-md border p-3 ${diagnosis.ok ? 'border-emerald-500/40 bg-emerald-50 dark:bg-emerald-950/20' : 'border-destructive/40 bg-destructive/5'}`}>
                 <p className={`text-xs font-semibold mb-1 ${diagnosis.ok ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive'}`}>
-                  {diagnosis.ok ? 'Paystack RESOLVED the account ✓' : 'Paystack REJECTED the request ✗'}
+                  {diagnosis.ok ? `${providerLabelFor(diagnosis.provider)} RESOLVED the account ✓` : `${providerLabelFor(diagnosis.provider)} REJECTED the request ✗`}
                 </p>
                 <p className="font-mono text-xs break-all">{diagnosis.result}</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 {diagnosis.ok
-                  ? 'If resolve works but the actual transfer fails, the issue is downstream (recipient creation cache, wallet balance, or Paystack rate limits).'
-                  : 'Try the same bank code + account on dashboard.paystack.co. If Paystack dashboard succeeds but this fails, the parameters we send differ — copy this raw error and share with engineering.'}
+                  ? `If resolve works but the actual transfer fails, the issue is downstream (recipient/account cache, wallet balance, or ${providerLabelFor(diagnosis.provider)} rate limits).`
+                  : `Try the same bank code + account on ${providerLabelFor(diagnosis.provider)}'s own dashboard. If it succeeds there but fails here, the parameters we send differ — copy this raw error and share with engineering.`}
               </p>
             </div>
           )}

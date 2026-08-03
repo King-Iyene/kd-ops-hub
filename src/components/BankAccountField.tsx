@@ -9,6 +9,12 @@ import {
   resolveAccount,
   clearBankCache,
 } from '@/lib/paystack';
+import {
+  fetchFlutterwaveBanks,
+  getFlutterwaveBankCode,
+  resolveFlutterwaveAccount,
+  clearFlutterwaveBankCache,
+} from '@/lib/flutterwave-banks';
 import type { NigerianBank } from '@/lib/nigerian-banks';
 import { BankCombobox } from '@/components/BankCombobox';
 
@@ -25,13 +31,25 @@ interface Props {
   /** Called when verified status flips. Useful for disabling submit buttons. */
   onVerifiedChange?: (verified: boolean) => void;
   disabled?: boolean;
+  /**
+   * Which provider's bank list + account-resolve API to use. Defaults to
+   * 'paystack' for backward compatibility with every existing caller.
+   *
+   * ROOT CAUSE this fixes: this component always verified accounts via
+   * Paystack regardless of which provider was actually active, so a
+   * Flutterwave dispatch would carry an account that was only ever
+   * checked against Paystack's registry — even Flutterwave's OWN official
+   * sandbox test account failed to "resolve" here, because we were asking
+   * Paystack about an account Paystack has never heard of.
+   */
+  provider?: 'paystack' | 'flutterwave';
 }
 
 /**
  * A drop-in bank account field that:
  *   - lets the user pick a Nigerian bank
  *   - collects a 10-digit account number
- *   - auto-verifies via Paystack once both inputs are complete
+ *   - auto-verifies via the active provider once both inputs are complete
  *   - shows the verified account holder name in green
  *
  * Forms that embed this component should refuse to submit while
@@ -42,6 +60,7 @@ export function BankAccountField({
   onChange,
   onVerifiedChange,
   disabled,
+  provider = 'paystack',
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +71,19 @@ export function BankAccountField({
   // didn't change — the bug behind the "Verifying… stuck forever" report.
   const [refreshKey, setRefreshKey] = useState(0);
   // Start with static list immediately; fetch full list (~300+ banks) in background.
-  const [banks, setBanks] = useState<NigerianBank[]>(NIGERIAN_BANKS);
+  // Flutterwave has no safe static fallback (a wrong guess at ITS codes is
+  // the exact bug we're fixing), so it starts empty until the fetch resolves.
+  const [banks, setBanks] = useState<NigerianBank[]>(provider === 'flutterwave' ? [] : NIGERIAN_BANKS);
   useEffect(() => {
-    fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
-  }, []);
+    if (provider === 'flutterwave') {
+      fetchFlutterwaveBanks().then(setBanks).catch(() => { /* stays empty; verify will error clearly */ });
+    } else {
+      fetchBanks().then(setBanks).catch(() => { /* keep static list */ });
+    }
+  }, [provider]);
+
+  const bankCodeFor = (name: string): string | null | undefined =>
+    provider === 'flutterwave' ? getFlutterwaveBankCode(name) : getBankCode(name);
 
   const setVerifiedState = (next: BankAccountValue) => {
     onChange(next);
@@ -86,7 +114,7 @@ export function BankAccountField({
 
   useEffect(() => {
     const { account_number, bank_name } = value;
-    const initialBankCode = getBankCode(bank_name);
+    const initialBankCode = bankCodeFor(bank_name);
 
     // Only verify when we have 10 digits + a mapped bank code, and this exact
     // pair hasn't already been resolved.
@@ -99,10 +127,37 @@ export function BankAccountField({
       setLoading(true);
       setError(null);
 
-      /** Hit Paystack /bank/resolve once with the given bank code. Returns
-       *  the resolved result on success, throws the original error on
-       *  failure. */
-      const tryResolve = async (code: string) => resolveAccount(account_number, code);
+      /** Hit the ACTIVE PROVIDER's resolve endpoint once with the given
+       *  bank code. Returns the resolved result on success, throws the
+       *  original error on failure. Never crosses providers — Flutterwave
+       *  resolves via Flutterwave, Paystack via Paystack. */
+      const tryResolve = async (code: string) =>
+        provider === 'flutterwave'
+          ? resolveFlutterwaveAccount(account_number, code)
+          : resolveAccount(account_number, code);
+
+      // Flutterwave path: single attempt, no multi-tier fuzzy recovery.
+      // Its own /banks/NG list is the source of truth we already fetched;
+      // replicating Paystack's PSB-code-rotation recovery heuristics here
+      // would guess at Flutterwave-specific behaviour we haven't verified.
+      // If this fails, "Refresh bank list" re-fetches Flutterwave's list
+      // and retries once (see refreshAndRetry below).
+      if (provider === 'flutterwave') {
+        try {
+          const result = await tryResolve(initialBankCode);
+          if (cancelled) return;
+          lastKeyRef.current = key;
+          setVerifiedState({ ...value, account_name: result.account_name, verified: true });
+        } catch (err: any) {
+          if (cancelled) return;
+          lastKeyRef.current = '';
+          setError(err?.message || 'Could not verify account');
+          setVerifiedState({ ...value, account_name: '', verified: false });
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
 
       try {
         // First attempt with the cached code lookup.
@@ -214,7 +269,7 @@ export function BankAccountField({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.account_number, value.bank_name, refreshKey]);
+  }, [value.account_number, value.bank_name, refreshKey, provider]);
 
   /** Manual escape hatch — operator clicks "Refresh bank list" on an error.
    *  Forces a fresh fetch, clears the dedup key, and bumps refreshKey so the
@@ -224,16 +279,29 @@ export function BankAccountField({
    *  happens". */
   const refreshAndRetry = async () => {
     setError(null);
-    clearBankCache();
-    try {
-      const fresh = await Promise.race<NigerianBank[]>([
-        fetchBanks(),
-        new Promise<NigerianBank[]>((_, reject) =>
-          setTimeout(() => reject(new Error('refresh timeout')), 6000),
-        ),
-      ]);
-      if (fresh.length > 0) setBanks(fresh);
-    } catch { /* surface no error here; the effect re-run will surface its own */ }
+    if (provider === 'flutterwave') {
+      clearFlutterwaveBankCache();
+      try {
+        const fresh = await Promise.race<NigerianBank[]>([
+          fetchFlutterwaveBanks() as unknown as Promise<NigerianBank[]>,
+          new Promise<NigerianBank[]>((_, reject) =>
+            setTimeout(() => reject(new Error('refresh timeout')), 6000),
+          ),
+        ]);
+        if (fresh.length > 0) setBanks(fresh);
+      } catch { /* surface no error here; the effect re-run will surface its own */ }
+    } else {
+      clearBankCache();
+      try {
+        const fresh = await Promise.race<NigerianBank[]>([
+          fetchBanks(),
+          new Promise<NigerianBank[]>((_, reject) =>
+            setTimeout(() => reject(new Error('refresh timeout')), 6000),
+          ),
+        ]);
+        if (fresh.length > 0) setBanks(fresh);
+      } catch { /* surface no error here; the effect re-run will surface its own */ }
+    }
     lastKeyRef.current = '';
     setRefreshKey((k) => k + 1); // forces the verify effect to re-run
   };
@@ -283,7 +351,7 @@ export function BankAccountField({
               type="button"
               onClick={refreshAndRetry}
               className="underline text-xs text-destructive/80 hover:text-destructive ml-1"
-              title="Some bank codes (PSBs / fintechs) change occasionally. Refresh fetches the current Paystack list and retries."
+              title={`Some bank codes (PSBs / fintechs) change occasionally. Refresh fetches the current ${provider === 'flutterwave' ? 'Flutterwave' : 'Paystack'} list and retries.`}
             >
               Refresh bank list
             </button>

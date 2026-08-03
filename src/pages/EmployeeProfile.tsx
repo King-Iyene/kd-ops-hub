@@ -146,6 +146,22 @@ const EmployeeProfile = () => {
   const [bankDetails, setBankDetails] = useState<BankAccountValue>({
     bank_name: '', account_number: '', account_name: '', verified: false,
   });
+  // Which provider BankAccountField should verify against — was previously
+  // hardcoded to Paystack regardless of the active provider (see
+  // BankAccountField.tsx's `provider` prop). Fetched once on mount; fine to
+  // be slightly stale since this only affects VERIFY, not dispatch (Payroll
+  // re-resolves fresh at actual disbursement time).
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
+    })();
+  }, []);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [payslips, setPayslips] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -1801,7 +1817,7 @@ const EmployeeProfile = () => {
                 {/* Admin direct-edit mode */}
                 {bankEditMode && (
                   <div className="space-y-4">
-                    <BankAccountField value={bankDetails} onChange={setBankDetails} />
+                    <BankAccountField value={bankDetails} onChange={setBankDetails} provider={activeProvider} />
                     <div className="flex justify-end">
                       <Button size="sm" onClick={saveBank} disabled={!bankDetails.verified || bankSaving}>
                         {bankSaving && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
@@ -1872,7 +1888,7 @@ const EmployeeProfile = () => {
                 {isSelf && !canManage && showBankRequestForm && (
                   <div className="rounded-md border p-3 space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Request account change</p>
-                    <BankAccountField value={bankRequestDetails} onChange={setBankRequestDetails} />
+                    <BankAccountField value={bankRequestDetails} onChange={setBankRequestDetails} provider={activeProvider} />
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">Reason (optional)</label>
                       <textarea
