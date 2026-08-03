@@ -14,15 +14,19 @@ import { test } from '@playwright/test';
  * Usage (from a workflow_dispatch input, or locally):
  *   OPS_FUNCTION=flutterwave-reconciliation OPS_BODY='{}' npx playwright test ops-diagnose
  *   OPS_FUNCTION=batch-worker OPS_BODY='{"batch_id":"<uuid>"}' npx playwright test ops-diagnose
+ *   OPS_RPC=pending_batches_list OPS_BODY='{}' npx playwright test ops-diagnose
  *
  * Env vars:
- *   OPS_FUNCTION — required. Name of the edge function to invoke.
- *   OPS_BODY     — optional JSON string body. Defaults to '{}'.
+ *   OPS_FUNCTION — name of the edge function to invoke. Required unless OPS_RPC is set.
+ *   OPS_RPC      — name of a Postgres RPC to call via supabase.rpc() instead of
+ *                  an edge function. Takes precedence over OPS_FUNCTION if both are set.
+ *   OPS_BODY     — optional JSON string body / RPC params. Defaults to '{}'.
  */
-test('invoke an edge function and print the result', async ({ page }) => {
+test('invoke an edge function or RPC and print the result', async ({ page }) => {
   const fn = process.env.OPS_FUNCTION;
-  if (!fn) {
-    throw new Error('Set OPS_FUNCTION to the edge function name you want to diagnose.');
+  const rpc = process.env.OPS_RPC;
+  if (!fn && !rpc) {
+    throw new Error('Set OPS_FUNCTION (edge function) or OPS_RPC (Postgres RPC) to diagnose.');
   }
   let body: unknown = {};
   if (process.env.OPS_BODY) {
@@ -39,7 +43,7 @@ test('invoke an edge function and print the result', async ({ page }) => {
   await page.waitForLoadState('networkidle');
 
   const result = await page.evaluate(
-    async ({ fnName, fnBody }) => {
+    async ({ fnName, rpcName, fnBody }) => {
       // Exposed by src/integrations/supabase/client.ts ONLY when the build
       // sets VITE_EXPOSE_TEST_HOOKS=true (this workflow's build step does;
       // the real Vercel production build never does).
@@ -47,14 +51,16 @@ test('invoke an edge function and print the result', async ({ page }) => {
       if (!supabase) {
         return { ok: false, error: 'window.__kdops_supabase__ not found — is the dev-global exposed?' };
       }
-      const { data, error } = await supabase.functions.invoke(fnName, { body: fnBody });
+      const { data, error } = rpcName
+        ? await supabase.rpc(rpcName, fnBody)
+        : await supabase.functions.invoke(fnName, { body: fnBody });
       return { ok: !error, data, error: error ? String((error as any).message || error) : null };
     },
-    { fnName: fn, fnBody: body },
+    { fnName: fn, rpcName: rpc, fnBody: body },
   );
 
   console.log('═══════════════════════════════════════════════════════════');
-  console.log(`OPS DIAGNOSE: ${fn}`);
+  console.log(`OPS DIAGNOSE: ${rpc ? `rpc:${rpc}` : fn}`);
   console.log('Body:  ', JSON.stringify(body));
   console.log('Result:', JSON.stringify(result, null, 2));
   console.log('═══════════════════════════════════════════════════════════');

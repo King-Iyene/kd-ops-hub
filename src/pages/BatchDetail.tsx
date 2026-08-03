@@ -1730,7 +1730,10 @@ const BatchDetail = () => {
   const canCancelWholeBatch =
     (isAdmin || isFinance) &&
     !batch.deleted_at &&
-    ['failed', 'partially_processed'].includes(batch.status) &&
+    // 'processing' included so a batch stuck on a pending/processing item
+    // (not yet failed) can also be closed out from here, not just per-item —
+    // same underlying cancel_batch_bulk RPC either way.
+    ['failed', 'partially_processed', 'processing'].includes(batch.status) &&
     items.some((i) => i.status !== 'succeeded' && !i.is_manually_resolved);
 
   const submitCancelBatch = async () => {
@@ -2539,7 +2542,7 @@ const BatchDetail = () => {
                           // batch instead.
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
-                          const RETRY_WINDOW_HOURS = 5;
+                          const RETRY_WINDOW_HOURS = 1;
                           // Resolved short-circuits before retry — the item is
                           // closed even though status='failed' for audit.
                           // Two flavours of resolution show different pills:
@@ -2983,7 +2986,7 @@ const BatchDetail = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label htmlFor="cancel-batch-note">Note (optional)</Label>
+            <Label htmlFor="cancel-batch-note">Reason for cancelling *</Label>
             <Textarea
               id="cancel-batch-note"
               value={cancelBatchNote}
@@ -3000,7 +3003,7 @@ const BatchDetail = () => {
             <Button
               variant="destructive"
               onClick={submitCancelBatch}
-              disabled={cancelBatchSaving}
+              disabled={cancelBatchSaving || !cancelBatchNote.trim()}
             >
               {cancelBatchSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Cancel batch

@@ -9827,6 +9827,34 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: undefined
       }
+      approve_budget: {
+        Args: { p_budget_id: string }
+        Returns: {
+          approved_by: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          department_id: string | null
+          end_date: string
+          id: string
+          locked: boolean
+          name: string
+          notes: string | null
+          period: string
+          period_end: string | null
+          period_start: string | null
+          resubmitted_from_id: string | null
+          start_date: string
+          status: string
+          total_amount_ngn: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "budgets"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       approve_ewa: { Args: { p_request_id: string }; Returns: Json }
       approve_expense: {
         Args: { p_expense_id: string; p_idempotency_key?: string }
@@ -9921,6 +9949,43 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "payment_batches"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      approve_payroll_run: {
+        Args: { p_run_id: string }
+        Returns: {
+          allowances_json: Json | null
+          approved_by: string | null
+          bonuses_json: Json | null
+          created_at: string
+          created_by: string | null
+          cutoff_date: string | null
+          employee_count: number | null
+          id: string
+          is_auto_generated: boolean
+          nhf_ngn: number
+          notes: string | null
+          pay_date: string | null
+          pay_group_id: string | null
+          pay_schedule_id: string | null
+          paye_ngn: number
+          payroll_segment_id: string | null
+          pension_ngn: number
+          period: string
+          period_type: string | null
+          run_type: string
+          status: string
+          total_burn_ngn: number
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payroll_runs"
           isOneToOne: true
           isSetofReturn: false
         }

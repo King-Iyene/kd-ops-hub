@@ -27,11 +27,15 @@ on:
   workflow_dispatch:
     inputs:
       function:
-        description: 'Edge function name to invoke (e.g. flutterwave-reconciliation)'
-        required: true
+        description: 'Edge function name to invoke (e.g. flutterwave-reconciliation). Leave blank if using rpc.'
+        required: false
+        type: string
+      rpc:
+        description: 'Postgres RPC name to call instead (e.g. pending_batches_list). Takes precedence over function.'
+        required: false
         type: string
       body:
-        description: 'JSON body to send (default: {})'
+        description: 'JSON body / RPC params to send (default: {})'
         required: false
         type: string
         default: '{}'
@@ -49,6 +53,7 @@ jobs:
       TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
       TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
       OPS_FUNCTION: ${{ inputs.function }}
+      OPS_RPC: ${{ inputs.rpc }}
       OPS_BODY: ${{ inputs.body }}
       CI: true
       BASE_URL: http://localhost:4173
