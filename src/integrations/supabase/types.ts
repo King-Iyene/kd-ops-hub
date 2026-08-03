@@ -2328,6 +2328,54 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_job_alerts: {
+        Row: {
+          detail: string | null
+          detected_at: string
+          id: string
+          issue: string
+          job_name: string
+          resolved_at: string | null
+        }
+        Insert: {
+          detail?: string | null
+          detected_at?: string
+          id?: string
+          issue: string
+          job_name: string
+          resolved_at?: string | null
+        }
+        Update: {
+          detail?: string | null
+          detected_at?: string
+          id?: string
+          issue?: string
+          job_name?: string
+          resolved_at?: string | null
+        }
+        Relationships: []
+      }
+      cron_job_expectations: {
+        Row: {
+          created_at: string
+          description: string
+          job_name: string
+          max_gap_minutes: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          job_name: string
+          max_gap_minutes: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          job_name?: string
+          max_gap_minutes?: number
+        }
+        Relationships: []
+      }
       data_subject_requests: {
         Row: {
           artifact_path: string | null
@@ -5465,6 +5513,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -5506,6 +5555,7 @@ export type Database = {
           payment_date: string
           payment_description?: string | null
           payment_narration_at_dispatch?: string | null
+          payroll_run_id?: string | null
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
@@ -5547,6 +5597,7 @@ export type Database = {
           payment_date?: string
           payment_description?: string | null
           payment_narration_at_dispatch?: string | null
+          payroll_run_id?: string | null
           period?: string | null
           processing_finalized_at?: string | null
           processing_started_at?: string | null
@@ -5643,6 +5694,13 @@ export type Database = {
             columns: ["funded_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_batches_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
             referencedColumns: ["id"]
           },
           {
@@ -8419,6 +8477,7 @@ export type Database = {
       }
       terminations: {
         Row: {
+          bank_details_wiped: boolean
           completed_at: string | null
           created_at: string
           employee_id: string
@@ -8435,6 +8494,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          bank_details_wiped?: boolean
           completed_at?: string | null
           created_at?: string
           employee_id: string
@@ -8451,6 +8511,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          bank_details_wiped?: boolean
           completed_at?: string | null
           created_at?: string
           employee_id?: string
@@ -9933,6 +9994,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10034,6 +10096,7 @@ export type Database = {
         Args: { p_max?: number; p_user: string; p_window_seconds?: number }
         Returns: boolean
       }
+      check_cron_health: { Args: never; Returns: undefined }
       check_probation_reviews_due: {
         Args: never
         Returns: {
@@ -10073,6 +10136,7 @@ export type Database = {
       complete_offboarding: {
         Args: { p_termination_id: string }
         Returns: {
+          bank_details_wiped: boolean
           completed_at: string | null
           created_at: string
           employee_id: string
@@ -10142,6 +10206,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10240,6 +10305,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10276,6 +10342,10 @@ export type Database = {
       effective_co_approval_threshold: {
         Args: { p_user_id: string }
         Returns: number
+      }
+      employee_has_inflight_payroll: {
+        Args: { p_employee_id: string }
+        Returns: boolean
       }
       encrypt_account_number: { Args: { plaintext: string }; Returns: string }
       encrypt_linkedin_password: {
@@ -10314,6 +10384,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10528,6 +10599,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10846,6 +10918,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10901,6 +10974,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -10956,6 +11030,7 @@ export type Database = {
         Args: { p_approve: boolean; p_id: string; p_note?: string }
         Returns: undefined
       }
+      salary_advance_max_multiple: { Args: never; Returns: number }
       scan_daily_anomalies: { Args: never; Returns: number }
       scan_ewa_anomalies: { Args: { p_ewa_id: string }; Returns: number }
       scan_expense_anomalies: { Args: never; Returns: number }
@@ -11090,6 +11165,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -11140,6 +11216,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -11160,6 +11237,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      sweep_deferred_offboarding_wipes: { Args: never; Returns: number }
       sync_batch_status_from_items: {
         Args: { p_batch_id: string }
         Returns: {
@@ -11190,6 +11268,7 @@ export type Database = {
           payment_date: string
           payment_description: string | null
           payment_narration_at_dispatch: string | null
+          payroll_run_id: string | null
           period: string | null
           processing_finalized_at: string | null
           processing_started_at: string | null
@@ -11213,6 +11292,7 @@ export type Database = {
       tick_batch_worker: { Args: never; Returns: undefined }
       tick_fx_rate_sync: { Args: never; Returns: undefined }
       tick_heyreach_sync: { Args: never; Returns: undefined }
+      tick_payment_reconciliation: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       verify_audit_chain: {
         Args: never
