@@ -10334,6 +10334,43 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      finalize_payroll_run_disbursement: {
+        Args: { p_new_status: string; p_run_id: string }
+        Returns: {
+          allowances_json: Json | null
+          approved_by: string | null
+          bonuses_json: Json | null
+          created_at: string
+          created_by: string | null
+          cutoff_date: string | null
+          employee_count: number | null
+          id: string
+          is_auto_generated: boolean
+          nhf_ngn: number
+          notes: string | null
+          pay_date: string | null
+          pay_group_id: string | null
+          pay_schedule_id: string | null
+          paye_ngn: number
+          payroll_segment_id: string | null
+          pension_ngn: number
+          period: string
+          period_type: string | null
+          run_type: string
+          status: string
+          total_burn_ngn: number
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payroll_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       flag_awol_yesterday: {
         Args: never
         Returns: {
@@ -10392,6 +10429,43 @@ export type Database = {
       }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
+      lock_payroll_run_for_disbursement: {
+        Args: { p_run_id: string }
+        Returns: {
+          allowances_json: Json | null
+          approved_by: string | null
+          bonuses_json: Json | null
+          created_at: string
+          created_by: string | null
+          cutoff_date: string | null
+          employee_count: number | null
+          id: string
+          is_auto_generated: boolean
+          nhf_ngn: number
+          notes: string | null
+          pay_date: string | null
+          pay_group_id: string | null
+          pay_schedule_id: string | null
+          paye_ngn: number
+          payroll_segment_id: string | null
+          pension_ngn: number
+          period: string
+          period_type: string | null
+          run_type: string
+          status: string
+          total_burn_ngn: number
+          total_contractor_ngn: number
+          total_employee_ngn: number
+          total_expenses_ngn: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payroll_runs"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       log_audit: {
         Args: {
           p_action_type: string
