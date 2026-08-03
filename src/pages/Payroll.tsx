@@ -145,7 +145,7 @@ interface PayrollRun {
   total_burn_ngn: number;
   bonuses_json?: BonusLine[] | null;
   allowances_json?: AllowancesSnapshot | null;
-  status: 'draft' | 'pending_approval' | 'approved' | 'paid';
+  status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
   created_at: string;
   created_by: string | null;
   approved_by: string | null;
@@ -1313,17 +1313,30 @@ const Payroll = () => {
   const doDisburse = async () => {
     if (!disburseTarget) return;
     const { run, payslips } = disburseTarget;
-    // Prevent double disbursement if the run was already paid
-    if (run.status === 'paid') {
-      toast({ title: 'Already disbursed', description: 'This payroll run has already been paid.', variant: 'destructive' });
-      setDisburseTarget(null);
-      return;
-    }
     setDisbursing(true);
     const errors: string[] = [];
     let succeeded = 0;
+    let locked = false;
 
     try {
+      // Server-side lock: row-locks the run and atomically flips
+      // approved -> processing. If another admin (or another tab/click)
+      // already claimed this run, this raises and we abort before creating
+      // anything — closes the double-disbursement hole where two concurrent
+      // callers both read status='approved' from stale client state.
+      try {
+        await supabase.rpc('lock_payroll_run_for_disbursement', { p_run_id: run.id });
+        locked = true;
+      } catch (lockErr: any) {
+        toast({
+          title: 'Cannot disburse',
+          description: lockErr?.message || 'This payroll run is not ready for disbursement (it may already be paid or in progress).',
+          variant: 'destructive',
+        });
+        setDisburseTarget(null);
+        return;
+      }
+
       const today = new Date().toISOString().slice(0, 10);
       const totalNet = payslips.reduce((s, p) => s + Number(p.net_ngn || 0), 0);
 
@@ -1525,8 +1538,16 @@ const Payroll = () => {
         }
       }
 
+      // Release the processing lock taken above. 'paid' if anything went
+      // through, otherwise back to 'approved' so the run can be retried
+      // instead of being stuck in 'processing'.
+      await supabase.rpc('finalize_payroll_run_disbursement', {
+        p_run_id: run.id,
+        p_new_status: succeeded > 0 ? 'paid' : 'approved',
+      });
+      locked = false;
+
       if (succeeded > 0) {
-        await supabase.from('payroll_runs').update({ status: 'paid' }).eq('id', run.id);
         await logAudit(
           'salary_disbursed',
           `Salary disbursed for ${monthLabel(run.period)}: ${succeeded}/${payslips.length} transfers initiated${errors.length ? ` (${errors.length} failed)` : ''}`,
@@ -1551,6 +1572,20 @@ const Payroll = () => {
         if (succeeded > 0) load();
       }
     } catch (err: any) {
+      // An unexpected error left the run locked in 'processing' before we
+      // got to the normal finalize call above — release it back to
+      // 'approved' rather than leaving it stuck for the 15-minute self-heal.
+      if (locked) {
+        try {
+          await supabase.rpc('finalize_payroll_run_disbursement', {
+            p_run_id: run.id,
+            p_new_status: succeeded > 0 ? 'paid' : 'approved',
+          });
+        } catch {
+          // Best-effort — the 15-minute self-heal in
+          // lock_payroll_run_for_disbursement covers this if it also fails.
+        }
+      }
       toast({
         title: 'Disbursement failed',
         description: err?.message || 'An unexpected error occurred.',
