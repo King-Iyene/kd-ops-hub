@@ -2539,7 +2539,7 @@ const BatchDetail = () => {
                           // batch instead.
                           const failedAt = new Date(item.updated_at || item.created_at).getTime();
                           const ageHours = (Date.now() - failedAt) / (1000 * 60 * 60);
-                          const RETRY_WINDOW_HOURS = 5;
+                          const RETRY_WINDOW_HOURS = 1;
                           // Resolved short-circuits before retry — the item is
                           // closed even though status='failed' for audit.
                           // Two flavours of resolution show different pills:
