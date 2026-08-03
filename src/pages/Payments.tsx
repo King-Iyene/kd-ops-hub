@@ -269,15 +269,33 @@ const Payments = () => {
     setReconciling(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke('paystack-reconciliation', {
-        body: {},
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const authHeader = { Authorization: `Bearer ${session?.access_token}` };
+      // Global reconcile sweeps EVERY stuck item across all batches —
+      // was previously Paystack-only, so any stuck Flutterwave item never
+      // got reconciled from this button (only the server cron or
+      // BatchDetail's per-batch Reconcile would catch it). Run both;
+      // a failure in one provider's call must not block the other's.
+      const [psResult, fwResult] = await Promise.allSettled([
+        supabase.functions.invoke('paystack-reconciliation', { body: {}, headers: authHeader }),
+        supabase.functions.invoke('flutterwave-reconciliation', { body: {}, headers: authHeader }),
+      ]);
+
+      const sum = { items_checked: 0, succeeded: 0, failed: 0, unchanged: 0 };
+      let anyError: string | null = null;
+      for (const r of [psResult, fwResult]) {
+        if (r.status !== 'fulfilled') { anyError = anyError || (r.reason as any)?.message || 'Request failed'; continue; }
+        const { data, error } = r.value;
+        if (error) { anyError = anyError || error.message; continue; }
+        if (data?.error) { anyError = anyError || data.error; continue; }
+        sum.items_checked += data?.items_checked ?? 0;
+        sum.succeeded += data?.succeeded ?? 0;
+        sum.failed += data?.failed ?? 0;
+        sum.unchanged += data?.unchanged ?? 0;
+      }
+
       toast({
         title: 'Reconciliation complete',
-        description: `Checked ${data?.items_checked ?? 0} · ${data?.succeeded ?? 0} succeeded · ${data?.failed ?? 0} failed · ${data?.unchanged ?? 0} unchanged`,
+        description: `Checked ${sum.items_checked} · ${sum.succeeded} succeeded · ${sum.failed} failed · ${sum.unchanged} unchanged${anyError ? ` (one provider errored: ${anyError})` : ''}`,
       });
       fetchBatches();
       fetchStats();

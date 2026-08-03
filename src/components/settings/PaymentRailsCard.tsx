@@ -30,6 +30,26 @@ import { Loader2, ArrowRightLeft, Check, AlertTriangle, X } from 'lucide-react';
 import { ProviderPill } from '@/components/payments/ProviderPill';
 import { getProviderBalance, providerLabel, type Provider } from '@/lib/payments/item-facade';
 
+// supabase.functions.invoke() collapses any non-2xx response into a generic
+// FunctionsHttpError whose .message is just "Edge Function returned a
+// non-2xx status code" — the real reason lives in the response body
+// (error.context), which we have to read and parse ourselves.
+async function extractEdgeError(error: any, fallback: string): Promise<string> {
+  try {
+    const response = error?.context;
+    if (response && typeof response.text === 'function') {
+      const raw = await response.text();
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return parsed.error || parsed.message || fallback;
+      }
+    }
+  } catch {
+    // fall through to fallback
+  }
+  return error?.message || fallback;
+}
+
 interface PaymentRailsSettings {
   active_payment_provider: Provider;
   flutterwave_mode: 'test' | 'live';
@@ -157,9 +177,10 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         body: { action: 'preflight', to_provider: to, to_mode: mode },
       });
       if (error) {
+        const message = await extractEdgeError(error, 'Preflight failed');
         setPreflight({
           ok: false, target_provider: to, target_mode: to === 'flutterwave' ? mode : null,
-          balance: null, error: (error as any)?.message || 'Preflight failed',
+          balance: null, error: message,
           current: { provider: settings?.active_payment_provider || 'paystack', mode: settings?.flutterwave_mode || 'test' },
         });
       } else {
@@ -187,7 +208,8 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         },
       });
       if (error) {
-        toast({ variant: 'destructive', title: 'Switch failed', description: (error as any)?.message || 'Try again' });
+        const message = await extractEdgeError(error, 'Try again');
+        toast({ variant: 'destructive', title: 'Switch failed', description: message });
       } else if ((data as any)?.error) {
         toast({ variant: 'destructive', title: 'Switch rejected', description: (data as any).error });
       } else {

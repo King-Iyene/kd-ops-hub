@@ -1516,6 +1516,22 @@ const Fleet = () => {
   const [fuelBankDetails, setFuelBankDetails] = useState<BankAccountValue>(EMPTY_FUEL_BANK);
   const [showFuelBankSection, setShowFuelBankSection] = useState(false);
   const [fuelDoc, setFuelDoc] = useState<File | null>(null);
+  // Which provider BankAccountField should verify against — previously
+  // hardcoded to Paystack regardless of the active provider. Fetched once
+  // on mount; these fields feed expense reimbursement (dispatched later
+  // through the Expenses/BatchDetail pipeline, which resolves the real
+  // provider fresh at actual disbursement time).
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      setActiveProvider((data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack');
+    })();
+  }, []);
 
   // Post-payment receipt upload
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<FuelRequest | null>(null);
@@ -5120,7 +5136,7 @@ const Fleet = () => {
                         <span className="text-sm font-medium">Bank account <span className="text-muted-foreground font-normal">(optional)</span></span>
                         <button type="button" className="text-xs text-muted-foreground hover:text-destructive transition-colors" onClick={() => { setShowFuelBankSection(false); setFuelBankDetails(EMPTY_FUEL_BANK); }}>Remove</button>
                       </div>
-                      <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} />
+                      <BankAccountField value={fuelBankDetails} onChange={setFuelBankDetails} provider={activeProvider} />
                     </div>
                   )}
                 </div>
@@ -6402,7 +6418,7 @@ const Fleet = () => {
             {repairIsReimbursement && (
               <div className="space-y-1.5 border-t pt-4">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bank account for reimbursement <span className="font-normal normal-case">(optional)</span></Label>
-                <BankAccountField value={repairBank} onChange={setRepairBank} />
+                <BankAccountField value={repairBank} onChange={setRepairBank} provider={activeProvider} />
               </div>
             )}
           </div>

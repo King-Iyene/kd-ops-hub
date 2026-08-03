@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { getProviderBalance } from '@/lib/payments/item-facade';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import {
   MobileCard,
@@ -187,11 +188,20 @@ export default function PaymentSchedule() {
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('paystack-transfer', {
-        body: { action: 'get_balance' },
-      });
-      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Failed');
-      setBalance(data.data as BalanceData);
+      // Provider-aware — was previously hardcoded to paystack-transfer,
+      // so this page always showed Paystack's balance even when
+      // Flutterwave was the active provider (misleading, not a money
+      // risk, but exactly the kind of stale display the toggle is
+      // supposed to eliminate everywhere).
+      const { data: settingsRow } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const provider = (settingsRow as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+      const b = await getProviderBalance(provider);
+      if (b.error || b.available == null) throw new Error(b.error || 'Failed');
+      setBalance({ available: b.available, currency: b.currency });
     } catch {
       // silently fail — balance is informational
     } finally {

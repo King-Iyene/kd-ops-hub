@@ -63,6 +63,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Papa from 'papaparse';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { NIGERIAN_BANKS, resolveAccount } from '@/lib/paystack';
+import { fetchFlutterwaveBanks, getFlutterwaveBankCode, resolveFlutterwaveAccount } from '@/lib/flutterwave-banks';
 import { getBankCode, fetchBanks } from '@/lib/nigerian-banks';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
@@ -1052,6 +1053,26 @@ const Contractors = () => {
   // soft warning the operator can force-push past.
   const [verifying, setVerifying] = useState(false);
   const [verifyProgress, setVerifyProgress] = useState({ done: 0, total: 0 });
+  // Which provider the bulk CSV verify step calls — was previously
+  // hardcoded to Paystack's resolveAccount regardless of the active
+  // provider. Scoped fix: the STORED bank_code (used for de-dup matching
+  // against existing contractor rows) stays Paystack-canonical exactly as
+  // before — changing that would risk breaking dedup against historical
+  // records. Only the actual verify API call is redirected to the correct
+  // provider, using a freshly-resolved Flutterwave code when applicable.
+  const [activeProvider, setActiveProvider] = useState<'paystack' | 'flutterwave'>('paystack');
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('active_payment_provider')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const p = (data as any)?.active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack';
+      setActiveProvider(p);
+      if (p === 'flutterwave') await fetchFlutterwaveBanks();
+    })();
+  }, []);
 
   const verifyRows = useCallback(async (rows: ParsedRow[]) => {
     // ── Duplicate detection (finance-safe, precision-first) ──────────
@@ -1154,7 +1175,20 @@ const Contractors = () => {
         const myIdx = cursor++;
         const { r, idx } = candidates[myIdx];
         try {
-          const result = await resolveAccount(r.account_number, r.bank_code!);
+          // Verify against the ACTIVE provider — bank_code stays
+          // Paystack-canonical for storage/dedup (see comment above), so
+          // for Flutterwave we resolve a fresh code from ITS OWN registry
+          // just for this call rather than sending Paystack's code to
+          // Flutterwave's API (the exact cross-provider bug fixed earlier
+          // for BankAccountField).
+          const verifyProviderLabel = activeProvider === 'flutterwave' ? 'Flutterwave' : 'Paystack';
+          const result = activeProvider === 'flutterwave'
+            ? await (async () => {
+                const fwCode = getFlutterwaveBankCode(r.bank_name);
+                if (!fwCode) throw new Error(`Unknown bank "${r.bank_name}" on Flutterwave`);
+                return resolveFlutterwaveAccount(r.account_number, fwCode);
+              })()
+            : await resolveAccount(r.account_number, r.bank_code!);
           const psName = result?.account_name?.trim() || '';
           next[idx] = {
             ...next[idx],
@@ -1164,22 +1198,23 @@ const Contractors = () => {
           if (psName && !namesAreEquivalent(r.full_name, psName)) {
             next[idx].warnings = [
               ...next[idx].warnings,
-              `Bank name on Paystack is "${psName}" — different from CSV "${r.full_name}".`,
+              `Bank name on ${verifyProviderLabel} is "${psName}" — different from CSV "${r.full_name}".`,
             ];
           }
         } catch (err: any) {
-          // /bank/resolve returns 422 if the account doesn't exist at
-          // the bank, 400 if the bank code is wrong. Treat both as
-          // a soft warning — operator can still force the row through
-          // if they're confident the details are correct (e.g. just-
-          // opened account that Paystack hasn't indexed yet).
+          // /bank/resolve (or Flutterwave's equivalent) returns 422 if the
+          // account doesn't exist at the bank, 400 if the bank code is
+          // wrong. Treat both as a soft warning — operator can still force
+          // the row through if they're confident the details are correct
+          // (e.g. just-opened account the provider hasn't indexed yet).
+          const verifyProviderLabel = activeProvider === 'flutterwave' ? 'Flutterwave' : 'Paystack';
           next[idx] = {
             ...next[idx],
             paystack_name: null,
             paystack_verified: false,
             warnings: [
               ...next[idx].warnings,
-              `Paystack could not verify this account (${err?.message || 'unknown error'}).`,
+              `${verifyProviderLabel} could not verify this account (${err?.message || 'unknown error'}).`,
             ],
           };
         } finally {
@@ -2210,7 +2245,7 @@ const Contractors = () => {
                 </p>
               )}
 
-            <BankAccountField value={bank} onChange={setBank} />
+            <BankAccountField value={bank} onChange={setBank} provider={activeProvider} />
 
             {!editing && (
               <div className="space-y-3">

@@ -34,9 +34,18 @@ import {
   Download, Printer, Share2, X, FileImage, FileText, ChevronDown,
 } from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
-import { paystackTransferFee, stampDutyFor, friendlyPaystackError } from '@/lib/paystack';
+import { stampDutyFor } from '@/lib/paystack';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import {
+  providerOf,
+  providerLabel,
+  itemReference,
+  itemFeeNgn,
+  itemFeeSource,
+  friendlyProviderError,
+  verifyItem,
+} from '@/lib/payments/item-facade';
 
 interface Props {
   open: boolean;
@@ -69,50 +78,37 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
 
-  // The webhook normally writes paystack_fee_ngn when transfer.success
-  // fires, and the reconcile job backfills any rows that miss the
-  // webhook. This is the third safety net: when the receipt is opened
-  // for a succeeded transfer that still has no fee on file, fetch it
-  // straight from Paystack via the verify_transfer edge action and
-  // persist the result back to the row. So once a receipt has been
-  // opened, the fee is *guaranteed* real-Paystack — no calculations,
-  // no estimates, just the figure Paystack actually charged.
+  // The webhook normally writes the fee column (paystack_fee_ngn or
+  // flutterwave_fee_ngn) when the transfer succeeds, and the reconcile job
+  // backfills any rows that miss the webhook. This is the third safety net:
+  // when the receipt is opened for a succeeded transfer that still has no
+  // fee on file, fetch it straight from the CORRECT provider via
+  // verifyItem() (routes to paystack-transfer or flutterwave-transfer based
+  // on item.provider) and persist the result back to the row. Previously
+  // this always called paystack-transfer regardless of provider — for a
+  // Flutterwave item that meant verifying against the wrong API with a
+  // NULL reference, so the fee row silently never backfilled.
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
   useEffect(() => {
     if (!open || !item) return;
     const isSucceeded = item.status === 'succeeded' || item.status === 'processed';
-    const hasFee = Number(item.paystack_fee_ngn || 0) > 0;
-    const hasRef = !!item.paystack_reference;
+    const hasFee = itemFeeSource(item) === 'actual';
+    const hasRef = !!itemReference(item);
     if (!isSucceeded || hasFee || !hasRef) return;
     let cancelled = false;
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const { data, error } = await supabase.functions.invoke('paystack-transfer', {
-          body: { action: 'verify_transfer', reference: item.paystack_reference },
-          headers: session?.access_token
-            ? { Authorization: `Bearer ${session.access_token}` }
-            : undefined,
-        });
-        if (cancelled || error) return;
-        // Resilient extraction. The new edge function surfaces fee_ngn
-        // directly; the older deployed version only exposes the raw
-        // Paystack response under `raw`, where the fee lives in kobo
-        // as `data.fee`. Pull from whichever is available so this works
-        // before AND after the edge function is redeployed.
-        const d: any = data;
-        const feeNgnDirect = Number(d?.fee_ngn || 0);
-        const feeKoboRaw   = Number(d?.raw?.fee || 0);
-        const fee = feeNgnDirect > 0
-          ? feeNgnDirect
-          : feeKoboRaw > 0 ? feeKoboRaw / 100 : 0;
+        const result = await verifyItem(item);
+        if (cancelled || !result.ok) return;
+        const fee = Number(result.fee_ngn || 0);
         if (fee > 0) {
           setFeeOverride(fee);
           // Persist back so subsequent opens are instant and the
           // ledger / Transactions table also see the real value.
+          const feeColumn = providerOf(item) === 'flutterwave' ? 'flutterwave_fee_ngn' : 'paystack_fee_ngn';
           await supabase
             .from('batch_items')
-            .update({ paystack_fee_ngn: fee })
+            .update({ [feeColumn]: fee })
             .eq('id', item.id);
         }
       } catch (e) {
@@ -122,7 +118,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
       }
     })();
     return () => { cancelled = true; };
-  }, [open, item?.id, item?.status, item?.paystack_reference, item?.paystack_fee_ngn]);
+  }, [open, item?.id, item?.status, item?.paystack_reference, item?.flutterwave_reference, item?.paystack_fee_ngn, item?.flutterwave_fee_ngn]);
 
   if (!item) return null;
 
@@ -145,26 +141,15 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
     || `${companyName || 'KDOps'} · ${batch?.name || 'batch'}`;
 
   const amount = Number(item.amount_ngn) || 0;
-  // Transfer fee resolution mirrors BatchDetail.getItemFee — same fallback
-  // chain so the receipt and the batch row never disagree:
-  //   1. paystack_fee_ngn column (populated by webhook / reconcile / lazy
-  //      backfill above)
-  //   2. paystack_raw.fee (kobo) on the same row — webhooks write this
-  //      even before any column-add migration, so it's the resilient
-  //      fallback for older deployments
-  //   3. Published Paystack schedule (paystackTransferFee) for succeeded
-  //      transfers, so the row never displays "—" with a bogus total
-  //      below it. Only kicks in if 1 and 2 are both empty.
-  //   4. 0 for non-succeeded items.
-  const directFee = Number(item.paystack_fee_ngn || 0);
-  const rawFeeKobo = Number(item.paystack_raw?.fee || 0);
-  const psFee = feeOverride
-    ?? (directFee > 0 ? directFee
-        : rawFeeKobo > 0 ? rawFeeKobo / 100
-        : isSucceeded ? paystackTransferFee(amount)
-        : 0);
+  // Transfer fee resolution — provider-aware via the facade, so a
+  // Flutterwave item reads flutterwave_fee_ngn / flutterwave_raw.fee
+  // instead of always falling through to the Paystack columns (which are
+  // NULL/0 for Flutterwave items, previously making the receipt show a
+  // wrong or missing fee for anything not paid via Paystack).
+  const psFee = feeOverride ?? itemFeeNgn(item);
   const duty = stampDutyFor(amount);
   const total = amount + psFee + duty;
+  const paidVia = providerLabel(providerOf(item));
   const internalRef = item.id ? String(item.id).toLowerCase().replace(/-/g, '') : '—';
   const certId = `kdops_${internalRef}`;
   const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
@@ -479,6 +464,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
               } />
               <Row k="Date" v={txnDateStr} />
               <Row k="Sent to" v={item.account_name || item.full_name || '—'} />
+              <Row k="Paid via" v={paidVia} />
             </Section>
 
             {/* Beneficiary */}
@@ -490,15 +476,15 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             {/* Reference */}
             <Section title="Reference">
               <Row k="Narration" v={narration} />
-              {item.paystack_reference && (
-                <Row k="Provider reference" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.paystack_reference}</span>} />
+              {itemReference(item) && (
+                <Row k="Provider reference" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{itemReference(item)}</span>} />
               )}
             </Section>
 
 
             {/* Failure details — only on failed transfers */}
             {item.status === 'failed' && (() => {
-              const f = friendlyPaystackError(item.failure_reason);
+              const f = friendlyProviderError(item, item.failure_reason);
               const bankPerspective = bankPerspectiveFor(item.failure_reason);
               const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
