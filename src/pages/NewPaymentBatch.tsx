@@ -714,7 +714,16 @@ const NewPaymentBatch = () => {
                         const now = new Date();
                         const monthLong = now.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
                         const monthShort = now.toLocaleString('en-GB', { month: 'short', year: 'numeric' });
-                        const next25 = new Date(now.getFullYear(), now.getMonth() + 1, 25)
+                        // The next upcoming 25th — THIS month's if it hasn't
+                        // passed yet, otherwise next month's. Previously this
+                        // always jumped a full month ahead (now.getMonth() + 1
+                        // unconditionally), so picking "Employee Salary" on
+                        // any day 1-25 silently pre-filled a payment date a
+                        // month later than intended — the root cause of
+                        // salary batches carrying a payment_date weeks after
+                        // they were actually dispatched.
+                        const next25Month = now.getDate() <= 25 ? now.getMonth() : now.getMonth() + 1;
+                        const next25 = new Date(now.getFullYear(), next25Month, 25)
                           .toISOString().slice(0, 10);
                         const today = now.toISOString().slice(0, 10);
 
