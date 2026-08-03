@@ -384,13 +384,21 @@ export function QuickPayDialog() {
       // never confuse each other in dashboards or webhook lookups.
       const compactId = String(insertedItem.id).replace(/-/g, '').slice(0, 20);
       const ref = activeProvider === 'flutterwave' ? `kdopsfw_${compactId}` : `kdops_${compactId}`;
-      await supabase.from('batch_items')
+      const { error: refWriteErr } = await supabase.from('batch_items')
         .update(
           activeProvider === 'flutterwave'
             ? { flutterwave_reference: ref }
             : { paystack_reference: ref },
         )
         .eq('id', insertedItem.id);
+      if (refWriteErr) {
+        // Fail closed, not open: if this reference never lands in the DB,
+        // batch-worker's "undispatched" scan (paystack_reference IS NULL)
+        // could later treat this same item as never-dispatched and send a
+        // SECOND transfer under a different reference — dispatching money
+        // under an untracked reference is worse than not dispatching it.
+        throw new Error(`Could not record idempotency reference for this payment: ${refWriteErr.message}`);
+      }
 
       // Use the operator's custom narration from the pre-flight modal (editable
       // there), then fall back to the description field, then auto-build.

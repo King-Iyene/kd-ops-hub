@@ -91,7 +91,17 @@ function generateMonthlyAnchorPayDates(
   return out;
 }
 
-const isoOf = (d: Date) => d.toISOString().slice(0, 10);
+// Local-date components, NOT toISOString(). react-day-picker builds each
+// grid cell as a local-midnight Date with no timezone info. toISOString()
+// converts through UTC, which for any positive-offset timezone (WAT is
+// UTC+1) rolls local midnight back to the previous UTC day — every event
+// looked up this way keyed one cell earlier than the day it visually sits
+// on, so pay-day/cutoff/holiday dots rendered one day off for WAT users.
+// Events are keyed by plain yyyy-mm-dd strings straight from the DB with
+// no timezone conversion, so the lookup key must be built the same way —
+// this mirrors the (correct) isoOf in src/lib/holidays.ts.
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Build a yyyy-mm-dd → events map so the modifier predicate is O(1)
 // per render. react-day-picker calls the predicate for every visible

@@ -366,12 +366,36 @@ function getBankCode(name: string | null | undefined): string | null {
 // Per-item dispatch — returns { ok, reason? }. On error the row is marked
 // failed in the DB so the next pass skips it.
 // ──────────────────────────────────────────────────────────────────────────
+/**
+ * GET /transfer/verify/:reference. Returns the provider's own record for a
+ * deterministic reference, or null if unreachable / Paystack has no record
+ * of it. Used to check-before-overwrite: a 5xx/timeout on the /transfer
+ * POST means "may have processed", not "failed" — this is how we find out
+ * which one actually happened instead of guessing.
+ */
+async function verifyPaystackTransfer(secret: string, reference: string): Promise<any | null> {
+  try {
+    const res = await fetch(`${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json?.status === false) return null;
+    return json.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function dispatchItem(
   svc: SupabaseClient,
   secret: string,
   it: any,
   batchName: string,
 ): Promise<{ ok: boolean; reason?: string }> {
+  let recipientCode: string | null = it.paystack_recipient_code || null;
+  let reference: string | null = null;
+
   try {
     const amount = Number(it.amount_ngn || 0);
     if (amount < 1)        return fail("Minimum transfer amount is ₦1");
@@ -380,7 +404,6 @@ async function dispatchItem(
     // The previous hardcoded ₦5M literal duplicated those caps and silently
     // diverged when a super_admin raised them — closes H-7.
 
-    let recipientCode: string | null = it.paystack_recipient_code || null;
     let verifiedAccountName: string | null = null;
     if (!recipientCode) {
       const bankCode = getBankCode(it.bank_name);
@@ -403,7 +426,7 @@ async function dispatchItem(
       verifiedAccountName = recipient.details?.account_name || null;
     }
 
-    const reference = generateRef(it.id);
+    reference = generateRef(it.id);
     // `batchName` is now the pre-computed narration snapshot from workBatch
     // (see narration snapshot block). It already includes the KDOps · prefix
     // only when we fell back to the batch name; explicit operator narration
@@ -432,6 +455,49 @@ async function dispatchItem(
     return { ok: true };
   } catch (err) {
     const reason = (err as Error)?.message || "Transfer failed";
+
+    // The /transfer POST above may have reached Paystack and actually
+    // processed before the response was lost (timeout / 5xx — the retry
+    // policy at the top of this file already documents these as "may have
+    // processed"). Check Paystack's own record for this deterministic
+    // reference before ever writing 'failed' — a crashed-mid-transfer retry
+    // must never relabel a real success as a failure.
+    if (reference) {
+      const verified = await verifyPaystackTransfer(secret, reference);
+      if (verified) {
+        const vStatus = String(verified.status || "").toLowerCase();
+        if (vStatus === "success") {
+          await svc.from("batch_items").update({
+            status:                  "pending", // resolved onward by the webhook/reconciliation sweep, same as the happy path
+            paystack_recipient_code: recipientCode,
+            paystack_transfer_code:  verified.transfer_code ?? null,
+            paystack_reference:      reference,
+            failure_reason:          null,
+          }).eq("id", it.id);
+          return { ok: true };
+        }
+        if (vStatus === "failed" || vStatus === "reversed") {
+          return fail(`Confirmed ${vStatus} by Paystack: ${verified.reason || reason}`);
+        }
+        // otp/pending/queued/etc — genuinely still in flight, not a failure.
+        await svc.from("batch_items").update({
+          status:             "pending",
+          paystack_reference: reference,
+          failure_reason:     null,
+        }).eq("id", it.id);
+        return { ok: true };
+      }
+      // Verify was inconclusive (network error, or Paystack genuinely has no
+      // record — meaning /transfer never actually landed). Leave the item at
+      // 'pending' with no reference so the next pass retries a fresh attempt
+      // under the SAME deterministic reference, instead of guessing 'failed'
+      // on an error that never confirmed the transfer didn't happen.
+      await svc.from("batch_items").update({
+        status: "pending", failure_reason: null,
+      }).eq("id", it.id);
+      return { ok: false, reason: `Unresolved after ambiguous error, will retry: ${reason}` };
+    }
+
     return fail(reason);
   }
 
@@ -847,9 +913,19 @@ async function workBatch(
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Cron mode — find any batch in 'processing' that has stale updated_at and
-// resume it. Caps to one batch per tick so we don't blow the time budget.
+// Cron mode — find any batches in 'processing' whose updated_at is stale and
+// resume them. Recovers up to MAX_ORPHANS_PER_TICK per tick, in parallel —
+// a provider outage that stalls many batches at once used to drain at
+// 1/minute (the last of 20 orphans waited ~20 minutes for its first retry);
+// now it's capped by how many fit in one tick, not one per tick. Each
+// workBatch() call has its own TIME_BUDGET_MS budget and they run
+// concurrently rather than sequentially, so wall time stays bounded by the
+// slowest single batch, not the sum. Safe against overlap with the next
+// tick because workBatch() bumps updated_at as it dispatches each item, so
+// an in-flight batch stops matching the stale cutoff below.
 // ──────────────────────────────────────────────────────────────────────────
+const MAX_ORPHANS_PER_TICK = 5;
+
 async function workOrphans(svc: SupabaseClient) {
   const cutoff = new Date(Date.now() - ORPHAN_THRESHOLD_S * 1000).toISOString();
   const { data: orphans } = await svc
@@ -858,10 +934,21 @@ async function workOrphans(svc: SupabaseClient) {
     .in("status", ["processing", "partially_processed"])
     .lt("updated_at", cutoff)
     .order("updated_at", { ascending: true })
-    .limit(1);
+    .limit(MAX_ORPHANS_PER_TICK);
 
   if (!orphans || orphans.length === 0) return { ok: true, orphans_processed: 0 };
-  return await workBatch(svc, orphans[0].id, null, null);
+
+  const settled = await Promise.allSettled(
+    orphans.map((o) => workBatch(svc, o.id, null, null)),
+  );
+  return {
+    ok: true,
+    orphans_processed: orphans.length,
+    results: settled.map((r, i) => ({
+      batch_id: orphans[i].id,
+      ...(r.status === "fulfilled" ? r.value : { ok: false, error: String(r.reason) }),
+    })),
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────

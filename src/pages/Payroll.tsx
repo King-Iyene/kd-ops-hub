@@ -1357,21 +1357,56 @@ const Payroll = () => {
         await fetchFlutterwaveBanks();
       }
 
-      const { data: batch, error: batchErr } = await supabase
+      // Crash-recovery: if a previous doDisburse attempt for this run already
+      // created a batch and crashed/closed before finishing, reuse that SAME
+      // batch instead of creating a new one — otherwise a retry would create
+      // brand-new batch_items (brand-new deterministic provider references)
+      // for employees who may have already been paid in the crashed attempt.
+      // Created as status='processing' (not 'approved') so it's a first-class
+      // citizen of the same processing/partially_processed status machine
+      // batch-worker's orphan watchdog already scans every minute — if THIS
+      // tab also crashes mid-loop, the watchdog finishes dispatching whatever
+      // batch_items are left 'pending', the same recovery every other batch
+      // type in this app already gets.
+      const { data: existingBatch } = await supabase
         .from('payment_batches')
-        .insert({
-          name: `Salary ${monthLabel(run.period)}`,
-          status: 'approved',
-          payment_date: today,
-          total_amount: totalNet,
-          beneficiary_count: payslips.length,
-          provider: activeProvider,
-        })
-        .select()
-        .single();
-      if (batchErr) throw batchErr;
+        .select('id')
+        .eq('payroll_run_id', run.id)
+        .in('status', ['processing', 'partially_processed'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      let batch: { id: string };
+      let alreadyCoveredEmployeeIds = new Set<string>();
+      if (existingBatch) {
+        batch = existingBatch as any;
+        const { data: existingItems } = await supabase
+          .from('batch_items')
+          .select('employee_id')
+          .eq('batch_id', batch.id)
+          .not('employee_id', 'is', null);
+        alreadyCoveredEmployeeIds = new Set((existingItems || []).map((i: any) => i.employee_id));
+      } else {
+        const { data: newBatch, error: batchErr } = await supabase
+          .from('payment_batches')
+          .insert({
+            name: `Salary ${monthLabel(run.period)}`,
+            status: 'processing',
+            payment_date: today,
+            total_amount: totalNet,
+            beneficiary_count: payslips.length,
+            provider: activeProvider,
+            payroll_run_id: run.id,
+          })
+          .select()
+          .single();
+        if (batchErr) throw batchErr;
+        batch = newBatch as any;
+      }
 
       for (const slip of payslips) {
+        if (alreadyCoveredEmployeeIds.has(slip.employee_id)) continue;
         try {
           const { data: emp, error: empErr } = await supabase
             .from('profiles')
@@ -1403,7 +1438,8 @@ const Payroll = () => {
           const { data: item, error: itemErr } = await supabase
             .from('batch_items')
             .insert({
-              batch_id: (batch as any).id,
+              batch_id: batch.id,
+              employee_id: slip.employee_id,
               full_name: empName,
               bank_name: (emp as any).bank_name || '',
               account_number: (emp as any).bank_account_number,
@@ -1450,7 +1486,7 @@ const Payroll = () => {
               : fwStatus === 'failed' || fwStatus === 'reversed' ? fwStatus
               : 'pending';
 
-            await supabase
+            const { error: fwUpdateErr } = await supabase
               .from('batch_items')
               .update({
                 status: itemStatus,
@@ -1463,6 +1499,16 @@ const Payroll = () => {
                 processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
               } as any)
               .eq('id', (item as any).id);
+            if (fwUpdateErr) {
+              // The transfer itself already went out — this is a bookkeeping
+              // write failure, not a payment failure. Surface it distinctly
+              // (never silently drop it) rather than pretending the record
+              // update succeeded; reconciliation will still catch the item
+              // itself via its reference, but the operator needs to know the
+              // local status may be stale.
+              console.error(`[Payroll] batch_items update failed after Flutterwave transfer for ${empName} (ref ${ref}):`, fwUpdateErr.message);
+              errors.push(`${empName}: transfer sent (ref ${ref}) but recording the result failed — verify manually: ${fwUpdateErr.message}`);
+            }
 
             await logAudit(
               'flutterwave_transfer_initiated',
@@ -1487,13 +1533,20 @@ const Payroll = () => {
               bank_code: bankCode,
             });
             recipientCode = recipient.recipient_code;
-            await supabase
+            const { error: recipientCacheErr } = await supabase
               .from('profiles')
               .update({
                 paystack_recipient_code: recipientCode,
                 paystack_recipient_verified_at: new Date().toISOString(),
               })
               .eq('id', (emp as any).id);
+            if (recipientCacheErr) {
+              // Non-fatal — just means next payroll run re-creates the
+              // recipient instead of reusing the cache — but log it so a
+              // recurring failure here (e.g. an RLS regression) is visible
+              // instead of silently costing an extra Paystack API call every run.
+              console.error(`[Payroll] failed to cache paystack_recipient_code for ${empName}:`, recipientCacheErr.message);
+            }
           }
           const ref = generateKdopsRef((item as any).id);
           const transfer = await initiateTransferIdempotent({
@@ -1514,7 +1567,7 @@ const Payroll = () => {
             : recoveredStatus === 'failed' || recoveredStatus === 'reversed' ? recoveredStatus
             : 'pending';
 
-          await supabase
+          const { error: psUpdateErr } = await supabase
             .from('batch_items')
             .update({
               status: itemStatus,
@@ -1526,6 +1579,12 @@ const Payroll = () => {
               processed_at: itemStatus === 'succeeded' ? new Date().toISOString() : null,
             } as any)
             .eq('id', (item as any).id);
+          if (psUpdateErr) {
+            // Same non-silent posture as the Flutterwave branch above — the
+            // transfer already went out, this is a bookkeeping write failure.
+            console.error(`[Payroll] batch_items update failed after Paystack transfer for ${empName} (ref ${transfer.reference}):`, psUpdateErr.message);
+            errors.push(`${empName}: transfer sent (ref ${transfer.reference}) but recording the result failed — verify manually: ${psUpdateErr.message}`);
+          }
 
           await logAudit(
             'paystack_transfer_initiated',

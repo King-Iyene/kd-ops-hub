@@ -519,27 +519,39 @@ serve(async (req) => {
             raw: body.data,
           };
         } catch (initErr) {
-          const msg = String((initErr as Error)?.message || "").toLowerCase();
-          const isDup =
-            msg.includes("duplicate") ||
-            msg.includes("already exists") ||
-            msg.includes("reference has been used");
-          if (!isDup) throw initErr;
-          // Recover: query Flutterwave for the existing transfer state.
-          const verifyBody = await flutterwaveFetch(
-            serviceClient,
-            `/transfers?reference=${encodeURIComponent(params.reference)}`,
-          );
-          const t = Array.isArray(verifyBody.data) ? verifyBody.data[0] : verifyBody.data;
-          result = {
-            transfer_id: String(t?.id ?? ""),
-            reference: params.reference,
-            status: mapFlutterwaveStatus(t?.status) || "pending",
-            fee_ngn: Number(t?.fee ?? 0) || 0,
-            recovered: true,
-            verified_status: mapFlutterwaveStatus(t?.status),
-            raw: t,
-          };
+          // Check-before-overwrite: a "duplicate reference" message means
+          // Flutterwave definitely has a prior attempt to recover. But a
+          // timeout / 5xx / network drop on the POST above is ambiguous —
+          // the transfer may have processed before the response was lost.
+          // Rather than only recovering on the string-matched duplicate
+          // case (which left every other error class un-verified), always
+          // query Flutterwave for this deterministic reference before
+          // concluding the transfer failed. If Flutterwave has no record of
+          // it at all, it genuinely never landed and rethrowing is correct.
+          try {
+            const verifyBody = await flutterwaveFetch(
+              serviceClient,
+              `/transfers?reference=${encodeURIComponent(params.reference)}`,
+            );
+            const t = Array.isArray(verifyBody.data) ? verifyBody.data[0] : verifyBody.data;
+            if (!t) throw initErr; // no record at Flutterwave — really did fail.
+            result = {
+              transfer_id: String(t?.id ?? ""),
+              reference: params.reference,
+              status: mapFlutterwaveStatus(t?.status) || "pending",
+              fee_ngn: Number(t?.fee ?? 0) || 0,
+              recovered: true,
+              verified_status: mapFlutterwaveStatus(t?.status),
+              raw: t,
+            };
+          } catch (verifyErr) {
+            // Verify itself failed too — genuinely can't tell what happened.
+            // Rethrow the ORIGINAL error rather than the verify error so the
+            // caller's message stays meaningful; the caller (doDisburse /
+            // batch-worker) leaves the item recoverable via reconciliation
+            // rather than a hard 'failed' on an unconfirmed guess.
+            throw initErr;
+          }
         }
         break;
       }

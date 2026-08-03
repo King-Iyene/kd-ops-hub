@@ -1321,14 +1321,14 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 60 minutes." /></Label>
+                  <Label>Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 120 minutes." /></Label>
                   <Input
                     type="number"
                     min="1"
                     value={settings.session_timeout_minutes}
                     onChange={(e) =>
                       patch({
-                        session_timeout_minutes: Number(e.target.value) || 60,
+                        session_timeout_minutes: Number(e.target.value) || 120,
                       })
                     }
                   />

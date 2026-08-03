@@ -47,6 +47,9 @@ jobs:
     name: Dump & upload
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
 
     steps:
       - name: Install Supabase CLI
@@ -97,3 +100,41 @@ jobs:
           echo "File: \`${{ env.BACKUP_FILE }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "Size: $(du -sh ${{ env.BACKUP_FILE }} | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
           echo "Retained for: 30 days" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Alert on failure (email via GitHub)
+        if: ${{ failure() }}
+        # A silently-failed nightly backup is worse than a failed deploy — you
+        # don't find out until you actually need to restore. This mirrors
+        # deploy-supabase-migrations.yml's failure alert: GitHub already
+        # emails the workflow author + repo admins by default, and this also
+        # raises a repository issue so a missed night can't slip by unnoticed.
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const date  = new Date().toISOString().slice(0, 10);
+            const url   = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = `[db backup] failed on ${date}`;
+            const body  = [
+              `The nightly database backup for ${date} FAILED.`,
+              ``,
+              `No backup artifact was produced for this run — the most recent successful backup is the last restore point available.`,
+              ``,
+              `Investigate: ${url}`,
+              ``,
+              `> This issue was opened by the daily-backup workflow.`,
+              `> Close it once the underlying failure is resolved and a re-run succeeds.`,
+            ].join("\n");
+            const existing = await github.rest.issues.listForRepo({
+              owner, repo, state: "open", labels: "backup-failure",
+            });
+            const match = existing.data.find(i => i.title === title);
+            if (match) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: match.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner, repo, title, body, labels: ["backup-failure"],
+              });
+            }
