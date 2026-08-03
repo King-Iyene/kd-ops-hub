@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,7 +13,7 @@ import {
 } from 'recharts';
 import { SERIES, SEQ_BLUE, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
 import { formatNaira as chartFmtNaira } from '@/lib/format';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale, ClipboardCheck } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,6 +37,7 @@ import RevenueConcentrationTab from '@/components/finance/RevenueConcentrationTa
 import HealthScoreTab from '@/components/finance/HealthScoreTab';
 import VendorSpendTab from '@/components/finance/VendorSpendTab';
 import WorkingCapitalTab from '@/components/finance/WorkingCapitalTab';
+import ActionCenterTab from '@/components/finance/ActionCenterTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -68,6 +70,11 @@ const COMPLIANCE_KIND_LABEL: Record<string, string> = {
 export default function FinanceDashboard() {
   usePageTitle('Finance');
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'action-center';
+  const setActiveTab = (tab: string) => {
+    setSearchParams(tab === 'action-center' ? {} : { tab }, { replace: false });
+  };
 
   const [loading, setLoading] = useState(true);
   const [pulse, setPulse] = useState<FinancialPulse | null>(null);
@@ -141,8 +148,9 @@ export default function FinanceDashboard() {
         icon={Gauge}
       />
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
+          <TabsTrigger value="action-center" className="gap-1.5"><ClipboardCheck className="h-3.5 w-3.5" /> Action Center</TabsTrigger>
           <TabsTrigger value="overview" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" /> Overview</TabsTrigger>
           <TabsTrigger value="cost-intelligence" className="gap-1.5"><Calculator className="h-3.5 w-3.5" /> Cost Intelligence</TabsTrigger>
           <TabsTrigger value="cash-timing" className="gap-1.5"><CalendarRange className="h-3.5 w-3.5" /> Cash Timing</TabsTrigger>
@@ -156,6 +164,10 @@ export default function FinanceDashboard() {
           <TabsTrigger value="working-capital" className="gap-1.5"><Scale className="h-3.5 w-3.5" /> Working Capital</TabsTrigger>
           <TabsTrigger value="board-report" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Board Report</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="action-center" className="space-y-6 mt-0">
+          <ActionCenterTab />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-6 mt-0">
 

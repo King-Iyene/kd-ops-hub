@@ -147,6 +147,7 @@ interface PayrollRun {
   allowances_json?: AllowancesSnapshot | null;
   status: 'draft' | 'pending_approval' | 'approved' | 'paid';
   created_at: string;
+  created_by: string | null;
   approved_by: string | null;
   payroll_segment_id?: string | null;
 }
@@ -697,11 +698,17 @@ const Payroll = () => {
     load();
   };
 
+  // Mirrors the server-side rule in approve_payroll_run() so the button can
+  // be disabled with an explanation instead of failing only after the click.
+  const isSelfApprovalBlocked = (run: PayrollRun) =>
+    run.created_by === profile?.id && !['admin', 'super_admin'].includes(profile?.role || '');
+
   const approve = async (run: PayrollRun) => {
-    const { error } = await supabase
-      .from('payroll_runs')
-      .update({ status: 'approved', approved_by: profile?.id || null })
-      .eq('id', run.id);
+    // Routed through the approve_payroll_run RPC (not a raw .update()) so the
+    // self-approval block is enforced server-side and can't be bypassed —
+    // the person who drafted this run cannot also approve it unless they're
+    // admin/super_admin.
+    const { error } = await supabase.rpc('approve_payroll_run', { p_run_id: run.id });
     if (error) {
       toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
       return;
@@ -2039,7 +2046,13 @@ const Payroll = () => {
                         )}
                         {r.status === 'pending_approval' && canApprovePerm && (
                           <>
-                            <Button size="sm" variant="outline" onClick={() => approve(r)}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => approve(r)}
+                              disabled={isSelfApprovalBlocked(r)}
+                              title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
+                            >
                               Approve
                             </Button>
                             {/* Recall sends a pending run back to draft so
@@ -2169,7 +2182,14 @@ const Payroll = () => {
                         </Button>
                       )}
                       {r.status === 'pending_approval' && canApprovePerm && (
-                        <Button size="sm" variant="outline" className="h-9 bg-success/10 text-success border-success/40 hover:bg-success/20" onClick={() => approve(r)}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-9 bg-success/10 text-success border-success/40 hover:bg-success/20"
+                          onClick={() => approve(r)}
+                          disabled={isSelfApprovalBlocked(r)}
+                          title={isSelfApprovalBlocked(r) ? 'You drafted this run — another approver must review it' : undefined}
+                        >
                           <Check className="h-4 w-4 mr-1.5" /> Approve
                         </Button>
                       )}

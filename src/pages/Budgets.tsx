@@ -440,11 +440,19 @@ const Budgets = () => {
     }
   };
 
+  // Mirrors the server-side rule in approve_budget() so the button can be
+  // disabled with an explanation instead of failing only after the click.
+  const isSelfApprovalBlocked = (r: BudgetRow) =>
+    r.created_by === profile?.id && !['admin', 'super_admin'].includes(profile?.role || '');
+
   const approve = async (r: BudgetRow) => {
     if (!canManage) return;
     setActing(r.id);
     try {
-      const { error } = await supabase.from('budgets').update({ status: 'approved', approved_by: profile?.id }).eq('id', r.id);
+      // Routed through the approve_budget RPC so self-approval is blocked
+      // server-side — whoever drafted this budget can't also approve it
+      // unless they're admin/super_admin.
+      const { error } = await supabase.rpc('approve_budget', { p_budget_id: r.id });
       if (error) { toast({ title: 'Approve failed', description: error.message, variant: 'destructive' }); return; }
       await logAudit('budget_approved', `Budget "${r.name}" approved (${formatNaira(r.total_amount_ngn)})`, profile);
       toast({ title: 'Budget approved' });
@@ -668,7 +676,8 @@ const Budgets = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => approve(r)}
-                                disabled={acting === r.id}
+                                disabled={acting === r.id || isSelfApprovalBlocked(r)}
+                                title={isSelfApprovalBlocked(r) ? 'You drafted this budget — another approver must review it' : undefined}
                               >
                                 <CheckCircle2 className="mr-2 h-4 w-4" /> Approve
                               </Button>
