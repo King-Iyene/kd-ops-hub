@@ -140,6 +140,7 @@ interface Expense {
   is_anomaly: boolean | null;
   anomaly_type: string | null;
   admin_note: string | null;
+  vendor_name: string | null;
   profiles?: {
     full_name: string | null;
     first_name: string | null;
@@ -1359,6 +1360,9 @@ const Expenses = () => {
                       <TableCell>{formatDate(e.date)}</TableCell>
                       <TableCell className="max-w-xs">
                         <div className="truncate">{e.description || '—'}</div>
+                        {e.vendor_name && (
+                          <div className="text-[10px] text-muted-foreground truncate">{e.vendor_name}</div>
+                        )}
                         {e.receipt_url && (
                           <div className="flex items-center gap-2 mt-0.5">
                             <a
@@ -1596,6 +1600,9 @@ const Expenses = () => {
                         <p className="text-xs text-muted-foreground line-clamp-2">
                           {e.description}
                         </p>
+                      )}
+                      {e.vendor_name && (
+                        <MobileCardRow label="Vendor">{e.vendor_name}</MobileCardRow>
                       )}
 
                       <MobileCardRow label="Date">{formatDate(e.date)}</MobileCardRow>
@@ -2164,6 +2171,12 @@ const Expenses = () => {
                 <p className="text-xs text-muted-foreground">Description</p>
                 <p className="whitespace-pre-wrap">{detailExpense.description || '—'}</p>
               </div>
+              {detailExpense.vendor_name && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Vendor / Garage</p>
+                  <p className="font-medium">{detailExpense.vendor_name}</p>
+                </div>
+              )}
               {detailExpense.receipt_url && (
                 <div>
                   <p className="text-xs text-muted-foreground">Receipt</p>

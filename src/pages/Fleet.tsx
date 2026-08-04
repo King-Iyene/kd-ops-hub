@@ -1571,6 +1571,7 @@ const Fleet = () => {
   const [repairForm, setRepairForm] = useState({
     employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '',
     vehicle_id: '', service_type: '', odometer: '',
+    vendor_name: '', repair_date: new Date().toISOString().slice(0, 10),
   });
   const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
   const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
@@ -2088,6 +2089,11 @@ const Fleet = () => {
         }
       }
 
+      if (repairForm.repair_date) {
+        const staleReason = checkStaleReceipt(repairForm.repair_date, new Date().toISOString().slice(0, 10));
+        if (staleReason) flags.push({ type: 'stale_receipt', reason: staleReason.replace('Receipt', 'Repair') });
+      }
+
       if (repairReceipt) {
         // Hash + EXIF check happen on the ORIGINAL file, before the
         // watermark burns in a timestamp — same reasoning as fuel receipts:
@@ -2146,8 +2152,9 @@ const Fleet = () => {
         category: 'repair',
         budget_category: 'repair',
         amount_ngn: amount,
-        date: new Date().toISOString().slice(0, 10),
+        date: repairForm.repair_date || new Date().toISOString().slice(0, 10),
         description: repairForm.description,
+        vendor_name: repairForm.vendor_name.trim() || null,
         status: 'pending',
         receipt_url: receiptUrl,
         receipt_sha256: receiptSha256,
@@ -2203,7 +2210,7 @@ const Fleet = () => {
       }
       toast({ title: 'Repair request submitted' });
       setShowRepairForm(false);
-      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
+      setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10) });
       setRepairBank(EMPTY_REPAIR_BANK);
       setRepairReceipt(null);
       setRepairReceiptOcrAmount('');
@@ -6430,7 +6437,7 @@ const Fleet = () => {
       <Dialog open={showRepairForm} onOpenChange={(v) => {
         setShowRepairForm(v);
         if (!v) {
-          setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
+          setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10) });
           setRepairBank(EMPTY_REPAIR_BANK);
           setRepairReceipt(null);
           setRepairReceiptOcrAmount('');
@@ -6564,6 +6571,25 @@ const Fleet = () => {
                   className="resize-none"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Vendor / Garage <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
+                  <Input
+                    value={repairForm.vendor_name}
+                    onChange={(e) => setRepairForm({ ...repairForm, vendor_name: e.target.value })}
+                    placeholder="e.g. Mekunwen Auto Parts"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Repair Date</Label>
+                  <Input
+                    type="date"
+                    value={repairForm.repair_date}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setRepairForm({ ...repairForm, repair_date: e.target.value })}
+                  />
+                </div>
+              </div>
               <div className="space-y-1.5">
                 <Label>Amount (₦) <span className="text-destructive">*</span></Label>
                 <Input type="number" value={repairForm.amount_ngn}
@@ -6587,7 +6613,8 @@ const Fleet = () => {
                     setRepairForm((f) => ({
                       ...f,
                       amount_ngn: result.amount_ngn || f.amount_ngn,
-                      description: f.description || (result.description ? `Repair — ${result.description}` : f.description),
+                      vendor_name: f.vendor_name || result.description || f.vendor_name,
+                      repair_date: result.date || f.repair_date,
                     }));
                   }}
                 />
