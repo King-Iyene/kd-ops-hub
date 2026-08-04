@@ -6108,10 +6108,13 @@ const Fleet = () => {
                 }}
               />
               {receiptFile && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{receiptFile.name}</span>
-                  {' '}— {(receiptFile.size / 1024).toFixed(1)} KB
-                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground truncate">{receiptFile.name}</span>
+                  <span className="shrink-0">— {(receiptFile.size / 1024).toFixed(1)} KB</span>
+                  <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => { setReceiptFile(null); setReceiptScanWarning(''); }}>
+                    Change
+                  </button>
+                </div>
               )}
               {receiptScanWarning && (
                 <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
@@ -6119,7 +6122,7 @@ const Fleet = () => {
                   <span>{receiptScanWarning}</span>
                 </div>
               )}
-              {!receiptFile && (
+              {(!receiptFile || receiptScanWarning) && (
                 <>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
                     <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
@@ -6134,6 +6137,7 @@ const Fleet = () => {
                         return;
                       }
                       setReceiptFile(f);
+                      setReceiptScanWarning('');
                     }}
                   />
                 </>
@@ -6472,10 +6476,13 @@ const Fleet = () => {
               <Label>Receipt <span className="text-destructive">*</span></Label>
               <OcrReceiptScanner onExtracted={(_result: OcrResult, file: File) => setRepairReceiptUploadFile(file)} />
               {repairReceiptUploadFile && (
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">{repairReceiptUploadFile.name}</span>
-                  {' '}— {(repairReceiptUploadFile.size / 1024).toFixed(1)} KB
-                </p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground truncate">{repairReceiptUploadFile.name}</span>
+                  <span className="shrink-0">— {(repairReceiptUploadFile.size / 1024).toFixed(1)} KB</span>
+                  <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setRepairReceiptUploadFile(null)}>
+                    Change
+                  </button>
+                </div>
               )}
               {!repairReceiptUploadFile && (
                 <>
