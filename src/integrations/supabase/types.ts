@@ -3333,6 +3333,7 @@ export type Database = {
           account_number: string | null
           admin_note: string | null
           amount_ngn: number
+          anomaly_type: string | null
           approved_at: string | null
           approved_by: string | null
           bank_name: string | null
@@ -3345,6 +3346,7 @@ export type Database = {
           description: string | null
           fuel_request_id: string | null
           id: string
+          is_anomaly: boolean
           is_reimbursement: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
@@ -3354,6 +3356,8 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
@@ -3371,6 +3375,7 @@ export type Database = {
           account_number?: string | null
           admin_note?: string | null
           amount_ngn?: number
+          anomaly_type?: string | null
           approved_at?: string | null
           approved_by?: string | null
           bank_name?: string | null
@@ -3383,6 +3388,7 @@ export type Database = {
           description?: string | null
           fuel_request_id?: string | null
           id?: string
+          is_anomaly?: boolean
           is_reimbursement?: boolean
           maintenance_item_id?: string | null
           mileage_km?: number | null
@@ -3392,6 +3398,8 @@ export type Database = {
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
+          receipt_has_exif?: boolean | null
+          receipt_original_sha256?: string | null
           receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
@@ -3409,6 +3417,7 @@ export type Database = {
           account_number?: string | null
           admin_note?: string | null
           amount_ngn?: number
+          anomaly_type?: string | null
           approved_at?: string | null
           approved_by?: string | null
           bank_name?: string | null
@@ -3421,6 +3430,7 @@ export type Database = {
           description?: string | null
           fuel_request_id?: string | null
           id?: string
+          is_anomaly?: boolean
           is_reimbursement?: boolean
           maintenance_item_id?: string | null
           mileage_km?: number | null
@@ -3430,6 +3440,8 @@ export type Database = {
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
+          receipt_has_exif?: boolean | null
+          receipt_original_sha256?: string | null
           receipt_sha256?: string | null
           receipt_url?: string | null
           rejection_reason?: string | null
@@ -3649,6 +3661,7 @@ export type Database = {
           payment_sent_at: string | null
           reason: string | null
           receipt_amount_ngn: number | null
+          receipt_date: string | null
           receipt_has_exif: boolean | null
           receipt_original_sha256: string | null
           receipt_sha256: string | null
@@ -3686,6 +3699,7 @@ export type Database = {
           payment_sent_at?: string | null
           reason?: string | null
           receipt_amount_ngn?: number | null
+          receipt_date?: string | null
           receipt_has_exif?: boolean | null
           receipt_original_sha256?: string | null
           receipt_sha256?: string | null
@@ -3723,6 +3737,7 @@ export type Database = {
           payment_sent_at?: string | null
           reason?: string | null
           receipt_amount_ngn?: number | null
+          receipt_date?: string | null
           receipt_has_exif?: boolean | null
           receipt_original_sha256?: string | null
           receipt_sha256?: string | null
@@ -9924,6 +9939,7 @@ export type Database = {
           account_number: string | null
           admin_note: string | null
           amount_ngn: number
+          anomaly_type: string | null
           approved_at: string | null
           approved_by: string | null
           bank_name: string | null
@@ -9936,6 +9952,7 @@ export type Database = {
           description: string | null
           fuel_request_id: string | null
           id: string
+          is_anomaly: boolean
           is_reimbursement: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
@@ -9945,6 +9962,8 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
@@ -10234,6 +10253,7 @@ export type Database = {
           account_number: string | null
           admin_note: string | null
           amount_ngn: number
+          anomaly_type: string | null
           approved_at: string | null
           approved_by: string | null
           bank_name: string | null
@@ -10246,6 +10266,7 @@ export type Database = {
           description: string | null
           fuel_request_id: string | null
           id: string
+          is_anomaly: boolean
           is_reimbursement: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
@@ -10255,6 +10276,8 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
@@ -10631,6 +10654,7 @@ export type Database = {
           account_number: string | null
           admin_note: string | null
           amount_ngn: number
+          anomaly_type: string | null
           approved_at: string | null
           approved_by: string | null
           bank_name: string | null
@@ -10643,6 +10667,7 @@ export type Database = {
           description: string | null
           fuel_request_id: string | null
           id: string
+          is_anomaly: boolean
           is_reimbursement: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
@@ -10652,6 +10677,8 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
@@ -10848,6 +10875,7 @@ export type Database = {
           account_number: string | null
           admin_note: string | null
           amount_ngn: number
+          anomaly_type: string | null
           approved_at: string | null
           approved_by: string | null
           bank_name: string | null
@@ -10860,6 +10888,7 @@ export type Database = {
           description: string | null
           fuel_request_id: string | null
           id: string
+          is_anomaly: boolean
           is_reimbursement: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
@@ -10869,6 +10898,8 @@ export type Database = {
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
           receipt_sha256: string | null
           receipt_url: string | null
           rejection_reason: string | null
