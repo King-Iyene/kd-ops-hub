@@ -173,6 +173,61 @@ export function checkReceiptRequestDivergence(
   return { flagged: false, reason: null };
 }
 
+/**
+ * Flags a receipt whose printed date is much older than today — a common
+ * pattern for recycled or backdated receipts, and standard practice on
+ * Expensify/Ramp/Brex. Deliberately generous (14 days) since legitimate
+ * delayed submission is common for drivers who don't upload same-day, and
+ * OCR'd handwritten dates are unreliable enough that a tight threshold
+ * would false-positive constantly.
+ */
+export function checkStaleReceipt(receiptDate: string, todayIso: string): string | null {
+  const receipt = new Date(receiptDate + 'T00:00:00Z').getTime();
+  const today = new Date(todayIso + 'T00:00:00Z').getTime();
+  if (isNaN(receipt) || isNaN(today)) return null;
+  const daysOld = Math.round((today - receipt) / (1000 * 60 * 60 * 24));
+  if (daysOld > 14) {
+    return `Receipt is dated ${daysOld} days ago — please confirm this wasn't already reimbursed`;
+  }
+  if (daysOld < -1) {
+    return `Receipt date is in the future — please check it was read correctly`;
+  }
+  return null;
+}
+
+export interface CostOutlierCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Flags a repair cost that's a steep outlier vs. the fleet's own historical
+ * median for the same service type — e.g. a "brake pad replacement" quoted
+ * at 4x what every other brake job has cost. Needs at least 3 prior data
+ * points for that service type before it trusts the median enough to flag
+ * anything; without that floor, a single legitimately expensive repair
+ * would become "the benchmark" and everything after it would look normal.
+ * No external pricing data required — this is self-referential, same as
+ * the fleet-median half of the fuel price benchmark.
+ */
+export function checkRepairCostOutlier(
+  amountNgn: number,
+  serviceTypeMedian: number | null,
+  priorSampleCount: number,
+): CostOutlierCheck {
+  if (!amountNgn || !serviceTypeMedian || priorSampleCount < 3) {
+    return { flagged: false, reason: null };
+  }
+  const deviationPct = (amountNgn - serviceTypeMedian) / serviceTypeMedian;
+  if (deviationPct > 0.75) {
+    return {
+      flagged: true,
+      reason: `₦${amountNgn.toLocaleString()} is ${Math.round(deviationPct * 100)}% above the ₦${serviceTypeMedian.toLocaleString()} median this fleet has paid for this service type`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
 /** True when a new odometer reading is implausible relative to the last known one. */
 export function checkOdometerRegression(newOdometer: number, lastKnownOdometer: number | null): string | null {
   if (lastKnownOdometer == null) return null;

@@ -73,7 +73,7 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
-import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, blendBenchmark, median } from '@/lib/receipts';
+import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median } from '@/lib/receipts';
 import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 
@@ -137,6 +137,7 @@ interface FuelRequest {
   fuel_station_name: string | null;
   litres_filled: number | null;
   receipt_amount_ngn: number | null;
+  receipt_date: string | null;
   receipt_sha256: string | null;
   receipt_original_sha256: string | null;
   receipt_has_exif: boolean | null;
@@ -1536,7 +1537,7 @@ const Fleet = () => {
   // Post-payment receipt upload
   const [uploadingReceiptFor, setUploadingReceiptFor] = useState<FuelRequest | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' });
+  const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', amount_ngn: '', litres_filled: '', receipt_date: '', notes: '' });
   const [receiptScanWarning, setReceiptScanWarning] = useState('');
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
@@ -1611,6 +1612,11 @@ const Fleet = () => {
   } | null>(null);
   const [repairReceiptUploadFile, setRepairReceiptUploadFile] = useState<File | null>(null);
   const [submittingRepairReceipt, setSubmittingRepairReceipt] = useState(false);
+  // Raw OCR-extracted amount, kept separate from the (possibly hand-typed
+  // or corrected) form field so submit time can compare what the receipt
+  // actually says against what the user entered.
+  const [repairReceiptOcrAmount, setRepairReceiptOcrAmount] = useState<string>('');
+  const [repairReceiptUploadOcrAmount, setRepairReceiptUploadOcrAmount] = useState<string>('');
 
   // Pump-price benchmark for the anomaly cross-check (Phase 5).
   const [fuelPriceBenchmark, setFuelPriceBenchmark] = useState<number | null>(null);
@@ -2056,7 +2062,64 @@ const Fleet = () => {
     try {
       let receiptUrl: string | null = null;
       let receiptSha256: string | null = null;
+      let originalSha256: string | null = null;
+      let hasExif: boolean | null = null;
+      const flags: { type: string; reason: string }[] = [];
+
+      // Cost-outlier check vs. the fleet's own history for this service
+      // type — doesn't need a receipt, so it runs independent of whether
+      // one was attached. Requires 3+ prior repairs of the same type before
+      // it trusts the median enough to flag anything off it.
+      if (repairForm.service_type) {
+        const { data: priorRepairs } = await supabase
+          .from('expenses')
+          .select('amount_ngn')
+          .eq('category', 'repair')
+          .eq('service_type', repairForm.service_type)
+          .is('deleted_at', null)
+          .neq('status', 'rejected')
+          .limit(200);
+        const priorAmounts = (priorRepairs || [])
+          .map((r: any) => r.amount_ngn)
+          .filter((n: number) => n > 0);
+        const costCheck = checkRepairCostOutlier(amount, median(priorAmounts), priorAmounts.length);
+        if (costCheck.flagged && costCheck.reason) {
+          flags.push({ type: 'cost_outlier', reason: costCheck.reason });
+        }
+      }
+
       if (repairReceipt) {
+        // Hash + EXIF check happen on the ORIGINAL file, before the
+        // watermark burns in a timestamp — same reasoning as fuel receipts:
+        // a post-watermark hash would make identical source photos hash
+        // differently every time and defeat duplicate detection entirely.
+        originalSha256 = await hashFile(repairReceipt);
+        hasExif = await hasJpegExif(repairReceipt);
+
+        const { data: dupRows } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('receipt_original_sha256', originalSha256)
+          .limit(1);
+        if (dupRows && dupRows.length > 0) {
+          flags.push({ type: 'duplicate_receipt', reason: 'This receipt image matches one already uploaded on another expense claim' });
+        }
+
+        // Cross-check what the receipt itself says against what was typed
+        // into the amount field — catches a driver reading ₦5,000 off the
+        // receipt and typing ₦50,000, or the reverse.
+        if (repairReceiptOcrAmount) {
+          const ocrAmount = parseFloat(repairReceiptOcrAmount);
+          if (ocrAmount && checkReceiptRequestDivergence(amount, ocrAmount).flagged) {
+            const deviationPct = Math.round((Math.abs(amount - ocrAmount) / ocrAmount) * 100);
+            const direction = amount > ocrAmount ? 'more' : 'less';
+            flags.push({
+              type: 'amount_mismatch',
+              reason: `Entered amount ₦${amount.toLocaleString()} is ${deviationPct}% ${direction} than the ₦${ocrAmount.toLocaleString()} the receipt appears to show`,
+            });
+          }
+        }
+
         const watermarked = await watermarkImage(repairReceipt, { driverName: profile?.full_name || 'Employee' });
         receiptSha256 = await hashFile(watermarked);
         const compressed = await compressImage(watermarked);
@@ -2070,6 +2133,13 @@ const Fleet = () => {
           receiptUrl = urlData.publicUrl;
         }
       }
+
+      const noteParts = [
+        repairForm.notes.trim(),
+        ...flags.map((f) => `⚠ ${f.reason}`),
+        ...(flags.length > 0 && hasExif === false ? ['ℹ No camera metadata found on this photo'] : []),
+      ].filter(Boolean);
+
       const odometerNum = parseFloat(repairForm.odometer) || null;
       const { data: insertedExpense, error: repairExpErr } = await supabase.from('expenses').insert({
         submitted_by: repairForm.employee_id,
@@ -2081,6 +2151,11 @@ const Fleet = () => {
         status: 'pending',
         receipt_url: receiptUrl,
         receipt_sha256: receiptSha256,
+        receipt_original_sha256: originalSha256,
+        receipt_has_exif: hasExif,
+        is_anomaly: flags.length > 0,
+        anomaly_type: flags.length > 0 ? flags.map((f) => f.type).join(',') : null,
+        admin_note: noteParts.join(' — ') || null,
         is_reimbursement: repairIsReimbursement,
         vehicle_id: repairForm.vehicle_id || null,
         service_type: repairForm.service_type || null,
@@ -2109,18 +2184,29 @@ const Fleet = () => {
         await closeMaintenanceItemFromRepair(repairMaintenanceItemId, insertedExpense.id, receiptUrl, odometerNum);
       }
       await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
-      await notifyRoles({
-        roles: ['super_admin', 'admin', 'finance'],
-        type: 'repair_request_submitted',
-        module: 'fleet',
-        title: repairIsReimbursement ? 'Repair reimbursement submitted' : 'Repair request submitted (company charge)',
-        body: `${formatNaira(amount)}: ${repairForm.description}`,
-      });
+      if (flags.length > 0) {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'repair_receipt_anomaly',
+          module: 'fleet',
+          title: 'Repair receipt flagged for review',
+          body: `${profile?.full_name || 'Employee'}'s repair (${formatNaira(amount)}): ${flags.map((f) => f.reason).join('; ')}`,
+        });
+      } else {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'repair_request_submitted',
+          module: 'fleet',
+          title: repairIsReimbursement ? 'Repair reimbursement submitted' : 'Repair request submitted (company charge)',
+          body: `${formatNaira(amount)}: ${repairForm.description}`,
+        });
+      }
       toast({ title: 'Repair request submitted' });
       setShowRepairForm(false);
       setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
       setRepairBank(EMPTY_REPAIR_BANK);
       setRepairReceipt(null);
+      setRepairReceiptOcrAmount('');
       setRepairMatchingItems([]);
       setRepairMaintenanceItemId('');
       fetchData();
@@ -2153,6 +2239,37 @@ const Fleet = () => {
     }
     setSubmittingRepairReceipt(true);
     try {
+      // Hash + EXIF check on the ORIGINAL file, before the watermark burns
+      // in a timestamp — a post-watermark hash would make identical source
+      // photos hash differently every time and defeat duplicate detection.
+      const originalSha256 = await hashFile(repairReceiptUploadFile);
+      const hasExif = await hasJpegExif(repairReceiptUploadFile);
+
+      const { data: dupRows } = await supabase
+        .from('expenses')
+        .select('id')
+        .eq('receipt_original_sha256', originalSha256)
+        .neq('id', uploadingRepairReceiptFor.id)
+        .limit(1);
+
+      const flags: { type: string; reason: string }[] = [];
+      if (dupRows && dupRows.length > 0) {
+        flags.push({ type: 'duplicate_receipt', reason: 'This receipt image matches one already uploaded on another expense claim' });
+      }
+
+      const claimedAmount = uploadingRepairReceiptFor.amount_ngn || 0;
+      if (repairReceiptUploadOcrAmount) {
+        const ocrAmount = parseFloat(repairReceiptUploadOcrAmount);
+        if (ocrAmount && claimedAmount && checkReceiptRequestDivergence(claimedAmount, ocrAmount).flagged) {
+          const deviationPct = Math.round((Math.abs(claimedAmount - ocrAmount) / ocrAmount) * 100);
+          const direction = claimedAmount > ocrAmount ? 'more' : 'less';
+          flags.push({
+            type: 'amount_mismatch',
+            reason: `Submitted amount ₦${claimedAmount.toLocaleString()} is ${deviationPct}% ${direction} than the ₦${ocrAmount.toLocaleString()} this receipt appears to show`,
+          });
+        }
+      }
+
       const watermarked = await watermarkImage(repairReceiptUploadFile, { driverName: profile?.full_name || 'Employee' });
       const receiptSha256 = await hashFile(watermarked);
       const compressed = await compressImage(watermarked);
@@ -2164,9 +2281,23 @@ const Fleet = () => {
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
       const receiptUrl = urlData.publicUrl;
+
+      const noteParts = [
+        ...flags.map((f) => `⚠ ${f.reason}`),
+        ...(flags.length > 0 && hasExif === false ? ['ℹ No camera metadata found on this photo'] : []),
+      ].filter(Boolean);
+
       const { error } = await supabase
         .from('expenses')
-        .update({ receipt_url: receiptUrl, receipt_sha256: receiptSha256 })
+        .update({
+          receipt_url: receiptUrl,
+          receipt_sha256: receiptSha256,
+          receipt_original_sha256: originalSha256,
+          receipt_has_exif: hasExif,
+          is_anomaly: flags.length > 0,
+          anomaly_type: flags.length > 0 ? flags.map((f) => f.type).join(',') : null,
+          admin_note: noteParts.join(' — ') || null,
+        })
         .eq('id', uploadingRepairReceiptFor.id);
       if (error) throw error;
       if (uploadingRepairReceiptFor.maintenance_item_id) {
@@ -2182,16 +2313,27 @@ const Fleet = () => {
         `Receipt uploaded for repair (${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)})`,
         profile,
       );
-      await notifyRoles({
-        roles: ['super_admin', 'admin', 'finance'],
-        type: 'repair_receipt_uploaded',
-        module: 'fleet',
-        title: 'Repair receipt uploaded',
-        body: `${profile?.full_name || 'Employee'} uploaded a receipt for ${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}`,
-      });
+      if (flags.length > 0) {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'repair_receipt_anomaly',
+          module: 'fleet',
+          title: 'Repair receipt flagged for review',
+          body: `${profile?.full_name || 'Employee'}'s receipt for ${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}: ${flags.map((f) => f.reason).join('; ')}`,
+        });
+      } else {
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'repair_receipt_uploaded',
+          module: 'fleet',
+          title: 'Repair receipt uploaded',
+          body: `${profile?.full_name || 'Employee'} uploaded a receipt for ${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}`,
+        });
+      }
       toast({ title: 'Receipt submitted' });
       setUploadingRepairReceiptFor(null);
       setRepairReceiptUploadFile(null);
+      setRepairReceiptUploadOcrAmount('');
       await refreshMyReceiptDebt();
       fetchData();
     } catch (err: any) {
@@ -3306,6 +3448,10 @@ const Fleet = () => {
       if (priceCheck.flagged && priceCheck.reason) flags.push({ type: 'price_divergence', reason: priceCheck.reason });
       if (divergenceCheck.flagged && divergenceCheck.reason) flags.push({ type: 'amount_mismatch', reason: divergenceCheck.reason });
       if (receiptScanWarning) flags.push({ type: 'ocr_low_confidence', reason: 'Automatic scan could not read an amount or litres off this receipt' });
+      if (receiptForm.receipt_date) {
+        const staleReason = checkStaleReceipt(receiptForm.receipt_date, new Date().toISOString().slice(0, 10));
+        if (staleReason) flags.push({ type: 'stale_receipt', reason: staleReason });
+      }
 
       // EXIF absence is too common on legitimate photos (WhatsApp/Telegram
       // strip it) to justify a flag on its own — it only ever rides along
@@ -3330,6 +3476,7 @@ const Fleet = () => {
           receipt_original_sha256: originalSha256,
           receipt_has_exif: hasExif,
           receipt_amount_ngn: amountNum || null,
+          receipt_date: receiptForm.receipt_date || null,
           fuel_station_name: receiptForm.fuel_station_name.trim() || null,
           litres_filled: parseFloat(receiptForm.litres_filled) || null,
           admin_note: noteParts.join(' — ') || null,
@@ -3391,7 +3538,7 @@ const Fleet = () => {
       setUploadingReceiptFor(null);
       setReceiptFile(null);
       setReceiptScanWarning('');
-      setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' });
+      setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', receipt_date: '', notes: '' });
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error uploading receipt', description: err.message, variant: 'destructive' });
@@ -4618,7 +4765,7 @@ const Fleet = () => {
                     setUploadingReceiptFor(r);
                     setReceiptFile(null);
                     setReceiptScanWarning('');
-                    setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', notes: '' });
+                    setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', receipt_date: '', notes: '' });
                   }}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1.5" /> Upload Receipt
@@ -4704,7 +4851,7 @@ const Fleet = () => {
                               setUploadingReceiptFor(r);
                               setReceiptFile(null);
                               setReceiptScanWarning('');
-                              setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', notes: '' });
+                              setReceiptForm({ fuel_station_name: r.station_name || '', amount_ngn: r.amount_ngn ? String(r.amount_ngn) : '', litres_filled: '', receipt_date: '', notes: '' });
                             }}
                           >
                             <Upload className="h-3 w-3 mr-1" /> Upload Receipt
@@ -6072,7 +6219,7 @@ const Fleet = () => {
       <Dialog
         open={!!uploadingReceiptFor}
         onOpenChange={(v) => {
-          if (!v) { setUploadingReceiptFor(null); setReceiptFile(null); setReceiptScanWarning(''); setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', notes: '' }); }
+          if (!v) { setUploadingReceiptFor(null); setReceiptFile(null); setReceiptScanWarning(''); setReceiptForm({ fuel_station_name: '', amount_ngn: '', litres_filled: '', receipt_date: '', notes: '' }); }
         }}
       >
         <DialogContent>
@@ -6104,6 +6251,7 @@ const Fleet = () => {
                     fuel_station_name: result.description || f.fuel_station_name,
                     amount_ngn: result.amount_ngn || f.amount_ngn,
                     litres_filled: result.litres || f.litres_filled,
+                    receipt_date: result.date || f.receipt_date,
                   }));
                 }}
               />
@@ -6203,6 +6351,25 @@ const Fleet = () => {
               })()}
             </div>
             <div className="space-y-1">
+              <Label>Receipt Date <span className="text-muted-foreground font-normal text-xs">(optional, confirm or correct)</span></Label>
+              <Input
+                type="date"
+                value={receiptForm.receipt_date}
+                onChange={(e) => setReceiptForm({ ...receiptForm, receipt_date: e.target.value })}
+                max={new Date().toISOString().slice(0, 10)}
+              />
+              {(() => {
+                if (!receiptForm.receipt_date) return null;
+                const staleReason = checkStaleReceipt(receiptForm.receipt_date, new Date().toISOString().slice(0, 10));
+                if (!staleReason) return null;
+                return (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" /> {staleReason}
+                  </p>
+                );
+              })()}
+            </div>
+            <div className="space-y-1">
               <Label>Notes <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
               <Textarea
                 value={receiptForm.notes}
@@ -6266,6 +6433,7 @@ const Fleet = () => {
           setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '' });
           setRepairBank(EMPTY_REPAIR_BANK);
           setRepairReceipt(null);
+          setRepairReceiptOcrAmount('');
           setRepairIsReimbursement(true);
           setRepairMatchingItems([]);
           setRepairMaintenanceItemId('');
@@ -6412,16 +6580,10 @@ const Fleet = () => {
                 <Label>
                   Receipt <span className="text-muted-foreground text-xs font-normal">(optional)</span>
                 </Label>
-                <label className={cn('flex items-center gap-3 rounded-xl border-2 border-dashed px-4 py-3 cursor-pointer kd-transition', repairReceipt ? 'border-green-400 bg-green-50 dark:bg-green-950/20' : 'border-border hover:border-primary/40 hover:bg-muted/30')}>
-                  <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)} />
-                  {repairReceipt
-                    ? <><CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" /><span className="text-sm text-green-700 dark:text-green-400 truncate">{repairReceipt.name}</span></>
-                    : <><Upload className="h-4 w-4 text-muted-foreground shrink-0" /><span className="text-sm text-muted-foreground">Upload receipt (photo or PDF)</span></>
-                  }
-                </label>
                 <OcrReceiptScanner
                   onExtracted={(result: OcrResult, file: File) => {
                     setRepairReceipt(file);
+                    setRepairReceiptOcrAmount(result.amount_ngn || '');
                     setRepairForm((f) => ({
                       ...f,
                       amount_ngn: result.amount_ngn || f.amount_ngn,
@@ -6429,6 +6591,26 @@ const Fleet = () => {
                     }));
                   }}
                 />
+                {repairReceipt ? (
+                  <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-green-50 dark:bg-green-950/20 px-4 py-3">
+                    <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                    <span className="text-sm text-green-700 dark:text-green-400 truncate flex-1">{repairReceipt.name}</span>
+                    <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => { setRepairReceipt(null); setRepairReceiptOcrAmount(''); }}>
+                      Change
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                      <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                    </div>
+                    <label className="flex items-center gap-3 rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 px-4 py-3 cursor-pointer kd-transition">
+                      <input type="file" accept="image/*,application/pdf" className="hidden" onChange={(e) => setRepairReceipt(e.target.files?.[0] || null)} />
+                      <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm text-muted-foreground">Upload receipt (photo or PDF)</span>
+                    </label>
+                  </>
+                )}
               </div>
             </div>
 
@@ -6458,7 +6640,7 @@ const Fleet = () => {
       {/* REPAIR RECEIPT UPLOAD DIALOG — attach a receipt to a repair submitted without one */}
       <Dialog
         open={!!uploadingRepairReceiptFor}
-        onOpenChange={(v) => { if (!v) { setUploadingRepairReceiptFor(null); setRepairReceiptUploadFile(null); } }}
+        onOpenChange={(v) => { if (!v) { setUploadingRepairReceiptFor(null); setRepairReceiptUploadFile(null); setRepairReceiptUploadOcrAmount(''); } }}
       >
         <DialogContent>
           <DialogHeader>
@@ -6474,12 +6656,17 @@ const Fleet = () => {
             </div>
             <div className="space-y-1">
               <Label>Receipt <span className="text-destructive">*</span></Label>
-              <OcrReceiptScanner onExtracted={(_result: OcrResult, file: File) => setRepairReceiptUploadFile(file)} />
+              <OcrReceiptScanner
+                onExtracted={(result: OcrResult, file: File) => {
+                  setRepairReceiptUploadFile(file);
+                  setRepairReceiptUploadOcrAmount(result.amount_ngn || '');
+                }}
+              />
               {repairReceiptUploadFile && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground truncate">{repairReceiptUploadFile.name}</span>
                   <span className="shrink-0">— {(repairReceiptUploadFile.size / 1024).toFixed(1)} KB</span>
-                  <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setRepairReceiptUploadFile(null)}>
+                  <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => { setRepairReceiptUploadFile(null); setRepairReceiptUploadOcrAmount(''); }}>
                     Change
                   </button>
                 </div>
@@ -6499,6 +6686,7 @@ const Fleet = () => {
                         return;
                       }
                       setRepairReceiptUploadFile(f);
+                      setRepairReceiptUploadOcrAmount('');
                     }}
                   />
                 </>

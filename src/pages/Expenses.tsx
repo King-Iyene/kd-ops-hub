@@ -40,6 +40,7 @@ import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { OcrReceiptScanner, OcrResult } from '@/components/OcrReceiptScanner';
+import { generateElaHeatmap } from '@/lib/receiptForensics';
 import { notifyUser, notifyRoles } from '@/lib/notify';
 import { notifyApprovalDecision } from '@/lib/approval-notify';
 import {
@@ -136,6 +137,9 @@ interface Expense {
   bank_name: string | null;
   account_name: string | null;
   receipt_url: string | null;
+  is_anomaly: boolean | null;
+  anomaly_type: string | null;
+  admin_note: string | null;
   profiles?: {
     full_name: string | null;
     first_name: string | null;
@@ -217,6 +221,27 @@ const Expenses = () => {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [bulkApproveConfirm, setBulkApproveConfirm] = useState<{ count: number; total: number } | null>(null);
   const [confirmDeleteExpense, setConfirmDeleteExpense] = useState<Expense | null>(null);
+
+  // Tamper-analysis (ELA) preview — same on-demand visual aid used on fuel
+  // receipts in Fleet.tsx, generic over any receipt URL.
+  const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
+  const [elaResult, setElaResult] = useState<{ heatmapDataUrl: string } | null>(null);
+  const [elaLoading, setElaLoading] = useState(false);
+  const [elaError, setElaError] = useState('');
+  const openElaAnalysis = async (id: string, url: string) => {
+    setElaTarget({ id, url });
+    setElaResult(null);
+    setElaError('');
+    setElaLoading(true);
+    try {
+      const result = await generateElaHeatmap(url);
+      setElaResult({ heatmapDataUrl: result.heatmapDataUrl });
+    } catch (err: any) {
+      setElaError(err?.message || "Couldn't generate analysis for this image.");
+    } finally {
+      setElaLoading(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1335,15 +1360,26 @@ const Expenses = () => {
                       <TableCell className="max-w-xs">
                         <div className="truncate">{e.description || '—'}</div>
                         {e.receipt_url && (
-                          <a
-                            href={e.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-0.5"
-                            onClick={(evt) => evt.stopPropagation()}
-                          >
-                            <ExternalLink className="h-3 w-3" /> View Receipt
-                          </a>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <a
+                              href={e.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                              onClick={(evt) => evt.stopPropagation()}
+                            >
+                              <ExternalLink className="h-3 w-3" /> View Receipt
+                            </a>
+                            {e.category === 'repair' && (
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={(evt) => { evt.stopPropagation(); openElaAnalysis(e.id, e.receipt_url!); }}
+                              >
+                                Tamper Analysis
+                              </button>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                       {isApprover && (
@@ -1353,7 +1389,30 @@ const Expenses = () => {
                       )}
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
-                          <StatusBadge status={e.status} />
+                          <div className="flex items-center gap-1">
+                            <StatusBadge status={e.status} />
+                            {e.is_anomaly && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      'gap-1 cursor-default',
+                                      e.anomaly_type?.includes('duplicate_receipt')
+                                        ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
+                                        : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                                    )}
+                                  >
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {e.anomaly_type?.includes('duplicate_receipt') ? 'High Risk' : 'Review'}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs text-xs">
+                                  {e.admin_note || e.anomaly_type || 'Flagged for review'}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
                           {e.status === 'pending_second_approval' && (
                             <span className="text-[10px] text-muted-foreground">
                               1 of 2 approvals
@@ -1549,19 +1608,44 @@ const Expenses = () => {
                         <span className="inline-flex items-center gap-1.5">
                           <StatusBadge status={e.status} />
                           {isApproved && paymentBadge(e.payment_status)}
+                          {e.is_anomaly && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'gap-1 cursor-default',
+                                e.anomaly_type?.includes('duplicate_receipt')
+                                  ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
+                                  : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                              )}
+                            >
+                              <AlertTriangle className="h-3 w-3" />
+                              {e.anomaly_type?.includes('duplicate_receipt') ? 'High Risk' : 'Review'}
+                            </Badge>
+                          )}
                         </span>
                       </MobileCardRow>
                       {e.receipt_url && (
                         <MobileCardRow label="Receipt">
-                          <a
-                            href={e.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary"
-                            onClick={(evt) => evt.stopPropagation()}
-                          >
-                            <ExternalLink className="h-3 w-3" /> View
-                          </a>
+                          <span className="inline-flex items-center gap-3">
+                            <a
+                              href={e.receipt_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-primary"
+                              onClick={(evt) => evt.stopPropagation()}
+                            >
+                              <ExternalLink className="h-3 w-3" /> View
+                            </a>
+                            {e.category === 'repair' && (
+                              <button
+                                type="button"
+                                className="text-muted-foreground"
+                                onClick={(evt) => { evt.stopPropagation(); openElaAnalysis(e.id, e.receipt_url!); }}
+                              >
+                                Tamper Analysis
+                              </button>
+                            )}
+                          </span>
                         </MobileCardRow>
                       )}
 
@@ -2045,9 +2129,31 @@ const Expenses = () => {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <StatusBadge status={detailExpense.status} />
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={detailExpense.status} />
+                    {detailExpense.is_anomaly && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'gap-1 cursor-default',
+                          detailExpense.anomaly_type?.includes('duplicate_receipt')
+                            ? 'border-red-400 text-red-700 bg-red-50 dark:bg-red-950/20'
+                            : 'border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/20',
+                        )}
+                      >
+                        <AlertTriangle className="h-3 w-3" />
+                        {detailExpense.anomaly_type?.includes('duplicate_receipt') ? 'High Risk' : 'Review'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
+              {detailExpense.is_anomaly && detailExpense.admin_note && (
+                <div className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 text-xs text-amber-800 dark:text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                  <span>{detailExpense.admin_note}</span>
+                </div>
+              )}
               {detailExpense.mileage_km && (
                 <div>
                   <p className="text-xs text-muted-foreground">Mileage</p>
@@ -2061,14 +2167,25 @@ const Expenses = () => {
               {detailExpense.receipt_url && (
                 <div>
                   <p className="text-xs text-muted-foreground">Receipt</p>
-                  <a
-                    href={detailExpense.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> View Receipt
-                  </a>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={detailExpense.receipt_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> View Receipt
+                    </a>
+                    {detailExpense.category === 'repair' && (
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground underline"
+                        onClick={() => openElaAnalysis(detailExpense.id, detailExpense.receipt_url!)}
+                      >
+                        Tamper Analysis
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {detailExpense.status === 'approved' && (
@@ -2152,6 +2269,40 @@ const Expenses = () => {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tamper-analysis (ELA) preview — on-demand visual aid, not a verdict. */}
+      <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Tamper Analysis</DialogTitle>
+            <DialogDescription>
+              Highlights areas that carry a different compression history than the rest of the photo.
+              This is a visual aid, not proof of tampering — ordinary re-compression (e.g. a receipt
+              forwarded through WhatsApp) produces similar patterns. Use your judgment alongside other context.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            {elaLoading && (
+              <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating analysis…
+              </div>
+            )}
+            {elaError && (
+              <div className="flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>{elaError}</span>
+              </div>
+            )}
+            {elaResult && (
+              <img
+                src={elaResult.heatmapDataUrl}
+                alt="Error-level analysis heatmap"
+                className="w-full rounded-md border"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
