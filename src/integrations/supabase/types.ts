@@ -880,6 +880,7 @@ export type Database = {
           budget_id: string
           category: string
           created_at: string | null
+          description: string | null
           id: string
           spent_ngn: number
         }
@@ -888,6 +889,7 @@ export type Database = {
           budget_id: string
           category: string
           created_at?: string | null
+          description?: string | null
           id?: string
           spent_ngn?: number
         }
@@ -896,6 +898,7 @@ export type Database = {
           budget_id?: string
           category?: string
           created_at?: string | null
+          description?: string | null
           id?: string
           spent_ngn?: number
         }
