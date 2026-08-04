@@ -1595,7 +1595,7 @@ const Fleet = () => {
       getReceiptDebt(profile.id),
       supabase
         .from('expenses')
-        .select('id, description, amount_ngn, created_at, vehicle_id, service_type, maintenance_item_id, repair_odometer_km')
+        .select('id, description, amount_ngn, created_at, vehicle_id, service_type, maintenance_item_id, repair_odometer_km, vendor_name, date')
         .eq('submitted_by', profile.id)
         .eq('category', 'repair')
         .is('receipt_url', null)
@@ -1610,9 +1610,16 @@ const Fleet = () => {
   const [uploadingRepairReceiptFor, setUploadingRepairReceiptFor] = useState<{
     id: string; description: string | null; amount_ngn: number; vehicle_id: string | null;
     service_type: string | null; maintenance_item_id: string | null; repair_odometer_km: number | null;
+    vendor_name: string | null; date: string | null;
   } | null>(null);
   const [repairReceiptUploadFile, setRepairReceiptUploadFile] = useState<File | null>(null);
   const [submittingRepairReceipt, setSubmittingRepairReceipt] = useState(false);
+  // Editable vendor/date for repairs that were submitted without them
+  // (submission is optional there) — confirmable/correctable here, same as
+  // the initial submission dialog, so nothing captured on receipt attach is
+  // worse than what capturing it upfront would have gotten.
+  const [repairReceiptUploadVendor, setRepairReceiptUploadVendor] = useState('');
+  const [repairReceiptUploadDate, setRepairReceiptUploadDate] = useState('');
   // Raw OCR-extracted amount, kept separate from the (possibly hand-typed
   // or corrected) form field so submit time can compare what the receipt
   // actually says against what the user entered.
@@ -2277,6 +2284,11 @@ const Fleet = () => {
         }
       }
 
+      if (repairReceiptUploadDate) {
+        const staleReason = checkStaleReceipt(repairReceiptUploadDate, new Date().toISOString().slice(0, 10));
+        if (staleReason) flags.push({ type: 'stale_receipt', reason: staleReason.replace('Receipt', 'Repair') });
+      }
+
       const watermarked = await watermarkImage(repairReceiptUploadFile, { driverName: profile?.full_name || 'Employee' });
       const receiptSha256 = await hashFile(watermarked);
       const compressed = await compressImage(watermarked);
@@ -2304,6 +2316,8 @@ const Fleet = () => {
           is_anomaly: flags.length > 0,
           anomaly_type: flags.length > 0 ? flags.map((f) => f.type).join(',') : null,
           admin_note: noteParts.join(' — ') || null,
+          vendor_name: repairReceiptUploadVendor.trim() || null,
+          ...(repairReceiptUploadDate ? { date: repairReceiptUploadDate } : {}),
         })
         .eq('id', uploadingRepairReceiptFor.id);
       if (error) throw error;
@@ -2341,6 +2355,8 @@ const Fleet = () => {
       setUploadingRepairReceiptFor(null);
       setRepairReceiptUploadFile(null);
       setRepairReceiptUploadOcrAmount('');
+      setRepairReceiptUploadVendor('');
+      setRepairReceiptUploadDate('');
       await refreshMyReceiptDebt();
       fetchData();
     } catch (err: any) {
@@ -4807,7 +4823,12 @@ const Fleet = () => {
                 <Button
                   size="sm"
                   className={cn('shrink-0 text-white', blocked ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700')}
-                  onClick={() => { setUploadingRepairReceiptFor(r); setRepairReceiptUploadFile(null); }}
+                  onClick={() => {
+                    setUploadingRepairReceiptFor(r);
+                    setRepairReceiptUploadFile(null);
+                    setRepairReceiptUploadVendor(r.vendor_name || '');
+                    setRepairReceiptUploadDate(r.date || new Date().toISOString().slice(0, 10));
+                  }}
                 >
                   <Upload className="h-3.5 w-3.5 mr-1.5" /> Attach Receipt
                 </Button>
@@ -6667,7 +6688,15 @@ const Fleet = () => {
       {/* REPAIR RECEIPT UPLOAD DIALOG — attach a receipt to a repair submitted without one */}
       <Dialog
         open={!!uploadingRepairReceiptFor}
-        onOpenChange={(v) => { if (!v) { setUploadingRepairReceiptFor(null); setRepairReceiptUploadFile(null); setRepairReceiptUploadOcrAmount(''); } }}
+        onOpenChange={(v) => {
+          if (!v) {
+            setUploadingRepairReceiptFor(null);
+            setRepairReceiptUploadFile(null);
+            setRepairReceiptUploadOcrAmount('');
+            setRepairReceiptUploadVendor('');
+            setRepairReceiptUploadDate('');
+          }
+        }}
       >
         <DialogContent>
           <DialogHeader>
@@ -6687,6 +6716,8 @@ const Fleet = () => {
                 onExtracted={(result: OcrResult, file: File) => {
                   setRepairReceiptUploadFile(file);
                   setRepairReceiptUploadOcrAmount(result.amount_ngn || '');
+                  setRepairReceiptUploadVendor((v) => v || result.description || v);
+                  setRepairReceiptUploadDate((d) => d || result.date || d);
                 }}
               />
               {repairReceiptUploadFile && (
@@ -6718,6 +6749,25 @@ const Fleet = () => {
                   />
                 </>
               )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Vendor / Garage <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
+                <Input
+                  value={repairReceiptUploadVendor}
+                  onChange={(e) => setRepairReceiptUploadVendor(e.target.value)}
+                  placeholder="e.g. Mekunwen Auto Parts"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Repair Date</Label>
+                <Input
+                  type="date"
+                  value={repairReceiptUploadDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setRepairReceiptUploadDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

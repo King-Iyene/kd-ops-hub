@@ -186,8 +186,8 @@ describe('computePayrollBudgetVsActual', () => {
     const rows = computePayrollBudgetVsActual(
       budgets,
       [
-        { budget_id: 'b1', category: 'Payroll', planned_amount_ngn: 3_000_000 },
-        { budget_id: 'b1', category: 'Office supplies', planned_amount_ngn: 200_000 },
+        { budget_id: 'b1', category: 'Payroll', allocated_ngn: 3_000_000 },
+        { budget_id: 'b1', category: 'Office supplies', allocated_ngn: 200_000 },
       ],
       [],
     );
@@ -197,7 +197,7 @@ describe('computePayrollBudgetVsActual', () => {
   it('excludes budgets with no payroll-tagged line item', () => {
     const rows = computePayrollBudgetVsActual(
       budgets,
-      [{ budget_id: 'b1', category: 'Office supplies', planned_amount_ngn: 200_000 }],
+      [{ budget_id: 'b1', category: 'Office supplies', allocated_ngn: 200_000 }],
       [],
     );
     expect(rows).toHaveLength(0);
@@ -206,7 +206,7 @@ describe('computePayrollBudgetVsActual', () => {
   it('sums payroll_runs totals whose period falls inside the budget window', () => {
     const rows = computePayrollBudgetVsActual(
       budgets,
-      [{ budget_id: 'b1', category: 'Salaries', planned_amount_ngn: 3_000_000 }],
+      [{ budget_id: 'b1', category: 'Salaries', allocated_ngn: 3_000_000 }],
       [
         { period: '2026-01', total_burn_ngn: 900_000 },
         { period: '2026-02', total_burn_ngn: 950_000 },
@@ -219,7 +219,7 @@ describe('computePayrollBudgetVsActual', () => {
   it('computes utilization_pct, null when planned is zero', () => {
     const rows = computePayrollBudgetVsActual(
       budgets,
-      [{ budget_id: 'b1', category: 'Wages', planned_amount_ngn: 1_000_000 }],
+      [{ budget_id: 'b1', category: 'Wages', allocated_ngn: 1_000_000 }],
       [{ period: '2026-02', total_burn_ngn: 500_000 }],
     );
     expect(rows[0].utilization_pct).toBeCloseTo(50, 5);

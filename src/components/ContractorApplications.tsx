@@ -150,13 +150,12 @@ export function ContractorApplications() {
 
       // Mark application as approved — error is checked so a failed update
       // surfaces immediately rather than being silently swallowed.
-      const now = new Date().toISOString();
+      // contractor_applications has no reviewed_by/reviewed_at columns —
+      // approved_by is the only actor/decision column it has.
       const { error: appUpdateErr } = await supabase
         .from('contractor_applications')
         .update({
           status: 'approved',
-          reviewed_by: profile?.id,
-          reviewed_at: now,
           approved_by: profile?.id,
           contractor_id: (contractor as any).id,
         })
@@ -201,16 +200,16 @@ export function ContractorApplications() {
     }
     setRejecting(true);
     try {
-      const now = new Date().toISOString();
-      await supabase
+      // contractor_applications has no reviewed_by/reviewed_at columns —
+      // status + rejection_reason is all it tracks for a rejection.
+      const { error: rejectErr } = await supabase
         .from('contractor_applications')
         .update({
           status: 'rejected',
           rejection_reason: rejectReason.trim(),
-          reviewed_by: profile?.id,
-          reviewed_at: now,
         })
         .eq('id', rejectTarget.id);
+      if (rejectErr) throw rejectErr;
 
       // Send rejection email.
       await sendEmail(

@@ -86,14 +86,14 @@ interface BudgetItemRow {
   budget_id: string;
   category: string;
   description: string | null;
-  planned_amount_ngn: number;
+  allocated_ngn: number;
 }
 
 interface ItemDraft {
   id?: string;
   category: string;
   description: string;
-  planned_amount_ngn: string;
+  allocated_ngn: string;
 }
 
 interface Department {
@@ -155,7 +155,7 @@ const Budgets = () => {
     notes: '',
   });
   const [itemsDraft, setItemsDraft] = useState<ItemDraft[]>([
-    { category: 'payroll', description: '', planned_amount_ngn: '' },
+    { category: 'payroll', description: '', allocated_ngn: '' },
   ]);
   const [confirmDelete, setConfirmDelete] = useState<BudgetRow | null>(null);
   const [acting, setActing] = useState<string | null>(null);
@@ -244,7 +244,7 @@ const Budgets = () => {
       department_id: 'none',
       notes: '',
     });
-    setItemsDraft([{ category: 'payroll', description: '', planned_amount_ngn: '' }]);
+    setItemsDraft([{ category: 'payroll', description: '', allocated_ngn: '' }]);
     setDialog(true);
   };
 
@@ -274,9 +274,9 @@ const Budgets = () => {
             id: it.id,
             category: it.category,
             description: it.description || '',
-            planned_amount_ngn: String(it.planned_amount_ngn || 0),
+            allocated_ngn: String(it.allocated_ngn || 0),
           }))
-        : [{ category: 'payroll', description: '', planned_amount_ngn: '' }],
+        : [{ category: 'payroll', description: '', allocated_ngn: '' }],
     );
     setDialog(true);
   };
@@ -284,7 +284,7 @@ const Budgets = () => {
   const addItemRow = () =>
     setItemsDraft((prev) => [
       ...prev,
-      { category: 'other', description: '', planned_amount_ngn: '' },
+      { category: 'other', description: '', allocated_ngn: '' },
     ]);
 
   const updateItem = (idx: number, patch: Partial<ItemDraft>) =>
@@ -296,7 +296,7 @@ const Budgets = () => {
     setItemsDraft((prev) => prev.filter((_, i) => i !== idx));
 
   const draftTotal = itemsDraft.reduce(
-    (sum, it) => sum + (parseFloat(it.planned_amount_ngn) || 0),
+    (sum, it) => sum + (parseFloat(it.allocated_ngn) || 0),
     0,
   );
 
@@ -314,7 +314,7 @@ const Budgets = () => {
       return;
     }
     const validItems = itemsDraft.filter(
-      (it) => it.category.trim() && parseFloat(it.planned_amount_ngn) > 0,
+      (it) => it.category.trim() && parseFloat(it.allocated_ngn) > 0,
     );
     if (validItems.length === 0) {
       toast({
@@ -338,7 +338,7 @@ const Budgets = () => {
         period: `${form.period_start.slice(0, 7)} – ${form.period_end.slice(0, 7)}`,
         department_id: form.department_id === 'none' ? null : form.department_id,
         total_amount_ngn: validItems.reduce(
-          (sum, it) => sum + (parseFloat(it.planned_amount_ngn) || 0),
+          (sum, it) => sum + (parseFloat(it.allocated_ngn) || 0),
           0,
         ),
         notes: form.notes || null,
@@ -376,7 +376,7 @@ const Budgets = () => {
         budget_id: budgetId,
         category: it.category.trim(),
         description: it.description || null,
-        planned_amount_ngn: parseFloat(it.planned_amount_ngn) || 0,
+        allocated_ngn: parseFloat(it.allocated_ngn) || 0,
       }));
       if (toInsert.length > 0) {
         const ins = await supabase.from('budget_items').insert(toInsert);
@@ -977,9 +977,9 @@ const Budgets = () => {
                             type="number"
                             min="0"
                             className="text-right"
-                            value={it.planned_amount_ngn}
+                            value={it.allocated_ngn}
                             onChange={(e) =>
-                              updateItem(idx, { planned_amount_ngn: e.target.value })
+                              updateItem(idx, { allocated_ngn: e.target.value })
                             }
                           />
                         </TableCell>

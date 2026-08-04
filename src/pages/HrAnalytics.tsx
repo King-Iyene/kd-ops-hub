@@ -50,7 +50,7 @@ interface Department {
 interface Termination {
   id: string;
   employee_id: string;
-  effective_date: string | null;
+  last_working_day: string | null;
   reason: string | null;
   rehire_eligible: boolean | null;
 }
@@ -89,8 +89,8 @@ const HrAnalytics = () => {
         // terminations may not exist on every install
         supabase
           .from('terminations' as any)
-          .select('id, employee_id, effective_date, reason, rehire_eligible')
-          .order('effective_date', { ascending: false })
+          .select('id, employee_id, last_working_day, reason, rehire_eligible')
+          .order('last_working_day', { ascending: false })
           .limit(500)
           .then((r) => ({ data: r.data || [], error: null }))
           .catch(() => ({ data: [] as Termination[], error: null })),
@@ -124,8 +124,8 @@ const HrAnalytics = () => {
       }
     }
     for (const t of terminations) {
-      if (t.effective_date) {
-        const k = t.effective_date.slice(0, 7);
+      if (t.last_working_day) {
+        const k = t.last_working_day.slice(0, 7);
         endedBy[k] = (endedBy[k] || 0) + 1;
       }
     }
@@ -151,7 +151,7 @@ const HrAnalytics = () => {
     const cutoff = new Date();
     cutoff.setFullYear(cutoff.getFullYear() - 1);
     const cutoffStr = cutoff.toISOString().slice(0, 10);
-    const leavers = terminations.filter((t) => (t.effective_date || '') >= cutoffStr).length;
+    const leavers = terminations.filter((t) => (t.last_working_day || '') >= cutoffStr).length;
     const avgHc = headcountSeries.reduce((s, r) => s + r.headcount, 0) / (headcountSeries.length || 1);
     return {
       leavers,

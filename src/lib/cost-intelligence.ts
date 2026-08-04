@@ -298,13 +298,13 @@ const PAYROLL_CATEGORY_PATTERN = /payroll|salary|salaries|wage/i;
  */
 export function computePayrollBudgetVsActual(
   budgets: Array<{ id: string; name: string; period_start: string; period_end: string }>,
-  budgetItems: Array<{ budget_id: string; category: string; planned_amount_ngn: number }>,
+  budgetItems: Array<{ budget_id: string; category: string; allocated_ngn: number }>,
   payrollRuns: Array<{ period: string; total_burn_ngn: number }>,
 ): PayrollBudgetRow[] {
   const plannedByBudget = new Map<string, number>();
   for (const item of budgetItems) {
     if (!PAYROLL_CATEGORY_PATTERN.test(item.category)) continue;
-    plannedByBudget.set(item.budget_id, (plannedByBudget.get(item.budget_id) ?? 0) + Number(item.planned_amount_ngn || 0));
+    plannedByBudget.set(item.budget_id, (plannedByBudget.get(item.budget_id) ?? 0) + Number(item.allocated_ngn || 0));
   }
 
   const rows: PayrollBudgetRow[] = [];
@@ -355,13 +355,13 @@ export async function fetchPayrollBudgetVsActual(months = 12): Promise<PayrollBu
 
   const { data: itemsData, error: itemsError } = await supabase
     .from('budget_items')
-    .select('budget_id, category, planned_amount_ngn')
+    .select('budget_id, category, allocated_ngn')
     .in('budget_id', budgets.map((b) => b.id));
   if (itemsError) throw itemsError;
 
   return computePayrollBudgetVsActual(
     budgets,
-    (itemsData || []) as Array<{ budget_id: string; category: string; planned_amount_ngn: number }>,
+    (itemsData || []) as Array<{ budget_id: string; category: string; allocated_ngn: number }>,
     (runsRes.data || []) as Array<{ period: string; total_burn_ngn: number }>,
   );
 }

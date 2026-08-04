@@ -155,7 +155,7 @@ const ContractorProfile = () => {
     setContractor(c);
     setForm(c);
 
-    const [payRes, docRes, auditRes, deductRes] = await Promise.all([
+    const [payRes, auditRes, deductRes] = await Promise.all([
       supabase
         .from('batch_items')
         .select('*, payment_batches!inner(name, payment_description, status, created_at, deleted_at)')
@@ -163,10 +163,14 @@ const ContractorProfile = () => {
         .is('payment_batches.deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(30),
-      supabase.from('documents').select('*').eq('entity_id', id).is('deleted_at', null)
-        .order('created_at', { ascending: false }).limit(30),
+      // audit_logs has no actor_id column — performed_by/user_id are set
+      // server-side to the ADMIN who performed the action (via auth.uid()),
+      // never the contractor, so neither can identify "logs about this
+      // contractor." The description-text match is the only usable signal
+      // until audit_logs gains a real entity_id/entity_type link for
+      // contractor-related actions.
       supabase.from('audit_logs').select('*')
-        .or(`actor_id.eq.${id},description.ilike.%${id.slice(0, 8)}%`)
+        .ilike('description', `%${id.slice(0, 8)}%`)
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('employee_deductions').select('*')
         .eq('entity_id', id).eq('entity_type', 'contractor')
@@ -176,7 +180,12 @@ const ContractorProfile = () => {
     // row through (older postgrest builds), strip rows whose parent batch is
     // soft-deleted so archived batches never leak into the partner's profile.
     setPayments((payRes.data || []).filter((p: any) => !p.payment_batches?.deleted_at));
-    setDocuments(docRes.data || []);
+    // documents has no entity_id/entity_type — it's employee_id-scoped only,
+    // and contractors have no employee_id, so there is currently no way to
+    // link an uploaded document to a contractor record. Left empty (shows
+    // the existing "No documents uploaded" state) rather than querying a
+    // column that doesn't exist.
+    setDocuments([]);
     setAuditLogs(auditRes.data || []);
     setDeductions(deductRes.data || []);
     setLoading(false);

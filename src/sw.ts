@@ -44,9 +44,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Empty fetch handler — required for the install prompt criteria. Lets the
-// browser do its normal thing for every request.
-self.addEventListener('fetch', () => undefined);
+// Pass-through fetch handler — required for the install prompt criteria.
+// Must call respondWith() or Chrome flags it as a no-op handler (visible as
+// a console warning on every navigation); fetching from network and handing
+// the response straight back behaves identically to no handler at all while
+// satisfying that check.
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
 
 // ── Push notifications ─────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
