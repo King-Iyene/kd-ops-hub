@@ -3351,11 +3351,14 @@ export type Database = {
           id: string
           is_anomaly: boolean
           is_reimbursement: boolean
+          labour_hours: number | null
           maintenance_item_id: string | null
           mileage_km: number | null
+          parts_replaced: string | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
           payment_status: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
@@ -3394,11 +3397,14 @@ export type Database = {
           id?: string
           is_anomaly?: boolean
           is_reimbursement?: boolean
+          labour_hours?: number | null
           maintenance_item_id?: string | null
           mileage_km?: number | null
+          parts_replaced?: string | null
           payload_hash_at_approval?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          priority?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
@@ -3437,11 +3443,14 @@ export type Database = {
           id?: string
           is_anomaly?: boolean
           is_reimbursement?: boolean
+          labour_hours?: number | null
           maintenance_item_id?: string | null
           mileage_km?: number | null
+          parts_replaced?: string | null
           payload_hash_at_approval?: string | null
           payment_reference?: string | null
           payment_status?: string | null
+          priority?: string | null
           processed_at?: string | null
           processed_by?: string | null
           rate_per_km_ngn?: number | null
@@ -9134,6 +9143,117 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_inspections: {
+        Row: {
+          checklist: Json
+          created_at: string
+          defect_notes: string | null
+          has_defects: boolean
+          id: string
+          inspection_type: string
+          inspector_id: string
+          odometer_km: number | null
+          overall_status: string
+          photo_urls: string[] | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          trip_id: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          checklist?: Json
+          created_at?: string
+          defect_notes?: string | null
+          has_defects?: boolean
+          id?: string
+          inspection_type?: string
+          inspector_id: string
+          odometer_km?: number | null
+          overall_status?: string
+          photo_urls?: string[] | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          trip_id?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          checklist?: Json
+          created_at?: string
+          defect_notes?: string | null
+          has_defects?: boolean
+          id?: string
+          inspection_type?: string
+          inspector_id?: string
+          odometer_km?: number | null
+          overall_status?: string
+          photo_urls?: string[] | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          trip_id?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_inspections_inspector_id_fkey"
+            columns: ["inspector_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_inspector_id_fkey"
+            columns: ["inspector_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_inspector_id_fkey"
+            columns: ["inspector_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trip_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_inspections_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_maintenance: {
         Row: {
           cost_ngn: number | null
@@ -9281,8 +9401,10 @@ export type Database = {
           road_worthiness_expiry: string | null
           status: string
           tank_capacity_litres: number
+          total_mileage_km: number | null
           updated_at: string | null
           vin: string | null
+          warranty_expiry: string | null
           weekly_budget_ngn: number
           year: number | null
         }
@@ -9309,8 +9431,10 @@ export type Database = {
           road_worthiness_expiry?: string | null
           status?: string
           tank_capacity_litres?: number
+          total_mileage_km?: number | null
           updated_at?: string | null
           vin?: string | null
+          warranty_expiry?: string | null
           weekly_budget_ngn?: number
           year?: number | null
         }
@@ -9337,8 +9461,10 @@ export type Database = {
           road_worthiness_expiry?: string | null
           status?: string
           tank_capacity_litres?: number
+          total_mileage_km?: number | null
           updated_at?: string | null
           vin?: string | null
+          warranty_expiry?: string | null
           weekly_budget_ngn?: number
           year?: number | null
         }
@@ -9960,11 +10086,14 @@ export type Database = {
           id: string
           is_anomaly: boolean
           is_reimbursement: boolean
+          labour_hours: number | null
           maintenance_item_id: string | null
           mileage_km: number | null
+          parts_replaced: string | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
           payment_status: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
@@ -10275,11 +10404,14 @@ export type Database = {
           id: string
           is_anomaly: boolean
           is_reimbursement: boolean
+          labour_hours: number | null
           maintenance_item_id: string | null
           mileage_km: number | null
+          parts_replaced: string | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
           payment_status: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
@@ -10677,11 +10809,14 @@ export type Database = {
           id: string
           is_anomaly: boolean
           is_reimbursement: boolean
+          labour_hours: number | null
           maintenance_item_id: string | null
           mileage_km: number | null
+          parts_replaced: string | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
           payment_status: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
@@ -10899,11 +11034,14 @@ export type Database = {
           id: string
           is_anomaly: boolean
           is_reimbursement: boolean
+          labour_hours: number | null
           maintenance_item_id: string | null
           mileage_km: number | null
+          parts_replaced: string | null
           payload_hash_at_approval: string | null
           payment_reference: string | null
           payment_status: string | null
+          priority: string | null
           processed_at: string | null
           processed_by: string | null
           rate_per_km_ngn: number | null
