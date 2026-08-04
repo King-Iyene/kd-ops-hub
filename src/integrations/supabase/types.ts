@@ -3369,6 +3369,7 @@ export type Database = {
           status: string
           submitted_by: string
           vehicle_id: string | null
+          vendor_name: string | null
         }
         Insert: {
           account_name?: string | null
@@ -3411,6 +3412,7 @@ export type Database = {
           status?: string
           submitted_by: string
           vehicle_id?: string | null
+          vendor_name?: string | null
         }
         Update: {
           account_name?: string | null
@@ -3453,6 +3455,7 @@ export type Database = {
           status?: string
           submitted_by?: string
           vehicle_id?: string | null
+          vendor_name?: string | null
         }
         Relationships: [
           {
@@ -9975,6 +9978,7 @@ export type Database = {
           status: string
           submitted_by: string
           vehicle_id: string | null
+          vendor_name: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10289,6 +10293,7 @@ export type Database = {
           status: string
           submitted_by: string
           vehicle_id: string | null
+          vendor_name: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10690,6 +10695,7 @@ export type Database = {
           status: string
           submitted_by: string
           vehicle_id: string | null
+          vendor_name: string | null
         }
         SetofOptions: {
           from: "*"
@@ -10911,6 +10917,7 @@ export type Database = {
           status: string
           submitted_by: string
           vehicle_id: string | null
+          vendor_name: string | null
         }
         SetofOptions: {
           from: "*"
