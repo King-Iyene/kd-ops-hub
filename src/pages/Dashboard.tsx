@@ -247,7 +247,7 @@ const Dashboard = () => {
     const loadPersonalKPIs = () => {
       setPersonalLoading(true);
       Promise.all([
-        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('employee_id', profile.id).eq('status', 'pending'),
+        supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('submitted_by', profile.id).eq('status', 'pending'),
         supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', profile.id).maybeSingle(),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
         supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
