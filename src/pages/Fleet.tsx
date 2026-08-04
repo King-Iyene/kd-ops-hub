@@ -56,7 +56,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -76,6 +76,8 @@ import { cn } from '@/lib/utils';
 import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median } from '@/lib/receipts';
 import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
+import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
+import { DriverScorecard } from '@/components/fleet/DriverScorecard';
 
 interface FieldStaff {
   id: string;
@@ -1572,6 +1574,8 @@ const Fleet = () => {
     employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '',
     vehicle_id: '', service_type: '', odometer: '',
     vendor_name: '', repair_date: new Date().toISOString().slice(0, 10),
+    priority: 'routine' as 'emergency' | 'urgent' | 'routine',
+    parts_replaced: '', labour_hours: '',
   });
   const [repairBank, setRepairBank] = useState<BankAccountValue>(EMPTY_REPAIR_BANK);
   const [repairReceipt, setRepairReceipt] = useState<File | null>(null);
@@ -1657,6 +1661,11 @@ const Fleet = () => {
   const [startTripForm, setStartTripForm] = useState({ vehicle_id: '', odometer_start: '' });
   const [lastVehicleOdometer, setLastVehicleOdometer] = useState<number | null>(null);
   const [startingTrip, setStartingTrip] = useState(false);
+
+  // Vehicle Inspection (DVIR)
+  const [showInspection, setShowInspection] = useState(false);
+  const [inspectionVehicleId, setInspectionVehicleId] = useState('');
+  const [inspectionVehicleName, setInspectionVehicleName] = useState('');
 
   // End Trip dialog
   const [showEndTrip, setShowEndTrip] = useState(false);
@@ -2175,6 +2184,9 @@ const Fleet = () => {
         service_type: repairForm.service_type || null,
         repair_odometer_km: odometerNum,
         maintenance_item_id: repairMaintenanceItemId || null,
+        priority: repairForm.priority,
+        parts_replaced: repairForm.parts_replaced.trim() || null,
+        labour_hours: parseFloat(repairForm.labour_hours) || null,
         ...(repairBank.verified ? {
           bank_name: repairBank.bank_name,
           account_number: repairBank.account_number,
@@ -3956,6 +3968,7 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="dashboard" className="mt-4 space-y-4">
             <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
+            <DriverScorecard />
             {serviceAlerts.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold mb-2 flex items-center gap-2 text-amber-600">
@@ -5545,6 +5558,24 @@ const Fleet = () => {
                   )}
                 </div>
 
+                {/* Pre-trip inspection */}
+                {startTripForm.vehicle_id && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30"
+                    onClick={() => {
+                      const veh = vehicles.find((v) => v.id === startTripForm.vehicle_id);
+                      setInspectionVehicleId(startTripForm.vehicle_id);
+                      setInspectionVehicleName(veh ? `${veh.name} (${(veh as any).plate_number})` : 'Vehicle');
+                      setShowInspection(true);
+                    }}
+                  >
+                    <ClipboardCheck className="h-4 w-4" /> Pre-Trip Vehicle Inspection
+                  </Button>
+                )}
+
                 {/* Privacy notice */}
                 <div className="flex items-start gap-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-xs text-blue-900 dark:text-blue-200">
                   <Radio className="h-3.5 w-3.5 shrink-0 mt-0.5" />
@@ -6458,7 +6489,7 @@ const Fleet = () => {
       <Dialog open={showRepairForm} onOpenChange={(v) => {
         setShowRepairForm(v);
         if (!v) {
-          setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10) });
+          setRepairForm({ employee_id: profile?.id || '', description: '', amount_ngn: '', notes: '', vehicle_id: '', service_type: '', odometer: '', vendor_name: '', repair_date: new Date().toISOString().slice(0, 10), priority: 'routine', parts_replaced: '', labour_hours: '' });
           setRepairBank(EMPTY_REPAIR_BANK);
           setRepairReceipt(null);
           setRepairReceiptOcrAmount('');
@@ -6622,6 +6653,47 @@ const Fleet = () => {
                     <AlertTriangle className="h-3 w-3" /> Receipt required for amounts over ₦10,000
                   </p>
                 )}
+              </div>
+
+              {/* Priority */}
+              <div className="space-y-1.5">
+                <Label>Priority</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { val: 'routine' as const, label: 'Routine', desc: 'Scheduled / planned', color: 'text-blue-600 border-blue-300 bg-blue-50 dark:bg-blue-950/20' },
+                    { val: 'urgent' as const, label: 'Urgent', desc: 'Needs attention soon', color: 'text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/20' },
+                    { val: 'emergency' as const, label: 'Emergency', desc: 'Vehicle unsafe', color: 'text-red-600 border-red-300 bg-red-50 dark:bg-red-950/20' },
+                  ]).map(({ val, label, desc, color }) => (
+                    <button key={val} type="button"
+                      className={cn('rounded-xl border p-2.5 text-center text-xs kd-transition',
+                        repairForm.priority === val ? color : 'border-input text-muted-foreground hover:border-primary/30')}
+                      onClick={() => setRepairForm((f) => ({ ...f, priority: val }))}
+                    >
+                      <span className="block font-medium">{label}</span>
+                      <span className="block mt-0.5 opacity-70 text-[10px]">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Parts & Labour */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Parts replaced <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
+                  <Input
+                    value={repairForm.parts_replaced}
+                    onChange={(e) => setRepairForm({ ...repairForm, parts_replaced: e.target.value })}
+                    placeholder="e.g. Brake pads, Oil filter"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Labour hours <span className="text-muted-foreground text-xs font-normal">(optional)</span></Label>
+                  <Input type="number" step="0.5" min="0"
+                    value={repairForm.labour_hours}
+                    onChange={(e) => setRepairForm({ ...repairForm, labour_hours: e.target.value })}
+                    placeholder="e.g. 2.5"
+                  />
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>
@@ -6862,6 +6934,14 @@ const Fleet = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* VEHICLE INSPECTION (DVIR) */}
+      <VehicleInspectionForm
+        vehicleId={inspectionVehicleId}
+        vehicleName={inspectionVehicleName}
+        open={showInspection}
+        onOpenChange={setShowInspection}
+      />
     </div>
   );
 };
@@ -7326,6 +7406,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
   const [viewingMaintenance, setViewingMaintenance] = useState<Vehicle | null>(null);
   const [settingOutOfService, setSettingOutOfService] = useState<Vehicle | null>(null);
   const [outOfServiceDate, setOutOfServiceDate] = useState('');
+  const [inspectingVehicle, setInspectingVehicle] = useState<Vehicle | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -7623,6 +7704,9 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                         <Button size="sm" variant="ghost" title="Maintenance schedule" onClick={() => setViewingMaintenance(v)}>
                           <Wrench className="h-4 w-4" />
                         </Button>
+                        <Button size="sm" variant="ghost" title="Run inspection" onClick={() => setInspectingVehicle(v)}>
+                          <ClipboardCheck className="h-4 w-4" />
+                        </Button>
                         {canManageVehicles && (
                           <>
                             <Button
@@ -7872,6 +7956,17 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
 
       {viewingMaintenance && (
         <VehicleMaintenanceDialog vehicle={viewingMaintenance} onClose={() => { setViewingMaintenance(null); load(); }} />
+      )}
+
+      {/* Vehicle Inspection */}
+      {inspectingVehicle && (
+        <VehicleInspectionForm
+          vehicleId={inspectingVehicle.id}
+          vehicleName={`${inspectingVehicle.name} (${inspectingVehicle.plate_number})`}
+          inspectionType="ad_hoc"
+          open={!!inspectingVehicle}
+          onOpenChange={(open) => { if (!open) setInspectingVehicle(null); }}
+        />
       )}
 
       {/* Out-of-service dialog */}

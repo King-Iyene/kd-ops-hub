@@ -47,15 +47,14 @@ interface Props {
 
 function extractAmount(text: string): string | undefined {
   const patterns = [
-    /₦\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /NGN\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /(?:total|amount|grand\s*total|sub\s*total|amt)\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /₦\s*([\d,]+(?:\.\d{1,2})?)/gi,
+    /NGN\s*([\d,]+(?:\.\d{1,2})?)/gi,
+    /(?:total|amount|grand\s*total|sub\s*total|amt)\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/gi,
+    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/gi,
   ];
   const candidates: number[] = [];
   for (const re of patterns) {
-    const m = text.match(re);
-    if (m) {
+    for (const m of text.matchAll(re)) {
       const cleaned = m[1].replace(/,/g, '');
       const n = parseFloat(cleaned);
       if (!isNaN(n) && n > 0 && n < 100_000_000) candidates.push(n);
@@ -199,7 +198,7 @@ async function preprocessForOcr(file: File): Promise<File> {
 // Server-side fallback — Google Document AI for handwritten/messy receipts
 // ---------------------------------------------------------------------------
 
-async function tryServerOcr(file: File): Promise<OcrResult | null> {
+async function tryServerOcr(file: File): Promise<{ result: OcrResult | null; reason: string }> {
   try {
     const buffer = await file.slice(0, 4 * 1024 * 1024).arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -210,19 +209,35 @@ async function tryServerOcr(file: File): Promise<OcrResult | null> {
     const { data, error } = await supabase.functions.invoke('extract-receipt', {
       body: { image_base64, mime_type: file.type || 'image/jpeg' },
     });
-    if (error || !data?.ok || data.dev_skip) return null;
+
+    if (error) {
+      console.warn('[OCR] Server fallback error:', error);
+      return { result: null, reason: `Server error: ${error.message || 'unknown'}` };
+    }
+    if (!data?.ok) {
+      console.warn('[OCR] Server returned not-ok:', data);
+      return { result: null, reason: data?.error || 'Server returned an error' };
+    }
+    if (data.dev_skip) {
+      console.info('[OCR] Document AI not configured (dev_skip) — set secrets in Supabase Dashboard → Edge Functions → Secrets');
+      return { result: null, reason: 'AI scanner not configured — set Document AI secrets in Supabase' };
+    }
 
     const amount_ngn = data.amount_ngn ? String(Math.round(parseFloat(String(data.amount_ngn).replace(/[^0-9.]/g, '')))) : undefined;
     const litres = data.litres ? String(parseFloat(String(data.litres).replace(/[^0-9.]/g, ''))) : undefined;
     return {
-      amount_ngn: amount_ngn && amount_ngn !== 'NaN' ? amount_ngn : undefined,
-      date: data.date || undefined,
-      description: data.vendor || undefined,
-      litres: litres && litres !== 'NaN' ? litres : undefined,
-      lowConfidence: false,
+      result: {
+        amount_ngn: amount_ngn && amount_ngn !== 'NaN' ? amount_ngn : undefined,
+        date: data.date || undefined,
+        description: data.vendor || undefined,
+        litres: litres && litres !== 'NaN' ? litres : undefined,
+        lowConfidence: false,
+      },
+      reason: 'ok',
     };
-  } catch {
-    return null;
+  } catch (err: any) {
+    console.warn('[OCR] Server fallback exception:', err);
+    return { result: null, reason: err?.message || 'Network error calling AI scanner' };
   }
 }
 
@@ -230,7 +245,7 @@ async function tryServerOcr(file: File): Promise<OcrResult | null> {
 // Component
 // ---------------------------------------------------------------------------
 
-type ScanState = 'idle' | 'loading' | 'done' | 'warning' | 'error';
+type ScanState = 'idle' | 'loading' | 'server' | 'done' | 'warning' | 'error';
 
 // Tesseract.js v7's createWorker() swallows load failures internally
 // (worker/createWorker.js ends its init chain with `.catch(() => {})`), so a
@@ -312,21 +327,24 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
 
       // Step 2: If local OCR failed, try server-side AI (Google Document AI)
       if (lowConfidence) {
+        setScanState('server');
         setProgress(95);
-        const serverResult = await tryServerOcr(file);
+        const { result: serverResult, reason } = await tryServerOcr(file);
         if (serverResult && (serverResult.amount_ngn || serverResult.litres)) {
           amount_ngn = serverResult.amount_ngn || amount_ngn;
           litres = serverResult.litres || litres;
           date = serverResult.date || date;
           description = serverResult.description || description;
           lowConfidence = false;
+        } else {
+          console.info(`[OCR] Server fallback did not help: ${reason}`);
         }
       }
 
       const result: OcrResult = { amount_ngn, date, description, litres, lowConfidence };
 
       if (lowConfidence) {
-        setErrorMsg("Couldn't read this receipt automatically — fill in the fields manually below.");
+        setErrorMsg("Couldn't read this receipt — fill in the fields manually below.");
         setScanState('warning');
         setTimeout(() => setScanState('idle'), 6000);
       } else {
@@ -344,6 +362,7 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
   const label = {
     idle:    'Scan receipt',
     loading: `Scanning… ${progress}%`,
+    server:  'Checking AI…',
     done:    'Scanned!',
     warning: 'Check photo',
     error:   errorMsg || 'Scan failed',
@@ -361,21 +380,21 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
           state === 'warning' && 'border-amber-500 text-amber-700 bg-amber-50',
           state === 'error'   && 'border-destructive text-destructive bg-destructive/5',
         )}
-        disabled={state === 'loading'}
+        disabled={state === 'loading' || state === 'server'}
         onClick={() => {
           setScanState('idle');
           inputRef.current?.click();
         }}
       >
         {/* Progress bar underlayer */}
-        {state === 'loading' && (
+        {(state === 'loading' || state === 'server') && (
           <span
             className="absolute inset-y-0 left-0 bg-primary/10 transition-all duration-200"
             style={{ width: `${progress}%` }}
           />
         )}
 
-        {state === 'loading' ? (
+        {state === 'loading' || state === 'server' ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin relative z-10" />
         ) : state === 'done' ? (
           <CheckCircle2 className="h-3.5 w-3.5 relative z-10" />
