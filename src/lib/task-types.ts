@@ -3,6 +3,16 @@ export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'complete';
 export type TaskType = 'task' | 'milestone' | 'bug' | 'feature';
 export type DependencyType = 'blocks' | 'is_blocked_by' | 'relates_to';
 
+export type RecurrenceFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+export interface RecurrenceRule {
+  freq: RecurrenceFreq;
+  interval: number;
+  weekdays?: number[];
+  monthDay?: number;
+  endDate?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -25,6 +35,58 @@ export interface Task {
   task_type: TaskType;
   blocked_reason: string | null;
   goal_id: string | null;
+  recurrence_rule: RecurrenceRule | null;
+  recurrence_next: string | null;
+  template_id: string | null;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  space_id: string | null;
+  created_by: string | null;
+  template_data: Record<string, any>;
+  is_global: boolean;
+  created_at: string;
+}
+
+export interface CustomFieldDefinition {
+  id: string;
+  space_id: string | null;
+  name: string;
+  field_type: 'text' | 'number' | 'dropdown' | 'checkbox' | 'date' | 'email' | 'phone' | 'url' | 'currency' | 'rating' | 'labels';
+  options: any;
+  is_required: boolean;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface CustomFieldValue {
+  id: string;
+  task_id: string;
+  field_id: string;
+  value_text: string | null;
+  value_number: number | null;
+  value_json: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SavedView {
+  id: string;
+  name: string;
+  space_id: string | null;
+  created_by: string | null;
+  view_type: 'board' | 'list' | 'table' | 'calendar' | 'gantt';
+  filters: Record<string, any>;
+  group_by: string | null;
+  sort_by: string | null;
+  sort_dir: string | null;
+  columns: any;
+  is_shared: boolean;
+  created_at: string;
 }
 
 export interface ProfileRow {

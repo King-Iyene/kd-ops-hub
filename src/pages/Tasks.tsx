@@ -44,6 +44,10 @@ import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
 import { SpaceStatusManager } from '@/components/tasks/SpaceStatusManager';
 import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
+import { TaskGanttView } from '@/components/tasks/TaskGanttView';
+import { TaskTemplatesDialog } from '@/components/tasks/TaskTemplatesDialog';
+import { SavedViewsPanel } from '@/components/tasks/SavedViewsPanel';
+import type { SavedView } from '@/lib/task-types';
 import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
@@ -128,6 +132,9 @@ const Tasks = () => {
 
   // Project-to-space mapping
   const [projectSpaceMap, setProjectSpaceMap] = useState<Map<string, string | null>>(new Map());
+
+  // Templates
+  const [templatesDialog, setTemplatesDialog] = useState(false);
 
   // ─── Load Data ───────────────────────────────────────────────────────
 
@@ -956,12 +963,44 @@ const Tasks = () => {
                 </>
               )}
 
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
+                  <ListTodo className="h-3.5 w-3.5" />
+                  Templates
+                </Button>
+              )}
+
               <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreate}>
                 <Plus className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">New task</span>
               </Button>
             </div>
           </div>
+
+          {/* Saved views */}
+          {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+            <div className="px-4 lg:px-6 pb-1">
+              <SavedViewsPanel
+                spaceId={selectedSpace}
+                currentFilters={{
+                  assignee: assigneeFilter,
+                  status: statusFilter,
+                  priority: priorityFilter,
+                  tag: tagFilter,
+                  search,
+                }}
+                currentViewType={currentView}
+                onApplyView={(v: SavedView) => {
+                  setCurrentView(v.view_type as any);
+                  if (v.filters.assignee) setAssigneeFilter(v.filters.assignee);
+                  if (v.filters.status) setStatusFilter(v.filters.status);
+                  if (v.filters.priority) setPriorityFilter(v.filters.priority);
+                  if (v.filters.tag) setTagFilter(v.filters.tag);
+                  if (v.filters.search) setSearch(v.filters.search);
+                }}
+              />
+            </div>
+          )}
 
           {/* Active filter pills */}
           {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && (
@@ -1022,6 +1061,12 @@ const Tasks = () => {
             />
           ) : currentView === 'calendar' ? (
             <TaskCalendarView
+              tasks={visible}
+              profiles={profiles}
+              onTaskClick={(t) => setDetailTask(t)}
+            />
+          ) : currentView === 'gantt' ? (
+            <TaskGanttView
               tasks={visible}
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
@@ -1365,6 +1410,24 @@ const Tasks = () => {
           onClose={() => setStatusManagerSpace(null)}
         />
       )}
+
+      <TaskTemplatesDialog
+        open={templatesDialog}
+        onClose={() => setTemplatesDialog(false)}
+        currentTask={detailTask}
+        onApplyTemplate={(data) => {
+          setForm({
+            title: data.title || '',
+            description: data.description || '',
+            assignee_id: '',
+            due_date: '',
+            priority: data.priority || 'normal',
+            status: data.status || 'open',
+          });
+          if (data.tags) setSelectedTagIds(data.tags);
+          setDialog(true);
+        }}
+      />
     </div>
   );
 };

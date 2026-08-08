@@ -26,6 +26,9 @@ import type {
   TaskDependency, TaskChecklist, TaskTimeEntry, DependencyType, TaskType,
 } from '@/lib/task-types';
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT } from '@/lib/task-types';
+import { RecurrenceEditor } from '@/components/tasks/RecurrenceEditor';
+import { CustomFieldsPanel } from '@/components/tasks/CustomFieldsPanel';
+import type { RecurrenceRule } from '@/lib/task-types';
 
 interface GoalRow {
   id: string;
@@ -1026,6 +1029,22 @@ export function TaskDetailPanel({
                 })()}
               </MetaField>
             )}
+
+            {/* Recurrence */}
+            <MetaField label="Recurrence">
+              <RecurrenceEditor
+                value={task.recurrence_rule as RecurrenceRule | null}
+                onChange={(rule) => updateField('recurrence_rule', rule)}
+              />
+            </MetaField>
+
+            {/* Custom Fields */}
+            <div className="pt-2 border-t border-border/40">
+              <CustomFieldsPanel
+                taskId={task.id}
+                spaceId={task.project_id || null}
+              />
+            </div>
 
             {/* Quick actions */}
             <div className="pt-3 border-t border-border/40 space-y-1.5">
