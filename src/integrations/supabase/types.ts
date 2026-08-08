@@ -3997,6 +3997,42 @@ export type Database = {
         }
         Relationships: []
       }
+      goal_tasks: {
+        Row: {
+          created_at: string
+          goal_id: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          goal_id: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          goal_id?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goal_tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goal_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goals: {
         Row: {
           completed_at: string | null
@@ -8781,6 +8817,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          goal_id: string | null
           id: string
           list_id: string | null
           parent_id: string | null
@@ -8805,6 +8842,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          goal_id?: string | null
           id?: string
           list_id?: string | null
           parent_id?: string | null
@@ -8829,6 +8867,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          goal_id?: string | null
           id?: string
           list_id?: string | null
           parent_id?: string | null
@@ -8885,6 +8924,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
             referencedColumns: ["id"]
           },
           {
