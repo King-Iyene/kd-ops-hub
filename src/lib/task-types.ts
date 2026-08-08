@@ -24,6 +24,7 @@ export interface Task {
   time_spent_minutes: number;
   task_type: TaskType;
   blocked_reason: string | null;
+  goal_id: string | null;
 }
 
 export interface ProfileRow {

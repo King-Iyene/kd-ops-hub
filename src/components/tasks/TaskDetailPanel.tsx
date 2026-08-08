@@ -9,6 +9,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { notifyUser } from '@/lib/notify';
 import { formatDate, formatDateTime, daysUntil } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,15 @@ import type {
   TaskDependency, TaskChecklist, TaskTimeEntry, DependencyType, TaskType,
 } from '@/lib/task-types';
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT } from '@/lib/task-types';
+
+interface GoalRow {
+  id: string;
+  title: string;
+  scope: string;
+  quarter: string;
+  status: string;
+  progress_pct: number;
+}
 
 interface TaskDetailPanelProps {
   task: Task;
@@ -71,6 +81,7 @@ export function TaskDetailPanel({
   const [editCommentBody, setEditCommentBody] = useState('');
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
+  const [availableGoals, setAvailableGoals] = useState<GoalRow[]>([]);
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -136,6 +147,9 @@ export function TaskDetailPanel({
     loadTimeEntries();
     loadActivities();
     loadWatchers();
+    supabase.from('goals').select('id, title, scope, quarter, status, progress_pct')
+      .neq('status', 'missed').order('quarter', { ascending: false }).limit(50)
+      .then(({ data }) => setAvailableGoals((data as GoalRow[]) || []));
   }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers]);
 
   // ─── Subtask actions ────────────────────────────────────────
@@ -257,6 +271,19 @@ export function TaskDetailPanel({
       });
       if (error) throw error;
       await logAudit('task_commented', `Commented on "${task.title}"`, profile);
+      // Notify task assignee and creator about the comment
+      const notifyIds = new Set<string>();
+      if (task.assignee_id && task.assignee_id !== profile?.id) notifyIds.add(task.assignee_id);
+      if (task.created_by && task.created_by !== profile?.id) notifyIds.add(task.created_by);
+      for (const uid of notifyIds) {
+        void notifyUser({
+          userId: uid,
+          type: 'task.commented',
+          module: 'tasks',
+          title: 'New comment on task',
+          body: `${profile?.full_name || 'Someone'} commented on "${task.title}"`,
+        });
+      }
       setNewComment('');
       await loadComments();
     } catch (err: any) {
@@ -298,6 +325,27 @@ export function TaskDetailPanel({
       return;
     }
     await logAudit('task_updated', `Updated "${task.title}" ${field}`, profile);
+
+    // Notify on assignment changes
+    if (field === 'assignee_id' && value && value !== profile?.id) {
+      void notifyUser({
+        userId: value,
+        type: 'task.assigned',
+        module: 'tasks',
+        title: 'Task assigned to you',
+        body: `"${task.title}" was assigned to you by ${profile?.full_name || 'someone'}`,
+      });
+    }
+    // Notify assignee on status changes
+    if (field === 'status' && task.assignee_id && task.assignee_id !== profile?.id) {
+      void notifyUser({
+        userId: task.assignee_id,
+        type: value === 'complete' ? 'task.completed' : 'task.status_changed',
+        module: 'tasks',
+        title: value === 'complete' ? 'Task marked complete' : 'Task status changed',
+        body: `"${task.title}" was ${value === 'complete' ? 'marked complete' : `moved to ${value}`} by ${profile?.full_name || 'someone'}`,
+      });
+    }
 
     const actionMap: Record<string, string> = {
       status: value === 'complete' ? 'completed' : oldValue === 'complete' ? 'reopened' : 'status_changed',
@@ -902,6 +950,38 @@ export function TaskDetailPanel({
                 })}
               </div>
             </MetaField>
+
+            {/* Goal linking */}
+            {availableGoals.length > 0 && (
+              <MetaField label="Goal">
+                <Select
+                  value={task.goal_id || '__none__'}
+                  onValueChange={(v) => updateField('goal_id', v === '__none__' ? null : v)}
+                >
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No goal</SelectItem>
+                    {availableGoals.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-muted-foreground shrink-0">{g.quarter}</span>
+                          <span className="truncate">{g.title}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {task.goal_id && (() => {
+                  const goal = availableGoals.find((g) => g.id === task.goal_id);
+                  return goal ? (
+                    <div className="flex items-center justify-between text-[10px] mt-1">
+                      <span className="text-muted-foreground">{goal.quarter} · {goal.scope}</span>
+                      <span className="font-medium tabular-nums">{goal.progress_pct}%</span>
+                    </div>
+                  ) : null;
+                })()}
+              </MetaField>
+            )}
 
             {/* Quick actions */}
             <div className="pt-3 border-t border-border/40 space-y-1.5">

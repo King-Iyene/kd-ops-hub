@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { notifyUser } from '@/lib/notify';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,6 +176,26 @@ const Tasks = () => {
 
   useEffect(() => { load(); }, [load]);
 
+  // Realtime subscription — auto-refresh when any task changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        load();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => {
+        supabase.from('task_comments').select('task_id').then(({ data }) => {
+          if (!data) return;
+          const counts = new Map<string, number>();
+          for (const row of data) counts.set(row.task_id, (counts.get(row.task_id) ?? 0) + 1);
+          setCommentCountsState(counts);
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // Load comment counts
   useEffect(() => {
     supabase
@@ -212,6 +233,32 @@ const Tasks = () => {
       setProjectSpaceMap(m);
     });
   }, [spaces]);
+
+  // ─── Due-date notifications (run once per session) ───────────────────
+  useEffect(() => {
+    if (!profile?.id || tasks.length === 0) return;
+    const notifiedKey = `kd_due_notified_${new Date().toISOString().slice(0, 10)}`;
+    if (sessionStorage.getItem(notifiedKey)) return;
+    sessionStorage.setItem(notifiedKey, '1');
+
+    const myTasks = tasks.filter((t) => t.assignee_id === profile.id && t.status !== 'complete' && t.due_date);
+    const today = new Date().toISOString().slice(0, 10);
+    const dueTodayCount = myTasks.filter((t) => t.due_date === today).length;
+    const overdueCount = myTasks.filter((t) => t.due_date! < today).length;
+
+    if (overdueCount > 0) {
+      toast({
+        title: `${overdueCount} overdue task${overdueCount > 1 ? 's' : ''}`,
+        description: 'Check your tasks — some are past due.',
+        variant: 'destructive',
+      });
+    } else if (dueTodayCount > 0) {
+      toast({
+        title: `${dueTodayCount} task${dueTodayCount > 1 ? 's' : ''} due today`,
+        description: 'Stay on track — check your tasks.',
+      });
+    }
+  }, [profile?.id, tasks]);
 
   // ─── Favorites ───────────────────────────────────────────────────────
 
@@ -366,6 +413,15 @@ const Tasks = () => {
         });
         if (error) throw error;
         await logAudit('task_created', `Task "${payload.title}" created`, profile);
+        if (payload.assignee_id && payload.assignee_id !== profile?.id) {
+          void notifyUser({
+            userId: payload.assignee_id,
+            type: 'task.assigned',
+            module: 'tasks',
+            title: 'New task assigned to you',
+            body: `"${payload.title}" was assigned to you by ${profile?.full_name || 'someone'}`,
+          });
+        }
         toast({ title: 'Task created' });
       }
       setDialog(false);
@@ -422,7 +478,18 @@ const Tasks = () => {
       return;
     }
     const task = tasks.find((t) => t.id === taskId);
-    if (task) await logAudit('task_updated', `Task "${task.title}" ${field} changed`, profile);
+    if (task) {
+      await logAudit('task_updated', `Task "${task.title}" ${field} changed`, profile);
+      if (field === 'assignee_id' && value && value !== profile?.id) {
+        void notifyUser({
+          userId: value,
+          type: 'task.assigned',
+          module: 'tasks',
+          title: 'Task assigned to you',
+          body: `"${task.title}" was assigned to you by ${profile?.full_name || 'someone'}`,
+        });
+      }
+    }
     load();
   };
 
