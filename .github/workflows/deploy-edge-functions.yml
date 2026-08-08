@@ -123,6 +123,6 @@ jobs:
       - name: Deploy provider-switch
         run: supabase functions deploy provider-switch --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
 
-      # ── Receipt OCR fallback (dormant until Google Doc AI secrets are set) ──
+      # ── Receipt OCR — primary scanner via Google Document AI ──
       - name: Deploy extract-receipt
         run: supabase functions deploy extract-receipt --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt

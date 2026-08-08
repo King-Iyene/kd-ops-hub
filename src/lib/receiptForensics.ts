@@ -39,11 +39,12 @@ export async function hasJpegExif(file: File): Promise<boolean | null> {
     const head = await file.slice(0, 131072).arrayBuffer();
     const bytes = new Uint8Array(head);
     if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null; // not a valid JPEG SOI
-    for (let i = 2; i < bytes.length - 6; i++) {
+    for (let i = 2; i < bytes.length - 8; i++) {
       if (
         bytes[i] === 0xff && bytes[i + 1] === 0xe1 &&
-        bytes[i + 2] === 0x45 && bytes[i + 3] === 0x78 && // "Ex"
-        bytes[i + 4] === 0x69 && bytes[i + 5] === 0x66    // "if"
+        // bytes[i+2..i+3] are the APP1 segment length — skip them
+        bytes[i + 4] === 0x45 && bytes[i + 5] === 0x78 && // "Ex"
+        bytes[i + 6] === 0x69 && bytes[i + 7] === 0x66    // "if"
       ) {
         return true;
       }
