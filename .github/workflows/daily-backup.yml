@@ -52,28 +52,15 @@ jobs:
       issues: write
 
     steps:
-      - name: Install Supabase CLI
-        run: |
-          # Fetch the latest release tag via the GitHub API, then construct the
-          # download URL directly — no grep/sed or install.sh required.
-          VERSION=$(curl -fsSL "https://api.github.com/repos/supabase/cli/releases/latest" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
-          echo "Installing Supabase CLI v${VERSION}"
-          curl -fsSLo supabase.deb \
-            "https://github.com/supabase/cli/releases/download/v${VERSION}/supabase_${VERSION}_linux_amd64.deb"
-          sudo dpkg -i supabase.deb
-          rm -f supabase.deb
-          supabase --version
-
       - name: Dump database
         run: |
-          # supabase db dump uses --db-url, not --project-ref.
-          # DB URL format: postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres
-          # Add SUPABASE_DB_PASSWORD to GitHub secrets:
-          #   Supabase dashboard → Project Settings → Database → Database password
+          # Use pg_dump directly against the Supabase direct connection.
+          # The Supabase CLI's `db dump` runs pg_dump inside a Docker
+          # container that can't resolve the "postgres" hostname in GitHub
+          # Actions runners, so we bypass it entirely.
           TIMESTAMP=$(date +%Y-%m-%d)
           DB_URL="postgresql://postgres:${{ secrets.SUPABASE_DB_PASSWORD }}@db.${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co:5432/postgres"
-          supabase db dump --db-url "$DB_URL" -f "kdops-backup-${TIMESTAMP}.sql"
+          pg_dump "$DB_URL" --no-owner --no-privileges -f "kdops-backup-${TIMESTAMP}.sql"
           gzip "kdops-backup-${TIMESTAMP}.sql"
           echo "BACKUP_FILE=kdops-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
 

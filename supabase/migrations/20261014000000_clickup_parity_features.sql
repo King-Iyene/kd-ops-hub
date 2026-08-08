@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.task_templates (
 
 ALTER TABLE public.task_templates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "task_templates_authenticated" ON public.task_templates;
 CREATE POLICY "task_templates_authenticated"
   ON public.task_templates FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS public.custom_field_definitions (
 
 ALTER TABLE public.custom_field_definitions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "cfd_authenticated" ON public.custom_field_definitions;
 CREATE POLICY "cfd_authenticated"
   ON public.custom_field_definitions FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
@@ -73,6 +75,7 @@ CREATE TABLE IF NOT EXISTS public.custom_field_values (
 
 ALTER TABLE public.custom_field_values ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "cfv_authenticated" ON public.custom_field_values;
 CREATE POLICY "cfv_authenticated"
   ON public.custom_field_values FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
@@ -100,6 +103,7 @@ CREATE TABLE IF NOT EXISTS public.saved_views (
 
 ALTER TABLE public.saved_views ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "saved_views_authenticated" ON public.saved_views;
 CREATE POLICY "saved_views_authenticated"
   ON public.saved_views FOR ALL TO authenticated
   USING (true) WITH CHECK (true);
