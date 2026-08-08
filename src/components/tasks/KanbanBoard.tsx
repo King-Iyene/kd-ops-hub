@@ -41,6 +41,7 @@ interface KanbanBoardProps {
   subtaskCounts: Map<string, { total: number; done: number }>;
   commentCounts?: Map<string, number>;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => Promise<void>;
+  onFieldChange: (taskId: string, field: string, value: any) => Promise<void>;
   onTaskClick: (task: Task) => void;
   onCreateTask: (status: TaskStatus) => void;
   onQuickCreate: (title: string, status: TaskStatus) => Promise<void>;
@@ -48,7 +49,7 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
-  onStatusChange, onTaskClick, onCreateTask, onQuickCreate,
+  onStatusChange, onFieldChange, onTaskClick, onCreateTask, onQuickCreate,
 }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -99,6 +100,13 @@ export function KanbanBoard({
 
     if (groupBy === 'status' && task.status !== targetKey) {
       await onStatusChange(draggedId, targetKey as TaskStatus);
+    } else if (groupBy === 'priority' && task.priority !== targetKey) {
+      await onFieldChange(draggedId, 'priority', targetKey);
+    } else if (groupBy === 'assignee') {
+      const newAssignee = targetKey === '__unassigned' ? null : targetKey;
+      if (task.assignee_id !== newAssignee) {
+        await onFieldChange(draggedId, 'assignee_id', newAssignee);
+      }
     }
     setDraggedId(null);
   };

@@ -22,7 +22,7 @@ interface TaskDashboardProps {
 export function TaskDashboard({ tasks, allTasks, profiles, currentUserId, onTaskClick }: TaskDashboardProps) {
   const now = Date.now();
   const weekMs = 7 * 864e5;
-  const topLevel = allTasks.filter((t) => !t.parent_id);
+  const topLevel = tasks;
 
   const completedThisWeek = topLevel.filter((t) => t.status === 'complete' && t.completed_at && new Date(t.completed_at).getTime() >= now - weekMs);
   const completedLastWeek = topLevel.filter((t) => t.status === 'complete' && t.completed_at && new Date(t.completed_at).getTime() >= now - 2 * weekMs && new Date(t.completed_at).getTime() < now - weekMs);

@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import {
-  CheckCircle2, MessageSquare, ChevronDown,
-  ChevronRight, Square, CheckSquare, Minus,
+  CheckCircle2, MessageSquare, ChevronDown, ChevronUp,
+  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,11 @@ import type { Task, TaskStatus, Priority, ProfileRow, Tag } from '@/lib/task-typ
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'none';
+type SortField = 'title' | 'assignee' | 'due_date' | 'priority' | 'status' | 'created_at';
+type SortDir = 'asc' | 'desc';
+
+const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
+const STATUS_RANK: Record<string, number> = { open: 0, in_progress: 1, blocked: 2, complete: 3 };
 
 interface TaskListViewProps {
   tasks: Task[];
@@ -47,14 +52,51 @@ export function TaskListView({
   tableMode = false,
 }: TaskListViewProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>(tableMode ? 'none' : 'status');
+  const [sortField, setSortField] = useState<SortField>('created_at');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedTasks = useMemo(() => {
+    const sorted = [...tasks].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case 'title': cmp = a.title.localeCompare(b.title); break;
+        case 'assignee': {
+          const aName = a.assignee_id ? (profiles.get(a.assignee_id)?.full_name ?? '') : '';
+          const bName = b.assignee_id ? (profiles.get(b.assignee_id)?.full_name ?? '') : '';
+          cmp = aName.localeCompare(bName);
+          break;
+        }
+        case 'due_date': {
+          const aDate = a.due_date || '9999-12-31';
+          const bDate = b.due_date || '9999-12-31';
+          cmp = aDate.localeCompare(bDate);
+          break;
+        }
+        case 'priority': cmp = (PRIORITY_RANK[a.priority] ?? 99) - (PRIORITY_RANK[b.priority] ?? 99); break;
+        case 'status': cmp = (STATUS_RANK[a.status] ?? 99) - (STATUS_RANK[b.status] ?? 99); break;
+        case 'created_at': cmp = a.created_at.localeCompare(b.created_at); break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return sorted;
+  }, [tasks, sortField, sortDir, profiles]);
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {
-      return [{ key: 'all', label: 'All Tasks', accent: 'bg-primary', tasks }];
+      return [{ key: 'all', label: 'All Tasks', accent: 'bg-primary', tasks: sortedTasks }];
     }
 
     const map = new Map<string, Task[]>();
-    for (const t of tasks) {
+    for (const t of sortedTasks) {
       let key: string;
       if (groupBy === 'status') key = t.status;
       else if (groupBy === 'priority') key = t.priority;
@@ -94,7 +136,7 @@ export function TaskListView({
       accent: 'bg-primary',
       tasks: map.get(uid)!,
     }));
-  }, [tasks, groupBy, profiles]);
+  }, [sortedTasks, groupBy, profiles]);
 
   const allSelected = tasks.length > 0 && selectedTasks.size === tasks.length;
   const someSelected = selectedTasks.size > 0 && selectedTasks.size < tasks.length;
@@ -149,6 +191,9 @@ export function TaskListView({
             groupBy={groupBy}
             selectedTasks={selectedTasks}
             onToggleSelect={onToggleSelect}
+            sortField={sortField}
+            sortDir={sortDir}
+            onToggleSort={toggleSort}
           />
         ))
       )}
@@ -159,6 +204,7 @@ export function TaskListView({
 function ListGroup({
   label, accent, tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, groupBy, selectedTasks, onToggleSelect,
+  sortField, sortDir, onToggleSort,
 }: {
   label: string;
   accent: string;
@@ -172,6 +218,9 @@ function ListGroup({
   groupBy: GroupBy;
   selectedTasks: Set<string>;
   onToggleSelect: (taskId: string) => void;
+  sortField: SortField;
+  sortDir: SortDir;
+  onToggleSort: (field: SortField) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -192,12 +241,12 @@ function ListGroup({
           {/* Header */}
           <div className="hidden sm:grid grid-cols-[32px_1fr_120px_100px_90px_90px_70px] gap-1 px-3 py-1.5 border-b border-border/40 bg-muted/30">
             <span />
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Task</span>
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assignee</span>
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due</span>
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Priority</span>
+            <SortableHeader label="Task" field="title" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
+            <SortableHeader label="Assignee" field="assignee" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
+            <SortableHeader label="Due" field="due_date" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
+            <SortableHeader label="Priority" field="priority" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
             {groupBy !== 'status' && (
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
+              <SortableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
             )}
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Info</span>
           </div>
@@ -381,6 +430,29 @@ function ListRow({
         )}
       </div>
     </div>
+  );
+}
+
+function SortableHeader({ label, field, sortField, sortDir, onToggleSort }: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+  onToggleSort: (field: SortField) => void;
+}) {
+  const active = sortField === field;
+  return (
+    <button
+      onClick={() => onToggleSort(field)}
+      className="flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+    >
+      {label}
+      {active ? (
+        sortDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+      ) : (
+        <ArrowUpDown className="h-2.5 w-2.5 opacity-0 group-hover:opacity-40" />
+      )}
+    </button>
   );
 }
 

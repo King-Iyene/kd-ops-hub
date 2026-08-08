@@ -369,6 +369,18 @@ const Tasks = () => {
     if (task) await logAudit('task_updated', `Task "${task.title}" moved to ${newStatus}`, profile);
   };
 
+  const handleFieldChange = async (taskId: string, field: string, value: any) => {
+    const update: Record<string, any> = { [field]: value };
+    const { error } = await supabase.from('tasks').update(update).eq('id', taskId);
+    if (error) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    const task = tasks.find((t) => t.id === taskId);
+    if (task) await logAudit('task_updated', `Task "${task.title}" ${field} changed`, profile);
+    load();
+  };
+
   const confirmDeleteTask = async () => {
     if (!pendingDelete) return;
     const { error } = await supabase.from('tasks').delete().eq('id', pendingDelete.id);
@@ -554,6 +566,42 @@ const Tasks = () => {
     load();
   };
 
+  const handleRenameFolder = async (folder: SpaceFolder) => {
+    const name = prompt('Rename folder:', folder.name);
+    if (!name?.trim() || name.trim() === folder.name) return;
+    const { error } = await supabase.from('space_folders').update({ name: name.trim() }).eq('id', folder.id);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Folder renamed' });
+    load();
+  };
+
+  const handleDeleteFolder = async (folder: SpaceFolder) => {
+    if (!confirm(`Delete folder "${folder.name}"? Lists inside will be moved out of the folder.`)) return;
+    const { error } = await supabase.from('space_folders').delete().eq('id', folder.id);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Folder deleted' });
+    load();
+  };
+
+  const handleRenameList = async (list: TaskList) => {
+    const name = prompt('Rename list:', list.name);
+    if (!name?.trim() || name.trim() === list.name) return;
+    const { error } = await supabase.from('task_lists').update({ name: name.trim() }).eq('id', list.id);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'List renamed' });
+    load();
+  };
+
+  const handleDeleteList = async (list: TaskList) => {
+    if (!confirm(`Delete list "${list.name}"? Tasks in this list will become unassigned.`)) return;
+    await supabase.from('tasks').update({ list_id: null }).eq('list_id', list.id);
+    const { error } = await supabase.from('task_lists').delete().eq('id', list.id);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    if (selectedList === list.id) setSelectedList(null);
+    toast({ title: 'List deleted' });
+    load();
+  };
+
   // ─── View helpers ────────────────────────────────────────────────────
 
   const viewTitle = useMemo(() => {
@@ -615,6 +663,10 @@ const Tasks = () => {
           onManageMembers={(s) => setMembersSpace(s)}
           onCreateFolder={handleCreateFolder}
           onCreateList={handleCreateList}
+          onRenameFolder={handleRenameFolder}
+          onDeleteFolder={handleDeleteFolder}
+          onRenameList={handleRenameList}
+          onDeleteList={handleDeleteList}
           unorganizedCount={unorganizedCount}
         />
       </div>
@@ -641,6 +693,10 @@ const Tasks = () => {
             onManageMembers={(s) => setMembersSpace(s)}
             onCreateFolder={handleCreateFolder}
             onCreateList={handleCreateList}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onRenameList={handleRenameList}
+            onDeleteList={handleDeleteList}
             unorganizedCount={unorganizedCount}
           />
         </SheetContent>
@@ -800,6 +856,7 @@ const Tasks = () => {
               subtaskCounts={subtaskCounts}
               commentCounts={commentCountsState}
               onStatusChange={handleStatusChange}
+              onFieldChange={handleFieldChange}
               onTaskClick={(t) => setDetailTask(t)}
               onCreateTask={openCreateWithStatus}
               onQuickCreate={handleQuickCreate}

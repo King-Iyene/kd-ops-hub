@@ -61,6 +61,10 @@ interface TaskSidebarProps {
   onManageMembers?: (space: Space) => void;
   onCreateFolder?: (spaceId: string) => void;
   onCreateList?: (spaceId: string, folderId?: string) => void;
+  onRenameFolder?: (folder: SpaceFolder) => void;
+  onDeleteFolder?: (folder: SpaceFolder) => void;
+  onRenameList?: (list: TaskList) => void;
+  onDeleteList?: (list: TaskList) => void;
   unorganizedCount: number;
 }
 
@@ -69,7 +73,8 @@ export function TaskSidebar({
   taskCounts, spaceTaskCounts, listTaskCounts,
   onSelectSpace, onSelectList, onChangeView, onCreateSpace,
   onEditSpace, onDeleteSpace, onManageMembers,
-  onCreateFolder, onCreateList, unorganizedCount,
+  onCreateFolder, onCreateList, onRenameFolder, onDeleteFolder,
+  onRenameList, onDeleteList, unorganizedCount,
 }: TaskSidebarProps) {
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
@@ -186,15 +191,46 @@ export function TaskSidebar({
                         const folderLists = lists.filter((l) => l.folder_id === folder.id).sort((a, b) => a.sort_order - b.sort_order);
                         return (
                           <div key={folder.id}>
-                            <button
-                              onClick={() => toggleFolder(folder.id)}
-                              className="flex items-center gap-2 w-full px-2 py-1 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                            >
-                              {isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
-                              <FolderKanban className="h-3 w-3 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
-                              <span className="flex-1 truncate text-left">{folder.name}</span>
-                              <span className="text-[10px] tabular-nums opacity-40">{folderLists.length}</span>
-                            </button>
+                            <div className="flex items-center group/folder">
+                              <button
+                                onClick={() => toggleFolder(folder.id)}
+                                className="flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                              >
+                                {isFolderExpanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+                                <FolderKanban className="h-3 w-3 shrink-0" style={folder.color ? { color: folder.color } : undefined} />
+                                <span className="flex-1 truncate text-left">{folder.name}</span>
+                                <span className="text-[10px] tabular-nums opacity-40">{folderLists.length}</span>
+                              </button>
+                              {(onRenameFolder || onDeleteFolder || onCreateList) && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/folder:opacity-100 shrink-0">
+                                      <MoreHorizontal className="h-3 w-3" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-40">
+                                    {onCreateList && (
+                                      <DropdownMenuItem onClick={() => onCreateList(space.id, folder.id)}>
+                                        <ListTodo className="h-3.5 w-3.5 mr-2" /> New list
+                                      </DropdownMenuItem>
+                                    )}
+                                    {onRenameFolder && (
+                                      <DropdownMenuItem onClick={() => onRenameFolder(folder)}>
+                                        <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+                                      </DropdownMenuItem>
+                                    )}
+                                    {onDeleteFolder && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-destructive" onClick={() => onDeleteFolder(folder)}>
+                                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                                        </DropdownMenuItem>
+                                      </>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
                             {isFolderExpanded && folderLists.length > 0 && (
                               <div className="ml-3 pl-2 border-l border-border/30 space-y-0.5 mt-0.5">
                                 {folderLists.map((list) => (
@@ -204,6 +240,8 @@ export function TaskSidebar({
                                     count={listTaskCounts.get(list.id) ?? 0}
                                     active={selectedList === list.id}
                                     onClick={() => { onSelectList(list.id); onSelectSpace(space.id); ensureTaskView(); }}
+                                    onRename={onRenameList ? () => onRenameList(list) : undefined}
+                                    onDelete={onDeleteList ? () => onDeleteList(list) : undefined}
                                   />
                                 ))}
                               </div>
@@ -219,6 +257,8 @@ export function TaskSidebar({
                           count={listTaskCounts.get(list.id) ?? 0}
                           active={selectedList === list.id}
                           onClick={() => { onSelectList(list.id); onSelectSpace(space.id); ensureTaskView(); }}
+                          onRename={onRenameList ? () => onRenameList(list) : undefined}
+                          onDelete={onDeleteList ? () => onDeleteList(list) : undefined}
                         />
                       ))}
                     </div>
@@ -280,26 +320,54 @@ function SidebarItem({
   );
 }
 
-function ListItem({ list, count, active, onClick }: {
+function ListItem({ list, count, active, onClick, onRename, onDelete }: {
   list: TaskList;
   count: number;
   active: boolean;
   onClick: () => void;
+  onRename?: () => void;
+  onDelete?: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2 w-full px-2 py-1 rounded-md text-[12px] font-medium transition-all text-left',
-        active
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+    <div className="flex items-center group/list">
+      <button
+        onClick={onClick}
+        className={cn(
+          'flex items-center gap-2 flex-1 min-w-0 px-2 py-1 rounded-md text-[12px] font-medium transition-all text-left',
+          active
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
+        )}
+      >
+        <ListTodo className="h-3 w-3 shrink-0" style={list.color ? { color: list.color } : undefined} />
+        <span className="flex-1 truncate">{list.name}</span>
+        <span className="text-[10px] tabular-nums opacity-40">{count}</span>
+      </button>
+      {(onRename || onDelete) && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover/list:opacity-100 shrink-0">
+              <MoreHorizontal className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            {onRename && (
+              <DropdownMenuItem onClick={onRename}>
+                <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+              </DropdownMenuItem>
+            )}
+            {onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={onDelete}>
+                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
-    >
-      <ListTodo className="h-3 w-3 shrink-0" style={list.color ? { color: list.color } : undefined} />
-      <span className="flex-1 truncate">{list.name}</span>
-      <span className="text-[10px] tabular-nums opacity-40">{count}</span>
-    </button>
+    </div>
   );
 }
 

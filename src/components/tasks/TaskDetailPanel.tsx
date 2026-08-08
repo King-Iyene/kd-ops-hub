@@ -65,6 +65,10 @@ export function TaskDetailPanel({
   const [activeDetailTab, setActiveDetailTab] = useState<'comments' | 'activity'>('comments');
   const [timerRunning, setTimerRunning] = useState(false);
   const [activeTimerEntry, setActiveTimerEntry] = useState<TaskTimeEntry | null>(null);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descDraft, setDescDraft] = useState(task.description || '');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentBody, setEditCommentBody] = useState('');
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -258,6 +262,27 @@ export function TaskDetailPanel({
     } finally { setPosting(false); }
   };
 
+  // ─── Comment edit / delete ──────────────────────────────────
+  const startEditComment = (c: TaskComment) => {
+    setEditingCommentId(c.id);
+    setEditCommentBody(c.body);
+  };
+
+  const saveEditComment = async () => {
+    if (!editingCommentId || !editCommentBody.trim()) return;
+    const { error } = await supabase.from('task_comments').update({ body: editCommentBody.trim() }).eq('id', editingCommentId);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    setEditingCommentId(null);
+    setEditCommentBody('');
+    await loadComments();
+  };
+
+  const deleteComment = async (commentId: string) => {
+    const { error } = await supabase.from('task_comments').delete().eq('id', commentId);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    await loadComments();
+  };
+
   // ─── Field update ───────────────────────────────────────────
   const updateField = async (field: string, value: any) => {
     const oldValue = (task as any)[field];
@@ -340,11 +365,47 @@ export function TaskDetailPanel({
           {/* ─── Left Column: Content ──────────────── */}
           <div className="flex-1 min-w-0 p-5 space-y-5 border-r border-border/20">
             {/* Description */}
-            {task.description && (
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {task.description}
-              </p>
-            )}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</Label>
+                {!editingDescription && (
+                  <Button size="sm" variant="ghost" className="h-6 text-xs text-muted-foreground" onClick={() => { setDescDraft(task.description || ''); setEditingDescription(true); }}>
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                )}
+              </div>
+              {editingDescription ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={descDraft}
+                    onChange={(e) => setDescDraft(e.target.value)}
+                    rows={4}
+                    className="text-sm resize-y"
+                    placeholder="Add a description..."
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="h-7 text-xs" onClick={async () => {
+                      await updateField('description', descDraft || null);
+                      setEditingDescription(false);
+                    }}>Save</Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingDescription(false)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : task.description ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1.5 -m-1.5 transition-colors"
+                   onClick={() => { setDescDraft(task.description || ''); setEditingDescription(true); }}>
+                  {task.description}
+                </p>
+              ) : (
+                <button
+                  onClick={() => { setDescDraft(''); setEditingDescription(true); }}
+                  className="text-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors py-1"
+                >
+                  Click to add description...
+                </button>
+              )}
+            </div>
 
             {/* Dependencies */}
             {(blocking.length > 0 || blockedBy.length > 0 || relatedDeps.length > 0 || showDepAdd) && (
@@ -512,8 +573,10 @@ export function TaskDetailPanel({
                       const initials = author
                         ? author.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
                         : '??';
+                      const isOwn = c.author_id === profile?.id;
+                      const isEditing = editingCommentId === c.id;
                       return (
-                        <div key={c.id} className="flex gap-2.5">
+                        <div key={c.id} className="flex gap-2.5 group">
                           <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
                             <span className="text-[9px] font-bold leading-none">{initials}</span>
                           </div>
@@ -521,8 +584,35 @@ export function TaskDetailPanel({
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold">{author?.full_name || 'Unknown'}</span>
                               <span className="text-[10px] text-muted-foreground">{formatDateTime(c.created_at)}</span>
+                              {isOwn && !isEditing && (
+                                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => startEditComment(c)}>
+                                    <Pencil className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => deleteComment(c.id)}>
+                                    <Trash2 className="h-2.5 w-2.5 text-muted-foreground" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                            <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-0.5 leading-relaxed">{c.body}</p>
+                            {isEditing ? (
+                              <div className="space-y-1.5 mt-1">
+                                <Textarea
+                                  value={editCommentBody}
+                                  onChange={(e) => setEditCommentBody(e.target.value)}
+                                  rows={2}
+                                  className="text-sm resize-none"
+                                  autoFocus
+                                  onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveEditComment(); }}
+                                />
+                                <div className="flex gap-1.5">
+                                  <Button size="sm" className="h-6 text-[11px]" onClick={saveEditComment} disabled={!editCommentBody.trim()}>Save</Button>
+                                  <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setEditingCommentId(null)}>Cancel</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-0.5 leading-relaxed">{c.body}</p>
+                            )}
                           </div>
                         </div>
                       );
@@ -661,7 +751,7 @@ export function TaskDetailPanel({
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">Logged</span>
-                  <span className="font-medium tabular-nums">{formatMinutes(totalTimeLogged + task.time_spent_minutes)}</span>
+                  <span className="font-medium tabular-nums">{formatMinutes(totalTimeLogged)}</span>
                 </div>
                 {task.time_estimate_minutes && (
                   <div className="flex items-center justify-between text-[11px]">
@@ -679,6 +769,19 @@ export function TaskDetailPanel({
                     if (val !== task.time_estimate_minutes) updateField('time_estimate_minutes', val);
                   }}
                 />
+                {timeEntries.length > 0 && (
+                  <div className="space-y-0.5 mt-1 max-h-28 overflow-y-auto">
+                    {timeEntries.filter((e) => e.ended_at).map((entry) => {
+                      const who = entry.user_id ? profiles.get(entry.user_id) : null;
+                      return (
+                        <div key={entry.id} className="flex items-center justify-between text-[10px] text-muted-foreground px-1 py-0.5 rounded hover:bg-muted/40">
+                          <span className="truncate">{who?.full_name?.split(' ')[0] || 'User'} · {new Date(entry.started_at).toLocaleDateString()}</span>
+                          <span className="font-medium tabular-nums shrink-0">{formatMinutes(entry.duration_minutes || 0)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </MetaField>
 
