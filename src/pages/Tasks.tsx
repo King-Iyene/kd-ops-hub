@@ -41,6 +41,7 @@ import { TaskListView } from '@/components/tasks/TaskListView';
 import { TaskDashboard } from '@/components/tasks/TaskDashboard';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
+import { SpaceStatusManager } from '@/components/tasks/SpaceStatusManager';
 import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
@@ -106,22 +107,31 @@ const Tasks = () => {
   const [savingSpace, setSavingSpace] = useState(false);
   const [pendingDeleteSpace, setPendingDeleteSpace] = useState<Space | null>(null);
   const [membersSpace, setMembersSpace] = useState<Space | null>(null);
+  const [statusManagerSpace, setStatusManagerSpace] = useState<Space | null>(null);
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Pagination
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 200;
+
   // Comment counts
   const [commentCountsState, setCommentCountsState] = useState<Map<string, number>>(new Map());
+
+  // Favorites
+  const [favoriteSpaceIds, setFavoriteSpaceIds] = useState<Set<string>>(new Set());
 
   // Project-to-space mapping
   const [projectSpaceMap, setProjectSpaceMap] = useState<Map<string, string | null>>(new Map());
 
   // ─── Load Data ───────────────────────────────────────────────────────
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (append = false) => {
+    if (!append) setLoading(true);
     setError(null);
     try {
+      const offset = append ? tasks.length : 0;
       const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes] = await Promise.all([
         supabase
           .from('tasks')
@@ -129,11 +139,11 @@ const Tasks = () => {
           .is('parent_id', null)
           .order('sort_order', { ascending: true })
           .order('due_date', { ascending: true, nullsFirst: false })
-          .limit(500),
+          .range(offset, offset + PAGE_SIZE - 1),
         supabase
           .from('tasks')
-          .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags')
-          .limit(2000),
+          .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags, created_by')
+          .limit(5000),
         supabase.from('profiles').select('id, full_name, email').order('full_name').limit(500),
         supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
         supabase.from('project_spaces').select('*').is('deleted_at', null).order('sort_order'),
@@ -141,7 +151,13 @@ const Tasks = () => {
         supabase.from('task_lists').select('*').order('sort_order'),
       ]);
       if (topRes.error) throw topRes.error;
-      setTasks((topRes.data as Task[]) || []);
+      const newTasks = (topRes.data as Task[]) || [];
+      setHasMore(newTasks.length === PAGE_SIZE);
+      if (append) {
+        setTasks((prev) => [...prev, ...newTasks]);
+      } else {
+        setTasks(newTasks);
+      }
       setAllTasks((allRes.data as Task[]) || []);
       const m = new Map<string, ProfileRow>();
       for (const p of (profilesRes.data as ProfileRow[]) || []) m.set(p.id, p);
@@ -155,7 +171,7 @@ const Tasks = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tasks.length, PAGE_SIZE]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -174,6 +190,19 @@ const Tasks = () => {
       });
   }, [tasks]);
 
+  // Load favorites
+  useEffect(() => {
+    if (!profile?.id) return;
+    supabase
+      .from('user_favorites')
+      .select('target_id')
+      .eq('user_id', profile.id)
+      .eq('target_type', 'space')
+      .then(({ data }) => {
+        if (data) setFavoriteSpaceIds(new Set(data.map((r: any) => r.target_id)));
+      });
+  }, [profile?.id, spaces]);
+
   // Load project-space mapping
   useEffect(() => {
     supabase.from('projects').select('id, space_id').then(({ data }) => {
@@ -183,6 +212,22 @@ const Tasks = () => {
       setProjectSpaceMap(m);
     });
   }, [spaces]);
+
+  // ─── Favorites ───────────────────────────────────────────────────────
+
+  const toggleFavoriteSpace = async (spaceId: string) => {
+    if (!profile?.id) return;
+    if (favoriteSpaceIds.has(spaceId)) {
+      await supabase.from('user_favorites').delete()
+        .eq('user_id', profile.id).eq('target_type', 'space').eq('target_id', spaceId);
+      setFavoriteSpaceIds((prev) => { const next = new Set(prev); next.delete(spaceId); return next; });
+    } else {
+      await supabase.from('user_favorites').insert({
+        user_id: profile.id, target_type: 'space', target_id: spaceId,
+      });
+      setFavoriteSpaceIds((prev) => new Set(prev).add(spaceId));
+    }
+  };
 
   // ─── Keyboard shortcuts ──────────────────────────────────────────────
 
@@ -661,12 +706,15 @@ const Tasks = () => {
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
           onManageMembers={(s) => setMembersSpace(s)}
+          onManageStatuses={(s) => setStatusManagerSpace(s)}
           onCreateFolder={handleCreateFolder}
           onCreateList={handleCreateList}
           onRenameFolder={handleRenameFolder}
           onDeleteFolder={handleDeleteFolder}
           onRenameList={handleRenameList}
           onDeleteList={handleDeleteList}
+          favoriteSpaceIds={favoriteSpaceIds}
+          onToggleFavorite={toggleFavoriteSpace}
           unorganizedCount={unorganizedCount}
         />
       </div>
@@ -869,13 +917,21 @@ const Tasks = () => {
               subtaskCounts={subtaskCounts}
               commentCounts={commentCountsState}
               onTaskClick={(t) => setDetailTask(t)}
-              onUpdate={load}
+              onUpdate={() => load()}
               selectedTasks={selectedTasks}
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllVisible}
               tableMode={currentView === 'table'}
             />
           ) : null}
+
+          {hasMore && !loading && currentView !== 'dashboard' && (
+            <div className="flex justify-center py-4">
+              <Button variant="outline" size="sm" onClick={() => load(true)} className="text-xs gap-1.5">
+                <Loader2 className="h-3 w-3" /> Load more tasks
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* ─── Bulk Actions Toolbar ─────────────────────────────────── */}
@@ -1150,6 +1206,16 @@ const Tasks = () => {
           open={!!membersSpace}
           onClose={() => setMembersSpace(null)}
           profiles={profiles}
+        />
+      )}
+
+      {/* ─── Space Status Manager Dialog ───────────────────────── */}
+      {statusManagerSpace && (
+        <SpaceStatusManager
+          spaceId={statusManagerSpace.id}
+          spaceName={statusManagerSpace.name}
+          open={!!statusManagerSpace}
+          onClose={() => setStatusManagerSpace(null)}
         />
       )}
     </div>

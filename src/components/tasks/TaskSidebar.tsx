@@ -3,7 +3,7 @@ import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
   LayoutGrid, List, BarChart3, User, Table2,
   MoreHorizontal, Pencil, Trash2,
-  Lock, Users, FolderKanban, ListTodo,
+  Lock, Users, FolderKanban, ListTodo, Palette, Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -59,12 +59,15 @@ interface TaskSidebarProps {
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
   onManageMembers?: (space: Space) => void;
+  onManageStatuses?: (space: Space) => void;
   onCreateFolder?: (spaceId: string) => void;
   onCreateList?: (spaceId: string, folderId?: string) => void;
   onRenameFolder?: (folder: SpaceFolder) => void;
   onDeleteFolder?: (folder: SpaceFolder) => void;
   onRenameList?: (list: TaskList) => void;
   onDeleteList?: (list: TaskList) => void;
+  favoriteSpaceIds?: Set<string>;
+  onToggleFavorite?: (spaceId: string) => void;
   unorganizedCount: number;
 }
 
@@ -72,9 +75,10 @@ export function TaskSidebar({
   spaces, folders, lists, selectedSpace, selectedList, currentView,
   taskCounts, spaceTaskCounts, listTaskCounts,
   onSelectSpace, onSelectList, onChangeView, onCreateSpace,
-  onEditSpace, onDeleteSpace, onManageMembers,
+  onEditSpace, onDeleteSpace, onManageMembers, onManageStatuses,
   onCreateFolder, onCreateList, onRenameFolder, onDeleteFolder,
-  onRenameList, onDeleteList, unorganizedCount,
+  onRenameList, onDeleteList, favoriteSpaceIds, onToggleFavorite,
+  unorganizedCount,
 }: TaskSidebarProps) {
   const [spacesExpanded, setSpacesExpanded] = useState(true);
   const [expandedSpaces, setExpandedSpaces] = useState<Set<string>>(new Set());
@@ -117,6 +121,25 @@ export function TaskSidebar({
           ) : undefined}
         />
       </div>
+
+      {/* ─── Favorites Section ─────────────────────────── */}
+      {favoriteSpaceIds && favoriteSpaceIds.size > 0 && (
+        <div className="space-y-0.5 mb-4">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 mb-1.5">
+            Favorites
+          </p>
+          {spaces.filter((s) => favoriteSpaceIds.has(s.id)).map((space) => (
+            <SidebarItem
+              key={`fav-${space.id}`}
+              icon={Star}
+              label={space.name}
+              count={spaceTaskCounts.get(space.id) ?? 0}
+              active={selectedSpace === space.id && !selectedList}
+              onClick={() => { onSelectSpace(space.id); onSelectList(null); ensureTaskView(); }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* ─── Views Section ────────────────────────────── */}
       <div className="space-y-0.5 mb-4">
@@ -180,8 +203,11 @@ export function TaskSidebar({
                     onEdit={() => onEditSpace(space)}
                     onDelete={() => onDeleteSpace(space)}
                     onManageMembers={onManageMembers ? () => onManageMembers(space) : undefined}
+                    onManageStatuses={onManageStatuses ? () => onManageStatuses(space) : undefined}
                     onCreateFolder={onCreateFolder ? () => onCreateFolder(space.id) : undefined}
                     onCreateList={onCreateList ? () => onCreateList(space.id) : undefined}
+                    isFavorite={favoriteSpaceIds?.has(space.id)}
+                    onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(space.id) : undefined}
                   />
 
                   {isExpanded && (
@@ -374,7 +400,8 @@ function ListItem({ list, count, active, onClick, onRename, onDelete }: {
 function SpaceItem({
   space, count, active, expanded, hasChildren,
   onToggle, onClick, onEdit, onDelete, onManageMembers,
-  onCreateFolder, onCreateList,
+  onManageStatuses, onCreateFolder, onCreateList,
+  isFavorite, onToggleFavorite,
 }: {
   space: Space;
   count: number;
@@ -386,8 +413,11 @@ function SpaceItem({
   onEdit: () => void;
   onDelete: () => void;
   onManageMembers?: () => void;
+  onManageStatuses?: () => void;
   onCreateFolder?: () => void;
   onCreateList?: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
 }) {
   return (
     <div className="group flex items-center">
@@ -427,8 +457,17 @@ function SpaceItem({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+          {onToggleFavorite && (
+            <DropdownMenuItem onClick={onToggleFavorite}>
+              <Star className={cn('h-3.5 w-3.5 mr-2', isFavorite && 'fill-amber-400 text-amber-400')} />
+              {isFavorite ? 'Unfavorite' : 'Favorite'}
+            </DropdownMenuItem>
+          )}
           {onManageMembers && (
             <DropdownMenuItem onClick={onManageMembers}><Users className="h-3.5 w-3.5 mr-2" /> Members</DropdownMenuItem>
+          )}
+          {onManageStatuses && (
+            <DropdownMenuItem onClick={onManageStatuses}><Palette className="h-3.5 w-3.5 mr-2" /> Statuses</DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           {onCreateFolder && (

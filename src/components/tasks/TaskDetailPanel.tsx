@@ -69,6 +69,8 @@ export function TaskDetailPanel({
   const [descDraft, setDescDraft] = useState(task.description || '');
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentBody, setEditCommentBody] = useState('');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(task.title);
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -341,7 +343,34 @@ export function TaskDetailPanel({
               <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask</span>
             )}
           </div>
-          <h2 className="text-base font-semibold leading-snug">{task.title}</h2>
+          {editingTitle ? (
+            <Input
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              className="text-base font-semibold h-8 px-1"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && titleDraft.trim()) {
+                  updateField('title', titleDraft.trim());
+                  setEditingTitle(false);
+                }
+                if (e.key === 'Escape') setEditingTitle(false);
+              }}
+              onBlur={() => {
+                if (titleDraft.trim() && titleDraft.trim() !== task.title) {
+                  updateField('title', titleDraft.trim());
+                }
+                setEditingTitle(false);
+              }}
+            />
+          ) : (
+            <h2
+              className="text-base font-semibold leading-snug cursor-pointer hover:text-primary/80 transition-colors"
+              onClick={() => { setTitleDraft(task.title); setEditingTitle(true); }}
+            >
+              {task.title}
+            </h2>
+          )}
           {creator && (
             <p className="text-[11px] text-muted-foreground mt-1">
               Created by {creator.full_name} · {formatDate(task.created_at)}
