@@ -6918,6 +6918,48 @@ export type Database = {
           },
         ]
       }
+      project_spaces: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          color: string
+          icon: string
+          owner_id: string | null
+          created_by: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+          deleted_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          color?: string
+          icon?: string
+          owner_id?: string | null
+          created_by?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          color?: string
+          icon?: string
+          owner_id?: string | null
+          created_by?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+          deleted_at?: string | null
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           budget_ngn: number | null
@@ -6934,6 +6976,7 @@ export type Database = {
           notes: string | null
           owner_id: string | null
           priority: string
+          space_id: string | null
           start_date: string | null
           status: string
           updated_at: string
@@ -6953,6 +6996,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           priority?: string
+          space_id?: string | null
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -6972,6 +7016,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           priority?: string
+          space_id?: string | null
           start_date?: string | null
           status?: string
           updated_at?: string
@@ -6989,6 +7034,13 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "projects_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
             referencedColumns: ["id"]
           },
         ]
@@ -8362,6 +8414,111 @@ export type Database = {
           },
         ]
       }
+      task_dependencies: {
+        Row: {
+          id: string
+          task_id: string
+          depends_on_id: string
+          dependency_type: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          depends_on_id: string
+          dependency_type?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          depends_on_id?: string
+          dependency_type?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      task_lists: {
+        Row: {
+          id: string
+          project_id: string | null
+          space_id: string | null
+          name: string
+          color: string | null
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id?: string | null
+          space_id?: string | null
+          name: string
+          color?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string | null
+          space_id?: string | null
+          name?: string
+          color?: string | null
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      task_time_entries: {
+        Row: {
+          id: string
+          task_id: string
+          user_id: string
+          started_at: string
+          ended_at: string | null
+          duration_minutes: number | null
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          user_id: string
+          started_at?: string
+          ended_at?: string | null
+          duration_minutes?: number | null
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          user_id?: string
+          started_at?: string
+          ended_at?: string | null
+          duration_minutes?: number | null
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      task_watchers: {
+        Row: {
+          task_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          task_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          task_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignee_id: string | null
@@ -8373,10 +8530,16 @@ export type Database = {
           description: string | null
           due_date: string | null
           id: string
+          list_id: string | null
+          parent_id: string | null
           priority: string
           project_id: string | null
+          sort_order: number
+          start_date: string | null
           status: string
           tags: string[] | null
+          time_estimate_minutes: number | null
+          time_spent_minutes: number
           title: string
           updated_at: string
         }
@@ -8390,10 +8553,16 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          list_id?: string | null
+          parent_id?: string | null
           priority?: string
           project_id?: string | null
+          sort_order?: number
+          start_date?: string | null
           status?: string
           tags?: string[] | null
+          time_estimate_minutes?: number | null
+          time_spent_minutes?: number
           title: string
           updated_at?: string
         }
@@ -8407,10 +8576,16 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           id?: string
+          list_id?: string | null
+          parent_id?: string | null
           priority?: string
           project_id?: string | null
+          sort_order?: number
+          start_date?: string | null
           status?: string
           tags?: string[] | null
+          time_estimate_minutes?: number | null
+          time_spent_minutes?: number
           title?: string
           updated_at?: string
         }
@@ -8462,6 +8637,20 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "task_lists"
             referencedColumns: ["id"]
           },
         ]
