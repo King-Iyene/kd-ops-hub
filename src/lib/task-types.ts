@@ -1,5 +1,7 @@
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'complete';
+export type TaskType = 'task' | 'milestone' | 'bug' | 'feature';
+export type DependencyType = 'blocks' | 'is_blocked_by' | 'relates_to';
 
 export interface Task {
   id: string;
@@ -20,6 +22,8 @@ export interface Task {
   start_date: string | null;
   time_estimate_minutes: number | null;
   time_spent_minutes: number;
+  task_type: TaskType;
+  blocked_reason: string | null;
 }
 
 export interface ProfileRow {
@@ -41,6 +45,65 @@ export interface TaskComment {
   author_id: string;
   body: string;
   created_at: string;
+}
+
+export interface TaskDependency {
+  id: string;
+  task_id: string;
+  depends_on_id: string;
+  dependency_type: DependencyType;
+  created_at: string;
+}
+
+export interface TaskChecklist {
+  id: string;
+  task_id: string;
+  title: string;
+  is_checked: boolean;
+  assignee_id: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface TaskTimeEntry {
+  id: string;
+  task_id: string;
+  user_id: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_minutes: number | null;
+  description: string | null;
+  created_at: string;
+}
+
+export interface TaskList {
+  id: string;
+  project_id: string | null;
+  space_id: string | null;
+  folder_id: string | null;
+  name: string;
+  color: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface SpaceFolder {
+  id: string;
+  space_id: string;
+  name: string;
+  color: string | null;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface SpaceStatus {
+  id: string;
+  space_id: string;
+  name: string;
+  color: string;
+  status_group: 'not_started' | 'active' | 'done' | 'closed';
+  sort_order: number;
 }
 
 export const STATUSES: { value: TaskStatus; label: string }[] = [

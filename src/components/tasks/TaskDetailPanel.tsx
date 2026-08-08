@@ -3,7 +3,8 @@ import {
   Plus, CheckCircle2, Clock, Send, X, Pencil, Trash2, Loader2,
   MessageSquare, ChevronDown, ChevronRight, Flag, User, Calendar,
   CornerDownRight, Activity, ArrowRight, Tag as TagIcon, UserPlus,
-  AlertTriangle, RotateCcw,
+  RotateCcw, Link2, AlertTriangle, Play, Square, Timer,
+  CheckSquare, Eye, Bug, Milestone, Sparkles, ListChecks,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -14,50 +15,61 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import type { Task, TaskStatus, Priority, ProfileRow, Tag, TaskComment } from '@/lib/task-types';
-import { STATUSES, PRIORITY_OPTIONS, PRIORITY_CLASS, STATUS_CLASS, STATUS_DOT } from '@/lib/task-types';
+import type {
+  Task, TaskStatus, Priority, ProfileRow, Tag, TaskComment,
+  TaskDependency, TaskChecklist, TaskTimeEntry, DependencyType, TaskType,
+} from '@/lib/task-types';
+import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT } from '@/lib/task-types';
 
 interface TaskDetailPanelProps {
   task: Task;
   profiles: Map<string, ProfileRow>;
   availableTags: Tag[];
+  allTasks: Task[];
   onClose: () => void;
   onUpdate: () => void;
+  onTaskClick?: (task: Task) => void;
 }
 
+const TASK_TYPE_CONFIG: Record<TaskType, { icon: typeof Bug; label: string; color: string }> = {
+  task: { icon: CheckSquare, label: 'Task', color: 'text-blue-500' },
+  bug: { icon: Bug, label: 'Bug', color: 'text-red-500' },
+  feature: { icon: Sparkles, label: 'Feature', color: 'text-purple-500' },
+  milestone: { icon: Milestone, label: 'Milestone', color: 'text-amber-500' },
+};
+
 export function TaskDetailPanel({
-  task, profiles, availableTags, onClose, onUpdate,
+  task, profiles, availableTags, allTasks, onClose, onUpdate, onTaskClick,
 }: TaskDetailPanelProps) {
   const { profile } = useAuthStore();
   const { toast } = useToast();
 
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [comments, setComments] = useState<TaskComment[]>([]);
+  const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
+  const [checklists, setChecklists] = useState<TaskChecklist[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TaskTimeEntry[]>([]);
+  const [activities, setActivities] = useState<TaskActivity[]>([]);
+  const [watchers, setWatchers] = useState<string[]>([]);
+
   const [newSubtask, setNewSubtask] = useState('');
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
+  const [newChecklist, setNewChecklist] = useState('');
   const [activeDetailTab, setActiveDetailTab] = useState<'comments' | 'activity'>('comments');
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [activeTimerEntry, setActiveTimerEntry] = useState<TaskTimeEntry | null>(null);
 
-  const [editingField, setEditingField] = useState<string | null>(null);
-  const [fieldValue, setFieldValue] = useState<string>('');
-  const [activities, setActivities] = useState<TaskActivity[]>([]);
-
-  const loadActivities = useCallback(async () => {
-    const { data } = await supabase
-      .from('task_activity')
-      .select('*')
-      .eq('task_id', task.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setActivities((data as TaskActivity[]) || []);
-  }, [task.id]);
+  // Dependency add state
+  const [showDepAdd, setShowDepAdd] = useState(false);
+  const [depTaskId, setDepTaskId] = useState('');
+  const [depType, setDepType] = useState<DependencyType>('blocks');
 
   const loadSubtasks = useCallback(async () => {
     const { data } = await supabase
@@ -73,12 +85,54 @@ export function TaskDetailPanel({
     setComments((data as TaskComment[]) || []);
   }, [task.id]);
 
+  const loadDependencies = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_dependencies').select('*')
+      .or(`task_id.eq.${task.id},depends_on_id.eq.${task.id}`);
+    setDependencies((data as TaskDependency[]) || []);
+  }, [task.id]);
+
+  const loadChecklists = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_checklists').select('*').eq('task_id', task.id)
+      .order('sort_order').order('created_at');
+    setChecklists((data as TaskChecklist[]) || []);
+  }, [task.id]);
+
+  const loadTimeEntries = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_time_entries').select('*').eq('task_id', task.id)
+      .order('started_at', { ascending: false }).limit(20);
+    setTimeEntries((data as TaskTimeEntry[]) || []);
+    const running = (data as TaskTimeEntry[])?.find((e) => !e.ended_at && e.user_id === profile?.id);
+    if (running) { setTimerRunning(true); setActiveTimerEntry(running); }
+    else { setTimerRunning(false); setActiveTimerEntry(null); }
+  }, [task.id, profile?.id]);
+
+  const loadActivities = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_activity').select('*').eq('task_id', task.id)
+      .order('created_at', { ascending: false }).limit(50);
+    setActivities((data as TaskActivity[]) || []);
+  }, [task.id]);
+
+  const loadWatchers = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_watchers').select('user_id').eq('task_id', task.id);
+    setWatchers((data || []).map((w: any) => w.user_id));
+  }, [task.id]);
+
   useEffect(() => {
     loadSubtasks();
     loadComments();
+    loadDependencies();
+    loadChecklists();
+    loadTimeEntries();
     loadActivities();
-  }, [loadSubtasks, loadComments, loadActivities]);
+    loadWatchers();
+  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers]);
 
+  // ─── Subtask actions ────────────────────────────────────────
   const addSubtask = async () => {
     if (!newSubtask.trim() || !profile) return;
     setAddingSubtask(true);
@@ -87,6 +141,7 @@ export function TaskDetailPanel({
         title: newSubtask.trim(), parent_id: task.id,
         created_by: profile.id, status: 'open', priority: 'normal',
         sort_order: subtasks.length, project_id: task.project_id,
+        list_id: task.list_id, task_type: 'task',
       });
       if (error) throw error;
       setNewSubtask('');
@@ -112,6 +167,81 @@ export function TaskDetailPanel({
     onUpdate();
   };
 
+  // ─── Checklist actions ──────────────────────────────────────
+  const addChecklistItem = async () => {
+    if (!newChecklist.trim()) return;
+    const { error } = await supabase.from('task_checklists').insert({
+      task_id: task.id, title: newChecklist.trim(), sort_order: checklists.length,
+    });
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    setNewChecklist('');
+    await loadChecklists();
+  };
+
+  const toggleChecklistItem = async (item: TaskChecklist) => {
+    await supabase.from('task_checklists').update({ is_checked: !item.is_checked }).eq('id', item.id);
+    await loadChecklists();
+  };
+
+  const deleteChecklistItem = async (id: string) => {
+    await supabase.from('task_checklists').delete().eq('id', id);
+    await loadChecklists();
+  };
+
+  // ─── Dependency actions ─────────────────────────────────────
+  const addDependency = async () => {
+    if (!depTaskId) return;
+    const { error } = await supabase.from('task_dependencies').insert({
+      task_id: task.id, depends_on_id: depTaskId, dependency_type: depType,
+    });
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    setShowDepAdd(false);
+    setDepTaskId('');
+    await loadDependencies();
+  };
+
+  const removeDependency = async (id: string) => {
+    await supabase.from('task_dependencies').delete().eq('id', id);
+    await loadDependencies();
+  };
+
+  // ─── Time tracking ─────────────────────────────────────────
+  const startTimer = async () => {
+    if (!profile) return;
+    const { error } = await supabase.from('task_time_entries').insert({
+      task_id: task.id, user_id: profile.id,
+    });
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    await loadTimeEntries();
+  };
+
+  const stopTimer = async () => {
+    if (!activeTimerEntry) return;
+    const started = new Date(activeTimerEntry.started_at);
+    const duration = Math.round((Date.now() - started.getTime()) / 60000);
+    const { error } = await supabase.from('task_time_entries').update({
+      ended_at: new Date().toISOString(), duration_minutes: duration,
+    }).eq('id', activeTimerEntry.id);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    await supabase.from('tasks').update({
+      time_spent_minutes: task.time_spent_minutes + duration,
+    }).eq('id', task.id);
+    await loadTimeEntries();
+    onUpdate();
+  };
+
+  // ─── Watchers ───────────────────────────────────────────────
+  const toggleWatch = async () => {
+    if (!profile) return;
+    if (watchers.includes(profile.id)) {
+      await supabase.from('task_watchers').delete().eq('task_id', task.id).eq('user_id', profile.id);
+    } else {
+      await supabase.from('task_watchers').insert({ task_id: task.id, user_id: profile.id });
+    }
+    await loadWatchers();
+  };
+
+  // ─── Comment ────────────────────────────────────────────────
   const addComment = async () => {
     if (!newComment.trim() || !profile) return;
     setPosting(true);
@@ -128,6 +258,7 @@ export function TaskDetailPanel({
     } finally { setPosting(false); }
   };
 
+  // ─── Field update ───────────────────────────────────────────
   const updateField = async (field: string, value: any) => {
     const oldValue = (task as any)[field];
     const update: Record<string, any> = { [field]: value };
@@ -149,29 +280,42 @@ export function TaskDetailPanel({
     };
     const action = actionMap[field] || 'updated';
     await supabase.from('task_activity').insert({
-      task_id: task.id,
-      user_id: profile?.id || null,
-      action,
-      field,
+      task_id: task.id, user_id: profile?.id || null, action, field,
       old_value: oldValue != null ? String(oldValue) : null,
       new_value: value != null ? String(value) : null,
     }).then(() => loadActivities());
 
-    setEditingField(null);
     onUpdate();
   };
 
+  // ─── Computed ───────────────────────────────────────────────
   const assignee = task.assignee_id ? profiles.get(task.assignee_id) : null;
   const creator = task.created_by ? profiles.get(task.created_by) : null;
   const d = task.due_date ? daysUntil(task.due_date) : null;
   const overdue = task.status !== 'complete' && d !== null && d < 0;
   const doneSubtasks = subtasks.filter((s) => s.status === 'complete').length;
+  const checkedItems = checklists.filter((c) => c.is_checked).length;
+  const totalTimeLogged = timeEntries.reduce((sum, e) => sum + (e.duration_minutes || 0), 0);
+  const typeConfig = TASK_TYPE_CONFIG[task.task_type || 'task'];
+
+  const blocking = dependencies.filter((dep) => dep.task_id === task.id && dep.dependency_type === 'blocks');
+  const blockedBy = dependencies.filter((dep) => dep.depends_on_id === task.id && dep.dependency_type === 'blocks')
+    .concat(dependencies.filter((dep) => dep.task_id === task.id && dep.dependency_type === 'is_blocked_by'));
+  const relatedDeps = dependencies.filter((dep) => dep.dependency_type === 'relates_to');
+
+  const depTaskOptions = allTasks.filter((t) => t.id !== task.id && t.parent_id !== task.id);
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-border/40">
         <div className="flex-1 min-w-0 pr-4">
+          <div className="flex items-center gap-2 mb-1">
+            <typeConfig.icon className={cn('h-4 w-4 shrink-0', typeConfig.color)} />
+            {task.parent_id && (
+              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask</span>
+            )}
+          </div>
           <h2 className="text-base font-semibold leading-snug">{task.title}</h2>
           {creator && (
             <p className="text-[11px] text-muted-foreground mt-1">
@@ -179,9 +323,16 @@ export function TaskDetailPanel({
             </p>
           )}
         </div>
-        <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <TooltipWrap tip={watchers.includes(profile?.id || '') ? 'Unwatch' : 'Watch'}>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={toggleWatch}>
+              <Eye className={cn('h-4 w-4', watchers.includes(profile?.id || '') && 'text-primary')} />
+            </Button>
+          </TooltipWrap>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -195,7 +346,20 @@ export function TaskDetailPanel({
               </p>
             )}
 
-            {/* Subtasks */}
+            {/* Dependencies */}
+            {(blocking.length > 0 || blockedBy.length > 0 || relatedDeps.length > 0 || showDepAdd) && (
+              <DependencySection
+                blocking={blocking}
+                blockedBy={blockedBy}
+                related={relatedDeps}
+                task={task}
+                allTasks={allTasks}
+                onRemove={removeDependency}
+                onTaskClick={onTaskClick}
+              />
+            )}
+
+            {/* Subtasks — full task display */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -216,7 +380,28 @@ export function TaskDetailPanel({
                         sub.status === 'complete' ? 'text-emerald-500 fill-emerald-500/20' : 'text-muted-foreground/30 hover:text-muted-foreground/60',
                       )} />
                     </button>
-                    <span className={cn('flex-1 text-sm', sub.status === 'complete' && 'line-through text-muted-foreground')}>{sub.title}</span>
+                    <button
+                      onClick={() => onTaskClick?.(sub)}
+                      className={cn('flex-1 text-sm text-left hover:text-primary transition-colors', sub.status === 'complete' && 'line-through text-muted-foreground')}
+                    >
+                      {sub.title}
+                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {sub.assignee_id && profiles.get(sub.assignee_id) && (
+                        <span className="text-[9px] text-muted-foreground">{profiles.get(sub.assignee_id)!.full_name.split(' ')[0]}</span>
+                      )}
+                      {sub.due_date && (
+                        <span className={cn('text-[10px] tabular-nums', sub.status !== 'complete' && daysUntil(sub.due_date) !== null && daysUntil(sub.due_date)! < 0 ? 'text-destructive' : 'text-muted-foreground')}>
+                          {formatDate(sub.due_date)}
+                        </span>
+                      )}
+                      <div className={cn('h-1.5 w-1.5 rounded-full shrink-0',
+                        sub.priority === 'critical' && 'bg-red-500',
+                        sub.priority === 'high' && 'bg-orange-400',
+                        sub.priority === 'normal' && 'bg-blue-400',
+                        sub.priority === 'low' && 'bg-slate-300 dark:bg-slate-600',
+                      )} />
+                    </div>
                     <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteSubtask(sub.id)}>
                       <X className="h-3 w-3 text-muted-foreground" />
                     </Button>
@@ -233,6 +418,49 @@ export function TaskDetailPanel({
                 />
                 <Button size="sm" className="h-8 shrink-0" disabled={addingSubtask || !newSubtask.trim()} onClick={addSubtask}>
                   {addingSubtask ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            </div>
+
+            {/* Checklists */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ListChecks className="h-3 w-3 inline mr-1" />Checklist
+                </Label>
+                {checklists.length > 0 && (
+                  <span className="text-[11px] text-muted-foreground tabular-nums">{checkedItems}/{checklists.length}</span>
+                )}
+              </div>
+              {checklists.length > 0 && (
+                <Progress value={checklists.length > 0 ? (checkedItems / checklists.length) * 100 : 0} className="h-1" />
+              )}
+              <div className="space-y-0.5">
+                {checklists.map((item) => (
+                  <div key={item.id} className="flex items-center gap-2 group rounded-md px-2 py-1 hover:bg-muted/50 transition-colors">
+                    <button onClick={() => toggleChecklistItem(item)} className="shrink-0">
+                      {item.is_checked
+                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20" />
+                        : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
+                      }
+                    </button>
+                    <span className={cn('flex-1 text-sm', item.is_checked && 'line-through text-muted-foreground')}>{item.title}</span>
+                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteChecklistItem(item.id)}>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  className="h-7 text-sm"
+                  placeholder="Add checklist item..."
+                  value={newChecklist}
+                  onChange={(e) => setNewChecklist(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addChecklistItem(); }}
+                />
+                <Button size="sm" className="h-7 shrink-0" disabled={!newChecklist.trim()} onClick={addChecklistItem}>
+                  <Plus className="h-3 w-3" />
                 </Button>
               </div>
             </div>
@@ -260,7 +488,6 @@ export function TaskDetailPanel({
 
               {activeDetailTab === 'comments' && (
                 <div className="space-y-3">
-                  {/* Comment input */}
                   <div className="space-y-2">
                     <Textarea
                       value={newComment}
@@ -277,11 +504,9 @@ export function TaskDetailPanel({
                       </Button>
                     </div>
                   </div>
-
-                  {/* Comment list */}
                   <div className="space-y-3">
                     {comments.length === 0 ? (
-                      <p className="text-xs text-muted-foreground py-3 text-center">No comments yet. Be the first to comment.</p>
+                      <p className="text-xs text-muted-foreground py-3 text-center">No comments yet.</p>
                     ) : comments.map((c) => {
                       const author = profiles.get(c.author_id);
                       const initials = author
@@ -332,7 +557,26 @@ export function TaskDetailPanel({
           </div>
 
           {/* ─── Right Column: Metadata ────────────── */}
-          <div className="w-full lg:w-56 shrink-0 p-5 space-y-4">
+          <div className="w-full lg:w-60 shrink-0 p-5 space-y-4">
+            {/* Task Type */}
+            <MetaField label="Type">
+              <Select value={task.task_type || 'task'} onValueChange={(v) => updateField('task_type', v)}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(TASK_TYPE_CONFIG).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>
+                      <div className="flex items-center gap-1.5">
+                        <cfg.icon className={cn('h-3 w-3', cfg.color)} />
+                        {cfg.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </MetaField>
+
             {/* Status */}
             <MetaField label="Status">
               <Select value={task.status} onValueChange={(v) => updateField('status', v)}>
@@ -378,6 +622,16 @@ export function TaskDetailPanel({
               </Select>
             </MetaField>
 
+            {/* Start Date */}
+            <MetaField label="Start Date">
+              <Input
+                type="date"
+                className="h-8 text-xs"
+                value={task.start_date || ''}
+                onChange={(e) => updateField('start_date', e.target.value || null)}
+              />
+            </MetaField>
+
             {/* Due Date */}
             <MetaField label="Due Date">
               <Input
@@ -388,6 +642,85 @@ export function TaskDetailPanel({
               />
               {overdue && (
                 <p className="text-[10px] text-destructive font-medium mt-1">{Math.abs(d!)} days overdue</p>
+              )}
+            </MetaField>
+
+            {/* Time Tracking */}
+            <MetaField label="Time Tracking">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  {timerRunning ? (
+                    <Button size="sm" variant="destructive" className="h-7 text-xs flex-1" onClick={stopTimer}>
+                      <Square className="h-3 w-3 mr-1 fill-current" /> Stop
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={startTimer}>
+                      <Play className="h-3 w-3 mr-1" /> Start timer
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted-foreground">Logged</span>
+                  <span className="font-medium tabular-nums">{formatMinutes(totalTimeLogged + task.time_spent_minutes)}</span>
+                </div>
+                {task.time_estimate_minutes && (
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Estimate</span>
+                    <span className="font-medium tabular-nums">{formatMinutes(task.time_estimate_minutes)}</span>
+                  </div>
+                )}
+                <Input
+                  type="number"
+                  className="h-7 text-xs"
+                  placeholder="Set estimate (min)"
+                  defaultValue={task.time_estimate_minutes ?? ''}
+                  onBlur={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : null;
+                    if (val !== task.time_estimate_minutes) updateField('time_estimate_minutes', val);
+                  }}
+                />
+              </div>
+            </MetaField>
+
+            {/* Blocked Reason */}
+            {task.status === 'blocked' && (
+              <MetaField label="Blocked Reason">
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Why is this blocked?"
+                  defaultValue={task.blocked_reason || ''}
+                  onBlur={(e) => updateField('blocked_reason', e.target.value || null)}
+                />
+              </MetaField>
+            )}
+
+            {/* Dependencies quick add */}
+            <MetaField label="Dependencies">
+              <Button size="sm" variant="outline" className="h-7 text-xs w-full" onClick={() => setShowDepAdd(!showDepAdd)}>
+                <Link2 className="h-3 w-3 mr-1" /> Add dependency
+              </Button>
+              {showDepAdd && (
+                <div className="space-y-1.5 mt-2">
+                  <Select value={depType} onValueChange={(v) => setDepType(v as DependencyType)}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="blocks">Blocking</SelectItem>
+                      <SelectItem value="is_blocked_by">Blocked by</SelectItem>
+                      <SelectItem value="relates_to">Related to</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={depTaskId} onValueChange={setDepTaskId}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Select task..." /></SelectTrigger>
+                    <SelectContent>
+                      {depTaskOptions.slice(0, 50).map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" className="h-7 text-xs w-full" disabled={!depTaskId} onClick={addDependency}>
+                    Add
+                  </Button>
+                </div>
               )}
             </MetaField>
 
@@ -423,6 +756,21 @@ export function TaskDetailPanel({
               </MetaField>
             )}
 
+            {/* Watchers */}
+            <MetaField label={`Watchers (${watchers.length})`}>
+              <div className="flex flex-wrap gap-1">
+                {watchers.map((uid) => {
+                  const p = profiles.get(uid);
+                  if (!p) return null;
+                  return (
+                    <span key={uid} className="text-[10px] bg-muted rounded-full px-2 py-0.5 font-medium">
+                      {p.full_name.split(' ')[0]}
+                    </span>
+                  );
+                })}
+              </div>
+            </MetaField>
+
             {/* Quick actions */}
             <div className="pt-3 border-t border-border/40 space-y-1.5">
               {task.status !== 'complete' && (
@@ -434,6 +782,77 @@ export function TaskDetailPanel({
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────
+
+function formatMinutes(min: number): string {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function TooltipWrap({ tip, children }: { tip: string; children: React.ReactNode }) {
+  return (
+    <div title={tip}>{children}</div>
+  );
+}
+
+function DependencySection({
+  blocking, blockedBy, related, task, allTasks, onRemove, onTaskClick,
+}: {
+  blocking: TaskDependency[];
+  blockedBy: TaskDependency[];
+  related: TaskDependency[];
+  task: Task;
+  allTasks: Task[];
+  onRemove: (id: string) => void;
+  onTaskClick?: (task: Task) => void;
+}) {
+  const findTask = (id: string) => allTasks.find((t) => t.id === id);
+
+  const renderDep = (dep: TaskDependency, targetId: string, label: string, color: string) => {
+    const t = findTask(targetId);
+    if (!t) return null;
+    return (
+      <div key={dep.id} className="flex items-center gap-2 group">
+        <span className={cn('text-[10px] font-medium shrink-0 w-[70px]', color)}>{label}</span>
+        <button
+          onClick={() => onTaskClick?.(t)}
+          className="flex-1 text-xs text-left truncate hover:text-primary transition-colors"
+        >
+          {t.title}
+        </button>
+        <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[t.status])} />
+        <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => onRemove(dep.id)}>
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Link2 className="h-3 w-3 inline mr-1" />Dependencies
+      </Label>
+      <div className="space-y-1 rounded-lg border border-border/40 p-2">
+        {blocking.map((dep) => renderDep(dep, dep.depends_on_id, 'Blocking', 'text-red-500'))}
+        {blockedBy.map((dep) => {
+          const targetId = dep.task_id === task.id ? dep.depends_on_id : dep.task_id;
+          return renderDep(dep, targetId, 'Blocked by', 'text-amber-500');
+        })}
+        {related.map((dep) => {
+          const targetId = dep.task_id === task.id ? dep.depends_on_id : dep.task_id;
+          return renderDep(dep, targetId, 'Related', 'text-blue-500');
+        })}
+        {blocking.length === 0 && blockedBy.length === 0 && related.length === 0 && (
+          <p className="text-[11px] text-muted-foreground text-center py-1">No dependencies</p>
+        )}
       </div>
     </div>
   );

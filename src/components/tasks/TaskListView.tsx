@@ -28,6 +28,7 @@ interface TaskListViewProps {
   selectedTasks: Set<string>;
   onToggleSelect: (taskId: string) => void;
   onSelectAll: () => void;
+  tableMode?: boolean;
 }
 
 const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'];
@@ -43,8 +44,9 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 export function TaskListView({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
+  tableMode = false,
 }: TaskListViewProps) {
-  const [groupBy, setGroupBy] = useState<GroupBy>('status');
+  const [groupBy, setGroupBy] = useState<GroupBy>(tableMode ? 'none' : 'status');
 
   const groups = useMemo(() => {
     if (groupBy === 'none') {

@@ -44,6 +44,7 @@ import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
 import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
+  TaskList, SpaceFolder,
 } from '@/lib/task-types';
 import {
   STATUSES, PRIORITY_OPTIONS, PRIORITY_CLASS,
@@ -63,7 +64,10 @@ const Tasks = () => {
   // Sidebar state
   const [currentView, setCurrentView] = useState<TaskView>('my-tasks');
   const [selectedSpace, setSelectedSpace] = useState<string | null>(null);
+  const [selectedList, setSelectedList] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<Space[]>([]);
+  const [folders, setFolders] = useState<SpaceFolder[]>([]);
+  const [taskLists, setTaskLists] = useState<TaskList[]>([]);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -118,7 +122,7 @@ const Tasks = () => {
     setLoading(true);
     setError(null);
     try {
-      const [topRes, allRes, profilesRes, tagsRes, spacesRes] = await Promise.all([
+      const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('*')
@@ -128,11 +132,13 @@ const Tasks = () => {
           .limit(500),
         supabase
           .from('tasks')
-          .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id')
+          .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags')
           .limit(2000),
         supabase.from('profiles').select('id, full_name, email').order('full_name').limit(500),
         supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
         supabase.from('project_spaces').select('*').is('deleted_at', null).order('sort_order'),
+        supabase.from('space_folders').select('*').order('sort_order'),
+        supabase.from('task_lists').select('*').order('sort_order'),
       ]);
       if (topRes.error) throw topRes.error;
       setTasks((topRes.data as Task[]) || []);
@@ -142,6 +148,8 @@ const Tasks = () => {
       setProfiles(m);
       setAvailableTags((tagsRes.data as Tag[]) || []);
       setSpaces((spacesRes.data as Space[]) || []);
+      setFolders((foldersRes.data as SpaceFolder[]) || []);
+      setTaskLists((listsRes.data as TaskList[]) || []);
     } catch (err: any) {
       setError(err?.message || 'Failed to load tasks.');
     } finally {
@@ -226,6 +234,15 @@ const Tasks = () => {
     return counts;
   }, [tasks, projectSpaceMap]);
 
+  const listTaskCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const t of tasks) {
+      if (!t.list_id) continue;
+      counts.set(t.list_id, (counts.get(t.list_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [tasks]);
+
   const unorganizedCount = useMemo(() => {
     return tasks.filter((t) => {
       if (!t.project_id) return true;
@@ -236,7 +253,9 @@ const Tasks = () => {
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((t) => {
-      if (selectedSpace === '__unassigned__') {
+      if (selectedList) {
+        if (t.list_id !== selectedList) return false;
+      } else if (selectedSpace === '__unassigned__') {
         if (t.project_id && projectSpaceMap.get(t.project_id)) return false;
       } else if (selectedSpace) {
         if (!t.project_id) return false;
@@ -253,7 +272,7 @@ const Tasks = () => {
         name.toLowerCase().includes(q)
       );
     });
-  }, [tasks, search, selectedSpace, assigneeFilter, statusFilter, priorityFilter, profiles, projectSpaceMap]);
+  }, [tasks, search, selectedSpace, selectedList, assigneeFilter, statusFilter, priorityFilter, profiles, projectSpaceMap]);
 
   // ─── Task CRUD ───────────────────────────────────────────────────────
 
@@ -508,18 +527,49 @@ const Tasks = () => {
     load();
   };
 
+  // ─── Folder / List CRUD ──────────────────────────────────────────────
+
+  const handleCreateFolder = async (spaceId: string) => {
+    const name = prompt('Folder name:');
+    if (!name?.trim()) return;
+    const { error } = await supabase.from('space_folders').insert({
+      space_id: spaceId, name: name.trim(),
+      sort_order: folders.filter((f) => f.space_id === spaceId).length,
+      created_by: profile?.id || null,
+    });
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Folder created' });
+    load();
+  };
+
+  const handleCreateList = async (spaceId: string, folderId?: string) => {
+    const name = prompt('List name:');
+    if (!name?.trim()) return;
+    const { error } = await supabase.from('task_lists').insert({
+      space_id: spaceId, folder_id: folderId || null, name: name.trim(),
+      sort_order: taskLists.filter((l) => l.space_id === spaceId).length,
+    });
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'List created' });
+    load();
+  };
+
   // ─── View helpers ────────────────────────────────────────────────────
 
   const viewTitle = useMemo(() => {
     if (currentView === 'my-tasks') return 'My Tasks';
     if (currentView === 'dashboard') return 'Dashboard';
+    if (selectedList) {
+      const l = taskLists.find((l) => l.id === selectedList);
+      return l?.name ?? 'List';
+    }
     if (selectedSpace === '__unassigned__') return 'Unorganized Tasks';
     if (selectedSpace) {
       const sp = spaces.find((s) => s.id === selectedSpace);
       return sp?.name ?? 'Tasks';
     }
     return 'All Tasks';
-  }, [currentView, selectedSpace, spaces]);
+  }, [currentView, selectedSpace, selectedList, spaces, taskLists]);
 
   const activeFilters: { key: string; label: string; onRemove: () => void }[] = [];
   if (assigneeFilter !== 'all') {
@@ -548,16 +598,23 @@ const Tasks = () => {
       <div className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
         <TaskSidebar
           spaces={spaces}
+          folders={folders}
+          lists={taskLists}
           selectedSpace={selectedSpace}
+          selectedList={selectedList}
           currentView={currentView}
           taskCounts={taskCounts}
           spaceTaskCounts={spaceTaskCounts}
+          listTaskCounts={listTaskCounts}
           onSelectSpace={setSelectedSpace}
+          onSelectList={setSelectedList}
           onChangeView={(v) => { setCurrentView(v); setSelectedTasks(new Set()); }}
           onCreateSpace={openCreateSpace}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
           onManageMembers={(s) => setMembersSpace(s)}
+          onCreateFolder={handleCreateFolder}
+          onCreateList={handleCreateList}
           unorganizedCount={unorganizedCount}
         />
       </div>
@@ -567,16 +624,23 @@ const Tasks = () => {
         <SheetContent side="left" className="w-[260px] p-3 pt-8">
           <TaskSidebar
             spaces={spaces}
+            folders={folders}
+            lists={taskLists}
             selectedSpace={selectedSpace}
+            selectedList={selectedList}
             currentView={currentView}
             taskCounts={taskCounts}
             spaceTaskCounts={spaceTaskCounts}
+            listTaskCounts={listTaskCounts}
             onSelectSpace={(id) => { setSelectedSpace(id); setSidebarOpen(false); }}
+            onSelectList={(id) => { setSelectedList(id); setSidebarOpen(false); }}
             onChangeView={(v) => { setCurrentView(v); setSidebarOpen(false); setSelectedTasks(new Set()); }}
             onCreateSpace={openCreateSpace}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
             onManageMembers={(s) => setMembersSpace(s)}
+            onCreateFolder={handleCreateFolder}
+            onCreateList={handleCreateList}
             unorganizedCount={unorganizedCount}
           />
         </SheetContent>
@@ -740,7 +804,7 @@ const Tasks = () => {
               onCreateTask={openCreateWithStatus}
               onQuickCreate={handleQuickCreate}
             />
-          ) : currentView === 'list' ? (
+          ) : currentView === 'list' || currentView === 'table' ? (
             <TaskListView
               tasks={visible}
               profiles={profiles}
@@ -752,6 +816,7 @@ const Tasks = () => {
               selectedTasks={selectedTasks}
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllVisible}
+              tableMode={currentView === 'table'}
             />
           ) : null}
         </div>
@@ -821,8 +886,10 @@ const Tasks = () => {
               task={detailTask}
               profiles={profiles}
               availableTags={availableTags}
+              allTasks={allTasks as Task[]}
               onClose={() => setDetailTask(null)}
               onUpdate={load}
+              onTaskClick={(t) => setDetailTask(t)}
             />
           )}
         </DialogContent>
