@@ -8128,6 +8128,38 @@ export type Database = {
           },
         ]
       }
+      space_members: {
+        Row: {
+          added_by: string | null
+          created_at: string
+          role: string
+          space_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          created_at?: string
+          role?: string
+          space_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string | null
+          created_at?: string
+          role?: string
+          space_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       statement_entries: {
         Row: {
           amount_ngn: number
@@ -8364,6 +8396,50 @@ export type Database = {
           },
         ]
       }
+      task_activity: {
+        Row: {
+          action: string
+          created_at: string
+          field: string | null
+          id: string
+          metadata: Json | null
+          new_value: string | null
+          old_value: string | null
+          task_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          field?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          task_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          field?: string | null
+          id?: string
+          metadata?: Json | null
+          new_value?: string | null
+          old_value?: string | null
+          task_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comments: {
         Row: {
           author_id: string
@@ -8567,109 +8643,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      space_members: {
-        Row: {
-          space_id: string
-          user_id: string
-          role: string
-          added_by: string | null
-          created_at: string
-        }
-        Insert: {
-          space_id: string
-          user_id: string
-          role?: string
-          added_by?: string | null
-          created_at?: string
-        }
-        Update: {
-          space_id?: string
-          user_id?: string
-          role?: string
-          added_by?: string | null
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "space_members_space_id_fkey"
-            columns: ["space_id"]
-            isOneToOne: false
-            referencedRelation: "project_spaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_activity: {
-        Row: {
-          id: string
-          task_id: string
-          user_id: string | null
-          action: string
-          field: string | null
-          old_value: string | null
-          new_value: string | null
-          metadata: Record<string, unknown>
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          task_id: string
-          user_id?: string | null
-          action: string
-          field?: string | null
-          old_value?: string | null
-          new_value?: string | null
-          metadata?: Record<string, unknown>
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          task_id?: string
-          user_id?: string | null
-          action?: string
-          field?: string | null
-          old_value?: string | null
-          new_value?: string | null
-          metadata?: Record<string, unknown>
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_activity_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_favorites: {
-        Row: {
-          id: string
-          user_id: string
-          item_type: string
-          item_id: string
-          sort_order: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          item_type: string
-          item_id: string
-          sort_order?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          item_type?: string
-          item_id?: string
-          sort_order?: number
-          created_at?: string
-        }
-        Relationships: []
       }
       tasks: {
         Row: {
@@ -9480,6 +9453,33 @@ export type Database = {
           last_seen_at?: string
           trusted_until?: string
           user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_favorites: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          item_type: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          item_type: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          item_type?: string
+          sort_order?: number
           user_id?: string
         }
         Relationships: []
