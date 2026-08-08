@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
   CheckCircle2, Clock, Calendar, Flag, ChevronDown, ChevronRight,
-  MessageSquare, Layers, AlertTriangle,
+  MessageSquare, Layers, AlertTriangle, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import type { Task, TaskStatus, ProfileRow, Tag } from '@/lib/task-types';
-import { PRIORITY_CLASS, STATUS_CLASS, STATUS_DOT } from '@/lib/task-types';
+import { STATUS_DOT } from '@/lib/task-types';
 
 interface MyTasksViewProps {
   tasks: Task[];
@@ -47,9 +48,12 @@ export function MyTasksView({
   [myTasks, currentUserId]);
 
   const groupedTodo = useMemo(() => {
-    const today: Task[] = [];
     const overdue: Task[] = [];
-    const next: Task[] = [];
+    const today: Task[] = [];
+    const tomorrow: Task[] = [];
+    const thisWeek: Task[] = [];
+    const nextWeek: Task[] = [];
+    const later: Task[] = [];
     const noDate: Task[] = [];
 
     for (const t of todoTasks) {
@@ -58,14 +62,33 @@ export function MyTasksView({
       if (d === null) { noDate.push(t); continue; }
       if (d < 0) overdue.push(t);
       else if (d === 0) today.push(t);
-      else next.push(t);
+      else if (d === 1) tomorrow.push(t);
+      else if (d <= 7) thisWeek.push(t);
+      else if (d <= 14) nextWeek.push(t);
+      else later.push(t);
     }
 
     overdue.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0));
-    next.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0));
+    thisWeek.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0));
+    nextWeek.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0));
+    later.sort((a, b) => (daysUntil(a.due_date!) ?? 0) - (daysUntil(b.due_date!) ?? 0));
 
-    return { today, overdue, next, noDate };
+    return { overdue, today, tomorrow, thisWeek, nextWeek, later, noDate };
   }, [todoTasks]);
+
+  // Group delegated tasks by assignee
+  const delegatedByAssignee = useMemo(() => {
+    const map = new Map<string, { name: string; tasks: Task[] }>();
+    for (const t of delegatedTasks) {
+      if (!t.assignee_id) continue;
+      if (!map.has(t.assignee_id)) {
+        const p = profiles.get(t.assignee_id);
+        map.set(t.assignee_id, { name: p?.full_name ?? 'Unknown', tasks: [] });
+      }
+      map.get(t.assignee_id)!.tasks.push(t);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [delegatedTasks, profiles]);
 
   const toggleGroup = (key: string) => {
     setCollapsedGroups((prev) => {
@@ -79,6 +102,16 @@ export function MyTasksView({
     { key: 'todo', label: 'To Do', count: todoTasks.length },
     { key: 'done', label: 'Done', count: doneTasks.length },
     { key: 'delegated', label: 'Delegated', count: delegatedTasks.length },
+  ];
+
+  const todoGroups: { key: string; title: string; icon: typeof Calendar; iconColor: string; tasks: Task[]; highlight?: 'destructive' }[] = [
+    { key: 'overdue', title: 'Overdue', icon: AlertTriangle, iconColor: 'text-destructive', tasks: groupedTodo.overdue, highlight: 'destructive' },
+    { key: 'today', title: 'Today', icon: Calendar, iconColor: 'text-blue-500', tasks: groupedTodo.today },
+    { key: 'tomorrow', title: 'Tomorrow', icon: CalendarDays, iconColor: 'text-blue-400', tasks: groupedTodo.tomorrow },
+    { key: 'thisWeek', title: 'This Week', icon: Clock, iconColor: 'text-indigo-500', tasks: groupedTodo.thisWeek },
+    { key: 'nextWeek', title: 'Next Week', icon: Clock, iconColor: 'text-muted-foreground', tasks: groupedTodo.nextWeek },
+    { key: 'later', title: 'Later', icon: Layers, iconColor: 'text-muted-foreground/70', tasks: groupedTodo.later },
+    { key: 'noDate', title: 'No Due Date', icon: Layers, iconColor: 'text-muted-foreground/50', tasks: groupedTodo.noDate },
   ];
 
   return (
@@ -107,86 +140,49 @@ export function MyTasksView({
         ))}
       </div>
 
-      {/* Content */}
+      {/* To Do content */}
       {activeTab === 'todo' && (
         <div className="space-y-2">
-          {groupedTodo.overdue.length > 0 && (
+          {todoGroups.map((group) => group.tasks.length > 0 && (
             <TaskGroup
-              title="Overdue"
-              icon={AlertTriangle}
-              iconColor="text-destructive"
-              count={groupedTodo.overdue.length}
-              tasks={groupedTodo.overdue}
-              collapsed={collapsedGroups.has('overdue')}
-              onToggle={() => toggleGroup('overdue')}
+              key={group.key}
+              title={group.title}
+              icon={group.icon}
+              iconColor={group.iconColor}
+              count={group.tasks.length}
+              tasks={group.tasks}
+              collapsed={collapsedGroups.has(group.key)}
+              onToggle={() => toggleGroup(group.key)}
               profiles={profiles}
               availableTags={availableTags}
               subtaskCounts={subtaskCounts}
               commentCounts={commentCounts}
               onTaskClick={onTaskClick}
-              highlight="destructive"
+              highlight={group.highlight as any}
             />
-          )}
-          {groupedTodo.today.length > 0 && (
-            <TaskGroup
-              title="Today"
-              icon={Calendar}
-              iconColor="text-blue-500"
-              count={groupedTodo.today.length}
-              tasks={groupedTodo.today}
-              collapsed={collapsedGroups.has('today')}
-              onToggle={() => toggleGroup('today')}
-              profiles={profiles}
-              availableTags={availableTags}
-              subtaskCounts={subtaskCounts}
-              commentCounts={commentCounts}
-              onTaskClick={onTaskClick}
-            />
-          )}
-          {groupedTodo.next.length > 0 && (
-            <TaskGroup
-              title="Next"
-              icon={Clock}
-              iconColor="text-muted-foreground"
-              count={groupedTodo.next.length}
-              tasks={groupedTodo.next}
-              collapsed={collapsedGroups.has('next')}
-              onToggle={() => toggleGroup('next')}
-              profiles={profiles}
-              availableTags={availableTags}
-              subtaskCounts={subtaskCounts}
-              commentCounts={commentCounts}
-              onTaskClick={onTaskClick}
-            />
-          )}
-          {groupedTodo.noDate.length > 0 && (
-            <TaskGroup
-              title="No Date"
-              icon={Layers}
-              iconColor="text-muted-foreground/50"
-              count={groupedTodo.noDate.length}
-              tasks={groupedTodo.noDate}
-              collapsed={collapsedGroups.has('noDate')}
-              onToggle={() => toggleGroup('noDate')}
-              profiles={profiles}
-              availableTags={availableTags}
-              subtaskCounts={subtaskCounts}
-              commentCounts={commentCounts}
-              onTaskClick={onTaskClick}
-            />
-          )}
+          ))}
           {todoTasks.length === 0 && (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              You're all caught up — no open tasks assigned to you.
-            </div>
+            <EmptyState
+              illustration="plane"
+              title="You're all caught up"
+              description="No open tasks assigned to you. Enjoy the peace."
+              tone="success"
+            />
           )}
         </div>
       )}
 
+      {/* Done content */}
       {activeTab === 'done' && (
         <div className="space-y-1">
           {doneTasks.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">No completed tasks yet.</div>
+            <EmptyState
+              illustration="radar"
+              title="No completed tasks"
+              description="Tasks you complete will appear here."
+              tone="default"
+              compact
+            />
           ) : doneTasks.slice(0, 50).map((task) => (
             <TaskRow
               key={task.id}
@@ -201,21 +197,31 @@ export function MyTasksView({
         </div>
       )}
 
+      {/* Delegated content */}
       {activeTab === 'delegated' && (
-        <div className="space-y-1">
+        <div className="space-y-3">
           {delegatedTasks.length === 0 ? (
-            <div className="py-12 text-center text-sm text-muted-foreground">
-              No delegated tasks. Assign tasks to team members to see them here.
-            </div>
-          ) : delegatedTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
+            <EmptyState
+              illustration="radar"
+              title="No delegated tasks"
+              description="When you assign tasks to others, they'll appear here so you can track progress."
+              tone="primary"
+            />
+          ) : delegatedByAssignee.map((group) => (
+            <TaskGroup
+              key={group.name}
+              title={group.name}
+              icon={Flag}
+              iconColor="text-primary"
+              count={group.tasks.length}
+              tasks={group.tasks}
+              collapsed={collapsedGroups.has(`del-${group.name}`)}
+              onToggle={() => toggleGroup(`del-${group.name}`)}
               profiles={profiles}
               availableTags={availableTags}
               subtaskCounts={subtaskCounts}
               commentCounts={commentCounts}
-              onClick={() => onTaskClick(task)}
+              onTaskClick={onTaskClick}
               showAssignee
             />
           ))}
@@ -228,7 +234,7 @@ export function MyTasksView({
 function TaskGroup({
   title, icon: Icon, iconColor, count, tasks, collapsed, onToggle,
   profiles, availableTags, subtaskCounts, commentCounts, onTaskClick,
-  highlight,
+  highlight, showAssignee,
 }: {
   title: string;
   icon: typeof Calendar;
@@ -243,6 +249,7 @@ function TaskGroup({
   commentCounts: Map<string, number>;
   onTaskClick: (task: Task) => void;
   highlight?: 'destructive';
+  showAssignee?: boolean;
 }) {
   return (
     <div>
@@ -275,6 +282,7 @@ function TaskGroup({
               subtaskCounts={subtaskCounts}
               commentCounts={commentCounts}
               onClick={() => onTaskClick(task)}
+              showAssignee={showAssignee}
             />
           ))}
         </div>
@@ -327,7 +335,7 @@ function TaskRow({
                 const tag = availableTags.find((t) => t.id === tagId);
                 if (!tag) return null;
                 return (
-                  <span key={tagId} className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+                  <span key={tagId} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
                     style={tag.color ? { backgroundColor: `${tag.color}15`, color: tag.color } : undefined}>
                     {tag.name}
                   </span>
@@ -341,21 +349,18 @@ function TaskRow({
 
       {/* Metadata */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Subtask count */}
         {sc && sc.total > 0 && (
           <span className="text-[10px] text-muted-foreground tabular-nums">
             <CheckCircle2 className="h-3 w-3 inline mr-0.5" />{sc.done}/{sc.total}
           </span>
         )}
 
-        {/* Comment count */}
         {cc > 0 && (
           <span className="text-[10px] text-muted-foreground tabular-nums">
             <MessageSquare className="h-3 w-3 inline mr-0.5" />{cc}
           </span>
         )}
 
-        {/* Assignee avatar (for delegated view) */}
         {showAssignee && assignee && (
           <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <span className="text-[7px] font-bold leading-none">
@@ -364,7 +369,7 @@ function TaskRow({
           </div>
         )}
 
-        {/* Priority */}
+        {/* Priority dot */}
         <div className={cn(
           'h-1.5 w-1.5 rounded-full shrink-0',
           task.priority === 'critical' && 'bg-red-500',

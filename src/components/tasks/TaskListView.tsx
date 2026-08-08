@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import {
-  CheckCircle2, Clock, Flag, MessageSquare, ChevronDown,
-  ChevronRight, GripVertical, User,
+  CheckCircle2, MessageSquare, ChevronDown,
+  ChevronRight, Square, CheckSquare, Minus,
 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import type { Task, TaskStatus, ProfileRow, Tag } from '@/lib/task-types';
-import { STATUSES, STATUS_DOT, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
+import type { Task, TaskStatus, Priority, ProfileRow, Tag } from '@/lib/task-types';
+import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'none';
 
@@ -21,6 +24,10 @@ interface TaskListViewProps {
   subtaskCounts: Map<string, { total: number; done: number }>;
   commentCounts: Map<string, number>;
   onTaskClick: (task: Task) => void;
+  onUpdate: () => void;
+  selectedTasks: Set<string>;
+  onToggleSelect: (taskId: string) => void;
+  onSelectAll: () => void;
 }
 
 const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'];
@@ -34,7 +41,8 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 };
 
 export function TaskListView({
-  tasks, profiles, availableTags, subtaskCounts, commentCounts, onTaskClick,
+  tasks, profiles, availableTags, subtaskCounts, commentCounts,
+  onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
 }: TaskListViewProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
 
@@ -75,9 +83,7 @@ export function TaskListView({
     const sortedKeys = Array.from(map.keys()).sort((a, b) => {
       if (a === '__unassigned') return 1;
       if (b === '__unassigned') return -1;
-      const na = profiles.get(a)?.full_name ?? '';
-      const nb = profiles.get(b)?.full_name ?? '';
-      return na.localeCompare(nb);
+      return (profiles.get(a)?.full_name ?? '').localeCompare(profiles.get(b)?.full_name ?? '');
     });
 
     return sortedKeys.map((uid) => ({
@@ -88,12 +94,20 @@ export function TaskListView({
     }));
   }, [tasks, groupBy, profiles]);
 
+  const allSelected = tasks.length > 0 && selectedTasks.size === tasks.length;
+  const someSelected = selectedTasks.size > 0 && selectedTasks.size < tasks.length;
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between px-1 mb-3">
-        <span className="text-xs text-muted-foreground">
-          {tasks.length} task{tasks.length !== 1 ? 's' : ''}
-        </span>
+        <div className="flex items-center gap-3">
+          <button onClick={onSelectAll} className="text-muted-foreground hover:text-foreground transition-colors">
+            {allSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : someSelected ? <Minus className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+          </button>
+          <span className="text-xs text-muted-foreground">
+            {selectedTasks.size > 0 ? `${selectedTasks.size} selected` : `${tasks.length} task${tasks.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Group by</span>
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
@@ -110,10 +124,13 @@ export function TaskListView({
         </div>
       </div>
 
-      {groups.length === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          No tasks to display.
-        </div>
+      {groups.length === 0 || tasks.length === 0 ? (
+        <EmptyState
+          illustration="radar"
+          title="No tasks to display"
+          description="Create your first task to start tracking work."
+          tone="primary"
+        />
       ) : (
         groups.map((group) => (
           <ListGroup
@@ -126,7 +143,10 @@ export function TaskListView({
             subtaskCounts={subtaskCounts}
             commentCounts={commentCounts}
             onTaskClick={onTaskClick}
+            onUpdate={onUpdate}
             groupBy={groupBy}
+            selectedTasks={selectedTasks}
+            onToggleSelect={onToggleSelect}
           />
         ))
       )}
@@ -135,7 +155,8 @@ export function TaskListView({
 }
 
 function ListGroup({
-  label, accent, tasks, profiles, availableTags, subtaskCounts, commentCounts, onTaskClick, groupBy,
+  label, accent, tasks, profiles, availableTags, subtaskCounts, commentCounts,
+  onTaskClick, onUpdate, groupBy, selectedTasks, onToggleSelect,
 }: {
   label: string;
   accent: string;
@@ -145,7 +166,10 @@ function ListGroup({
   subtaskCounts: Map<string, { total: number; done: number }>;
   commentCounts: Map<string, number>;
   onTaskClick: (task: Task) => void;
+  onUpdate: () => void;
   groupBy: GroupBy;
+  selectedTasks: Set<string>;
+  onToggleSelect: (taskId: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -158,15 +182,14 @@ function ListGroup({
         {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         <div className={cn('h-2.5 w-2.5 rounded-full shrink-0', accent)} />
         <span>{label}</span>
-        <span className="text-[11px] tabular-nums text-muted-foreground ml-1">
-          {tasks.length}
-        </span>
+        <span className="text-[11px] tabular-nums text-muted-foreground ml-1">{tasks.length}</span>
       </button>
 
       {!collapsed && (
         <div className="rounded-lg border border-border/60 overflow-hidden bg-card">
-          {/* Header row */}
-          <div className="grid grid-cols-[1fr_120px_100px_100px_100px_80px] gap-2 px-3 py-1.5 border-b border-border/40 bg-muted/30">
+          {/* Header */}
+          <div className="hidden sm:grid grid-cols-[32px_1fr_120px_100px_90px_90px_70px] gap-1 px-3 py-1.5 border-b border-border/40 bg-muted/30">
+            <span />
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Task</span>
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Assignee</span>
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Due</span>
@@ -177,7 +200,6 @@ function ListGroup({
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Info</span>
           </div>
 
-          {/* Rows */}
           {tasks.map((task) => (
             <ListRow
               key={task.id}
@@ -187,7 +209,10 @@ function ListGroup({
               subtaskCounts={subtaskCounts}
               commentCounts={commentCounts}
               onClick={() => onTaskClick(task)}
+              onUpdate={onUpdate}
               showStatus={groupBy !== 'status'}
+              selected={selectedTasks.has(task.id)}
+              onToggleSelect={() => onToggleSelect(task.id)}
             />
           ))}
         </div>
@@ -197,7 +222,8 @@ function ListGroup({
 }
 
 function ListRow({
-  task, profiles, availableTags, subtaskCounts, commentCounts, onClick, showStatus,
+  task, profiles, availableTags, subtaskCounts, commentCounts,
+  onClick, onUpdate, showStatus, selected, onToggleSelect,
 }: {
   task: Task;
   profiles: Map<string, ProfileRow>;
@@ -205,25 +231,49 @@ function ListRow({
   subtaskCounts: Map<string, { total: number; done: number }>;
   commentCounts: Map<string, number>;
   onClick: () => void;
+  onUpdate: () => void;
   showStatus: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
 }) {
+  const { toast } = useToast();
   const assignee = task.assignee_id ? profiles.get(task.assignee_id) : null;
   const d = task.due_date ? daysUntil(task.due_date) : null;
   const overdue = task.status !== 'complete' && d !== null && d < 0;
   const sc = subtaskCounts.get(task.id);
   const cc = commentCounts.get(task.id) ?? 0;
 
+  const inlineUpdate = async (field: string, value: any) => {
+    const update: Record<string, any> = { [field]: value };
+    if (field === 'status' && value === 'complete') update.completed_at = new Date().toISOString();
+    if (field === 'status' && value !== 'complete') update.completed_at = null;
+    const { error } = await supabase.from('tasks').update(update).eq('id', task.id);
+    if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    else onUpdate();
+  };
+
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        'grid grid-cols-[1fr_120px_100px_100px_100px_80px] gap-2 w-full px-3 py-2.5 text-left transition-all',
+        'sm:grid sm:grid-cols-[32px_1fr_120px_100px_90px_90px_70px] gap-1 w-full px-3 py-2.5 text-left transition-all',
         'hover:bg-muted/40 border-b border-border/20 last:border-b-0 group',
+        'flex flex-col sm:flex-row sm:items-center',
         task.status === 'complete' && 'opacity-50',
+        selected && 'bg-primary/5',
       )}
     >
-      {/* Task name + tags */}
-      <div className="flex items-center gap-2 min-w-0">
+      {/* Checkbox */}
+      <div className="flex items-center justify-center shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(); }}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {selected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />}
+        </button>
+      </div>
+
+      {/* Task name + tags — clickable to open detail */}
+      <button onClick={onClick} className="flex items-center gap-2 min-w-0 text-left">
         <div className={cn('h-2 w-2 rounded-full shrink-0', STATUS_DOT[task.status])} />
         <span className={cn(
           'text-sm font-medium truncate',
@@ -237,7 +287,7 @@ function ListRow({
               const tag = availableTags.find((t) => t.id === tagId);
               if (!tag) return null;
               return (
-                <span key={tagId} className="text-[9px] px-1.5 py-0.5 rounded font-medium"
+                <span key={tagId} className="text-[9px] px-1.5 py-0.5 rounded-full font-medium"
                   style={tag.color ? { backgroundColor: `${tag.color}15`, color: tag.color } : undefined}>
                   {tag.name}
                 </span>
@@ -245,60 +295,78 @@ function ListRow({
             })}
           </div>
         )}
-      </div>
+      </button>
 
-      {/* Assignee */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        {assignee ? (
-          <>
-            <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <span className="text-[7px] font-bold leading-none">
-                {assignee.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
-              </span>
+      {/* Assignee — inline editable */}
+      <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
+        <Select value={task.assignee_id || '__none__'} onValueChange={(v) => inlineUpdate('assignee_id', v === '__none__' ? null : v)}>
+          <SelectTrigger className="h-7 text-[11px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              {assignee ? (
+                <>
+                  <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <span className="text-[7px] font-bold leading-none">
+                      {assignee.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)}
+                    </span>
+                  </div>
+                  <span className="truncate">{assignee.full_name.split(' ')[0]}</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground/50">—</span>
+              )}
             </div>
-            <span className="text-xs text-muted-foreground truncate">{assignee.full_name.split(' ')[0]}</span>
-          </>
-        ) : (
-          <span className="text-xs text-muted-foreground/50">—</span>
-        )}
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Unassigned</SelectItem>
+            {Array.from(profiles.values()).map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Due date */}
-      <div>
-        {task.due_date ? (
-          <span className={cn(
-            'text-xs tabular-nums',
-            overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
-          )}>
-            {overdue
-              ? `${Math.abs(d!)}d late`
-              : d === 0 ? 'Today'
-              : d === 1 ? 'Tomorrow'
-              : formatDate(task.due_date)}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground/50">—</span>
-        )}
+      {/* Due date — inline editable */}
+      <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
+        <InlineDateInput
+          value={task.due_date}
+          overdue={overdue}
+          daysUntilDue={d}
+          onChange={(v) => inlineUpdate('due_date', v || null)}
+        />
       </div>
 
-      {/* Priority */}
-      <div>
-        <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', PRIORITY_CLASS[task.priority])}>
-          {task.priority}
-        </Badge>
+      {/* Priority — inline editable */}
+      <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
+        <Select value={task.priority} onValueChange={(v) => inlineUpdate('priority', v)}>
+          <SelectTrigger className="h-7 text-[10px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+            <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', PRIORITY_CLASS[task.priority])}>
+              {task.priority}
+            </Badge>
+          </SelectTrigger>
+          <SelectContent>
+            {PRIORITY_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Status */}
+      {/* Status — inline editable */}
       {showStatus && (
-        <div>
-          <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', STATUS_CLASS[task.status])}>
-            {task.status.replace('_', ' ')}
-          </Badge>
+        <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
+          <Select value={task.status} onValueChange={(v) => inlineUpdate('status', v)}>
+            <SelectTrigger className="h-7 text-[10px] border-0 bg-transparent shadow-none hover:bg-muted/60 transition-colors px-1">
+              <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', STATUS_CLASS[task.status])}>
+                {task.status.replace('_', ' ')}
+              </Badge>
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
-      {/* Info (subtasks + comments) */}
-      <div className="flex items-center gap-2 justify-end">
+      {/* Info */}
+      <div className="hidden sm:flex items-center gap-2 justify-end">
         {sc && sc.total > 0 && (
           <span className="text-[10px] text-muted-foreground tabular-nums flex items-center gap-0.5">
             <CheckCircle2 className="h-3 w-3" />{sc.done}/{sc.total}
@@ -310,6 +378,58 @@ function ListRow({
           </span>
         )}
       </div>
+    </div>
+  );
+}
+
+function InlineDateInput({
+  value, overdue, daysUntilDue, onChange,
+}: {
+  value: string | null;
+  overdue: boolean;
+  daysUntilDue: number | null;
+  onChange: (value: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.showPicker?.();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="date"
+        className="h-7 text-[11px] bg-transparent border-0 outline-none w-full px-1"
+        defaultValue={value || ''}
+        onBlur={(e) => { onChange(e.target.value); setEditing(false); }}
+        onChange={(e) => { onChange(e.target.value); setEditing(false); }}
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="h-7 text-left w-full px-1 rounded hover:bg-muted/60 transition-colors"
+    >
+      {value ? (
+        <span className={cn(
+          'text-[11px] tabular-nums',
+          overdue ? 'text-destructive font-medium' : 'text-muted-foreground',
+        )}>
+          {overdue
+            ? `${Math.abs(daysUntilDue!)}d late`
+            : daysUntilDue === 0 ? 'Today'
+            : daysUntilDue === 1 ? 'Tomorrow'
+            : formatDate(value)}
+        </span>
+      ) : (
+        <span className="text-[11px] text-muted-foreground/40">—</span>
+      )}
     </button>
   );
 }

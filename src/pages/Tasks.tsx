@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus, Search, Loader2, CheckCircle2, ListTodo, Flag,
-  Pencil, Check, Clock, Send, X, Filter,
+  Pencil, Check, Clock, Send, X, Filter, Trash2,
+  User, ArrowRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -83,11 +84,14 @@ const Tasks = () => {
     status: 'open' as TaskStatus,
   });
 
-  // Detail panel
+  // Detail panel — full modal overlay
   const [detailTask, setDetailTask] = useState<Task | null>(null);
 
   // Delete confirm
   const [pendingDelete, setPendingDelete] = useState<Task | null>(null);
+
+  // Bulk selection
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 
   // Space CRUD
   const [spaceDialog, setSpaceDialog] = useState(false);
@@ -98,6 +102,12 @@ const Tasks = () => {
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Comment counts
+  const [commentCountsState, setCommentCountsState] = useState<Map<string, number>>(new Map());
+
+  // Project-to-space mapping
+  const [projectSpaceMap, setProjectSpaceMap] = useState<Map<string, string | null>>(new Map());
 
   // ─── Load Data ───────────────────────────────────────────────────────
 
@@ -138,22 +148,6 @@ const Tasks = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  // ─── Computed ────────────────────────────────────────────────────────
-
-  const subtaskCounts = useMemo(() => {
-    const counts = new Map<string, { total: number; done: number }>();
-    for (const t of allTasks) {
-      if (!t.parent_id) continue;
-      const prev = counts.get(t.parent_id) || { total: 0, done: 0 };
-      prev.total++;
-      if (t.status === 'complete') prev.done++;
-      counts.set(t.parent_id, prev);
-    }
-    return counts;
-  }, [allTasks]);
-
-  const commentCounts = useMemo(() => new Map<string, number>(), []);
-
   // Load comment counts
   useEffect(() => {
     supabase
@@ -169,11 +163,7 @@ const Tasks = () => {
       });
   }, [tasks]);
 
-  const [commentCountsState, setCommentCountsState] = useState<Map<string, number>>(new Map());
-
-  // Project-to-space mapping for filtering
-  const [projectSpaceMap, setProjectSpaceMap] = useState<Map<string, string | null>>(new Map());
-
+  // Load project-space mapping
   useEffect(() => {
     supabase.from('projects').select('id, space_id').then(({ data }) => {
       if (!data) return;
@@ -182,6 +172,35 @@ const Tasks = () => {
       setProjectSpaceMap(m);
     });
   }, [spaces]);
+
+  // ─── Keyboard shortcuts ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey) { e.preventDefault(); openCreate(); }
+      if (e.key === 'Escape') {
+        if (detailTask) { setDetailTask(null); return; }
+        if (selectedTasks.size > 0) { setSelectedTasks(new Set()); return; }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [detailTask, selectedTasks]);
+
+  // ─── Computed ────────────────────────────────────────────────────────
+
+  const subtaskCounts = useMemo(() => {
+    const counts = new Map<string, { total: number; done: number }>();
+    for (const t of allTasks) {
+      if (!t.parent_id) continue;
+      const prev = counts.get(t.parent_id) || { total: 0, done: 0 };
+      prev.total++;
+      if (t.status === 'complete') prev.done++;
+      counts.set(t.parent_id, prev);
+    }
+    return counts;
+  }, [allTasks]);
 
   const taskCounts = useMemo(() => {
     const myTasks = tasks.filter((t) =>
@@ -211,28 +230,18 @@ const Tasks = () => {
     }).length;
   }, [tasks, projectSpaceMap]);
 
-  // Filter tasks based on selected space and search/filters
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tasks.filter((t) => {
-      // Space filter
       if (selectedSpace === '__unassigned__') {
         if (t.project_id && projectSpaceMap.get(t.project_id)) return false;
       } else if (selectedSpace) {
         if (!t.project_id) return false;
         if (projectSpaceMap.get(t.project_id) !== selectedSpace) return false;
       }
-
-      // Assignee filter
       if (assigneeFilter !== 'all' && t.assignee_id !== assigneeFilter) return false;
-
-      // Status filter
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-
-      // Priority filter
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
-
-      // Search
       if (!q) return true;
       const name = t.assignee_id ? profiles.get(t.assignee_id)?.full_name || '' : '';
       return (
@@ -256,20 +265,6 @@ const Tasks = () => {
   const openCreateWithStatus = (status: TaskStatus) => {
     reset();
     setForm((f) => ({ ...f, status }));
-    setDialog(true);
-  };
-
-  const openEdit = (task: Task) => {
-    setEditing(task);
-    setSelectedTagIds(task.tags || []);
-    setForm({
-      title: task.title,
-      description: task.description || '',
-      assignee_id: task.assignee_id || '',
-      due_date: task.due_date || '',
-      priority: task.priority,
-      status: task.status,
-    });
     setDialog(true);
   };
 
@@ -319,11 +314,8 @@ const Tasks = () => {
   const handleQuickCreate = async (title: string, status: TaskStatus) => {
     const maxSort = tasks.filter((t) => t.status === status).length;
     const { error } = await supabase.from('tasks').insert({
-      title,
-      status,
-      priority: 'normal',
-      created_by: profile?.id || null,
-      sort_order: maxSort,
+      title, status, priority: 'normal',
+      created_by: profile?.id || null, sort_order: maxSort,
     });
     if (error) {
       toast({ title: 'Create failed', description: error.message, variant: 'destructive' });
@@ -365,6 +357,75 @@ const Tasks = () => {
     }
     toast({ title: 'Task deleted' });
     if (detailTask?.id === pendingDelete.id) setDetailTask(null);
+    load();
+  };
+
+  // ─── Bulk actions ────────────────────────────────────────────────────
+
+  const toggleSelect = (taskId: string) => {
+    setSelectedTasks((prev) => {
+      const next = new Set(prev);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    if (selectedTasks.size === visible.length) {
+      setSelectedTasks(new Set());
+    } else {
+      setSelectedTasks(new Set(visible.map((t) => t.id)));
+    }
+  };
+
+  const bulkUpdateStatus = async (status: TaskStatus) => {
+    const ids = Array.from(selectedTasks);
+    const { error } = await supabase.from('tasks').update({
+      status,
+      completed_at: status === 'complete' ? new Date().toISOString() : null,
+    }).in('id', ids);
+    if (error) {
+      toast({ title: 'Bulk update failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `${ids.length} tasks updated` });
+    setSelectedTasks(new Set());
+    load();
+  };
+
+  const bulkUpdatePriority = async (priority: Priority) => {
+    const ids = Array.from(selectedTasks);
+    const { error } = await supabase.from('tasks').update({ priority }).in('id', ids);
+    if (error) {
+      toast({ title: 'Bulk update failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `${ids.length} tasks updated` });
+    setSelectedTasks(new Set());
+    load();
+  };
+
+  const bulkAssign = async (assigneeId: string | null) => {
+    const ids = Array.from(selectedTasks);
+    const { error } = await supabase.from('tasks').update({ assignee_id: assigneeId }).in('id', ids);
+    if (error) {
+      toast({ title: 'Bulk assign failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `${ids.length} tasks reassigned` });
+    setSelectedTasks(new Set());
+    load();
+  };
+
+  const bulkDelete = async () => {
+    const ids = Array.from(selectedTasks);
+    const { error } = await supabase.from('tasks').delete().in('id', ids);
+    if (error) {
+      toast({ title: 'Bulk delete failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `${ids.length} tasks deleted` });
+    setSelectedTasks(new Set());
     load();
   };
 
@@ -434,7 +495,7 @@ const Tasks = () => {
     load();
   };
 
-  // ─── View title ──────────────────────────────────────────────────────
+  // ─── View helpers ────────────────────────────────────────────────────
 
   const viewTitle = useMemo(() => {
     if (currentView === 'my-tasks') return 'My Tasks';
@@ -447,11 +508,17 @@ const Tasks = () => {
     return 'All Tasks';
   }, [currentView, selectedSpace, spaces]);
 
-  const activeFilterCount = [
-    assigneeFilter !== 'all',
-    statusFilter !== 'all',
-    priorityFilter !== 'all',
-  ].filter(Boolean).length;
+  const activeFilters: { key: string; label: string; onRemove: () => void }[] = [];
+  if (assigneeFilter !== 'all') {
+    const name = profiles.get(assigneeFilter)?.full_name ?? 'Unknown';
+    activeFilters.push({ key: 'assignee', label: `Assignee: ${name}`, onRemove: () => setAssigneeFilter('all') });
+  }
+  if (statusFilter !== 'all') {
+    activeFilters.push({ key: 'status', label: `Status: ${statusFilter.replace('_', ' ')}`, onRemove: () => setStatusFilter('all') });
+  }
+  if (priorityFilter !== 'all') {
+    activeFilters.push({ key: 'priority', label: `Priority: ${priorityFilter}`, onRemove: () => setPriorityFilter('all') });
+  }
 
   const clearFilters = () => {
     setAssigneeFilter('all');
@@ -465,7 +532,6 @@ const Tasks = () => {
   return (
     <div className="flex h-[calc(100vh-theme(spacing.14)-theme(spacing.8))] -m-4 md:-m-5 lg:-m-6">
       {/* ─── Module Sidebar ─────────────────────────────────────────── */}
-      {/* Desktop */}
       <div className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
         <TaskSidebar
           spaces={spaces}
@@ -474,7 +540,7 @@ const Tasks = () => {
           taskCounts={taskCounts}
           spaceTaskCounts={spaceTaskCounts}
           onSelectSpace={setSelectedSpace}
-          onChangeView={setCurrentView}
+          onChangeView={(v) => { setCurrentView(v); setSelectedTasks(new Set()); }}
           onCreateSpace={openCreateSpace}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
@@ -482,7 +548,7 @@ const Tasks = () => {
         />
       </div>
 
-      {/* Mobile sidebar as Sheet */}
+      {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-[260px] p-3 pt-8">
           <TaskSidebar
@@ -492,7 +558,7 @@ const Tasks = () => {
             taskCounts={taskCounts}
             spaceTaskCounts={spaceTaskCounts}
             onSelectSpace={(id) => { setSelectedSpace(id); setSidebarOpen(false); }}
-            onChangeView={(v) => { setCurrentView(v); setSidebarOpen(false); }}
+            onChangeView={(v) => { setCurrentView(v); setSidebarOpen(false); setSelectedTasks(new Set()); }}
             onCreateSpace={openCreateSpace}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
@@ -504,25 +570,17 @@ const Tasks = () => {
       {/* ─── Main Content ───────────────────────────────────────────── */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Header bar */}
-        <div className="shrink-0 border-b border-border/60 bg-card/30 backdrop-blur-sm px-4 lg:px-6 py-3">
-          <div className="flex items-center justify-between gap-3">
+        <div className="shrink-0 border-b border-border/60 bg-card/30 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3 px-4 lg:px-6 py-3">
             <div className="flex items-center gap-3 min-w-0">
-              {/* Mobile menu trigger */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="md:hidden h-8 w-8 shrink-0"
-                onClick={() => setSidebarOpen(true)}
-              >
+              <Button size="icon" variant="ghost" className="md:hidden h-8 w-8 shrink-0" onClick={() => setSidebarOpen(true)}>
                 <ListTodo className="h-4 w-4" />
               </Button>
-
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{viewTitle}</h1>
                 {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
                   <p className="text-xs text-muted-foreground">
                     {visible.length} task{visible.length !== 1 ? 's' : ''}
-                    {activeFilterCount > 0 && ` (${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''} active)`}
                   </p>
                 )}
               </div>
@@ -531,7 +589,6 @@ const Tasks = () => {
             <div className="flex items-center gap-2 shrink-0">
               {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
                 <>
-                  {/* Search */}
                   <div className="relative hidden sm:block">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
@@ -542,15 +599,14 @@ const Tasks = () => {
                     />
                   </div>
 
-                  {/* Filter popover */}
                   <Popover open={showFilters} onOpenChange={setShowFilters}>
                     <PopoverTrigger asChild>
                       <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs">
                         <Filter className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Filter</span>
-                        {activeFilterCount > 0 && (
+                        {activeFilters.length > 0 && (
                           <span className="bg-primary text-primary-foreground text-[9px] rounded-full h-4 w-4 flex items-center justify-center">
-                            {activeFilterCount}
+                            {activeFilters.length}
                           </span>
                         )}
                       </Button>
@@ -558,13 +614,10 @@ const Tasks = () => {
                     <PopoverContent className="w-[280px] p-3 space-y-3" align="end">
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-semibold">Filters</p>
-                        {activeFilterCount > 0 && (
-                          <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={clearFilters}>
-                            Clear all
-                          </Button>
+                        {activeFilters.length > 0 && (
+                          <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={clearFilters}>Clear all</Button>
                         )}
                       </div>
-
                       <div className="space-y-1.5">
                         <Label className="text-xs">Assignee</Label>
                         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
@@ -577,7 +630,6 @@ const Tasks = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-1.5">
                         <Label className="text-xs">Status</Label>
                         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
@@ -588,7 +640,6 @@ const Tasks = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
                       <div className="space-y-1.5">
                         <Label className="text-xs">Priority</Label>
                         <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as any)}>
@@ -599,18 +650,11 @@ const Tasks = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
-                      {/* Mobile search */}
                       <div className="sm:hidden space-y-1.5">
                         <Label className="text-xs">Search</Label>
                         <div className="relative">
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                          <Input
-                            className="pl-8 h-8 text-sm"
-                            placeholder="Search..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                          />
+                          <Input className="pl-8 h-8 text-sm" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} />
                         </div>
                       </div>
                     </PopoverContent>
@@ -618,13 +662,31 @@ const Tasks = () => {
                 </>
               )}
 
-              {/* New task button */}
               <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreate}>
                 <Plus className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">New task</span>
               </Button>
             </div>
           </div>
+
+          {/* Active filter pills */}
+          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+            <div className="flex items-center gap-1.5 px-4 lg:px-6 pb-2.5 flex-wrap">
+              {activeFilters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={f.onRemove}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                >
+                  {f.label}
+                  <X className="h-3 w-3" />
+                </button>
+              ))}
+              <button onClick={clearFilters} className="text-[11px] text-muted-foreground hover:text-foreground ml-1">
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         {/* View Content */}
@@ -657,6 +719,7 @@ const Tasks = () => {
               profiles={profiles}
               availableTags={availableTags}
               subtaskCounts={subtaskCounts}
+              commentCounts={commentCountsState}
               onStatusChange={handleStatusChange}
               onTaskClick={(t) => setDetailTask(t)}
               onCreateTask={openCreateWithStatus}
@@ -670,14 +733,74 @@ const Tasks = () => {
               subtaskCounts={subtaskCounts}
               commentCounts={commentCountsState}
               onTaskClick={(t) => setDetailTask(t)}
+              onUpdate={load}
+              selectedTasks={selectedTasks}
+              onToggleSelect={toggleSelect}
+              onSelectAll={selectAllVisible}
             />
           ) : null}
         </div>
+
+        {/* ─── Bulk Actions Toolbar ─────────────────────────────────── */}
+        {selectedTasks.size > 0 && (
+          <div className="shrink-0 border-t border-border/60 bg-card px-4 lg:px-6 py-2.5">
+            <div className="flex items-center gap-3 justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium tabular-nums">{selectedTasks.size} selected</span>
+                <button onClick={() => setSelectedTasks(new Set())} className="text-xs text-muted-foreground hover:text-foreground">
+                  Clear
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Bulk status */}
+                <Select onValueChange={(v) => bulkUpdateStatus(v as TaskStatus)}>
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <ArrowRight className="h-3 w-3 mr-1" />
+                    Move to...
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                {/* Bulk priority */}
+                <Select onValueChange={(v) => bulkUpdatePriority(v as Priority)}>
+                  <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <Flag className="h-3 w-3 mr-1" />
+                    Priority...
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITY_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+
+                {/* Bulk assign */}
+                <Select onValueChange={(v) => bulkAssign(v === '__none__' ? null : v)}>
+                  <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <User className="h-3 w-3 mr-1" />
+                    Assign...
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassign</SelectItem>
+                    {Array.from(profiles.values()).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Bulk delete */}
+                <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive hover:text-destructive" onClick={bulkDelete}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ─── Task Detail Side Panel ─────────────────────────────────── */}
-      <Sheet open={!!detailTask} onOpenChange={(v) => { if (!v) setDetailTask(null); }}>
-        <SheetContent className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-hidden">
+      {/* ─── Task Detail — Full Modal Overlay ───────────────────────── */}
+      <Dialog open={!!detailTask} onOpenChange={(v) => { if (!v) setDetailTask(null); }}>
+        <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden flex flex-col">
           {detailTask && (
             <TaskDetailPanel
               task={detailTask}
@@ -687,8 +810,8 @@ const Tasks = () => {
               onUpdate={load}
             />
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Create / Edit Task Dialog ──────────────────────────────── */}
       <Dialog open={dialog} onOpenChange={(v) => { setDialog(v); if (!v) reset(); }}>
@@ -798,11 +921,7 @@ const Tasks = () => {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Name</Label>
-              <Input
-                value={spaceForm.name}
-                onChange={(e) => setSpaceForm({ ...spaceForm, name: e.target.value })}
-                placeholder="e.g. Engineering"
-              />
+              <Input value={spaceForm.name} onChange={(e) => setSpaceForm({ ...spaceForm, name: e.target.value })} placeholder="e.g. Engineering" />
             </div>
             <div className="space-y-1">
               <Label>Color</Label>
@@ -830,11 +949,7 @@ const Tasks = () => {
             </div>
             <div className="space-y-1">
               <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
-              <Input
-                value={spaceForm.description}
-                onChange={(e) => setSpaceForm({ ...spaceForm, description: e.target.value })}
-                placeholder="What is this space for?"
-              />
+              <Input value={spaceForm.description} onChange={(e) => setSpaceForm({ ...spaceForm, description: e.target.value })} placeholder="What is this space for?" />
             </div>
           </div>
           <DialogFooter>
@@ -858,9 +973,7 @@ const Tasks = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -876,9 +989,7 @@ const Tasks = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteSpace} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Remove
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteSpace} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Remove</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

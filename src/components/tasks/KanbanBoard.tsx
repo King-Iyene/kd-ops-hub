@@ -1,33 +1,45 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
-  Plus, GripVertical, Calendar, Clock, CheckCircle2,
-  ChevronRight, Loader2,
+  Plus, Calendar, CheckCircle2, MessageSquare,
+  Loader2, Users, Flag,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type {
-  Task, TaskStatus, ProfileRow, Tag,
-} from '@/lib/task-types';
 import {
-  STATUS_DOT, PRIORITY_CLASS, PRIORITY_BORDER,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/components/ui/tooltip';
+import type {
+  Task, TaskStatus, Priority, ProfileRow, Tag,
 } from '@/lib/task-types';
+import { STATUS_DOT, STATUSES } from '@/lib/task-types';
 
-const COLUMNS: { status: TaskStatus; label: string; accent: string; bg: string }[] = [
-  { status: 'open', label: 'Open', accent: 'bg-slate-500', bg: 'bg-slate-50 dark:bg-slate-900/40' },
-  { status: 'in_progress', label: 'In Progress', accent: 'bg-blue-500', bg: 'bg-blue-50/50 dark:bg-blue-950/20' },
-  { status: 'blocked', label: 'Blocked', accent: 'bg-red-500', bg: 'bg-red-50/30 dark:bg-red-950/10' },
-  { status: 'complete', label: 'Complete', accent: 'bg-emerald-500', bg: 'bg-emerald-50/30 dark:bg-emerald-950/10' },
+const STATUS_COLUMNS: { key: TaskStatus; label: string; accent: string; bg: string }[] = [
+  { key: 'open', label: 'Open', accent: 'bg-slate-500', bg: 'bg-slate-50/50 dark:bg-slate-900/30' },
+  { key: 'in_progress', label: 'In Progress', accent: 'bg-blue-500', bg: 'bg-blue-50/40 dark:bg-blue-950/20' },
+  { key: 'blocked', label: 'Blocked', accent: 'bg-red-500', bg: 'bg-red-50/30 dark:bg-red-950/10' },
+  { key: 'complete', label: 'Complete', accent: 'bg-emerald-500', bg: 'bg-emerald-50/30 dark:bg-emerald-950/10' },
 ];
+
+const PRIORITY_COLUMNS: { key: Priority; label: string; accent: string; bg: string }[] = [
+  { key: 'critical', label: 'Critical', accent: 'bg-red-500', bg: 'bg-red-50/30 dark:bg-red-950/10' },
+  { key: 'high', label: 'High', accent: 'bg-orange-400', bg: 'bg-orange-50/30 dark:bg-orange-950/10' },
+  { key: 'normal', label: 'Normal', accent: 'bg-blue-400', bg: 'bg-blue-50/30 dark:bg-blue-950/10' },
+  { key: 'low', label: 'Low', accent: 'bg-slate-400', bg: 'bg-slate-50/30 dark:bg-slate-900/20' },
+];
+
+export type BoardGroupBy = 'status' | 'priority' | 'assignee';
 
 interface KanbanBoardProps {
   tasks: Task[];
   profiles: Map<string, ProfileRow>;
   availableTags: Tag[];
   subtaskCounts: Map<string, { total: number; done: number }>;
+  commentCounts?: Map<string, number>;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => Promise<void>;
   onTaskClick: (task: Task) => void;
   onCreateTask: (status: TaskStatus) => void;
@@ -35,208 +47,241 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({
-  tasks, profiles, availableTags, subtaskCounts,
+  tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onStatusChange, onTaskClick, onCreateTask, onQuickCreate,
 }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [overCol, setOverCol] = useState<TaskStatus | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<BoardGroupBy>('status');
+
+  const columns = useMemo(() => {
+    if (groupBy === 'status') {
+      return STATUS_COLUMNS.map((col) => ({
+        ...col,
+        tasks: tasks.filter((t) => t.status === col.key).sort((a, b) => a.sort_order - b.sort_order),
+      }));
+    }
+    if (groupBy === 'priority') {
+      return PRIORITY_COLUMNS.map((col) => ({
+        ...col,
+        tasks: tasks.filter((t) => t.priority === col.key).sort((a, b) => a.sort_order - b.sort_order),
+      }));
+    }
+    // Group by assignee
+    const assigneeMap = new Map<string, { label: string; tasks: Task[] }>();
+    for (const t of tasks) {
+      const uid = t.assignee_id || '__unassigned';
+      if (!assigneeMap.has(uid)) {
+        const name = t.assignee_id ? (profiles.get(t.assignee_id)?.full_name ?? 'Unknown') : 'Unassigned';
+        assigneeMap.set(uid, { label: name, tasks: [] });
+      }
+      assigneeMap.get(uid)!.tasks.push(t);
+    }
+    const sorted = Array.from(assigneeMap.entries()).sort(([a], [b]) => {
+      if (a === '__unassigned') return 1;
+      if (b === '__unassigned') return -1;
+      return (assigneeMap.get(a)!.label).localeCompare(assigneeMap.get(b)!.label);
+    });
+    return sorted.map(([uid, data]) => ({
+      key: uid,
+      label: data.label,
+      accent: uid === '__unassigned' ? 'bg-slate-400' : 'bg-primary',
+      bg: 'bg-muted/20',
+      tasks: data.tasks.sort((a, b) => a.sort_order - b.sort_order),
+    }));
+  }, [tasks, groupBy, profiles]);
+
+  const handleDrop = async (targetKey: string) => {
+    setOverCol(null);
+    if (!draggedId) return;
+    const task = tasks.find((t) => t.id === draggedId);
+    if (!task) { setDraggedId(null); return; }
+
+    if (groupBy === 'status' && task.status !== targetKey) {
+      await onStatusChange(draggedId, targetKey as TaskStatus);
+    }
+    setDraggedId(null);
+  };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pb-4">
-      {COLUMNS.map((col) => {
-        const colTasks = tasks
-          .filter((t) => t.status === col.status)
-          .sort((a, b) => a.sort_order - b.sort_order);
-        const isOver = overCol === col.status && draggedId !== null;
+    <div className="space-y-3">
+      {/* Board toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Group by</span>
+          <Select value={groupBy} onValueChange={(v) => setGroupBy(v as BoardGroupBy)}>
+            <SelectTrigger className="h-7 w-[110px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="priority">Priority</SelectItem>
+              <SelectItem value="assignee">Assignee</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+        </span>
+      </div>
 
-        return (
-          <KanbanColumn
-            key={col.status}
-            col={col}
-            tasks={colTasks}
-            profiles={profiles}
-            availableTags={availableTags}
-            subtaskCounts={subtaskCounts}
-            isOver={isOver}
-            draggedId={draggedId}
-            onDragOver={() => setOverCol(col.status)}
-            onDragLeave={() => { if (overCol === col.status) setOverCol(null); }}
-            onDrop={async () => {
-              setOverCol(null);
-              if (draggedId) {
-                const task = tasks.find((t) => t.id === draggedId);
-                if (task && task.status !== col.status) {
-                  await onStatusChange(draggedId, col.status);
-                }
-                setDraggedId(null);
-              }
-            }}
-            onDragStart={setDraggedId}
-            onDragEnd={() => setDraggedId(null)}
-            onTaskClick={onTaskClick}
-            onCreateTask={() => onCreateTask(col.status)}
-            onQuickCreate={(title) => onQuickCreate(title, col.status)}
-          />
-        );
-      })}
+      {/* Board columns */}
+      <div className="flex gap-3 overflow-x-auto pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
+        {columns.map((col) => {
+          const isOver = overCol === col.key && draggedId !== null;
+          return (
+            <div
+              key={col.key}
+              className={cn(
+                'flex flex-col rounded-xl border transition-all min-w-[280px] w-[280px] shrink-0 lg:flex-1 lg:min-w-0 lg:w-auto',
+                isOver
+                  ? 'border-primary/50 shadow-md shadow-primary/10 scale-[1.01]'
+                  : 'border-border/60',
+                col.bg,
+              )}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOverCol(col.key); }}
+              onDragLeave={() => { if (overCol === col.key) setOverCol(null); }}
+              onDrop={async (e) => { e.preventDefault(); await handleDrop(col.key); }}
+            >
+              {/* Column header */}
+              <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
+                <div className={cn('h-2 w-2 rounded-full shrink-0', col.accent)} />
+                <span className="text-[13px] font-semibold tracking-tight flex-1 truncate">{col.label}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums font-medium bg-background/60 rounded-md px-1.5 py-0.5">
+                  {col.tasks.length}
+                </span>
+                {groupBy === 'status' && (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => onCreateTask(col.key as TaskStatus)}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">New task</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+
+              {/* Cards */}
+              <div className="flex-1 p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-280px)]">
+                {col.tasks.length === 0 && !isOver && (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center mb-3', col.bg, 'bg-muted/50')}>
+                      <div className={cn('h-3 w-3 rounded-full opacity-40', col.accent)} />
+                    </div>
+                    <p className="text-xs text-muted-foreground font-medium">No tasks here</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drag tasks here or create new ones</p>
+                  </div>
+                )}
+
+                {isOver && col.tasks.length === 0 && (
+                  <div className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 h-20 flex items-center justify-center">
+                    <p className="text-xs text-primary/60 font-medium">Drop here</p>
+                  </div>
+                )}
+
+                {col.tasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    profiles={profiles}
+                    availableTags={availableTags}
+                    subtaskCount={subtaskCounts.get(task.id)}
+                    commentCount={commentCounts?.get(task.id) ?? 0}
+                    isDragging={draggedId === task.id}
+                    onDragStart={() => setDraggedId(task.id)}
+                    onDragEnd={() => setDraggedId(null)}
+                    onClick={() => onTaskClick(task)}
+                  />
+                ))}
+
+                {isOver && col.tasks.length > 0 && (
+                  <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 h-12 flex items-center justify-center">
+                    <p className="text-[11px] text-primary/50 font-medium">Drop here</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick-add footer */}
+              {groupBy === 'status' && (
+                <QuickAddFooter
+                  status={col.key as TaskStatus}
+                  onQuickCreate={onQuickCreate}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function KanbanColumn({
-  col, tasks, profiles, availableTags, subtaskCounts,
-  isOver, draggedId, onDragOver, onDragLeave, onDrop,
-  onDragStart, onDragEnd, onTaskClick, onCreateTask, onQuickCreate,
-}: {
-  col: typeof COLUMNS[number];
-  tasks: Task[];
-  profiles: Map<string, ProfileRow>;
-  availableTags: Tag[];
-  subtaskCounts: Map<string, { total: number; done: number }>;
-  isOver: boolean;
-  draggedId: string | null;
-  onDragOver: () => void;
-  onDragLeave: () => void;
-  onDrop: () => Promise<void>;
-  onDragStart: (id: string) => void;
-  onDragEnd: () => void;
-  onTaskClick: (task: Task) => void;
-  onCreateTask: () => void;
-  onQuickCreate: (title: string) => Promise<void>;
-}) {
-  const [quickAdd, setQuickAdd] = useState(false);
-  const [quickTitle, setQuickTitle] = useState('');
+function QuickAddFooter({ status, onQuickCreate }: { status: TaskStatus; onQuickCreate: (title: string, status: TaskStatus) => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
   const [creating, setCreating] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleQuickCreate = async () => {
-    if (!quickTitle.trim()) return;
+  const create = async () => {
+    if (!title.trim()) return;
     setCreating(true);
-    await onQuickCreate(quickTitle.trim());
-    setQuickTitle('');
+    await onQuickCreate(title.trim(), status);
+    setTitle('');
     setCreating(false);
     inputRef.current?.focus();
   };
 
   return (
-    <div
-      className={cn(
-        'flex flex-col rounded-xl border transition-all min-h-[320px]',
-        isOver
-          ? 'border-primary/50 shadow-md shadow-primary/10 scale-[1.01]'
-          : 'border-border/60',
-        col.bg,
-      )}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOver(); }}
-      onDragLeave={onDragLeave}
-      onDrop={async (e) => { e.preventDefault(); await onDrop(); }}
-    >
-      {/* Column header */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40">
-        <div className={cn('h-2 w-2 rounded-full shrink-0', col.accent)} />
-        <span className="text-[13px] font-semibold tracking-tight flex-1">{col.label}</span>
-        <span className="text-[11px] text-muted-foreground tabular-nums font-medium bg-background/60 rounded-md px-1.5 py-0.5">
-          {tasks.length}
-        </span>
-        <TooltipProvider delayDuration={200}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onCreateTask}>
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">New task</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
-
-      {/* Cards container */}
-      <div className="flex-1 p-2 space-y-2 overflow-y-auto">
-        {tasks.length === 0 && !isOver && (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className={cn('h-8 w-8 rounded-full flex items-center justify-center mb-2', col.bg)}>
-              <div className={cn('h-3 w-3 rounded-full opacity-30', col.accent)} />
-            </div>
-            <p className="text-xs text-muted-foreground">No tasks</p>
-          </div>
-        )}
-
-        {isOver && tasks.length === 0 && (
-          <div className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 h-20 flex items-center justify-center">
-            <p className="text-xs text-primary/60 font-medium">Drop here</p>
-          </div>
-        )}
-
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            profiles={profiles}
-            availableTags={availableTags}
-            subtaskCount={subtaskCounts.get(task.id)}
-            isDragging={draggedId === task.id}
-            onDragStart={() => onDragStart(task.id)}
-            onDragEnd={onDragEnd}
-            onClick={() => onTaskClick(task)}
+    <div className="px-2 pb-2">
+      {open ? (
+        <div className="space-y-1.5">
+          <Input
+            ref={inputRef}
+            className="h-8 text-sm bg-background"
+            placeholder="Task name..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') create();
+              if (e.key === 'Escape') { setOpen(false); setTitle(''); }
+            }}
+            autoFocus
+            disabled={creating}
           />
-        ))}
-
-        {isOver && tasks.length > 0 && (
-          <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 h-12 flex items-center justify-center">
-            <p className="text-[11px] text-primary/50 font-medium">Drop here</p>
+          <div className="flex gap-1.5">
+            <Button size="sm" className="h-7 text-xs flex-1" disabled={creating || !title.trim()} onClick={create}>
+              {creating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
+              Add
+            </Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setOpen(false); setTitle(''); }}>
+              Cancel
+            </Button>
           </div>
-        )}
-      </div>
-
-      {/* Quick-add footer */}
-      <div className="px-2 pb-2">
-        {quickAdd ? (
-          <div className="space-y-1.5">
-            <Input
-              ref={inputRef}
-              className="h-8 text-sm bg-background"
-              placeholder="Task name..."
-              value={quickTitle}
-              onChange={(e) => setQuickTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleQuickCreate();
-                if (e.key === 'Escape') { setQuickAdd(false); setQuickTitle(''); }
-              }}
-              autoFocus
-              disabled={creating}
-            />
-            <div className="flex gap-1.5">
-              <Button size="sm" className="h-7 text-xs flex-1" disabled={creating || !quickTitle.trim()} onClick={handleQuickCreate}>
-                {creating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Plus className="h-3 w-3 mr-1" />}
-                Add
-              </Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setQuickAdd(false); setQuickTitle(''); }}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setQuickAdd(true)}
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Add task</span>
-          </button>
-        )}
-      </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add task
+        </button>
+      )}
     </div>
   );
 }
 
 function TaskCard({
-  task, profiles, availableTags, subtaskCount,
+  task, profiles, availableTags, subtaskCount, commentCount,
   isDragging, onDragStart, onDragEnd, onClick,
 }: {
   task: Task;
   profiles: Map<string, ProfileRow>;
   availableTags: Tag[];
   subtaskCount?: { total: number; done: number };
+  commentCount: number;
   isDragging: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
@@ -246,12 +291,7 @@ function TaskCard({
   const d = task.due_date ? daysUntil(task.due_date) : null;
   const overdue = task.status !== 'complete' && d !== null && d < 0;
   const initials = assignee
-    ? assignee.full_name
-        .split(' ')
-        .map((w) => w[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
+    ? assignee.full_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
     : null;
 
   return (
@@ -269,7 +309,7 @@ function TaskCard({
         'hover:shadow-md hover:border-border',
         'active:scale-[0.98]',
         isDragging && 'opacity-30 scale-[0.95] ring-2 ring-primary/40',
-        task.status === 'complete' && 'opacity-70',
+        task.status === 'complete' && 'opacity-60',
       )}
     >
       {/* Priority strip */}
@@ -295,18 +335,13 @@ function TaskCard({
             const tag = availableTags.find((t) => t.id === tagId);
             if (!tag) return null;
             return (
-              <span
-                key={tagId}
-                className="inline-flex text-[9px] px-1.5 py-0.5 rounded-md font-medium"
-                style={tag.color ? { backgroundColor: `${tag.color}15`, color: tag.color } : undefined}
-              >
+              <span key={tagId} className="inline-flex text-[9px] px-1.5 py-0.5 rounded-full font-medium"
+                style={tag.color ? { backgroundColor: `${tag.color}15`, color: tag.color } : undefined}>
                 {tag.name}
               </span>
             );
           })}
-          {task.tags.length > 3 && (
-            <span className="text-[9px] text-muted-foreground">+{task.tags.length - 3}</span>
-          )}
+          {task.tags.length > 3 && <span className="text-[9px] text-muted-foreground">+{task.tags.length - 3}</span>}
         </div>
       )}
 
@@ -314,10 +349,8 @@ function TaskCard({
       {subtaskCount && subtaskCount.total > 0 && (
         <div className="mt-2 flex items-center gap-2">
           <div className="flex-1 bg-muted rounded-full h-1">
-            <div
-              className="bg-emerald-500 h-1 rounded-full transition-all"
-              style={{ width: `${(subtaskCount.done / subtaskCount.total) * 100}%` }}
-            />
+            <div className="bg-emerald-500 h-1 rounded-full transition-all"
+              style={{ width: `${(subtaskCount.done / subtaskCount.total) * 100}%` }} />
           </div>
           <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
             {subtaskCount.done}/{subtaskCount.total}
@@ -325,36 +358,48 @@ function TaskCard({
         </div>
       )}
 
-      {/* Footer: assignee avatar + due date */}
+      {/* Footer: assignee + due date + comment count */}
       <div className="flex items-center justify-between mt-2.5 gap-2">
-        {assignee ? (
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <span className="text-[8px] font-bold leading-none">{initials}</span>
+        <div className="flex items-center gap-2 min-w-0">
+          {assignee ? (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <span className="text-[8px] font-bold leading-none">{initials}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{assignee.full_name}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+              <span className="text-[8px] text-muted-foreground/40">?</span>
             </div>
-            <span className="text-[11px] text-muted-foreground truncate">{assignee.full_name}</span>
-          </div>
-        ) : (
-          <span className="text-[10px] text-muted-foreground/50">Unassigned</span>
-        )}
+          )}
+
+          {commentCount > 0 && (
+            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground tabular-nums">
+              <MessageSquare className="h-3 w-3" />{commentCount}
+            </span>
+          )}
+        </div>
 
         {task.due_date && (
           <span className={cn(
-            'flex items-center gap-0.5 text-[10px] shrink-0 rounded-md px-1.5 py-0.5',
+            'flex items-center gap-0.5 text-[10px] shrink-0 rounded-full px-2 py-0.5',
             overdue
               ? 'bg-destructive/10 text-destructive font-medium'
               : d !== null && d <= 2
                 ? 'bg-warning/10 text-warning'
-                : 'text-muted-foreground',
+                : 'text-muted-foreground bg-muted/50',
           )}>
             <Calendar className="h-2.5 w-2.5" />
             {overdue
               ? `${-(d as number)}d late`
-              : d !== null && d === 0
-                ? 'Today'
-                : d !== null && d === 1
-                  ? 'Tomorrow'
-                  : formatDate(task.due_date)}
+              : d === 0 ? 'Today'
+              : d === 1 ? 'Tmrw'
+              : formatDate(task.due_date)}
           </span>
         )}
       </div>
