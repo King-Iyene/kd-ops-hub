@@ -12,6 +12,11 @@ import {
   Building2,
   User as UserIcon,
   Users as UsersIcon,
+  ChevronDown,
+  ChevronRight,
+  ListTodo,
+  Link2,
+  Unlink,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -90,6 +95,14 @@ interface Department {
   name: string;
 }
 
+interface LinkedTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  assignee_id: string | null;
+}
+
 const SCOPE_LABEL: Record<Scope, string> = {
   company: 'Company',
   team: 'Team',
@@ -144,6 +157,9 @@ const Goals = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [goalTasksMap, setGoalTasksMap] = useState<Map<string, LinkedTask[]>>(new Map());
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search);
   const [scopeFilter, setScopeFilter] = useState<'all' | Scope>('all');
@@ -172,11 +188,43 @@ const Goals = () => {
       supabase.from('profiles').select('id, full_name, email').neq('is_anonymised', true).order('full_name').limit(500),
       supabase.from('departments').select('id, name').order('name'),
     ]);
-    setGoals((goalsRes.data as Goal[]) || []);
+    const goalsData = (goalsRes.data as Goal[]) || [];
+    setGoals(goalsData);
     const m = new Map<string, ProfileRow>();
     for (const p of (profilesRes.data as ProfileRow[]) || []) m.set(p.id, p);
     setProfiles(m);
     setDepartments((depsRes.data as Department[]) || []);
+
+    const goalIds = goalsData.map((g) => g.id);
+    if (goalIds.length > 0) {
+      const [directRes, junctionRes] = await Promise.all([
+        supabase
+          .from('tasks')
+          .select('id, title, status, priority, assignee_id, goal_id')
+          .in('goal_id', goalIds),
+        supabase
+          .from('goal_tasks')
+          .select('goal_id, task:task_id(id, title, status, priority, assignee_id)')
+          .in('goal_id', goalIds),
+      ]);
+      const taskMap = new Map<string, LinkedTask[]>();
+      for (const t of (directRes.data || []) as any[]) {
+        if (!t.goal_id) continue;
+        const arr = taskMap.get(t.goal_id) || [];
+        arr.push({ id: t.id, title: t.title, status: t.status, priority: t.priority, assignee_id: t.assignee_id });
+        taskMap.set(t.goal_id, arr);
+      }
+      for (const row of (junctionRes.data || []) as any[]) {
+        const t = row.task;
+        if (!t || !row.goal_id) continue;
+        const arr = taskMap.get(row.goal_id) || [];
+        if (!arr.some((x: LinkedTask) => x.id === t.id)) {
+          arr.push({ id: t.id, title: t.title, status: t.status, priority: t.priority, assignee_id: t.assignee_id });
+        }
+        taskMap.set(row.goal_id, arr);
+      }
+      setGoalTasksMap(taskMap);
+    }
     setLoading(false);
   }, []);
 
@@ -200,6 +248,30 @@ const Goals = () => {
     setEditing(null);
     resetForm();
     setDialog(true);
+  };
+
+  const syncProgressFromTasks = async (g: Goal) => {
+    const tasks = goalTasksMap.get(g.id) || [];
+    if (tasks.length === 0) {
+      toast({ title: 'No linked tasks', description: 'Link tasks first to sync progress', variant: 'destructive' });
+      return;
+    }
+    const pct = Math.round((tasks.filter((t) => t.status === 'complete').length / tasks.length) * 100);
+    const newStatus = pct === 100 ? 'complete' : pct > 0 ? 'in_progress' : g.status;
+    const { error } = await supabase
+      .from('goals')
+      .update({
+        progress_pct: pct,
+        status: newStatus,
+        completed_at: newStatus === 'complete' ? new Date().toISOString() : null,
+      })
+      .eq('id', g.id);
+    if (error) {
+      toast({ title: 'Sync failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: `Progress synced to ${pct}%` });
+    load();
   };
 
   const openEdit = (g: Goal) => {
@@ -296,6 +368,24 @@ const Goals = () => {
       return;
     }
     toast({ title: 'Goal deleted' });
+    load();
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedGoals((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const unlinkTask = async (goalId: string, taskId: string) => {
+    await Promise.all([
+      supabase.from('tasks').update({ goal_id: null }).eq('id', taskId).eq('goal_id', goalId),
+      supabase.from('goal_tasks').delete().eq('goal_id', goalId).eq('task_id', taskId),
+    ]);
+    toast({ title: 'Task unlinked' });
     load();
   };
 
@@ -464,6 +554,7 @@ const Goals = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Goal</TableHead>
                   <TableHead>Scope</TableHead>
                   <TableHead>Owner</TableHead>
@@ -478,14 +569,42 @@ const Goals = () => {
                   const Icon = SCOPE_ICON[g.scope];
                   const owner = g.owner_id ? profiles.get(g.owner_id) : null;
                   const isMine = g.owner_id === profile?.id;
+                  const linkedTasks = goalTasksMap.get(g.id) || [];
+                  const isExpanded = expandedGoals.has(g.id);
+                  const taskProgress = linkedTasks.length > 0
+                    ? Math.round((linkedTasks.filter((t) => t.status === 'complete').length / linkedTasks.length) * 100)
+                    : null;
                   return (
+                    <>
                     <TableRow key={g.id} className="kd-transition">
+                      <TableCell className="w-8 px-2">
+                        {linkedTasks.length > 0 ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleExpand(g.id)}
+                          >
+                            {isExpanded
+                              ? <ChevronDown className="h-4 w-4" />
+                              : <ChevronRight className="h-4 w-4" />}
+                          </Button>
+                        ) : null}
+                      </TableCell>
                       <TableCell>
                         <p className="font-medium">{g.title}</p>
                         {g.description && (
                           <p className="text-xs text-muted-foreground truncate max-w-md">
                             {g.description}
                           </p>
+                        )}
+                        {linkedTasks.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <ListTodo className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">
+                              {linkedTasks.filter((t) => t.status === 'complete').length}/{linkedTasks.length} tasks done
+                            </span>
+                          </div>
                         )}
                       </TableCell>
                       <TableCell>
@@ -514,6 +633,9 @@ const Goals = () => {
                           </div>
                           <p className="text-xs text-muted-foreground">
                             {g.progress_pct}%
+                            {taskProgress !== null && taskProgress !== g.progress_pct && (
+                              <span className="ml-1 text-info">({taskProgress}% by tasks)</span>
+                            )}
                           </p>
                         </div>
                       </TableCell>
@@ -524,6 +646,16 @@ const Goals = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          {linkedTasks.length > 0 && taskProgress !== g.progress_pct && (isMine || isAdmin) && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => syncProgressFromTasks(g)}
+                              title="Sync progress from linked tasks"
+                            >
+                              <ListTodo className="h-4 w-4 text-info" />
+                            </Button>
+                          )}
                           {g.status !== 'complete' && isMine && (
                             <Button
                               size="sm"
@@ -555,6 +687,45 @@ const Goals = () => {
                         </div>
                       </TableCell>
                     </TableRow>
+                    {isExpanded && linkedTasks.map((t) => (
+                      <TableRow key={`${g.id}-${t.id}`} className="bg-muted/30">
+                        <TableCell />
+                        <TableCell colSpan={5} className="pl-8">
+                          <div className="flex items-center gap-2">
+                            <Link2 className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span className="text-sm">{t.title}</span>
+                            <Badge variant="secondary" className={
+                              t.status === 'complete' ? 'bg-success/10 text-success' :
+                              t.status === 'in_progress' ? 'bg-info/10 text-info' :
+                              t.status === 'blocked' ? 'bg-destructive/10 text-destructive' :
+                              'bg-muted text-muted-foreground'
+                            }>
+                              {t.status.replace('_', ' ')}
+                            </Badge>
+                            {t.assignee_id && profiles.get(t.assignee_id) && (
+                              <span className="text-xs text-muted-foreground">
+                                {profiles.get(t.assignee_id)!.full_name}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell />
+                        <TableCell className="text-right">
+                          {(isMine || isAdmin) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => unlinkTask(g.id, t.id)}
+                              title="Unlink task"
+                            >
+                              <Unlink className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    </>
                   );
                 })}
               </TableBody>
