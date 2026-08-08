@@ -84,6 +84,7 @@ export function DriverScorecard() {
 
       const tripIdToDriver = new Map<string, string>();
       const driverTrips = new Map<string, { count: number; km: number; litres: number }>();
+      const driverEvents = new Map<string, { speeding: number; hard_braking: number }>();
 
       for (const t of trips) {
         if (!t.driver_id) continue;
