@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link2, Plus, Trash2, Search, ArrowRight, ArrowLeft, ArrowLeftRight } from 'lucide-react';
+import { Link2, Plus, Trash2, Search, ArrowRight, ArrowLeft, ArrowLeftRight, Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ const DEP_TYPE_CONFIG: Record<DependencyType, { label: string; icon: typeof Arro
   blocks: { label: 'Blocking', icon: ArrowRight },
   is_blocked_by: { label: 'Blocked by', icon: ArrowLeft },
   relates_to: { label: 'Related to', icon: ArrowLeftRight },
+  duplicate_of: { label: 'Duplicate of', icon: Copy },
 };
 
 export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDependenciesPanelProps) {

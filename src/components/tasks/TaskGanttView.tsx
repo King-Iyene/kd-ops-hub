@@ -187,7 +187,26 @@ export function TaskGanttView({ tasks, profiles, onTaskClick }: TaskGanttViewPro
                         />
                       )
                     ))}
-                    {isVisible && (
+                    {isVisible && t.task_type === 'milestone' ? (
+                      <button
+                        onClick={() => onTaskClick(t)}
+                        className="absolute top-1 flex items-center gap-1 group/ms"
+                        style={{ left: left + width / 2 - 10 }}
+                      >
+                        <div
+                          className={cn(
+                            'h-5 w-5 rotate-45 rounded-sm transition-colors',
+                            t.status === 'complete' ? 'bg-green-500' :
+                            t.status === 'blocked' ? 'bg-red-500' :
+                            t.status === 'in_progress' ? 'bg-blue-500' :
+                            'bg-amber-500',
+                          )}
+                        />
+                        <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap -rotate-0 ml-1 group-hover/ms:text-foreground">
+                          {t.title}
+                        </span>
+                      </button>
+                    ) : isVisible && (
                       <button
                         onClick={() => onTaskClick(t)}
                         className={cn(

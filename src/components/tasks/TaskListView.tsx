@@ -1,7 +1,7 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import {
   CheckCircle2, MessageSquare, ChevronDown, ChevronUp,
-  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown,
+  ChevronRight, Square, CheckSquare, Minus, ArrowUpDown, MoreHorizontal,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
@@ -12,8 +12,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
-import type { Task, TaskStatus, Priority, ProfileRow, Tag } from '@/lib/task-types';
+import type { Task, TaskStatus, Priority, ProfileRow, Tag, TaskList, SpaceFolder } from '@/lib/task-types';
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT, PRIORITY_CLASS, STATUS_CLASS } from '@/lib/task-types';
+import { TaskContextMenu } from './TaskContextMenu';
+import type { Space } from './TaskSidebar';
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'none';
 type SortField = 'title' | 'assignee' | 'due_date' | 'priority' | 'status' | 'created_at';
@@ -34,6 +36,9 @@ interface TaskListViewProps {
   onToggleSelect: (taskId: string) => void;
   onSelectAll: () => void;
   tableMode?: boolean;
+  spaces: Space[];
+  folders: SpaceFolder[];
+  lists: TaskList[];
 }
 
 const STATUS_ORDER: TaskStatus[] = ['open', 'in_progress', 'blocked', 'complete'];
@@ -49,7 +54,7 @@ const STATUS_ACCENT: Record<TaskStatus, string> = {
 export function TaskListView({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, selectedTasks, onToggleSelect, onSelectAll,
-  tableMode = false,
+  tableMode = false, spaces, folders, lists,
 }: TaskListViewProps) {
   const [groupBy, setGroupBy] = useState<GroupBy>(tableMode ? 'none' : 'status');
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -194,6 +199,9 @@ export function TaskListView({
             sortField={sortField}
             sortDir={sortDir}
             onToggleSort={toggleSort}
+            spaces={spaces}
+            folders={folders}
+            lists={lists}
           />
         ))
       )}
@@ -204,7 +212,7 @@ export function TaskListView({
 function ListGroup({
   label, accent, tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onTaskClick, onUpdate, groupBy, selectedTasks, onToggleSelect,
-  sortField, sortDir, onToggleSort,
+  sortField, sortDir, onToggleSort, spaces, folders, lists,
 }: {
   label: string;
   accent: string;
@@ -221,6 +229,9 @@ function ListGroup({
   sortField: SortField;
   sortDir: SortDir;
   onToggleSort: (field: SortField) => void;
+  spaces: Space[];
+  folders: SpaceFolder[];
+  lists: TaskList[];
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -239,7 +250,7 @@ function ListGroup({
       {!collapsed && (
         <div className="rounded-lg border border-border/60 overflow-hidden bg-card">
           {/* Header */}
-          <div className="hidden sm:grid grid-cols-[32px_1fr_120px_100px_90px_90px_70px] gap-1 px-3 py-1.5 border-b border-border/40 bg-muted/30">
+          <div className="hidden sm:grid grid-cols-[32px_1fr_120px_100px_90px_90px_70px_32px] gap-1 px-3 py-1.5 border-b border-border/40 bg-muted/30">
             <span />
             <SortableHeader label="Task" field="title" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
             <SortableHeader label="Assignee" field="assignee" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
@@ -249,6 +260,7 @@ function ListGroup({
               <SortableHeader label="Status" field="status" sortField={sortField} sortDir={sortDir} onToggleSort={onToggleSort} />
             )}
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Info</span>
+            <span />
           </div>
 
           {tasks.map((task) => (
@@ -264,6 +276,9 @@ function ListGroup({
               showStatus={groupBy !== 'status'}
               selected={selectedTasks.has(task.id)}
               onToggleSelect={() => onToggleSelect(task.id)}
+              spaces={spaces}
+              folders={folders}
+              lists={lists}
             />
           ))}
         </div>
@@ -275,6 +290,7 @@ function ListGroup({
 function ListRow({
   task, profiles, availableTags, subtaskCounts, commentCounts,
   onClick, onUpdate, showStatus, selected, onToggleSelect,
+  spaces, folders, lists,
 }: {
   task: Task;
   profiles: Map<string, ProfileRow>;
@@ -286,6 +302,9 @@ function ListRow({
   showStatus: boolean;
   selected: boolean;
   onToggleSelect: () => void;
+  spaces: Space[];
+  folders: SpaceFolder[];
+  lists: TaskList[];
 }) {
   const { toast } = useToast();
   const assignee = task.assignee_id ? profiles.get(task.assignee_id) : null;
@@ -306,7 +325,7 @@ function ListRow({
   return (
     <div
       className={cn(
-        'sm:grid sm:grid-cols-[32px_1fr_120px_100px_90px_90px_70px] gap-1 w-full px-3 py-2.5 text-left transition-all',
+        'sm:grid sm:grid-cols-[32px_1fr_120px_100px_90px_90px_70px_32px] gap-1 w-full px-3 py-2.5 text-left transition-all',
         'hover:bg-muted/40 border-b border-border/20 last:border-b-0 group',
         'flex flex-col sm:flex-row sm:items-center',
         task.status === 'complete' && 'opacity-50',
@@ -428,6 +447,15 @@ function ListRow({
             <MessageSquare className="h-3 w-3" />{cc}
           </span>
         )}
+      </div>
+
+      {/* Context menu */}
+      <div className="hidden sm:flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+        <TaskContextMenu task={task} spaces={spaces} folders={folders} lists={lists} profiles={profiles} onUpdate={onUpdate}>
+          <button className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/80 opacity-0 group-hover:opacity-100 transition-opacity">
+            <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        </TaskContextMenu>
       </div>
     </div>
   );

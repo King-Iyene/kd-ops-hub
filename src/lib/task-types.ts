@@ -1,7 +1,7 @@
 export type Priority = 'critical' | 'high' | 'normal' | 'low';
 export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'complete';
 export type TaskType = 'task' | 'milestone' | 'bug' | 'feature';
-export type DependencyType = 'blocks' | 'is_blocked_by' | 'relates_to';
+export type DependencyType = 'blocks' | 'is_blocked_by' | 'relates_to' | 'duplicate_of';
 
 export type RecurrenceFreq = 'daily' | 'weekly' | 'monthly' | 'yearly';
 

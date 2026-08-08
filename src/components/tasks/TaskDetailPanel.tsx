@@ -934,6 +934,7 @@ export function TaskDetailPanel({
                       <SelectItem value="blocks">Blocking</SelectItem>
                       <SelectItem value="is_blocked_by">Blocked by</SelectItem>
                       <SelectItem value="relates_to">Related to</SelectItem>
+                      <SelectItem value="duplicate_of">Duplicate of</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={depTaskId} onValueChange={setDepTaskId}>

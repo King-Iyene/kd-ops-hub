@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import {
   Plus, Calendar, CheckCircle2, MessageSquare,
-  Loader2, Users, Flag,
+  Loader2, Users, Flag, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDate, daysUntil } from '@/lib/format';
@@ -14,9 +14,11 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type {
-  Task, TaskStatus, Priority, ProfileRow, Tag,
+  Task, TaskStatus, Priority, ProfileRow, Tag, TaskList, SpaceFolder,
 } from '@/lib/task-types';
 import { STATUS_DOT, STATUSES } from '@/lib/task-types';
+import { TaskContextMenu } from './TaskContextMenu';
+import type { Space } from './TaskSidebar';
 
 const STATUS_COLUMNS: { key: TaskStatus; label: string; accent: string; bg: string }[] = [
   { key: 'open', label: 'Open', accent: 'bg-slate-500', bg: 'bg-slate-50/50 dark:bg-slate-900/30' },
@@ -45,11 +47,16 @@ interface KanbanBoardProps {
   onTaskClick: (task: Task) => void;
   onCreateTask: (status: TaskStatus) => void;
   onQuickCreate: (title: string, status: TaskStatus) => Promise<void>;
+  spaces: Space[];
+  folders: SpaceFolder[];
+  lists: TaskList[];
+  onUpdate: () => void;
 }
 
 export function KanbanBoard({
   tasks, profiles, availableTags, subtaskCounts, commentCounts,
   onStatusChange, onFieldChange, onTaskClick, onCreateTask, onQuickCreate,
+  spaces, folders, lists, onUpdate,
 }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -202,6 +209,10 @@ export function KanbanBoard({
                     onDragStart={() => setDraggedId(task.id)}
                     onDragEnd={() => setDraggedId(null)}
                     onClick={() => onTaskClick(task)}
+                    spaces={spaces}
+                    folders={folders}
+                    lists={lists}
+                    onUpdate={onUpdate}
                   />
                 ))}
 
@@ -284,6 +295,7 @@ function QuickAddFooter({ status, onQuickCreate }: { status: TaskStatus; onQuick
 function TaskCard({
   task, profiles, availableTags, subtaskCount, commentCount,
   isDragging, onDragStart, onDragEnd, onClick,
+  spaces, folders, lists, onUpdate,
 }: {
   task: Task;
   profiles: Map<string, ProfileRow>;
@@ -294,6 +306,10 @@ function TaskCard({
   onDragStart: () => void;
   onDragEnd: () => void;
   onClick: () => void;
+  spaces: Space[];
+  folders: SpaceFolder[];
+  lists: TaskList[];
+  onUpdate: () => void;
 }) {
   const assignee = task.assignee_id ? profiles.get(task.assignee_id) : null;
   const d = task.due_date ? daysUntil(task.due_date) : null;
@@ -320,13 +336,22 @@ function TaskCard({
         task.status === 'complete' && 'opacity-60',
       )}
     >
-      {/* Priority strip */}
-      <div className={cn('h-0.5 w-8 rounded-full mb-2', {
-        'bg-red-500': task.priority === 'critical',
-        'bg-orange-400': task.priority === 'high',
-        'bg-blue-400': task.priority === 'normal',
-        'bg-slate-300 dark:bg-slate-600': task.priority === 'low',
-      })} />
+      {/* Priority strip + context menu */}
+      <div className="flex items-start justify-between mb-2">
+        <div className={cn('h-0.5 w-8 rounded-full mt-1', {
+          'bg-red-500': task.priority === 'critical',
+          'bg-orange-400': task.priority === 'high',
+          'bg-blue-400': task.priority === 'normal',
+          'bg-slate-300 dark:bg-slate-600': task.priority === 'low',
+        })} />
+        <div onClick={(e) => e.stopPropagation()}>
+          <TaskContextMenu task={task} spaces={spaces} folders={folders} lists={lists} profiles={profiles} onUpdate={onUpdate}>
+            <button className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted/80 opacity-0 group-hover:opacity-100 transition-opacity -mt-1 -mr-1">
+              <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </TaskContextMenu>
+        </div>
+      </div>
 
       {/* Title */}
       <p className={cn(

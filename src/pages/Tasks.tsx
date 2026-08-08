@@ -1071,6 +1071,10 @@ const Tasks = () => {
               onTaskClick={(t) => setDetailTask(t)}
               onCreateTask={openCreateWithStatus}
               onQuickCreate={handleQuickCreate}
+              spaces={spaces}
+              folders={folders}
+              lists={taskLists}
+              onUpdate={() => load()}
             />
           ) : currentView === 'calendar' ? (
             <TaskCalendarView
@@ -1109,6 +1113,9 @@ const Tasks = () => {
               onToggleSelect={toggleSelect}
               onSelectAll={selectAllVisible}
               tableMode={currentView === 'table'}
+              spaces={spaces}
+              folders={folders}
+              lists={taskLists}
             />
           ) : null}
 
