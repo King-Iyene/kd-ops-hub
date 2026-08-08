@@ -8128,6 +8128,47 @@ export type Database = {
           },
         ]
       }
+      space_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          sort_order: number
+          space_id: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          space_id: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          space_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_folders_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       space_members: {
         Row: {
           added_by: string | null
@@ -8153,6 +8194,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      space_statuses: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          space_id: string
+          status_group: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          space_id: string
+          status_group?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          space_id?: string
+          status_group?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_statuses_space_id_fkey"
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "project_spaces"
@@ -8440,6 +8519,44 @@ export type Database = {
           },
         ]
       }
+      task_checklists: {
+        Row: {
+          assignee_id: string | null
+          created_at: string
+          id: string
+          is_checked: boolean
+          sort_order: number
+          task_id: string
+          title: string
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          sort_order?: number
+          task_id: string
+          title: string
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string
+          id?: string
+          is_checked?: boolean
+          sort_order?: number
+          task_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_checklists_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_comments: {
         Row: {
           author_id: string
@@ -8536,6 +8653,7 @@ export type Database = {
         Row: {
           color: string | null
           created_at: string
+          folder_id: string | null
           id: string
           name: string
           project_id: string | null
@@ -8545,6 +8663,7 @@ export type Database = {
         Insert: {
           color?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           name: string
           project_id?: string | null
@@ -8554,6 +8673,7 @@ export type Database = {
         Update: {
           color?: string | null
           created_at?: string
+          folder_id?: string | null
           id?: string
           name?: string
           project_id?: string | null
@@ -8561,6 +8681,13 @@ export type Database = {
           space_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "task_lists_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "space_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "task_lists_project_id_fkey"
             columns: ["project_id"]
@@ -8663,6 +8790,7 @@ export type Database = {
           start_date: string | null
           status: string
           tags: string[] | null
+          task_type: string
           time_estimate_minutes: number | null
           time_spent_minutes: number
           title: string
@@ -8686,6 +8814,7 @@ export type Database = {
           start_date?: string | null
           status?: string
           tags?: string[] | null
+          task_type?: string
           time_estimate_minutes?: number | null
           time_spent_minutes?: number
           title: string
@@ -8709,6 +8838,7 @@ export type Database = {
           start_date?: string | null
           status?: string
           tags?: string[] | null
+          task_type?: string
           time_estimate_minutes?: number | null
           time_spent_minutes?: number
           title?: string
