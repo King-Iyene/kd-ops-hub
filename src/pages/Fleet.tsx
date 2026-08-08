@@ -2132,8 +2132,8 @@ const Fleet = () => {
         // receipt and typing ₦50,000, or the reverse.
         if (repairReceiptOcrAmount) {
           const ocrAmount = parseFloat(repairReceiptOcrAmount);
-          if (ocrAmount && checkReceiptRequestDivergence(amount, ocrAmount).flagged) {
-            const deviationPct = Math.round((Math.abs(amount - ocrAmount) / ocrAmount) * 100);
+          if (ocrAmount && checkReceiptRequestDivergence(ocrAmount, amount).flagged) {
+            const deviationPct = Math.round((Math.abs(amount - ocrAmount) / amount) * 100);
             const direction = amount > ocrAmount ? 'more' : 'less';
             flags.push({
               type: 'amount_mismatch',
@@ -2286,8 +2286,8 @@ const Fleet = () => {
       const claimedAmount = uploadingRepairReceiptFor.amount_ngn || 0;
       if (repairReceiptUploadOcrAmount) {
         const ocrAmount = parseFloat(repairReceiptUploadOcrAmount);
-        if (ocrAmount && claimedAmount && checkReceiptRequestDivergence(claimedAmount, ocrAmount).flagged) {
-          const deviationPct = Math.round((Math.abs(claimedAmount - ocrAmount) / ocrAmount) * 100);
+        if (ocrAmount && claimedAmount && checkReceiptRequestDivergence(ocrAmount, claimedAmount).flagged) {
+          const deviationPct = Math.round((Math.abs(claimedAmount - ocrAmount) / claimedAmount) * 100);
           const direction = claimedAmount > ocrAmount ? 'more' : 'less';
           flags.push({
             type: 'amount_mismatch',
@@ -6300,11 +6300,16 @@ const Fleet = () => {
                 extractLitres
                 onExtracted={(result: OcrResult, file: File) => {
                   setReceiptFile(file);
-                  setReceiptScanWarning(
-                    result.lowConfidence
-                      ? "Scan couldn't read amount or litres — fill them in manually below."
-                      : '',
-                  );
+                  let warning = '';
+                  if (result.lowConfidence) {
+                    const conf = result.confidence?.overall;
+                    warning = conf != null && conf > 0
+                      ? `Scan confidence is low (${Math.round(conf * 100)}%) — verify the fields below.`
+                      : "Scan couldn't read amount or litres — fill them in manually below.";
+                  } else if (result.receiptType && result.receiptType !== 'fuel' && result.receiptType !== 'general') {
+                    warning = `This looks like a ${result.receiptType} receipt, not a fuel receipt — double-check you're uploading the right one.`;
+                  }
+                  setReceiptScanWarning(warning);
                   setReceiptForm((f) => ({
                     ...f,
                     fuel_station_name: result.description || f.fuel_station_name,
@@ -6703,11 +6708,17 @@ const Fleet = () => {
                   onExtracted={(result: OcrResult, file: File) => {
                     setRepairReceipt(file);
                     setRepairReceiptOcrAmount(result.amount_ngn || '');
+                    if (result.receiptType === 'fuel') {
+                      toast({ title: 'Receipt type mismatch', description: 'This looks like a fuel receipt — make sure you\'re attaching the right one.', variant: 'default' });
+                    }
+                    const partsFromLineItems = result.lineItems
+                      ?.map((li) => li.description).join(', ') || '';
                     setRepairForm((f) => ({
                       ...f,
                       amount_ngn: result.amount_ngn || f.amount_ngn,
                       vendor_name: f.vendor_name || result.description || f.vendor_name,
                       repair_date: result.date || f.repair_date,
+                      parts_replaced: f.parts_replaced || partsFromLineItems,
                     }));
                   }}
                 />
@@ -6790,6 +6801,9 @@ const Fleet = () => {
                   setRepairReceiptUploadOcrAmount(result.amount_ngn || '');
                   setRepairReceiptUploadVendor((v) => v || result.description || v);
                   setRepairReceiptUploadDate((d) => d || result.date || d);
+                  if (result.receiptType === 'fuel') {
+                    toast({ title: 'Receipt type mismatch', description: 'This looks like a fuel receipt — make sure you\'re attaching the right one.', variant: 'default' });
+                  }
                 }}
               />
               {repairReceiptUploadFile && (

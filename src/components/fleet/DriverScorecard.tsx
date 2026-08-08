@@ -94,15 +94,6 @@ export function DriverScorecard() {
         driverTrips.set(t.driver_id, existing);
       }
 
-      const driverEvents = new Map<string, { speeding: number; hard_braking: number }>();
-      for (const trip of trips) {
-        if (trip.driver_id) {
-          const tripEvents = events.filter((e) => {
-            return true;
-          });
-        }
-      }
-
       // Build trip_id -> driver_id map by querying trip_logs for the event trip_ids
       const eventTripIds = [...new Set(events.map((e) => e.trip_id))];
       if (eventTripIds.length > 0) {
