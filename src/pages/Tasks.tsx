@@ -43,6 +43,7 @@ import { TaskDashboard } from '@/components/tasks/TaskDashboard';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
 import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
 import { SpaceStatusManager } from '@/components/tasks/SpaceStatusManager';
+import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
@@ -77,12 +78,14 @@ const Tasks = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | TaskStatus>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | Priority>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [tagFilter, setTagFilter] = useState<string>('all');
 
   // Create/Edit dialog
   const [dialog, setDialog] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [formAssignees, setFormAssignees] = useState<string[]>([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -356,6 +359,7 @@ const Tasks = () => {
       if (assigneeFilter !== 'all' && t.assignee_id !== assigneeFilter) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+      if (tagFilter !== 'all' && !(t.tags || []).includes(tagFilter)) return false;
       if (!q) return true;
       const name = t.assignee_id ? profiles.get(t.assignee_id)?.full_name || '' : '';
       return (
@@ -364,13 +368,14 @@ const Tasks = () => {
         name.toLowerCase().includes(q)
       );
     });
-  }, [tasks, search, selectedSpace, selectedList, assigneeFilter, statusFilter, priorityFilter, profiles, projectSpaceMap]);
+  }, [tasks, search, selectedSpace, selectedList, assigneeFilter, statusFilter, priorityFilter, tagFilter, profiles, projectSpaceMap]);
 
   // ─── Task CRUD ───────────────────────────────────────────────────────
 
   const reset = () => {
     setEditing(null);
     setSelectedTagIds([]);
+    setFormAssignees([]);
     setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open' });
   };
 
@@ -402,16 +407,27 @@ const Tasks = () => {
       if (editing) {
         const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id);
         if (error) throw error;
+        if (formAssignees.length > 0) {
+          await supabase.from('task_assignees').delete().eq('task_id', editing.id);
+          await supabase.from('task_assignees').insert(
+            formAssignees.map((uid) => ({ task_id: editing.id, user_id: uid })),
+          );
+        }
         await logAudit('task_updated', `Task "${payload.title}" updated`, profile);
         toast({ title: 'Task updated' });
       } else {
         const maxSort = tasks.filter((t) => t.status === form.status).length;
-        const { error } = await supabase.from('tasks').insert({
+        const { data: newTask, error } = await supabase.from('tasks').insert({
           ...payload,
           created_by: profile?.id || null,
           sort_order: maxSort,
-        });
+        }).select('id').single();
         if (error) throw error;
+        if (formAssignees.length > 0 && newTask) {
+          await supabase.from('task_assignees').insert(
+            formAssignees.map((uid) => ({ task_id: newTask.id, user_id: uid })),
+          );
+        }
         await logAudit('task_created', `Task "${payload.title}" created`, profile);
         if (payload.assignee_id && payload.assignee_id !== profile?.id) {
           void notifyUser({
@@ -421,6 +437,17 @@ const Tasks = () => {
             title: 'New task assigned to you',
             body: `"${payload.title}" was assigned to you by ${profile?.full_name || 'someone'}`,
           });
+        }
+        for (const uid of formAssignees) {
+          if (uid !== profile?.id) {
+            void notifyUser({
+              userId: uid,
+              type: 'task.assigned',
+              module: 'tasks',
+              title: 'New task assigned to you',
+              body: `"${payload.title}" was assigned to you by ${profile?.full_name || 'someone'}`,
+            });
+          }
         }
         toast({ title: 'Task created' });
       }
@@ -742,11 +769,16 @@ const Tasks = () => {
   if (priorityFilter !== 'all') {
     activeFilters.push({ key: 'priority', label: `Priority: ${priorityFilter}`, onRemove: () => setPriorityFilter('all') });
   }
+  if (tagFilter !== 'all') {
+    const tagName = availableTags.find((t) => t.id === tagFilter)?.name ?? tagFilter;
+    activeFilters.push({ key: 'tag', label: `Tag: ${tagName}`, onRemove: () => setTagFilter('all') });
+  }
 
   const clearFilters = () => {
     setAssigneeFilter('all');
     setStatusFilter('all');
     setPriorityFilter('all');
+    setTagFilter('all');
     setSearch('');
   };
 
@@ -900,6 +932,18 @@ const Tasks = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      {availableTags.length > 0 && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Tag</Label>
+                          <Select value={tagFilter} onValueChange={setTagFilter}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All tags</SelectItem>
+                              {availableTags.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="sm:hidden space-y-1.5">
                         <Label className="text-xs">Search</Label>
                         <div className="relative">
@@ -975,6 +1019,12 @@ const Tasks = () => {
               onTaskClick={(t) => setDetailTask(t)}
               onCreateTask={openCreateWithStatus}
               onQuickCreate={handleQuickCreate}
+            />
+          ) : currentView === 'calendar' ? (
+            <TaskCalendarView
+              tasks={visible}
+              profiles={profiles}
+              onTaskClick={(t) => setDetailTask(t)}
             />
           ) : currentView === 'list' || currentView === 'table' ? (
             <TaskListView
@@ -1105,6 +1155,36 @@ const Tasks = () => {
                     {Array.from(profiles.values()).map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+                {formAssignees.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {formAssignees.map((uid) => (
+                      <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-muted rounded-full px-2 py-0.5">
+                        {profiles.get(uid)?.full_name || 'Unknown'}
+                        <button onClick={() => setFormAssignees((prev) => prev.filter((id) => id !== uid))} className="hover:text-destructive">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <Select value="" onValueChange={(uid) => {
+                  if (uid && uid !== form.assignee_id && !formAssignees.includes(uid)) {
+                    setFormAssignees((prev) => [...prev, uid]);
+                  }
+                }}>
+                  <SelectTrigger className="h-7 text-[10px] mt-1">
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                      <User className="h-3 w-3" /> Add more assignees
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(profiles.values())
+                      .filter((p) => p.id !== form.assignee_id && !formAssignees.includes(p.id))
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.full_name || p.email}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

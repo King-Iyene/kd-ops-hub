@@ -3,7 +3,7 @@ import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
   LayoutGrid, List, BarChart3, User, Table2,
   MoreHorizontal, Pencil, Trash2,
-  Lock, Users, FolderKanban, ListTodo, Palette, Star,
+  Lock, Users, FolderKanban, ListTodo, Palette, Star, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { TaskList, SpaceFolder } from '@/lib/task-types';
 
-export type TaskView = 'my-tasks' | 'board' | 'list' | 'table' | 'dashboard';
+export type TaskView = 'my-tasks' | 'board' | 'list' | 'table' | 'calendar' | 'dashboard';
 
 export interface Space {
   id: string;
@@ -149,6 +149,7 @@ export function TaskSidebar({
         <SidebarItem icon={LayoutGrid} label="Board" active={currentView === 'board'} onClick={() => onChangeView('board')} />
         <SidebarItem icon={List} label="List" active={currentView === 'list'} onClick={() => onChangeView('list')} />
         <SidebarItem icon={Table2} label="Table" active={currentView === 'table'} onClick={() => onChangeView('table')} />
+        <SidebarItem icon={CalendarDays} label="Calendar" active={currentView === 'calendar'} onClick={() => onChangeView('calendar')} />
         <SidebarItem icon={BarChart3} label="Dashboard" active={currentView === 'dashboard'} onClick={() => onChangeView('dashboard')} />
       </div>
 
