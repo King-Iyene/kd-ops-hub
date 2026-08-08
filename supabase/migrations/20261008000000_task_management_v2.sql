@@ -38,9 +38,14 @@ CREATE INDEX IF NOT EXISTS idx_spaces_owner
 CREATE INDEX IF NOT EXISTS idx_spaces_sort
   ON public.project_spaces (sort_order) WHERE deleted_at IS NULL;
 
+CREATE OR REPLACE FUNCTION public.set_project_spaces_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$;
+
 CREATE TRIGGER set_project_spaces_updated_at
   BEFORE UPDATE ON public.project_spaces
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  FOR EACH ROW EXECUTE FUNCTION public.set_project_spaces_updated_at();
 
 
 -- ─── 2. Link projects to spaces ─────────────────────────────────────
