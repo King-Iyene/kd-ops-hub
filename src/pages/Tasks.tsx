@@ -46,7 +46,10 @@ import { SpaceStatusManager } from '@/components/tasks/SpaceStatusManager';
 import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { TaskGanttView } from '@/components/tasks/TaskGanttView';
 import { TaskTemplatesDialog } from '@/components/tasks/TaskTemplatesDialog';
+import { RecurrenceEditor } from '@/components/tasks/RecurrenceEditor';
 import { SavedViewsPanel } from '@/components/tasks/SavedViewsPanel';
+import { TaskWorkloadView } from '@/components/tasks/TaskWorkloadView';
+import { TaskActivityView } from '@/components/tasks/TaskActivityView';
 import type { SavedView } from '@/lib/task-types';
 import { Switch } from '@/components/ui/switch';
 import type {
@@ -90,6 +93,7 @@ const Tasks = () => {
   const [saving, setSaving] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [formAssignees, setFormAssignees] = useState<string[]>([]);
+  const [formRecurrence, setFormRecurrence] = useState<import('@/lib/task-types').RecurrenceRule | null>(null);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -155,7 +159,7 @@ const Tasks = () => {
           .from('tasks')
           .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags, created_by')
           .limit(5000),
-        supabase.from('profiles').select('id, full_name, email').order('full_name').limit(500),
+        supabase.from('profiles').select('id, full_name, email, status').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
         supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
         supabase.from('project_spaces').select('*').is('deleted_at', null).order('sort_order'),
         supabase.from('space_folders').select('*').order('sort_order'),
@@ -171,7 +175,12 @@ const Tasks = () => {
       }
       setAllTasks((allRes.data as Task[]) || []);
       const m = new Map<string, ProfileRow>();
-      for (const p of (profilesRes.data as ProfileRow[]) || []) m.set(p.id, p);
+      const seenEmails = new Set<string>();
+      for (const p of (profilesRes.data as ProfileRow[]) || []) {
+        if (seenEmails.has(p.email)) continue;
+        seenEmails.add(p.email);
+        m.set(p.id, p);
+      }
       setProfiles(m);
       setAvailableTags((tagsRes.data as Tag[]) || []);
       setSpaces((spacesRes.data as Space[]) || []);
@@ -383,6 +392,7 @@ const Tasks = () => {
     setEditing(null);
     setSelectedTagIds([]);
     setFormAssignees([]);
+    setFormRecurrence(null);
     setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open' });
   };
 
@@ -410,6 +420,7 @@ const Tasks = () => {
         status: form.status,
         completed_at: form.status === 'complete' ? new Date().toISOString() : null,
         tags: selectedTagIds,
+        recurrence_rule: formRecurrence,
       };
       if (editing) {
         const { error } = await supabase.from('tasks').update(payload).eq('id', editing.id);
@@ -753,6 +764,8 @@ const Tasks = () => {
   const viewTitle = useMemo(() => {
     if (currentView === 'my-tasks') return 'My Tasks';
     if (currentView === 'dashboard') return 'Dashboard';
+    if (currentView === 'workload') return 'Workload';
+    if (currentView === 'activity') return 'Activity';
     if (selectedList) {
       const l = taskLists.find((l) => l.id === selectedList);
       return l?.name ?? 'List';
@@ -867,7 +880,7 @@ const Tasks = () => {
               </Button>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{viewTitle}</h1>
-                {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+                {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
                   <p className="text-xs text-muted-foreground">
                     {visible.length} task{visible.length !== 1 ? 's' : ''}
                   </p>
@@ -876,7 +889,7 @@ const Tasks = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
                 <>
                   <div className="relative hidden sm:block">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -963,7 +976,7 @@ const Tasks = () => {
                 </>
               )}
 
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
                   <ListTodo className="h-3.5 w-3.5" />
                   Templates
@@ -978,7 +991,7 @@ const Tasks = () => {
           </div>
 
           {/* Saved views */}
-          {currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+          {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
             <div className="px-4 lg:px-6 pb-1">
               <SavedViewsPanel
                 spaceId={selectedSpace}
@@ -1003,7 +1016,7 @@ const Tasks = () => {
           )}
 
           {/* Active filter pills */}
-          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && (
+          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
             <div className="flex items-center gap-1.5 px-4 lg:px-6 pb-2.5 flex-wrap">
               {activeFilters.map((f) => (
                 <button
@@ -1068,6 +1081,18 @@ const Tasks = () => {
           ) : currentView === 'gantt' ? (
             <TaskGanttView
               tasks={visible}
+              profiles={profiles}
+              onTaskClick={(t) => setDetailTask(t)}
+            />
+          ) : currentView === 'workload' ? (
+            <TaskWorkloadView
+              tasks={tasks}
+              profiles={profiles}
+              onTaskClick={(t) => setDetailTask(t)}
+            />
+          ) : currentView === 'activity' ? (
+            <TaskActivityView
+              tasks={tasks}
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
             />
@@ -1288,6 +1313,10 @@ const Tasks = () => {
                 </div>
               </div>
             )}
+            <div className="space-y-1">
+              <Label>Recurrence</Label>
+              <RecurrenceEditor value={formRecurrence} onChange={setFormRecurrence} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
