@@ -2379,6 +2379,98 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_field_definitions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          field_type: string
+          id: string
+          is_required: boolean
+          name: string
+          options: Json | null
+          sort_order: number
+          space_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          field_type: string
+          id?: string
+          is_required?: boolean
+          name: string
+          options?: Json | null
+          sort_order?: number
+          space_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          field_type?: string
+          id?: string
+          is_required?: boolean
+          name?: string
+          options?: Json | null
+          sort_order?: number
+          space_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_definitions_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_field_values: {
+        Row: {
+          created_at: string
+          field_id: string
+          id: string
+          task_id: string
+          updated_at: string
+          value_json: Json | null
+          value_number: number | null
+          value_text: string | null
+        }
+        Insert: {
+          created_at?: string
+          field_id: string
+          id?: string
+          task_id: string
+          updated_at?: string
+          value_json?: Json | null
+          value_number?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          created_at?: string
+          field_id?: string
+          id?: string
+          task_id?: string
+          updated_at?: string
+          value_json?: Json | null
+          value_number?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_field_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_field_values_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       data_subject_requests: {
         Row: {
           artifact_path: string | null
@@ -8028,6 +8120,62 @@ export type Database = {
           },
         ]
       }
+      saved_views: {
+        Row: {
+          columns: Json | null
+          created_at: string
+          created_by: string | null
+          filters: Json
+          group_by: string | null
+          id: string
+          is_shared: boolean
+          name: string
+          sort_by: string | null
+          sort_dir: string | null
+          space_id: string | null
+          updated_at: string
+          view_type: string
+        }
+        Insert: {
+          columns?: Json | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          group_by?: string | null
+          id?: string
+          is_shared?: boolean
+          name: string
+          sort_by?: string | null
+          sort_dir?: string | null
+          space_id?: string | null
+          updated_at?: string
+          view_type?: string
+        }
+        Update: {
+          columns?: Json | null
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          group_by?: string | null
+          id?: string
+          is_shared?: boolean
+          name?: string
+          sort_by?: string | null
+          sort_dir?: string | null
+          space_id?: string | null
+          updated_at?: string
+          view_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_views_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signed_documents: {
         Row: {
           countersigned_at: string | null
@@ -8769,6 +8917,50 @@ export type Database = {
           },
         ]
       }
+      task_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_global: boolean
+          name: string
+          space_id: string | null
+          template_data: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name: string
+          space_id?: string | null
+          template_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_global?: boolean
+          name?: string
+          space_id?: string | null
+          template_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_templates_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_time_entries: {
         Row: {
           created_at: string
@@ -8852,11 +9044,14 @@ export type Database = {
           parent_id: string | null
           priority: string
           project_id: string | null
+          recurrence_next: string | null
+          recurrence_rule: Json | null
           sort_order: number
           start_date: string | null
           status: string
           tags: string[] | null
           task_type: string
+          template_id: string | null
           time_estimate_minutes: number | null
           time_spent_minutes: number
           title: string
@@ -8877,11 +9072,14 @@ export type Database = {
           parent_id?: string | null
           priority?: string
           project_id?: string | null
+          recurrence_next?: string | null
+          recurrence_rule?: Json | null
           sort_order?: number
           start_date?: string | null
           status?: string
           tags?: string[] | null
           task_type?: string
+          template_id?: string | null
           time_estimate_minutes?: number | null
           time_spent_minutes?: number
           title: string
@@ -8902,11 +9100,14 @@ export type Database = {
           parent_id?: string | null
           priority?: string
           project_id?: string | null
+          recurrence_next?: string | null
+          recurrence_rule?: Json | null
           sort_order?: number
           start_date?: string | null
           status?: string
           tags?: string[] | null
           task_type?: string
+          template_id?: string | null
           time_estimate_minutes?: number | null
           time_spent_minutes?: number
           title?: string
