@@ -6920,43 +6920,43 @@ export type Database = {
       }
       project_spaces: {
         Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          icon: string | null
           id: string
           name: string
-          description: string | null
-          color: string
-          icon: string
           owner_id: string | null
-          created_by: string | null
           sort_order: number
-          created_at: string
           updated_at: string
-          deleted_at: string | null
         }
         Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
           name: string
-          description?: string | null
-          color?: string
-          icon?: string
           owner_id?: string | null
-          created_by?: string | null
           sort_order?: number
-          created_at?: string
           updated_at?: string
-          deleted_at?: string | null
         }
         Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
           name?: string
-          description?: string | null
-          color?: string
-          icon?: string
           owner_id?: string | null
-          created_by?: string | null
           sort_order?: number
-          created_at?: string
           updated_at?: string
-          deleted_at?: string | null
         }
         Relationships: []
       }
@@ -8416,108 +8416,154 @@ export type Database = {
       }
       task_dependencies: {
         Row: {
+          created_at: string
+          dependency_type: string
+          depends_on_id: string
           id: string
           task_id: string
-          depends_on_id: string
-          dependency_type: string
-          created_at: string
         }
         Insert: {
+          created_at?: string
+          dependency_type?: string
+          depends_on_id: string
           id?: string
           task_id: string
-          depends_on_id: string
-          dependency_type?: string
-          created_at?: string
         }
         Update: {
+          created_at?: string
+          dependency_type?: string
+          depends_on_id?: string
           id?: string
           task_id?: string
-          depends_on_id?: string
-          dependency_type?: string
-          created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_depends_on_id_fkey"
+            columns: ["depends_on_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_lists: {
         Row: {
-          id: string
-          project_id: string | null
-          space_id: string | null
-          name: string
           color: string | null
-          sort_order: number
           created_at: string
+          id: string
+          name: string
+          project_id: string | null
+          sort_order: number
+          space_id: string | null
         }
         Insert: {
-          id?: string
-          project_id?: string | null
-          space_id?: string | null
-          name: string
           color?: string | null
-          sort_order?: number
           created_at?: string
+          id?: string
+          name: string
+          project_id?: string | null
+          sort_order?: number
+          space_id?: string | null
         }
         Update: {
-          id?: string
-          project_id?: string | null
-          space_id?: string | null
-          name?: string
           color?: string | null
-          sort_order?: number
           created_at?: string
+          id?: string
+          name?: string
+          project_id?: string | null
+          sort_order?: number
+          space_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "task_lists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_lists_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_time_entries: {
         Row: {
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          ended_at: string | null
           id: string
+          started_at: string
           task_id: string
           user_id: string
-          started_at: string
-          ended_at: string | null
-          duration_minutes: number | null
-          description: string | null
-          created_at: string
         }
         Insert: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
           id?: string
+          started_at?: string
           task_id: string
           user_id: string
-          started_at?: string
-          ended_at?: string | null
-          duration_minutes?: number | null
-          description?: string | null
-          created_at?: string
         }
         Update: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          ended_at?: string | null
           id?: string
+          started_at?: string
           task_id?: string
           user_id?: string
-          started_at?: string
-          ended_at?: string | null
-          duration_minutes?: number | null
-          description?: string | null
-          created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "task_time_entries_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_watchers: {
         Row: {
+          created_at: string
           task_id: string
           user_id: string
-          created_at: string
         }
         Insert: {
+          created_at?: string
           task_id: string
           user_id: string
-          created_at?: string
         }
         Update: {
+          created_at?: string
           task_id?: string
           user_id?: string
-          created_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "task_watchers_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -8633,10 +8679,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "tasks_list_id_fkey"
+            columns: ["list_id"]
             isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "task_lists"
             referencedColumns: ["id"]
           },
           {
@@ -8647,10 +8693,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tasks_list_id_fkey"
-            columns: ["list_id"]
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "task_lists"
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
