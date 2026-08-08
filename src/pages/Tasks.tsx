@@ -40,6 +40,8 @@ import { MyTasksView } from '@/components/tasks/MyTasksView';
 import { TaskListView } from '@/components/tasks/TaskListView';
 import { TaskDashboard } from '@/components/tasks/TaskDashboard';
 import { TaskDetailPanel } from '@/components/tasks/TaskDetailPanel';
+import { SpaceMembersDialog } from '@/components/tasks/SpaceMembersDialog';
+import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
 } from '@/lib/task-types';
@@ -96,9 +98,10 @@ const Tasks = () => {
   // Space CRUD
   const [spaceDialog, setSpaceDialog] = useState(false);
   const [editingSpace, setEditingSpace] = useState<Space | null>(null);
-  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '' });
+  const [spaceForm, setSpaceForm] = useState({ name: '', color: '#6366f1', description: '', is_private: false });
   const [savingSpace, setSavingSpace] = useState(false);
   const [pendingDeleteSpace, setPendingDeleteSpace] = useState<Space | null>(null);
+  const [membersSpace, setMembersSpace] = useState<Space | null>(null);
 
   // Sidebar collapsed on mobile
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -433,13 +436,13 @@ const Tasks = () => {
 
   const openCreateSpace = () => {
     setEditingSpace(null);
-    setSpaceForm({ name: '', color: '#6366f1', description: '' });
+    setSpaceForm({ name: '', color: '#6366f1', description: '', is_private: false });
     setSpaceDialog(true);
   };
 
   const openEditSpace = (space: Space) => {
     setEditingSpace(space);
-    setSpaceForm({ name: space.name, color: space.color, description: space.description || '' });
+    setSpaceForm({ name: space.name, color: space.color, description: space.description || '', is_private: space.is_private });
     setSpaceDialog(true);
   };
 
@@ -455,20 +458,30 @@ const Tasks = () => {
           name: spaceForm.name.trim(),
           color: spaceForm.color,
           description: spaceForm.description || null,
+          is_private: spaceForm.is_private,
         }).eq('id', editingSpace.id);
         if (error) throw error;
         await logAudit('space_updated', `Space "${spaceForm.name}" updated`, profile);
         toast({ title: 'Space updated' });
       } else {
-        const { error } = await supabase.from('project_spaces').insert({
+        const { error, data: newSpace } = await supabase.from('project_spaces').insert({
           name: spaceForm.name.trim(),
           color: spaceForm.color,
           description: spaceForm.description || null,
+          is_private: spaceForm.is_private,
           owner_id: profile?.id || null,
           created_by: profile?.id || null,
           sort_order: spaces.length,
-        });
+        }).select().single();
         if (error) throw error;
+        if (spaceForm.is_private && newSpace && profile?.id) {
+          await supabase.from('space_members').insert({
+            space_id: newSpace.id,
+            user_id: profile.id,
+            role: 'owner',
+            added_by: profile.id,
+          });
+        }
         await logAudit('space_created', `Space "${spaceForm.name}" created`, profile);
         toast({ title: 'Space created' });
       }
@@ -544,6 +557,7 @@ const Tasks = () => {
           onCreateSpace={openCreateSpace}
           onEditSpace={openEditSpace}
           onDeleteSpace={(s) => setPendingDeleteSpace(s)}
+          onManageMembers={(s) => setMembersSpace(s)}
           unorganizedCount={unorganizedCount}
         />
       </div>
@@ -562,6 +576,7 @@ const Tasks = () => {
             onCreateSpace={openCreateSpace}
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
+            onManageMembers={(s) => setMembersSpace(s)}
             unorganizedCount={unorganizedCount}
           />
         </SheetContent>
@@ -951,6 +966,16 @@ const Tasks = () => {
               <Label>Description <span className="text-muted-foreground">(optional)</span></Label>
               <Input value={spaceForm.description} onChange={(e) => setSpaceForm({ ...spaceForm, description: e.target.value })} placeholder="What is this space for?" />
             </div>
+            <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
+              <div className="space-y-0.5">
+                <Label className="text-sm">Private space</Label>
+                <p className="text-[11px] text-muted-foreground">Only members can see tasks in this space</p>
+              </div>
+              <Switch
+                checked={spaceForm.is_private}
+                onCheckedChange={(v) => setSpaceForm({ ...spaceForm, is_private: v })}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSpaceDialog(false)}>Cancel</Button>
@@ -993,6 +1018,16 @@ const Tasks = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── Space Members Dialog ──────────────────────────────── */}
+      {membersSpace && (
+        <SpaceMembersDialog
+          space={membersSpace}
+          open={!!membersSpace}
+          onClose={() => setMembersSpace(null)}
+          profiles={profiles}
+        />
+      )}
     </div>
   );
 };

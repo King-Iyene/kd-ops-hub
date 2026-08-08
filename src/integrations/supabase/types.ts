@@ -6927,6 +6927,7 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          is_private: boolean
           name: string
           owner_id: string | null
           sort_order: number
@@ -6940,6 +6941,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          is_private?: boolean
           name: string
           owner_id?: string | null
           sort_order?: number
@@ -6953,6 +6955,7 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          is_private?: boolean
           name?: string
           owner_id?: string | null
           sort_order?: number
@@ -8564,6 +8567,109 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      space_members: {
+        Row: {
+          space_id: string
+          user_id: string
+          role: string
+          added_by: string | null
+          created_at: string
+        }
+        Insert: {
+          space_id: string
+          user_id: string
+          role?: string
+          added_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          space_id?: string
+          user_id?: string
+          role?: string
+          added_by?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "space_members_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_activity: {
+        Row: {
+          id: string
+          task_id: string
+          user_id: string | null
+          action: string
+          field: string | null
+          old_value: string | null
+          new_value: string | null
+          metadata: Record<string, unknown>
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          user_id?: string | null
+          action: string
+          field?: string | null
+          old_value?: string | null
+          new_value?: string | null
+          metadata?: Record<string, unknown>
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          user_id?: string | null
+          action?: string
+          field?: string | null
+          old_value?: string | null
+          new_value?: string | null
+          metadata?: Record<string, unknown>
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_favorites: {
+        Row: {
+          id: string
+          user_id: string
+          item_type: string
+          item_id: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          item_type: string
+          item_id: string
+          sort_order?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          item_type?: string
+          item_id?: string
+          sort_order?: number
+          created_at?: string
+        }
+        Relationships: []
       }
       tasks: {
         Row: {

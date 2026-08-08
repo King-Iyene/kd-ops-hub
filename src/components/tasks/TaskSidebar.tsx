@@ -3,6 +3,7 @@ import {
   Plus, Layers, FolderOpen, ChevronRight, ChevronDown,
   LayoutGrid, List, BarChart3, User, CalendarClock,
   AlertTriangle, MoreHorizontal, Pencil, Trash2, Hash,
+  Lock, Globe, Star, Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,16 @@ export interface Space {
   color: string;
   icon: string;
   owner_id: string | null;
+  is_private: boolean;
   sort_order: number;
+  created_at: string;
+}
+
+export interface SpaceMember {
+  space_id: string;
+  user_id: string;
+  role: string;
+  added_by: string | null;
   created_at: string;
 }
 
@@ -42,13 +52,14 @@ interface TaskSidebarProps {
   onCreateSpace: () => void;
   onEditSpace: (space: Space) => void;
   onDeleteSpace: (space: Space) => void;
+  onManageMembers?: (space: Space) => void;
   unorganizedCount: number;
 }
 
 export function TaskSidebar({
   spaces, selectedSpace, currentView, taskCounts, spaceTaskCounts,
   onSelectSpace, onChangeView, onCreateSpace, onEditSpace, onDeleteSpace,
-  unorganizedCount,
+  onManageMembers, unorganizedCount,
 }: TaskSidebarProps) {
   const [spacesExpanded, setSpacesExpanded] = useState(true);
 
@@ -124,6 +135,7 @@ export function TaskSidebar({
                 }}
                 onEdit={() => onEditSpace(space)}
                 onDelete={() => onDeleteSpace(space)}
+                onManageMembers={onManageMembers ? () => onManageMembers(space) : undefined}
               />
             ))}
 
@@ -180,7 +192,7 @@ function SidebarItem({
 }
 
 function SpaceItem({
-  space, count, active, onClick, onEdit, onDelete,
+  space, count, active, onClick, onEdit, onDelete, onManageMembers,
 }: {
   space: Space;
   count: number;
@@ -188,6 +200,7 @@ function SpaceItem({
   onClick: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onManageMembers?: () => void;
 }) {
   return (
     <div className="group flex items-center">
@@ -202,6 +215,7 @@ function SpaceItem({
       >
         <div className="h-3 w-3 rounded shrink-0" style={{ backgroundColor: space.color }} />
         <span className="flex-1 truncate">{space.name}</span>
+        {space.is_private && <Lock className="h-2.5 w-2.5 text-muted-foreground/60 shrink-0" />}
         <span className="text-[10px] tabular-nums opacity-50">{count}</span>
       </button>
       <DropdownMenu>
@@ -214,8 +228,11 @@ function SpaceItem({
             <MoreHorizontal className="h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-36">
+        <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onClick={onEdit}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
+          {onManageMembers && (
+            <DropdownMenuItem onClick={onManageMembers}><Users className="h-3.5 w-3.5 mr-2" /> Members</DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5 mr-2" /> Remove

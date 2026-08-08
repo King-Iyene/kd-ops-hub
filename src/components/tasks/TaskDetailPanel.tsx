@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Plus, CheckCircle2, Clock, Send, X, Pencil, Trash2, Loader2,
   MessageSquare, ChevronDown, ChevronRight, Flag, User, Calendar,
-  CornerDownRight, Activity,
+  CornerDownRight, Activity, ArrowRight, Tag as TagIcon, UserPlus,
+  AlertTriangle, RotateCcw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -46,6 +47,17 @@ export function TaskDetailPanel({
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [fieldValue, setFieldValue] = useState<string>('');
+  const [activities, setActivities] = useState<TaskActivity[]>([]);
+
+  const loadActivities = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_activity')
+      .select('*')
+      .eq('task_id', task.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setActivities((data as TaskActivity[]) || []);
+  }, [task.id]);
 
   const loadSubtasks = useCallback(async () => {
     const { data } = await supabase
@@ -64,7 +76,8 @@ export function TaskDetailPanel({
   useEffect(() => {
     loadSubtasks();
     loadComments();
-  }, [loadSubtasks, loadComments]);
+    loadActivities();
+  }, [loadSubtasks, loadComments, loadActivities]);
 
   const addSubtask = async () => {
     if (!newSubtask.trim() || !profile) return;
@@ -116,6 +129,7 @@ export function TaskDetailPanel({
   };
 
   const updateField = async (field: string, value: any) => {
+    const oldValue = (task as any)[field];
     const update: Record<string, any> = { [field]: value };
     if (field === 'status' && value === 'complete') update.completed_at = new Date().toISOString();
     if (field === 'status' && value !== 'complete') update.completed_at = null;
@@ -126,6 +140,23 @@ export function TaskDetailPanel({
       return;
     }
     await logAudit('task_updated', `Updated "${task.title}" ${field}`, profile);
+
+    const actionMap: Record<string, string> = {
+      status: value === 'complete' ? 'completed' : oldValue === 'complete' ? 'reopened' : 'status_changed',
+      priority: 'priority_changed',
+      assignee_id: 'assigned',
+      due_date: 'due_date_changed',
+    };
+    const action = actionMap[field] || 'updated';
+    await supabase.from('task_activity').insert({
+      task_id: task.id,
+      user_id: profile?.id || null,
+      action,
+      field,
+      old_value: oldValue != null ? String(oldValue) : null,
+      new_value: value != null ? String(value) : null,
+    }).then(() => loadActivities());
+
     setEditingField(null);
     onUpdate();
   };
@@ -276,8 +307,25 @@ export function TaskDetailPanel({
               )}
 
               {activeDetailTab === 'activity' && (
-                <div className="py-3 text-center">
-                  <p className="text-xs text-muted-foreground">Activity tracking will show status changes, assignments, and edits.</p>
+                <div className="space-y-1">
+                  {activities.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-3 text-center">No activity recorded yet.</p>
+                  ) : activities.map((a) => {
+                    const actor = a.user_id ? profiles.get(a.user_id) : null;
+                    return (
+                      <div key={a.id} className="flex items-start gap-2.5 px-1 py-1.5">
+                        <ActivityIcon action={a.action} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs">
+                            <span className="font-medium">{actor?.full_name || 'System'}</span>
+                            {' '}
+                            <span className="text-muted-foreground">{describeActivity(a, profiles)}</span>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{formatDateTime(a.created_at)}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -389,6 +437,73 @@ export function TaskDetailPanel({
       </div>
     </div>
   );
+}
+
+interface TaskActivity {
+  id: string;
+  task_id: string;
+  user_id: string | null;
+  action: string;
+  field: string | null;
+  old_value: string | null;
+  new_value: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+const ACTIVITY_ICONS: Record<string, typeof Activity> = {
+  created: Plus,
+  status_changed: ArrowRight,
+  completed: CheckCircle2,
+  reopened: RotateCcw,
+  assigned: UserPlus,
+  priority_changed: Flag,
+  due_date_changed: Calendar,
+  commented: MessageSquare,
+  updated: Pencil,
+  tag_added: TagIcon,
+  tag_removed: TagIcon,
+  subtask_added: CornerDownRight,
+  subtask_removed: Trash2,
+  moved: ArrowRight,
+};
+
+function ActivityIcon({ action }: { action: string }) {
+  const Icon = ACTIVITY_ICONS[action] || Activity;
+  const color = action === 'completed' ? 'text-emerald-500'
+    : action === 'reopened' ? 'text-amber-500'
+    : 'text-muted-foreground';
+  return (
+    <div className={cn('mt-0.5 h-5 w-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0', color)}>
+      <Icon className="h-3 w-3" />
+    </div>
+  );
+}
+
+function describeActivity(a: TaskActivity, profiles: Map<string, ProfileRow>): string {
+  switch (a.action) {
+    case 'created': return 'created this task';
+    case 'completed': return 'marked as complete';
+    case 'reopened': return 'reopened this task';
+    case 'status_changed':
+      return `changed status from ${a.old_value || '?'} to ${a.new_value || '?'}`;
+    case 'assigned': {
+      const assignee = a.new_value ? profiles.get(a.new_value)?.full_name : null;
+      return assignee ? `assigned to ${assignee}` : 'unassigned';
+    }
+    case 'priority_changed':
+      return `changed priority from ${a.old_value || '?'} to ${a.new_value || '?'}`;
+    case 'due_date_changed':
+      return a.new_value ? `set due date to ${a.new_value}` : 'removed due date';
+    case 'commented': return 'added a comment';
+    case 'subtask_added': return 'added a subtask';
+    case 'subtask_removed': return 'removed a subtask';
+    case 'tag_added': return 'added a tag';
+    case 'tag_removed': return 'removed a tag';
+    case 'moved': return `moved to ${a.new_value || 'another space'}`;
+    default:
+      return a.field ? `updated ${a.field}` : 'made a change';
+  }
 }
 
 function MetaField({ label, children }: { label: string; children: React.ReactNode }) {
