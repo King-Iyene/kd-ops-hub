@@ -184,13 +184,13 @@ const Tasks = () => {
       }
       setAllTasks((allRes.data as Task[]) || []);
       const m = new Map<string, ProfileRow>();
-      const seenEmails = new Set<string>();
-      const seenNames = new Set<string>();
+      const seenKeys = new Set<string>();
       for (const p of (profilesRes.data as ProfileRow[]) || []) {
-        const nameKey = p.full_name?.trim().toLowerCase();
-        if (seenEmails.has(p.email) || (nameKey && seenNames.has(nameKey))) continue;
-        seenEmails.add(p.email);
-        if (nameKey) seenNames.add(nameKey);
+        const nameKey = (p.full_name || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const emailKey = (p.email || '').trim().toLowerCase();
+        if (seenKeys.has(emailKey) || (nameKey && seenKeys.has(`n:${nameKey}`))) continue;
+        seenKeys.add(emailKey);
+        if (nameKey) seenKeys.add(`n:${nameKey}`);
         m.set(p.id, p);
       }
       setProfiles(m);

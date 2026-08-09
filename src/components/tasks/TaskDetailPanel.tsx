@@ -903,9 +903,9 @@ export function TaskDetailPanel({
                     })}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <PopoverContent className="w-60 p-0 z-[100]" align="start" side="left" sideOffset={8} onOpenAutoFocus={(e) => e.preventDefault()}>
                   <div className="p-2 border-b border-border">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-primary">
+                    <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-primary">
                       <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <input
                         className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
@@ -916,7 +916,7 @@ export function TaskDetailPanel({
                       />
                     </div>
                   </div>
-                  <div className="max-h-[240px] overflow-y-auto overscroll-contain p-1">
+                  <div className="max-h-[280px] overflow-y-auto p-1" style={{ WebkitOverflowScrolling: 'touch' }}>
                     <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">People</div>
                     {Array.from(profiles.values())
                       .filter((p) => {
