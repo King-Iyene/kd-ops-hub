@@ -198,7 +198,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
             <div className="flex items-end gap-2 pt-2 border-t border-border/40">
               <div className="flex-1 space-y-1">
                 <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Add member</label>
-                <Select value={addingUser} onValueChange={setAddingUser}>
+                <Select value={addingUser || undefined} onValueChange={setAddingUser}>
                   <SelectTrigger className="h-8 text-xs">
                     <SelectValue placeholder="Select a person..." />
                   </SelectTrigger>

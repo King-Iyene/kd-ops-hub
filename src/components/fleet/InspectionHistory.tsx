@@ -496,7 +496,7 @@ export function InspectionHistory({ vehicles }: Props) {
             <DialogTitle>Select Vehicle to Inspect</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <Select value={inspectVehicleId} onValueChange={setInspectVehicleId}>
+            <Select value={inspectVehicleId || undefined} onValueChange={setInspectVehicleId}>
               <SelectTrigger><SelectValue placeholder="Choose a vehicle" /></SelectTrigger>
               <SelectContent>
                 {vehicles.map((v) => (

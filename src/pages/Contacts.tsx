@@ -1065,7 +1065,7 @@ function NotifyTestTab({ contacts }: { contacts: Contact[] }) {
         <CardContent className="space-y-4">
           <div className="space-y-1">
             <Label>Contact</Label>
-            <Select value={contactId} onValueChange={(v) => { setContactId(v); setResult(null); }}>
+            <Select value={contactId || undefined} onValueChange={(v) => { setContactId(v); setResult(null); }}>
               <SelectTrigger>
                 <SelectValue placeholder="Pick a contact…" />
               </SelectTrigger>

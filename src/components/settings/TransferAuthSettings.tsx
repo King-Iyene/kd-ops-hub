@@ -666,7 +666,7 @@ export default function TransferAuthSettings() {
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,2fr)_repeat(4,minmax(140px,1fr))_auto] gap-2">
             <div className="space-y-1">
               <Label className="text-xs">User</Label>
-              <Select value={overrideUserId} onValueChange={setOverrideUserId}>
+              <Select value={overrideUserId || undefined} onValueChange={setOverrideUserId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pick user…" />
                 </SelectTrigger>

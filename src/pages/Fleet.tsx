@@ -4388,7 +4388,7 @@ const Fleet = () => {
                   {vehicles.length > 0 && (
                     <div className="space-y-1.5">
                       <Label>Vehicle <span className="text-destructive">*</span></Label>
-                      <Select value={fuelVehicleId} onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}>
+                      <Select value={fuelVehicleId || undefined} onValueChange={(v) => { setFuelVehicleId(v); fetchWeekBudget(v); }}>
                         <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
                         <SelectContent>
                           {vehicles.map((v) => (
@@ -6128,7 +6128,7 @@ const Fleet = () => {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Decision <span className="text-destructive">*</span></Label>
-              <Select value={anomalyReviewDecision} onValueChange={(v) => setAnomalyReviewDecision(v as any)}>
+              <Select value={anomalyReviewDecision || undefined} onValueChange={(v) => setAnomalyReviewDecision(v as any)}>
                 <SelectTrigger><SelectValue placeholder="Select outcome…" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="valid">Reviewed — Valid</SelectItem>

@@ -293,7 +293,7 @@ export function DriverTrainingPanel({ staff }: Props) {
           <div className="space-y-4 py-2">
             <div className="space-y-1">
               <Label>Driver <span className="text-destructive">*</span></Label>
-              <Select value={form.driver_id} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
+              <Select value={form.driver_id || undefined} onValueChange={(v) => setForm({ ...form, driver_id: v })}>
                 <SelectTrigger><SelectValue placeholder="Select driver" /></SelectTrigger>
                 <SelectContent>
                   {staff.map((s) => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}

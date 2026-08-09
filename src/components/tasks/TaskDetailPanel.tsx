@@ -1056,7 +1056,7 @@ export function TaskDetailPanel({
                       <SelectItem value="duplicate_of">Duplicate of</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Select value={depTaskId} onValueChange={setDepTaskId}>
+                  <Select value={depTaskId || undefined} onValueChange={setDepTaskId}>
                     <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Select task..." /></SelectTrigger>
                     <SelectContent>
                       {depTaskOptions.slice(0, 50).map((t) => (

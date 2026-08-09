@@ -458,7 +458,7 @@ export default function Performance() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="kd-label">Employee *</Label>
-                <Select value={reviewForm.employee_id} onValueChange={v => setReviewForm(p => ({ ...p, employee_id: v }))}>
+                <Select value={reviewForm.employee_id || undefined} onValueChange={v => setReviewForm(p => ({ ...p, employee_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                   <SelectContent>{profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -477,7 +477,7 @@ export default function Performance() {
             </div>
             <div className="space-y-1.5">
               <Label className="kd-label">Reviewer *</Label>
-              <Select value={reviewForm.reviewer_id} onValueChange={v => setReviewForm(p => ({ ...p, reviewer_id: v }))}>
+              <Select value={reviewForm.reviewer_id || undefined} onValueChange={v => setReviewForm(p => ({ ...p, reviewer_id: v }))}>
                 <SelectTrigger><SelectValue placeholder="Select reviewer" /></SelectTrigger>
                 <SelectContent>{profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
               </Select>

@@ -707,7 +707,7 @@ const Invoices = () => {
               <div className="space-y-1.5">
                 <Label className="text-xs">Client</Label>
                 {clients.length > 0 ? (
-                  <Select value={clientId} onValueChange={handleClientSelect}>
+                  <Select value={clientId || undefined} onValueChange={handleClientSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a client" />
                     </SelectTrigger>

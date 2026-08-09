@@ -1526,7 +1526,7 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Employment type</Label>
-                        <Select value={form.employment_type || ''} onValueChange={(v) => patch({ employment_type: v || null })}>
+                        <Select value={form.employment_type || undefined} onValueChange={(v) => patch({ employment_type: v || null })}>
                           <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Full-time">Full-time</SelectItem>
@@ -1540,7 +1540,7 @@ const EmployeeProfile = () => {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs">Payroll category</Label>
-                        <Select value={form.employee_category || ''} onValueChange={(v) => patch({ employee_category: v || null })}>
+                        <Select value={form.employee_category || undefined} onValueChange={(v) => patch({ employee_category: v || null })}>
                           <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="administrative">Administrative</SelectItem>
@@ -1586,7 +1586,7 @@ const EmployeeProfile = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Status</Label>
-                      <Select value={form.status || ''} onValueChange={(v) => patch({ status: v })}>
+                      <Select value={form.status || undefined} onValueChange={(v) => patch({ status: v })}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
@@ -2050,7 +2050,7 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs">Gender</Label>
-                        <Select value={form.gender || ''} onValueChange={(v) => patch({ gender: v || null })}>
+                        <Select value={form.gender || undefined} onValueChange={(v) => patch({ gender: v || null })}>
                           <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="male">Male</SelectItem>
@@ -2063,7 +2063,7 @@ const EmployeeProfile = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Marital status</Label>
-                      <Select value={form.marital_status || ''} onValueChange={(v) => patch({ marital_status: v || null })}>
+                      <Select value={form.marital_status || undefined} onValueChange={(v) => patch({ marital_status: v || null })}>
                         <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="single">Single</SelectItem>

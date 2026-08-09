@@ -444,10 +444,12 @@ const Documents = () => {
         const title = files.length === 1 ? form.title.trim() : file.name.replace(/\.[^.]+$/, '');
         const tags = form.tags.split(',').map((t) => t.trim()).filter(Boolean);
 
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
         const insertData: any = {
           title,
           category: form.category,
           storage_path: path,
+          file_url: urlData.publicUrl,
           mime_type: file.type || null,
           file_size_bytes: file.size,
           expires_at: form.expires_at || null,
@@ -1103,7 +1105,7 @@ const Documents = () => {
               {form.entity_type && (
                 <div className="space-y-1">
                   <Label>{ENTITY_TYPES.find((e) => e.value === form.entity_type)?.label || 'Entity'}</Label>
-                  <Select value={form.entity_id} onValueChange={(v) => setForm({ ...form, entity_id: v })}>
+                  <Select value={form.entity_id || undefined} onValueChange={(v) => setForm({ ...form, entity_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       {getEntityOptions(form.entity_type).map((o) => (
@@ -1232,7 +1234,7 @@ const Documents = () => {
               {folderForm.entity_type && (
                 <div className="space-y-1">
                   <Label>{ENTITY_TYPES.find((e) => e.value === folderForm.entity_type)?.label}</Label>
-                  <Select value={folderForm.entity_id} onValueChange={(v) => setFolderForm({ ...folderForm, entity_id: v })}>
+                  <Select value={folderForm.entity_id || undefined} onValueChange={(v) => setFolderForm({ ...folderForm, entity_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
                     <SelectContent>
                       {getEntityOptions(folderForm.entity_type).map((o) => (

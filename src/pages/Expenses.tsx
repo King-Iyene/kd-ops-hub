@@ -776,6 +776,11 @@ const Expenses = () => {
       rate_per_km_ngn: e.rate_per_km_ngn,
       date: e.date,
       description: e.description,
+      is_reimbursement: (e as any).is_reimbursement ?? false,
+      receipt_url: (e as any).receipt_url ?? null,
+      bank_name: (e as any).bank_name ?? null,
+      account_number: (e as any).account_number ?? null,
+      account_name: (e as any).account_name ?? null,
       status: 'pending',
       resubmitted_from_id: e.id,
     });

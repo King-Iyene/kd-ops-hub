@@ -2608,7 +2608,7 @@ const Payroll = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border p-3">
               <div className="space-y-1 sm:col-span-2">
                 <Label>Employee</Label>
-                <Select value={adjustForm.employee_id} onValueChange={(v) => setAdjustForm((f) => ({ ...f, employee_id: v }))}>
+                <Select value={adjustForm.employee_id || undefined} onValueChange={(v) => setAdjustForm((f) => ({ ...f, employee_id: v }))}>
                   <SelectTrigger><SelectValue placeholder="Select an employee" /></SelectTrigger>
                   <SelectContent>
                     {adjustEmployees.map((e) => (

@@ -707,7 +707,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Vehicle</Label>
-                <Select value={form.vehicle_id} onValueChange={(v) => setForm((f) => ({ ...f, vehicle_id: v }))}>
+                <Select value={form.vehicle_id || undefined} onValueChange={(v) => setForm((f) => ({ ...f, vehicle_id: v }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select vehicle" />
                   </SelectTrigger>
@@ -722,7 +722,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
               <div className="space-y-2">
                 <Label>Driver</Label>
                 <Select
-                  value={form.driver_id}
+                  value={form.driver_id || undefined}
                   onValueChange={(v) => setForm((f) => ({ ...f, driver_id: v }))}
                   disabled={isFieldStaff}
                 >
