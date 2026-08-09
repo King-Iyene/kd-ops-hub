@@ -37,7 +37,7 @@ import { usePermission } from '@/hooks/usePermission';
 import { ChartGradients, GlassTooltip, axisTick, chartAnim, chartTheme } from '@/components/ChartKit';
 import { burst } from '@/components/Burst';
 import { logAudit } from '@/lib/audit';
-import { validateFileSize } from '@/lib/file-validation';
+import { validateFile } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
 import { OcrReceiptScanner, OcrResult } from '@/components/OcrReceiptScanner';
 import { generateElaHeatmap } from '@/lib/receiptForensics';
@@ -1941,7 +1941,7 @@ const Expenses = () => {
                       className="hidden"
                       onChange={(e) => {
                         const f = e.target.files?.[0] ?? null;
-                        if (!validateFileSize(f, toast)) {
+                        if (!validateFile(f, toast)) {
                           e.target.value = '';
                           return;
                         }

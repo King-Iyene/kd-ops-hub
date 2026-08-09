@@ -59,7 +59,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
-import { validateFileSize } from '@/lib/file-validation';
+import { validateFile } from '@/lib/file-validation';
 import { formatNaira, setTimezoneCache } from '@/lib/format';
 import { exportExpensePolicyPdf } from '@/lib/policy-pdf';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -363,7 +363,7 @@ const SettingsPage = () => {
     if (!file || !settings) return;
     // 5 MB cap is plenty for a company logo — and stops people uploading
     // 50 MB raw camera shots into branded PDFs.
-    if (!validateFileSize(file, toast, 5)) {
+    if (!validateFile(file, toast, 5)) {
       e.target.value = '';
       return;
     }
