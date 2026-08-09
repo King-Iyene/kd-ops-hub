@@ -2753,8 +2753,80 @@ export type Database = {
           },
         ]
       }
+      document_folders: {
+        Row: {
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          entity_id: string | null
+          entity_type: string | null
+          icon: string | null
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "document_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "document_folders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
+          access_count: number | null
           category: string
           certificate_type: string | null
           created_at: string | null
@@ -2762,23 +2834,32 @@ export type Database = {
           department_id: string | null
           description: string | null
           employee_id: string | null
+          entity_id: string | null
+          entity_type: string | null
           expires_at: string | null
           expiry_date: string | null
           file_size_bytes: number | null
           file_type: string | null
           file_url: string
+          folder: string | null
           id: string
+          is_template: boolean | null
+          last_accessed_at: string | null
           mime_type: string | null
           name: string | null
+          parent_document_id: string | null
+          status: string | null
           storage_path: string | null
           tags: string[] | null
           title: string | null
           updated_at: string
           uploaded_by: string | null
           vehicle_id: string | null
+          version: number | null
           visible_to_roles: string[]
         }
         Insert: {
+          access_count?: number | null
           category?: string
           certificate_type?: string | null
           created_at?: string | null
@@ -2786,23 +2867,32 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           expires_at?: string | null
           expiry_date?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
           file_url: string
+          folder?: string | null
           id?: string
+          is_template?: boolean | null
+          last_accessed_at?: string | null
           mime_type?: string | null
           name?: string | null
+          parent_document_id?: string | null
+          status?: string | null
           storage_path?: string | null
           tags?: string[] | null
           title?: string | null
           updated_at?: string
           uploaded_by?: string | null
           vehicle_id?: string | null
+          version?: number | null
           visible_to_roles?: string[]
         }
         Update: {
+          access_count?: number | null
           category?: string
           certificate_type?: string | null
           created_at?: string | null
@@ -2810,20 +2900,28 @@ export type Database = {
           department_id?: string | null
           description?: string | null
           employee_id?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
           expires_at?: string | null
           expiry_date?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
           file_url?: string
+          folder?: string | null
           id?: string
+          is_template?: boolean | null
+          last_accessed_at?: string | null
           mime_type?: string | null
           name?: string | null
+          parent_document_id?: string | null
+          status?: string | null
           storage_path?: string | null
           tags?: string[] | null
           title?: string | null
           updated_at?: string
           uploaded_by?: string | null
           vehicle_id?: string | null
+          version?: number | null
           visible_to_roles?: string[]
         }
         Relationships: [
@@ -2853,6 +2951,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_parent_document_id_fkey"
+            columns: ["parent_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
           {
