@@ -179,7 +179,7 @@ const SettingsPage = () => {
   // Without this, saving an unrelated field (e.g. session timeout) re-runs
   // live/test key-prefix validation against whatever was already stored —
   // blocking the entire save on a pre-existing value nobody is editing.
-  const loadedPaystackRef = useRef<{ mode: string | null; pub: string; sec: string } | null>(null);
+  const loadedPaystackRef = useRef<{ sec: string } | null>(null);
 
   // Notification preferences are per-user, not company-wide.
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
@@ -208,11 +208,7 @@ const SettingsPage = () => {
     const s = (settingsRes.data as CompanySettings) || null;
     setSettings(s);
     loadedPaystackRef.current = s
-      ? {
-          mode: (s as any).paystack_mode ?? null,
-          pub: (s as any).paystack_public_key || '',
-          sec: (s as any).paystack_secret_key_enc || '',
-        }
+      ? { sec: (s as any).paystack_secret_key_enc || '' }
       : null;
     if (s?.timezone) setTimezoneCache(s.timezone);
     if ((notifRes as any).data) {
@@ -240,29 +236,14 @@ const SettingsPage = () => {
   const save = async () => {
     if (!settings) return;
 
-    // Validate Paystack mode matches key prefixes — but only if the operator
-    // actually touched mode/keys this session. Otherwise saving an unrelated
-    // field (e.g. session timeout) re-validates a pre-existing stored value
-    // nobody is editing right now and blocks the whole save on it.
-    const mode = settings.paystack_mode;
-    const pub = (settings as any).paystack_public_key || '';
+    // Validate Paystack secret key prefix if the key was changed this session.
     const sec = (settings as any).paystack_secret_key_enc || '';
     const loaded = loadedPaystackRef.current;
-    const paystackSectionTouched =
-      !loaded || loaded.mode !== mode || loaded.pub !== pub || loaded.sec !== sec;
-    if (mode === 'live' && paystackSectionTouched) {
-      if (pub && !pub.startsWith('pk_live_')) {
+    if (sec && loaded && loaded.sec !== sec) {
+      if (!sec.startsWith('sk_test_') && !sec.startsWith('sk_live_')) {
         toast({
-          title: 'Live mode requires live public key',
-          description: 'Public key must start with pk_live_. Switch to Test mode or enter a live key.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      if (sec && !sec.startsWith('sk_live_')) {
-        toast({
-          title: 'Live mode requires live secret key',
-          description: 'Secret key must start with sk_live_. Switch to Test mode or enter a live key.',
+          title: 'Invalid Paystack secret key',
+          description: 'Secret key must start with sk_test_ or sk_live_.',
           variant: 'destructive',
         });
         return;
@@ -288,9 +269,6 @@ const SettingsPage = () => {
         cash_updated_at: settings.cash_updated_at,
         expense_limits: settings.expense_limits,
         dual_approval_threshold_ngn: settings.dual_approval_threshold_ngn,
-        paystack_mode: settings.paystack_mode,
-        paystack_webhook_url: settings.paystack_webhook_url,
-        paystack_public_key: (settings as any).paystack_public_key || null,
         paystack_secret_key_enc: (settings as any).paystack_secret_key_enc || null,
         airtable_base_id: settings.airtable_base_id,
         airtable_income_table_id: settings.airtable_income_table_id,
@@ -774,56 +752,21 @@ const SettingsPage = () => {
               <CardTitle className="text-base">Paystack</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Mode</Label>
-                  <Select
-                    value={settings.paystack_mode}
-                    onValueChange={(v) => patch({ paystack_mode: v as any })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="test">Test mode</SelectItem>
-                      <SelectItem value="live">Live mode</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Webhook URL</Label>
-                  <Input
-                    value={settings.paystack_webhook_url || ''}
-                    onChange={(e) => patch({ paystack_webhook_url: e.target.value })}
-                    placeholder="https://.../paystack/webhook"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Public key</Label>
-                  <Input
-                    value={(settings as any).paystack_public_key || ''}
-                    onChange={(e) => patch({ paystack_public_key: e.target.value } as any)}
-                    placeholder="pk_test_..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Secret key</Label>
-                  <Input
-                    type="password"
-                    value={(settings as any).paystack_secret_key_enc || ''}
-                    onChange={(e) => patch({ paystack_secret_key_enc: e.target.value } as any)}
-                    placeholder={
-                      (settings as any).paystack_secret_key_enc
-                        ? '••••••••' + ((settings as any).paystack_secret_key_enc || '').slice(-4)
-                        : 'sk_test_...'
-                    }
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Stored encrypted. Never displayed after save.
-                  </p>
-                </div>
+              <div className="space-y-1">
+                <Label>Secret key (fallback)</Label>
+                <Input
+                  type="password"
+                  value={(settings as any).paystack_secret_key_enc || ''}
+                  onChange={(e) => patch({ paystack_secret_key_enc: e.target.value } as any)}
+                  placeholder={
+                    (settings as any).paystack_secret_key_enc
+                      ? '••••••••' + ((settings as any).paystack_secret_key_enc || '').slice(-4)
+                      : 'sk_test_...'
+                  }
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Used only if the PAYSTACK_SECRET_KEY environment variable is not set.
+                </p>
               </div>
               <Separator />
               <p className="text-xs font-medium text-muted-foreground pt-1">Paystack funding details</p>
@@ -857,9 +800,9 @@ const SettingsPage = () => {
                 </div>
               </div>
               <div className="rounded-md border bg-primary/5 p-3 text-xs text-muted-foreground">
-                After saving, the Edge Function reads the secret key from this
-                table. Toggle to <strong>Live</strong> when ready for real
-                payments.
+                The secret key here is a fallback — edge functions prefer the
+                <strong> PAYSTACK_SECRET_KEY</strong> environment variable set
+                in Supabase/Vercel.
               </div>
             </CardContent>
           </Card>
