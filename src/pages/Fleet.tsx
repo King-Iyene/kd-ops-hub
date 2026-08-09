@@ -57,7 +57,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck, UserCheck } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -74,11 +74,14 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
-import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median, checkMathMismatch, checkTankOverflow, checkFuelRequestFrequency, checkOcrManualMismatch, scoreAnomalySeverity } from '@/lib/receipts';
+import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median, checkMathMismatch, checkTankOverflow, checkFuelRequestFrequency, checkOcrManualMismatch, checkRouteEfficiency, scoreAnomalySeverity } from '@/lib/receipts';
 import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 import { DriverScorecard } from '@/components/fleet/DriverScorecard';
+import { ComplianceDashboard } from '@/components/fleet/ComplianceDashboard';
+import { FuelStationComparison } from '@/components/fleet/FuelStationComparison';
+import { DriverVerificationPanel } from '@/components/fleet/DriverVerificationPanel';
 
 interface FieldStaff {
   id: string;
@@ -1493,7 +1496,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live'>(
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers'>(
     isAdmin ? 'fuel' : 'my_requests',
   );
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
@@ -2774,6 +2777,47 @@ const Fleet = () => {
       }
     }
 
+    // Strict compliance enforcement — block fuel for vehicles with expired documents
+    if (fuelVehicleId) {
+      const fuelVeh = vehicles.find((v) => v.id === fuelVehicleId);
+      if (fuelVeh) {
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const expired: string[] = [];
+        if (fuelVeh.insurance_expiry && fuelVeh.insurance_expiry < todayIso) expired.push('Insurance');
+        if (fuelVeh.road_worthiness_expiry && fuelVeh.road_worthiness_expiry < todayIso) expired.push('Road Worthiness');
+        if ((fuelVeh as any).hackney_permit_expiry && (fuelVeh as any).hackney_permit_expiry < todayIso) expired.push('Hackney Permit');
+        if ((fuelVeh as any).vehicle_license_expiry && (fuelVeh as any).vehicle_license_expiry < todayIso) expired.push('Vehicle License');
+        if (expired.length > 0) {
+          toast({
+            title: 'Vehicle compliance expired',
+            description: `${expired.join(', ')} expired. Update vehicle documents before requesting fuel.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
+
+    // Block fuel for vehicles with overdue maintenance
+    if (fuelVehicleId) {
+      const { data: overdueMaint } = await supabase
+        .from('vehicle_maintenance')
+        .select('service_type, due_date')
+        .eq('vehicle_id', fuelVehicleId)
+        .eq('status', 'pending')
+        .lt('due_date', new Date().toISOString().slice(0, 10))
+        .limit(3);
+      if (overdueMaint && overdueMaint.length > 0) {
+        const items = overdueMaint.map((m: any) => m.service_type).join(', ');
+        toast({
+          title: 'Overdue maintenance',
+          description: `This vehicle has overdue maintenance: ${items}. Complete maintenance before fueling.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
     // RULE 3: same-day duplicate check (only when a vehicle is selected)
     if (!skipDuplicateCheck && fuelVehicleId) {
       const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
@@ -3540,6 +3584,29 @@ const Fleet = () => {
         }
       }
 
+      // Route efficiency: expected vs actual fuel consumption
+      if (receiptVehicleForCheck && litresNum > 0) {
+        const veh = vehicles.find((v) => v.id === receiptVehicleForCheck);
+        if (veh && veh.last_refuel_at) {
+          const { data: kmData } = await supabase
+            .from('trip_logs')
+            .select('km_driven')
+            .eq('vehicle_id', receiptVehicleForCheck)
+            .gte('created_at', veh.last_refuel_at)
+            .not('km_driven', 'is', null);
+          const kmSinceRefuel = (kmData || []).reduce((sum: number, r: any) => sum + (r.km_driven || 0), 0);
+          const rate = veh.fuel_consumption_rate_lkm > 0
+            ? veh.fuel_consumption_rate_lkm
+            : (veh.avg_km_per_litre > 0 ? 1 / veh.avg_km_per_litre : 0);
+          if (kmSinceRefuel > 0 && rate > 0) {
+            const routeCheck = checkRouteEfficiency(litresNum, kmSinceRefuel, rate);
+            if (routeCheck.flagged && routeCheck.reason) {
+              flags.push({ type: 'route_efficiency', reason: routeCheck.reason });
+            }
+          }
+        }
+      }
+
       // Severity scoring across all flags
       const severity = scoreAnomalySeverity(flags.map((f) => f.type));
 
@@ -4052,6 +4119,16 @@ const Fleet = () => {
               </TabsTrigger>
             )}
             {isAdmin && (
+              <TabsTrigger value="compliance" className="shrink-0">
+                <ClipboardCheck className="mr-2 h-4 w-4" /> Compliance
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="drivers" className="shrink-0">
+                <UserCheck className="mr-2 h-4 w-4" /> Drivers
+              </TabsTrigger>
+            )}
+            {isAdmin && (
               <TabsTrigger value="live" className="shrink-0">
                 <Radio className="mr-2 h-4 w-4" />
                 <span className="relative flex h-2 w-2 mr-1">
@@ -4068,6 +4145,7 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="dashboard" className="mt-4 space-y-4">
             <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
+            <FuelStationComparison />
             <DriverScorecard />
             {serviceAlerts.length > 0 && (
               <div>
@@ -5233,6 +5311,18 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="live" className="mt-4">
             <LiveTrackingTab />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="compliance" className="mt-4">
+            <ComplianceDashboard vehicles={vehicles as any} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="drivers" className="mt-4">
+            <DriverVerificationPanel />
           </TabsContent>
         )}
       </Tabs>

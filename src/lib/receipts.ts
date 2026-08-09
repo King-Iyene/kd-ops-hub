@@ -395,6 +395,7 @@ const SEVERITY_WEIGHTS: Record<string, number> = {
   fuel_frequency: 2,
   stale_receipt: 2,
   odometer_regression: 2,
+  route_efficiency: 3,
   ocr_low_confidence: 1,
 };
 
@@ -405,6 +406,40 @@ const SEVERITY_WEIGHTS: Record<string, number> = {
  *   - medium (≥3 points): push
  *   - low (<3 points): in-app only
  */
+export interface RouteEfficiencyCheck {
+  flagged: boolean;
+  reason: string | null;
+  expectedLitres: number | null;
+}
+
+/**
+ * Compares the litres claimed on a fuel receipt against what the vehicle
+ * should have consumed based on distance driven since the last refuel.
+ * Flags when actual consumption is >50% more than expected — indicating
+ * either a fuel leak, off-route driving, or inflated litres.
+ */
+export function checkRouteEfficiency(
+  litresClaimed: number,
+  kmSinceLastRefuel: number,
+  fuelConsumptionRateLkm: number,
+): RouteEfficiencyCheck {
+  if (!litresClaimed || litresClaimed <= 0 || !kmSinceLastRefuel || kmSinceLastRefuel <= 0 || !fuelConsumptionRateLkm || fuelConsumptionRateLkm <= 0) {
+    return { flagged: false, reason: null, expectedLitres: null };
+  }
+  const expected = kmSinceLastRefuel * fuelConsumptionRateLkm;
+  if (expected <= 0) return { flagged: false, reason: null, expectedLitres: null };
+
+  const overConsumption = (litresClaimed - expected) / expected;
+  if (overConsumption > 0.5) {
+    return {
+      flagged: true,
+      reason: `${litresClaimed}L claimed but only ~${Math.round(expected)}L expected for ${Math.round(kmSinceLastRefuel)}km driven (${Math.round(overConsumption * 100)}% over)`,
+      expectedLitres: Math.round(expected * 10) / 10,
+    };
+  }
+  return { flagged: false, reason: null, expectedLitres: Math.round(expected * 10) / 10 };
+}
+
 export function scoreAnomalySeverity(flagTypes: string[]): AnomalySeverity {
   if (flagTypes.length === 0) return 'low';
   if (flagTypes.includes('duplicate_receipt')) return 'critical';

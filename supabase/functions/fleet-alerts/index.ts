@@ -236,6 +236,141 @@ async function handleFuelLevelAlert(
   });
 }
 
+/**
+ * ALERT 4 — Compliance document expiry reminders.
+ * Scans all vehicles for insurance, road worthiness, hackney permit, and
+ * vehicle license expiry. Sends escalating reminders at 30, 14, 7, 1, and
+ * 0 (expired) day thresholds. Dedup via compliance_reminders table.
+ *
+ * Intended to be called daily by pg_cron or an external scheduler:
+ *   { event: 'compliance_check' }
+ */
+async function handleComplianceCheck(db: SupabaseClient): Promise<number> {
+  const THRESHOLDS = [30, 14, 7, 1, 0];
+  const DOC_FIELDS: { field: string; label: string }[] = [
+    { field: "insurance_expiry", label: "Insurance" },
+    { field: "road_worthiness_expiry", label: "Road Worthiness" },
+    { field: "hackney_permit_expiry", label: "Hackney Permit" },
+    { field: "vehicle_license_expiry", label: "Vehicle License" },
+  ];
+
+  const { data: vehicles } = await db
+    .from("vehicles")
+    .select("id, name, plate_number, insurance_expiry, road_worthiness_expiry, hackney_permit_expiry, vehicle_license_expiry");
+
+  if (!vehicles || vehicles.length === 0) return 0;
+
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  let alertsSent = 0;
+
+  for (const v of vehicles) {
+    for (const doc of DOC_FIELDS) {
+      const expiryStr = (v as Record<string, unknown>)[doc.field] as string | null;
+      if (!expiryStr) continue;
+
+      const expiry = new Date(expiryStr + "T00:00:00Z");
+      const daysLeft = Math.round((expiry.getTime() - today.getTime()) / 86_400_000);
+
+      for (const threshold of THRESHOLDS) {
+        if (daysLeft > threshold) continue;
+
+        const { data: existing } = await db
+          .from("compliance_reminders")
+          .select("id")
+          .eq("vehicle_id", v.id)
+          .eq("document_type", doc.field)
+          .eq("threshold_days", threshold)
+          .limit(1);
+
+        if (existing && existing.length > 0) continue;
+
+        const isExpired = daysLeft <= 0;
+        const priority = isExpired || threshold <= 7 ? "high" : "normal";
+        const plate = v.plate_number || v.name;
+        const title = isExpired
+          ? `🚨 ${plate} ${doc.label} EXPIRED`
+          : `⚠️ ${plate} ${doc.label} expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+        const body = isExpired
+          ? `${plate}'s ${doc.label} expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} ago. Fuel requests are blocked until renewed.`
+          : `${plate}'s ${doc.label} expires on ${expiryStr}. Renew to avoid service disruption.`;
+
+        await notifyAdmins(db, {
+          type: "fleet_compliance_expiry",
+          priority,
+          title,
+          body,
+        });
+
+        await db.from("compliance_reminders").insert({
+          vehicle_id: v.id,
+          document_type: doc.field,
+          threshold_days: threshold,
+        });
+
+        alertsSent++;
+        break;
+      }
+    }
+  }
+  return alertsSent;
+}
+
+/**
+ * ALERT 5 — Overdue maintenance reminders.
+ * Notifies admins about vehicles with overdue maintenance items.
+ * Dedup: once per vehicle per day per overdue item.
+ */
+async function handleMaintenanceCheck(db: SupabaseClient): Promise<number> {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const { data: overdueItems } = await db
+    .from("vehicle_maintenance")
+    .select("id, vehicle_id, service_type, due_date")
+    .eq("status", "pending")
+    .lt("due_date", todayStr)
+    .limit(100);
+
+  if (!overdueItems || overdueItems.length === 0) return 0;
+
+  const vehicleIds = [...new Set(overdueItems.map((m: { vehicle_id: string }) => m.vehicle_id))];
+  const { data: vehicleInfo } = await db
+    .from("vehicles")
+    .select("id, name, plate_number")
+    .in("id", vehicleIds);
+
+  const vehicleMap = new Map((vehicleInfo ?? []).map((v: { id: string; name: string; plate_number: string }) => [v.id, v]));
+
+  const { data: sampleAdmin } = await db
+    .from("profiles")
+    .select("id")
+    .in("role", ["super_admin", "admin"])
+    .eq("status", "active")
+    .limit(1)
+    .single();
+
+  if (!sampleAdmin) return 0;
+  let alertsSent = 0;
+
+  for (const item of overdueItems) {
+    const v = vehicleMap.get(item.vehicle_id);
+    const plate = v?.plate_number || "Unknown";
+    const already = await alreadyNotified(
+      db, sampleAdmin.id, "fleet_maintenance_overdue", plate, oneDayAgo(),
+    );
+    if (already) continue;
+
+    const daysOverdue = Math.round((Date.now() - new Date(item.due_date + "T00:00:00Z").getTime()) / 86_400_000);
+    await notifyAdmins(db, {
+      type: "fleet_maintenance_overdue",
+      priority: daysOverdue >= 14 ? "high" : "normal",
+      title: `🔧 ${plate} — overdue ${item.service_type}`,
+      body: `${plate}'s ${item.service_type} is ${daysOverdue} day${daysOverdue === 1 ? "" : "s"} overdue (due ${item.due_date}). Fuel requests are blocked until completed.`,
+    });
+    alertsSent++;
+  }
+  return alertsSent;
+}
+
 // ── entry point ──────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -250,9 +385,25 @@ serve(async (req: Request) => {
     );
 
     const body = await req.json() as {
-      event: "fuel_approved" | "trip_ended";
+      event: "fuel_approved" | "trip_ended" | "compliance_check" | "maintenance_check";
       vehicle_id?: string;
     };
+
+    if (body.event === "compliance_check") {
+      const count = await handleComplianceCheck(db);
+      return new Response(
+        JSON.stringify({ ok: true, alerts_sent: count }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (body.event === "maintenance_check") {
+      const count = await handleMaintenanceCheck(db);
+      return new Response(
+        JSON.stringify({ ok: true, alerts_sent: count }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     if (!body.vehicle_id) {
       return new Response(
@@ -278,7 +429,6 @@ serve(async (req: Request) => {
     );
   } catch (err) {
     console.error("[fleet-alerts]", err);
-    // Return 200 so the browser invoke() doesn't surface an error to the user.
     return new Response(
       JSON.stringify({ ok: false, error: String(err) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
