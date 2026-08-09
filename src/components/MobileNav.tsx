@@ -12,6 +12,7 @@ import {
   ListTodo,
   LogOut,
   User,
+  ChevronRight,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -198,7 +199,7 @@ export function MobileNav() {
 
           {/* Ungrouped items (Dashboard, Approvals if visible) */}
           {ungroupedItems.length > 0 && (
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="space-y-0.5 mb-3">
               {ungroupedItems.map((item) => {
                 const active =
                   location.pathname === item.url ||
@@ -208,33 +209,34 @@ export function MobileNav() {
                     key={item.title}
                     onClick={() => { setMoreOpen(false); navigate(item.url); }}
                     className={cn(
-                      'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm kd-transition active:scale-[0.98]',
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
                       active
                         ? 'bg-primary/10 text-primary font-medium'
-                        : 'bg-muted/50 text-foreground hover:bg-muted',
+                        : 'text-foreground hover:bg-muted/60',
                     )}
                   >
-                    <item.icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
-                    <span className="truncate">{item.title}</span>
+                    <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                    <span className="flex-1 text-left truncate">{item.title}</span>
                     {item.badge === 'approvals' && approvalTotal > 0 && (
-                      <span className="ml-auto h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
+                      <span className="h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
                         {approvalTotal > 9 ? '9+' : approvalTotal}
                       </span>
                     )}
+                    <ChevronRight className={cn('h-4 w-4 shrink-0', active ? 'text-primary/50' : 'text-muted-foreground/40')} />
                   </button>
                 );
               })}
             </div>
           )}
 
-          {/* Grouped nav */}
+          {/* Grouped nav — compact list rows */}
           <div className="space-y-3">
             {visibleGroups.map((group) => (
               <div key={group.label}>
-                <p className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
                   {group.label}
                 </p>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="space-y-0.5">
                   {group.items.map((item) => {
                     const active =
                       location.pathname === item.url ||
@@ -244,14 +246,15 @@ export function MobileNav() {
                         key={item.title}
                         onClick={() => { setMoreOpen(false); navigate(item.url); }}
                         className={cn(
-                          'flex flex-col items-center gap-1 px-2 py-3 rounded-xl text-xs kd-transition active:scale-[0.97]',
+                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
                           active
                             ? 'bg-primary/10 text-primary font-medium'
-                            : 'bg-muted/40 text-foreground hover:bg-muted/70',
+                            : 'text-foreground hover:bg-muted/60',
                         )}
                       >
-                        <item.icon className={cn('h-5 w-5 shrink-0', active && 'text-primary')} />
-                        <span className="truncate max-w-full text-center leading-tight">{item.title}</span>
+                        <item.icon className={cn('h-5 w-5 shrink-0', active ? 'text-primary' : 'text-muted-foreground')} />
+                        <span className="flex-1 text-left truncate">{item.title}</span>
+                        <ChevronRight className={cn('h-4 w-4 shrink-0', active ? 'text-primary/50' : 'text-muted-foreground/40')} />
                       </button>
                     );
                   })}

@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-// Tabs import removed — fleet now uses sidebar navigation
+// Tabs import removed — fleet now uses horizontal tab strip
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -57,7 +64,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck, UserCheck } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck, UserCheck, MoreHorizontal } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -375,7 +382,6 @@ const Fleet = () => {
   const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers' | 'incidents' | 'maintenance' | 'inspections' | 'lifecycle'>(
     isAdmin ? 'dashboard' : 'my_requests',
   );
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -3040,92 +3046,86 @@ const Fleet = () => {
         </div>
       )}
 
-      {/* ─── Sidebar + Content layout ─── */}
-      <div className="flex gap-0 relative">
-        {/* Mobile sidebar toggle */}
-        <button
-          type="button"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="lg:hidden fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
-          aria-label="Toggle navigation"
-        >
-          {sidebarOpen ? <X className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
-        </button>
+      {/* ─── Horizontal tab strip (both mobile & desktop) ─── */}
+      <div className="-mx-4 md:-mx-5 lg:-mx-6 px-4 md:px-5 lg:px-6 sticky top-14 z-10 bg-background/95 backdrop-blur-sm border-b border-border/40 -mt-1 pt-1 pb-1.5">
+        <div className="overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-0.5 min-w-max">
+            {/* Group separators use a subtle dot on desktop */}
+            {[
+              { group: 'overview', items: [
+                ...(isAdmin ? [{ icon: LayoutDashboard, label: 'Dashboard', value: 'dashboard' as const }] : []),
+                { icon: User, label: 'My Requests', value: 'my_requests' as const },
+              ]},
+              { group: 'operations', items: [
+                ...(isAdmin ? [{ icon: Fuel, label: 'Fuel', value: 'fuel' as const, badge: pendingFuelCount > 0 ? String(pendingFuelCount) : undefined }] : []),
+                { icon: MapPin, label: 'Trips', value: 'trips' as const },
+                ...(isAdmin ? [
+                  { icon: Radio, label: 'Live', value: 'live' as const, live: true },
+                  { icon: History, label: 'Activity', value: 'activity' as const },
+                ] : []),
+              ]},
+              { group: 'fleet', items: [
+                { icon: Car, label: 'Vehicles', value: 'vehicles' as const },
+                ...(isAdmin ? [
+                  { icon: Wrench, label: 'Maintenance', value: 'maintenance' as const },
+                  { icon: TrendingUp, label: 'Lifecycle', value: 'lifecycle' as const },
+                ] : []),
+                { icon: ClipboardCheck, label: 'Inspections', value: 'inspections' as const },
+                { icon: ClipboardCheck, label: 'Compliance', value: 'compliance' as const },
+              ]},
+              { group: 'safety', items: [
+                ...(isAdmin ? [
+                  { icon: AlertTriangle, label: 'Anomalies', value: 'anomalies' as const, badge: totalAnomalies > 0 ? (totalAnomalies > 9 ? '9+' : String(totalAnomalies)) : undefined },
+                ] : []),
+                { icon: AlertTriangle, label: 'Incidents', value: 'incidents' as const },
+                ...(isAdmin ? [
+                  { icon: Shield, label: 'Geofences', value: 'geofences' as const },
+                  { icon: UserCheck, label: 'Drivers', value: 'drivers' as const },
+                ] : []),
+              ]},
+            ].filter(g => g.items.length > 0).map((group, gi) => (
+              <div key={group.group} className="contents">
+                {gi > 0 && <span className="w-px h-4 bg-border/60 mx-1 shrink-0" />}
+                {group.items.map((item) => {
+                  const isActive = tab === item.value;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setTab(item.value)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all shrink-0',
+                        isActive
+                          ? 'bg-primary text-primary-foreground shadow-sm'
+                          : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground active:bg-muted',
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {(item as any).live && (
+                        <span className="relative flex h-1.5 w-1.5 -ml-0.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
+                        </span>
+                      )}
+                      <span>{item.label}</span>
+                      {(item as any).badge && (
+                        <span className="inline-flex items-center justify-center rounded-full text-[9px] font-bold min-w-[16px] h-4 px-1 bg-amber-500 text-white">
+                          {(item as any).badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
-        {/* Sidebar overlay on mobile */}
-        {sidebarOpen && (
-          <div
-            className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Sidebar */}
-        <aside
-          className={cn(
-            'fixed lg:sticky top-0 left-0 z-40 lg:z-auto h-screen lg:h-auto lg:max-h-[calc(100vh-2rem)] overflow-y-auto',
-            'w-[260px] shrink-0 bg-background lg:bg-muted/30 border-r lg:border lg:rounded-xl',
-            'transition-transform duration-200 ease-in-out',
-            'lg:transform-none lg:translate-x-0',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          )}
-        >
-          <nav className="p-3 space-y-1">
-            {/* ── Overview ── */}
-            <FleetNavGroup label="Overview">
-              {isAdmin && (
-                <FleetNavItem icon={LayoutDashboard} label="Dashboard" value="dashboard" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-              <FleetNavItem icon={User} label="My Requests" value="my_requests" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-            </FleetNavGroup>
-
-            {/* ── Operations ── */}
-            <FleetNavGroup label="Operations">
-              {isAdmin && (
-                <FleetNavItem icon={Fuel} label="Fuel & Repairs" value="fuel" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }}
-                  badge={pendingFuelCount > 0 ? String(pendingFuelCount) : undefined} badgeTone="warning" />
-              )}
-              <FleetNavItem icon={MapPin} label="Trip Logs" value="trips" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              {isAdmin && (
-                <FleetNavItem icon={Radio} label="Live Tracking" value="live" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} live />
-              )}
-              {isAdmin && (
-                <FleetNavItem icon={History} label="Activity Log" value="activity" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-            </FleetNavGroup>
-
-            {/* ── Fleet ── */}
-            <FleetNavGroup label="Fleet">
-              <FleetNavItem icon={Car} label="Vehicles" value="vehicles" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              {isAdmin && (
-                <FleetNavItem icon={Wrench} label="Maintenance" value="maintenance" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-              {isAdmin && (
-                <FleetNavItem icon={TrendingUp} label="Lifecycle" value="lifecycle" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-              <FleetNavItem icon={ClipboardCheck} label="Inspections" value="inspections" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              <FleetNavItem icon={ClipboardCheck} label="Compliance" value="compliance" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-            </FleetNavGroup>
-
-            {/* ── Safety & People ── */}
-            <FleetNavGroup label="Safety & People">
-              {isAdmin && (
-                <FleetNavItem icon={AlertTriangle} label="Anomalies" value="anomalies" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }}
-                  badge={totalAnomalies > 0 ? (totalAnomalies > 9 ? '9+' : String(totalAnomalies)) : undefined} badgeTone="danger" />
-              )}
-              <FleetNavItem icon={AlertTriangle} label="Incidents" value="incidents" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              {isAdmin && (
-                <FleetNavItem icon={Shield} label="Geofences" value="geofences" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-              {isAdmin && (
-                <FleetNavItem icon={UserCheck} label="Drivers" value="drivers" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
-              )}
-            </FleetNavGroup>
-          </nav>
-        </aside>
-
-        {/* ── Main content ── */}
-        <main className="flex-1 min-w-0 lg:pl-4">
+      {/* ─── Content ─── */}
+      <div>
+        <main className="flex-1 min-w-0">
 
         {/* DASHBOARD */}
         {isAdmin && tab === 'dashboard' && (
@@ -3346,31 +3346,33 @@ const Fleet = () => {
                               <CreditCard className="h-3 w-3 mr-1" /> Mark Payment Sent
                             </Button>
                           ) : r.status === 'receipt_uploaded' ? (
-                            <div className="flex justify-end gap-1 flex-wrap">
-                              {r.receipt_url && (
-                                <FilePreviewTrigger
-                                  url={r.receipt_url}
-                                  label="View Receipt"
-                                  fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
-                                />
-                              )}
-                              {r.receipt_url && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-xs"
-                                  title="Visual aid only — not proof of anything, use your judgment"
-                                  onClick={() => openElaAnalysis(r.id, r.receipt_url!)}
-                                >
-                                  <Search className="h-3 w-3 mr-1" /> Tamper Analysis
-                                </Button>
-                              )}
+                            <div className="flex justify-end items-center gap-1">
                               <Button size="sm" variant="outline" className="text-xs text-green-700 border-green-300 hover:bg-green-50" onClick={() => handleMarkComplete(r)}>
                                 <Check className="h-3 w-3 mr-1" /> Complete
                               </Button>
-                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setReRequestTarget(r); setReRequestNote(''); }}>
-                                <RotateCcw className="h-3 w-3 mr-1" /> Re-request
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {r.receipt_url && (
+                                    <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                                      <FileText className="h-4 w-4 mr-2" /> View Receipt
+                                    </DropdownMenuItem>
+                                  )}
+                                  {r.receipt_url && (
+                                    <DropdownMenuItem onClick={() => openElaAnalysis(r.id, r.receipt_url!)}>
+                                      <Search className="h-4 w-4 mr-2" /> Tamper Analysis
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => { setReRequestTarget(r); setReRequestNote(''); }}>
+                                    <RotateCcw className="h-4 w-4 mr-2" /> Re-request
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
                             <Button
@@ -4343,6 +4345,7 @@ const Fleet = () => {
         )}
 
         </main>
+      </div>
       </div>
 
       {/* FUEL REQUEST DIALOG */}
