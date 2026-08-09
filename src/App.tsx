@@ -23,6 +23,7 @@ import JoinForm from './pages/JoinForm';
 import Privacy from './pages/legal/Privacy';
 import Terms from './pages/legal/Terms';
 import Careers from './pages/Careers';
+const PublicForm = lazy(() => import('./pages/PublicForm'));
 import Unauthorized from './pages/Unauthorized';
 import NotFound from './pages/NotFound';
 
@@ -147,6 +148,7 @@ function AppRoutes() {
       <Route path="/legal/terms" element={<Terms />} />
       {/* Public careers page — reads job_openings.status='published'. */}
       <Route path="/careers" element={<Careers />} />
+      <Route path="/forms/:formId" element={<Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" /></div>}><PublicForm /></Suspense>} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 

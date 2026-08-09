@@ -1,9 +1,10 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, Calendar, CheckCircle2, MessageSquare,
   Loader2, Users, Flag, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 import { formatDate, daysUntil } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +62,8 @@ export function KanbanBoard({
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
   const [groupBy, setGroupBy] = useState<BoardGroupBy>('status');
+  const [dropIndicator, setDropIndicator] = useState<{ colKey: string; index: number } | null>(null);
+  const dragSourceCol = useRef<string | null>(null);
 
   const columns = useMemo(() => {
     if (groupBy === 'status') {
@@ -99,11 +102,69 @@ export function KanbanBoard({
     }));
   }, [tasks, groupBy, profiles]);
 
+  const handleCardDragOver = useCallback((e: React.DragEvent, colKey: string, cardIndex: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const insertIndex = e.clientY < midY ? cardIndex : cardIndex + 1;
+    setOverCol(colKey);
+    setDropIndicator((prev) =>
+      prev?.colKey === colKey && prev?.index === insertIndex ? prev : { colKey, index: insertIndex }
+    );
+  }, []);
+
+  const reorderWithinColumn = useCallback(async (colKey: string, insertIndex: number) => {
+    if (!draggedId) return;
+    const col = columns.find((c) => c.key === colKey);
+    if (!col) return;
+
+    const currentIndex = col.tasks.findIndex((t) => t.id === draggedId);
+    if (currentIndex === -1) return;
+
+    // Dropping at the same position or adjacent (no-op)
+    if (insertIndex === currentIndex || insertIndex === currentIndex + 1) return;
+
+    // Build new order: remove dragged task, insert at target position
+    const reordered = [...col.tasks];
+    const [moved] = reordered.splice(currentIndex, 1);
+    // Adjust insert index after removal
+    const adjustedIndex = insertIndex > currentIndex ? insertIndex - 1 : insertIndex;
+    reordered.splice(adjustedIndex, 0, moved);
+
+    // Assign new sort_order values (index * 1000)
+    const updates = reordered.map((t, i) => ({
+      id: t.id,
+      sort_order: i * 1000,
+    }));
+
+    // Batch update via supabase
+    await Promise.all(
+      updates.map(({ id, sort_order }) =>
+        supabase.from('tasks').update({ sort_order }).eq('id', id)
+      )
+    );
+    onUpdate();
+  }, [draggedId, columns, onUpdate]);
+
   const handleDrop = async (targetKey: string) => {
+    const indicator = dropIndicator;
     setOverCol(null);
+    setDropIndicator(null);
     if (!draggedId) return;
     const task = tasks.find((t) => t.id === draggedId);
     if (!task) { setDraggedId(null); return; }
+
+    // Determine if this is a same-column drop
+    const isSameColumn = dragSourceCol.current === targetKey;
+
+    if (isSameColumn && indicator && indicator.colKey === targetKey) {
+      // Same-column reorder
+      await reorderWithinColumn(targetKey, indicator.index);
+      setDraggedId(null);
+      return;
+    }
 
     if (groupBy === 'status' && task.status !== targetKey) {
       await onStatusChange(draggedId, targetKey as TaskStatus);
@@ -154,8 +215,22 @@ export function KanbanBoard({
                   : 'border-border/60',
                 col.bg,
               )}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setOverCol(col.key); }}
-              onDragLeave={() => { if (overCol === col.key) setOverCol(null); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                setOverCol(col.key);
+                // If dragging over the column body (not over a card), show indicator at end
+                if (e.target === e.currentTarget || !(e.target as HTMLElement).closest('[data-task-card]')) {
+                  setDropIndicator({ colKey: col.key, index: col.tasks.length });
+                }
+              }}
+              onDragLeave={(e) => {
+                // Only clear if actually leaving the column (not entering a child)
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  if (overCol === col.key) setOverCol(null);
+                  if (dropIndicator?.colKey === col.key) setDropIndicator(null);
+                }
+              }}
               onDrop={async (e) => { e.preventDefault(); await handleDrop(col.key); }}
             >
               {/* Column header */}
@@ -197,26 +272,46 @@ export function KanbanBoard({
                   </div>
                 )}
 
-                {col.tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    profiles={profiles}
-                    availableTags={availableTags}
-                    subtaskCount={subtaskCounts.get(task.id)}
-                    commentCount={commentCounts?.get(task.id) ?? 0}
-                    isDragging={draggedId === task.id}
-                    onDragStart={() => setDraggedId(task.id)}
-                    onDragEnd={() => setDraggedId(null)}
-                    onClick={() => onTaskClick(task)}
-                    spaces={spaces}
-                    folders={folders}
-                    lists={lists}
-                    onUpdate={onUpdate}
-                  />
-                ))}
+                {col.tasks.map((task, idx) => {
+                  const showIndicatorBefore =
+                    draggedId !== null &&
+                    dropIndicator?.colKey === col.key &&
+                    dropIndicator?.index === idx &&
+                    dragSourceCol.current === col.key;
+                  return (
+                    <div key={task.id}>
+                      {showIndicatorBefore && (
+                        <div className="h-0.5 bg-blue-500 rounded-full mx-1 -mt-1 mb-1 transition-all" />
+                      )}
+                      <TaskCard
+                        task={task}
+                        profiles={profiles}
+                        availableTags={availableTags}
+                        subtaskCount={subtaskCounts.get(task.id)}
+                        commentCount={commentCounts?.get(task.id) ?? 0}
+                        isDragging={draggedId === task.id}
+                        onDragStart={() => { setDraggedId(task.id); dragSourceCol.current = col.key; }}
+                        onDragEnd={() => { setDraggedId(null); setDropIndicator(null); dragSourceCol.current = null; }}
+                        onCardDragOver={(e) => handleCardDragOver(e, col.key, idx)}
+                        onClick={() => onTaskClick(task)}
+                        spaces={spaces}
+                        folders={folders}
+                        lists={lists}
+                        onUpdate={onUpdate}
+                      />
+                    </div>
+                  );
+                })}
 
-                {isOver && col.tasks.length > 0 && (
+                {/* Show indicator at end of column when dropping after last card */}
+                {draggedId !== null &&
+                  dropIndicator?.colKey === col.key &&
+                  dropIndicator?.index === col.tasks.length &&
+                  dragSourceCol.current === col.key && (
+                  <div className="h-0.5 bg-blue-500 rounded-full mx-1 -mt-1 mb-1 transition-all" />
+                )}
+
+                {isOver && col.tasks.length > 0 && dragSourceCol.current !== col.key && (
                   <div className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 h-12 flex items-center justify-center">
                     <p className="text-[11px] text-primary/50 font-medium">Drop here</p>
                   </div>
@@ -294,7 +389,7 @@ function QuickAddFooter({ status, onQuickCreate }: { status: TaskStatus; onQuick
 
 function TaskCard({
   task, profiles, availableTags, subtaskCount, commentCount,
-  isDragging, onDragStart, onDragEnd, onClick,
+  isDragging, onDragStart, onDragEnd, onCardDragOver, onClick,
   spaces, folders, lists, onUpdate,
 }: {
   task: Task;
@@ -305,6 +400,7 @@ function TaskCard({
   isDragging: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
+  onCardDragOver: (e: React.DragEvent) => void;
   onClick: () => void;
   spaces: Space[];
   folders: SpaceFolder[];
@@ -320,6 +416,7 @@ function TaskCard({
 
   return (
     <div
+      data-task-card
       draggable
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = 'move';
@@ -327,6 +424,7 @@ function TaskCard({
         onDragStart();
       }}
       onDragEnd={onDragEnd}
+      onDragOver={onCardDragOver}
       onClick={onClick}
       className={cn(
         'group rounded-lg border bg-card p-3 cursor-pointer transition-all',

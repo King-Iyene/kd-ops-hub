@@ -4,7 +4,7 @@ import {
   LayoutGrid, List, BarChart3, User, Table2,
   MoreHorizontal, Pencil, Trash2,
   Lock, Users, FolderKanban, ListTodo, Palette, Star, CalendarDays, GanttChart,
-  Activity, Weight,
+  Activity, Weight, Timer,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/tooltip';
 import type { TaskList, SpaceFolder } from '@/lib/task-types';
 
-export type TaskView = 'my-tasks' | 'board' | 'list' | 'table' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity';
+export type TaskView = 'my-tasks' | 'board' | 'list' | 'table' | 'calendar' | 'gantt' | 'dashboard' | 'workload' | 'activity' | 'time-report';
 
 export interface Space {
   id: string;
@@ -102,7 +102,7 @@ export function TaskSidebar({
   };
 
   const ensureTaskView = () => {
-    if (currentView === 'my-tasks' || currentView === 'dashboard' || currentView === 'workload' || currentView === 'activity') onChangeView('board');
+    if (currentView === 'my-tasks' || currentView === 'dashboard' || currentView === 'workload' || currentView === 'activity' || currentView === 'time-report') onChangeView('board');
   };
 
   return (
@@ -154,6 +154,7 @@ export function TaskSidebar({
         <SidebarItem icon={GanttChart} label="Gantt" active={currentView === 'gantt'} onClick={() => onChangeView('gantt')} />
         <SidebarItem icon={Weight} label="Workload" active={currentView === 'workload'} onClick={() => onChangeView('workload')} />
         <SidebarItem icon={Activity} label="Activity" active={currentView === 'activity'} onClick={() => onChangeView('activity')} />
+        <SidebarItem icon={Timer} label="Time Reports" active={currentView === 'time-report'} onClick={() => onChangeView('time-report')} />
         <SidebarItem icon={BarChart3} label="Dashboard" active={currentView === 'dashboard'} onClick={() => onChangeView('dashboard')} />
       </div>
 

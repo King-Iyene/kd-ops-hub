@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Plus, Search, Loader2, CheckCircle2, ListTodo, Flag,
   Pencil, Check, Clock, Send, X, Filter, Trash2,
-  User, ArrowRight,
+  User, ArrowRight, Download, CalendarDays, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -50,11 +50,15 @@ import { RecurrenceEditor } from '@/components/tasks/RecurrenceEditor';
 import { SavedViewsPanel } from '@/components/tasks/SavedViewsPanel';
 import { TaskWorkloadView } from '@/components/tasks/TaskWorkloadView';
 import { TaskActivityView } from '@/components/tasks/TaskActivityView';
+import { TaskTimeReportView } from '@/components/tasks/TaskTimeReportView';
+import { TaskImportExportDialog } from '@/components/tasks/TaskImportExportDialog';
+import { GoogleCalendarSync } from '@/components/tasks/GoogleCalendarSync';
+import { TaskFormBuilder } from '@/components/tasks/TaskFormBuilder';
 import type { SavedView } from '@/lib/task-types';
 import { Switch } from '@/components/ui/switch';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag,
-  TaskList, SpaceFolder,
+  TaskList, SpaceFolder, TaskDependency,
 } from '@/lib/task-types';
 import {
   STATUSES, PRIORITY_OPTIONS, PRIORITY_CLASS,
@@ -70,6 +74,7 @@ const Tasks = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
 
   // Sidebar state
   const [currentView, setCurrentView] = useState<TaskView>('my-tasks');
@@ -139,6 +144,9 @@ const Tasks = () => {
 
   // Templates
   const [templatesDialog, setTemplatesDialog] = useState(false);
+  const [importExportDialog, setImportExportDialog] = useState(false);
+  const [calendarDialog, setCalendarDialog] = useState(false);
+  const [formBuilderDialog, setFormBuilderDialog] = useState(false);
 
   // ─── Load Data ───────────────────────────────────────────────────────
 
@@ -147,7 +155,7 @@ const Tasks = () => {
     setError(null);
     try {
       const offset = append ? tasks.length : 0;
-      const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes] = await Promise.all([
+      const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes, depsRes] = await Promise.all([
         supabase
           .from('tasks')
           .select('*')
@@ -164,6 +172,7 @@ const Tasks = () => {
         supabase.from('project_spaces').select('*').is('deleted_at', null).order('sort_order'),
         supabase.from('space_folders').select('*').order('sort_order'),
         supabase.from('task_lists').select('*').order('sort_order'),
+        supabase.from('task_dependencies').select('*'),
       ]);
       if (topRes.error) throw topRes.error;
       const newTasks = (topRes.data as Task[]) || [];
@@ -186,6 +195,7 @@ const Tasks = () => {
       setSpaces((spacesRes.data as Space[]) || []);
       setFolders((foldersRes.data as SpaceFolder[]) || []);
       setTaskLists((listsRes.data as TaskList[]) || []);
+      setDependencies((depsRes.data as TaskDependency[]) || []);
     } catch (err: any) {
       setError(err?.message || 'Failed to load tasks.');
     } finally {
@@ -766,6 +776,7 @@ const Tasks = () => {
     if (currentView === 'dashboard') return 'Dashboard';
     if (currentView === 'workload') return 'Workload';
     if (currentView === 'activity') return 'Activity';
+    if (currentView === 'time-report') return 'Time Reports';
     if (selectedList) {
       const l = taskLists.find((l) => l.id === selectedList);
       return l?.name ?? 'List';
@@ -880,7 +891,7 @@ const Tasks = () => {
               </Button>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold truncate">{viewTitle}</h1>
-                {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
+                {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
                   <p className="text-xs text-muted-foreground">
                     {visible.length} task{visible.length !== 1 ? 's' : ''}
                   </p>
@@ -889,7 +900,7 @@ const Tasks = () => {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
                 <>
                   <div className="relative hidden sm:block">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -976,11 +987,25 @@ const Tasks = () => {
                 </>
               )}
 
-              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
-                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
-                  <ListTodo className="h-3.5 w-3.5" />
-                  Templates
-                </Button>
+              {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
+                <>
+                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setTemplatesDialog(true)}>
+                    <ListTodo className="h-3.5 w-3.5" />
+                    Templates
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden sm:flex" onClick={() => setImportExportDialog(true)}>
+                    <Download className="h-3.5 w-3.5" />
+                    Import/Export
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setFormBuilderDialog(true)}>
+                    <FileText className="h-3.5 w-3.5" />
+                    Forms
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8 gap-1 text-xs hidden lg:flex" onClick={() => setCalendarDialog(true)}>
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Calendar Sync
+                  </Button>
+                </>
               )}
 
               <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={openCreate}>
@@ -991,7 +1016,7 @@ const Tasks = () => {
           </div>
 
           {/* Saved views */}
-          {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
+          {currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
             <div className="px-4 lg:px-6 pb-1">
               <SavedViewsPanel
                 spaceId={selectedSpace}
@@ -1016,7 +1041,7 @@ const Tasks = () => {
           )}
 
           {/* Active filter pills */}
-          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && (
+          {activeFilters.length > 0 && currentView !== 'my-tasks' && currentView !== 'dashboard' && currentView !== 'workload' && currentView !== 'activity' && currentView !== 'time-report' && (
             <div className="flex items-center gap-1.5 px-4 lg:px-6 pb-2.5 flex-wrap">
               {activeFilters.map((f) => (
                 <button
@@ -1087,6 +1112,7 @@ const Tasks = () => {
               tasks={visible}
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
+              dependencies={dependencies}
             />
           ) : currentView === 'workload' ? (
             <TaskWorkloadView
@@ -1096,6 +1122,12 @@ const Tasks = () => {
             />
           ) : currentView === 'activity' ? (
             <TaskActivityView
+              tasks={tasks}
+              profiles={profiles}
+              onTaskClick={(t) => setDetailTask(t)}
+            />
+          ) : currentView === 'time-report' ? (
+            <TaskTimeReportView
               tasks={tasks}
               profiles={profiles}
               onTaskClick={(t) => setDetailTask(t)}
@@ -1463,6 +1495,37 @@ const Tasks = () => {
           if (data.tags) setSelectedTagIds(data.tags);
           setDialog(true);
         }}
+      />
+
+      {/* Import/Export Dialog */}
+      <TaskImportExportDialog
+        open={importExportDialog}
+        onOpenChange={setImportExportDialog}
+        tasks={visible}
+        profiles={profiles}
+        onUpdate={() => load()}
+        currentListId={selectedList}
+        currentProjectId={selectedSpace ? (projectSpaceMap.get(selectedSpace) ?? null) : null}
+      />
+
+      {/* Google Calendar Sync Dialog */}
+      <Dialog open={calendarDialog} onOpenChange={setCalendarDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Google Calendar Sync</DialogTitle>
+          </DialogHeader>
+          <GoogleCalendarSync tasks={tasks} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Form Builder Dialog */}
+      <TaskFormBuilder
+        open={formBuilderDialog}
+        onOpenChange={setFormBuilderDialog}
+        spaces={spaces}
+        lists={taskLists}
+        profiles={profiles}
+        onSaved={() => load()}
       />
     </div>
   );

@@ -2,13 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { Task, ProfileRow } from '@/lib/task-types';
+import type { Task, ProfileRow, TaskDependency } from '@/lib/task-types';
 import { STATUS_DOT, PRIORITY_BORDER } from '@/lib/task-types';
 
 interface TaskGanttViewProps {
   tasks: Task[];
   profiles: Map<string, ProfileRow>;
   onTaskClick: (task: Task) => void;
+  dependencies?: TaskDependency[];
 }
 
 function addDays(d: Date, n: number): Date {
@@ -27,7 +28,7 @@ function toDateStr(d: Date): string {
 
 const DAY_WIDTH = 32;
 
-export function TaskGanttView({ tasks, profiles, onTaskClick }: TaskGanttViewProps) {
+export function TaskGanttView({ tasks, profiles, onTaskClick, dependencies = [] }: TaskGanttViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewStart, setViewStart] = useState(() => {
     const d = new Date();
@@ -80,6 +81,82 @@ export function TaskGanttView({ tasks, profiles, onTaskClick }: TaskGanttViewPro
     if (currentLabel) result.push({ label: currentLabel, span: currentSpan });
     return result;
   }, [days]);
+
+  const depArrows = useMemo(() => {
+    if (!dependencies.length || !ganttTasks.length) return [];
+
+    const taskIndexMap = new Map<string, number>();
+    ganttTasks.forEach((t, i) => taskIndexMap.set(t.id, i));
+
+    type ArrowInfo = {
+      key: string;
+      srcX: number;
+      srcY: number;
+      tgtX: number;
+      tgtY: number;
+      dashed: boolean;
+    };
+
+    const arrows: ArrowInfo[] = [];
+
+    for (const dep of dependencies) {
+      if (dep.dependency_type === 'duplicate_of') continue;
+
+      let blockerId: string;
+      let blockedId: string;
+      const dashed = dep.dependency_type === 'relates_to';
+
+      if (dep.dependency_type === 'blocks') {
+        blockerId = dep.task_id;
+        blockedId = dep.depends_on_id;
+      } else if (dep.dependency_type === 'is_blocked_by') {
+        blockerId = dep.depends_on_id;
+        blockedId = dep.task_id;
+      } else {
+        // relates_to: arbitrary direction, use task_id -> depends_on_id
+        blockerId = dep.task_id;
+        blockedId = dep.depends_on_id;
+      }
+
+      const srcIdx = taskIndexMap.get(blockerId);
+      const tgtIdx = taskIndexMap.get(blockedId);
+      if (srcIdx === undefined || tgtIdx === undefined) continue;
+
+      const srcTask = ganttTasks[srcIdx];
+      const tgtTask = ganttTasks[tgtIdx];
+
+      // Compute source bar end X
+      const srcStartDate = new Date(srcTask.start_date || srcTask.due_date!);
+      const srcEndDate = new Date(srcTask.due_date || srcTask.start_date!);
+      const srcStartDay = daysBetween(viewStart, srcStartDate);
+      const srcDuration = Math.max(1, daysBetween(srcStartDate, srcEndDate) + 1);
+      const srcClippedStart = Math.max(0, srcStartDay);
+      const srcClippedEnd = Math.min(totalDays, srcStartDay + srcDuration);
+      const srcLeft = Math.max(0, srcStartDay) * DAY_WIDTH;
+      const srcWidth = Math.max(DAY_WIDTH, (srcClippedEnd - srcClippedStart) * DAY_WIDTH);
+      const srcEndX = srcLeft + srcWidth;
+
+      // Compute target bar start X
+      const tgtStartDate = new Date(tgtTask.start_date || tgtTask.due_date!);
+      const tgtStartDay = daysBetween(viewStart, tgtStartDate);
+      const tgtLeft = Math.max(0, tgtStartDay) * DAY_WIDTH;
+
+      // Y centers: each row is 32px, bar is vertically centered
+      const srcY = srcIdx * 32 + 16;
+      const tgtY = tgtIdx * 32 + 16;
+
+      arrows.push({
+        key: dep.id,
+        srcX: srcEndX,
+        srcY,
+        tgtX: tgtLeft,
+        tgtY,
+        dashed,
+      });
+    }
+
+    return arrows;
+  }, [dependencies, ganttTasks, viewStart, totalDays]);
 
   const todayOffset = daysBetween(viewStart, today);
 
@@ -163,6 +240,55 @@ export function TaskGanttView({ tasks, profiles, onTaskClick }: TaskGanttViewPro
                   className="absolute top-0 bottom-0 w-px bg-primary/60 z-10"
                   style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
                 />
+              )}
+              {depArrows.length > 0 && (
+                <svg
+                  className="absolute inset-0 pointer-events-none text-muted-foreground"
+                  style={{
+                    width: totalDays * DAY_WIDTH,
+                    height: ganttTasks.length * 32,
+                    zIndex: 20,
+                  }}
+                >
+                  <defs>
+                    <marker
+                      id="gantt-arrowhead"
+                      markerWidth="8"
+                      markerHeight="6"
+                      refX="8"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L8,3 L0,6 Z" fill="currentColor" />
+                    </marker>
+                    <marker
+                      id="gantt-arrowhead-dashed"
+                      markerWidth="8"
+                      markerHeight="6"
+                      refX="8"
+                      refY="3"
+                      orient="auto"
+                    >
+                      <path d="M0,0 L8,3 L0,6 Z" fill="currentColor" />
+                    </marker>
+                  </defs>
+                  {depArrows.map((a) => {
+                    const dx = a.tgtX - a.srcX;
+                    const cpOffset = Math.max(20, Math.abs(dx) * 0.3);
+                    const d = `M ${a.srcX},${a.srcY} C ${a.srcX + cpOffset},${a.srcY} ${a.tgtX - cpOffset},${a.tgtY} ${a.tgtX},${a.tgtY}`;
+                    return (
+                      <path
+                        key={a.key}
+                        d={d}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                        strokeDasharray={a.dashed ? '4 3' : undefined}
+                        markerEnd={a.dashed ? 'url(#gantt-arrowhead-dashed)' : 'url(#gantt-arrowhead)'}
+                      />
+                    );
+                  })}
+                </svg>
               )}
               {ganttTasks.map((t) => {
                 const startDate = new Date(t.start_date || t.due_date!);

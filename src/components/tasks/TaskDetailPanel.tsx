@@ -28,6 +28,10 @@ import type {
 import { STATUSES, PRIORITY_OPTIONS, STATUS_DOT } from '@/lib/task-types';
 import { RecurrenceEditor } from '@/components/tasks/RecurrenceEditor';
 import { CustomFieldsPanel } from '@/components/tasks/CustomFieldsPanel';
+import { MarkdownRenderer } from '@/components/tasks/MarkdownRenderer';
+import { MentionInput } from '@/components/tasks/MentionInput';
+import { TaskAttachmentsPanel } from '@/components/tasks/TaskAttachmentsPanel';
+import { TaskRemindersPanel } from '@/components/tasks/TaskRemindersPanel';
 import type { RecurrenceRule } from '@/lib/task-types';
 
 interface GoalRow {
@@ -66,6 +70,8 @@ export function TaskDetailPanel({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [checklists, setChecklists] = useState<TaskChecklist[]>([]);
+  const [newChecklistGroup, setNewChecklistGroup] = useState('Checklist');
+  const [addingGroup, setAddingGroup] = useState(false);
   const [timeEntries, setTimeEntries] = useState<TaskTimeEntry[]>([]);
   const [activities, setActivities] = useState<TaskActivity[]>([]);
   const [watchers, setWatchers] = useState<string[]>([]);
@@ -199,10 +205,10 @@ export function TaskDetailPanel({
   };
 
   // ─── Checklist actions ──────────────────────────────────────
-  const addChecklistItem = async () => {
+  const addChecklistItem = async (groupName = 'Checklist') => {
     if (!newChecklist.trim()) return;
     const { error } = await supabase.from('task_checklists').insert({
-      task_id: task.id, title: newChecklist.trim(), sort_order: checklists.length,
+      task_id: task.id, title: newChecklist.trim(), sort_order: checklists.length, group_name: groupName,
     });
     if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
     setNewChecklist('');
@@ -464,12 +470,12 @@ export function TaskDetailPanel({
               </div>
               {editingDescription ? (
                 <div className="space-y-2">
-                  <Textarea
+                  <MentionInput
                     value={descDraft}
-                    onChange={(e) => setDescDraft(e.target.value)}
-                    rows={4}
-                    className="text-sm resize-y"
-                    placeholder="Add a description..."
+                    onChange={setDescDraft}
+                    profiles={profiles}
+                    placeholder="Add a description... (supports **markdown** and @mentions)"
+                    minRows={4}
                     autoFocus
                   />
                   <div className="flex gap-2">
@@ -481,10 +487,10 @@ export function TaskDetailPanel({
                   </div>
                 </div>
               ) : task.description ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed cursor-pointer hover:bg-muted/30 rounded p-1.5 -m-1.5 transition-colors"
+                <div className="cursor-pointer hover:bg-muted/30 rounded p-1.5 -m-1.5 transition-colors"
                    onClick={() => { setDescDraft(task.description || ''); setEditingDescription(true); }}>
-                  {task.description}
-                </p>
+                  <MarkdownRenderer content={task.description} />
+                </div>
               ) : (
                 <button
                   onClick={() => { setDescDraft(''); setEditingDescription(true); }}
@@ -571,47 +577,87 @@ export function TaskDetailPanel({
               </div>
             </div>
 
-            {/* Checklists */}
+            {/* Checklists (multiple named groups) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <ListChecks className="h-3 w-3 inline mr-1" />Checklist
+                  <ListChecks className="h-3 w-3 inline mr-1" />Checklists
                 </Label>
-                {checklists.length > 0 && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">{checkedItems}/{checklists.length}</span>
-                )}
+                <div className="flex items-center gap-1">
+                  {checklists.length > 0 && (
+                    <span className="text-[11px] text-muted-foreground tabular-nums mr-1">{checkedItems}/{checklists.length}</span>
+                  )}
+                  <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => setAddingGroup(true)}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
               {checklists.length > 0 && (
                 <Progress value={checklists.length > 0 ? (checkedItems / checklists.length) * 100 : 0} className="h-1" />
               )}
-              <div className="space-y-0.5">
-                {checklists.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 group rounded-md px-2 py-1 hover:bg-muted/50 transition-colors">
-                    <button onClick={() => toggleChecklistItem(item)} className="shrink-0">
-                      {item.is_checked
-                        ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20" />
-                        : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
-                      }
-                    </button>
-                    <span className={cn('flex-1 text-sm', item.is_checked && 'line-through text-muted-foreground')}>{item.title}</span>
-                    <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteChecklistItem(item.id)}>
-                      <X className="h-3 w-3 text-muted-foreground" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  className="h-7 text-sm"
-                  placeholder="Add checklist item..."
-                  value={newChecklist}
-                  onChange={(e) => setNewChecklist(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') addChecklistItem(); }}
-                />
-                <Button size="sm" className="h-7 shrink-0" disabled={!newChecklist.trim()} onClick={addChecklistItem}>
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
+              {addingGroup && (
+                <div className="flex gap-2">
+                  <Input
+                    className="h-7 text-sm"
+                    placeholder="Checklist name..."
+                    value={newChecklistGroup}
+                    onChange={(e) => setNewChecklistGroup(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && newChecklistGroup.trim()) setAddingGroup(false); if (e.key === 'Escape') { setAddingGroup(false); setNewChecklistGroup('Checklist'); } }}
+                    autoFocus
+                  />
+                  <Button size="sm" className="h-7 text-xs" onClick={() => setAddingGroup(false)} disabled={!newChecklistGroup.trim()}>OK</Button>
+                </div>
+              )}
+              {(() => {
+                const groups = new Map<string, TaskChecklist[]>();
+                for (const item of checklists) {
+                  const g = item.group_name || 'Checklist';
+                  if (!groups.has(g)) groups.set(g, []);
+                  groups.get(g)!.push(item);
+                }
+                if (groups.size === 0) groups.set(newChecklistGroup, []);
+                return Array.from(groups.entries()).map(([groupName, items]) => {
+                  const groupChecked = items.filter((i) => i.is_checked).length;
+                  return (
+                    <div key={groupName} className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-medium text-muted-foreground">{groupName}</span>
+                        {items.length > 0 && (
+                          <span className="text-[10px] text-muted-foreground/60">{groupChecked}/{items.length}</span>
+                        )}
+                      </div>
+                      <div className="space-y-0.5">
+                        {items.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 group rounded-md px-2 py-1 hover:bg-muted/50 transition-colors">
+                            <button onClick={() => toggleChecklistItem(item)} className="shrink-0">
+                              {item.is_checked
+                                ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/20" />
+                                : <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/30" />
+                              }
+                            </button>
+                            <span className={cn('flex-1 text-sm', item.is_checked && 'line-through text-muted-foreground')}>{item.title}</span>
+                            <Button size="icon" variant="ghost" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0" onClick={() => deleteChecklistItem(item.id)}>
+                              <X className="h-3 w-3 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input
+                          className="h-7 text-sm"
+                          placeholder={`Add to ${groupName}...`}
+                          value={newChecklist}
+                          onChange={(e) => setNewChecklist(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') addChecklistItem(groupName); }}
+                        />
+                        <Button size="sm" className="h-7 shrink-0" disabled={!newChecklist.trim()} onClick={() => addChecklistItem(groupName)}>
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             {/* Comments / Activity tabs */}
@@ -638,13 +684,13 @@ export function TaskDetailPanel({
               {activeDetailTab === 'comments' && (
                 <div className="space-y-3">
                   <div className="space-y-2">
-                    <Textarea
+                    <MentionInput
                       value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a comment... (Ctrl+Enter to send)"
-                      rows={2}
-                      className="text-sm resize-none"
-                      onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addComment(); }}
+                      onChange={setNewComment}
+                      onSubmit={addComment}
+                      profiles={profiles}
+                      placeholder="Write a comment... (supports **markdown** and @mentions)"
+                      minRows={2}
                     />
                     <div className="flex justify-end">
                       <Button size="sm" onClick={addComment} disabled={posting || !newComment.trim()} className="h-7 text-xs">
@@ -699,7 +745,7 @@ export function TaskDetailPanel({
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-sm text-foreground/90 whitespace-pre-wrap mt-0.5 leading-relaxed">{c.body}</p>
+                              <MarkdownRenderer content={c.body} className="mt-0.5" />
                             )}
                           </div>
                         </div>
@@ -1038,6 +1084,16 @@ export function TaskDetailPanel({
                 onChange={(rule) => updateField('recurrence_rule', rule)}
               />
             </MetaField>
+
+            {/* Attachments */}
+            <div className="pt-2 border-t border-border/40">
+              <TaskAttachmentsPanel taskId={task.id} onUpdate={onUpdate} />
+            </div>
+
+            {/* Reminders */}
+            <div className="pt-2 border-t border-border/40">
+              <TaskRemindersPanel taskId={task.id} />
+            </div>
 
             {/* Custom Fields */}
             <div className="pt-2 border-t border-border/40">

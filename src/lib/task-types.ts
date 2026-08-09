@@ -125,6 +125,7 @@ export interface TaskChecklist {
   is_checked: boolean;
   assignee_id: string | null;
   sort_order: number;
+  group_name: string;
   created_at: string;
 }
 
