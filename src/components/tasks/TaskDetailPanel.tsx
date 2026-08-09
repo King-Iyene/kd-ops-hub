@@ -92,7 +92,7 @@ export function TaskDetailPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [availableGoals, setAvailableGoals] = useState<GoalRow[]>([]);
-  const [additionalAssignees, setAdditionalAssignees] = useState<string[]>([]);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [assigneeSearch, setAssigneeSearch] = useState('');
   const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
 
@@ -152,11 +152,15 @@ export function TaskDetailPanel({
     setWatchers((data || []).map((w: any) => w.user_id));
   }, [task.id]);
 
-  const loadAdditionalAssignees = useCallback(async () => {
+  const loadAssignees = useCallback(async () => {
     const { data } = await supabase
       .from('task_assignees').select('user_id').eq('task_id', task.id);
-    setAdditionalAssignees((data || []).map((a: any) => a.user_id));
-  }, [task.id]);
+    const extra = (data || []).map((a: any) => a.user_id as string);
+    const combined = new Set<string>();
+    if (task.assignee_id) combined.add(task.assignee_id);
+    extra.forEach((uid) => combined.add(uid));
+    setAssigneeIds(Array.from(combined));
+  }, [task.id, task.assignee_id]);
 
   useEffect(() => {
     loadSubtasks();
@@ -166,11 +170,11 @@ export function TaskDetailPanel({
     loadTimeEntries();
     loadActivities();
     loadWatchers();
-    loadAdditionalAssignees();
+    loadAssignees();
     supabase.from('goals').select('id, title, scope, quarter, status, progress_pct')
       .neq('status', 'missed').order('quarter', { ascending: false }).limit(50)
       .then(({ data }) => setAvailableGoals((data as GoalRow[]) || []));
-  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers, loadAdditionalAssignees]);
+  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers, loadAssignees]);
 
   // ─── Subtask actions ────────────────────────────────────────
   const addSubtask = async () => {
@@ -384,34 +388,33 @@ export function TaskDetailPanel({
   };
 
   // ─── Assignee toggle (ClickUp-style multi-select) ──────────
-  const allAssigneeIds = [
-    ...(task.assignee_id ? [task.assignee_id] : []),
-    ...additionalAssignees.filter((uid) => uid !== task.assignee_id),
-  ];
-
   const toggleAssignee = async (userId: string) => {
-    const isCurrentPrimary = task.assignee_id === userId;
-    const isAdditional = additionalAssignees.includes(userId);
+    const isSelected = assigneeIds.includes(userId);
 
-    if (isCurrentPrimary) {
-      const remaining = additionalAssignees.filter((uid) => uid !== userId);
-      if (remaining.length > 0) {
-        const newPrimary = remaining[0];
-        await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', newPrimary);
-        await supabase.from('tasks').update({ assignee_id: newPrimary }).eq('id', task.id);
-      } else {
-        await supabase.from('tasks').update({ assignee_id: null }).eq('id', task.id);
-      }
-    } else if (isAdditional) {
+    if (isSelected) {
+      // Remove this person
+      const remaining = assigneeIds.filter((uid) => uid !== userId);
+      setAssigneeIds(remaining);
+
+      // Remove from junction table
       await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', userId);
+      // Update primary: set to next remaining or null
+      const newPrimary = remaining[0] || null;
+      await supabase.from('tasks').update({ assignee_id: newPrimary }).eq('id', task.id);
     } else {
-      if (!task.assignee_id) {
+      // Add this person
+      const updated = [...assigneeIds, userId];
+      setAssigneeIds(updated);
+
+      if (assigneeIds.length === 0) {
+        // First assignee — set as primary
         await supabase.from('tasks').update({ assignee_id: userId }).eq('id', task.id);
       } else {
-        await supabase.from('task_assignees').insert({ task_id: task.id, user_id: userId });
+        // Additional — add to junction table, ignore if already exists
+        await supabase.from('task_assignees')
+          .upsert({ task_id: task.id, user_id: userId }, { onConflict: 'task_id,user_id' });
       }
     }
-    loadAdditionalAssignees();
     onUpdate();
   };
 
@@ -885,10 +888,10 @@ export function TaskDetailPanel({
               <Popover open={assigneePopoverOpen} onOpenChange={(open) => { setAssigneePopoverOpen(open); if (!open) setAssigneeSearch(''); }}>
                 <PopoverTrigger asChild>
                   <button className="w-full min-h-[32px] flex flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs hover:bg-accent/50 transition-colors text-left">
-                    {allAssigneeIds.length === 0 && (
+                    {assigneeIds.length === 0 && (
                       <span className="text-muted-foreground">Unassigned</span>
                     )}
-                    {allAssigneeIds.map((uid) => {
+                    {assigneeIds.map((uid) => {
                       const p = profiles.get(uid);
                       const initials = p ? p.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
                       return (
@@ -900,9 +903,9 @@ export function TaskDetailPanel({
                     })}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-0" align="start">
+                <PopoverContent className="w-56 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
                   <div className="p-2 border-b border-border">
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-input bg-background">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-primary">
                       <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <input
                         className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
@@ -913,7 +916,7 @@ export function TaskDetailPanel({
                       />
                     </div>
                   </div>
-                  <div className="max-h-48 overflow-y-auto p-1">
+                  <div className="max-h-[240px] overflow-y-auto overscroll-contain p-1">
                     <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">People</div>
                     {Array.from(profiles.values())
                       .filter((p) => {
@@ -922,7 +925,7 @@ export function TaskDetailPanel({
                         return p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
                       })
                       .map((p) => {
-                        const isSelected = allAssigneeIds.includes(p.id);
+                        const isSelected = assigneeIds.includes(p.id);
                         const initials = p.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
                         return (
                           <button
