@@ -91,6 +91,8 @@ export function TaskDetailPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [availableGoals, setAvailableGoals] = useState<GoalRow[]>([]);
+  const [additionalAssignees, setAdditionalAssignees] = useState<string[]>([]);
+  const [showAddAssignee, setShowAddAssignee] = useState(false);
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -148,6 +150,12 @@ export function TaskDetailPanel({
     setWatchers((data || []).map((w: any) => w.user_id));
   }, [task.id]);
 
+  const loadAdditionalAssignees = useCallback(async () => {
+    const { data } = await supabase
+      .from('task_assignees').select('user_id').eq('task_id', task.id);
+    setAdditionalAssignees((data || []).map((a: any) => a.user_id));
+  }, [task.id]);
+
   useEffect(() => {
     loadSubtasks();
     loadComments();
@@ -156,10 +164,11 @@ export function TaskDetailPanel({
     loadTimeEntries();
     loadActivities();
     loadWatchers();
+    loadAdditionalAssignees();
     supabase.from('goals').select('id, title, scope, quarter, status, progress_pct')
       .neq('status', 'missed').order('quarter', { ascending: false }).limit(50)
       .then(({ data }) => setAvailableGoals((data as GoalRow[]) || []));
-  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers]);
+  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers, loadAdditionalAssignees]);
 
   // ─── Subtask actions ────────────────────────────────────────
   const addSubtask = async () => {
@@ -848,6 +857,52 @@ export function TaskDetailPanel({
                   ))}
                 </SelectContent>
               </Select>
+              {additionalAssignees.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {additionalAssignees.map((uid) => {
+                    const p = profiles.get(uid);
+                    return (
+                      <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-muted rounded-full px-2 py-0.5">
+                        {p?.full_name || 'Unknown'}
+                        <button onClick={async () => {
+                          await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', uid);
+                          loadAdditionalAssignees();
+                        }} className="hover:text-destructive">
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              {showAddAssignee ? (
+                <Select value="" onValueChange={async (uid) => {
+                  if (!uid || uid === task.assignee_id || additionalAssignees.includes(uid)) return;
+                  await supabase.from('task_assignees').insert({ task_id: task.id, user_id: uid });
+                  loadAdditionalAssignees();
+                  setShowAddAssignee(false);
+                }}>
+                  <SelectTrigger className="h-7 text-[10px] mt-1 text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Plus className="h-3 w-3" /> Select assignee...
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from(profiles.values())
+                      .filter((p) => p.id !== task.assignee_id && !additionalAssignees.includes(p.id))
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <button
+                  onClick={() => setShowAddAssignee(true)}
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary mt-1.5 transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Add assignee
+                </button>
+              )}
             </MetaField>
 
             {/* Start Date */}
