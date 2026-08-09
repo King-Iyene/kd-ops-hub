@@ -572,6 +572,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                 }
               />
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -636,6 +637,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </div>
         </Card>

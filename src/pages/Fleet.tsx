@@ -1407,6 +1407,7 @@ function FleetAnalyticsDashboard({
           {analyticsLoading ? (
             <TableSkeleton />
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1473,6 +1474,7 @@ function FleetAnalyticsDashboard({
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -4378,7 +4380,7 @@ const Fleet = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="hidden md:block">
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -4894,7 +4896,7 @@ const Fleet = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="hidden md:block">
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -5215,6 +5217,7 @@ const Fleet = () => {
               <CardTitle className="text-base">My Fuel Requests</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -5264,6 +5267,7 @@ const Fleet = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -5277,6 +5281,7 @@ const Fleet = () => {
               <CardTitle className="text-base">Fleet Activity Log</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -5312,6 +5317,7 @@ const Fleet = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -5335,6 +5341,7 @@ const Fleet = () => {
               ) : (
                 <Card>
                   <CardContent className="p-0">
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -5406,6 +5413,7 @@ const Fleet = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -5421,6 +5429,7 @@ const Fleet = () => {
               ) : (
                 <Card>
                   <CardContent className="p-0">
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -5479,6 +5488,7 @@ const Fleet = () => {
                         ))}
                       </TableBody>
                     </Table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -7748,6 +7758,7 @@ function GeofencesTab() {
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -7781,6 +7792,7 @@ function GeofencesTab() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -7999,6 +8011,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
 
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -8135,6 +8148,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -8581,6 +8595,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
               {pending.length > 0 && (
                 <Card>
                   <CardContent className="p-0">
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -8626,6 +8641,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                         })}
                       </TableBody>
                     </Table>
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -8635,6 +8651,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Completed</p>
                   <Card>
                     <CardContent className="p-0">
+                      <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -8670,6 +8687,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
