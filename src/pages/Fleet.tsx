@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Tabs import removed — fleet now uses sidebar navigation
 import {
   Dialog,
   DialogContent,
@@ -86,7 +86,6 @@ import { IncidentReportPanel } from '@/components/fleet/IncidentReportPanel';
 import { MaintenanceHub } from '@/components/fleet/MaintenanceHub';
 import { InspectionHistory } from '@/components/fleet/InspectionHistory';
 import { VehicleLifecyclePanel } from '@/components/fleet/VehicleLifecyclePanel';
-import { DriverTrainingPanel } from '@/components/fleet/DriverTrainingPanel';
 
 interface FieldStaff {
   id: string;
@@ -1492,6 +1491,68 @@ const SERVICE_TYPES = [
   'Custom',
 ];
 
+// ── Sidebar nav helpers ──────────────────────────────────────────────────────
+
+function FleetNavGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="pt-3 first:pt-0">
+      <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
+  );
+}
+
+function FleetNavItem({
+  icon: Icon,
+  label,
+  value,
+  active,
+  onClick,
+  badge,
+  badgeTone = 'danger',
+  live,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  active: string;
+  onClick: (v: any) => void;
+  badge?: string;
+  badgeTone?: 'danger' | 'warning';
+  live?: boolean;
+}) {
+  const isActive = active === value;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(value)}
+      className={cn(
+        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+        isActive
+          ? 'bg-primary/10 text-primary dark:bg-primary/15'
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+      )}
+    >
+      <Icon className="h-4 w-4 shrink-0" />
+      {live && (
+        <span className="relative flex h-2 w-2 -ml-1">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+        </span>
+      )}
+      <span className="truncate">{label}</span>
+      {badge && (
+        <span className={cn(
+          'ml-auto inline-flex items-center justify-center rounded-full text-[10px] font-bold min-w-[18px] h-[18px] px-1',
+          badgeTone === 'danger' ? 'bg-red-500 text-white' : 'bg-amber-500 text-white',
+        )}>
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
 const Fleet = () => {
   usePageTitle('Fleet');
   const { profile } = useAuthStore();
@@ -1502,9 +1563,10 @@ const Fleet = () => {
     profile?.role === 'super_admin' ||
     profile?.role === 'operations';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers' | 'incidents' | 'maintenance' | 'inspections' | 'lifecycle' | 'training'>(
-    isAdmin ? 'fuel' : 'my_requests',
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers' | 'incidents' | 'maintenance' | 'inspections' | 'lifecycle'>(
+    isAdmin ? 'dashboard' : 'my_requests',
   );
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
@@ -4169,92 +4231,96 @@ const Fleet = () => {
         </div>
       )}
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        {/* Mobile: horizontal scroll lets tabs stay readable instead of clipping */}
-        <div className="overflow-x-auto -mx-1 sm:mx-0 px-1 sm:px-0">
-          <TabsList className="w-max sm:w-full">
-            {isAdmin && (
-              <TabsTrigger value="dashboard" className="shrink-0">
-                <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="fuel" className="shrink-0">
-                <Fuel className="mr-2 h-4 w-4" /> Fuel &amp; Repair Requests
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="my_requests" className="shrink-0">
-              <User className="mr-2 h-4 w-4" /> My Requests
-            </TabsTrigger>
-            <TabsTrigger value="trips" className="shrink-0">
-              <MapPin className="mr-2 h-4 w-4" /> Trip Logs
-            </TabsTrigger>
-            <TabsTrigger value="vehicles" className="shrink-0">
-              <Car className="mr-2 h-4 w-4" /> Vehicles
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="activity" className="shrink-0">
-                <History className="mr-2 h-4 w-4" /> Activity
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="anomalies" className="relative shrink-0">
-                <AlertTriangle className="mr-2 h-4 w-4" /> Anomalies
-                {totalAnomalies > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 kd-status-live-danger">
-                    {totalAnomalies > 9 ? '9+' : totalAnomalies}
-                  </span>
-                )}
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="geofences" className="shrink-0">
-                <Shield className="mr-2 h-4 w-4" /> Geofences
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="compliance" className="shrink-0">
-              <ClipboardCheck className="mr-2 h-4 w-4" /> Compliance
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="drivers" className="shrink-0">
-                <UserCheck className="mr-2 h-4 w-4" /> Drivers
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="live" className="shrink-0">
-                <Radio className="mr-2 h-4 w-4" />
-                <span className="relative flex h-2 w-2 mr-1">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
-                </span>
-                Live
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="maintenance" className="shrink-0">
-                <Wrench className="mr-2 h-4 w-4" /> Maintenance
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="inspections" className="shrink-0">
-              <ClipboardCheck className="mr-2 h-4 w-4" /> Inspections
-            </TabsTrigger>
-            <TabsTrigger value="incidents" className="shrink-0">
-              <AlertTriangle className="mr-2 h-4 w-4" /> Incidents
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="lifecycle" className="shrink-0">
-                <TrendingUp className="mr-2 h-4 w-4" /> Lifecycle
-              </TabsTrigger>
-            )}
-            <TabsTrigger value="training" className="shrink-0">
-              <FileText className="mr-2 h-4 w-4" /> Training
-            </TabsTrigger>
-          </TabsList>
-        </div>
+      {/* ─── Sidebar + Content layout ─── */}
+      <div className="flex gap-0 relative">
+        {/* Mobile sidebar toggle */}
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="lg:hidden fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+          aria-label="Toggle navigation"
+        >
+          {sidebarOpen ? <X className="h-5 w-5" /> : <LayoutDashboard className="h-5 w-5" />}
+        </button>
+
+        {/* Sidebar overlay on mobile */}
+        {sidebarOpen && (
+          <div
+            className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        <aside
+          className={cn(
+            'fixed lg:sticky top-0 left-0 z-40 lg:z-auto h-screen lg:h-auto lg:max-h-[calc(100vh-2rem)] overflow-y-auto',
+            'w-[260px] shrink-0 bg-background lg:bg-muted/30 border-r lg:border lg:rounded-xl',
+            'transition-transform duration-200 ease-in-out',
+            'lg:transform-none lg:translate-x-0',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          <nav className="p-3 space-y-1">
+            {/* ── Overview ── */}
+            <FleetNavGroup label="Overview">
+              {isAdmin && (
+                <FleetNavItem icon={LayoutDashboard} label="Dashboard" value="dashboard" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+              <FleetNavItem icon={User} label="My Requests" value="my_requests" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+            </FleetNavGroup>
+
+            {/* ── Operations ── */}
+            <FleetNavGroup label="Operations">
+              {isAdmin && (
+                <FleetNavItem icon={Fuel} label="Fuel & Repairs" value="fuel" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }}
+                  badge={pendingFuelCount > 0 ? String(pendingFuelCount) : undefined} badgeTone="warning" />
+              )}
+              <FleetNavItem icon={MapPin} label="Trip Logs" value="trips" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              {isAdmin && (
+                <FleetNavItem icon={Radio} label="Live Tracking" value="live" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} live />
+              )}
+              {isAdmin && (
+                <FleetNavItem icon={History} label="Activity Log" value="activity" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+            </FleetNavGroup>
+
+            {/* ── Fleet ── */}
+            <FleetNavGroup label="Fleet">
+              <FleetNavItem icon={Car} label="Vehicles" value="vehicles" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              {isAdmin && (
+                <FleetNavItem icon={Wrench} label="Maintenance" value="maintenance" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+              {isAdmin && (
+                <FleetNavItem icon={TrendingUp} label="Lifecycle" value="lifecycle" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+              <FleetNavItem icon={ClipboardCheck} label="Inspections" value="inspections" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              <FleetNavItem icon={ClipboardCheck} label="Compliance" value="compliance" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+            </FleetNavGroup>
+
+            {/* ── Safety & People ── */}
+            <FleetNavGroup label="Safety & People">
+              {isAdmin && (
+                <FleetNavItem icon={AlertTriangle} label="Anomalies" value="anomalies" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }}
+                  badge={totalAnomalies > 0 ? (totalAnomalies > 9 ? '9+' : String(totalAnomalies)) : undefined} badgeTone="danger" />
+              )}
+              <FleetNavItem icon={AlertTriangle} label="Incidents" value="incidents" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              {isAdmin && (
+                <FleetNavItem icon={Shield} label="Geofences" value="geofences" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+              {isAdmin && (
+                <FleetNavItem icon={UserCheck} label="Drivers" value="drivers" active={tab} onClick={(v) => { setTab(v); setSidebarOpen(false); }} />
+              )}
+            </FleetNavGroup>
+          </nav>
+        </aside>
+
+        {/* ── Main content ── */}
+        <main className="flex-1 min-w-0 lg:pl-4">
 
         {/* DASHBOARD */}
-        {isAdmin && (
-          <TabsContent value="dashboard" className="mt-4 space-y-4">
+        {isAdmin && tab === 'dashboard' && (
+          <div className="space-y-4">
             <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
             <FuelStationComparison />
             <DriverScorecard />
@@ -4270,11 +4336,13 @@ const Fleet = () => {
                 </div>
               </div>
             )}
-          </TabsContent>
+          </div>
         )}
 
         {/* FUEL */}
-        <TabsContent value="fuel" className="mt-4 space-y-4">
+        {tab === 'fuel' && (
+          <div className="space-y-4">
+
           <div className="flex justify-end gap-2 flex-wrap">
             {isAdmin && visibleFuel.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => exportCsv(
@@ -4640,10 +4708,12 @@ const Fleet = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+        )}
 
         {/* TRIPS */}
-        <TabsContent value="trips" className="mt-4 space-y-4">
+        {tab === 'trips' && (
+          <div className="space-y-4">
           <div className="flex justify-end gap-2 flex-wrap">
             {isAdmin && visibleTrips.length > 0 && (
               <Button variant="outline" size="sm" onClick={() => exportCsv(
@@ -5026,10 +5096,12 @@ const Fleet = () => {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+        )}
 
         {/* MY REQUESTS */}
-        <TabsContent value="my_requests" className="mt-4 space-y-4">
+        {tab === 'my_requests' && (
+          <div className="space-y-4">
           {(() => {
             const fuelBlocked = (myReceiptDebt?.fuelOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
             const repairBlocked = (myReceiptDebt?.repairOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
@@ -5194,10 +5266,12 @@ const Fleet = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+        )}
 
         {/* ACTIVITY — admin only */}
-        {isAdmin && <TabsContent value="activity" className="mt-4 space-y-4">
+        {isAdmin && tab === 'activity' && (
+          <div className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Fleet Activity Log</CardTitle>
@@ -5240,16 +5314,17 @@ const Fleet = () => {
               </Table>
             </CardContent>
           </Card>
-        </TabsContent>}
+        </div>
+        )}
 
         {/* VEHICLES */}
-        <TabsContent value="vehicles" className="mt-4">
+        {tab === 'vehicles' && (
           <VehiclesTab staff={staff} />
-        </TabsContent>
+        )}
 
         {/* ANOMALIES */}
-        {isAdmin && (
-          <TabsContent value="anomalies" className="mt-4 space-y-6">
+        {isAdmin && tab === 'anomalies' && (
+          <div className="space-y-6">
             <div>
               <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-red-500" /> Flagged Trip Logs
@@ -5408,57 +5483,45 @@ const Fleet = () => {
                 </Card>
               )}
             </div>
-          </TabsContent>
+          </div>
         )}
 
         {/* GEOFENCES */}
-        {isAdmin && (
-          <TabsContent value="geofences" className="mt-4">
-            <GeofencesTab />
-          </TabsContent>
+        {isAdmin && tab === 'geofences' && (
+          <GeofencesTab />
         )}
 
         {/* LIVE TRACKING */}
-        {isAdmin && (
-          <TabsContent value="live" className="mt-4">
-            <LiveTrackingTab />
-          </TabsContent>
+        {isAdmin && tab === 'live' && (
+          <LiveTrackingTab />
         )}
 
-        <TabsContent value="compliance" className="mt-4">
+        {tab === 'compliance' && (
           <ComplianceDashboard vehicles={vehicles as any} onUpdated={fetchData} />
-        </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="drivers" className="mt-4">
-            <DriverVerificationPanel />
-          </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="maintenance" className="mt-4">
-            <MaintenanceHub vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number, total_mileage_km: (v as any).total_mileage_km }))} onRefresh={fetchData} />
-          </TabsContent>
+        {isAdmin && tab === 'drivers' && (
+          <DriverVerificationPanel />
         )}
 
-        <TabsContent value="inspections" className="mt-4">
+        {isAdmin && tab === 'maintenance' && (
+          <MaintenanceHub vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number, total_mileage_km: (v as any).total_mileage_km }))} onRefresh={fetchData} />
+        )}
+
+        {tab === 'inspections' && (
           <InspectionHistory vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
-        </TabsContent>
-
-        <TabsContent value="incidents" className="mt-4">
-          <IncidentReportPanel vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
-        </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="lifecycle" className="mt-4">
-            <VehicleLifecyclePanel onRefresh={fetchData} />
-          </TabsContent>
         )}
 
-        <TabsContent value="training" className="mt-4">
-          <DriverTrainingPanel staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
-        </TabsContent>
-      </Tabs>
+        {tab === 'incidents' && (
+          <IncidentReportPanel vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
+        )}
+
+        {isAdmin && tab === 'lifecycle' && (
+          <VehicleLifecyclePanel onRefresh={fetchData} />
+        )}
+
+        </main>
+      </div>
 
       {/* FUEL REQUEST DIALOG */}
       {/* NEW FUEL REQUEST DIALOG */}
