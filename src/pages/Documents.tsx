@@ -499,20 +499,42 @@ const Documents = () => {
     }
   };
 
-  const download = async (doc: DocumentRow) => {
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(doc.storage_path, 60);
-    if (error || !data) {
-      toast({ title: 'Could not get download link', description: error?.message, variant: 'destructive' });
-      return;
-    }
-    // Track access
+  const trackAccess = (doc: DocumentRow) => {
     supabase.from('documents').update({
       last_accessed_at: new Date().toISOString(),
       access_count: (doc as any).access_count ? (doc as any).access_count + 1 : 1,
     }).eq('id', doc.id).then(() => {});
+  };
+
+  const viewDoc = async (doc: DocumentRow) => {
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(doc.storage_path, 300);
+    if (error || !data) {
+      toast({ title: 'Could not get link', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    trackAccess(doc);
     window.open(data.signedUrl, '_blank', 'noopener');
+  };
+
+  const download = async (doc: DocumentRow) => {
+    const { data, error } = await supabase.storage
+      .from('documents')
+      .download(doc.storage_path);
+    if (error || !data) {
+      toast({ title: 'Could not download', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    trackAccess(doc);
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = doc.title || doc.storage_path.split('/').pop() || 'document';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const remove = async (doc: DocumentRow) => {
@@ -601,9 +623,23 @@ const Documents = () => {
     );
   };
 
-  const openDetail = (doc: DocumentRow) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const openDetail = async (doc: DocumentRow) => {
     setDetailDoc(doc);
     setDetailOpen(true);
+    setPreviewUrl(null);
+
+    const mime = doc.mime_type || '';
+    if (mime.startsWith('image/') || mime === 'application/pdf') {
+      setPreviewLoading(true);
+      const { data } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(doc.storage_path, 300);
+      setPreviewUrl(data?.signedUrl ?? null);
+      setPreviewLoading(false);
+    }
   };
 
   return (
@@ -1258,10 +1294,13 @@ const Documents = () => {
 
       {/* Document Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {detailDoc && (() => {
             const Icon = pickIcon(detailDoc.mime_type);
             const canDelete = canManage || detailDoc.uploaded_by === profile?.id;
+            const mime = detailDoc.mime_type || '';
+            const isImage = mime.startsWith('image/');
+            const isPdf = mime === 'application/pdf';
             return (
               <>
                 <DialogHeader>
@@ -1275,6 +1314,21 @@ const Documents = () => {
                     </div>
                   </DialogTitle>
                 </DialogHeader>
+
+                {/* Inline preview */}
+                {previewLoading && (
+                  <div className="flex items-center justify-center py-8 bg-muted/30 rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!previewLoading && previewUrl && isImage && (
+                  <div className="rounded-lg overflow-hidden bg-muted/30 flex items-center justify-center">
+                    <img src={previewUrl} alt={detailDoc.title} className="max-h-[50vh] object-contain" />
+                  </div>
+                )}
+                {!previewLoading && previewUrl && isPdf && (
+                  <iframe src={previewUrl} title={detailDoc.title} className="w-full h-[50vh] rounded-lg border" />
+                )}
 
                 <div className="space-y-3">
                   {detailDoc.description && (
@@ -1330,6 +1384,9 @@ const Documents = () => {
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" onClick={() => viewDoc(detailDoc)}>
+                    <Eye className="mr-2 h-4 w-4" /> Open
+                  </Button>
                   <Button variant="outline" onClick={() => download(detailDoc)}>
                     <Download className="mr-2 h-4 w-4" /> Download
                   </Button>
