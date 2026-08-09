@@ -82,6 +82,11 @@ import { DriverScorecard } from '@/components/fleet/DriverScorecard';
 import { ComplianceDashboard } from '@/components/fleet/ComplianceDashboard';
 import { FuelStationComparison } from '@/components/fleet/FuelStationComparison';
 import { DriverVerificationPanel } from '@/components/fleet/DriverVerificationPanel';
+import { IncidentReportPanel } from '@/components/fleet/IncidentReportPanel';
+import { MaintenanceHub } from '@/components/fleet/MaintenanceHub';
+import { InspectionHistory } from '@/components/fleet/InspectionHistory';
+import { VehicleLifecyclePanel } from '@/components/fleet/VehicleLifecyclePanel';
+import { DriverTrainingPanel } from '@/components/fleet/DriverTrainingPanel';
 
 interface FieldStaff {
   id: string;
@@ -1496,7 +1501,7 @@ const Fleet = () => {
     profile?.role === 'finance' ||
     profile?.role === 'super_admin';
 
-  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers'>(
+  const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers' | 'incidents' | 'maintenance' | 'inspections' | 'lifecycle' | 'training'>(
     isAdmin ? 'fuel' : 'my_requests',
   );
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
@@ -4138,6 +4143,31 @@ const Fleet = () => {
                 Live
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="maintenance" className="shrink-0">
+                <Wrench className="mr-2 h-4 w-4" /> Maintenance
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="inspections" className="shrink-0">
+                <ClipboardCheck className="mr-2 h-4 w-4" /> Inspections
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="incidents" className="shrink-0">
+                <AlertTriangle className="mr-2 h-4 w-4" /> Incidents
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="lifecycle" className="shrink-0">
+                <TrendingUp className="mr-2 h-4 w-4" /> Lifecycle
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="training" className="shrink-0">
+                <FileText className="mr-2 h-4 w-4" /> Training
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -5323,6 +5353,36 @@ const Fleet = () => {
         {isAdmin && (
           <TabsContent value="drivers" className="mt-4">
             <DriverVerificationPanel />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="maintenance" className="mt-4">
+            <MaintenanceHub vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number, total_mileage_km: (v as any).total_mileage_km }))} onRefresh={fetchData} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="inspections" className="mt-4">
+            <InspectionHistory vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="incidents" className="mt-4">
+            <IncidentReportPanel vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="lifecycle" className="mt-4">
+            <VehicleLifecyclePanel onRefresh={fetchData} />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="training" className="mt-4">
+            <DriverTrainingPanel staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
           </TabsContent>
         )}
       </Tabs>
