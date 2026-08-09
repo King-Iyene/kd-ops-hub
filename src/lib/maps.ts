@@ -1,5 +1,7 @@
 export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined ?? '';
 
+export const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
+
 // Round to 4 decimal places for the cache key (~11 m precision).
 const geocodeCache = new Map<string, string>();
 

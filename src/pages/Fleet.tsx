@@ -61,7 +61,7 @@ import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, Credi
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
