@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -20,6 +21,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -45,9 +47,8 @@ import {
   ShieldCheck,
   Truck,
   Eye,
-  ChevronDown,
-  ChevronUp,
   Plus,
+  Wrench,
 } from 'lucide-react';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 
@@ -114,8 +115,15 @@ export function InspectionHistory({ vehicles }: Props) {
 
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [reviewNote, setReviewNote] = useState('');
-  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolvingInspection, setResolvingInspection] = useState<Inspection | null>(null);
+  const [resolveForm, setResolveForm] = useState({
+    action_taken: '',
+    resolution_note: '',
+    cost_ngn: '',
+  });
+  const [submittingResolve, setSubmittingResolve] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('history');
 
@@ -229,57 +237,51 @@ export function InspectionHistory({ vehicles }: Props) {
 
   const openDetail = (inspection: Inspection) => {
     setSelectedInspection(inspection);
-    setReviewNote(inspection.review_note ?? '');
     setDetailOpen(true);
   };
 
-  const submitReview = async () => {
-    if (!selectedInspection || !profile) return;
-    setSubmittingReview(true);
+  const openResolveDialog = (inspection: Inspection) => {
+    setResolvingInspection(inspection);
+    setResolveForm({ action_taken: '', resolution_note: '', cost_ngn: '' });
+    setResolveOpen(true);
+    setDetailOpen(false);
+  };
+
+  const submitResolve = async () => {
+    if (!resolvingInspection || !profile) return;
+    if (!resolveForm.action_taken.trim()) {
+      toast({ title: 'Please describe what was done to fix the issue', variant: 'destructive' });
+      return;
+    }
+    setSubmittingResolve(true);
     try {
+      const note = [
+        `Action taken: ${resolveForm.action_taken.trim()}`,
+        resolveForm.cost_ngn ? `Repair cost: ₦${parseFloat(resolveForm.cost_ngn).toLocaleString()}` : null,
+        resolveForm.resolution_note.trim() ? `Notes: ${resolveForm.resolution_note.trim()}` : null,
+      ].filter(Boolean).join('\n');
+
       const { error: err } = await supabase
         .from('vehicle_inspections')
         .update({
           reviewed_by: profile.id,
           reviewed_at: new Date().toISOString(),
-          review_note: reviewNote.trim() || null,
+          review_note: note,
         })
-        .eq('id', selectedInspection.id);
+        .eq('id', resolvingInspection.id);
       if (err) throw err;
-      toast({ title: 'Inspection reviewed', description: 'Defect review recorded.' });
-      setDetailOpen(false);
+      toast({ title: 'Defect resolved', description: 'The issue has been marked as fixed.' });
+      setResolveOpen(false);
+      setResolvingInspection(null);
       fetchInspections();
     } catch (err: any) {
       toast({
-        title: 'Review failed',
-        description: err?.message ?? 'Could not save review.',
+        title: 'Failed to resolve',
+        description: err?.message ?? 'Could not save resolution.',
         variant: 'destructive',
       });
     } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const resolveDefect = async (inspection: Inspection, note: string) => {
-    if (!profile) return;
-    try {
-      const { error: err } = await supabase
-        .from('vehicle_inspections')
-        .update({
-          reviewed_by: profile.id,
-          reviewed_at: new Date().toISOString(),
-          review_note: note.trim() || 'Defect resolved',
-        })
-        .eq('id', inspection.id);
-      if (err) throw err;
-      toast({ title: 'Defect resolved', description: 'Marked as reviewed.' });
-      fetchInspections();
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err?.message ?? 'Could not resolve defect.',
-        variant: 'destructive',
-      });
+      setSubmittingResolve(false);
     }
   };
 
@@ -384,8 +386,7 @@ export function InspectionHistory({ vehicles }: Props) {
           defects={openDefects}
           loading={loading}
           vehicleMap={vehicleMap}
-          isAdmin={isAdmin}
-          onResolve={resolveDefect}
+          onResolve={openResolveDialog}
           onOpenDetail={openDetail}
         />
       )}
@@ -403,12 +404,90 @@ export function InspectionHistory({ vehicles }: Props) {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         vehicleMap={vehicleMap}
-        isAdmin={isAdmin}
-        reviewNote={reviewNote}
-        setReviewNote={setReviewNote}
-        submitting={submittingReview}
-        onSubmitReview={submitReview}
+        onResolve={openResolveDialog}
       />
+
+      {/* ── Resolve Defect Dialog ── */}
+      <Dialog open={resolveOpen} onOpenChange={setResolveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Resolve Defect
+            </DialogTitle>
+            <DialogDescription>
+              {resolvingInspection && (() => {
+                const veh = vehicleMap.get(resolvingInspection.vehicle_id);
+                const failedItems = resolvingInspection.checklist?.items?.filter((item) => item.status === 'fail') ?? [];
+                return (
+                  <span className="block mt-1">
+                    {veh ? `${veh.name} (${veh.plate_number})` : 'Vehicle'}
+                    {failedItems.length > 0 && ` — ${failedItems.map((i) => i.label).join(', ')}`}
+                  </span>
+                );
+              })()}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>What was done to fix it? <span className="text-destructive">*</span></Label>
+              <Select
+                value={resolveForm.action_taken}
+                onValueChange={(v) => setResolveForm({ ...resolveForm, action_taken: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select action taken" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Repaired in-house">Repaired in-house</SelectItem>
+                  <SelectItem value="Sent to mechanic">Sent to mechanic</SelectItem>
+                  <SelectItem value="Part replaced">Part replaced</SelectItem>
+                  <SelectItem value="Topped up / refilled">Topped up / refilled</SelectItem>
+                  <SelectItem value="Cleaned / adjusted">Cleaned / adjusted</SelectItem>
+                  <SelectItem value="Scheduled for later repair">Scheduled for later repair</SelectItem>
+                  <SelectItem value="Not a real defect (false alarm)">Not a real defect (false alarm)</SelectItem>
+                  <SelectItem value="Other">Other (describe below)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Repair cost (optional)</Label>
+              <Input
+                type="number"
+                placeholder="₦ 0"
+                value={resolveForm.cost_ngn}
+                onChange={(e) => setResolveForm({ ...resolveForm, cost_ngn: e.target.value })}
+                inputMode="numeric"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Additional notes</Label>
+              <Textarea
+                placeholder="Any extra detail — mechanic name, part number, warranty info..."
+                value={resolveForm.resolution_note}
+                onChange={(e) => setResolveForm({ ...resolveForm, resolution_note: e.target.value })}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResolveOpen(false)}>Cancel</Button>
+            <Button
+              onClick={submitResolve}
+              disabled={submittingResolve || !resolveForm.action_taken}
+            >
+              {submittingResolve ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+              )}
+              Mark Resolved
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Vehicle picker for starting a new inspection */}
       <Dialog open={showVehiclePicker} onOpenChange={setShowVehiclePicker}>
@@ -643,31 +722,15 @@ function DefectsTab({
   defects,
   loading,
   vehicleMap,
-  isAdmin,
   onResolve,
   onOpenDetail,
 }: {
   defects: Inspection[];
   loading: boolean;
   vehicleMap: Map<string, { name: string; plate_number: string }>;
-  isAdmin: boolean;
-  onResolve: (i: Inspection, note: string) => Promise<void>;
+  onResolve: (i: Inspection) => void;
   onOpenDetail: (i: Inspection) => void;
 }) {
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
-  const [resolveNotes, setResolveNotes] = useState<Record<string, string>>({});
-
-  const handleResolve = async (inspection: Inspection) => {
-    setResolvingId(inspection.id);
-    await onResolve(inspection, resolveNotes[inspection.id] ?? '');
-    setResolvingId(null);
-    setResolveNotes((prev) => {
-      const next = { ...prev };
-      delete next[inspection.id];
-      return next;
-    });
-  };
-
   if (loading) {
     return (
       <Card>
@@ -685,7 +748,7 @@ function DefectsTab({
           <EmptyState
             icon={ShieldCheck}
             title="No open defects"
-            description="All reported defects have been reviewed. Great work."
+            description="All reported defects have been resolved. Great work."
             tone="success"
           />
         </CardContent>
@@ -717,14 +780,24 @@ function DefectsTab({
                     {d.inspector_name && ` by ${d.inspector_name}`}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onOpenDetail(d)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  View
-                </Button>
+                <div className="flex gap-1.5 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onOpenDetail(d)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => onResolve(d)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    <Wrench className="h-4 w-4 mr-1" />
+                    Resolve
+                  </Button>
+                </div>
               </div>
 
               {failedItems.length > 0 && (
@@ -745,31 +818,6 @@ function DefectsTab({
                 <p className="text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                   {d.defect_notes}
                 </p>
-              )}
-
-              {isAdmin && (
-                <div className="flex gap-2 items-end">
-                  <Textarea
-                    placeholder="Resolution notes..."
-                    value={resolveNotes[d.id] ?? ''}
-                    onChange={(e) =>
-                      setResolveNotes((prev) => ({ ...prev, [d.id]: e.target.value }))
-                    }
-                    rows={2}
-                    className="text-sm flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => handleResolve(d)}
-                    disabled={resolvingId === d.id}
-                  >
-                    {resolvingId === d.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Resolve'
-                    )}
-                  </Button>
-                </div>
               )}
             </CardContent>
           </Card>
@@ -854,21 +902,13 @@ function InspectionDetailDialog({
   open,
   onOpenChange,
   vehicleMap,
-  isAdmin,
-  reviewNote,
-  setReviewNote,
-  submitting,
-  onSubmitReview,
+  onResolve,
 }: {
   inspection: Inspection | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vehicleMap: Map<string, { name: string; plate_number: string }>;
-  isAdmin: boolean;
-  reviewNote: string;
-  setReviewNote: (v: string) => void;
-  submitting: boolean;
-  onSubmitReview: () => void;
+  onResolve: (i: Inspection) => void;
 }) {
   if (!inspection) return null;
 
@@ -877,6 +917,7 @@ function InspectionDetailDialog({
   const failCount = items.filter((i) => i.status === 'fail').length;
   const passCount = items.filter((i) => i.status === 'pass').length;
   const naCount = items.filter((i) => i.status === 'na').length;
+  const hasUnresolvedDefect = inspection.has_defects && !inspection.reviewed_at;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1008,7 +1049,7 @@ function InspectionDetailDialog({
             <div className="border-t pt-3">
               <h4 className="text-sm font-semibold mb-1 flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                Reviewed
+                Resolved
               </h4>
               <div className="text-sm text-muted-foreground">
                 <p>
@@ -1017,35 +1058,29 @@ function InspectionDetailDialog({
                   {formatDate(inspection.reviewed_at)}
                 </p>
                 {inspection.review_note && (
-                  <p className="mt-1 bg-muted/50 rounded-md px-3 py-2">{inspection.review_note}</p>
+                  <p className="mt-1 bg-emerald-50 dark:bg-emerald-950/30 rounded-md px-3 py-2 text-emerald-800 dark:text-emerald-300 whitespace-pre-line">
+                    {inspection.review_note}
+                  </p>
                 )}
               </div>
             </div>
           )}
 
-          {isAdmin && !inspection.reviewed_at && (
-            <div className="border-t pt-3 space-y-3">
-              <h4 className="text-sm font-semibold">Admin Review</h4>
-              <Textarea
-                placeholder="Add review notes..."
-                value={reviewNote}
-                onChange={(e) => setReviewNote(e.target.value)}
-                rows={3}
-                className="text-sm"
-              />
-              <DialogFooter>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>
-                  Cancel
+          {hasUnresolvedDefect && (
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <div>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">This inspection has unresolved defects</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Record what was done to fix the issue</p>
+                </div>
+                <Button
+                  onClick={() => onResolve(inspection)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                >
+                  <Wrench className="h-4 w-4 mr-1" />
+                  Resolve
                 </Button>
-                <Button onClick={onSubmitReview} disabled={submitting}>
-                  {submitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                  ) : (
-                    <ShieldCheck className="h-4 w-4 mr-1" />
-                  )}
-                  Mark Reviewed
-                </Button>
-              </DialogFooter>
+              </div>
             </div>
           )}
         </div>
