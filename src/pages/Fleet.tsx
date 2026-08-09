@@ -86,6 +86,8 @@ import { IncidentReportPanel } from '@/components/fleet/IncidentReportPanel';
 import { MaintenanceHub } from '@/components/fleet/MaintenanceHub';
 import { InspectionHistory } from '@/components/fleet/InspectionHistory';
 import { VehicleLifecyclePanel } from '@/components/fleet/VehicleLifecyclePanel';
+import { FleetInsightsPanel } from '@/components/fleet/FleetInsightsPanel';
+import { FuelCostOptimizer } from '@/components/fleet/FuelCostOptimizer';
 
 interface FieldStaff {
   id: string;
@@ -4323,7 +4325,9 @@ const Fleet = () => {
         {/* DASHBOARD */}
         {isAdmin && tab === 'dashboard' && (
           <div className="space-y-4">
+            <FleetInsightsPanel vehicles={vehicles as any} onNavigate={(t) => setTab(t as any)} />
             <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
+            <FuelCostOptimizer vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
             <FuelStationComparison />
             <DriverScorecard />
             {serviceAlerts.length > 0 && (
