@@ -34,6 +34,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config
@@ -1002,7 +1003,8 @@ serve(async (req) => {
   // Cron path: shared secret in header, no JWT required.
   const cronSecret = req.headers.get("x-cron-secret");
   const expectedCron = Deno.env.get("CRON_SHARED_SECRET");
-  if (cronSecret && expectedCron && cronSecret === expectedCron) {
+  const enc = new TextEncoder();
+  if (cronSecret && expectedCron && cronSecret.length === expectedCron.length && timingSafeEqual(enc.encode(cronSecret), enc.encode(expectedCron))) {
     // Cron doesn't set narration — always uses whatever snapshot the batch
     // already has (or falls back to payment_description / name if the
     // batch has never dispatched before).

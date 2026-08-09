@@ -315,6 +315,26 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
         });
       }
 
+      // Predictive maintenance: detect fuel efficiency degradation
+      for (const v of vehicles) {
+        const vTrips = trips.filter((t) => t.vehicle_id === v.id && t.km_driven && t.km_driven > 0 && t.litres && t.litres > 0);
+        if (vTrips.length < 6) continue;
+        const sorted = [...vTrips].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        const half = Math.floor(sorted.length / 2);
+        const olderAvg = sorted.slice(0, half).reduce((s, t) => s + t.km_driven! / t.litres!, 0) / half;
+        const recentAvg = sorted.slice(half).reduce((s, t) => s + t.km_driven! / t.litres!, 0) / (sorted.length - half);
+        if (olderAvg > 0 && recentAvg < olderAvg * 0.85) {
+          const dropPct = Math.round((1 - recentAvg / olderAvg) * 100);
+          smartInsights.push({
+            id: String(++insightId),
+            type: 'warning',
+            title: `${v.name}: fuel efficiency dropped ${dropPct}%`,
+            description: `Recent average ${recentAvg.toFixed(1)} km/L vs earlier ${olderAvg.toFixed(1)} km/L. Possible injector, air filter, or tyre issue.`,
+            vehicle: v.name,
+          });
+        }
+      }
+
       // Positive: all vehicles healthy
       const healthyCount = healths.filter((h) => h.health_score >= 85).length;
       if (healthyCount === healths.length && healths.length > 0) {

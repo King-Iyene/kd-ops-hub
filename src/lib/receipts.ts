@@ -98,7 +98,7 @@ export function checkPumpPrice(
   litres: number,
   benchmarkPricePerLitre: number,
 ): PumpPriceCheck {
-  if (!amountNgn || !litres || litres <= 0 || !benchmarkPricePerLitre) {
+  if (amountNgn == null || litres == null || litres <= 0 || benchmarkPricePerLitre == null || benchmarkPricePerLitre <= 0) {
     return { flagged: false, reason: null, impliedPricePerLitre: null };
   }
   const implied = amountNgn / litres;

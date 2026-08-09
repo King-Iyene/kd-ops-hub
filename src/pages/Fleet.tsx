@@ -2953,8 +2953,8 @@ const Fleet = () => {
       )
     : [];
 
-  const myFuelRequests = fuelRequests.filter((r) => r.employee_id === profile?.id);
-  const myTripLogs = tripLogs.filter((r) => r.employee_id === profile?.id);
+  const myFuelRequests = useMemo(() => fuelRequests.filter((r) => r.employee_id === profile?.id), [fuelRequests, profile?.id]);
+  const myTripLogs = useMemo(() => tripLogs.filter((r) => r.employee_id === profile?.id), [tripLogs, profile?.id]);
 
   const visibleFuel = isAdmin ? fuelRequests : myFuelRequests;
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;

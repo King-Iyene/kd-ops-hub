@@ -22,6 +22,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,7 +71,9 @@ serve(async (req) => {
     if (scheduled) {
       // Service-role bearer required — can't be triggered by a regular user.
       const auth = req.headers.get("Authorization") ?? "";
-      if (auth.replace("Bearer ", "") !== SERVICE_ROLE) {
+      const enc = new TextEncoder();
+      const token = auth.replace("Bearer ", "");
+      if (token.length !== SERVICE_ROLE.length || !timingSafeEqual(enc.encode(token), enc.encode(SERVICE_ROLE))) {
         return json({ error: "Scheduled runs require service-role auth" }, 401);
       }
     } else {
