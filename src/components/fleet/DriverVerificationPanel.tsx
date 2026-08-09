@@ -1,9 +1,22 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface DriverProfile {
   id: string;
@@ -42,50 +55,107 @@ function statusSortOrder(status: OverallStatus): number {
   return 2;
 }
 
+const EXT_COLUMNS = ['driver_license_number', 'driver_license_expiry', 'verification_status'] as const;
+
 export function DriverVerificationPanel() {
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'finance' || profile?.role === 'operations';
+  const isSelfService = profile?.role === 'field_staff' || profile?.role === 'driver';
+
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasExtColumns, setHasExtColumns] = useState(true);
 
-  useEffect(() => {
-    (async () => {
-      const { data: baseData, error: baseError } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone, nin, nin_last4, bvn_verified')
-        .in('role', ['field_staff', 'driver', 'operations']);
+  const [editDriver, setEditDriver] = useState<DriverProfile | null>(null);
+  const [editForm, setEditForm] = useState({ nin: '', driver_license_number: '', driver_license_expiry: '' });
+  const [saving, setSaving] = useState(false);
 
-      if (baseError || !baseData) {
-        setLoading(false);
+  async function fetchDrivers() {
+    const { data: baseData, error: baseError } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone, nin, nin_last4, bvn_verified')
+      .in('role', ['field_staff', 'driver', 'operations']);
+
+    if (baseError || !baseData) {
+      setLoading(false);
+      return;
+    }
+
+    let extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
+
+    const { data: extData, error: extError } = await supabase
+      .from('profiles')
+      .select(`id, ${EXT_COLUMNS.join(', ')}`)
+      .in('role', ['field_staff', 'driver', 'operations']);
+
+    if (extError) {
+      setHasExtColumns(false);
+    } else if (extData) {
+      setHasExtColumns(true);
+      for (const row of extData) {
+        extendedMap[row.id] = {
+          driver_license_number: (row as any).driver_license_number ?? undefined,
+          driver_license_expiry: (row as any).driver_license_expiry ?? undefined,
+          verification_status: (row as any).verification_status ?? undefined,
+        };
+      }
+    }
+
+    const merged: DriverProfile[] = baseData.map((d) => ({
+      ...d,
+      ...extendedMap[d.id],
+    }));
+
+    merged.sort((a, b) => statusSortOrder(getOverallStatus(a)) - statusSortOrder(getOverallStatus(b)));
+
+    setDrivers(merged);
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchDrivers(); }, []);
+
+  function openEditDialog(driver: DriverProfile) {
+    setEditDriver(driver);
+    setEditForm({
+      nin: driver.nin || '',
+      driver_license_number: driver.driver_license_number || '',
+      driver_license_expiry: driver.driver_license_expiry || '',
+    });
+  }
+
+  async function handleSave() {
+    if (!editDriver) return;
+    setSaving(true);
+    try {
+      const updates: Record<string, unknown> = {};
+      if (editForm.nin.trim()) {
+        updates.nin = editForm.nin.trim();
+        updates.nin_last4 = editForm.nin.trim().slice(-4);
+      }
+      if (hasExtColumns) {
+        if (editForm.driver_license_number.trim()) updates.driver_license_number = editForm.driver_license_number.trim();
+        if (editForm.driver_license_expiry) updates.driver_license_expiry = editForm.driver_license_expiry;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        toast({ title: 'Nothing to update', variant: 'destructive' });
+        setSaving(false);
         return;
       }
 
-      let extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
+      const { error } = await supabase.from('profiles').update(updates).eq('id', editDriver.id);
+      if (error) throw error;
 
-      const { data: extData } = await supabase
-        .from('profiles')
-        .select('id, driver_license_number, driver_license_expiry, verification_status')
-        .in('role', ['field_staff', 'driver', 'operations']);
-
-      if (extData) {
-        for (const row of extData) {
-          extendedMap[row.id] = {
-            driver_license_number: row.driver_license_number ?? undefined,
-            driver_license_expiry: row.driver_license_expiry ?? undefined,
-            verification_status: row.verification_status ?? undefined,
-          };
-        }
-      }
-
-      const merged: DriverProfile[] = baseData.map((d) => ({
-        ...d,
-        ...extendedMap[d.id],
-      }));
-
-      merged.sort((a, b) => statusSortOrder(getOverallStatus(a)) - statusSortOrder(getOverallStatus(b)));
-
-      setDrivers(merged);
-      setLoading(false);
-    })();
-  }, []);
+      toast({ title: 'Details updated successfully' });
+      setEditDriver(null);
+      fetchDrivers();
+    } catch (err: any) {
+      toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const totalDrivers = drivers.length;
   const verifiedCount = drivers.filter((d) => getOverallStatus(d) === 'verified').length;
@@ -109,101 +179,237 @@ export function DriverVerificationPanel() {
     );
   }
 
+  const visibleDrivers = isSelfService
+    ? drivers.filter((d) => d.id === profile?.id)
+    : drivers;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5" />
-          Driver Verification
+          {isSelfService ? 'My Verification Details' : 'Driver Verification'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <SummaryCard label="Total Drivers" value={totalDrivers} icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} />
-          <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-green-600" />} className="text-green-600" />
-          <SummaryCard label="Pending" value={pendingCount} icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} className="text-amber-600" />
-          <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-red-600" />} className="text-red-600" />
-        </div>
+        {!isSelfService && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <SummaryCard label="Total Drivers" value={totalDrivers} icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} />
+            <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-green-600" />} className="text-green-600" />
+            <SummaryCard label="Pending" value={pendingCount} icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} className="text-amber-600" />
+            <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-red-600" />} className="text-red-600" />
+          </div>
+        )}
 
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Driver Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>NIN Status</TableHead>
-                <TableHead>License Number</TableHead>
-                <TableHead>License Expiry</TableHead>
-                <TableHead>BVN</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {drivers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                    No active drivers found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                drivers.map((driver) => {
-                  const overall = getOverallStatus(driver);
-                  const hasNin = !!driver.nin || !!driver.nin_last4;
-                  const licenseDisplay = driver.driver_license_number
-                    ? `****${driver.driver_license_number.slice(-4)}`
-                    : 'Not on file';
-                  const expiryDays = driver.driver_license_expiry ? daysUntil(driver.driver_license_expiry) : null;
-
-                  return (
-                    <TableRow key={driver.id}>
-                      <TableCell className="font-medium">{driver.full_name}</TableCell>
-                      <TableCell>{driver.phone || '-'}</TableCell>
-                      <TableCell>
+        {isSelfService && visibleDrivers.length > 0 && (
+          <div className="space-y-4">
+            {visibleDrivers.map((driver) => {
+              const overall = getOverallStatus(driver);
+              const hasNin = !!driver.nin || !!driver.nin_last4;
+              return (
+                <div key={driver.id} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <OverallBadge status={overall} />
+                    <Button size="sm" variant="outline" onClick={() => openEditDialog(driver)}>
+                      <Pencil className="h-3.5 w-3.5 mr-1.5" /> Update My Details
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-lg border p-3 space-y-1">
+                      <div className="text-xs text-muted-foreground">NIN</div>
+                      <div className="font-medium">
                         {hasNin ? (
-                          <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
-                            Verified
-                          </Badge>
+                          <span className="flex items-center gap-2">
+                            ****{driver.nin_last4 || driver.nin?.slice(-4)}
+                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700 text-[10px]">Verified</Badge>
+                          </span>
                         ) : (
-                          <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
-                            Missing
-                          </Badge>
+                          <span className="text-amber-600">Not submitted</span>
                         )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{licenseDisplay}</TableCell>
-                      <TableCell>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 space-y-1">
+                      <div className="text-xs text-muted-foreground">Driver License</div>
+                      <div className="font-medium">
+                        {driver.driver_license_number
+                          ? `****${driver.driver_license_number.slice(-4)}`
+                          : <span className="text-amber-600">Not submitted</span>
+                        }
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 space-y-1">
+                      <div className="text-xs text-muted-foreground">License Expiry</div>
+                      <div className="font-medium">
                         {driver.driver_license_expiry ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">
-                              {new Date(driver.driver_license_expiry).toLocaleDateString('en-NG', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })}
-                            </span>
-                            <ExpiryBadge days={expiryDays!} />
-                          </div>
+                          <span className="flex items-center gap-2">
+                            {new Date(driver.driver_license_expiry).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            <ExpiryBadge days={daysUntil(driver.driver_license_expiry)} />
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Not on file</span>
+                          <span className="text-amber-600">Not submitted</span>
                         )}
-                      </TableCell>
-                      <TableCell>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 space-y-1">
+                      <div className="text-xs text-muted-foreground">BVN</div>
+                      <div className="font-medium">
                         {driver.bvn_verified ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-600" /> Verified
+                          </span>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">Not verified</span>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        <OverallBadge status={overall} />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {overall === 'incomplete' && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
+                      Please complete your verification details to avoid delays with fuel requests. Tap "Update My Details" above.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {!isSelfService && (
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Driver Name</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>NIN Status</TableHead>
+                  <TableHead>License Number</TableHead>
+                  <TableHead>License Expiry</TableHead>
+                  <TableHead>BVN</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="w-10"></TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleDrivers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-6">
+                      No active drivers found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  visibleDrivers.map((driver) => {
+                    const overall = getOverallStatus(driver);
+                    const hasNin = !!driver.nin || !!driver.nin_last4;
+                    const licenseDisplay = driver.driver_license_number
+                      ? `****${driver.driver_license_number.slice(-4)}`
+                      : 'Not on file';
+                    const expiryDays = driver.driver_license_expiry ? daysUntil(driver.driver_license_expiry) : null;
+
+                    return (
+                      <TableRow key={driver.id}>
+                        <TableCell className="font-medium">{driver.full_name}</TableCell>
+                        <TableCell>{driver.phone || '-'}</TableCell>
+                        <TableCell>
+                          {hasNin ? (
+                            <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">Verified</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Missing</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{licenseDisplay}</TableCell>
+                        <TableCell>
+                          {driver.driver_license_expiry ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">
+                                {new Date(driver.driver_license_expiry).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              <ExpiryBadge days={expiryDays!} />
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Not on file</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {driver.bvn_verified ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell><OverallBadge status={overall} /></TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditDialog(driver)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {!hasExtColumns && isAdmin && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
+            Driver license columns are not yet available in the database. Apply the fleet_compliance_verification migration to enable license tracking.
+          </p>
+        )}
       </CardContent>
+
+      <Dialog open={!!editDriver} onOpenChange={(v) => { if (!v) setEditDriver(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{isSelfService ? 'Update My Details' : `Edit ${editDriver?.full_name}`}</DialogTitle>
+            <DialogDescription>
+              {isSelfService
+                ? 'Enter your NIN and driver license details for verification.'
+                : 'Update driver verification details.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>NIN (National Identification Number)</Label>
+              <Input
+                value={editForm.nin}
+                onChange={(e) => setEditForm({ ...editForm, nin: e.target.value.replace(/\D/g, '').slice(0, 11) })}
+                placeholder="11-digit NIN"
+                maxLength={11}
+                inputMode="numeric"
+              />
+              <p className="text-[10px] text-muted-foreground">Your NIN is stored securely. Only the last 4 digits are visible to others.</p>
+            </div>
+            <div className="space-y-1">
+              <Label>Driver License Number</Label>
+              <Input
+                value={editForm.driver_license_number}
+                onChange={(e) => setEditForm({ ...editForm, driver_license_number: e.target.value.toUpperCase() })}
+                placeholder="e.g. AAA12345AB67"
+                disabled={!hasExtColumns}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Driver License Expiry Date</Label>
+              <Input
+                type="date"
+                value={editForm.driver_license_expiry}
+                onChange={(e) => setEditForm({ ...editForm, driver_license_expiry: e.target.value })}
+                disabled={!hasExtColumns}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDriver(null)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -233,43 +439,31 @@ function SummaryCard({
 function ExpiryBadge({ days }: { days: number }) {
   if (days < 0) {
     return (
-      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
-        Expired
-      </Badge>
+      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Expired</Badge>
     );
   }
   if (days <= 30) {
     return (
-      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-        {days}d left
-      </Badge>
+      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">{days}d left</Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
-      {days}d left
-    </Badge>
+    <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">{days}d left</Badge>
   );
 }
 
 function OverallBadge({ status }: { status: OverallStatus }) {
   if (status === 'verified') {
     return (
-      <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
-        Verified
-      </Badge>
+      <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">Verified</Badge>
     );
   }
   if (status === 'blocked') {
     return (
-      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
-        Blocked
-      </Badge>
+      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">Blocked</Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
-      Incomplete
-    </Badge>
+    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Incomplete</Badge>
   );
 }

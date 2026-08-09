@@ -4077,7 +4077,7 @@ const Fleet = () => {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         {/* Mobile: horizontal scroll lets tabs stay readable instead of clipping */}
-        <div className="overflow-x-auto kd-mobile-snap-x -mx-1 sm:mx-0 px-1 sm:px-0">
+        <div className="overflow-x-auto -mx-1 sm:mx-0 px-1 sm:px-0">
           <TabsList className="w-max sm:w-full">
             {isAdmin && (
               <TabsTrigger value="dashboard" className="shrink-0">
@@ -5316,7 +5316,7 @@ const Fleet = () => {
 
         {isAdmin && (
           <TabsContent value="compliance" className="mt-4">
-            <ComplianceDashboard vehicles={vehicles as any} />
+            <ComplianceDashboard vehicles={vehicles as any} onUpdated={fetchData} />
           </TabsContent>
         )}
 
@@ -6570,7 +6570,7 @@ const Fleet = () => {
                 }}
                 placeholder="e.g. 50000"
               />
-              {(() => {
+              {isAdmin && (() => {
                 const amountNum = parseFloat(receiptForm.amount_ngn);
                 if (!amountNum) return null;
                 const check = checkReceiptRequestDivergence(amountNum, uploadingReceiptFor?.amount_ngn || 0);
@@ -6609,7 +6609,7 @@ const Fleet = () => {
               })()}
             </div>
             <div className="space-y-1">
-              <Label>Receipt Date <span className="text-muted-foreground font-normal text-xs">(optional, confirm or correct)</span></Label>
+              <Label>Receipt Date <span className="text-destructive">*</span></Label>
               <Input
                 type="date"
                 value={receiptForm.receipt_date}
@@ -6641,7 +6641,7 @@ const Fleet = () => {
             <Button variant="outline" onClick={() => setUploadingReceiptFor(null)}>Cancel</Button>
             <Button
               onClick={submitFuelReceipt}
-              disabled={submittingReceipt || !receiptFile || !receiptForm.amount_ngn || !receiptForm.litres_filled}
+              disabled={submittingReceipt || !receiptFile || !receiptForm.amount_ngn || !receiptForm.litres_filled || !receiptForm.receipt_date}
             >
               {submittingReceipt && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Upload className="mr-2 h-4 w-4" /> Submit Receipt

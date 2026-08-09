@@ -1,5 +1,11 @@
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -8,7 +14,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Shield, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Pencil, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface Vehicle {
   id: string;
@@ -23,6 +37,7 @@ interface Vehicle {
 
 interface Props {
   vehicles: Vehicle[];
+  onUpdated?: () => void;
 }
 
 function daysUntil(dateStr: string | null): number | null {
@@ -102,7 +117,60 @@ function statusOrder(status: VehicleStatus): number {
   return status === 'blocked' ? 0 : status === 'warning' ? 1 : 2;
 }
 
-export function ComplianceDashboard({ vehicles }: Props) {
+const DOC_FIELDS = [
+  { key: 'insurance_expiry', label: 'Insurance Expiry' },
+  { key: 'road_worthiness_expiry', label: 'Road Worthiness Expiry' },
+  { key: 'hackney_permit_expiry', label: 'Hackney Permit Expiry' },
+  { key: 'vehicle_license_expiry', label: 'Vehicle License Expiry' },
+] as const;
+
+export function ComplianceDashboard({ vehicles, onUpdated }: Props) {
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'finance' || profile?.role === 'operations';
+
+  const [editVehicle, setEditVehicle] = useState<Vehicle | null>(null);
+  const [editForm, setEditForm] = useState({
+    insurance_expiry: '',
+    road_worthiness_expiry: '',
+    hackney_permit_expiry: '',
+    vehicle_license_expiry: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  function openEdit(v: Vehicle) {
+    setEditVehicle(v);
+    setEditForm({
+      insurance_expiry: v.insurance_expiry || '',
+      road_worthiness_expiry: v.road_worthiness_expiry || '',
+      hackney_permit_expiry: v.hackney_permit_expiry || '',
+      vehicle_license_expiry: v.vehicle_license_expiry || '',
+    });
+  }
+
+  async function handleSave() {
+    if (!editVehicle) return;
+    setSaving(true);
+    try {
+      const updates: Record<string, string | null> = {};
+      for (const doc of DOC_FIELDS) {
+        const val = editForm[doc.key].trim();
+        updates[doc.key] = val || null;
+      }
+
+      const { error } = await supabase.from('vehicles').update(updates).eq('id', editVehicle.id);
+      if (error) throw error;
+
+      toast({ title: `${editVehicle.plate_number} compliance updated` });
+      setEditVehicle(null);
+      onUpdated?.();
+    } catch (err: any) {
+      toast({ title: 'Failed to update', description: err.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const statuses = vehicles.map((v) => ({ vehicle: v, status: getVehicleStatus(v) }));
   const totalCount = vehicles.length;
   const compliantCount = statuses.filter((s) => s.status === 'compliant').length;
@@ -166,6 +234,7 @@ export function ComplianceDashboard({ vehicles }: Props) {
               <TableHead>Vehicle License</TableHead>
               <TableHead>Next Service</TableHead>
               <TableHead>Status</TableHead>
+              {isAdmin && <TableHead className="w-10"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -196,11 +265,52 @@ export function ComplianceDashboard({ vehicles }: Props) {
                   <div className="mt-1">{dateBadge(vehicle.next_service_date)}</div>
                 </TableCell>
                 <TableCell>{statusBadge(status)}</TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(vehicle)}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={!!editVehicle} onOpenChange={(v) => { if (!v) setEditVehicle(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Compliance — {editVehicle?.plate_number}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {DOC_FIELDS.map((doc) => (
+              <div key={doc.key} className="space-y-1">
+                <Label>{doc.label}</Label>
+                <Input
+                  type="date"
+                  value={editForm[doc.key]}
+                  onChange={(e) => setEditForm({ ...editForm, [doc.key]: e.target.value })}
+                />
+                {editForm[doc.key] && (() => {
+                  const days = daysUntil(editForm[doc.key]);
+                  if (days === null) return null;
+                  if (days < 0) return <p className="text-xs text-red-600">Expired {Math.abs(days)} days ago</p>;
+                  if (days <= 30) return <p className="text-xs text-amber-600">Expires in {days} days</p>;
+                  return <p className="text-xs text-green-600">Valid for {days} days</p>;
+                })()}
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditVehicle(null)}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Dates
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

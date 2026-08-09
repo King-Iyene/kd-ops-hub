@@ -233,8 +233,9 @@ function extractDate(text: string): string | undefined {
     jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
   };
 
+  const sep = '[/\\-.|lI\\\\]';
   const dateLabel = text.match(
-    /(?:date)\s*[:\-=\s]*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i,
+    new RegExp(`(?:date)\\s*[:\\-=\\s]*(\\d{1,2})\\s*${sep}\\s*(\\d{1,2})\\s*${sep}\\s*(\\d{2,4})`, 'i'),
   );
   if (dateLabel) {
     const [, d, m, rawY] = dateLabel;
@@ -246,7 +247,7 @@ function extractDate(text: string): string | undefined {
     }
   }
 
-  const slashMatch = text.match(/\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{4})\b/);
+  const slashMatch = text.match(new RegExp(`\\b(\\d{1,2})\\s*${sep}\\s*(\\d{1,2})\\s*${sep}\\s*(\\d{4})\\b`));
   if (slashMatch) {
     const [, d, m, y] = slashMatch;
     const month = parseInt(m);
@@ -256,7 +257,7 @@ function extractDate(text: string): string | undefined {
     }
   }
 
-  const shortYearMatch = text.match(/\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{2})\b/);
+  const shortYearMatch = text.match(new RegExp(`\\b(\\d{1,2})\\s*${sep}\\s*(\\d{1,2})\\s*${sep}\\s*(\\d{2})\\b`));
   if (shortYearMatch) {
     const [, d, m, yy] = shortYearMatch;
     const month = parseInt(m);
@@ -267,7 +268,7 @@ function extractDate(text: string): string | undefined {
     }
   }
 
-  const isoMatch = text.match(/\b(20\d{2})\s*[\/\-]\s*(\d{2})\s*[\/\-]\s*(\d{2})\b/);
+  const isoMatch = text.match(new RegExp(`\\b(20\\d{2})\\s*${sep}\\s*(\\d{2})\\s*${sep}\\s*(\\d{2})\\b`));
   if (isoMatch) {
     const [, y, m, d] = isoMatch;
     return `${y}-${m}-${d}`;
@@ -377,7 +378,7 @@ async function preprocessForOcr(file: File): Promise<File> {
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i + 1], b = d[i + 2];
       const isCyan = (b > 120 && g > 100 && r < b - 30);
-      gray[i >> 2] = isCyan ? 255 : r;
+      gray[i >> 2] = isCyan ? 255 : Math.round(0.299 * r + 0.587 * g + 0.114 * b);
     }
 
     const tileW = Math.max(16, w >> 4);
@@ -406,9 +407,8 @@ async function preprocessForOcr(file: File): Promise<File> {
     }
 
     for (let i = 0; i < gray.length; i++) {
-      const v = gray[i] < 160 ? 0 : 255;
       const pi = i << 2;
-      d[pi] = d[pi + 1] = d[pi + 2] = v;
+      d[pi] = d[pi + 1] = d[pi + 2] = gray[i];
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -438,7 +438,7 @@ async function preprocessGrayscaleOnly(file: File): Promise<File> {
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i + 1], b = d[i + 2];
       const isCyan = (b > 120 && g > 100 && r < b - 30);
-      const v = isCyan ? 255 : d[i];
+      const v = isCyan ? 255 : Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
       d[i] = d[i + 1] = d[i + 2] = v;
       if (v < min) min = v;
       if (v > max) max = v;
@@ -446,7 +446,7 @@ async function preprocessGrayscaleOnly(file: File): Promise<File> {
     const range = max - min || 1;
     for (let i = 0; i < d.length; i += 4) {
       const stretched = Math.min(255, Math.max(0,
-        Math.round(((d[i] - min) / range) * 280 - 15),
+        Math.round(((d[i] - min) / range) * 255),
       ));
       d[i] = d[i + 1] = d[i + 2] = stretched;
     }
@@ -480,7 +480,13 @@ function pickBest(a: string | undefined, b: string | undefined): string | undefi
   if (!a && !b) return undefined;
   const na = parseFloat(a!.replace(/,/g, ''));
   const nb = parseFloat(b!.replace(/,/g, ''));
-  if (!isNaN(na) && !isNaN(nb)) return na >= nb ? a : b;
+  if (!isNaN(na) && !isNaN(nb)) {
+    if (na === nb) return a;
+    const aRound = /^[1-9]\d*0{2,}$/.test(String(Math.round(na)));
+    const bRound = /^[1-9]\d*0{2,}$/.test(String(Math.round(nb)));
+    if (aRound !== bRound) return aRound ? a : b;
+    return na <= nb ? a : b;
+  }
   return (a!.length >= b!.length) ? a : b;
 }
 
@@ -496,7 +502,7 @@ async function runTesseractOnImage(
 
   try {
     await worker.setParameters({
-      tessedit_pageseg_mode: '6' as any,
+      tessedit_pageseg_mode: '3' as any,
       preserve_interword_spaces: '1',
     });
   } catch {
@@ -550,32 +556,43 @@ async function runTesseractFallback(
   file: File,
   shouldExtractLitres: boolean,
 ): Promise<OcrResult> {
-  const [binarized, grayscale] = await Promise.all([
+  const [enhanced, grayscale] = await Promise.all([
     preprocessForOcr(file),
     preprocessGrayscaleOnly(file),
   ]);
 
-  const [passA, passB] = await Promise.all([
-    runTesseractOnImage(binarized, shouldExtractLitres).catch(() => null),
+  const [passA, passB, passC] = await Promise.all([
+    runTesseractOnImage(enhanced, shouldExtractLitres).catch(() => null),
     runTesseractOnImage(grayscale, shouldExtractLitres).catch(() => null),
+    runTesseractOnImage(file, shouldExtractLitres).catch(() => null),
   ]);
 
-  if (!passA && !passB) {
-    throw new Error('Both OCR passes failed.');
+  const passes = [passA, passB, passC].filter(Boolean);
+  if (passes.length === 0) {
+    throw new Error('All OCR passes failed.');
   }
 
-  const a = passA?.result;
-  const b = passB?.result;
+  const results = passes.map(p => p!.result);
+  const texts = passes.map(p => p!.rawText);
+
+  let bestAmount: string | undefined;
+  let bestDate: string | undefined;
+  let bestDesc: string | undefined;
+  let bestLitres: string | undefined;
+  for (const r of results) {
+    bestAmount = pickBest(bestAmount, r.amount_ngn);
+    bestDate = bestDate || r.date;
+    bestDesc = pickBest(bestDesc, r.description);
+    if (shouldExtractLitres) bestLitres = pickBest(bestLitres, r.litres);
+  }
 
   const merged: OcrResult = {
-    amount_ngn: pickBest(a?.amount_ngn, b?.amount_ngn),
-    date: a?.date || b?.date,
-    description: pickBest(a?.description, b?.description),
-    litres: shouldExtractLitres
-      ? pickBest(a?.litres, b?.litres)
-      : undefined,
+    amount_ngn: bestAmount,
+    date: bestDate,
+    description: bestDesc,
+    litres: shouldExtractLitres ? bestLitres : undefined,
     lowConfidence: false,
-    rawText: [passA?.rawText, passB?.rawText].filter(Boolean).join('\n---\n'),
+    rawText: texts.filter(Boolean).join('\n---\n'),
   };
   merged.lowConfidence = !merged.amount_ngn && !merged.litres;
 
