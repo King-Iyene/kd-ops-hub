@@ -268,6 +268,7 @@ const Referrals = () => {
             />
           ) : (
             <>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -334,6 +335,7 @@ const Referrals = () => {
                   })}
                 </TableBody>
               </Table>
+              </div>
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

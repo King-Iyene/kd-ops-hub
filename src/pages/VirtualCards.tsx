@@ -270,6 +270,7 @@ const VirtualCards = () => {
               }
             />
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -376,6 +377,7 @@ const VirtualCards = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

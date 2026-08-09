@@ -304,6 +304,7 @@ export function ContractorApplications() {
                     : `No ${tab} applications.`}
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -429,6 +430,7 @@ export function ContractorApplications() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

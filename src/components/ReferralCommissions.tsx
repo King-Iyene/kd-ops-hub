@@ -394,7 +394,7 @@ function ProgrammeSection({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border/70 overflow-hidden">
+        <div className="rounded-lg border border-border/70 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">

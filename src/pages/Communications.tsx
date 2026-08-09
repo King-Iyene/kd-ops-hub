@@ -703,6 +703,7 @@ export default function Communications() {
           ) : history.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No campaigns yet.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -740,6 +741,7 @@ export default function Communications() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

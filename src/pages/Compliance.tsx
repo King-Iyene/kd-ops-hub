@@ -838,7 +838,7 @@ const Compliance = () => {
                             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Per-PFA breakdown — one remittance per PFA
                             </p>
-                            <div className="rounded-md border bg-background overflow-hidden">
+                            <div className="rounded-md border bg-background overflow-x-auto">
                               <Table>
                                 <TableHeader>
                                   <TableRow>

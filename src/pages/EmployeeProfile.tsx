@@ -2438,6 +2438,7 @@ const EmployeeProfile = () => {
               {documents.length === 0 ? (
                 <EmptyState compact icon={FileText} title="No documents yet" description="Upload contracts, IDs, or HR docs above." />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -2502,6 +2503,7 @@ const EmployeeProfile = () => {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2602,6 +2604,7 @@ const EmployeeProfile = () => {
               {tasks.length === 0 ? (
                 <EmptyState compact icon={ClipboardList} title="No tasks assigned" description="Tasks assigned to this employee will appear here." />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -2642,6 +2645,7 @@ const EmployeeProfile = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2724,6 +2728,7 @@ const EmployeeProfile = () => {
               {leaves.length === 0 ? (
                 <EmptyState compact icon={CalendarDays} title="No leave requests" description="Leave requests submitted by this employee will appear here." />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -2758,6 +2763,7 @@ const EmployeeProfile = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2774,6 +2780,7 @@ const EmployeeProfile = () => {
               {expenses.length === 0 ? (
                 <EmptyState compact icon={Receipt} title="No expenses raised" description="Expense claims submitted by this employee will appear here." />
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -2808,6 +2815,7 @@ const EmployeeProfile = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -2954,6 +2962,7 @@ const EmployeeProfile = () => {
               {deductions.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground">No deductions configured.</p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -2998,6 +3007,7 @@ const EmployeeProfile = () => {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -3019,6 +3029,7 @@ const EmployeeProfile = () => {
               {increments.length === 0 ? (
                 <p className="px-4 py-6 text-sm text-muted-foreground">No salary increments recorded.</p>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
@@ -3048,6 +3059,7 @@ const EmployeeProfile = () => {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -3090,6 +3102,7 @@ const EmployeeProfile = () => {
               <Card>
                 <CardHeader><CardTitle className="text-base">Advance History</CardTitle></CardHeader>
                 <CardContent className="p-0">
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -3124,6 +3137,7 @@ const EmployeeProfile = () => {
                       })}
                     </TableBody>
                   </Table>
+                  </div>
                 </CardContent>
               </Card>
             </>

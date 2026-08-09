@@ -868,6 +868,7 @@ export function WhatsAppGroupsTab() {
         ) : (
           <Card>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -928,6 +929,7 @@ export function WhatsAppGroupsTab() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         )}
