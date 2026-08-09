@@ -3757,9 +3757,9 @@ const Fleet = () => {
           const latest = recentOdos[0].odometer_end;
           const previous = recentOdos[1].odometer_end;
           if (latest != null && previous != null) {
-            const odoCheck = checkOdometerRegression(latest, previous);
-            if (odoCheck.flagged && odoCheck.reason) {
-              flags.push({ type: 'odometer_regression', reason: odoCheck.reason });
+            const odoReason = checkOdometerRegression(latest, previous);
+            if (odoReason) {
+              flags.push({ type: 'odometer_regression', reason: odoReason });
             }
           }
         }

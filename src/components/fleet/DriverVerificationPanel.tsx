@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2 } from 'lucide-react';
+import { UserCheck, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Pencil, Loader2, Car } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DriverProfile {
@@ -24,10 +24,10 @@ interface DriverProfile {
   phone: string | null;
   nin: string | null;
   nin_last4: string | null;
-  bvn_verified: boolean | null;
   driver_license_number?: string | null;
   driver_license_expiry?: string | null;
   verification_status?: string | null;
+  assigned_vehicle?: string | null;
 }
 
 type OverallStatus = 'verified' | 'incomplete' | 'blocked';
@@ -39,7 +39,7 @@ function getOverallStatus(driver: DriverProfile): OverallStatus {
   const isExpired = licenseExpiry ? licenseExpiry < new Date() : false;
 
   if (isExpired) return 'blocked';
-  if (hasNin && hasLicense && !isExpired && driver.bvn_verified) return 'verified';
+  if (hasNin && hasLicense && !isExpired) return 'verified';
   return 'incomplete';
 }
 
@@ -72,45 +72,82 @@ export function DriverVerificationPanel() {
   const [saving, setSaving] = useState(false);
 
   async function fetchDrivers() {
-    const { data: baseData, error: baseError } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone, nin, nin_last4, bvn_verified')
-      .in('role', ['field_staff', 'driver', 'operations']);
+    try {
+      const [profilesRes, vehiclesRes] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, phone, nin, nin_last4')
+          .in('role', ['field_staff', 'driver', 'operations']),
+        supabase
+          .from('vehicles')
+          .select('assigned_driver_id, name, plate_number')
+          .not('assigned_driver_id', 'is', null),
+      ]);
 
-    if (baseError || !baseData) {
-      setLoading(false);
-      return;
-    }
-
-    let extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
-
-    const { data: extData, error: extError } = await supabase
-      .from('profiles')
-      .select(`id, ${EXT_COLUMNS.join(', ')}`)
-      .in('role', ['field_staff', 'driver', 'operations']);
-
-    if (extError) {
-      setHasExtColumns(false);
-    } else if (extData) {
-      setHasExtColumns(true);
-      for (const row of extData) {
-        extendedMap[row.id] = {
-          driver_license_number: (row as any).driver_license_number ?? undefined,
-          driver_license_expiry: (row as any).driver_license_expiry ?? undefined,
-          verification_status: (row as any).verification_status ?? undefined,
-        };
+      const vehiclesByDriver: Record<string, string> = {};
+      const assignedDriverIds = new Set<string>();
+      if (vehiclesRes.data) {
+        for (const v of vehiclesRes.data) {
+          if (v.assigned_driver_id) {
+            assignedDriverIds.add(v.assigned_driver_id);
+            vehiclesByDriver[v.assigned_driver_id] = `${v.name} (${v.plate_number})`;
+          }
+        }
       }
+
+      const roleDriverIds = new Set((profilesRes.data || []).map((d) => d.id));
+      const missingIds = [...assignedDriverIds].filter((id) => !roleDriverIds.has(id));
+
+      let assignedProfiles: typeof profilesRes.data = [];
+      if (missingIds.length > 0) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, nin, nin_last4')
+          .in('id', missingIds);
+        assignedProfiles = data || [];
+      }
+
+      const allProfiles = [...(profilesRes.data || []), ...assignedProfiles];
+      const uniqueMap = new Map<string, (typeof allProfiles)[0]>();
+      for (const p of allProfiles) uniqueMap.set(p.id, p);
+
+      let extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
+      const allIds = [...uniqueMap.keys()];
+
+      if (allIds.length > 0) {
+        const { data: extData, error: extError } = await supabase
+          .from('profiles')
+          .select(`id, ${EXT_COLUMNS.join(', ')}`)
+          .in('id', allIds);
+
+        if (extError) {
+          setHasExtColumns(false);
+        } else if (extData) {
+          setHasExtColumns(true);
+          for (const row of extData) {
+            extendedMap[row.id] = {
+              driver_license_number: (row as any).driver_license_number ?? undefined,
+              driver_license_expiry: (row as any).driver_license_expiry ?? undefined,
+              verification_status: (row as any).verification_status ?? undefined,
+            };
+          }
+        }
+      }
+
+      const merged: DriverProfile[] = [...uniqueMap.values()].map((d) => ({
+        ...d,
+        ...extendedMap[d.id],
+        assigned_vehicle: vehiclesByDriver[d.id] || null,
+      }));
+
+      merged.sort((a, b) => statusSortOrder(getOverallStatus(a)) - statusSortOrder(getOverallStatus(b)));
+
+      setDrivers(merged);
+    } catch {
+      // silently handle
+    } finally {
+      setLoading(false);
     }
-
-    const merged: DriverProfile[] = baseData.map((d) => ({
-      ...d,
-      ...extendedMap[d.id],
-    }));
-
-    merged.sort((a, b) => statusSortOrder(getOverallStatus(a)) - statusSortOrder(getOverallStatus(b)));
-
-    setDrivers(merged);
-    setLoading(false);
   }
 
   useEffect(() => { fetchDrivers(); }, []);
@@ -168,6 +205,7 @@ export function DriverVerificationPanel() {
     const days = daysUntil(d.driver_license_expiry);
     return days >= 0 && days <= 30;
   }).length;
+  const assignedCount = drivers.filter((d) => !!d.assigned_vehicle).length;
 
   if (loading) {
     return (
@@ -196,7 +234,7 @@ export function DriverVerificationPanel() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <SummaryCard label="Total Drivers" value={totalDrivers} icon={<UserCheck className="h-4 w-4 text-muted-foreground" />} />
             <SummaryCard label="Verified" value={verifiedCount} icon={<CheckCircle className="h-4 w-4 text-green-600" />} className="text-green-600" />
-            <SummaryCard label="Pending" value={pendingCount} icon={<AlertTriangle className="h-4 w-4 text-amber-600" />} className="text-amber-600" />
+            <SummaryCard label="Assigned to Vehicle" value={assignedCount} icon={<Car className="h-4 w-4 text-blue-600" />} className="text-blue-600" />
             <SummaryCard label="License Expiring" value={expiringCount} icon={<XCircle className="h-4 w-4 text-red-600" />} className="text-red-600" />
           </div>
         )}
@@ -215,6 +253,15 @@ export function DriverVerificationPanel() {
                     </Button>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {driver.assigned_vehicle && (
+                      <div className="rounded-lg border p-3 space-y-1 sm:col-span-2 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                        <div className="text-xs text-muted-foreground">Assigned Vehicle</div>
+                        <div className="font-medium flex items-center gap-2">
+                          <Car className="h-4 w-4 text-blue-600" />
+                          {driver.assigned_vehicle}
+                        </div>
+                      </div>
+                    )}
                     <div className="rounded-lg border p-3 space-y-1">
                       <div className="text-xs text-muted-foreground">NIN</div>
                       <div className="font-medium">
@@ -250,18 +297,6 @@ export function DriverVerificationPanel() {
                         )}
                       </div>
                     </div>
-                    <div className="rounded-lg border p-3 space-y-1">
-                      <div className="text-xs text-muted-foreground">BVN</div>
-                      <div className="font-medium">
-                        {driver.bvn_verified ? (
-                          <span className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" /> Verified
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Not verified</span>
-                        )}
-                      </div>
-                    </div>
                   </div>
                   {overall === 'incomplete' && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
@@ -280,11 +315,11 @@ export function DriverVerificationPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Driver Name</TableHead>
+                  <TableHead>Assigned Vehicle</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>NIN Status</TableHead>
                   <TableHead>License Number</TableHead>
                   <TableHead>License Expiry</TableHead>
-                  <TableHead>BVN</TableHead>
                   <TableHead>Status</TableHead>
                   {isAdmin && <TableHead className="w-10"></TableHead>}
                 </TableRow>
@@ -293,7 +328,7 @@ export function DriverVerificationPanel() {
                 {visibleDrivers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-6">
-                      No active drivers found
+                      No drivers found. Assign employees to vehicles in the Vehicles tab and they'll appear here automatically.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -308,6 +343,16 @@ export function DriverVerificationPanel() {
                     return (
                       <TableRow key={driver.id}>
                         <TableCell className="font-medium">{driver.full_name}</TableCell>
+                        <TableCell>
+                          {driver.assigned_vehicle ? (
+                            <span className="flex items-center gap-1.5 text-sm">
+                              <Car className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                              {driver.assigned_vehicle}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Unassigned</span>
+                          )}
+                        </TableCell>
                         <TableCell>{driver.phone || '-'}</TableCell>
                         <TableCell>
                           {hasNin ? (
@@ -327,13 +372,6 @@ export function DriverVerificationPanel() {
                             </div>
                           ) : (
                             <span className="text-muted-foreground text-sm">Not on file</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {driver.bvn_verified ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell><OverallBadge status={overall} /></TableCell>
