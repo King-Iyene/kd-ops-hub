@@ -1499,7 +1499,8 @@ const Fleet = () => {
   const isAdmin =
     profile?.role === 'admin' ||
     profile?.role === 'finance' ||
-    profile?.role === 'super_admin';
+    profile?.role === 'super_admin' ||
+    profile?.role === 'operations';
 
   const [tab, setTab] = useState<'dashboard' | 'fuel' | 'trips' | 'vehicles' | 'my_requests' | 'activity' | 'anomalies' | 'geofences' | 'live' | 'compliance' | 'drivers' | 'incidents' | 'maintenance' | 'inspections' | 'lifecycle' | 'training'>(
     isAdmin ? 'fuel' : 'my_requests',
@@ -4211,11 +4212,9 @@ const Fleet = () => {
                 <Shield className="mr-2 h-4 w-4" /> Geofences
               </TabsTrigger>
             )}
-            {isAdmin && (
-              <TabsTrigger value="compliance" className="shrink-0">
-                <ClipboardCheck className="mr-2 h-4 w-4" /> Compliance
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="compliance" className="shrink-0">
+              <ClipboardCheck className="mr-2 h-4 w-4" /> Compliance
+            </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="drivers" className="shrink-0">
                 <UserCheck className="mr-2 h-4 w-4" /> Drivers
@@ -4236,26 +4235,20 @@ const Fleet = () => {
                 <Wrench className="mr-2 h-4 w-4" /> Maintenance
               </TabsTrigger>
             )}
-            {isAdmin && (
-              <TabsTrigger value="inspections" className="shrink-0">
-                <ClipboardCheck className="mr-2 h-4 w-4" /> Inspections
-              </TabsTrigger>
-            )}
-            {isAdmin && (
-              <TabsTrigger value="incidents" className="shrink-0">
-                <AlertTriangle className="mr-2 h-4 w-4" /> Incidents
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="inspections" className="shrink-0">
+              <ClipboardCheck className="mr-2 h-4 w-4" /> Inspections
+            </TabsTrigger>
+            <TabsTrigger value="incidents" className="shrink-0">
+              <AlertTriangle className="mr-2 h-4 w-4" /> Incidents
+            </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="lifecycle" className="shrink-0">
                 <TrendingUp className="mr-2 h-4 w-4" /> Lifecycle
               </TabsTrigger>
             )}
-            {isAdmin && (
-              <TabsTrigger value="training" className="shrink-0">
-                <FileText className="mr-2 h-4 w-4" /> Training
-              </TabsTrigger>
-            )}
+            <TabsTrigger value="training" className="shrink-0">
+              <FileText className="mr-2 h-4 w-4" /> Training
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -5432,11 +5425,9 @@ const Fleet = () => {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="compliance" className="mt-4">
-            <ComplianceDashboard vehicles={vehicles as any} onUpdated={fetchData} />
-          </TabsContent>
-        )}
+        <TabsContent value="compliance" className="mt-4">
+          <ComplianceDashboard vehicles={vehicles as any} onUpdated={fetchData} />
+        </TabsContent>
 
         {isAdmin && (
           <TabsContent value="drivers" className="mt-4">
@@ -5450,17 +5441,13 @@ const Fleet = () => {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="inspections" className="mt-4">
-            <InspectionHistory vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
-          </TabsContent>
-        )}
+        <TabsContent value="inspections" className="mt-4">
+          <InspectionHistory vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
+        </TabsContent>
 
-        {isAdmin && (
-          <TabsContent value="incidents" className="mt-4">
-            <IncidentReportPanel vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
-          </TabsContent>
-        )}
+        <TabsContent value="incidents" className="mt-4">
+          <IncidentReportPanel vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
+        </TabsContent>
 
         {isAdmin && (
           <TabsContent value="lifecycle" className="mt-4">
@@ -5468,11 +5455,9 @@ const Fleet = () => {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="training" className="mt-4">
-            <DriverTrainingPanel staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
-          </TabsContent>
-        )}
+        <TabsContent value="training" className="mt-4">
+          <DriverTrainingPanel staff={staff.map((s) => ({ id: s.id, full_name: s.full_name }))} />
+        </TabsContent>
       </Tabs>
 
       {/* FUEL REQUEST DIALOG */}
