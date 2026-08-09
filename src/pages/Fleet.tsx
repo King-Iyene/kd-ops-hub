@@ -79,8 +79,11 @@ import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 import { DriverScorecard } from '@/components/fleet/DriverScorecard';
+import { DriverLeaderboard } from '@/components/fleet/DriverLeaderboard';
 import { ComplianceDashboard } from '@/components/fleet/ComplianceDashboard';
 import { FuelStationComparison } from '@/components/fleet/FuelStationComparison';
+import { FuelPriceIntelligence } from '@/components/fleet/FuelPriceIntelligence';
+import { FleetBudgetForecaster } from '@/components/fleet/FleetBudgetForecaster';
 import { DriverVerificationPanel } from '@/components/fleet/DriverVerificationPanel';
 import { IncidentReportPanel } from '@/components/fleet/IncidentReportPanel';
 import { MaintenanceHub } from '@/components/fleet/MaintenanceHub';
@@ -3130,7 +3133,10 @@ const Fleet = () => {
             <FleetInsightsPanel vehicles={vehicles as any} onNavigate={(t) => setTab(t as any)} />
             <FleetAnalyticsDashboard vehicles={vehicles} staff={staff} onNavigateToVehicles={() => setTab('vehicles')} />
             <FuelCostOptimizer vehicles={vehicles.map((v) => ({ id: v.id, name: v.name, plate_number: v.plate_number }))} />
+            <FleetBudgetForecaster />
+            <FuelPriceIntelligence />
             <FuelStationComparison />
+            <DriverLeaderboard />
             <DriverScorecard />
             {serviceAlerts.length > 0 && (
               <div>
