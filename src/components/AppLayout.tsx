@@ -105,7 +105,8 @@ export default function AppLayout() {
             <div className="flex items-center gap-3 min-w-0">
               {/* Hamburger only on tablet+ where the sidebar exists */}
               <SidebarTrigger className="hidden md:inline-flex shrink-0 kd-transition hover:bg-primary/8 hover:text-primary rounded-md" />
-              <div className="hidden sm:flex items-center gap-2.5 min-w-0">
+              {/* Mobile: page title always visible */}
+              <div className="flex items-center gap-2 min-w-0">
                 {pageTitle && (
                   <h1 className="text-sm font-semibold text-foreground truncate">
                     {pageTitle}
@@ -113,16 +114,25 @@ export default function AppLayout() {
                 )}
                 {portal && (
                   <>
-                    {pageTitle && <span className="text-border/60 text-xs select-none">·</span>}
-                    <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide ${portal.color}`}>
+                    {pageTitle && <span className="hidden sm:inline text-border/60 text-xs select-none">·</span>}
+                    <span className={`hidden sm:inline text-[10.5px] font-bold px-2 py-0.5 rounded-full tracking-wide ${portal.color}`}>
                       {portal.label}
                     </span>
                   </>
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Command palette trigger */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Mobile search button */}
+              <button
+                type="button"
+                onClick={openCommandPalette}
+                className="md:hidden inline-flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 kd-transition"
+                aria-label="Search"
+              >
+                <Search className="h-4 w-4" />
+              </button>
+              {/* Desktop search bar */}
               <button
                 type="button"
                 onClick={openCommandPalette}
@@ -136,9 +146,9 @@ export default function AppLayout() {
                 </kbd>
               </button>
               <NotificationBell />
-              <ThemeToggle />
-              <div className="w-px h-4 bg-border/60" />
-              <ProfileDropdown />
+              <div className="hidden sm:block"><ThemeToggle /></div>
+              <div className="hidden sm:block w-px h-4 bg-border/60" />
+              <div className="hidden sm:block"><ProfileDropdown /></div>
             </div>
           </header>
           {/* ── Main content ────────────────────────────────────────── */}

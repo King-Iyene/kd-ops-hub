@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
 import { useJsApiLoader, GoogleMap } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +14,6 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { cn } from '@/lib/utils';
 import { Loader2, Plus, Trash2, MapPin, Map as MapIcon } from 'lucide-react';
 import { type Geofence } from '@/lib/fleet-utils';
-
-const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
 const GEOFENCE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 

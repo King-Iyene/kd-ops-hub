@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { AuroraHero } from '@/components/AuroraHero';
 import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { cn } from '@/lib/utils';
 import { formatElapsed, formatPingAge } from '@/lib/format';
 
@@ -17,7 +17,6 @@ const TRAIL_WINDOW_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 90 * 1000;
 const SPEED_THRESHOLD_KMH = 100;
 const LAGOS_CENTER: google.maps.LatLngLiteral = { lat: 6.5244, lng: 3.3792 };
-const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
 type Ping = {
   lat: number;

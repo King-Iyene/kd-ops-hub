@@ -2942,6 +2942,9 @@ const Fleet = () => {
     fetchData();
   };
 
+  const myFuelRequests = useMemo(() => fuelRequests.filter((r) => r.employee_id === profile?.id), [fuelRequests, profile?.id]);
+  const myTripLogs = useMemo(() => tripLogs.filter((r) => r.employee_id === profile?.id), [tripLogs, profile?.id]);
+
   if (loading) return <TableSkeleton rows={5} />;
 
   // Phase 4 — service alerts (vehicles with expiries within 30 days)
@@ -2955,9 +2958,6 @@ const Fleet = () => {
           (v.next_service_date && v.next_service_date <= in30Str),
       )
     : [];
-
-  const myFuelRequests = useMemo(() => fuelRequests.filter((r) => r.employee_id === profile?.id), [fuelRequests, profile?.id]);
-  const myTripLogs = useMemo(() => tripLogs.filter((r) => r.employee_id === profile?.id), [tripLogs, profile?.id]);
 
   const visibleFuel = isAdmin ? fuelRequests : myFuelRequests;
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;

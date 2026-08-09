@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   CreditCard,
   Receipt,
-  Bell,
+  Truck,
+  Inbox,
   Menu,
   X,
   Search,
+  ListTodo,
+  LogOut,
+  User,
 } from 'lucide-react';
 import { useApprovalStore } from '@/store/approvalStore';
 import { useAuthStore, useEffectiveRole } from '@/store/authStore';
@@ -19,13 +23,61 @@ import {
   NAV_GROUPS,
   filterNavByRoleAndPermissions,
 } from '@/lib/navConfig';
+import { supabase } from '@/lib/supabase';
 
-const TABS = [
-  { title: 'Home',      url: '/',          icon: LayoutDashboard },
-  { title: 'Pay',       url: '/payments',  icon: CreditCard },
-  { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-  { title: 'Approvals', url: '/approvals', icon: Bell },
-] as const;
+type TabDef = {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  badge?: 'approvals';
+  roles?: Role[];
+  permission?: string;
+};
+
+const ROLE_TABS: Record<string, TabDef[]> = {
+  super_admin: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Approvals', url: '/approvals', icon: Inbox, badge: 'approvals' },
+    { title: 'Payments',  url: '/payments',  icon: CreditCard },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+  ],
+  admin: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Approvals', url: '/approvals', icon: Inbox, badge: 'approvals' },
+    { title: 'Payments',  url: '/payments',  icon: CreditCard },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+  ],
+  finance: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Approvals', url: '/approvals', icon: Inbox, badge: 'approvals' },
+    { title: 'Payments',  url: '/payments',  icon: CreditCard },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+  ],
+  operations: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Fleet',     url: '/fleet',     icon: Truck },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
+  ],
+  field_staff: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Fleet',     url: '/fleet',     icon: Truck },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
+  ],
+  driver: [
+    { title: 'Home',      url: '/',          icon: LayoutDashboard },
+    { title: 'Fleet',     url: '/fleet',     icon: Truck },
+    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
+    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
+  ],
+};
+
+const DEFAULT_TABS: TabDef[] = [
+  { title: 'Home',     url: '/',         icon: LayoutDashboard },
+  { title: 'Expenses', url: '/expenses', icon: Receipt },
+  { title: 'Tasks',    url: '/tasks',    icon: ListTodo },
+];
 
 export function MobileNav() {
   const location = useLocation();
@@ -35,23 +87,15 @@ export function MobileNav() {
   const effectiveRole = useEffectiveRole();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  // Mirror AppSidebar's filter exactly so an admin who grants e.g.
-  // payments.view to a field user sees the link in BOTH the desktop
-  // sidebar AND the mobile More sheet. Before this fix the mobile
-  // navigation hard-coded a smaller item list and didn't honour the
-  // permissions JSONB at all — operators with custom grants would
-  // see a strict role-default set on mobile that didn't match what
-  // they had on desktop.
-  //
-  // View-as mode (super_admin simulating another role) suppresses the
-  // permissions map for the same reason AppSidebar does — otherwise
-  // the simulation leaks the simulator's own grants back into the
-  // role being simulated.
   const role = effectiveRole as Role | undefined;
   const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
   const permissions = isViewAs
     ? null
     : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
+
+  const tabs = useMemo(() => {
+    return ROLE_TABS[role ?? ''] ?? DEFAULT_TABS;
+  }, [role]);
 
   const visibleItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
   const visibleGroups = NAV_GROUPS
@@ -61,6 +105,10 @@ export function MobileNav() {
     }))
     .filter((g) => g.items.length > 0);
 
+  const ungroupedItems = visibleItems.filter(
+    (it) => !NAV_GROUPS.some((g) => (g.titles as readonly string[]).includes(it.title)),
+  );
+
   const openCommandPalette = () => {
     setMoreOpen(false);
     window.dispatchEvent(
@@ -68,11 +116,20 @@ export function MobileNav() {
     );
   };
 
+  const handleSignOut = async () => {
+    setMoreOpen(false);
+    await supabase.auth.signOut();
+  };
+
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/90 backdrop-blur-md border-t border-border/60 safe-bottom shadow-[0_-1px_0_hsl(var(--border)/0.5),0_-4px_16px_-4px_hsl(var(--primary)/0.08)]">
-        <div className="flex items-center justify-around h-14 px-2">
-          {TABS.map((tab) => {
+      {/* ── Bottom tab bar ───────────────────────────────────────── */}
+      <nav
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card/95 backdrop-blur-lg border-t border-border/50 safe-bottom"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="flex items-center justify-around h-14 px-1">
+          {tabs.map((tab) => {
             const active =
               location.pathname === tab.url ||
               (tab.url !== '/' && location.pathname.startsWith(tab.url));
@@ -81,20 +138,17 @@ export function MobileNav() {
                 key={tab.title}
                 to={tab.url}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 min-w-[52px] py-1.5 px-3 rounded-xl kd-transition relative active:scale-95',
-                  active ? 'text-primary bg-primary/8' : 'text-muted-foreground hover:text-foreground',
+                  'flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-xl kd-transition relative active:scale-95',
+                  active ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
                 {active && (
-                  <>
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-px h-0.5 w-6 rounded-full bg-primary" />
-                    <span className="pointer-events-none absolute inset-x-3 inset-y-1 rounded-lg bg-[hsl(var(--tod-glow))] opacity-10 blur-md" />
-                  </>
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-5 rounded-full bg-primary" />
                 )}
-                <tab.icon className={cn('relative h-5 w-5 kd-transition', active && 'text-primary scale-110')} />
-                <span className={cn('relative text-[10px] font-medium', active && 'text-primary')}>{tab.title}</span>
-                {tab.title === 'Approvals' && approvalTotal > 0 && (
-                  <span className="absolute top-0.5 right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center kd-status-live-warning">
+                <tab.icon className={cn('h-5 w-5 kd-transition', active && 'text-primary')} />
+                <span className={cn('text-[10px] font-medium leading-tight', active && 'text-primary font-semibold')}>{tab.title}</span>
+                {tab.badge === 'approvals' && approvalTotal > 0 && (
+                  <span className="absolute top-0 right-[calc(50%-14px)] h-4 min-w-4 px-0.5 rounded-full bg-amber-400 text-[9px] font-bold text-amber-900 flex items-center justify-center">
                     {approvalTotal > 9 ? '9+' : approvalTotal}
                   </span>
                 )}
@@ -104,45 +158,83 @@ export function MobileNav() {
 
           <button
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center gap-0.5 min-w-[52px] py-1.5 px-3 rounded-xl kd-transition text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-95"
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 py-1.5 rounded-xl kd-transition active:scale-95',
+              moreOpen ? 'text-primary' : 'text-muted-foreground',
+            )}
           >
             <Menu className="h-5 w-5" />
-            <span className="text-[10px] font-medium">More</span>
+            <span className="text-[10px] font-medium leading-tight">More</span>
           </button>
         </div>
       </nav>
 
+      {/* ── "More" bottom sheet ──────────────────────────────────── */}
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl">
-          <SheetHeader className="flex flex-row items-center justify-between pb-2">
-            <SheetTitle className="kd-display text-lg">Navigation</SheetTitle>
+        <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-2xl px-4 pb-8">
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-3">
+            <span className="w-10 h-1 rounded-full bg-border/80" />
+          </div>
+          <SheetHeader className="flex flex-row items-center justify-between pb-1">
+            <SheetTitle className="text-base font-semibold">Menu</SheetTitle>
             <button
               onClick={() => setMoreOpen(false)}
-              className="text-muted-foreground hover:text-foreground kd-transition"
+              className="text-muted-foreground hover:text-foreground kd-transition p-1 -mr-1"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
           </SheetHeader>
 
+          {/* Search */}
           <button
             onClick={openCommandPalette}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/70 kd-transition mb-3 mt-2 active:scale-[0.99]"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted/70 kd-transition mb-4 mt-2 active:scale-[0.99]"
           >
             <Search className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground flex-1 text-left">Search anywhere…</span>
-            <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-card border border-border/60 text-muted-foreground">
-              ⌘ K
-            </kbd>
+            <span className="text-sm text-muted-foreground flex-1 text-left">Search…</span>
           </button>
 
-          <div className="space-y-4 pb-6">
+          {/* Ungrouped items (Dashboard, Approvals if visible) */}
+          {ungroupedItems.length > 0 && (
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {ungroupedItems.map((item) => {
+                const active =
+                  location.pathname === item.url ||
+                  (item.url !== '/' && location.pathname.startsWith(item.url));
+                return (
+                  <button
+                    key={item.title}
+                    onClick={() => { setMoreOpen(false); navigate(item.url); }}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm kd-transition active:scale-[0.98]',
+                      active
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'bg-muted/50 text-foreground hover:bg-muted',
+                    )}
+                  >
+                    <item.icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
+                    <span className="truncate">{item.title}</span>
+                    {item.badge === 'approvals' && approvalTotal > 0 && (
+                      <span className="ml-auto h-5 min-w-5 px-1 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center">
+                        {approvalTotal > 9 ? '9+' : approvalTotal}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Grouped nav */}
+          <div className="space-y-3">
             {visibleGroups.map((group) => (
               <div key={group.label}>
-                <p className="px-3 pt-2 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                <p className="px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
                   {group.label}
                 </p>
-                <div className="space-y-0.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   {group.items.map((item) => {
                     const active =
                       location.pathname === item.url ||
@@ -152,25 +244,38 @@ export function MobileNav() {
                         key={item.title}
                         onClick={() => { setMoreOpen(false); navigate(item.url); }}
                         className={cn(
-                          'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm kd-transition active:scale-[0.99]',
+                          'flex flex-col items-center gap-1 px-2 py-3 rounded-xl text-xs kd-transition active:scale-[0.97]',
                           active
                             ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-foreground hover:bg-muted',
+                            : 'bg-muted/40 text-foreground hover:bg-muted/70',
                         )}
                       >
-                        <item.icon className={cn('h-4 w-4 shrink-0', active && 'text-primary')} />
-                        <span className="flex-1 text-left">{item.title}</span>
-                        {item.url === '/approvals' && approvalTotal > 0 && (
-                          <span className="ml-auto h-5 min-w-5 px-1.5 rounded-full bg-amber-400 text-[10px] font-bold text-amber-900 flex items-center justify-center kd-status-live-warning">
-                            {approvalTotal > 9 ? '9+' : approvalTotal}
-                          </span>
-                        )}
+                        <item.icon className={cn('h-5 w-5 shrink-0', active && 'text-primary')} />
+                        <span className="truncate max-w-full text-center leading-tight">{item.title}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Profile + Sign out */}
+          <div className="mt-6 pt-4 border-t border-border/50 flex items-center gap-3">
+            <button
+              onClick={() => { setMoreOpen(false); navigate('/profile'); }}
+              className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 text-sm kd-transition active:scale-[0.98]"
+            >
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="truncate">{(profile as any)?.full_name || 'Profile'}</span>
+            </button>
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-destructive hover:bg-destructive/10 kd-transition active:scale-[0.98]"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
+            </button>
           </div>
         </SheetContent>
       </Sheet>

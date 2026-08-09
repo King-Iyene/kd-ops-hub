@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,8 +9,6 @@ import { cn } from '@/lib/utils';
 import { formatDate, formatTime } from '@/lib/format';
 import { Loader2, MapPin, RotateCcw, Play, Pause, AlertTriangle, Gauge, Zap, ParkingCircle, Map as MapIcon } from 'lucide-react';
 import { type TripLog, type BreadcrumbRow, type TripEvent, formatCoords, formatDuration, haversineKm, reverseGeocode, computeIdleMinutes } from '@/lib/fleet-utils';
-
-const MAPS_LIBRARIES: ('places' | 'geometry')[] = [];
 
 const EVENT_LABEL: Record<string, string> = {
   speeding:      'Speeding',

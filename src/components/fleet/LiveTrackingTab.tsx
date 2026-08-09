@@ -7,14 +7,13 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { AuroraHero } from '@/components/AuroraHero';
 import { Loader2, Radio, Search, MapPin, Gauge, Truck, Clock, AlertTriangle, Map as MapIcon } from 'lucide-react';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS } from '@/lib/maps';
+import { GOOGLE_MAPS_API_KEY, MAP_OPTIONS, MAPS_LIBRARIES } from '@/lib/maps';
 import { cn } from '@/lib/utils';
 import { formatElapsed, formatPingAge } from '@/lib/format';
 
 const TRAIL_WINDOW_MS = 30 * 60 * 1000;
 const STALE_THRESHOLD_MS = 90 * 1000;
 const LAGOS_CENTER: google.maps.LatLngLiteral = { lat: 6.5244, lng: 3.3792 };
-const LT_LIBS: ('places' | 'geometry')[] = [];
 
 type Ping = {
   lat: number; lng: number;
@@ -116,7 +115,7 @@ export function LiveTrackingTab() {
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [now, setNow] = useState(Date.now());
 
-  const { isLoaded: mapsLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: LT_LIBS });
+  const { isLoaded: mapsLoaded } = useJsApiLoader({ id: 'kd-gmaps', googleMapsApiKey: GOOGLE_MAPS_API_KEY, libraries: MAPS_LIBRARIES });
   const [googleMap, setGoogleMap] = useState<google.maps.Map | null>(null);
   const onMapLoad = useCallback((map: google.maps.Map) => setGoogleMap(map), []);
 
