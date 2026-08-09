@@ -65,6 +65,14 @@ import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatCard } from '@/components/ui-kit/StatCard';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 type Scope = 'company' | 'team' | 'individual';
 type Status = 'open' | 'in_progress' | 'complete' | 'missed';
@@ -551,6 +559,7 @@ const Goals = () => {
               }
             />
           ) : (
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -730,6 +739,76 @@ const Goals = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-2 p-1">
+              {visible.map((g) => {
+                const Icon = SCOPE_ICON[g.scope];
+                const owner = g.owner_id ? profiles.get(g.owner_id) : null;
+                const isMine = g.owner_id === profile?.id;
+                const linkedTasks = goalTasksMap.get(g.id) || [];
+                const taskProgress = linkedTasks.length > 0
+                  ? Math.round((linkedTasks.filter((t) => t.status === 'complete').length / linkedTasks.length) * 100)
+                  : null;
+                return (
+                  <MobileCard key={g.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{g.title}</MobileCardTitle>
+                      <MobileCardMeta>
+                        <Badge variant="secondary" className={STATUS_CLASS[g.status]}>
+                          {g.status.replace('_', ' ')}
+                        </Badge>
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <div className="space-y-1.5">
+                      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary kd-transition"
+                          style={{ width: `${g.progress_pct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {g.progress_pct}%
+                          {taskProgress !== null && taskProgress !== g.progress_pct && (
+                            <span className="ml-1 text-info">({taskProgress}% by tasks)</span>
+                          )}
+                        </span>
+                        <span>{g.quarter}</span>
+                      </div>
+                    </div>
+                    <MobileCardRow label="Scope">
+                      <Badge variant="secondary" className="gap-1">
+                        <Icon className="h-3 w-3" />
+                        {SCOPE_LABEL[g.scope]}
+                      </Badge>
+                    </MobileCardRow>
+                    <MobileCardRow label="Owner">
+                      {g.scope === 'company' ? 'All hands' : owner ? (owner.full_name || owner.email) : '—'}
+                    </MobileCardRow>
+                    <MobileCardFooter>
+                      <div className="flex gap-1">
+                        {g.status !== 'complete' && isMine && (
+                          <Button size="sm" variant="ghost" onClick={() => markComplete(g)} title="Mark complete">
+                            <CheckCircle2 className="h-4 w-4 text-success" />
+                          </Button>
+                        )}
+                        {(isMine || isAdmin) && (
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(g)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button size="sm" variant="ghost" onClick={() => remove(g)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
+            </div>
           )}
         </CardContent>
       </Card>

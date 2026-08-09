@@ -63,6 +63,14 @@ import { burst } from '@/components/Burst';
 import { ApprovalCommentThread } from '@/components/ApprovalCommentThread';
 import { StatusBadge, statusLabel } from '@/components/ui-kit/StatusBadge';
 import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
+import {
   ArrowLeft,
   Check,
   X,
@@ -2387,6 +2395,7 @@ const BatchDetail = () => {
                 ref). Each row is ~40px tall with subtle dividers and
                 font-mono on every numeric / identifier so dense lists
                 scan cleanly at a glance. */}
+            <div className="hidden md:block">
             <Table className="text-[13px]">
               <TableHeader>
                 <TableRow className="border-b border-border/50 hover:bg-transparent">
@@ -2698,6 +2707,52 @@ const BatchDetail = () => {
                 })}
               </TableBody>
             </Table>
+            </div>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-2 p-1">
+              {filteredItems.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No recipients match this filter.
+                </p>
+              )}
+              {filteredItems.map((item) => (
+                <MobileCard key={item.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{item.full_name || 'Unknown Recipient'}</MobileCardTitle>
+                    <MobileCardMeta>
+                      {canSeeAmounts ? formatNaira(item.amount_ngn || 0) : '--- ---'}
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Bank">
+                    <span className="truncate">{item.bank_name || '---'}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Account">
+                    <span className="font-mono text-xs">{item.account_number || '---'}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Status">
+                    <StatusBadge status={item.status} size="sm" />
+                  </MobileCardRow>
+                  {item.failure_reason && (
+                    <p className="text-[11px] text-destructive truncate">{item.failure_reason}</p>
+                  )}
+                  <MobileCardFooter>
+                    <div className="flex gap-1 flex-wrap">
+                      {item.status === 'failed' && canApprove && !item.is_manually_resolved && (
+                        <Button size="sm" variant="outline" disabled={retryingId === item.id} onClick={() => retryItem(item)}>
+                          {retryingId === item.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5 mr-1" />}
+                          Retry
+                        </Button>
+                      )}
+                      {(item.paystack_reference || item.status === 'failed' || item.status === 'succeeded') && (
+                        <Button size="sm" variant="ghost" onClick={() => setReceiptItem(item)}>
+                          <Download className="h-3.5 w-3.5 mr-1" /> Receipt
+                        </Button>
+                      )}
+                    </div>
+                  </MobileCardFooter>
+                </MobileCard>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

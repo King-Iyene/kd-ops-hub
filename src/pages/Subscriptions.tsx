@@ -67,6 +67,14 @@ import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { Pagination } from '@/components/ui-kit/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 
 interface Subscription {
   id: string;
@@ -598,6 +606,7 @@ const Subscriptions = () => {
             />
           ) : (
             <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -691,6 +700,58 @@ const Subscriptions = () => {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-2 p-1">
+                {pagination.slice.map((s) => (
+                  <MobileCard key={s.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>
+                        {s.name}
+                        {s.vendor && (
+                          <span className="block text-xs font-normal text-muted-foreground truncate">{s.vendor}</span>
+                        )}
+                      </MobileCardTitle>
+                      <MobileCardMeta>
+                        {s.currency === 'USD' && s.amount_usd != null
+                          ? `$${Number(s.amount_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : formatNaira(s.amount_ngn)}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Cycle">
+                      <span className="capitalize">{s.billing_cycle}</span>
+                    </MobileCardRow>
+                    <MobileCardRow label="Next renewal">{formatDate(s.next_renewal_date)}</MobileCardRow>
+                    <MobileCardRow label="Status">{renewalBadge(s)}</MobileCardRow>
+                    <MobileCardFooter>
+                      <div className="flex gap-1 flex-wrap">
+                        {s.status === 'active' ? (
+                          <>
+                            <Button size="sm" variant="outline" disabled={!canManage || renewingId === s.id} onClick={() => markRenewed(s)}>
+                              {renewingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Renewed'}
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => openEdit(s)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => cancelSub(s)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button size="sm" variant="outline" disabled={!canManage} onClick={() => reactivate(s)}>
+                              Reactivate
+                            </Button>
+                            <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => setPendingDelete(s)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </MobileCardFooter>
+                  </MobileCard>
+                ))}
+              </div>
               <Pagination
                 page={pagination.page}
                 totalPages={pagination.totalPages}

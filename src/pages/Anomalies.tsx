@@ -49,6 +49,14 @@ import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
 import { cn } from '@/lib/utils';
 import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
+import {
   type AnomalyModule,
   type AnomalySeverity,
   type AnomalyStatus,
@@ -337,6 +345,7 @@ export default function Anomalies() {
                 </div>
               </div>
             )}
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -464,6 +473,62 @@ export default function Anomalies() {
                 })}
               </TableBody>
             </Table>
+            </div>
+            {/* Mobile card view */}
+            <div className="md:hidden space-y-2 p-1">
+              {rows.map((r) => (
+                <MobileCard key={r.id} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>
+                      <Badge variant="outline" className={cn(SEVERITY_TONE[r.severity], 'mr-1.5')}>
+                        {r.severity}
+                      </Badge>
+                      {RULE_LABEL[r.rule_code]}
+                    </MobileCardTitle>
+                    <MobileCardMeta>
+                      {r.amount_ngn ? formatNaira(r.amount_ngn) : '—'}
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Description">
+                    <span className="truncate max-w-[180px]">{r.title}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Status">
+                    <Badge variant="secondary" className={cn(STATUS_TONE[r.status])}>
+                      {r.status}
+                    </Badge>
+                  </MobileCardRow>
+                  {expandedId === r.id && (
+                    <div className="pt-2 mt-1 border-t border-border/40 space-y-2 text-xs">
+                      <p className="text-sm">{r.description}</p>
+                      {r.reviewer_note && (
+                        <p className="text-muted-foreground">
+                          <span className="font-medium">Note:</span> {r.reviewer_note}
+                        </p>
+                      )}
+                      <p className="text-muted-foreground">
+                        Detected {new Date(r.detected_at).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {r.status === 'open' && (
+                    <MobileCardFooter>
+                      <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openReview(r, 'acknowledged'); }}>
+                        Ack
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        className="border-purple-500/40 text-purple-700 dark:text-purple-400"
+                        onClick={(e) => { e.stopPropagation(); openReview(r, 'escalated'); }}>
+                        Escalate
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-muted-foreground"
+                        onClick={(e) => { e.stopPropagation(); openReview(r, 'dismissed'); }}>
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    </MobileCardFooter>
+                  )}
+                </MobileCard>
+              ))}
+            </div>
             </>
           )}
         </CardContent>

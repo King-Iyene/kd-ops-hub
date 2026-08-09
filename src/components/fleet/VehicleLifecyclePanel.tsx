@@ -393,7 +393,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
 
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-3">Depreciation</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label>Method</Label>
                   <Select value={form.depreciation_method} onValueChange={(v) => setForm({ ...form, depreciation_method: v })}>

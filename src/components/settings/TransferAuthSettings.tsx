@@ -554,7 +554,7 @@ export default function TransferAuthSettings() {
             <p className="text-sm text-rose-600">{limitsError}</p>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="min-w-[960px]">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[130px]">Role</TableHead>
@@ -725,7 +725,7 @@ export default function TransferAuthSettings() {
             <p className="text-xs text-muted-foreground italic">No per-user overrides yet — everyone is on their role default.</p>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>

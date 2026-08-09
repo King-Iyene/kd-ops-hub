@@ -606,7 +606,7 @@ export default function Recruitment() {
                 <Input placeholder="e.g. Lagos (Hybrid)" value={openingForm.location} onChange={e => setOpeningForm(f => ({ ...f, location: e.target.value }))} />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label className="kd-label">Min Salary (₦/yr)</Label>
                 <Input type="number" min="0" placeholder="0" value={openingForm.salary_min_ngn} onChange={e => setOpeningForm(f => ({ ...f, salary_min_ngn: e.target.value }))} />
