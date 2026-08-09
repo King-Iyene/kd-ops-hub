@@ -1899,6 +1899,38 @@ export type Database = {
           },
         ]
       }
+      compliance_reminders: {
+        Row: {
+          document_type: string
+          id: string
+          sent_at: string
+          threshold_days: number
+          vehicle_id: string
+        }
+        Insert: {
+          document_type: string
+          id?: string
+          sent_at?: string
+          threshold_days: number
+          vehicle_id: string
+        }
+        Update: {
+          document_type?: string
+          id?: string
+          sent_at?: string
+          threshold_days?: number
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_reminders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_log: {
         Row: {
           created_at: string
@@ -6796,6 +6828,8 @@ export type Database = {
           date_of_birth: string | null
           deleted_at: string | null
           department_id: string | null
+          driver_license_expiry: string | null
+          driver_license_number: string | null
           email: string | null
           employee_category: string | null
           employee_number: string | null
@@ -6851,6 +6885,7 @@ export type Database = {
           tin: string | null
           transport_ngn: number | null
           use_salary_components: boolean
+          verification_status: string | null
         }
         Insert: {
           account_name?: string | null
@@ -6871,6 +6906,8 @@ export type Database = {
           date_of_birth?: string | null
           deleted_at?: string | null
           department_id?: string | null
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           email?: string | null
           employee_category?: string | null
           employee_number?: string | null
@@ -6926,6 +6963,7 @@ export type Database = {
           tin?: string | null
           transport_ngn?: number | null
           use_salary_components?: boolean
+          verification_status?: string | null
         }
         Update: {
           account_name?: string | null
@@ -6946,6 +6984,8 @@ export type Database = {
           date_of_birth?: string | null
           deleted_at?: string | null
           department_id?: string | null
+          driver_license_expiry?: string | null
+          driver_license_number?: string | null
           email?: string | null
           employee_category?: string | null
           employee_number?: string | null
@@ -7001,6 +7041,7 @@ export type Database = {
           tin?: string | null
           transport_ngn?: number | null
           use_salary_components?: boolean
+          verification_status?: string | null
         }
         Relationships: [
           {
@@ -10174,6 +10215,7 @@ export type Database = {
           service_type: string
           status: string
           vehicle_id: string
+          vendor: string | null
         }
         Insert: {
           cost_ngn?: number | null
@@ -10195,6 +10237,7 @@ export type Database = {
           service_type: string
           status?: string
           vehicle_id: string
+          vendor?: string | null
         }
         Update: {
           cost_ngn?: number | null
@@ -10216,6 +10259,7 @@ export type Database = {
           service_type?: string
           status?: string
           vehicle_id?: string
+          vendor?: string | null
         }
         Relationships: [
           {
@@ -10285,6 +10329,7 @@ export type Database = {
           created_at: string
           current_fuel_litres: number
           fuel_consumption_rate_lkm: number
+          hackney_permit_expiry: string | null
           home_base_lat: number | null
           home_base_lng: number | null
           id: string
@@ -10302,6 +10347,7 @@ export type Database = {
           tank_capacity_litres: number
           total_mileage_km: number | null
           updated_at: string | null
+          vehicle_license_expiry: string | null
           vin: string | null
           warranty_expiry: string | null
           weekly_budget_ngn: number
@@ -10315,6 +10361,7 @@ export type Database = {
           created_at?: string
           current_fuel_litres?: number
           fuel_consumption_rate_lkm?: number
+          hackney_permit_expiry?: string | null
           home_base_lat?: number | null
           home_base_lng?: number | null
           id?: string
@@ -10332,6 +10379,7 @@ export type Database = {
           tank_capacity_litres?: number
           total_mileage_km?: number | null
           updated_at?: string | null
+          vehicle_license_expiry?: string | null
           vin?: string | null
           warranty_expiry?: string | null
           weekly_budget_ngn?: number
@@ -10345,6 +10393,7 @@ export type Database = {
           created_at?: string
           current_fuel_litres?: number
           fuel_consumption_rate_lkm?: number
+          hackney_permit_expiry?: string | null
           home_base_lat?: number | null
           home_base_lng?: number | null
           id?: string
@@ -10362,6 +10411,7 @@ export type Database = {
           tank_capacity_litres?: number
           total_mileage_km?: number | null
           updated_at?: string | null
+          vehicle_license_expiry?: string | null
           vin?: string | null
           warranty_expiry?: string | null
           weekly_budget_ngn?: number
