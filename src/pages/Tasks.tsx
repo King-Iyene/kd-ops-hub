@@ -248,11 +248,11 @@ const Tasks = () => {
     if (!profile?.id) return;
     supabase
       .from('user_favorites')
-      .select('target_id')
+      .select('item_id')
       .eq('user_id', profile.id)
-      .eq('target_type', 'space')
+      .eq('item_type', 'space')
       .then(({ data }) => {
-        if (data) setFavoriteSpaceIds(new Set(data.map((r: any) => r.target_id)));
+        if (data) setFavoriteSpaceIds(new Set(data.map((r: any) => r.item_id)));
       });
   }, [profile?.id, spaces]);
 
@@ -298,11 +298,11 @@ const Tasks = () => {
     if (!profile?.id) return;
     if (favoriteSpaceIds.has(spaceId)) {
       await supabase.from('user_favorites').delete()
-        .eq('user_id', profile.id).eq('target_type', 'space').eq('target_id', spaceId);
+        .eq('user_id', profile.id).eq('item_type', 'space').eq('item_id', spaceId);
       setFavoriteSpaceIds((prev) => { const next = new Set(prev); next.delete(spaceId); return next; });
     } else {
       await supabase.from('user_favorites').insert({
-        user_id: profile.id, target_type: 'space', target_id: spaceId,
+        user_id: profile.id, item_type: 'space', item_id: spaceId,
       });
       setFavoriteSpaceIds((prev) => new Set(prev).add(spaceId));
     }
@@ -1225,7 +1225,8 @@ const Tasks = () => {
 
       {/* ─── Task Detail — Full Modal Overlay ───────────────────────── */}
       <Dialog open={!!detailTask} onOpenChange={(v) => { if (!v) setDetailTask(null); }}>
-        <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden flex flex-col">
+        <DialogContent className="max-w-4xl h-[85vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+          <DialogTitle className="sr-only">{detailTask?.title || 'Task details'}</DialogTitle>
           {detailTask && (
             <TaskDetailPanel
               task={detailTask}
