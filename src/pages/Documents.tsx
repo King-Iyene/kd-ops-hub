@@ -1090,10 +1090,10 @@ const Documents = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Link to (optional)</Label>
-                <Select value={form.entity_type} onValueChange={(v) => setForm({ ...form, entity_type: v, entity_id: '' })}>
+                <Select value={form.entity_type || '__none__'} onValueChange={(v) => setForm({ ...form, entity_type: v === '__none__' ? '' : v, entity_id: '' })}>
                   <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {ENTITY_TYPES.map((et) => (
                       <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
                     ))}
@@ -1119,10 +1119,10 @@ const Documents = () => {
             {folders.length > 0 && (
               <div className="space-y-1">
                 <Label>Folder (optional)</Label>
-                <Select value={form.folder_id} onValueChange={(v) => setForm({ ...form, folder_id: v })}>
+                <Select value={form.folder_id || '__root__'} onValueChange={(v) => setForm({ ...form, folder_id: v === '__root__' ? '' : v })}>
                   <SelectTrigger><SelectValue placeholder="Root (no folder)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Root (no folder)</SelectItem>
+                    <SelectItem value="__root__">Root (no folder)</SelectItem>
                     {folders.map((f) => (
                       <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                     ))}
@@ -1219,10 +1219,10 @@ const Documents = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Scope to (optional)</Label>
-                <Select value={folderForm.entity_type} onValueChange={(v) => setFolderForm({ ...folderForm, entity_type: v, entity_id: '' })}>
+                <Select value={folderForm.entity_type || '__none__'} onValueChange={(v) => setFolderForm({ ...folderForm, entity_type: v === '__none__' ? '' : v, entity_id: '' })}>
                   <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {ENTITY_TYPES.map((et) => (
                       <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
                     ))}
