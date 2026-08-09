@@ -85,8 +85,7 @@ const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
 const queryClient = new QueryClient();
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { loading } = useAuth();
-  const { user } = useAuthStore();
+  const { user, loading } = useAuthStore();
 
   if (loading) {
     return (
@@ -133,6 +132,7 @@ function MfaChallengeGate() {
 }
 
 function AppRoutes() {
+  useAuth();
   return (
     <Suspense fallback={<PageSpinner />}>
     <MfaChallengeGate />

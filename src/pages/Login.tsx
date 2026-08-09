@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,6 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isInviteOnly = searchParams.get('message') === 'invite-only';
   const tod = useTimeOfDay();
@@ -65,7 +64,10 @@ const Login = () => {
       setLoading(false);
       return;
     }
-    navigate('/dashboard', { replace: true });
+    // Navigation is handled by useAuth's onAuthStateChange listener
+    // (mounted at AppRoutes level) — it waits for the profile to load
+    // before redirecting, preventing the double-login race.
+    setLoading(false);
   };
 
   return (
