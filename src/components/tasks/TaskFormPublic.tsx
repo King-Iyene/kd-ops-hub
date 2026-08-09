@@ -267,7 +267,7 @@ export function TaskFormPublic({ formId }: TaskFormPublicProps) {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center space-y-3">
-            <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" />
+            <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
             <p className="text-lg font-semibold">Submitted!</p>
             <p className="text-muted-foreground">
               {form.submit_message || 'Thank you! Your submission has been received.'}

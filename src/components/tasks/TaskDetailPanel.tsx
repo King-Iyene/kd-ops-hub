@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Plus, CheckCircle2, Clock, Send, X, Pencil, Trash2, Loader2,
-  MessageSquare, ChevronDown, ChevronRight, Flag, User, Calendar,
+  Plus, CheckCircle2, Send, X, Pencil, Trash2, Loader2,
+  MessageSquare, Flag, Calendar,
   CornerDownRight, Activity, ArrowRight, Tag as TagIcon, UserPlus,
-  RotateCcw, Link2, AlertTriangle, Play, Square, Timer,
+  RotateCcw, Link2, Play, Square,
   CheckSquare, Eye, Bug, Milestone, Sparkles, ListChecks,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -91,7 +91,6 @@ export function TaskDetailPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [availableGoals, setAvailableGoals] = useState<GoalRow[]>([]);
-  const [additionalAssignees, setAdditionalAssignees] = useState<string[]>([]);
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -149,12 +148,6 @@ export function TaskDetailPanel({
     setWatchers((data || []).map((w: any) => w.user_id));
   }, [task.id]);
 
-  const loadAdditionalAssignees = useCallback(async () => {
-    const { data } = await supabase
-      .from('task_assignees').select('user_id').eq('task_id', task.id);
-    setAdditionalAssignees((data || []).map((a: any) => a.user_id));
-  }, [task.id]);
-
   useEffect(() => {
     loadSubtasks();
     loadComments();
@@ -163,11 +156,10 @@ export function TaskDetailPanel({
     loadTimeEntries();
     loadActivities();
     loadWatchers();
-    loadAdditionalAssignees();
     supabase.from('goals').select('id, title, scope, quarter, status, progress_pct')
       .neq('status', 'missed').order('quarter', { ascending: false }).limit(50)
       .then(({ data }) => setAvailableGoals((data as GoalRow[]) || []));
-  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers, loadAdditionalAssignees]);
+  }, [loadSubtasks, loadComments, loadDependencies, loadChecklists, loadTimeEntries, loadActivities, loadWatchers]);
 
   // ─── Subtask actions ────────────────────────────────────────
   const addSubtask = async () => {
@@ -402,11 +394,26 @@ export function TaskDetailPanel({
       {/* Header */}
       <div className="flex items-start justify-between px-5 pt-5 pb-3 border-b border-border/40">
         <div className="flex-1 min-w-0 pr-4">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <typeConfig.icon className={cn('h-4 w-4 shrink-0', typeConfig.color)} />
-            {task.parent_id && (
-              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask</span>
-            )}
+            {task.parent_id && (() => {
+              const parent = allTasks.find((t) => t.id === task.parent_id);
+              return (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Subtask of</span>
+                  {parent ? (
+                    <button
+                      className="text-[10px] text-primary hover:underline font-medium truncate max-w-[200px]"
+                      onClick={() => onTaskClick?.(parent)}
+                    >
+                      {parent.title}
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted-foreground">Unknown parent</span>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           {editingTitle ? (
             <Input
@@ -781,7 +788,7 @@ export function TaskDetailPanel({
           </div>
 
           {/* ─── Right Column: Metadata ────────────── */}
-          <div className="w-full lg:w-60 shrink-0 p-5 space-y-4">
+          <div className="w-full lg:w-64 shrink-0 p-5 space-y-4 overflow-x-hidden">
             {/* Task Type */}
             <MetaField label="Type">
               <Select value={task.task_type || 'task'} onValueChange={(v) => updateField('task_type', v)}>
@@ -805,10 +812,7 @@ export function TaskDetailPanel({
             <MetaField label="Status">
               <Select value={task.status} onValueChange={(v) => updateField('status', v)}>
                 <SelectTrigger className="h-8 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div className={cn('h-2 w-2 rounded-full', STATUS_DOT[task.status])} />
-                    <SelectValue />
-                  </div>
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUSES.map((s) => (
@@ -842,42 +846,6 @@ export function TaskDetailPanel({
                   {Array.from(profiles.values()).map((p) => (
                     <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              {additionalAssignees.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {additionalAssignees.map((uid) => {
-                    const p = profiles.get(uid);
-                    return (
-                      <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-muted rounded-full px-2 py-0.5">
-                        {p?.full_name || 'Unknown'}
-                        <button onClick={async () => {
-                          await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', uid);
-                          loadAdditionalAssignees();
-                        }} className="hover:text-destructive">
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              <Select value="" onValueChange={async (uid) => {
-                if (!uid || uid === task.assignee_id || additionalAssignees.includes(uid)) return;
-                await supabase.from('task_assignees').insert({ task_id: task.id, user_id: uid });
-                loadAdditionalAssignees();
-              }}>
-                <SelectTrigger className="h-7 text-[10px] mt-1 text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <UserPlus className="h-3 w-3" /> Add assignee
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from(profiles.values())
-                    .filter((p) => p.id !== task.assignee_id && !additionalAssignees.includes(p.id))
-                    .map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
-                    ))}
                 </SelectContent>
               </Select>
             </MetaField>

@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import {
-  Plus, Calendar, CheckCircle2, MessageSquare,
-  Loader2, Users, Flag, MoreHorizontal,
+  Plus, Calendar, MessageSquare,
+  Loader2, MoreHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -17,7 +17,6 @@ import {
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag, TaskList, SpaceFolder,
 } from '@/lib/task-types';
-import { STATUS_DOT, STATUSES } from '@/lib/task-types';
 import { TaskContextMenu } from './TaskContextMenu';
 import type { Space } from './TaskSidebar';
 

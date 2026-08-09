@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Plus, Trash2, GripVertical, Eye, Copy, Check,
-  ArrowUp, ArrowDown, FileText, Link as LinkIcon,
+  ArrowUp, ArrowDown, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';

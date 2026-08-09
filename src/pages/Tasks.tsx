@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Plus, Search, Loader2, CheckCircle2, ListTodo, Flag,
-  Pencil, Check, Clock, Send, X, Filter, Trash2,
+  Plus, Search, Loader2, ListTodo, Flag,
+  Check, X, Filter, Trash2,
   User, ArrowRight, Download, CalendarDays, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -185,9 +185,12 @@ const Tasks = () => {
       setAllTasks((allRes.data as Task[]) || []);
       const m = new Map<string, ProfileRow>();
       const seenEmails = new Set<string>();
+      const seenNames = new Set<string>();
       for (const p of (profilesRes.data as ProfileRow[]) || []) {
-        if (seenEmails.has(p.email)) continue;
+        const nameKey = p.full_name?.trim().toLowerCase();
+        if (seenEmails.has(p.email) || (nameKey && seenNames.has(nameKey))) continue;
         seenEmails.add(p.email);
+        if (nameKey) seenNames.add(nameKey);
         m.set(p.id, p);
       }
       setProfiles(m);
@@ -869,12 +872,15 @@ const Tasks = () => {
             onEditSpace={openEditSpace}
             onDeleteSpace={(s) => setPendingDeleteSpace(s)}
             onManageMembers={(s) => setMembersSpace(s)}
+            onManageStatuses={(s) => setStatusManagerSpace(s)}
             onCreateFolder={handleCreateFolder}
             onCreateList={handleCreateList}
             onRenameFolder={handleRenameFolder}
             onDeleteFolder={handleDeleteFolder}
             onRenameList={handleRenameList}
             onDeleteList={handleDeleteList}
+            favoriteSpaceIds={favoriteSpaceIds}
+            onToggleFavorite={toggleFavoriteSpace}
             unorganizedCount={unorganizedCount}
           />
         </SheetContent>
