@@ -183,6 +183,7 @@ export default function RevenueConcentrationTab() {
               <CardTitle className="text-sm">Client revenue breakdown — last 12 months</CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -210,6 +211,7 @@ export default function RevenueConcentrationTab() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
               {data.clients.length > 15 && (
                 <p className="text-xs text-muted-foreground text-center mt-2">
                   + {data.clients.length - 15} more clients not shown

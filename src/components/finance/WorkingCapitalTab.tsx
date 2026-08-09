@@ -235,7 +235,7 @@ export default function WorkingCapitalTab() {
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                   {data.waterfall.map((w) => (
                     <div key={w.label}>
                       <p className="text-[10px] text-muted-foreground">{w.label}</p>

@@ -691,6 +691,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -757,6 +758,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
                 })}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -979,6 +981,7 @@ function HolidaysManager() {
       ) : (
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1011,6 +1014,7 @@ function HolidaysManager() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -1103,7 +1107,7 @@ function PayScheduleForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Pay frequency</Label>
           <Select
@@ -1202,7 +1206,7 @@ function PayScheduleForm({
         </Select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="flex items-center gap-1.5">
             Auto-draft (days before pay date)
@@ -1457,6 +1461,7 @@ export function PayrollSchedules() {
           ) : (
             <Card>
               <CardContent className="p-0">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1622,6 +1627,7 @@ export function PayrollSchedules() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           )}

@@ -376,6 +376,7 @@ export default function EarnedWageAccess() {
                 description="All EWA requests are reviewed. New ones will appear here for approval."
               />
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -420,6 +421,7 @@ export default function EarnedWageAccess() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -440,6 +442,7 @@ export default function EarnedWageAccess() {
               description="Your accrued earnings can be drawn from above. Requests show up here once submitted."
             />
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -476,6 +479,7 @@ export default function EarnedWageAccess() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

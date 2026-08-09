@@ -395,7 +395,7 @@ const Transactions = () => {
           Mercury Treasury pattern, not a German one. */}
       <div className={cn(
         'rounded-lg border border-border/70 bg-card grid sm:divide-x divide-border/70 overflow-hidden print:hidden',
-        isOpsView ? 'grid-cols-2' : 'grid-cols-3',
+        isOpsView ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-3',
       )}>
         {([
           { type: 'all' as const, label: 'All transactions', count: roleScopedRows.length },
@@ -442,7 +442,7 @@ const Transactions = () => {
             secondary filters tucked next to it. Drops one full row
             vs. the previous tab + filter split. */}
         <div className="px-3 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 flex items-center gap-2 flex-wrap print:hidden">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
@@ -452,7 +452,7 @@ const Transactions = () => {
             />
           </div>
           <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60">
+            <SelectTrigger className="w-full sm:w-[140px] h-8 text-[12px] bg-transparent border-border/60">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -463,7 +463,7 @@ const Transactions = () => {
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-[120px] h-8 text-[12px] bg-transparent border-border/60">
+            <SelectTrigger className="w-full sm:w-[120px] h-8 text-[12px] bg-transparent border-border/60">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -477,13 +477,13 @@ const Transactions = () => {
             type="date"
             value={from}
             onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
-            className="w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+            className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
           />
           <Input
             type="date"
             value={to}
             onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
-            className="w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+            className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
           />
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-[12px]">

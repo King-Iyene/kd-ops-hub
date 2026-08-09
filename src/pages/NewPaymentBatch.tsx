@@ -1296,7 +1296,7 @@ const NewPaymentBatch = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>Add One-off Beneficiary</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>First name *</Label>
                 <Input
@@ -1315,7 +1315,7 @@ const NewPaymentBatch = () => {
               </div>
             </div>
             <BankAccountField value={adHocBank} onChange={setAdHocBank} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (₦)</Label>
                 <Input

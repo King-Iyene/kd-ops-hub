@@ -224,7 +224,7 @@ export function PendingPayoutsCard({ walletBalanceNgn }: Props) {
             Three figures inline, divided by hairlines. No tile chrome,
             no big card padding — same pattern as Mercury / Wise's
             "Money in / Money out" overview strip. */}
-        <div className="grid grid-cols-3 divide-x divide-border/50 border-b">
+        <div className="grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-border/50 border-b divide-y sm:divide-y-0">
           <KpiCell
             label="Pending"
             value={loading ? null : formatNaira(pendingTotal)}
