@@ -31,10 +31,16 @@ function renderInline(text: string): string {
   // Inline code
   result = result.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-muted text-[11px] font-mono">$1</code>');
 
-  // Links
+  // Links — only allow http(s) and mailto protocols
   result = result.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:text-primary/80">$1</a>',
+    (_, text: string, href: string) => {
+      const trimmed = href.trim().toLowerCase();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('mailto:')) {
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="text-primary underline underline-offset-2 hover:text-primary/80">${text}</a>`;
+      }
+      return text;
+    },
   );
 
   // Auto-link URLs
