@@ -310,6 +310,7 @@ export const LeaveBalancesPanel = ({
               No leave requests on file.
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -336,6 +337,7 @@ export const LeaveBalancesPanel = ({
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

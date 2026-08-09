@@ -3686,6 +3686,7 @@ function DepartmentsManager() {
               No departments yet. Add one to organize your team.
             </p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -3717,6 +3718,7 @@ function DepartmentsManager() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

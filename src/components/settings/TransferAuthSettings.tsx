@@ -824,6 +824,7 @@ export default function TransferAuthSettings() {
           {pools.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No pools loaded yet.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -885,6 +886,7 @@ export default function TransferAuthSettings() {
                 })}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
