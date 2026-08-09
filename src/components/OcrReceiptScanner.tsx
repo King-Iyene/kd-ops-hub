@@ -159,21 +159,27 @@ async function callDocumentAi(
 
 // ---------------------------------------------------------------------------
 // Tier 2: Tesseract.js in-browser fallback (free, zero API cost)
+//
+// Overhauled for Nigerian receipts: red-channel isolation (blue/black ink
+// shows up darkest in the red channel while cyan borders vanish), adaptive
+// contrast instead of destructive binary thresholding, multi-pass OCR on
+// both original and enhanced images, and Nigeria-specific field extraction.
 // ---------------------------------------------------------------------------
 
 function extractAmount(text: string): string | undefined {
-  const patterns = [
-    /₦\s*([\d,]+(?:\.\d{1,2})?)/gi,
-    /NGN\s*([\d,]+(?:\.\d{1,2})?)/gi,
-    /(?:total|amount|grand\s*total|sub\s*total|amt)\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/gi,
-    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=]?\s*(?:₦|NGN|N)?\s*([\d,]+(?:\.\d{1,2})?)/gi,
-  ];
   const candidates: number[] = [];
-  for (const re of patterns) {
+
+  const labeledPatterns = [
+    /(?:amount|amt|total|grand\s*total|sub\s*total)\s*(?:paid|due|payable)?\s*[:\-=\s]*(?:₦|NGN|N|#)?\s*([\d,.]+)/gi,
+    /₦\s*([\d,.]+)/gi,
+    /NGN\s*([\d,.]+)/gi,
+    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=\s]*(?:₦|NGN|N)?\s*([\d,.]+)/gi,
+  ];
+  for (const re of labeledPatterns) {
     for (const m of text.matchAll(re)) {
-      const cleaned = m[1].replace(/,/g, '');
+      const cleaned = m[1].replace(/,/g, '').replace(/\.+$/, '');
       const n = parseFloat(cleaned);
-      if (!isNaN(n) && n > 0 && n < 100_000_000) candidates.push(n);
+      if (!isNaN(n) && n >= 50 && n < 100_000_000) candidates.push(n);
     }
   }
   if (candidates.length > 0) return String(Math.round(Math.max(...candidates)));
@@ -191,6 +197,33 @@ function extractAmount(text: string): string | undefined {
     }
   }
   if (candidates.length > 0) return String(Math.round(Math.max(...candidates)));
+
+  const allNums: number[] = [];
+  for (const line of lines) {
+    const nums = line.match(/[\d,]+(?:\.\d{1,2})?/g);
+    if (nums) {
+      for (const raw of nums) {
+        const n = parseFloat(raw.replace(/,/g, ''));
+        if (!isNaN(n) && n >= 500 && n < 100_000_000) allNums.push(n);
+      }
+    }
+  }
+  if (allNums.length > 0) return String(Math.round(Math.max(...allNums)));
+
+  return undefined;
+}
+
+function extractUnitPrice(text: string): number | undefined {
+  const patterns = [
+    /(?:unit\s*price|price\s*per|rate|pump\s*price|p\.?\s*price)\s*[:\-=\s]*(?:₦|NGN|N)?\s*([\d,.]+)/gi,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(text);
+    if (m) {
+      const n = parseFloat(m[1].replace(/,/g, ''));
+      if (!isNaN(n) && n > 0 && n < 50_000) return n;
+    }
+  }
   return undefined;
 }
 
@@ -200,7 +233,20 @@ function extractDate(text: string): string | undefined {
     jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
   };
 
-  const slashMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+  const dateLabel = text.match(
+    /(?:date)\s*[:\-=\s]*(\d{1,2})\s*[\/\-\.]\s*(\d{1,2})\s*[\/\-\.]\s*(\d{2,4})/i,
+  );
+  if (dateLabel) {
+    const [, d, m, rawY] = dateLabel;
+    const month = parseInt(m);
+    const day = parseInt(d);
+    const y = rawY.length === 2 ? (parseInt(rawY) > 50 ? `19${rawY}` : `20${rawY}`) : rawY;
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+
+  const slashMatch = text.match(/\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{4})\b/);
   if (slashMatch) {
     const [, d, m, y] = slashMatch;
     const month = parseInt(m);
@@ -210,7 +256,7 @@ function extractDate(text: string): string | undefined {
     }
   }
 
-  const shortYearMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})\b/);
+  const shortYearMatch = text.match(/\b(\d{1,2})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{2})\b/);
   if (shortYearMatch) {
     const [, d, m, yy] = shortYearMatch;
     const month = parseInt(m);
@@ -221,7 +267,7 @@ function extractDate(text: string): string | undefined {
     }
   }
 
-  const isoMatch = text.match(/\b(20\d{2})[\/\-](\d{2})[\/\-](\d{2})\b/);
+  const isoMatch = text.match(/\b(20\d{2})\s*[\/\-]\s*(\d{2})\s*[\/\-]\s*(\d{2})\b/);
   if (isoMatch) {
     const [, y, m, d] = isoMatch;
     return `${y}-${m}-${d}`;
@@ -246,13 +292,15 @@ function extractDate(text: string): string | undefined {
 
 function extractLitresFromText(text: string): string | undefined {
   const patterns = [
-    /(?:litres?|liters?|ltr?s?|volume|qty\s*\(?l\)?)\s*(?:filled|pumped)?\s*[:\-=]?\s*(\d{1,4}(?:\.\d{1,2})?)/i,
+    /(?:liter|litre|ltr)s?\s*[:\-=\s]*(\d{1,4}(?:[.:]\d{1,2})?)/i,
+    /(?:litres?|liters?|ltr?s?|volume|qty\s*\(?l\)?)\s*(?:filled|pumped)?\s*[:\-=\s]*(\d{1,4}(?:\.\d{1,2})?)/i,
     /\b(\d{1,4}(?:\.\d{1,2})?)\s*(?:litres?|liters?|ltrs?|ltr)\b/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
     if (m) {
-      const n = parseFloat(m[1]);
+      const cleaned = m[1].replace(':', '.');
+      const n = parseFloat(cleaned);
       if (!isNaN(n) && n > 0 && n < 2000) return String(n);
     }
   }
@@ -261,17 +309,118 @@ function extractLitresFromText(text: string): string | undefined {
 
 function extractVendor(text: string): string | undefined {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  for (const line of lines.slice(0, 8)) {
+    const lower = line.toLowerCase();
+    if (
+      lower.includes('energy') || lower.includes('petroleum') ||
+      lower.includes('filling') || lower.includes('station') ||
+      lower.includes('oil') || lower.includes('fuel') ||
+      lower.includes('gas') || lower.includes('petrol') ||
+      lower.includes('nnpc') || lower.includes('mobil') ||
+      lower.includes('total') || lower.includes('oando') ||
+      lower.includes('ardova') || lower.includes('conoil') ||
+      lower.includes('services') || lower.includes('limited') ||
+      lower.includes('nig') || lower.includes('ltd')
+    ) {
+      const cleaned = line.replace(/[\[\]{}|]/g, '').trim();
+      if (cleaned.length >= 3 && cleaned.length <= 80) return cleaned;
+    }
+  }
+
   for (const line of lines.slice(0, 6)) {
-    if (line.length < 3) continue;
+    if (line.length < 3 || line.length > 60) continue;
     if (/^[\d\s\W]+$/.test(line)) continue;
-    if (/receipt|invoice|tax\s*invoice/i.test(line)) continue;
-    if (line.length > 60) continue;
+    if (/receipt|invoice|tax\s*invoice|sales\s*receipt|no[.:]/i.test(line)) continue;
+    if (/tel[.:]/i.test(line)) continue;
+    if (/\b(?:no|tel|phone|address)\s*[.:]/i.test(line)) continue;
     return line;
   }
   return undefined;
 }
 
+function extractProduct(text: string): string | undefined {
+  const m = text.match(/(?:product|fuel\s*type|type)\s*[:\-=\s]*([a-zA-Z.]{2,20})/i);
+  if (m) return m[1].trim();
+  const lower = text.toLowerCase();
+  if (/\bp\.?\s*m\.?\s*s\b/.test(lower)) return 'PMS';
+  if (/\ba\.?\s*g\.?\s*o\b/.test(lower)) return 'AGO';
+  if (/\bd\.?\s*p\.?\s*k\b/.test(lower)) return 'DPK';
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Image preprocessing — red-channel isolation + adaptive contrast
+//
+// Nigerian fuel receipts: blue/black handwritten ink on white paper with
+// cyan/teal printed borders. The red channel makes dark ink stand out
+// while cyan borders nearly vanish — much better than naive grayscale.
+// ---------------------------------------------------------------------------
+
 async function preprocessForOcr(file: File): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imageData.data;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const gray = new Uint8Array(w * h);
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const isCyan = (b > 120 && g > 100 && r < b - 30);
+      gray[i >> 2] = isCyan ? 255 : r;
+    }
+
+    const tileW = Math.max(16, w >> 4);
+    const tileH = Math.max(16, h >> 4);
+
+    for (let ty = 0; ty < h; ty += tileH) {
+      for (let tx = 0; tx < w; tx += tileW) {
+        const endX = Math.min(tx + tileW, w);
+        const endY = Math.min(ty + tileH, h);
+        let tMin = 255, tMax = 0;
+        for (let y = ty; y < endY; y++) {
+          for (let x = tx; x < endX; x++) {
+            const v = gray[y * w + x];
+            if (v < tMin) tMin = v;
+            if (v > tMax) tMax = v;
+          }
+        }
+        const tRange = tMax - tMin || 1;
+        for (let y = ty; y < endY; y++) {
+          for (let x = tx; x < endX; x++) {
+            const idx = y * w + x;
+            gray[idx] = Math.round(((gray[idx] - tMin) / tRange) * 255);
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < gray.length; i++) {
+      const v = gray[i] < 160 ? 0 : 255;
+      const pi = i << 2;
+      d[pi] = d[pi + 1] = d[pi + 2] = v;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    const blob: Blob | null = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    if (!blob) return file;
+    return new File([blob], file.name, { type: 'image/png' });
+  } catch {
+    return file;
+  }
+}
+
+async function preprocessGrayscaleOnly(file: File): Promise<File> {
   if (!file.type.startsWith('image/')) return file;
   try {
     const bitmap = await createImageBitmap(file);
@@ -287,15 +436,19 @@ async function preprocessForOcr(file: File): Promise<File> {
 
     let min = 255, max = 0;
     for (let i = 0; i < d.length; i += 4) {
-      const gray = Math.round(d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114);
-      d[i] = d[i + 1] = d[i + 2] = gray;
-      if (gray < min) min = gray;
-      if (gray > max) max = gray;
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const isCyan = (b > 120 && g > 100 && r < b - 30);
+      const v = isCyan ? 255 : d[i];
+      d[i] = d[i + 1] = d[i + 2] = v;
+      if (v < min) min = v;
+      if (v > max) max = v;
     }
     const range = max - min || 1;
     for (let i = 0; i < d.length; i += 4) {
-      const stretched = Math.round(((d[i] - min) / range) * 255);
-      d[i] = d[i + 1] = d[i + 2] = stretched > 140 ? 255 : 0;
+      const stretched = Math.min(255, Math.max(0,
+        Math.round(((d[i] - min) / range) * 280 - 15),
+      ));
+      d[i] = d[i + 1] = d[i + 2] = stretched;
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -307,6 +460,10 @@ async function preprocessForOcr(file: File): Promise<File> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Multi-pass OCR: run Tesseract on multiple preprocessed versions and merge
+// ---------------------------------------------------------------------------
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -317,20 +474,37 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
-async function runTesseractFallback(
-  file: File,
-  shouldExtractLitres: boolean,
-): Promise<OcrResult> {
-  const processed = await preprocessForOcr(file);
+function pickBest(a: string | undefined, b: string | undefined): string | undefined {
+  if (a && !b) return a;
+  if (b && !a) return b;
+  if (!a && !b) return undefined;
+  const na = parseFloat(a!.replace(/,/g, ''));
+  const nb = parseFloat(b!.replace(/,/g, ''));
+  if (!isNaN(na) && !isNaN(nb)) return na >= nb ? a : b;
+  return (a!.length >= b!.length) ? a : b;
+}
 
+async function runTesseractOnImage(
+  image: File,
+  shouldExtractLitres: boolean,
+): Promise<{ result: OcrResult; rawText: string }> {
   const worker = await withTimeout(
     createWorker('eng', 1),
     45_000,
     'OCR engine took too long to load.',
   );
 
+  try {
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6' as any,
+      preserve_interword_spaces: '1',
+    });
+  } catch {
+    // parameter setting is best-effort
+  }
+
   const { data: { text } } = await withTimeout(
-    worker.recognize(processed),
+    worker.recognize(image),
     30_000,
     'Scan took too long. Try a clearer photo.',
   );
@@ -340,9 +514,72 @@ async function runTesseractFallback(
   const litres = shouldExtractLitres ? extractLitresFromText(text) : undefined;
   const date = extractDate(text);
   const description = extractVendor(text);
-  const lowConfidence = !amount_ngn && !litres;
+  const unitPrice = extractUnitPrice(text);
+  const product = extractProduct(text);
 
-  return { amount_ngn, date, description, litres, lowConfidence };
+  let crossValidatedAmount = amount_ngn;
+  if (!crossValidatedAmount && litres && unitPrice) {
+    const computed = parseFloat(litres) * unitPrice;
+    if (computed >= 50 && computed < 100_000_000) {
+      crossValidatedAmount = String(Math.round(computed));
+    }
+  }
+  let crossValidatedLitres = litres;
+  if (!crossValidatedLitres && crossValidatedAmount && unitPrice && unitPrice > 0) {
+    const computed = parseFloat(crossValidatedAmount) / unitPrice;
+    if (computed > 0 && computed < 2000) {
+      crossValidatedLitres = String(Math.round(computed * 100) / 100);
+    }
+  }
+
+  const lowConfidence = !crossValidatedAmount && !crossValidatedLitres;
+
+  return {
+    result: {
+      amount_ngn: crossValidatedAmount,
+      date,
+      description,
+      litres: shouldExtractLitres ? crossValidatedLitres : undefined,
+      lowConfidence,
+    },
+    rawText: text,
+  };
+}
+
+async function runTesseractFallback(
+  file: File,
+  shouldExtractLitres: boolean,
+): Promise<OcrResult> {
+  const [binarized, grayscale] = await Promise.all([
+    preprocessForOcr(file),
+    preprocessGrayscaleOnly(file),
+  ]);
+
+  const [passA, passB] = await Promise.all([
+    runTesseractOnImage(binarized, shouldExtractLitres).catch(() => null),
+    runTesseractOnImage(grayscale, shouldExtractLitres).catch(() => null),
+  ]);
+
+  if (!passA && !passB) {
+    throw new Error('Both OCR passes failed.');
+  }
+
+  const a = passA?.result;
+  const b = passB?.result;
+
+  const merged: OcrResult = {
+    amount_ngn: pickBest(a?.amount_ngn, b?.amount_ngn),
+    date: a?.date || b?.date,
+    description: pickBest(a?.description, b?.description),
+    litres: shouldExtractLitres
+      ? pickBest(a?.litres, b?.litres)
+      : undefined,
+    lowConfidence: false,
+    rawText: [passA?.rawText, passB?.rawText].filter(Boolean).join('\n---\n'),
+  };
+  merged.lowConfidence = !merged.amount_ngn && !merged.litres;
+
+  return merged;
 }
 
 // ---------------------------------------------------------------------------
@@ -395,12 +632,12 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
     }
 
     // Tier 2: Free in-browser fallback (Tesseract.js) when Document AI
-    // can't extract decision-critical fields or isn't available
+    // can't extract decision-critical fields or isn't available.
+    // Runs two OCR passes (binarized + grayscale) and merges results.
     setScanState('fallback');
     try {
       const fallbackResult = await runTesseractFallback(file, !!shouldExtractLitres);
 
-      // Merge: prefer AI results for fields it found, fill gaps from Tesseract
       const merged: OcrResult = {
         amount_ngn: aiResult?.amount_ngn || fallbackResult.amount_ngn,
         date: aiResult?.date || fallbackResult.date,
@@ -414,13 +651,13 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
         currency: aiResult?.currency,
         lineItems: aiResult?.lineItems,
         confidence: aiResult?.confidence,
-        rawText: aiResult?.rawText,
+        rawText: aiResult?.rawText || fallbackResult.rawText,
       };
 
       if (merged.lowConfidence) {
         const msg = notConfigured
-          ? "Scanner not fully configured — fill in the fields manually."
-          : "Couldn't read this receipt clearly — fill in the fields manually below.";
+          ? "Scan couldn't read amount or litres — fill them in manually below."
+          : "Scan couldn't read amount or litres — fill them in manually below.";
         setErrorMsg(msg);
         setScanState('warning');
         setTimeout(() => setScanState('idle'), 8000);
@@ -430,10 +667,9 @@ export function OcrReceiptScanner({ onExtracted, className, extractLitres: shoul
       }
       onExtracted(merged, file);
     } catch (err: any) {
-      // Tesseract also failed — return whatever AI got, or lowConfidence
       if (aiResult) {
         if (!shouldExtractLitres) delete aiResult.litres;
-        setErrorMsg("Couldn't read this receipt clearly — fill in the fields manually below.");
+        setErrorMsg("Scan couldn't read amount or litres — fill them in manually below.");
         setScanState('warning');
         setTimeout(() => setScanState('idle'), 8000);
         onExtracted(aiResult, file);
