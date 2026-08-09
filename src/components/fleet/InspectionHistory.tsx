@@ -47,7 +47,9 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Plus,
 } from 'lucide-react';
+import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
 
 interface Props {
   vehicles: Array<{ id: string; name: string; plate_number: string }>;
@@ -116,6 +118,10 @@ export function InspectionHistory({ vehicles }: Props) {
   const [submittingReview, setSubmittingReview] = useState(false);
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('history');
+
+  const [inspectVehicleId, setInspectVehicleId] = useState('');
+  const [showInspectForm, setShowInspectForm] = useState(false);
+  const [showVehiclePicker, setShowVehiclePicker] = useState(false);
 
   const vehicleMap = useMemo(() => {
     const m = new Map<string, { name: string; plate_number: string }>();
@@ -326,23 +332,31 @@ export function InspectionHistory({ vehicles }: Props) {
         />
       </div>
 
-      <div className="flex gap-1 border-b">
-        {(['history', 'defects', 'vehicles'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              activeTab === tab
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {tab === 'history' && 'Inspection History'}
-            {tab === 'defects' && `Open Defects (${openDefects.length})`}
-            {tab === 'vehicles' && 'Vehicle Summary'}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-2 border-b">
+        <div className="flex gap-1">
+          {(['history', 'defects', 'vehicles'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                activeTab === tab
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {tab === 'history' && 'Inspection History'}
+              {tab === 'defects' && `Open Defects (${openDefects.length})`}
+              {tab === 'vehicles' && 'Vehicle Summary'}
+            </button>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowVehiclePicker(true)}
+        >
+          <Plus className="h-4 w-4 mr-1" /> Start Inspection
+        </Button>
       </div>
 
       {activeTab === 'history' && (
@@ -395,6 +409,57 @@ export function InspectionHistory({ vehicles }: Props) {
         submitting={submittingReview}
         onSubmitReview={submitReview}
       />
+
+      {/* Vehicle picker for starting a new inspection */}
+      <Dialog open={showVehiclePicker} onOpenChange={setShowVehiclePicker}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Select Vehicle to Inspect</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Select value={inspectVehicleId} onValueChange={setInspectVehicleId}>
+              <SelectTrigger><SelectValue placeholder="Choose a vehicle" /></SelectTrigger>
+              <SelectContent>
+                {vehicles.map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name} ({v.plate_number})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowVehiclePicker(false)}>Cancel</Button>
+            <Button
+              disabled={!inspectVehicleId}
+              onClick={() => {
+                setShowVehiclePicker(false);
+                setShowInspectForm(true);
+              }}
+            >
+              Begin Inspection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {inspectVehicleId && (
+        <VehicleInspectionForm
+          vehicleId={inspectVehicleId}
+          vehicleName={(() => {
+            const v = vehicleMap.get(inspectVehicleId);
+            return v ? `${v.name} (${v.plate_number})` : 'Vehicle';
+          })()}
+          inspectionType="ad_hoc"
+          open={showInspectForm}
+          onOpenChange={setShowInspectForm}
+          onComplete={() => {
+            setShowInspectForm(false);
+            setInspectVehicleId('');
+            fetchInspections();
+          }}
+        />
+      )}
     </div>
   );
 }

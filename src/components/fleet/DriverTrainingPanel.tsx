@@ -251,7 +251,7 @@ export function DriverTrainingPanel({ staff }: Props) {
       {loading ? (
         <TableSkeleton rows={5} />
       ) : filtered.length === 0 ? (
-        <EmptyState icon={<Award className="h-10 w-10" />} title="No training records" description="Add training records to track driver certifications and compliance." />
+        <EmptyState icon={Award} title="No training records" description="Add training records to track driver certifications and compliance." />
       ) : (
         <div className="overflow-x-auto rounded-md border">
           <Table>

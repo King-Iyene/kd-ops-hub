@@ -214,6 +214,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasTable, setHasTable] = useState(true);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<IncidentForm>({ ...EMPTY_FORM });
@@ -249,14 +250,15 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
 
       const { data, error } = await query.order('incident_date', { ascending: false });
       if (error) throw error;
+      setHasTable(true);
       setIncidents(data ?? []);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load incidents';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+    } catch {
+      setHasTable(false);
+      setIncidents([]);
     } finally {
       setLoading(false);
     }
-  }, [isFieldStaff, profile, toast]);
+  }, [isFieldStaff, profile]);
 
   useEffect(() => {
     fetchIncidents();
@@ -483,6 +485,14 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!hasTable) {
+    return (
+      <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+        Incident reporting module requires the latest migration. Deploy the <code>fleet_incidents_lifecycle_training</code> migration to enable this feature.
       </div>
     );
   }
