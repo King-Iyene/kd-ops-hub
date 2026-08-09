@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
+import JSZip from 'jszip';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFile } from '@/lib/file-validation';
@@ -1921,6 +1922,9 @@ function DataRetentionPanel() {
         </CardContent>
       </Card>
 
+      {/* ── Full Platform Export ─────────────────────────────────── */}
+      <PlatformExportCard />
+
       {/* ── How to monitor what's filling up storage ───────────────── */}
       <Card>
         <CardHeader className="pb-2">
@@ -1946,6 +1950,256 @@ function DataRetentionPanel() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Full Platform Export — downloads all business data as a ZIP of CSVs
+// ---------------------------------------------------------------------------
+
+const EXPORT_TABLES = [
+  { name: 'profiles', label: 'Employees', category: 'HR' },
+  { name: 'departments', label: 'Departments', category: 'HR' },
+  { name: 'attendance_records', label: 'Attendance', category: 'HR' },
+  { name: 'leave_requests', label: 'Leave requests', category: 'HR' },
+  { name: 'leave_balances', label: 'Leave balances', category: 'HR' },
+  { name: 'training_records', label: 'Training records', category: 'HR' },
+  { name: 'disciplinary_records', label: 'Disciplinary records', category: 'HR' },
+  { name: 'performance_reviews', label: 'Performance reviews', category: 'HR' },
+  { name: 'onboarding_checklists', label: 'Onboarding', category: 'HR' },
+  { name: 'terminations', label: 'Terminations', category: 'HR' },
+  { name: 'salary_history', label: 'Salary history', category: 'HR' },
+  { name: 'contractors', label: 'Contractors', category: 'HR' },
+  { name: 'job_openings', label: 'Job openings', category: 'HR' },
+  { name: 'job_applicants', label: 'Job applicants', category: 'HR' },
+
+  { name: 'expenses', label: 'Expenses', category: 'Finance' },
+  { name: 'invoices', label: 'Invoices', category: 'Finance' },
+  { name: 'revenue_entries', label: 'Revenue', category: 'Finance' },
+  { name: 'budgets', label: 'Budgets', category: 'Finance' },
+  { name: 'budget_items', label: 'Budget items', category: 'Finance' },
+  { name: 'payment_batches', label: 'Payment batches', category: 'Finance' },
+  { name: 'batch_items', label: 'Batch items', category: 'Finance' },
+  { name: 'petty_cash_funds', label: 'Petty cash funds', category: 'Finance' },
+  { name: 'petty_cash_entries', label: 'Petty cash entries', category: 'Finance' },
+  { name: 'vendors', label: 'Vendors', category: 'Finance' },
+
+  { name: 'payroll_runs', label: 'Payroll runs', category: 'Payroll' },
+  { name: 'payroll_run_items', label: 'Payroll items', category: 'Payroll' },
+  { name: 'payslips', label: 'Payslips', category: 'Payroll' },
+  { name: 'employee_benefits', label: 'Benefits', category: 'Payroll' },
+  { name: 'employee_deductions', label: 'Deductions', category: 'Payroll' },
+  { name: 'employee_loans', label: 'Loans', category: 'Payroll' },
+  { name: 'loan_repayments', label: 'Loan repayments', category: 'Payroll' },
+
+  { name: 'vehicles', label: 'Vehicles', category: 'Fleet' },
+  { name: 'trip_logs', label: 'Trip logs', category: 'Fleet' },
+  { name: 'fuel_requests', label: 'Fuel requests', category: 'Fleet' },
+  { name: 'vehicle_maintenance', label: 'Maintenance', category: 'Fleet' },
+  { name: 'vehicle_inspections', label: 'Inspections', category: 'Fleet' },
+  { name: 'fleet_incidents', label: 'Incidents', category: 'Fleet' },
+  { name: 'driver_assignments', label: 'Driver assignments', category: 'Fleet' },
+  { name: 'geofences', label: 'Geofences', category: 'Fleet' },
+
+  { name: 'tasks', label: 'Tasks', category: 'Operations' },
+  { name: 'projects', label: 'Projects', category: 'Operations' },
+  { name: 'documents', label: 'Documents', category: 'Operations' },
+  { name: 'assets', label: 'Assets', category: 'Operations' },
+
+  { name: 'clients', label: 'Clients', category: 'CRM' },
+  { name: 'contacts', label: 'Contacts', category: 'CRM' },
+  { name: 'referral_partners', label: 'Referral partners', category: 'CRM' },
+
+  { name: 'compliance_filings', label: 'Compliance filings', category: 'Compliance' },
+  { name: 'audit_logs', label: 'Audit log', category: 'Compliance' },
+] as const;
+
+function PlatformExportCard() {
+  const { profile } = useAuthStore();
+  const { toast } = useToast();
+  const [exporting, setExporting] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [tablesDone, setTablesDone] = useState(0);
+
+  const isSuperAdmin = profile?.role === 'super_admin';
+
+  const runExport = async () => {
+    if (!isSuperAdmin) return;
+    setExporting(true);
+    setTablesDone(0);
+    setProgress('Preparing export…');
+
+    try {
+      const zip = new JSZip();
+      let totalRows = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < EXPORT_TABLES.length; i++) {
+        const t = EXPORT_TABLES[i];
+        setProgress(`Exporting ${t.label}… (${i + 1}/${EXPORT_TABLES.length})`);
+        setTablesDone(i);
+
+        try {
+          const allRows: Record<string, unknown>[] = [];
+          let from = 0;
+          const pageSize = 1000;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data, error } = await supabase
+              .from(t.name as any)
+              .select('*')
+              .range(from, from + pageSize - 1)
+              .order('created_at' as any, { ascending: false });
+
+            if (error) throw error;
+            if (!data || data.length === 0) {
+              hasMore = false;
+            } else {
+              allRows.push(...(data as Record<string, unknown>[]));
+              from += pageSize;
+              if (data.length < pageSize) hasMore = false;
+            }
+          }
+
+          if (allRows.length > 0) {
+            const headers = Object.keys(allRows[0]);
+            const csvRows = allRows.map((row) =>
+              headers.map((h) => {
+                const v = row[h];
+                if (v === null || v === undefined) return '';
+                const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+                if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+                return s;
+              }).join(','),
+            );
+            const csv = [headers.join(','), ...csvRows].join('\n');
+            zip.file(`${t.category}/${t.name}.csv`, csv);
+            totalRows += allRows.length;
+          }
+        } catch (err: any) {
+          errors.push(`${t.name}: ${err?.message || 'Unknown error'}`);
+        }
+      }
+
+      setProgress('Building ZIP file…');
+
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const manifest = [
+        `KD Ops Hub — Full Platform Export`,
+        `Date: ${stamp}`,
+        `Exported by: ${profile?.full_name || profile?.email || 'admin'}`,
+        `Tables: ${EXPORT_TABLES.length}`,
+        `Total rows: ${totalRows.toLocaleString()}`,
+        ``,
+        errors.length ? `Errors:\n${errors.map((e) => `  - ${e}`).join('\n')}` : 'No errors.',
+      ].join('\n');
+      zip.file('_manifest.txt', manifest);
+
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `kd-ops-hub-export-${stamp}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      await logAudit(
+        'document_uploaded' as any,
+        `Full platform export: ${EXPORT_TABLES.length} tables, ${totalRows.toLocaleString()} rows`,
+        profile,
+      );
+
+      toast({
+        title: 'Export complete',
+        description: `${totalRows.toLocaleString()} rows across ${EXPORT_TABLES.length} tables downloaded as ZIP.${errors.length ? ` ${errors.length} table(s) had errors.` : ''}`,
+      });
+    } catch (err: any) {
+      toast({ title: 'Export failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+      setProgress('');
+      setTablesDone(0);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Download className="h-4 w-4 text-primary" />
+          Full platform export
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Download <strong>all business data</strong> as a ZIP file containing one
+          CSV per table, organized by category (HR, Finance, Payroll, Fleet,
+          Operations, CRM, Compliance). Includes{' '}
+          <strong>{EXPORT_TABLES.length} tables</strong>.
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          {['HR', 'Finance', 'Payroll', 'Fleet', 'Operations', 'CRM', 'Compliance'].map((cat) => {
+            const count = EXPORT_TABLES.filter((t) => t.category === cat).length;
+            if (!count) return null;
+            return (
+              <div key={cat} className="rounded-lg border bg-card px-3 py-2">
+                <p className="text-muted-foreground">{cat}</p>
+                <p className="font-semibold mt-0.5">{count} table{count > 1 ? 's' : ''}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        {exporting && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {progress}
+            </div>
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-primary h-2 rounded-full transition-all duration-300"
+                style={{ width: `${Math.round((tablesDone / EXPORT_TABLES.length) * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 border-t pt-3">
+          <Button
+            onClick={runExport}
+            disabled={exporting || !isSuperAdmin}
+            size="sm"
+          >
+            {exporting ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-3.5 w-3.5" />
+            )}
+            {exporting ? 'Exporting…' : 'Download full backup'}
+          </Button>
+          {!isSuperAdmin && (
+            <p className="text-xs text-muted-foreground">Super admin access required.</p>
+          )}
+        </div>
+
+        <div className="flex items-start gap-2 text-xs text-muted-foreground border-t pt-3">
+          <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            This exports database records only — not uploaded files (receipts,
+            documents, photos). Those are stored in Supabase Storage and can be
+            downloaded from the Supabase dashboard. A daily automated{' '}
+            <code className="text-[11px] bg-muted px-1 rounded">pg_dump</code>{' '}
+            backup also runs via GitHub Actions (retained 30 days).
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
