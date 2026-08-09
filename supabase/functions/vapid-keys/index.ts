@@ -1,26 +1,20 @@
 // supabase/functions/vapid-keys/index.ts
 //
 // Generates and rotates VAPID keypairs for the platform's web-push setup.
-// Replaces the CLI step (`npx web-push generate-vapid-keys`) — admins click
-// a button in KD Ops Settings → Notifications and the keys are minted +
-// stored server-side in one round-trip.
+// Uses the Web Crypto API (native in Deno) instead of the web-push npm
+// package, which relies on Node crypto polyfills that produce invalid keys
+// in Deno/Supabase edge functions.
 //
 // Actions:
 //   action: "generate" — admin/super_admin only. Creates a new VAPID
 //                        keypair, writes both keys to company_settings,
-//                        invalidates ALL existing push subscriptions
-//                        (because they were signed with the old public key).
+//                        invalidates ALL existing push subscriptions.
 //   action: "status"   — any authenticated user. Returns whether the
 //                        platform has VAPID keys configured (boolean).
-//                        Public key is fetched separately via the RPC.
-//
-// Why server-side: the private key must never leave the server. Generating
-// in the browser would mean shipping the private half to the client first,
-// defeating the whole point.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import * as webPush from "https://esm.sh/web-push@3.6.7";
+import { encode as b64encode } from "https://deno.land/std@0.177.0/encoding/base64url.ts";
 
 const ALLOWED_ORIGINS = [
   "https://ops.kdsquares.com",
@@ -39,12 +33,29 @@ function corsHeaders(req: Request) {
 const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 const PRIVILEGED = new Set(["super_admin", "admin"]);
 
+async function generateVapidKeys(): Promise<{ publicKey: string; privateKey: string }> {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"],
+  );
+
+  const pubRaw = await crypto.subtle.exportKey("raw", keyPair.publicKey);
+  const privJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+
+  return {
+    publicKey: b64encode(new Uint8Array(pubRaw)),
+    privateKey: privJwk.d!,
+  };
+}
+
 serve(async (req) => {
   const headers = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers });
 
   try {
-    const { action } = await req.json();
+    const body = await req.json();
+    const { action } = body;
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Not authenticated" }), {
@@ -104,9 +115,8 @@ serve(async (req) => {
         );
       }
 
-      const keys = webPush.generateVAPIDKeys();
-      const { subject } = (await req.json().catch(() => ({}))) as { subject?: string };
-      const subjectFinal = subject || "mailto:code@kdsquares.com";
+      const keys = await generateVapidKeys();
+      const subjectFinal = body.subject || "mailto:code@kdsquares.com";
 
       await service
         .from("company_settings")
