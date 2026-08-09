@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Plus, CheckCircle2, Send, X, Pencil, Trash2, Loader2,
-  MessageSquare, Flag, Calendar,
+  MessageSquare, Flag, Calendar, Search, Check,
   CornerDownRight, Activity, ArrowRight, Tag as TagIcon, UserPlus,
   RotateCcw, Link2, Play, Square,
   CheckSquare, Eye, Bug, Milestone, Sparkles, ListChecks,
@@ -20,6 +20,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import type {
   Task, TaskStatus, Priority, ProfileRow, Tag, TaskComment,
@@ -92,7 +93,8 @@ export function TaskDetailPanel({
   const [titleDraft, setTitleDraft] = useState(task.title);
   const [availableGoals, setAvailableGoals] = useState<GoalRow[]>([]);
   const [additionalAssignees, setAdditionalAssignees] = useState<string[]>([]);
-  const [showAddAssignee, setShowAddAssignee] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
 
   // Dependency add state
   const [showDepAdd, setShowDepAdd] = useState(false);
@@ -378,6 +380,38 @@ export function TaskDetailPanel({
       new_value: value != null ? String(value) : null,
     }).then(() => loadActivities());
 
+    onUpdate();
+  };
+
+  // ─── Assignee toggle (ClickUp-style multi-select) ──────────
+  const allAssigneeIds = [
+    ...(task.assignee_id ? [task.assignee_id] : []),
+    ...additionalAssignees.filter((uid) => uid !== task.assignee_id),
+  ];
+
+  const toggleAssignee = async (userId: string) => {
+    const isCurrentPrimary = task.assignee_id === userId;
+    const isAdditional = additionalAssignees.includes(userId);
+
+    if (isCurrentPrimary) {
+      const remaining = additionalAssignees.filter((uid) => uid !== userId);
+      if (remaining.length > 0) {
+        const newPrimary = remaining[0];
+        await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', newPrimary);
+        await supabase.from('tasks').update({ assignee_id: newPrimary }).eq('id', task.id);
+      } else {
+        await supabase.from('tasks').update({ assignee_id: null }).eq('id', task.id);
+      }
+    } else if (isAdditional) {
+      await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', userId);
+    } else {
+      if (!task.assignee_id) {
+        await supabase.from('tasks').update({ assignee_id: userId }).eq('id', task.id);
+      } else {
+        await supabase.from('task_assignees').insert({ task_id: task.id, user_id: userId });
+      }
+    }
+    loadAdditionalAssignees();
     onUpdate();
   };
 
@@ -846,63 +880,68 @@ export function TaskDetailPanel({
               </Select>
             </MetaField>
 
-            {/* Assignee */}
-            <MetaField label="Assignee">
-              <Select value={task.assignee_id || '__none__'} onValueChange={(v) => updateField('assignee_id', v === '__none__' ? null : v)}>
-                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {Array.from(profiles.values()).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {additionalAssignees.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {additionalAssignees.map((uid) => {
-                    const p = profiles.get(uid);
-                    return (
-                      <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-muted rounded-full px-2 py-0.5">
-                        {p?.full_name || 'Unknown'}
-                        <button onClick={async () => {
-                          await supabase.from('task_assignees').delete().eq('task_id', task.id).eq('user_id', uid);
-                          loadAdditionalAssignees();
-                        }} className="hover:text-destructive">
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              {showAddAssignee ? (
-                <Select value="" onValueChange={async (uid) => {
-                  if (!uid || uid === task.assignee_id || additionalAssignees.includes(uid)) return;
-                  await supabase.from('task_assignees').insert({ task_id: task.id, user_id: uid });
-                  loadAdditionalAssignees();
-                  setShowAddAssignee(false);
-                }}>
-                  <SelectTrigger className="h-7 text-[10px] mt-1 text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Plus className="h-3 w-3" /> Select assignee...
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
+            {/* Assignee — ClickUp-style multi-select with search */}
+            <MetaField label="Assignees">
+              <Popover open={assigneePopoverOpen} onOpenChange={(open) => { setAssigneePopoverOpen(open); if (!open) setAssigneeSearch(''); }}>
+                <PopoverTrigger asChild>
+                  <button className="w-full min-h-[32px] flex flex-wrap items-center gap-1 rounded-md border border-input bg-background px-2 py-1 text-xs hover:bg-accent/50 transition-colors text-left">
+                    {allAssigneeIds.length === 0 && (
+                      <span className="text-muted-foreground">Unassigned</span>
+                    )}
+                    {allAssigneeIds.map((uid) => {
+                      const p = profiles.get(uid);
+                      const initials = p ? p.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '??';
+                      return (
+                        <span key={uid} className="inline-flex items-center gap-1 text-[10px] bg-primary/10 text-primary rounded-full pl-1 pr-1.5 py-0.5 font-medium">
+                          <span className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px] font-bold shrink-0">{initials}</span>
+                          {p?.full_name || 'Unknown'}
+                        </span>
+                      );
+                    })}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-0" align="start">
+                  <div className="p-2 border-b border-border">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-input bg-background">
+                      <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <input
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
+                        placeholder="Search or enter email..."
+                        value={assigneeSearch}
+                        onChange={(e) => setAssigneeSearch(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">People</div>
                     {Array.from(profiles.values())
-                      .filter((p) => p.id !== task.assignee_id && !additionalAssignees.includes(p.id))
-                      .map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <button
-                  onClick={() => setShowAddAssignee(true)}
-                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary mt-1.5 transition-colors"
-                >
-                  <Plus className="h-3 w-3" /> Add assignee
-                </button>
-              )}
+                      .filter((p) => {
+                        if (!assigneeSearch) return true;
+                        const q = assigneeSearch.toLowerCase();
+                        return p.full_name.toLowerCase().includes(q) || p.email.toLowerCase().includes(q);
+                      })
+                      .map((p) => {
+                        const isSelected = allAssigneeIds.includes(p.id);
+                        const initials = p.full_name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                        return (
+                          <button
+                            key={p.id}
+                            className={cn(
+                              'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs hover:bg-accent transition-colors',
+                              isSelected && 'bg-accent/50',
+                            )}
+                            onClick={() => toggleAssignee(p.id)}
+                          >
+                            <span className="h-5 w-5 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[9px] font-bold shrink-0">{initials}</span>
+                            <span className="flex-1 text-left truncate">{p.full_name}</span>
+                            {isSelected && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                          </button>
+                        );
+                      })}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </MetaField>
 
             {/* Start Date */}
