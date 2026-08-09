@@ -916,7 +916,15 @@ export function TaskDetailPanel({
                       />
                     </div>
                   </div>
-                  <div className="max-h-[280px] overflow-y-auto p-1" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div
+                    className="max-h-[280px] overflow-y-auto p-1"
+                    onWheel={(e) => {
+                      const el = e.currentTarget;
+                      const atTop = el.scrollTop === 0 && e.deltaY < 0;
+                      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight && e.deltaY > 0;
+                      if (!atTop && !atBottom) e.stopPropagation();
+                    }}
+                  >
                     <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">People</div>
                     {Array.from(profiles.values())
                       .filter((p) => {
