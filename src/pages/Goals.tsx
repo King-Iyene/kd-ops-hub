@@ -559,6 +559,7 @@ const Goals = () => {
               }
             />
           ) : (
+            <>
             <div className="hidden md:block">
             <Table>
               <TableHeader>
@@ -809,6 +810,7 @@ const Goals = () => {
                 );
               })}
             </div>
+            </>
           )}
         </CardContent>
       </Card>

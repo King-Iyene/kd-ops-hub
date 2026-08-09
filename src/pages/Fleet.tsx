@@ -4346,10 +4346,7 @@ const Fleet = () => {
 
         </main>
       </div>
-      </div>
 
-      {/* FUEL REQUEST DIALOG */}
-      {/* NEW FUEL REQUEST DIALOG */}
       {(() => {
         const requested = parseFloat(fuelForm.amount_ngn) || 0;
         const isOverBudget = !!(weekBudget && weekBudget.total > 0 && requested > weekBudget.remaining);
