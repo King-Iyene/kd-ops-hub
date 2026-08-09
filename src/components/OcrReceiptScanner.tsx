@@ -47,6 +47,9 @@ export interface OcrResult {
     overall?: number;
   };
   rawText?: string;
+  receiptNumber?: string;
+  pumpNumber?: string;
+  product?: string;
 }
 
 interface Props {
@@ -167,48 +170,77 @@ async function callDocumentAi(
 // ---------------------------------------------------------------------------
 
 function extractAmount(text: string): string | undefined {
-  const candidates: number[] = [];
+  const parseCandidate = (raw: string): number | null => {
+    const cleaned = raw.replace(/,/g, '').replace(/\.+$/, '');
+    const n = parseFloat(cleaned);
+    return (!isNaN(n) && n >= 50 && n < 100_000_000) ? n : null;
+  };
 
+  // Tier 1: "Grand Total" / "Total" labels — strongest signal
+  const grandTotalPat = /(?:grand\s*total|total\s*(?:amount|due|payable|paid))\s*[:\-=\s]*(?:₦|NGN|N|#)?\s*([\d,.]+)/gi;
+  const grandTotals: number[] = [];
+  for (const m of text.matchAll(grandTotalPat)) {
+    const n = parseCandidate(m[1]);
+    if (n) grandTotals.push(n);
+  }
+  if (grandTotals.length > 0) return String(Math.round(grandTotals[grandTotals.length - 1]));
+
+  // Tier 2: "Amount" / "Total" / currency-prefixed
   const labeledPatterns = [
-    /(?:amount|amt|total|grand\s*total|sub\s*total)\s*(?:paid|due|payable)?\s*[:\-=\s]*(?:₦|NGN|N|#)?\s*([\d,.]+)/gi,
+    /(?:amount|amt|total)\s*(?:paid|due|payable)?\s*[:\-=\s]*(?:₦|NGN|N|#)?\s*([\d,.]+)/gi,
+    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=\s]*(?:₦|NGN|N)?\s*([\d,.]+)/gi,
     /₦\s*([\d,.]+)/gi,
     /NGN\s*([\d,.]+)/gi,
-    /(?:amount\s*(?:in\s*)?(?:figures?|words?))\s*[:\-=\s]*(?:₦|NGN|N)?\s*([\d,.]+)/gi,
   ];
+  const labeled: number[] = [];
   for (const re of labeledPatterns) {
     for (const m of text.matchAll(re)) {
-      const cleaned = m[1].replace(/,/g, '').replace(/\.+$/, '');
-      const n = parseFloat(cleaned);
-      if (!isNaN(n) && n >= 50 && n < 100_000_000) candidates.push(n);
+      const n = parseCandidate(m[1]);
+      if (n) labeled.push(n);
     }
   }
-  if (candidates.length > 0) return String(Math.round(Math.max(...candidates)));
+  if (labeled.length > 0) {
+    // Prefer the last labeled match (receipts print total last) unless
+    // "sub" precedes it — subtotals come before totals.
+    const subTotalPat = /sub\s*total\s*[:\-=\s]*(?:₦|NGN|N|#)?\s*([\d,.]+)/gi;
+    const subTotals = new Set<number>();
+    for (const m of text.matchAll(subTotalPat)) {
+      const n = parseCandidate(m[1]);
+      if (n) subTotals.add(n);
+    }
+    const nonSub = labeled.filter((n) => !subTotals.has(n));
+    if (nonSub.length > 0) return String(Math.round(nonSub[nonSub.length - 1]));
+    return String(Math.round(labeled[labeled.length - 1]));
+  }
 
+  // Tier 3: lines containing amount/total keywords
   const lines = text.split('\n');
+  const keywordAmounts: number[] = [];
   for (const line of lines) {
     if (/amount|total|price|cost|paid|sum/i.test(line)) {
       const nums = line.match(/[\d,]+(?:\.\d{1,2})?/g);
       if (nums) {
         for (const raw of nums) {
-          const n = parseFloat(raw.replace(/,/g, ''));
-          if (!isNaN(n) && n >= 100 && n < 100_000_000) candidates.push(n);
+          const n = parseCandidate(raw);
+          if (n && n >= 100) keywordAmounts.push(n);
         }
       }
     }
   }
-  if (candidates.length > 0) return String(Math.round(Math.max(...candidates)));
+  if (keywordAmounts.length > 0) return String(Math.round(keywordAmounts[keywordAmounts.length - 1]));
 
+  // Tier 4: last large number on the receipt (receipts typically end with total)
   const allNums: number[] = [];
   for (const line of lines) {
     const nums = line.match(/[\d,]+(?:\.\d{1,2})?/g);
     if (nums) {
       for (const raw of nums) {
-        const n = parseFloat(raw.replace(/,/g, ''));
-        if (!isNaN(n) && n >= 500 && n < 100_000_000) allNums.push(n);
+        const n = parseCandidate(raw);
+        if (n && n >= 500) allNums.push(n);
       }
     }
   }
-  if (allNums.length > 0) return String(Math.round(Math.max(...allNums)));
+  if (allNums.length > 0) return String(Math.round(allNums[allNums.length - 1]));
 
   return undefined;
 }
@@ -321,6 +353,12 @@ function extractVendor(text: string): string | undefined {
       lower.includes('nnpc') || lower.includes('mobil') ||
       lower.includes('total') || lower.includes('oando') ||
       lower.includes('ardova') || lower.includes('conoil') ||
+      lower.includes('mrs') || lower.includes('rainoil') ||
+      lower.includes('forte') || lower.includes('eterna') ||
+      lower.includes('chipet') || lower.includes('african petroleum') ||
+      lower.includes('a.p.') || lower.includes('a p ') ||
+      lower.includes('nipco') || lower.includes('heyden') ||
+      lower.includes('shema') || lower.includes('seplat') ||
       lower.includes('services') || lower.includes('limited') ||
       lower.includes('nig') || lower.includes('ltd')
     ) {
@@ -336,6 +374,32 @@ function extractVendor(text: string): string | undefined {
     if (/tel[.:]/i.test(line)) continue;
     if (/\b(?:no|tel|phone|address)\s*[.:]/i.test(line)) continue;
     return line;
+  }
+  return undefined;
+}
+
+function extractReceiptNumber(text: string): string | undefined {
+  const patterns = [
+    /(?:receipt|rcpt|inv(?:oice)?|transaction|trans|txn|ref)\s*(?:no|num|number|#|id)?\s*[.:\-=\s]*([A-Z0-9][\w\-/]{3,20})/i,
+    /(?:no|num|number)\s*[.:\-=\s]*([A-Z0-9][\w\-/]{3,20})/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) {
+      const val = m[1].trim();
+      if (/\d/.test(val)) return val;
+    }
+  }
+  return undefined;
+}
+
+function extractPumpNumber(text: string): string | undefined {
+  const patterns = [
+    /(?:pump|nozzle|dispenser)\s*(?:no|num|number|#)?\s*[.:\-=\s]*(\d{1,3})/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return m[1];
   }
   return undefined;
 }
@@ -377,7 +441,7 @@ async function preprocessForOcr(file: File): Promise<File> {
     const gray = new Uint8Array(w * h);
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i + 1], b = d[i + 2];
-      const isCyan = (b > 120 && g > 100 && r < b - 30);
+      const isCyan = (b > 150 && g > 130 && r < b - 50 && g > r);
       gray[i >> 2] = isCyan ? 255 : Math.round(0.299 * r + 0.587 * g + 0.114 * b);
     }
 
@@ -437,7 +501,7 @@ async function preprocessGrayscaleOnly(file: File): Promise<File> {
     let min = 255, max = 0;
     for (let i = 0; i < d.length; i += 4) {
       const r = d[i], g = d[i + 1], b = d[i + 2];
-      const isCyan = (b > 120 && g > 100 && r < b - 30);
+      const isCyan = (b > 150 && g > 130 && r < b - 50 && g > r);
       const v = isCyan ? 255 : Math.round(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]);
       d[i] = d[i + 1] = d[i + 2] = v;
       if (v < min) min = v;
@@ -482,10 +546,16 @@ function pickBest(a: string | undefined, b: string | undefined): string | undefi
   const nb = parseFloat(b!.replace(/,/g, ''));
   if (!isNaN(na) && !isNaN(nb)) {
     if (na === nb) return a;
+    // If both agree within 15%, prefer the larger (likely the total, not
+    // a subtotal or unit price). If they diverge wildly, prefer the value
+    // that looks like a plausible total (not suspiciously round, within
+    // a reasonable fuel receipt range).
+    const ratio = Math.max(na, nb) / Math.min(na, nb);
+    if (ratio < 1.15) return na >= nb ? a : b;
     const aRound = /^[1-9]\d*0{2,}$/.test(String(Math.round(na)));
     const bRound = /^[1-9]\d*0{2,}$/.test(String(Math.round(nb)));
-    if (aRound !== bRound) return aRound ? a : b;
-    return na <= nb ? a : b;
+    if (aRound !== bRound) return aRound ? b : a;
+    return na >= nb ? a : b;
   }
   return (a!.length >= b!.length) ? a : b;
 }
@@ -522,6 +592,8 @@ async function runTesseractOnImage(
   const description = extractVendor(text);
   const unitPrice = extractUnitPrice(text);
   const product = extractProduct(text);
+  const receiptNumber = extractReceiptNumber(text);
+  const pumpNumber = extractPumpNumber(text);
 
   let crossValidatedAmount = amount_ngn;
   if (!crossValidatedAmount && litres && unitPrice) {
@@ -547,6 +619,9 @@ async function runTesseractOnImage(
       description,
       litres: shouldExtractLitres ? crossValidatedLitres : undefined,
       lowConfidence,
+      receiptNumber,
+      pumpNumber,
+      product,
     },
     rawText: text,
   };
@@ -579,11 +654,17 @@ async function runTesseractFallback(
   let bestDate: string | undefined;
   let bestDesc: string | undefined;
   let bestLitres: string | undefined;
+  let bestReceiptNum: string | undefined;
+  let bestPumpNum: string | undefined;
+  let bestProduct: string | undefined;
   for (const r of results) {
     bestAmount = pickBest(bestAmount, r.amount_ngn);
     bestDate = bestDate || r.date;
     bestDesc = pickBest(bestDesc, r.description);
     if (shouldExtractLitres) bestLitres = pickBest(bestLitres, r.litres);
+    bestReceiptNum = bestReceiptNum || r.receiptNumber;
+    bestPumpNum = bestPumpNum || r.pumpNumber;
+    bestProduct = bestProduct || r.product;
   }
 
   const merged: OcrResult = {
@@ -593,6 +674,9 @@ async function runTesseractFallback(
     litres: shouldExtractLitres ? bestLitres : undefined,
     lowConfidence: false,
     rawText: texts.filter(Boolean).join('\n---\n'),
+    receiptNumber: bestReceiptNum,
+    pumpNumber: bestPumpNum,
+    product: bestProduct,
   };
   merged.lowConfidence = !merged.amount_ngn && !merged.litres;
 

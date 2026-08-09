@@ -2221,13 +2221,50 @@ const Fleet = () => {
       }
       await logAudit('repair_request_submitted', `Repair (${repairIsReimbursement ? 'reimbursement' : 'company charge'}): ${repairForm.description} (${formatNaira(amount)})`, profile);
       if (flags.length > 0) {
+        const repairSeverity = scoreAnomalySeverity(flags.map((f) => f.type));
+        const repairFlagSummary = flags.map((f) => f.reason).join('; ');
         await notifyRoles({
           roles: ['super_admin', 'admin', 'finance'],
           type: 'repair_receipt_anomaly',
           module: 'fleet',
-          title: 'Repair receipt flagged for review',
-          body: `${profile?.full_name || 'Employee'}'s repair (${formatNaira(amount)}): ${flags.map((f) => f.reason).join('; ')}`,
+          priority: repairSeverity === 'critical' || repairSeverity === 'high' ? 'high' : 'normal',
+          title: `Repair flagged (${repairSeverity})`,
+          body: `${profile?.full_name || 'Employee'}'s repair (${formatNaira(amount)}): ${repairFlagSummary}`,
         });
+        if (repairSeverity === 'high' || repairSeverity === 'critical') {
+          void notifyAnomalyToAdmins({
+            title: `Fleet anomaly: ${repairSeverity} severity on repair`,
+            summary: `${profile?.full_name || 'Employee'}'s repair (${formatNaira(amount)}): ${repairFlagSummary}`,
+            severity: repairSeverity,
+            link: `${window.location.origin}/fleet`,
+          });
+        }
+        if (repairSeverity === 'critical') {
+          const { data: adminProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, phone')
+            .in('role', ['super_admin', 'admin'])
+            .eq('status', 'active');
+          if (adminProfiles && adminProfiles.length > 0) {
+            await Promise.allSettled(
+              adminProfiles.map((admin: any) =>
+                notifyChannels({
+                  user: { id: admin.id, full_name: admin.full_name, email: admin.email, phone: admin.phone },
+                  category: 'fleet',
+                  kind: 'fleet_anomaly_critical',
+                  payload: {
+                    driver_name: profile?.full_name || 'Employee',
+                    description: repairForm.description,
+                    severity: repairSeverity,
+                    flags: flags.map((f) => f.reason).slice(0, 3).join('; '),
+                  },
+                  forceChannels: { in_app: false, whatsapp: true, sms: true },
+                  idempotencyKey: `repair-anomaly-${Date.now()}`,
+                }),
+              ),
+            );
+          }
+        }
       } else {
         await notifyRoles({
           roles: ['super_admin', 'admin', 'finance'],
@@ -2357,13 +2394,23 @@ const Fleet = () => {
         profile,
       );
       if (flags.length > 0) {
+        const repairUpSeverity = scoreAnomalySeverity(flags.map((f) => f.type));
         await notifyRoles({
           roles: ['super_admin', 'admin', 'finance'],
           type: 'repair_receipt_anomaly',
           module: 'fleet',
-          title: 'Repair receipt flagged for review',
+          priority: repairUpSeverity === 'critical' || repairUpSeverity === 'high' ? 'high' : 'normal',
+          title: `Repair receipt flagged (${repairUpSeverity})`,
           body: `${profile?.full_name || 'Employee'}'s receipt for ${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}: ${flags.map((f) => f.reason).join('; ')}`,
         });
+        if (repairUpSeverity === 'high' || repairUpSeverity === 'critical') {
+          void notifyAnomalyToAdmins({
+            title: `Fleet anomaly: ${repairUpSeverity} severity on repair receipt`,
+            summary: `${profile?.full_name || 'Employee'}'s receipt (${formatNaira(uploadingRepairReceiptFor.amount_ngn || 0)}): ${flags.map((f) => f.reason).join('; ')}`,
+            severity: repairUpSeverity,
+            link: `${window.location.origin}/fleet`,
+          });
+        }
       } else {
         await notifyRoles({
           roles: ['super_admin', 'admin', 'finance'],
@@ -2563,15 +2610,34 @@ const Fleet = () => {
       return;
     }
 
-    // RULE 1: notify admins on trip anomaly (e.g. distance > 500 km)
-    if (isAnomaly) {
+    // RULE 1: notify admins on trip anomaly with severity-based escalation
+    if (isAnomaly && anomalyReason) {
+      const tripFlagTypes = anomalyReason.split('; ').map((r) => {
+        if (r.includes('backwards')) return 'odometer_regression';
+        if (r.includes('500 km')) return 'excessive_distance';
+        if (r.includes('12 hours')) return 'excessive_duration';
+        if (r.includes('Implausibly')) return 'implausible_trip';
+        if (r.includes('No distance')) return 'stationary_trip';
+        if (r.includes('150 km/h')) return 'excessive_speed';
+        return 'trip_anomaly';
+      });
+      const tripSeverity = scoreAnomalySeverity(tripFlagTypes);
       await notifyRoles({
         roles: ['super_admin', 'admin', 'operations'],
         type: 'trip_anomaly',
         module: 'fleet',
-        title: 'Trip anomaly detected',
-        body: anomalyReason || 'A trip has been flagged for review.',
+        priority: tripSeverity === 'critical' || tripSeverity === 'high' ? 'high' : 'normal',
+        title: `Trip anomaly (${tripSeverity})`,
+        body: anomalyReason,
       });
+      if (tripSeverity === 'high' || tripSeverity === 'critical') {
+        void notifyAnomalyToAdmins({
+          title: `Fleet anomaly: ${tripSeverity} severity on trip`,
+          summary: `${profile?.full_name || 'Employee'}: ${anomalyReason}`,
+          severity: tripSeverity,
+          link: `${window.location.origin}/fleet`,
+        });
+      }
     }
 
     // RULE 4: notify admins when vehicle ends trip far from home base
@@ -3612,6 +3678,28 @@ const Fleet = () => {
         }
       }
 
+      // Odometer regression — detect if this vehicle's recent trips show
+      // suspicious odometer patterns (e.g. regression or implausible jumps).
+      if (receiptVehicleForCheck) {
+        const { data: recentOdos } = await supabase
+          .from('trip_logs')
+          .select('odometer_start, odometer_end')
+          .eq('vehicle_id', receiptVehicleForCheck)
+          .not('odometer_end', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(2);
+        if (recentOdos && recentOdos.length >= 2) {
+          const latest = recentOdos[0].odometer_end;
+          const previous = recentOdos[1].odometer_end;
+          if (latest != null && previous != null) {
+            const odoCheck = checkOdometerRegression(latest, previous);
+            if (odoCheck.flagged && odoCheck.reason) {
+              flags.push({ type: 'odometer_regression', reason: odoCheck.reason });
+            }
+          }
+        }
+      }
+
       // Severity scoring across all flags
       const severity = scoreAnomalySeverity(flags.map((f) => f.type));
 
@@ -3668,7 +3756,7 @@ const Fleet = () => {
           void notifyAnomalyToAdmins({
             title: `Fleet anomaly: ${severity} severity on fuel receipt`,
             summary: `${driverName}'s receipt at ${stationName} — ${flags.length} flag${flags.length > 1 ? 's' : ''}: ${flagSummary}`,
-            severity: severity === 'critical' ? 'high' : 'medium',
+            severity,
             link: `${window.location.origin}/fleet`,
           });
         }

@@ -72,7 +72,7 @@ export async function notifyRequestRejected(args: {
 export async function notifyAnomalyToAdmins(args: {
   title: string;
   summary: string;
-  severity: 'low' | 'medium' | 'high';
+  severity: 'low' | 'medium' | 'high' | 'critical';
   link?: string;
 }): Promise<void> {
   const { data: admins } = await supabase
