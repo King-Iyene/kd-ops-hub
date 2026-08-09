@@ -1029,6 +1029,48 @@ export type Database = {
           },
         ]
       }
+      calendar_integrations: {
+        Row: {
+          access_token: string | null
+          calendar_id: string | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          provider: string
+          refresh_token: string | null
+          sync_enabled: boolean
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          sync_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       cash_balance_snapshots: {
         Row: {
           cash_on_hand_ngn: number
@@ -8736,6 +8778,7 @@ export type Database = {
         Row: {
           assignee_id: string | null
           created_at: string
+          group_name: string
           id: string
           is_checked: boolean
           sort_order: number
@@ -8745,6 +8788,7 @@ export type Database = {
         Insert: {
           assignee_id?: string | null
           created_at?: string
+          group_name?: string
           id?: string
           is_checked?: boolean
           sort_order?: number
@@ -8754,6 +8798,7 @@ export type Database = {
         Update: {
           assignee_id?: string | null
           created_at?: string
+          group_name?: string
           id?: string
           is_checked?: boolean
           sort_order?: number
@@ -8862,6 +8907,75 @@ export type Database = {
           },
         ]
       }
+      task_forms: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_assignee_id: string | null
+          default_priority: string
+          default_status: string
+          description: string | null
+          fields: Json
+          id: string
+          is_active: boolean
+          list_id: string | null
+          name: string
+          space_id: string | null
+          submission_count: number
+          submit_message: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_assignee_id?: string | null
+          default_priority?: string
+          default_status?: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          list_id?: string | null
+          name: string
+          space_id?: string | null
+          submission_count?: number
+          submit_message?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_assignee_id?: string | null
+          default_priority?: string
+          default_status?: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          list_id?: string | null
+          name?: string
+          space_id?: string | null
+          submission_count?: number
+          submit_message?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_forms_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "task_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_forms_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_lists: {
         Row: {
           color: string | null
@@ -8913,6 +9027,44 @@ export type Database = {
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "project_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_reminders: {
+        Row: {
+          created_at: string
+          id: string
+          is_dismissed: boolean
+          note: string | null
+          remind_at: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean
+          note?: string | null
+          remind_at: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_dismissed?: boolean
+          note?: string | null
+          remind_at?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_reminders_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
         ]
