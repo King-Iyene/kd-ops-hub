@@ -27,6 +27,7 @@ export type NotificationTemplateKind =
   | 'compliance_due_soon'
   | 'batch_approval_pending'
   | 'anomaly_detected'
+  | 'fleet_anomaly_critical'
   | 'runway_warning';
 
 export interface RenderedTemplate {
@@ -160,6 +161,16 @@ export const NOTIFICATION_TEMPLATES = {
       body: clamp(
         `KD Squares: ${p.count} ${p.severity}-severity anomal${p.count === 1 ? 'y' : 'ies'} ` +
         `flagged in ${p.module}. Review in the Anomalies queue.`,
+      ),
+    };
+  },
+
+  fleet_anomaly_critical: (p: { driver_name: string; station: string; severity: string; flags: string }): RenderedTemplate => {
+    return {
+      title: `Fleet alert: ${p.severity} anomaly on fuel receipt`,
+      body: clamp(
+        `KD Squares Fleet: ${p.driver_name}'s receipt at ${p.station} flagged ${p.severity}. ` +
+        `${p.flags}. Review immediately in Fleet → Anomalies.`,
       ),
     };
   },

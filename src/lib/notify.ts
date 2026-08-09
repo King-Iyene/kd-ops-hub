@@ -26,6 +26,7 @@ const MODULE_TO_PUSH_CATEGORY: Record<string, 'approvals' | 'transfers' | 'anoma
   subscriptions: 'schedules',
   payment_schedule: 'schedules',
   schedules:     'schedules',
+  fleet:         'anomalies',
 };
 
 /**
@@ -146,7 +147,8 @@ export type NotificationCategory =
   | 'ewa'
   | 'leave'
   | 'approvals'
-  | 'compliance';
+  | 'compliance'
+  | 'fleet';
 
 interface ProfileLite {
   id: string;

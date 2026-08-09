@@ -6,7 +6,8 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { validateFileSize } from '@/lib/file-validation';
 import { writeRejectionNotification, isValidRejectionReason } from '@/lib/rejections';
-import { notifyUser, notifyRoles } from '@/lib/notify';
+import { notifyUser, notifyRoles, notifyChannels } from '@/lib/notify';
+import { notifyAnomalyToAdmins } from '@/lib/notify-events';
 import { formatNaira, formatDate, formatTime } from '@/lib/format';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { FilePreviewTrigger } from '@/components/FilePreview';
@@ -73,7 +74,7 @@ import {
 } from '@/lib/paystack';
 import { approveExpense, rejectExpense, startBatchProcessing } from '@/lib/transfer-safety';
 import { cn } from '@/lib/utils';
-import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median } from '@/lib/receipts';
+import { hashFile, watermarkImage, checkPumpPrice, checkReceiptRequestDivergence, checkOdometerRegression, checkRepairCostOutlier, checkStaleReceipt, blendBenchmark, median, checkMathMismatch, checkTankOverflow, checkFuelRequestFrequency, checkOcrManualMismatch, scoreAnomalySeverity } from '@/lib/receipts';
 import { hasJpegExif, generateElaHeatmap } from '@/lib/receiptForensics';
 import { OcrReceiptScanner, type OcrResult } from '@/components/OcrReceiptScanner';
 import { VehicleInspectionForm } from '@/components/fleet/VehicleInspectionForm';
@@ -1541,6 +1542,7 @@ const Fleet = () => {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptForm, setReceiptForm] = useState({ fuel_station_name: '', amount_ngn: '', litres_filled: '', receipt_date: '', notes: '' });
   const [receiptScanWarning, setReceiptScanWarning] = useState('');
+  const [ocrReadValues, setOcrReadValues] = useState<{ amount: number | null; litres: number | null }>({ amount: null, litres: null });
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Tamper-analysis (ELA) — an on-demand, admin-triggered visual aid.
@@ -3488,6 +3490,59 @@ const Fleet = () => {
         if (staleReason) flags.push({ type: 'stale_receipt', reason: staleReason });
       }
 
+      // Math cross-validation: Amount ≈ Litres × BenchmarkPrice
+      if (fuelPriceBenchmark && litresNum > 0 && amountNum > 0) {
+        const mathCheck = checkMathMismatch(amountNum, litresNum, fuelPriceBenchmark);
+        if (mathCheck.flagged && mathCheck.reason) {
+          flags.push({ type: 'math_mismatch', reason: mathCheck.reason });
+        }
+      }
+
+      // Tank capacity overflow
+      const receiptVehicleForCheck = (uploadingReceiptFor as any).vehicle_id as string | null;
+      if (receiptVehicleForCheck && litresNum > 0) {
+        const veh = vehicles.find((v) => v.id === receiptVehicleForCheck);
+        if (veh) {
+          const tankCheck = checkTankOverflow(litresNum, veh.tank_capacity_litres || null, veh.current_fuel_litres || null);
+          if (tankCheck.flagged && tankCheck.reason) {
+            flags.push({ type: 'tank_overflow', reason: tankCheck.reason });
+          }
+        }
+      }
+
+      // Fuel request frequency — same driver requesting too often
+      const driverId = uploadingReceiptFor.driver_id || (uploadingReceiptFor as any).user_id;
+      if (driverId) {
+        const { data: recentReqs } = await supabase
+          .from('fuel_requests')
+          .select('created_at')
+          .eq('driver_id', driverId)
+          .neq('id', uploadingReceiptFor.id)
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (recentReqs && recentReqs.length > 0) {
+          const freqCheck = checkFuelRequestFrequency(
+            recentReqs.map((r: any) => r.created_at),
+            new Date(),
+          );
+          if (freqCheck.flagged && freqCheck.reason) {
+            flags.push({ type: 'fuel_frequency', reason: freqCheck.reason });
+          }
+        }
+      }
+
+      // OCR vs manually-entered amount mismatch
+      if (ocrReadValues.amount && amountNum) {
+        const ocrCheck = checkOcrManualMismatch(ocrReadValues.amount, amountNum);
+        if (ocrCheck.flagged && ocrCheck.reason) {
+          flags.push({ type: 'ocr_manual_mismatch', reason: ocrCheck.reason });
+        }
+      }
+
+      // Severity scoring across all flags
+      const severity = scoreAnomalySeverity(flags.map((f) => f.type));
+
       // EXIF absence is too common on legitimate photos (WhatsApp/Telegram
       // strip it) to justify a flag on its own — it only ever rides along
       // as extra context on a receipt something else has already flagged.
@@ -3522,13 +3577,58 @@ const Fleet = () => {
       if (error) throw error;
 
       if (flags.length > 0) {
+        const driverName = profile?.full_name || 'Employee';
+        const stationName = uploadingReceiptFor.station_name || receiptForm.fuel_station_name || 'Unknown station';
+        const flagSummary = flags.map((f) => f.reason).join('; ');
+
+        // In-app + push for ALL flagged receipts
         await notifyRoles({
           roles: ['super_admin', 'admin', 'finance'],
           type: 'fuel_receipt_anomaly',
           module: 'fleet',
-          title: 'Fuel receipt flagged for review',
-          body: `${profile?.full_name || 'Employee'}'s receipt for ${uploadingReceiptFor.station_name}: ${flags.map((f) => f.reason).join('; ')}`,
+          priority: severity === 'critical' || severity === 'high' ? 'high' : 'normal',
+          title: `Fuel receipt flagged (${severity})`,
+          body: `${driverName}'s receipt at ${stationName}: ${flagSummary}`,
         });
+
+        // Email escalation for high + critical severity
+        if (severity === 'high' || severity === 'critical') {
+          void notifyAnomalyToAdmins({
+            title: `Fleet anomaly: ${severity} severity on fuel receipt`,
+            summary: `${driverName}'s receipt at ${stationName} — ${flags.length} flag${flags.length > 1 ? 's' : ''}: ${flagSummary}`,
+            severity: severity === 'critical' ? 'high' : 'medium',
+            link: `${window.location.origin}/fleet`,
+          });
+        }
+
+        // WhatsApp/SMS escalation for critical severity — reaches admins
+        // even when they're not looking at the app.
+        if (severity === 'critical') {
+          const { data: adminProfiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, phone')
+            .in('role', ['super_admin', 'admin'])
+            .eq('status', 'active');
+          if (adminProfiles && adminProfiles.length > 0) {
+            await Promise.allSettled(
+              adminProfiles.map((admin: any) =>
+                notifyChannels({
+                  user: { id: admin.id, full_name: admin.full_name, email: admin.email, phone: admin.phone },
+                  category: 'fleet',
+                  kind: 'fleet_anomaly_critical',
+                  payload: {
+                    driver_name: driverName,
+                    station: stationName,
+                    severity,
+                    flags: flags.map((f) => f.reason).slice(0, 3).join('; '),
+                  },
+                  forceChannels: { in_app: false, whatsapp: true, sms: true },
+                  idempotencyKey: `fleet-anomaly-${uploadingReceiptFor.id}`,
+                }),
+              ),
+            );
+          }
+        }
       }
       // Propagate receipt_url to the linked expense row so finance can see
       // it on the Expenses page without switching to Fleet.
@@ -6310,6 +6410,10 @@ const Fleet = () => {
                     warning = `This looks like a ${result.receiptType} receipt, not a fuel receipt — double-check you're uploading the right one.`;
                   }
                   setReceiptScanWarning(warning);
+                  setOcrReadValues({
+                    amount: result.amount_ngn ? parseFloat(result.amount_ngn) || null : null,
+                    litres: result.litres ? parseFloat(result.litres) || null : null,
+                  });
                   setReceiptForm((f) => ({
                     ...f,
                     fuel_station_name: result.description || f.fuel_station_name,

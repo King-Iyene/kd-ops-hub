@@ -239,3 +239,182 @@ export function checkOdometerRegression(newOdometer: number, lastKnownOdometer: 
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Enhanced anomaly checks — cross-validation, capacity, frequency, OCR trust
+// ---------------------------------------------------------------------------
+
+export interface MathMismatchCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Verifies Amount ≈ Litres × UnitPrice. Catches receipts where the
+ * numbers don't add up — either a fat-finger or intentional inflation.
+ * Tolerance is 5% to absorb rounding on handwritten/OCR'd values.
+ */
+export function checkMathMismatch(
+  amountNgn: number,
+  litres: number,
+  unitPriceNgn: number,
+): MathMismatchCheck {
+  if (!amountNgn || !litres || !unitPriceNgn || litres <= 0 || unitPriceNgn <= 0) {
+    return { flagged: false, reason: null };
+  }
+  const expected = litres * unitPriceNgn;
+  const deviation = Math.abs(amountNgn - expected) / expected;
+  if (deviation > 0.05) {
+    return {
+      flagged: true,
+      reason: `Amount ₦${amountNgn.toLocaleString()} doesn't match ${litres}L × ₦${unitPriceNgn.toLocaleString()}/L = ₦${Math.round(expected).toLocaleString()} (${Math.round(deviation * 100)}% off)`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
+export interface TankOverflowCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Flags when litres claimed exceed the vehicle's tank capacity. Common
+ * fraud vector: driver claims 80L on a 55L tank.
+ */
+export function checkTankOverflow(
+  litresClaimed: number,
+  tankCapacityLitres: number | null,
+  currentFuelLitres: number | null,
+): TankOverflowCheck {
+  if (!litresClaimed || litresClaimed <= 0 || !tankCapacityLitres || tankCapacityLitres <= 0) {
+    return { flagged: false, reason: null };
+  }
+  const headroom = tankCapacityLitres - (currentFuelLitres || 0);
+  if (litresClaimed > tankCapacityLitres) {
+    return {
+      flagged: true,
+      reason: `${litresClaimed}L exceeds the vehicle's ${tankCapacityLitres}L tank capacity`,
+    };
+  }
+  if (currentFuelLitres != null && currentFuelLitres > 0 && litresClaimed > headroom * 1.15) {
+    return {
+      flagged: true,
+      reason: `${litresClaimed}L exceeds the ~${Math.round(headroom)}L headroom (tank: ${tankCapacityLitres}L, current: ~${Math.round(currentFuelLitres)}L)`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
+export interface FrequencyCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Flags when a driver requests fuel suspiciously often. Two sub-checks:
+ *   1. More than 2 requests in the same calendar day.
+ *   2. More than 6 requests in the past 7 days.
+ * Thresholds are generous because some fleets genuinely refuel daily
+ * during high-activity periods.
+ */
+export function checkFuelRequestFrequency(
+  recentRequestTimestamps: string[],
+  now: Date,
+): FrequencyCheck {
+  if (!recentRequestTimestamps.length) return { flagged: false, reason: null };
+
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayCount = recentRequestTimestamps.filter(
+    (ts) => new Date(ts).getTime() >= todayStart.getTime(),
+  ).length;
+
+  if (todayCount >= 2) {
+    return {
+      flagged: true,
+      reason: `${todayCount + 1} fuel requests today — unusually high for a single driver`,
+    };
+  }
+
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const weekCount = recentRequestTimestamps.filter(
+    (ts) => new Date(ts).getTime() >= sevenDaysAgo.getTime(),
+  ).length;
+
+  if (weekCount >= 6) {
+    return {
+      flagged: true,
+      reason: `${weekCount + 1} fuel requests in the past 7 days — please verify consumption`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
+export interface OcrManualMismatchCheck {
+  flagged: boolean;
+  reason: string | null;
+}
+
+/**
+ * Flags when the OCR-extracted amount differs significantly from what the
+ * driver manually entered. If OCR reads "96607" but the driver types "50000",
+ * something is wrong on one side.
+ */
+export function checkOcrManualMismatch(
+  ocrAmount: number | null,
+  manualAmount: number,
+): OcrManualMismatchCheck {
+  if (!ocrAmount || !manualAmount || ocrAmount <= 0 || manualAmount <= 0) {
+    return { flagged: false, reason: null };
+  }
+  const deviation = Math.abs(ocrAmount - manualAmount) / Math.max(ocrAmount, manualAmount);
+  if (deviation > 0.15) {
+    return {
+      flagged: true,
+      reason: `OCR read ₦${ocrAmount.toLocaleString()} but ₦${manualAmount.toLocaleString()} was entered (${Math.round(deviation * 100)}% difference)`,
+    };
+  }
+  return { flagged: false, reason: null };
+}
+
+// ---------------------------------------------------------------------------
+// Severity scoring — turns a bag of flags into a single escalation level.
+// ---------------------------------------------------------------------------
+
+export type AnomalySeverity = 'low' | 'medium' | 'high' | 'critical';
+
+const SEVERITY_WEIGHTS: Record<string, number> = {
+  duplicate_receipt: 5,
+  math_mismatch: 4,
+  tank_overflow: 4,
+  ocr_manual_mismatch: 3,
+  price_divergence: 3,
+  amount_mismatch: 3,
+  fuel_frequency: 2,
+  stale_receipt: 2,
+  odometer_regression: 2,
+  ocr_low_confidence: 1,
+};
+
+/**
+ * Scores a set of anomaly flags and returns a severity level.
+ *   - critical (≥8 points or duplicate_receipt present): immediate WhatsApp + email
+ *   - high (≥5 points): email + push
+ *   - medium (≥3 points): push
+ *   - low (<3 points): in-app only
+ */
+export function scoreAnomalySeverity(flagTypes: string[]): AnomalySeverity {
+  if (flagTypes.length === 0) return 'low';
+  if (flagTypes.includes('duplicate_receipt')) return 'critical';
+
+  let total = 0;
+  for (const t of flagTypes) {
+    total += SEVERITY_WEIGHTS[t] || 1;
+  }
+  if (total >= 8) return 'critical';
+  if (total >= 5) return 'high';
+  if (total >= 3) return 'medium';
+  return 'low';
+}
