@@ -51,6 +51,9 @@ import {
   Download,
   Eye,
   EyeOff,
+  Fuel,
+  BarChart2,
+  FolderOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -2471,6 +2474,9 @@ function SystemReferencePanel() {
               <p><strong>Phase 6 — Recruitment Pipeline.</strong> A Recruitment page (Operations group) manages the full hiring lifecycle: create job openings with title, department, employment type (full-time / part-time / contract / intern), salary range, and closing date. Add applicants to each opening; move them through the pipeline stages: New → Screening → Interview 1 → Interview 2 → Offer → Hired / Rejected. Record interview dates, assigned interviewers, offer amounts, and rejection reasons. Stage-filter buttons on each opening show counts per stage. Summary cards track active openings, total applicants, offers out, and hired count. CSV export included.</p>
               <p><strong>Phase 6 — Attendance &amp; Timesheets.</strong> An Attendance page (Operations group) records daily attendance per employee. Each record captures clock-in and clock-out times (stored as TIME — single-timezone Nigeria WAT), attendance status (present / absent / late / half-day / remote / on-leave / public holiday), and overtime minutes. One record per employee per date is enforced by a UNIQUE constraint — upsert on conflict handles re-submission. The page shows a month navigator with a running summary of present, late, absent, and on-leave counts. Overtime hours are totalled for the period. CSV export per month included.</p>
               <p><strong>Phase 6 — Disciplinary Records.</strong> A Disciplinary page (Admin + Super Admin only) manages formal HR actions per Nigerian Labour Act requirements. Incident types cover the full ladder: verbal warning → written warning → final warning → query / show-cause → suspension → termination, plus counselling and other. Each record stores the subject, incident details, formal outcome, and the number of suspension days (if applicable). Employees can formally respond to queries (show-cause letters) via the built-in response thread. Records can be acknowledged (confirming the employee received the notice — required for fair hearing) and expunged with a reason after a clean-record period. Expunged records remain in the audit trail but are hidden from active history unless "Show expunged" is toggled. CSV export included.</p>
+              <p><strong>Phase 7 — Fleet Intelligence.</strong> The Fleet Dashboard tab now opens with a Fleet Insights Panel — a composite health score (0–100%) for each vehicle based on fuel efficiency (20%), maintenance compliance (30%), document/compliance status (30%), and inspection results (20%). Smart insights engine generates actionable alerts: overdue maintenance, budget overruns, anomaly rates above 15%, unresolved inspection defects, low fuel efficiency, and week-over-week spend trends. Quick action buttons jump to inspections, maintenance, anomalies, or compliance. Below the insights panel, a Fuel Cost Optimizer ranks vehicles by cost-per-km over 30 days, highlights the best fuel station by average price per litre, and calculates monthly savings opportunity by bringing worst performers to fleet average.</p>
+              <p><strong>Phase 7 — Inspection Defect Resolution.</strong> Inspection defects now have a structured resolution workflow. Each defect card shows a green "Resolve" button that opens a dialog with 8 action options: repaired, replaced, adjusted, cleaned, calibrated, temporary_fix, deferred, or not_required. Resolution includes optional repair cost (₦) and notes. Resolved defects show a green "Resolved" badge with the action taken. Available to all authenticated users, not just admins.</p>
+              <p><strong>Phase 7 — Document Management Overhaul.</strong> The Documents page was completely rebuilt. New features: (1) Folder system — create folders with custom colors, navigate with breadcrumbs, nest documents inside folders. (2) Entity linking — tag any document to a client, employee, vehicle, or project for cross-referencing. (3) Drag &amp; drop upload — drop files anywhere on the page. (4) Bulk upload — select multiple files at once with a progress bar. (5) Grid + list view toggle. (6) Dashboard stats cards showing total docs, expiring soon, expired, linked count, and folder count. (7) Entity filter in toolbar — filter by client/employee/vehicle/project/unlinked. (8) Document detail dialog with full metadata. (9) Template flag for reusable documents. (10) Access tracking — records last_accessed_at and access_count on every download. (11) Expanded categories: contract, agreement, receipt, invoice, ID document, policy, report, proposal, letter, certificate, license, insurance, tax, HR, onboarding, template, other. Upload roles expanded to include finance and operations (not just admin).</p>
               <p><strong>Pre-launch hardening (2026-04-29).</strong> Six go-live blockers and four high-priority issues resolved before production launch: (1) Batch payments now run server-side (edge function, 50-item chunks, 8-way concurrency, 120 s budget) — a 1,000-transfer batch completes in ~3.5 min regardless of tab state. A pg_cron watchdog fires every minute to rescue orphaned batches. (2) Optimistic concurrency guard prevents double-payment when two admins click Process simultaneously. (3) Paystack fees now display on batch items and fuel requests with a three-tier fallback (webhook data → raw JSON → tier estimate). (4) Fleet Activity tab restricted to admin/finance/super_admin; PermissionsEditor updated with fleet.view_activity key. (5) Security hardening: BEFORE UPDATE trigger blocks role self-elevation, transactions_view switched to security_invoker, company_settings locked to admin/finance/super_admin, fuel request RLS widened to include finance role. (6) Hot-table indexes added on audit_logs, notifications, and batch_items. Status preconditions added to all state transitions (batch and fuel) to prevent stale-state races. CI workflow added (lint + typecheck + build on every push to main).</p>
               <p className="text-muted-foreground border-t pt-2 mt-2">
                 Database changes live in <code>supabase/migrations/</code> · Server-side helpers in <code>supabase/functions/</code> · After deploying, run <code>supabase db push</code> to apply any new database changes.
@@ -2526,6 +2532,10 @@ function SystemReferencePanel() {
                 { a: 'Recruitment Pipeline',                   b: 'Post job openings with salary range, employment type, and closing date. Move applicants through a 7-stage pipeline (New → Screening → Interviews → Offer → Hired / Rejected). Track interview dates, assigned interviewers, and offer amounts. Stage-filter buttons on each opening show live counts.' },
                 { a: 'Attendance & Timesheets',                b: 'Log daily clock-in/out and attendance status per employee. Month navigator with running totals for present, late, absent, and on-leave. Overtime minutes tracked per day and summed for the period. One record per employee per date enforced at the database level.' },
                 { a: 'Disciplinary Records',                   b: 'Full disciplinary ladder: verbal → written → final warning → query → suspension → termination. Employee response thread for show-cause replies (required for fair hearing). Acknowledge receipt, expunge after clean-record period. Visible to Admin and Super Admin only.' },
+                { a: 'Fleet Insights Panel',                    b: 'The Fleet Dashboard now opens with a health score panel. Each vehicle gets a composite 0–100% health score based on fuel efficiency (20%), maintenance compliance (30%), document/compliance (30%), and inspection results (20%). Smart insights engine generates alerts: overdue maintenance, budget overruns, anomaly rates > 15%, unresolved defects, low fuel efficiency, and week-over-week spend trends. Quick-action buttons jump directly to inspections, maintenance, anomalies, or compliance.' },
+                { a: 'Fuel Cost Optimizer',                     b: 'Below the Fleet Insights Panel, a cost optimizer ranks vehicles by cost-per-km over 30 days. Highlights the best fuel station by average price per litre. Calculates monthly savings opportunity by bringing worst performers to fleet average. Vehicles rated as "Efficient" (below average cost/km) or "High" (above average).' },
+                { a: 'Inspection Defect Resolution',            b: 'Inspection defects now have a structured resolution workflow. Green "Resolve" button opens a dialog with 8 action options (repaired, replaced, adjusted, cleaned, calibrated, temporary_fix, deferred, not_required). Optional repair cost and notes. Resolved defects show a green badge. Available to all users.' },
+                { a: 'Document Management Overhaul',            b: 'Documents page rebuilt with: folder system (custom colours, breadcrumb navigation), entity linking (tag to client/employee/vehicle/project), drag-and-drop upload, bulk upload with progress bar, grid + list view toggle, dashboard stats (total/expiring/expired/linked/folders), entity filter toolbar, document detail dialog, template flag, access tracking (last_accessed_at + access_count), 17 document categories. Upload roles expanded to include finance and operations.' },
               ]}
             />
           </RefSection>
@@ -2669,6 +2679,47 @@ function SystemReferencePanel() {
                 { a: 'Odometer validation',         b: 'End reading must be ≥ start reading' },
                 { a: 'Payment type toggle',         b: 'Naming-only — bank fields always visible regardless of toggle' },
                 { a: 'Reimbursement vs company',    b: 'Toggle on fuel & repair forms; stored on expense row (is_reimbursement)' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={BarChart2} title="Fleet Insights Panel">
+            <RefTable
+              cols={['Feature', 'Detail']}
+              rows={[
+                { a: 'Vehicle health score',     b: 'Composite 0–100% per vehicle: fuel efficiency (20%) + maintenance compliance (30%) + document/compliance (30%) + inspection results (20%)' },
+                { a: 'Smart insights engine',    b: 'Auto-generates alerts: overdue maintenance, budget overruns, anomaly rates > 15%, unresolved defects, low fuel efficiency, WoW spend trends' },
+                { a: 'Health breakdown',         b: 'Per-vehicle progress bars with colour coding (green > 80%, amber 50–80%, red < 50%), issue tags, trend indicators' },
+                { a: 'Quick actions',            b: 'Jump buttons: run inspection, schedule maintenance, review anomalies, check compliance' },
+                { a: 'Data range',               b: '30-day rolling window for all calculations' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={Fuel} title="Fuel Cost Optimizer">
+            <RefTable
+              cols={['Feature', 'Detail']}
+              rows={[
+                { a: 'Cost-per-km ranking',      b: 'All vehicles ranked by fuel spend ÷ km driven over 30 days. Top 8 displayed.' },
+                { a: 'Efficiency rating',        b: 'Vehicles at or below fleet average cost/km = "Efficient" (green). Above average = "High" (red).' },
+                { a: 'Best station highlight',   b: 'Fuel station with lowest average price per litre across all requests' },
+                { a: 'Savings opportunity',      b: 'Monthly savings estimate by bringing worst-half performers down to fleet average cost/km' },
+                { a: 'Fleet avg cost/km',        b: 'Computed as mean of all vehicles with both spend and distance data' },
+                { a: 'Station anomaly rate',     b: 'Per station: percentage of fuel requests flagged as anomalies' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={CheckCircle2} title="Inspection defect resolution">
+            <RefTable
+              cols={['Rule', 'Detail']}
+              rows={[
+                { a: 'Resolution actions',       b: 'repaired · replaced · adjusted · cleaned · calibrated · temporary_fix · deferred · not_required' },
+                { a: 'Repair cost',              b: 'Optional ₦ amount recorded per resolution' },
+                { a: 'Notes',                    b: 'Free-text resolution notes (optional)' },
+                { a: 'Visual indicator',         b: 'Resolved defects show green "Resolved" badge with action taken' },
+                { a: 'Access',                   b: 'All authenticated users can resolve defects (not restricted to admin)' },
+                { a: 'Resolve button placement', b: 'Green button on each defect card + in defect detail view' },
               ]}
             />
           </RefSection>
@@ -3042,7 +3093,8 @@ function SystemReferencePanel() {
                 { a: 'Projects',            b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
                 { a: 'Tasks',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
                 { a: 'Goals',               b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
-                { a: 'Documents',           b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
+                { a: 'Documents (read)',     b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
+                { a: 'Documents (upload)',   b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
                 { a: 'Audit Log',           b: '✓', c: '✓', d: '—', e: '—', f: '—' },
                 { a: 'Settings',            b: '✓', c: '—', d: '—', e: '—', f: '—' },
               ]}
@@ -3066,6 +3118,9 @@ function SystemReferencePanel() {
                 { a: 'Disciplinary responses',   b: 'super_admin / admin only (RLS)' },
                 { a: 'Company settings read',    b: 'super_admin / admin / finance only — no longer readable by all authenticated users' },
                 { a: 'Fuel request management',  b: 'super_admin / admin / finance (RLS policy "Staff can manage fuel requests")' },
+                { a: 'Document folders create',  b: 'super_admin / admin / finance / operations (RLS)' },
+                { a: 'Document folders update',  b: 'super_admin / admin OR folder creator (RLS)' },
+                { a: 'Document folders delete',  b: 'super_admin / admin only (RLS)' },
               ]}
             />
           </RefSection>
@@ -3112,6 +3167,27 @@ function SystemReferencePanel() {
                 { a: 'Documents bucket',            b: 'Private — preview uses short-lived signed URLs' },
                 { a: 'Receipts bucket',             b: 'Private — same signed-URL pattern' },
                 { a: 'Documents auto-delete',       b: 'NEVER — HR / legal docs survive any retention policy' },
+              ]}
+            />
+          </RefSection>
+
+          <RefSection icon={FolderOpen} title="Document Management">
+            <RefTable
+              cols={['Feature', 'Detail']}
+              rows={[
+                { a: 'Folder system',            b: 'Create folders with custom colours and icons. Breadcrumb navigation. Folders can be linked to entities (client/employee/vehicle/project).' },
+                { a: 'Entity linking',           b: 'Tag documents to: client (Building2), employee (Users), vehicle (Car), project (Briefcase). Filter by entity type in toolbar.' },
+                { a: 'Drag & drop upload',       b: 'Drop files anywhere on the page — auto-opens upload form with file pre-attached.' },
+                { a: 'Bulk upload',              b: 'Select multiple files at once. Progress bar tracks completion. Each file creates a separate document record.' },
+                { a: 'Grid + list view',         b: 'Toggle between card grid and table list view. Preference persists during session.' },
+                { a: 'Dashboard stats',          b: 'Cards showing: total documents, expiring soon (30 days), expired, linked to entities, total folders.' },
+                { a: 'Document categories',      b: 'contract · agreement · receipt · invoice · id_document · policy · report · proposal · letter · certificate · license · insurance · tax · hr · onboarding · template · other' },
+                { a: 'Template flag',            b: 'Mark documents as templates for reuse. Template badge displayed on cards.' },
+                { a: 'Access tracking',          b: 'Every download updates last_accessed_at timestamp and increments access_count.' },
+                { a: 'Document detail dialog',   b: 'Full metadata view: title, description, category, entity link, tags, file size, upload date, expiry, version, access count.' },
+                { a: 'Version tracking',         b: 'version INT (default 1) + parent_document_id FK for document lineage.' },
+                { a: 'Upload roles',             b: 'admin · finance · operations · super_admin (expanded from admin-only)' },
+                { a: 'Folder RLS',               b: 'All authenticated can read. admin/finance/operations can create. admin/creator can update. admin can delete.' },
               ]}
             />
           </RefSection>
