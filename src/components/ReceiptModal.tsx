@@ -60,17 +60,20 @@ const BRAND = '#006994';
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
+// Same palette as the print receipts (BatchDetail.tsx / Payroll.tsx) so a
+// batch's PDF summary and its individual item receipts read as one document
+// family instead of drifting to separate, unrelated color sets.
 function statusInfo(status: string) {
   if (status === 'succeeded' || status === 'processed' || status === 'completed') {
-    return { label: 'SUCCESSFUL', dot: '#16a34a', text: 'text-emerald-600', tone: 'success' as const };
+    return { label: 'SUCCESSFUL', dot: '#117a3d', text: 'text-[#117a3d]', tone: 'success' as const };
   }
   if (status === 'failed' || status === 'rejected') {
-    return { label: 'FAILED', dot: '#dc2626', text: 'text-red-600', tone: 'failed' as const };
+    return { label: 'FAILED', dot: '#b22222', text: 'text-[#b22222]', tone: 'failed' as const };
   }
   if (status === 'reversed' || status === 'refunded') {
-    return { label: 'REVERSED', dot: '#94a3b8', text: 'text-slate-500', tone: 'reversed' as const };
+    return { label: 'REVERSED', dot: '#5b6b75', text: 'text-[#5b6b75]', tone: 'reversed' as const };
   }
-  return { label: 'PENDING', dot: '#d97706', text: 'text-amber-600', tone: 'pending' as const };
+  return { label: 'PENDING', dot: '#8c6700', text: 'text-[#8c6700]', tone: 'pending' as const };
 }
 
 export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl }: Props) {

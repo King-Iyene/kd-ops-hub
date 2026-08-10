@@ -1560,7 +1560,7 @@ const BatchDetail = () => {
     .brand .mark { width: 44px; height: 44px; border-radius: 8px; background: #006994; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
     h2 { font-size: 16px; margin: 24px 0 8px; color: #006994; }
-    .failed-banner { background: #fde9e9; border: 2px solid #f5c0c0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: #8b0000; font-size: 13px; }
+    .failed-banner { background: #fde9e9; border: 2px solid #f5c0c0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: #b22222; font-size: 13px; }
     .failed-banner strong { display: block; font-size: 15px; margin-bottom: 6px; }
     .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; font-size: 13px; }
     .meta div { padding: 6px 0; }

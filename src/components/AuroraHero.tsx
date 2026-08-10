@@ -35,10 +35,10 @@ export function AuroraHero({
       {pattern !== 'none' && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.7] dark:opacity-[0.55]"
+          className="pointer-events-none absolute inset-0 opacity-90 dark:opacity-80"
           style={{
-            maskImage: 'radial-gradient(ellipse 75% 90% at 100% 0%, black 0%, transparent 70%)',
-            WebkitMaskImage: 'radial-gradient(ellipse 75% 90% at 100% 0%, black 0%, transparent 70%)',
+            maskImage: 'radial-gradient(ellipse 95% 130% at 100% 0%, black 30%, transparent 90%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 95% 130% at 100% 0%, black 30%, transparent 90%)',
           }}
         >
           {pattern === 'grid' && <HeroGrid />}
@@ -58,7 +58,7 @@ function HeroGrid() {
       className="absolute inset-0"
       style={{
         backgroundImage:
-          'linear-gradient(hsl(var(--primary) / 0.14) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.14) 1px, transparent 1px)',
+          'linear-gradient(hsl(var(--primary) / 0.32) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.32) 1px, transparent 1px)',
         backgroundSize: '26px 26px',
       }}
     />
