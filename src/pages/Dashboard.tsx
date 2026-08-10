@@ -448,7 +448,7 @@ const Dashboard = () => {
     return (
       <div className="space-y-4">
         {/* Greeting */}
-        <AuroraHero className="p-5 sm:p-6">
+        <AuroraHero className="p-5 sm:p-6" pattern="grid">
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Personal Overview</span>
@@ -479,7 +479,7 @@ const Dashboard = () => {
   return (
     <div className="space-y-4">
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
-      <AuroraHero className="p-5 sm:p-7" scanLine>
+      <AuroraHero className="p-5 sm:p-7" scanLine pattern="grid">
         <div className="flex items-center gap-2 mb-1">
           <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
           <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Operations Overview</span>

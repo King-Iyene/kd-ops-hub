@@ -842,7 +842,7 @@ const Approvals = () => {
   return (
     <div className="space-y-6">
       {/* Mission control hero */}
-      <AuroraHero className="p-5 sm:p-6" scanLine={counts.total > 0}>
+      <AuroraHero className="p-5 sm:p-6" scanLine={counts.total > 0} pattern="pulse">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
