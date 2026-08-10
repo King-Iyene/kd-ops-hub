@@ -7,7 +7,9 @@ test.describe('Payments', () => {
       page.locator('h1:has-text("Payment Batches")'),
     ).toBeVisible({ timeout: 10_000 });
     const table = page.locator('table');
-    const empty = page.locator('text=/no batches/i');
+    // EmptyState renders "No payment batches yet" or "No <status> batches" —
+    // "no" and "batch" aren't adjacent, so a literal /no batches/i never matches.
+    const empty = page.locator('text=/no .*batch/i');
     await expect(table.or(empty).first()).toBeVisible({ timeout: 10_000 });
   });
 
