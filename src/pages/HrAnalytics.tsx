@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import HrDataExport from '@/components/hr/HrDataExport';
-import { chartPalette } from '@/components/ChartKit';
+import { chartPalette, chartTheme, GlassTooltip, axisTick } from '@/components/ChartKit';
 
 /**
  * HR Analytics dashboard — headcount, attrition, salary, tenure, gender split,
@@ -288,15 +288,15 @@ const HrAnalytics = () => {
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
                 <LineChart data={headcountSeries}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <RTooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                  <XAxis dataKey="month" tick={axisTick} />
+                  <YAxis tick={axisTick} />
+                  <RTooltip content={<GlassTooltip />} cursor={{ stroke: chartTheme.primary, strokeOpacity: 0.3 }} />
                   <Legend />
                   <Line
                     type="monotone"
                     dataKey="headcount"
-                    stroke="#0ea5e9"
+                    stroke={chartTheme.primary}
                     strokeWidth={2}
                     dot={{ r: 3 }}
                   />
@@ -312,13 +312,13 @@ const HrAnalytics = () => {
             <CardContent>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={headcountSeries}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <RTooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                  <XAxis dataKey="month" tick={axisTick} />
+                  <YAxis tick={axisTick} />
+                  <RTooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }} />
                   <Legend />
-                  <Bar dataKey="joined" fill="#10b981" name="Joined" />
-                  <Bar dataKey="left" fill="#f43f5e" name="Left" />
+                  <Bar dataKey="joined" fill={chartTheme.success} name="Joined" />
+                  <Bar dataKey="left" fill={chartTheme.danger} name="Left" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -335,21 +335,24 @@ const HrAnalytics = () => {
             <CardContent className="space-y-3">
               <ResponsiveContainer width="100%" height={Math.max(180, byDepartment.length * 34)}>
                 <BarChart layout="vertical" data={byDepartment}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                  <XAxis type="number" tick={axisTick} />
                   <YAxis
                     dataKey="name"
                     type="category"
-                    tick={{ fontSize: 11 }}
+                    tick={axisTick}
                     width={130}
                   />
                   <RTooltip
-                    formatter={(v: any, k: string) =>
-                      k === 'cost' ? formatNaira(Number(v)) : v
+                    content={
+                      <GlassTooltip
+                        formatter={(v: any, k: string) => (k === 'cost' ? formatNaira(Number(v)) : v)}
+                      />
                     }
+                    cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
                   />
                   <Legend />
-                  <Bar dataKey="count" fill="#0ea5e9" name="Headcount" />
+                  <Bar dataKey="count" fill={chartTheme.primary} name="Headcount" />
                 </BarChart>
               </ResponsiveContainer>
 
@@ -401,7 +404,7 @@ const HrAnalytics = () => {
                       <Cell key={i} fill={chartPalette[i % chartPalette.length]} />
                     ))}
                   </Pie>
-                  <RTooltip />
+                  <RTooltip content={<GlassTooltip />} cursor={{ fill: 'transparent' }} />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -414,11 +417,11 @@ const HrAnalytics = () => {
             <CardContent>
               <ResponsiveContainer width="100%" height={230}>
                 <BarChart data={tenureBuckets}>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <RTooltip />
-                  <Bar dataKey="count" fill="#8b5cf6" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                  <XAxis dataKey="name" tick={axisTick} />
+                  <YAxis tick={axisTick} />
+                  <RTooltip content={<GlassTooltip />} cursor={{ fill: chartTheme.violet, fillOpacity: 0.06 }} />
+                  <Bar dataKey="count" fill={chartTheme.violet} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>

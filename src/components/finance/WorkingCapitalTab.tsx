@@ -220,7 +220,7 @@ export default function WorkingCapitalTab() {
                       <CartesianGrid {...GRID} />
                       <XAxis dataKey="label" {...AXIS_TICK} />
                       <YAxis {...AXIS_TICK} tickFormatter={(v: number) => fmtCompact(v)} />
-                      <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatNaira(Math.abs(v))} />} />
+                      <ReTooltip content={<ChartTooltip valueFormatter={(v) => formatNaira(Math.abs(v))} />} cursor={{ fill: 'currentColor', fillOpacity: 0.04 }} />
                       <ReferenceLine y={0} stroke="currentColor" strokeWidth={1} strokeOpacity={0.2} />
                       <Bar dataKey="inflows" name="Inflows" radius={[4, 4, 0, 0]}>
                         {waterfallData.map((_, i) => (

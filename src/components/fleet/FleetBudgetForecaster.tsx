@@ -226,6 +226,7 @@ export function FleetBudgetForecaster() {
                       ]}
                     />
                   }
+                  cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
                 />
                 {avgMonthly > 0 && (
                   <ReferenceLine
