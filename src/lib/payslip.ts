@@ -163,6 +163,10 @@ export const renderPayslipHtml = (
     data.company_tin ? `TIN ${data.company_tin}` : '',
   ].filter(Boolean).join(' · ');
 
+  const watermarkHtml = data.logo_url
+    ? `<div class="watermark"><img src="${esc(data.logo_url)}" alt="" /></div>`
+    : `<div class="watermark"><span class="wm-text">${esc(initials(data.company_name || 'KD'))}</span></div>`;
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -173,287 +177,331 @@ export const renderPayslipHtml = (
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
     body {
-      color: #0f172a;
-      background: #eef2f7;
+      color: #1a1a1a;
+      background: #f5f5f4;
       padding: 0;
       -webkit-font-smoothing: antialiased;
-      font-feature-settings: 'cv02','cv03','cv04','cv11';
     }
     .tabular { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
     .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace; }
 
     /* ─── Page ────────────────────────────────────────────── */
     .page {
-      max-width: 820px;
+      position: relative;
+      max-width: 800px;
       margin: 32px auto;
       background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 12px 44px rgba(15,23,42,0.10), 0 2px 8px rgba(15,23,42,0.05);
+      border: 1px solid #e5e5e5;
       overflow: hidden;
     }
 
-    /* ─── Header (branded gradient) ──────────────────────── */
-    .hero {
-      position: relative;
-      background:
-        radial-gradient(1200px 400px at 90% -20%, rgba(56,189,248,0.35), transparent 60%),
-        radial-gradient(800px 350px at 5% 120%, rgba(139,92,246,0.35), transparent 60%),
-        linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #fff;
-      padding: 32px 40px 28px;
+    /* ─── Subtle dot grid background ─────────────────────── */
+    .page::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: radial-gradient(circle, #d4d4d4 0.5px, transparent 0.5px);
+      background-size: 24px 24px;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
     }
-    .hero-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .page > * { position: relative; z-index: 1; }
+
+    /* ─── Watermark (faint logo / initials in background) ── */
+    .watermark {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .watermark img {
+      width: 400px; height: 400px; object-fit: contain;
+    }
+    .watermark .wm-text {
+      font-size: 280px; font-weight: 900; letter-spacing: -8px;
+      color: #000; line-height: 1;
+    }
+
+    /* ─── Header ─────────────────────────────────────────── */
+    .header {
+      padding: 36px 40px 28px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .header-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap;
+    }
     .brand { display: flex; align-items: center; gap: 14px; }
-    .logo-img, .logo-fallback {
-      width: 44px; height: 44px; border-radius: 10px; object-fit: contain; flex-shrink: 0;
+    .logo-img {
+      width: 48px; height: 48px; border-radius: 8px; object-fit: contain; flex-shrink: 0;
     }
     .logo-fallback {
-      background: rgba(255,255,255,0.15);
-      color: #fff; display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 15px; letter-spacing: 0.04em;
-      backdrop-filter: blur(6px);
+      width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0;
+      background: #1a1a1a; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px; letter-spacing: 0.03em;
     }
-    .brand-text { line-height: 1.2; }
-    .brand-text .co { font-size: 15px; font-weight: 700; letter-spacing: -0.2px; }
-    .brand-text .sub { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 2px; }
-    .doc-badge {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 10px; border-radius: 999px;
-      background: rgba(255,255,255,0.10); backdrop-filter: blur(6px);
-      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
-      color: rgba(255,255,255,0.9);
+    .brand-text { line-height: 1.3; }
+    .brand-text .co { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+    .brand-text .sub { font-size: 11px; color: #737373; margin-top: 2px; }
+    .doc-type {
+      text-align: right;
     }
-    .doc-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:#10b981; box-shadow:0 0 8px #10b981; }
+    .doc-type .title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.14em; color: #737373;
+    }
+    .doc-type .period {
+      font-size: 15px; font-weight: 700; color: #1a1a1a; margin-top: 2px;
+    }
+    .doc-type .ref {
+      font-size: 10px; color: #a3a3a3; margin-top: 4px;
+    }
+    .doc-type .ref b { color: #525252; font-weight: 600; }
 
-    /* Greeting + hero net */
-    .hero-body { margin-top: 28px; }
-    .greeting { font-size: 13px; color: rgba(255,255,255,0.75); font-weight: 500; }
-    .greeting b { color: #fff; font-weight: 700; }
-    .hero-net {
-      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
-      margin-top: 6px;
+    /* ─── Net hero ────────────────────────────────────────── */
+    .net-hero {
+      padding: 24px 40px;
+      border-bottom: 1px solid #e5e5e5;
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap;
     }
-    .hero-net .label { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
-    .hero-net .amount {
-      font-size: 44px; font-weight: 800; letter-spacing: -1.2px; line-height: 1;
-      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    .net-hero .label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #737373;
     }
-    .hero-net .period { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 500; }
+    .net-hero .amount {
+      font-size: 40px; font-weight: 800; letter-spacing: -1.5px;
+      color: #1a1a1a; line-height: 1;
+    }
+    .net-hero .breakdown {
+      font-size: 12px; color: #a3a3a3; margin-top: 4px;
+    }
 
-    /* Ref strip */
-    .ref-strip {
-      margin-top: 20px; padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.10);
-      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
-      font-size: 11px;
-    }
-    .ref-strip .kv { color: rgba(255,255,255,0.6); }
-    .ref-strip .kv b { color: #fff; font-weight: 600; }
-
-    /* ─── Meta row (employee + bank) ─────────────────────── */
+    /* ─── Meta grid ──────────────────────────────────────── */
     .meta-row {
-      padding: 20px 40px;
+      padding: 18px 40px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 20px;
-      background: #fafbfc;
-      border-bottom: 1px solid #e2e8f0;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      border-bottom: 1px solid #e5e5e5;
     }
-    .meta-item .k { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
-    .meta-item .v { font-size: 13px; font-weight: 600; color: #0f172a; margin-top: 3px; line-height: 1.35; }
+    .meta-item .k {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: #a3a3a3;
+    }
+    .meta-item .v {
+      font-size: 13px; font-weight: 600; color: #1a1a1a; margin-top: 2px; line-height: 1.35;
+    }
     .meta-item .v.mono { font-size: 12px; }
+    .meta-item .s { font-size: 11px; color: #737373; margin-top: 1px; }
 
     /* ─── Body ───────────────────────────────────────────── */
     .body { padding: 28px 40px; }
 
-    .section {
-      margin-bottom: 28px;
-    }
+    .section { margin-bottom: 28px; }
     .section-title {
       font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: #64748b;
-      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-    }
-    .section-title::after {
-      content: ''; flex: 1; height: 1px;
-      background: linear-gradient(to right, #e2e8f0, transparent);
+      letter-spacing: 0.12em; color: #a3a3a3;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e5e5e5;
     }
 
-    /* Waterfall chart (CSS-only) */
-    .waterfall {
-      border-radius: 12px; overflow: hidden;
-      display: flex; height: 32px; width: 100%;
-      box-shadow: inset 0 0 0 1px #e2e8f0;
-      background: #f1f5f9;
+    /* ─── Composition bar (subtle monochrome) ────────────── */
+    .comp-bar {
+      display: flex; height: 6px; width: 100%;
+      border-radius: 3px; overflow: hidden;
+      background: #f5f5f4;
+      margin-bottom: 8px;
     }
-    .waterfall .seg {
-      display: flex; align-items: center; justify-content: center;
-      font-size: 10px; font-weight: 700; color: #fff;
-      transition: width 0.6s ease;
-      white-space: nowrap; overflow: hidden;
-    }
-    .seg.take    { background: linear-gradient(180deg, #10b981, #059669); }
-    .seg.paye    { background: linear-gradient(180deg, #ef4444, #dc2626); }
-    .seg.pension { background: linear-gradient(180deg, #f59e0b, #d97706); }
-    .seg.nhf     { background: linear-gradient(180deg, #8b5cf6, #7c3aed); }
-    .seg.nhis    { background: linear-gradient(180deg, #06b6d4, #0891b2); }
-    .seg.extra   { background: linear-gradient(180deg, #64748b, #475569); }
+    .comp-bar .seg { height: 100%; }
+    .seg.take    { background: #1a1a1a; }
+    .seg.paye    { background: #737373; }
+    .seg.pension { background: #a3a3a3; }
+    .seg.nhf     { background: #c4c4c4; }
+    .seg.nhis    { background: #d4d4d4; }
+    .seg.extra   { background: #e5e5e5; }
 
-    .waterfall-legend {
-      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;
-      font-size: 11px; color: #475569;
+    .comp-legend {
+      display: flex; flex-wrap: wrap; gap: 14px;
+      font-size: 11px; color: #525252;
     }
-    .waterfall-legend .dot {
-      display: inline-block; width: 8px; height: 8px; border-radius: 2px;
-      margin-right: 5px; vertical-align: middle;
+    .comp-legend .dot {
+      display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+      margin-right: 4px; vertical-align: middle;
     }
 
-    /* Tables */
+    /* ─── Tables ─────────────────────────────────────────── */
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     thead th {
-      padding: 10px 14px; text-align: left;
-      font-size: 10px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #64748b;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 8px 0; text-align: left;
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: #a3a3a3;
+      border-bottom: 1px solid #e5e5e5;
     }
     thead th.right { text-align: right; }
-    thead th.ytd   { color: #94a3b8; }
-    tbody td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #1f2937; }
+    thead th.ytd { color: #c4c4c4; }
+    tbody td {
+      padding: 9px 0;
+      border-bottom: 1px solid #f5f5f4;
+      color: #1a1a1a;
+    }
     tbody tr:last-child td { border-bottom: none; }
     tbody td.right { text-align: right; }
     tbody td.right.tabular { font-weight: 500; }
-    tbody td.ytd { color: #94a3b8; font-weight: 500; }
-    tbody tr.deduction td { color: #475569; }
-    tbody tr.deduction td.right { color: #dc2626; }
+    tbody td.ytd { color: #a3a3a3; font-weight: 500; }
+    tbody tr.deduction td { color: #525252; }
+    tbody tr.deduction td.right { color: #1a1a1a; }
     tbody tr.subtotal td {
-      background: #f8fafc; font-weight: 700;
-      border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;
+      font-weight: 700;
+      border-top: 2px solid #1a1a1a;
+      border-bottom: none;
+      padding-top: 10px;
     }
-    tbody tr.subtotal td.right { color: #dc2626; }
-    tbody tr.subtotal.gross td.right { color: #059669; }
+    tbody tr.subtotal td.right { color: #1a1a1a; }
 
-    /* Net pay panel */
+    /* ─── Net pay panel ──────────────────────────────────── */
     .net-panel {
-      background:
-        radial-gradient(600px 200px at 90% -20%, rgba(255,255,255,0.15), transparent 60%),
-        linear-gradient(135deg, #059669 0%, #10b981 100%);
-      border-radius: 16px; padding: 24px 28px;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-      color: #fff;
+      background: #1a1a1a;
+      padding: 22px 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; color: #fff;
       margin-bottom: 24px;
-      box-shadow: 0 10px 26px rgba(16,185,129,0.28);
     }
-    .net-panel .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,0.85); }
-    .net-panel .sub { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 3px; }
-    .net-panel .amount { font-size: 34px; font-weight: 800; letter-spacing: -0.6px; }
+    .net-panel .lbl {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; color: rgba(255,255,255,0.6);
+    }
+    .net-panel .sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 3px; }
+    .net-panel .amount { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; }
 
-    /* True cost strip */
+    /* ─── True cost strip ────────────────────────────────── */
     .true-cost {
       display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      padding: 14px 18px;
-      border: 1px dashed #cbd5e1;
-      border-radius: 12px;
-      background: #fafbfc;
+      padding: 12px 0;
+      border-top: 1px dashed #d4d4d4;
+      border-bottom: 1px dashed #d4d4d4;
       margin-bottom: 24px;
     }
     .true-cost .k {
-      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b;
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #737373;
     }
-    .true-cost .k b { color: #0f172a; font-weight: 700; }
-    .true-cost .v { font-size: 15px; font-weight: 700; }
+    .true-cost .v { font-size: 15px; font-weight: 700; color: #1a1a1a; }
 
-    /* YTD strip (bar with markers) */
+    /* ─── YTD strip ──────────────────────────────────────── */
     .ytd-strip {
-      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
-      padding: 14px 18px;
+      padding: 14px 0;
     }
-    .ytd-strip .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-    .ytd-strip .head .l { font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em; color: #64748b; }
-    .ytd-strip .head .amount { font-size: 16px; font-weight: 700; color: #0f172a; }
-    .ytd-strip .bar { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
-    .ytd-strip .fill { height: 100%; background: linear-gradient(90deg, #059669 0%, #10b981 100%); border-radius: 4px; }
-    .ytd-strip .note { font-size: 10px; color: #94a3b8; margin-top: 6px; }
+    .ytd-strip .head {
+      display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;
+    }
+    .ytd-strip .head .l {
+      font-size: 10px; text-transform: uppercase; font-weight: 700;
+      letter-spacing: 0.1em; color: #a3a3a3;
+    }
+    .ytd-strip .head .amount { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+    .ytd-strip .bar {
+      height: 4px; background: #e5e5e5; border-radius: 2px; overflow: hidden;
+    }
+    .ytd-strip .fill {
+      height: 100%; background: #1a1a1a; border-radius: 2px;
+    }
+    .ytd-strip .note { font-size: 10px; color: #a3a3a3; margin-top: 5px; }
 
-    /* Info boxes (bank + summary) */
+    /* ─── Info boxes ─────────────────────────────────────── */
     .info-row {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;
     }
     .info-box {
-      border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px;
-      background: #fff;
+      border: 1px solid #e5e5e5; padding: 14px 16px;
     }
-    .info-box .k { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 6px; }
-    .info-box .v { font-size: 13px; font-weight: 600; color: #0f172a; }
-    .info-box .s { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .info-box .k {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: #a3a3a3; margin-bottom: 5px;
+    }
+    .info-box .v { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+    .info-box .s { font-size: 11px; color: #737373; margin-top: 2px; }
 
-    /* Employer costs (small print) */
+    /* ─── Employer costs ─────────────────────────────────── */
     .emp-costs {
       margin-top: 8px;
-      padding: 14px 18px;
-      background: #f1f5f9;
-      border-radius: 12px;
-      font-size: 11px; color: #475569;
+      padding: 14px 0;
+      border-top: 1px solid #e5e5e5;
+      font-size: 11px; color: #525252;
     }
-    .emp-costs .head { font-size: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em; color: #64748b; margin-bottom: 6px; }
+    .emp-costs .head {
+      font-size: 9px; text-transform: uppercase; font-weight: 700;
+      letter-spacing: 0.1em; color: #a3a3a3; margin-bottom: 6px;
+    }
     .emp-costs .row { display: flex; justify-content: space-between; padding: 3px 0; }
-    .emp-costs .row.total { border-top: 1px solid #cbd5e1; padding-top: 6px; margin-top: 4px; font-weight: 700; color: #0f172a; }
+    .emp-costs .row.total {
+      border-top: 1px solid #e5e5e5; padding-top: 6px; margin-top: 4px;
+      font-weight: 700; color: #1a1a1a;
+    }
 
-    /* Footer */
+    /* ─── Footer ─────────────────────────────────────────── */
     .doc-footer {
-      background: #f8fafc; border-top: 1px solid #e2e8f0;
-      padding: 18px 40px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-      font-size: 11px; color: #64748b;
+      border-top: 1px solid #e5e5e5;
+      padding: 16px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; flex-wrap: wrap;
+      font-size: 10px; color: #a3a3a3;
     }
     .confidential {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; border-radius: 999px;
-      background: #fef3c7; color: #92400e;
-      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px;
+      border: 1px solid #d4d4d4;
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #737373;
     }
     .verify {
-      font-family: 'JetBrains Mono', ui-monospace, monospace;
-      font-size: 10px; color: #475569;
-      padding: 3px 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;
+      font-family: ui-monospace, 'SF Mono', monospace;
+      font-size: 9px; color: #a3a3a3;
     }
 
-    /* ─── Print ─────────────────────────────────────────── */
+    /* ─── Print ──────────────────────────────────────────── */
     @media print {
       body { background: #fff; }
-      .page { margin: 0; border-radius: 0; box-shadow: none; max-width: none; }
-      .hero, .net-panel { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      @page { size: A4; margin: 0; }
+      .page { margin: 0; border: none; max-width: none; }
+      .page::before { opacity: 0.25; }
+      .net-panel, .net-hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4; margin: 12mm; }
     }
   </style>
 </head>
 <body>
   <div class="page">
-    <!-- ── HERO ── -->
-    <div class="hero">
-      <div class="hero-top">
+    ${watermarkHtml}
+
+    <!-- ── HEADER ── -->
+    <div class="header">
+      <div class="header-top">
         <div class="brand">
           ${logoHtml}
           <div class="brand-text">
             <div class="co">${esc(data.company_name)}</div>
-            <div class="sub">${esc(data.company_address || 'KDOps · Operations Platform')}${companyIdLine ? ' · ' + esc(companyIdLine) : ''}</div>
+            <div class="sub">${esc(data.company_address || '')}${companyIdLine ? (data.company_address ? ' · ' : '') + esc(companyIdLine) : ''}</div>
           </div>
         </div>
-        <div class="doc-badge">Payslip · ${esc(periodLabel)}</div>
-      </div>
-
-      <div class="hero-body">
-        <div class="greeting">Hello, <b>${esc(firstName)}</b> — here's your payslip for</div>
-        <div class="hero-net">
-          <span class="amount tabular">${esc(formatNaira(data.net_ngn))}</span>
-          <span class="period">${esc(periodLabel)}</span>
+        <div class="doc-type">
+          <div class="title">Payslip</div>
+          <div class="period">${esc(periodLabel)}</div>
+          <div class="ref">Ref <b class="mono">${esc(ref)}</b></div>
         </div>
       </div>
+    </div>
 
-      <div class="ref-strip">
-        <span class="kv">Reference <b class="mono">${esc(ref)}</b></span>
-        <span class="kv">Issued <b>${esc(formatDate(new Date()))}</b></span>
+    <!-- ── NET HERO ── -->
+    <div class="net-hero">
+      <div>
+        <div class="label">Net take-home pay</div>
+        <div class="breakdown">Gross ${esc(formatNaira(data.gross_ngn))} less ${esc(formatNaira(totalDeductions))} in deductions</div>
       </div>
+      <div class="amount tabular">${esc(formatNaira(data.net_ngn))}</div>
     </div>
 
     <!-- ── META ── -->
@@ -468,7 +516,7 @@ export const renderPayslipHtml = (
       <div class="meta-item">
         <div class="k">Pay Period</div>
         <div class="v">${esc(periodLabel)}</div>
-        ${data.period_start && data.period_end ? `<div class="s" style="font-size:11px;color:#64748b;margin-top:2px;">${esc(formatDate(data.period_start))} – ${esc(formatDate(data.period_end))}</div>` : ''}
+        ${data.period_start && data.period_end ? `<div class="s">${esc(formatDate(data.period_start))} – ${esc(formatDate(data.period_end))}</div>` : ''}
       </div>
       ${data.pay_date ? `<div class="meta-item"><div class="k">Pay Date</div><div class="v">${esc(formatDate(data.pay_date))}</div></div>` : ''}
     </div>
@@ -476,24 +524,23 @@ export const renderPayslipHtml = (
     <!-- ── BODY ── -->
     <div class="body">
 
-      <!-- Pay waterfall (CSS-only) -->
+      <!-- Composition bar -->
       <div class="section">
-        <div class="section-title">How your gross was spent</div>
-        <div class="waterfall">
-          ${data.net_ngn > 0 ? `<div class="seg take"    style="width:${seg.take}%">${seg.take >= 8 ? Math.round(seg.take) + '% take-home' : ''}</div>` : ''}
-          ${data.paye_ngn > 0 ? `<div class="seg paye"    style="width:${seg.paye}%">${seg.paye >= 6 ? 'PAYE ' + Math.round(seg.paye) + '%' : ''}</div>` : ''}
-          ${data.pension_ngn > 0 ? `<div class="seg pension" style="width:${seg.pension}%">${seg.pension >= 6 ? 'Pension ' + Math.round(seg.pension) + '%' : ''}</div>` : ''}
-          ${data.nhf_ngn > 0 ? `<div class="seg nhf"     style="width:${seg.nhf}%">${seg.nhf >= 6 ? 'NHF ' + Math.round(seg.nhf) + '%' : ''}</div>` : ''}
-          ${nhis > 0 ? `<div class="seg nhis"    style="width:${seg.nhis}%">${seg.nhis >= 6 ? 'NHIS ' + Math.round(seg.nhis) + '%' : ''}</div>` : ''}
-          ${extraDeductTotal > 0 ? `<div class="seg extra"   style="width:${seg.extra}%">${seg.extra >= 6 ? 'Other ' + Math.round(seg.extra) + '%' : ''}</div>` : ''}
+        <div class="comp-bar">
+          ${data.net_ngn > 0 ? `<div class="seg take" style="width:${seg.take}%"></div>` : ''}
+          ${data.paye_ngn > 0 ? `<div class="seg paye" style="width:${seg.paye}%"></div>` : ''}
+          ${data.pension_ngn > 0 ? `<div class="seg pension" style="width:${seg.pension}%"></div>` : ''}
+          ${data.nhf_ngn > 0 ? `<div class="seg nhf" style="width:${seg.nhf}%"></div>` : ''}
+          ${nhis > 0 ? `<div class="seg nhis" style="width:${seg.nhis}%"></div>` : ''}
+          ${extraDeductTotal > 0 ? `<div class="seg extra" style="width:${seg.extra}%"></div>` : ''}
         </div>
-        <div class="waterfall-legend">
-          <span><span class="dot" style="background:#059669"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
-          ${data.paye_ngn > 0 ? `<span><span class="dot" style="background:#dc2626"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
-          ${data.pension_ngn > 0 ? `<span><span class="dot" style="background:#d97706"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
-          ${data.nhf_ngn > 0 ? `<span><span class="dot" style="background:#7c3aed"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
-          ${nhis > 0 ? `<span><span class="dot" style="background:#0891b2"></span>NHIS ${esc(formatNaira(nhis))}</span>` : ''}
-          ${extraDeductTotal > 0 ? `<span><span class="dot" style="background:#475569"></span>Other ${esc(formatNaira(extraDeductTotal))}</span>` : ''}
+        <div class="comp-legend">
+          <span><span class="dot" style="background:#1a1a1a"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
+          ${data.paye_ngn > 0 ? `<span><span class="dot" style="background:#737373"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
+          ${data.pension_ngn > 0 ? `<span><span class="dot" style="background:#a3a3a3"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
+          ${data.nhf_ngn > 0 ? `<span><span class="dot" style="background:#c4c4c4"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
+          ${nhis > 0 ? `<span><span class="dot" style="background:#d4d4d4"></span>NHIS ${esc(formatNaira(nhis))}</span>` : ''}
+          ${extraDeductTotal > 0 ? `<span><span class="dot" style="background:#e5e5e5"></span>Other ${esc(formatNaira(extraDeductTotal))}</span>` : ''}
         </div>
       </div>
 
@@ -504,8 +551,8 @@ export const renderPayslipHtml = (
           <thead>
             <tr>
               <th>Description</th>
-              <th class="right">Amount (₦)</th>
-              ${data.ytd ? '<th class="right ytd">YTD (₦)</th>' : ''}
+              <th class="right">Amount (NGN)</th>
+              ${data.ytd ? '<th class="right ytd">YTD (NGN)</th>' : ''}
             </tr>
           </thead>
           <tbody>
@@ -537,20 +584,20 @@ export const renderPayslipHtml = (
           <thead>
             <tr>
               <th>Description</th>
-              <th class="right">Amount (₦)</th>
-              ${data.ytd ? '<th class="right ytd">YTD (₦)</th>' : ''}
+              <th class="right">Amount (NGN)</th>
+              ${data.ytd ? '<th class="right ytd">YTD (NGN)</th>' : ''}
             </tr>
           </thead>
           <tbody>
-            ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
-            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
-            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
-            ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">−&nbsp;${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
-            ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">−&nbsp;${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
-            ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#94a3b8;font-style:italic">No deductions applied</td></tr>` : ''}
+            ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right tabular">${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
+            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
+            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
+            ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
+            ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
+            ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#a3a3a3;font-style:italic">No deductions applied</td></tr>` : ''}
             <tr class="subtotal">
               <td>Total Deductions</td>
-              <td class="right tabular">−&nbsp;${esc(formatNaira(totalDeductions))}</td>
+              <td class="right tabular">${esc(formatNaira(totalDeductions))}</td>
               ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn + data.ytd.pension_ngn + data.ytd.nhf_ngn + (data.ytd.nhis_ngn ?? 0)))}</td>` : ''}
             </tr>
           </tbody>
@@ -561,7 +608,7 @@ export const renderPayslipHtml = (
       <div class="net-panel">
         <div>
           <div class="lbl">Net Take-home — ${esc(periodLabel)}</div>
-          <div class="sub">Gross ${esc(formatNaira(data.gross_ngn))} − Deductions ${esc(formatNaira(totalDeductions))}</div>
+          <div class="sub">Gross ${esc(formatNaira(data.gross_ngn))} less ${esc(formatNaira(totalDeductions))} deductions</div>
         </div>
         <div class="amount tabular">${esc(formatNaira(data.net_ngn))}</div>
       </div>
@@ -569,7 +616,7 @@ export const renderPayslipHtml = (
       <!-- True cost -->
       ${employerCostTotal > 0 ? `
         <div class="true-cost">
-          <div class="k">True cost to company <b>(gross + employer contributions)</b></div>
+          <div class="k">True cost to company (gross + employer contributions)</div>
           <div class="v tabular">${esc(formatNaira(trueCostToCompany))}</div>
         </div>
       ` : ''}
@@ -578,13 +625,13 @@ export const renderPayslipHtml = (
       ${data.ytd ? `
         <div class="ytd-strip section">
           <div class="head">
-            <span class="l">Year-to-date net take-home</span>
+            <span class="l">Year-to-date net</span>
             <span class="amount tabular">${esc(formatNaira(data.ytd.net_ngn))}</span>
           </div>
           <div class="bar">
             <div class="fill" style="width:${Math.min(100, Math.round(periodMonth / 12 * 100))}%"></div>
           </div>
-          <div class="note">Cumulative net from January · ${periodMonth} of 12 months elapsed</div>
+          <div class="note">${periodMonth} of 12 months elapsed</div>
         </div>
       ` : ''}
 
