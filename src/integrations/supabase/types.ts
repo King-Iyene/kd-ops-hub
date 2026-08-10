@@ -2840,7 +2840,7 @@ export type Database = {
           expiry_date: string | null
           file_size_bytes: number | null
           file_type: string | null
-          file_url: string
+          file_url: string | null
           folder: string | null
           id: string
           is_template: boolean | null
@@ -2873,7 +2873,7 @@ export type Database = {
           expiry_date?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
-          file_url: string
+          file_url?: string | null
           folder?: string | null
           id?: string
           is_template?: boolean | null
@@ -2906,7 +2906,7 @@ export type Database = {
           expiry_date?: string | null
           file_size_bytes?: number | null
           file_type?: string | null
-          file_url?: string
+          file_url?: string | null
           folder?: string | null
           id?: string
           is_template?: boolean | null
@@ -12934,6 +12934,7 @@ export type Database = {
       tick_fx_rate_sync: { Args: never; Returns: undefined }
       tick_heyreach_sync: { Args: never; Returns: undefined }
       tick_payment_reconciliation: { Args: never; Returns: undefined }
+      tick_payroll_scheduler: { Args: never; Returns: undefined }
       unresolve_batch_item: { Args: { p_item_id: string }; Returns: undefined }
       verify_audit_chain: {
         Args: never
