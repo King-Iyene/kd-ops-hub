@@ -138,7 +138,3 @@ CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.calendar_integrations
 -- task_forms
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.task_forms
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
--- document_entity_links
-CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.document_entity_links
-  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
