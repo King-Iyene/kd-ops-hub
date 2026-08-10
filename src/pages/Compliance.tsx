@@ -30,6 +30,7 @@ import { buildPenComPsspSchedule } from '@/lib/statutory/pencom';
 import { buildNhfSchedule } from '@/lib/statutory/nhf';
 import { buildNsitfSchedule } from '@/lib/statutory/nsitf';
 import { buildItfAnnualSchedule } from '@/lib/statutory/itf';
+import { generateP9Cards, p9CardsToCsv } from '@/lib/statutory/p9';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -540,6 +541,27 @@ const Compliance = () => {
     );
   };
 
+  const [downloadingP9, setDownloadingP9] = useState(false);
+  const exportP9 = async () => {
+    setDownloadingP9(true);
+    try {
+      const year = new Date().getFullYear();
+      const cards = await generateP9Cards(year);
+      if (!cards.length) {
+        toast({ title: 'No payslip data found', description: `No payslips exist for ${year} yet.`, variant: 'destructive' });
+        return;
+      }
+      const csv = p9CardsToCsv(cards);
+      downloadCsv(`kdops-p9-tax-cards-${year}.csv`, csv);
+      await logAudit('p9_cards_downloaded', `P9 annual tax cards downloaded for ${year} — ${cards.length} employees`, profile);
+      toast({ title: `P9 cards downloaded`, description: `${cards.length} employee tax cards for ${year}` });
+    } catch (err: any) {
+      toast({ title: 'P9 export failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setDownloadingP9(false);
+    }
+  };
+
   const counts = useMemo(() => {
     const filed = rows.filter((r) => r.status === 'filed').length;
     const overdue = rows.filter((r) => r.status === 'overdue').length;
@@ -559,6 +581,10 @@ const Compliance = () => {
           <p className="text-muted-foreground text-sm mt-1">Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={exportP9} disabled={downloadingP9}>
+            {downloadingP9 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+            P9 Tax Cards
+          </Button>
           <Button variant="outline" onClick={exportCalendar}>
             <Download className="mr-2 h-4 w-4" /> Export calendar
           </Button>

@@ -53,6 +53,7 @@ import {
   formatNairaCompact,
 } from '@/lib/format';
 import { toCsv, downloadCsv } from '@/lib/csv';
+import { buildPaymentInstructions, instructionsToCsv } from '@/lib/bank-payment';
 import { renderPayslipHtml } from '@/lib/payslip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1798,6 +1799,15 @@ const Payroll = () => {
     downloadCsv(`kdops-payroll-${run.period}.csv`, toCsv(header, rows));
   };
 
+  const exportBankFile = async (run: PayrollRun) => {
+    const instructions = await buildPaymentInstructions(run.id);
+    if (!instructions.length) {
+      toast({ title: 'No bank payment data', description: 'No employees with bank details in this run.' });
+      return;
+    }
+    downloadCsv(`kdops-bank-payment-${run.period}.csv`, instructionsToCsv(instructions));
+  };
+
   // Printable PDF-ready HTML — user prints from browser.
   const printRun = (run: PayrollRun) => {
     const bonusTotal = (run.bonuses_json || []).reduce((s, b) => s + Number(b.amount || 0), 0);
@@ -2245,6 +2255,11 @@ const Payroll = () => {
                         <Button size="sm" variant="ghost" onClick={() => exportRun(r)}>
                           <Download className="h-4 w-4" />
                         </Button>
+                        {r.status === 'approved' && (
+                          <Button size="sm" variant="ghost" onClick={() => exportBankFile(r)} title="Download bank payment file">
+                            <Banknote className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" onClick={() => printRun(r)}>
                           <FileText className="h-4 w-4" />
                         </Button>
@@ -2343,6 +2358,11 @@ const Payroll = () => {
                       <Button size="sm" variant="ghost" className="h-9 ml-auto" onClick={() => exportRun(r)}>
                         <Download className="h-4 w-4" />
                       </Button>
+                      {r.status === 'approved' && (
+                        <Button size="sm" variant="ghost" className="h-9" onClick={() => exportBankFile(r)} title="Download bank payment file">
+                          <Banknote className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="ghost" className="h-9" onClick={() => printRun(r)}>
                         <FileText className="h-4 w-4" />
                       </Button>
