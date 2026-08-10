@@ -6,11 +6,14 @@ test.describe('Payments', () => {
     await expect(
       page.locator('h1:has-text("Payment Batches")'),
     ).toBeVisible({ timeout: 10_000 });
-    const table = page.locator('table');
-    // EmptyState renders "No payment batches yet" or "No <status> batches" —
-    // "no" and "batch" aren't adjacent, so a literal /no batches/i never matches.
+    // Payments renders a div/grid ledger (no <table> element exists on this
+    // page) — its column header only when there are rows, EmptyState when
+    // there aren't. EmptyState renders "No payment batches yet" or "No
+    // <status> batches" — "no" and "batch" aren't adjacent, so a literal
+    // /no batches/i never matches.
+    const rows = page.locator('text=Description').first();
     const empty = page.locator('text=/no .*batch/i');
-    await expect(table.or(empty).first()).toBeVisible({ timeout: 10_000 });
+    await expect(rows.or(empty).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('create batch wizard — step 1 loads with required fields', async ({ page }) => {
