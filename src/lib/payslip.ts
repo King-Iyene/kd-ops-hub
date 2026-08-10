@@ -47,6 +47,7 @@ export interface PayslipData {
   paye_ngn: number;
   pension_ngn: number;
   nhf_ngn: number;
+  nhis_ngn?: number;
   net_ngn: number;
   generated_by?: string | null;
   payslip_ref?: string | null;
@@ -75,6 +76,7 @@ export interface PayslipData {
     paye_ngn: number;
     pension_ngn: number;
     nhf_ngn: number;
+    nhis_ngn?: number;
     net_ngn: number;
   } | null;
 }
@@ -115,13 +117,15 @@ export const renderPayslipHtml = (
 ): string => {
   const extraDeductions = data.extra_deductions ?? [];
   const extraDeductTotal = extraDeductions.reduce((s, d) => s + d.amount_ngn, 0);
+  const nhis = data.nhis_ngn ?? 0;
   const totalDeductions =
-    data.paye_ngn + data.pension_ngn + data.nhf_ngn + extraDeductTotal;
+    data.paye_ngn + data.pension_ngn + data.nhf_ngn + nhis + extraDeductTotal;
   const generated = formatDateTime(new Date());
   const autoPrint = opts.autoPrint !== false;
   const periodLabel = monthLabel(data.period);
   const ref = data.payslip_ref || `KDS-${Date.now().toString(36).toUpperCase()}`;
   const firstName = (data.employee_name || 'there').split(' ')[0];
+  const periodMonth = parseInt(data.period?.split('-')[1] || '', 10) || (new Date().getMonth() + 1);
 
   // Employer-cost sums for the true-cost calculation.
   const emp = data.employer_costs ?? {};
@@ -131,13 +135,23 @@ export const renderPayslipHtml = (
     + (emp.nsitf_ngn ?? 0);
   const trueCostToCompany = data.gross_ngn + employerCostTotal;
 
-  // Waterfall segments (all as % of gross).
+  // Waterfall segments (all as % of gross, normalized so they never exceed 100%).
+  const rawSeg = {
+    take:    data.net_ngn,
+    paye:    data.paye_ngn,
+    pension: data.pension_ngn,
+    nhf:     data.nhf_ngn,
+    nhis:    nhis,
+    extra:   extraDeductTotal,
+  };
+  const segTotal = Object.values(rawSeg).reduce((a, b) => a + b, 0) || 1;
   const seg = {
-    take:    pct(data.net_ngn,          data.gross_ngn),
-    paye:    pct(data.paye_ngn,         data.gross_ngn),
-    pension: pct(data.pension_ngn,      data.gross_ngn),
-    nhf:     pct(data.nhf_ngn,          data.gross_ngn),
-    extra:   pct(extraDeductTotal,      data.gross_ngn),
+    take:    (rawSeg.take / segTotal) * 100,
+    paye:    (rawSeg.paye / segTotal) * 100,
+    pension: (rawSeg.pension / segTotal) * 100,
+    nhf:     (rawSeg.nhf / segTotal) * 100,
+    nhis:    (rawSeg.nhis / segTotal) * 100,
+    extra:   (rawSeg.extra / segTotal) * 100,
   };
 
   const logoHtml = data.logo_url
@@ -156,9 +170,8 @@ export const renderPayslipHtml = (
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${esc(data.company_name)} · Payslip · ${esc(periodLabel)} · ${esc(data.employee_name)}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap');
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    html, body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
     body {
       color: #0f172a;
       background: #eef2f7;
@@ -167,7 +180,7 @@ export const renderPayslipHtml = (
       font-feature-settings: 'cv02','cv03','cv04','cv11';
     }
     .tabular { font-variant-numeric: tabular-nums; letter-spacing: -0.005em; }
-    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .mono { font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace; }
 
     /* ─── Page ────────────────────────────────────────────── */
     .page {
@@ -284,6 +297,7 @@ export const renderPayslipHtml = (
     .seg.paye    { background: linear-gradient(180deg, #ef4444, #dc2626); }
     .seg.pension { background: linear-gradient(180deg, #f59e0b, #d97706); }
     .seg.nhf     { background: linear-gradient(180deg, #8b5cf6, #7c3aed); }
+    .seg.nhis    { background: linear-gradient(180deg, #06b6d4, #0891b2); }
     .seg.extra   { background: linear-gradient(180deg, #64748b, #475569); }
 
     .waterfall-legend {
@@ -429,7 +443,7 @@ export const renderPayslipHtml = (
       </div>
 
       <div class="hero-body">
-        <div class="greeting">${greeting(new Date().getHours())}, <b>${esc(firstName)}</b> — here's your payslip for</div>
+        <div class="greeting">Hello, <b>${esc(firstName)}</b> — here's your payslip for</div>
         <div class="hero-net">
           <span class="amount tabular">${esc(formatNaira(data.net_ngn))}</span>
           <span class="period">${esc(periodLabel)}</span>
@@ -470,6 +484,7 @@ export const renderPayslipHtml = (
           ${data.paye_ngn > 0 ? `<div class="seg paye"    style="width:${seg.paye}%">${seg.paye >= 6 ? 'PAYE ' + Math.round(seg.paye) + '%' : ''}</div>` : ''}
           ${data.pension_ngn > 0 ? `<div class="seg pension" style="width:${seg.pension}%">${seg.pension >= 6 ? 'Pension ' + Math.round(seg.pension) + '%' : ''}</div>` : ''}
           ${data.nhf_ngn > 0 ? `<div class="seg nhf"     style="width:${seg.nhf}%">${seg.nhf >= 6 ? 'NHF ' + Math.round(seg.nhf) + '%' : ''}</div>` : ''}
+          ${nhis > 0 ? `<div class="seg nhis"    style="width:${seg.nhis}%">${seg.nhis >= 6 ? 'NHIS ' + Math.round(seg.nhis) + '%' : ''}</div>` : ''}
           ${extraDeductTotal > 0 ? `<div class="seg extra"   style="width:${seg.extra}%">${seg.extra >= 6 ? 'Other ' + Math.round(seg.extra) + '%' : ''}</div>` : ''}
         </div>
         <div class="waterfall-legend">
@@ -477,6 +492,7 @@ export const renderPayslipHtml = (
           ${data.paye_ngn > 0 ? `<span><span class="dot" style="background:#dc2626"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
           ${data.pension_ngn > 0 ? `<span><span class="dot" style="background:#d97706"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
           ${data.nhf_ngn > 0 ? `<span><span class="dot" style="background:#7c3aed"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
+          ${nhis > 0 ? `<span><span class="dot" style="background:#0891b2"></span>NHIS ${esc(formatNaira(nhis))}</span>` : ''}
           ${extraDeductTotal > 0 ? `<span><span class="dot" style="background:#475569"></span>Other ${esc(formatNaira(extraDeductTotal))}</span>` : ''}
         </div>
       </div>
@@ -527,14 +543,15 @@ export const renderPayslipHtml = (
           </thead>
           <tbody>
             ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
-            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension Contribution (8%)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
-            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5% of basic)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
+            ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
+            ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">−&nbsp;${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
+            ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">−&nbsp;${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
             ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">−&nbsp;${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
             ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#94a3b8;font-style:italic">No deductions applied</td></tr>` : ''}
             <tr class="subtotal">
               <td>Total Deductions</td>
               <td class="right tabular">−&nbsp;${esc(formatNaira(totalDeductions))}</td>
-              ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn + data.ytd.pension_ngn + data.ytd.nhf_ngn))}</td>` : ''}
+              ${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn + data.ytd.pension_ngn + data.ytd.nhf_ngn + (data.ytd.nhis_ngn ?? 0)))}</td>` : ''}
             </tr>
           </tbody>
         </table>
@@ -565,9 +582,9 @@ export const renderPayslipHtml = (
             <span class="amount tabular">${esc(formatNaira(data.ytd.net_ngn))}</span>
           </div>
           <div class="bar">
-            <div class="fill" style="width:${Math.min(100, Math.round((new Date().getMonth() + 1) / 12 * 100))}%"></div>
+            <div class="fill" style="width:${Math.min(100, Math.round(periodMonth / 12 * 100))}%"></div>
           </div>
-          <div class="note">Cumulative net from January · ${new Date().getMonth() + 1} of 12 months elapsed</div>
+          <div class="note">Cumulative net from January · ${periodMonth} of 12 months elapsed</div>
         </div>
       ` : ''}
 

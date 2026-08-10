@@ -580,7 +580,7 @@ export default function PaymentSchedule() {
                     const cfg = TYPE_CONFIG[item.type];
                     const isOverdue = group === 'Overdue';
                     const railColor = isOverdue ? 'bg-red-500'
-                      : group === 'Today' || group === 'This week' ? 'bg-amber-500'
+                      : group === 'Today' || group === 'This Week' ? 'bg-amber-500'
                       : 'bg-slate-300';
                     return (
                       <div

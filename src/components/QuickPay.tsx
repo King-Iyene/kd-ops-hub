@@ -570,7 +570,7 @@ export function QuickPayDialog() {
                   Ref: {result.ref}
                 </Badge>
                 <p className="text-sm text-muted-foreground">
-                  Paystack will settle this within minutes. Check the Payments
+                  {activeProvider === 'flutterwave' ? 'Flutterwave' : 'Paystack'} will settle this within minutes. Check the Payments
                   page for the final status.
                 </p>
               </>

@@ -261,14 +261,17 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const annualPaye = applyTaxBands(chargeableMonthlyNgn * 12);
   const payeMonthlyNgn = input.payeEnabled !== false ? annualPaye / 12 : 0;
 
-  const statutoryDeductionsMonthlyNgn =
-    pensionEmployeeMonthlyNgn + nhfMonthlyNgn + nhisEmployeeMonthlyNgn + payeMonthlyNgn;
+  const rPension = round(pensionEmployeeMonthlyNgn);
+  const rNhf = round(nhfMonthlyNgn);
+  const rNhis = round(nhisEmployeeMonthlyNgn);
+  const rPaye = round(payeMonthlyNgn);
+  const statutoryDeductionsMonthlyNgn = rPension + rNhf + rNhis + rPaye;
 
   const extraDeductionsMonthlyNgn = Math.max(0, input.extraDeductionsMonthlyNgn || 0);
 
   const netMonthlyNgn = Math.max(
     0,
-    grossMonthlyNgn - statutoryDeductionsMonthlyNgn - extraDeductionsMonthlyNgn,
+    round(grossMonthlyNgn) - statutoryDeductionsMonthlyNgn - round(extraDeductionsMonthlyNgn),
   );
 
   const effectiveTaxRate = grossMonthlyNgn > 0 ? payeMonthlyNgn / grossMonthlyNgn : 0;

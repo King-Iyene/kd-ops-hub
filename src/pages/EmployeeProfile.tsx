@@ -20,7 +20,7 @@ import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
-import { calculatePAYE } from '@/lib/tax';
+import { computePayslip } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -963,15 +963,24 @@ const EmployeeProfile = () => {
   const nhfOn     = employee.nhf_enabled === true;      // default false
   const nhisOn    = employee.nhis_enabled === true;     // default false
 
-  const payeMonthly            = hasSalary && payeOn ? calculatePAYE(salary)       : 0;
-  const pensionEmployeeMonthly = hasSalary && pensionOn ? Math.round(salary * 0.08) : 0;
-  const pensionEmployerMonthly = hasSalary && pensionOn ? Math.round(salary * 0.10) : 0;
-  const nhfMonthly             = hasSalary && nhfOn     ? Math.round(salary * 0.025) : 0;
-  const nhisMonthly            = hasSalary && nhisOn    ? Math.round(salary * 0.0175) : 0;
+  const payslipBreakdown = hasSalary
+    ? computePayslip({
+        grossMonthlyNgn: salary,
+        pensionEnabled: pensionOn,
+        nhfEnabled: nhfOn,
+        nhisEnabled: nhisOn,
+        payeEnabled: payeOn,
+      })
+    : null;
+  const payeMonthly            = payslipBreakdown?.payeMonthlyNgn ?? 0;
+  const pensionEmployeeMonthly = payslipBreakdown?.pensionEmployeeMonthlyNgn ?? 0;
+  const pensionEmployerMonthly = payslipBreakdown?.pensionEmployerMonthlyNgn ?? 0;
+  const nhfMonthly             = payslipBreakdown?.nhfMonthlyNgn ?? 0;
+  const nhisMonthly            = payslipBreakdown?.nhisEmployeeMonthlyNgn ?? 0;
   const statutoryDeductMonthly = pensionEmployeeMonthly + nhfMonthly + nhisMonthly;
   const totalDeductMonthly     = payeMonthly + statutoryDeductMonthly;
   const employerContribMonthly = pensionEmployerMonthly;
-  const netMonthly             = hasSalary ? salary - totalDeductMonthly : 0;
+  const netMonthly             = payslipBreakdown?.netMonthlyNgn ?? 0;
 
   const canManage    = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isSuperAdmin = currentUser?.role === 'super_admin';

@@ -1728,7 +1728,7 @@ function DataRetentionPanel() {
       return;
     }
     await logAudit(
-      'document_uploaded' as any, // closest existing audit type
+      'data_retention_action',
       `Data retention ${next ? 'PAUSED ALL' : 'RESUMED ALL'} by admin`,
       profile,
     );
@@ -2108,7 +2108,7 @@ function PlatformExportCard() {
       URL.revokeObjectURL(url);
 
       await logAudit(
-        'document_uploaded' as any,
+        'platform_export',
         `Full platform export: ${EXPORT_TABLES.length} tables, ${totalRows.toLocaleString()} rows`,
         profile,
       );
@@ -2376,7 +2376,7 @@ function ConfigureRetentionDialog({
       return;
     }
     await logAudit(
-      'document_uploaded' as any,
+      'data_retention_action',
       `Retention policy "${meta.title}" set to ${mode} / ${retentionDays} days`,
       profile,
     );

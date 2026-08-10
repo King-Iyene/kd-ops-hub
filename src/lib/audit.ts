@@ -104,7 +104,9 @@ export type AuditActionType =
   | 'fuel_request_deleted'
   | 'client_created'
   | 'client_updated'
-  | 'client_deleted';
+  | 'client_deleted'
+  | 'data_retention_action'
+  | 'platform_export';
 
 export interface AuditActor {
   id?: string | null;

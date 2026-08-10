@@ -1284,7 +1284,7 @@ const ProfilePage = () => {
                         <Button size="sm" variant="outline" onClick={() => downloadPayslip(p)} disabled={downloadingSlip === p.id}>
                           {downloadingSlip === p.id
                             ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            : <Download className="mr-2 h-4 w-4" />} PDF
+                            : <Download className="mr-2 h-4 w-4" />} Download
                         </Button>
                       </div>
                     </div>

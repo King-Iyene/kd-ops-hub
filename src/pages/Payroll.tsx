@@ -1052,8 +1052,10 @@ const Payroll = () => {
           const empPaye    = e.paye_enabled    !== false ? empBreak.payeMonthlyNgn          : 0;
           const empPension = e.pension_enabled !== false ? pensionBaseM * PENSION_RATE      : 0;
           const empNhf     = e.nhf_enabled     === true  ? nhfBaseM     * NHF_RATE          : 0;
+          const empNhis    = empBreak.nhisEmployeeMonthlyNgn;
           // Employer-side amounts surfaced on the payslip (informational).
           const empPensionEmployer = e.pension_enabled !== false ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
+          const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empGross * NSITF_RATE : 0;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
@@ -1066,7 +1068,7 @@ const Payroll = () => {
           const empEwa = ewaByEmployee.get(e.id) || [];
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
           const empGrossTotal = empGross + earningsAddTotal;
-          const empNet = Math.max(0, empGrossTotal - empPaye - empPension - empNhf - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
+          const empNet = Math.max(0, empGrossTotal - empPaye - empPension - empNhf - empNhis - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
           // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
@@ -1149,12 +1151,14 @@ const Payroll = () => {
             paye_ngn:    empPaye,
             pension_ngn: empPension,
             nhf_ngn:     empNhf,
+            nhis_ngn:    empNhis,
             net_ngn:     empNet,
             extra_deductions: allEmpDeductionLines,
 
             // Employer contributions (informational)
             employer_costs: {
               pension_employer_ngn: empPensionEmployer,
+              nhis_employer_ngn:   empNhisEmployer,
               nsitf_ngn:            empNsitf,
               // ITF is annual + conditional (≥ 5 staff or ≥ ₦50M
               // turnover); leave it off the per-employee payslip
