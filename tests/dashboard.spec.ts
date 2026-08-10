@@ -6,8 +6,11 @@ test.describe('Dashboard', () => {
     // The dashboard renders a personalised greeting h1, not a literal "Dashboard" heading.
     await expect(page.locator('h1').first()).toBeVisible({ timeout: 10_000 });
 
-    // At least one stat card should render.
-    const cards = page.locator('[class*="CardContent"]');
+    // At least one stat card should render. shadcn's CardContent renders
+    // plain Tailwind utility classes ("p-5 pt-0" etc.) — the component name
+    // never appears in the DOM class attribute, so [class*="CardContent"]
+    // can never match. Target the stat grid's own marker class instead.
+    const cards = page.locator('.kd-stat-grid');
     await expect(cards.first()).toBeVisible({ timeout: 10_000 });
   });
 
