@@ -13,6 +13,7 @@ import {
   Users,
   Send,
   AlertCircle,
+  AlertTriangle,
   X,
   Info,
   Trash2,
@@ -1148,7 +1149,10 @@ const Payroll = () => {
             });
           if (uploadErr) throw uploadErr;
 
-          const { data: urlData } = supabase.storage.from('payslips').getPublicUrl(path);
+          // The payslips bucket is private (RLS scoped per-employee) — a
+          // getPublicUrl() link 404s. Send employees to the in-app payslips
+          // tab instead, which pulls a fresh short-lived signed URL on open.
+          const payslipViewUrl = `${window.location.origin}/profile?tab=payslips`;
 
           const { error: upsertErr } = await supabase.from('payslips').upsert(
             {
@@ -1209,7 +1213,7 @@ const Payroll = () => {
               name: empName,
               period: monthLabel(run.period),
               net_ngn: empNet,
-              url: urlData.publicUrl,
+              url: payslipViewUrl,
             },
             idempotencyKey: `payslip_ready:${run.id}:${e.id}`,
           });
@@ -1227,7 +1231,7 @@ const Payroll = () => {
               empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
             ),
             netFormatted: formatNaira(empNet),
-            payslipUrl: urlData.publicUrl,
+            payslipUrl: payslipViewUrl,
           });
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
@@ -1908,6 +1912,18 @@ const Payroll = () => {
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+      )}
+
+      {/* Standing compliance reminder — NOT dismissible. Only remove once the
+          2026 PAYE bracket regime below has been confirmed against current
+          FIRS guidance (or the accountant of record) and this note is stale. */}
+      {(
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <p className="flex-1 leading-relaxed">
+            <span className="font-medium">Needs verification:</span> PAYE is calculated using the "NTA 2025" bands (0% / 15% / 18% / 21% / 23% / 25%, with rent relief) in <code className="text-xs">src/lib/tax.ts</code>. Confirm this is still the correct regime for the current tax year before relying on it for filings — it has not been independently re-verified against current FIRS guidance.
+          </p>
         </div>
       )}
 
