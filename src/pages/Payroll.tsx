@@ -44,6 +44,7 @@ import {
   fetchSegmentRules,
   filterEmployeesForSegment,
   type PayrollSegment,
+  type PayrollSegmentFilterRules,
 } from '@/lib/payroll-segments';
 import {
   formatDate,
@@ -283,6 +284,16 @@ const Payroll = () => {
       setSegmentPayGroups((data as { id: string; name: string }[]) || []);
     }).catch(() => { /* pay groups are optional for the segment builder */ });
   }, [loadSegments]);
+
+  // Live filter preview for the segment builder — recomputed on every toggle
+  // so "who does this actually match" is never a guess before saving.
+  const segmentLiveRules = useMemo(() => {
+    const rules: PayrollSegmentFilterRules = {};
+    if (segmentForm.exclude_employee_categories.length > 0) rules.exclude_employee_categories = segmentForm.exclude_employee_categories;
+    if (segmentForm.exclude_department_ids.length > 0) rules.exclude_department_ids = segmentForm.exclude_department_ids;
+    if (segmentForm.include_pay_group_ids.length > 0) rules.include_pay_group_ids = segmentForm.include_pay_group_ids;
+    return rules;
+  }, [segmentForm.exclude_employee_categories, segmentForm.exclude_department_ids, segmentForm.include_pay_group_ids]);
 
   const toggleSegmentCategory = (cat: string) =>
     setSegmentForm((f) => ({
@@ -2600,6 +2611,12 @@ const Payroll = () => {
                   </div>
                 </div>
               )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">Who this matches right now</Label>
+                <PayrollRosterPreview rulesOverride={segmentLiveRules} defaultExpanded />
+              </div>
+
               <Button size="sm" onClick={saveSegment} disabled={segmentSaving || !segmentForm.name.trim()}>
                 {segmentSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Plus className="mr-1 h-3.5 w-3.5" /> Create segment

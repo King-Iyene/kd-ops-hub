@@ -11,6 +11,7 @@ import {
   type SegmentableEmployee,
 } from '@/lib/payroll-segments';
 import { displayName } from '@/lib/name';
+import { formatNaira } from '@/lib/format';
 
 type RosterEmployee = SegmentableEmployee & {
   full_name: string | null;
@@ -32,38 +33,26 @@ const REASON_LABEL: Record<ExclusionReason, string> = {
   segment: 'Outside the selected payroll segment',
 };
 
-/**
- * Shows exactly who a payroll run will and won't pay before it's drafted —
- * generatePayslips()'s employee query (status='active', role<>'driver',
- * salary_ngn>0, matches segment) silently drops everyone else with no
- * visibility into who or why. This surfaces that filter instead of hiding it.
- */
-export function PayrollRosterPreview({ payrollSegmentId }: { payrollSegmentId: string | null | undefined }) {
+/** Fetches every employee once and re-derives who's in/out whenever the filter changes. */
+function useRoster(rules: PayrollSegmentFilterRules | null) {
   const [loading, setLoading] = useState(true);
   const [employees, setEmployees] = useState<RosterEmployee[]>([]);
-  const [segmentRules, setSegmentRules] = useState<PayrollSegmentFilterRules | null>(null);
-  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    (async () => {
-      const [{ data: emps }, rules] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
-          .limit(1000),
-        fetchSegmentRules(payrollSegmentId),
-      ]);
-      if (cancelled) return;
-      setEmployees((emps || []) as RosterEmployee[]);
-      setSegmentRules(rules);
-      setLoading(false);
-    })();
+    supabase
+      .from('profiles')
+      .select('id, full_name, first_name, last_name, email, role, status, salary_ngn, bank_account_number, department_id, employee_category, employment_type, pay_group_id')
+      .limit(1000)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setEmployees((data || []) as RosterEmployee[]);
+        setLoading(false);
+      });
     return () => { cancelled = true; };
-  }, [payrollSegmentId]);
+  }, []);
 
-  const { included, excludedByReason, missingBankDetails } = useMemo(() => {
+  return useMemo(() => {
     const included: RosterEmployee[] = [];
     const excludedByReason: Record<ExclusionReason, RosterEmployee[]> = {
       inactive: [], driver: [], no_salary: [], segment: [],
@@ -73,22 +62,55 @@ export function PayrollRosterPreview({ payrollSegmentId }: { payrollSegmentId: s
       if ((e.status ?? 'active') !== 'active') reason = 'inactive';
       else if (e.role === 'driver') reason = 'driver';
       else if (!e.salary_ngn || Number(e.salary_ngn) <= 0) reason = 'no_salary';
-      else if (segmentRules && !matchesSegment(e, segmentRules)) reason = 'segment';
+      else if (rules && !matchesSegment(e, rules)) reason = 'segment';
 
       if (reason) excludedByReason[reason].push(e);
       else included.push(e);
     }
     const missingBankDetails = included.filter((e) => !e.bank_account_number);
-    return { included, excludedByReason, missingBankDetails };
-  }, [employees, segmentRules]);
+    const totalNgn = included.reduce((s, e) => s + Number(e.salary_ngn || 0), 0);
+    return { loading, included, excludedByReason, missingBankDetails, totalNgn };
+  }, [employees, rules, loading]);
+}
 
-  const totalExcluded = Object.values(excludedByReason).reduce((s, l) => s + l.length, 0);
+const empName = (e: RosterEmployee) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
+
+/**
+ * Shows exactly who a payroll run will and won't pay before it's drafted —
+ * generatePayslips()'s employee query (status='active', role<>'driver',
+ * salary_ngn>0, matches segment) silently drops everyone else with no
+ * visibility into who or why. This surfaces that filter instead of hiding it.
+ *
+ * Pass either a saved segment id (payrollSegmentId) or an in-progress,
+ * not-yet-saved filter (rulesOverride) — the segment builder uses the
+ * latter so the match list updates live as someone toggles Pay
+ * Groups/categories/departments, before they've clicked "Create segment".
+ */
+export function PayrollRosterPreview({
+  payrollSegmentId,
+  rulesOverride,
+  defaultExpanded = false,
+}: {
+  payrollSegmentId?: string | null;
+  rulesOverride?: PayrollSegmentFilterRules | null;
+  defaultExpanded?: boolean;
+}) {
+  const [savedRules, setSavedRules] = useState<PayrollSegmentFilterRules | null>(null);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  useEffect(() => {
+    if (rulesOverride !== undefined) return; // override mode — no lookup needed
+    fetchSegmentRules(payrollSegmentId).then(setSavedRules);
+  }, [payrollSegmentId, rulesOverride]);
+
+  const rules = rulesOverride !== undefined ? rulesOverride : savedRules;
+  const { loading, included, excludedByReason, missingBankDetails, totalNgn } = useRoster(rules);
 
   if (loading) {
-    return <p className="text-xs text-muted-foreground">Checking who this run will include…</p>;
+    return <p className="text-xs text-muted-foreground">Checking who matches…</p>;
   }
 
-  const name = (e: RosterEmployee) => displayName(e.first_name, e.last_name, e.full_name || e.email || 'Unnamed');
+  const totalExcluded = Object.values(excludedByReason).reduce((s, l) => s + l.length, 0);
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded} className="rounded-lg border border-border/60 bg-muted/30">
@@ -97,9 +119,9 @@ export function PayrollRosterPreview({ payrollSegmentId }: { payrollSegmentId: s
           type="button"
           className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs"
         >
-          <span className="flex items-center gap-3">
+          <span className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1.5 font-medium text-foreground">
-              <Users className="h-3.5 w-3.5" /> {included.length} will be paid
+              <Users className="h-3.5 w-3.5" /> {included.length} will be paid · {formatNaira(totalNgn)}
             </span>
             {totalExcluded > 0 && (
               <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -112,10 +134,31 @@ export function PayrollRosterPreview({ payrollSegmentId }: { payrollSegmentId: s
               </Badge>
             )}
           </span>
-          <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
+          <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t border-border/60 px-3 py-2 space-y-3 text-xs">
+        {included.length > 0 && (
+          <div>
+            <p className="font-medium text-foreground mb-1">Will be paid ({included.length})</p>
+            <ul className="space-y-0.5">
+              {included
+                .slice()
+                .sort((a, b) => empName(a).localeCompare(empName(b)))
+                .map((e) => (
+                  <li key={e.id} className="flex items-center justify-between gap-2">
+                    <span className="text-foreground">
+                      {empName(e)}
+                      {!e.bank_account_number && (
+                        <span className="ml-1.5 text-amber-600 dark:text-amber-400" title="No bank account on file">⚠</span>
+                      )}
+                    </span>
+                    <span className="text-muted-foreground tabular-nums shrink-0">{formatNaira(e.salary_ngn)}</span>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        )}
         {(Object.keys(excludedByReason) as ExclusionReason[]).map((reason) => {
           const list = excludedByReason[reason];
           if (!list.length) return null;
@@ -123,24 +166,13 @@ export function PayrollRosterPreview({ payrollSegmentId }: { payrollSegmentId: s
             <div key={reason}>
               <p className="font-medium text-muted-foreground mb-1">{REASON_LABEL[reason]} ({list.length})</p>
               <ul className="space-y-0.5 pl-1">
-                {list.map((e) => <li key={e.id} className="text-muted-foreground">{name(e)}</li>)}
+                {list.map((e) => <li key={e.id} className="text-muted-foreground">{empName(e)}</li>)}
               </ul>
             </div>
           );
         })}
-        {missingBankDetails.length > 0 && (
-          <div>
-            <p className="font-medium text-amber-700 dark:text-amber-400 mb-1">
-              Will be paid, but has no bank account on file ({missingBankDetails.length})
-            </p>
-            <p className="text-muted-foreground mb-1">Payslips will still generate — this only blocks an actual disbursement later, in the Payments module.</p>
-            <ul className="space-y-0.5 pl-1">
-              {missingBankDetails.map((e) => <li key={e.id} className="text-muted-foreground">{name(e)}</li>)}
-            </ul>
-          </div>
-        )}
-        {totalExcluded === 0 && missingBankDetails.length === 0 && (
-          <p className="text-muted-foreground">Everyone eligible has a salary, active status, and bank details on file.</p>
+        {included.length === 0 && totalExcluded === 0 && (
+          <p className="text-muted-foreground">No employees found.</p>
         )}
       </CollapsibleContent>
     </Collapsible>
