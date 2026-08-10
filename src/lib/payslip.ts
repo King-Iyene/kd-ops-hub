@@ -154,7 +154,7 @@ export const renderPayslipHtml = (
     extra:   (rawSeg.extra / segTotal) * 100,
   };
 
-  const FALLBACK_LOGO = 'https://ops.kdsquares.com/icon-192.png';
+  const FALLBACK_LOGO = `${window.location.origin}/icon-192.png`;
   const logoSrc = data.logo_url || FALLBACK_LOGO;
   const logoHtml = `<img src="${esc(logoSrc)}" alt="${esc(data.company_name)} logo" class="logo-img" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" />`;
 

@@ -59,7 +59,7 @@ const Signup = () => {
     companyName.trim().length >= 2
     && fullName.trim().length >= 2
     && /\S+@\S+\.\S+/.test(email)
-    && password.length >= 8
+    && password.length >= 12
   );
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -189,9 +189,9 @@ const Signup = () => {
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
+                  placeholder="At least 12 characters"
                   required
-                  minLength={8}
+                  minLength={12}
                   autoComplete="new-password"
                   className="pl-9 pr-9 bg-white/5 border-white/10 text-white placeholder:text-white/40"
                 />

@@ -20,7 +20,7 @@ import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { displayName, initialsOf } from '@/lib/name';
-import { computePayslip } from '@/lib/tax';
+import { computePayslip, PENSION_EMPLOYER_RATE, PENSION_EMPLOYEE_RATE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,6 +69,12 @@ import { FilePreviewTrigger } from '@/components/FilePreview';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { notifyRoles } from '@/lib/notify';
 import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
+
+const humanPeriod = (p: string) => {
+  if (!p || !/^\d{4}-\d{1,2}$/.test(p)) return p || '—';
+  const [y, m] = p.split('-');
+  return new Date(+y, +m - 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+};
 
 interface EmployeeData {
   id: string;
@@ -993,7 +999,7 @@ const EmployeeProfile = () => {
 
   // ── Total cost of employment (trailing 12 months) ────────────────────────
   // Payroll: employer pension is back-derived from the employee-side pension
-  // actually withheld on each payslip (pension_ngn × 1.25 = 10%/8%), so it
+  // actually withheld on each payslip (pension_ngn × EMPLOYER/EMPLOYEE rate), so it
   // reflects what was really withheld that period rather than re-estimating
   // from today's salary structure. NSITF has no employee-side figure to back
   // out of, so it's recomputed from gross at the current company toggle —
@@ -1004,7 +1010,7 @@ const EmployeeProfile = () => {
   costCutoff.setMonth(costCutoff.getMonth() - 12);
   const payslipsInRange = payslips.filter((p: any) => p.created_at && new Date(p.created_at) >= costCutoff);
   const payrollGross          = payslipsInRange.reduce((s: number, p: any) => s + Number(p.gross_ngn || 0), 0);
-  const payrollEmployerPension = payslipsInRange.reduce((s: number, p: any) => s + Number(p.employer_pension_ngn || 0) || Number(p.pension_ngn || 0) * 1.25, 0);
+  const payrollEmployerPension = payslipsInRange.reduce((s: number, p: any) => s + Number(p.employer_pension_ngn || 0) || Number(p.pension_ngn || 0) * PENSION_EMPLOYER_RATE / PENSION_EMPLOYEE_RATE, 0);
   const payrollEmployerNsitf   = nsitfEnabled ? Math.round(payrollGross * 0.01) : 0;
   const payrollTotal = payrollGross + payrollEmployerPension + payrollEmployerNsitf;
 
@@ -2034,7 +2040,7 @@ const EmployeeProfile = () => {
                         <SelectTrigger><SelectValue placeholder="Choose period" /></SelectTrigger>
                         <SelectContent>
                           {payslips.map((p: any) => (
-                            <SelectItem key={p.id} value={p.id}>{p.period && /^\d{4}-\d{1,2}$/.test(p.period) ? new Date(parseInt(p.period.split('-')[0], 10), parseInt(p.period.split('-')[1], 10) - 1, 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : (p.period || formatDate(p.created_at))}</SelectItem>
+                            <SelectItem key={p.id} value={p.id}>{humanPeriod(p.period) || formatDate(p.created_at)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -2915,7 +2921,7 @@ const EmployeeProfile = () => {
                 <div className="divide-y">
                   {payslips.map((slip: any) => (
                     <div key={slip.id} className="flex items-center justify-between px-4 py-3">
-                      <span className="text-sm font-medium">{slip.period && /^\d{4}-\d{1,2}$/.test(slip.period) ? new Date(parseInt(slip.period.split('-')[0], 10), parseInt(slip.period.split('-')[1], 10) - 1, 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : (slip.period || '—')}</span>
+                      <span className="text-sm font-medium">{humanPeriod(slip.period)}</span>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"

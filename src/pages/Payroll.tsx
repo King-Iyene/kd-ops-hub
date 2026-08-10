@@ -191,7 +191,7 @@ const advanceDeductionFor = (deductionPerMonth: any, outstanding: any): number =
 
 
 const esc = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 const BONUS_TYPES = [
   'Performance Bonus',
@@ -1884,7 +1884,7 @@ const Payroll = () => {
     const empRow = run.employee_count != null
       ? `<tr><td>Active employees</td><td class="right">${run.employee_count}</td></tr>`
       : '';
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payroll ${run.period}</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payroll ${esc(run.period)}</title>
     <style>
       body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; padding: 32px; max-width: 820px; margin: 0 auto; color: #0a2533; }
       h1 { color: #006994; border-bottom: 3px solid #006994; padding-bottom: 8px; margin-bottom: 24px; }

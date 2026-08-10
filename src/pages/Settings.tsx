@@ -1358,7 +1358,7 @@ const SettingsPage = () => {
                       { module: 'Expenses',              sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
                       { module: 'Payroll / Payslips',    sa: true,  ad: true,  fi: true,  op: false, fs: false },
                       { module: 'Budgets',               sa: true,  ad: true,  fi: true,  op: false, fs: false },
-                      { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },
+                      { module: 'Fleet',                 sa: true,  ad: true,  fi: true,  op: true,  fs: true  },
                       { module: 'Contractors',           sa: true,  ad: true,  fi: true,  op: true,  fs: false },
                       { module: 'Employees (HR)',        sa: true,  ad: true,  fi: false, op: false, fs: false },
                       { module: 'Leave',                 sa: true,  ad: true,  fi: true,  op: true,  fs: false },

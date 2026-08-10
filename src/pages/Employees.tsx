@@ -182,6 +182,7 @@ const Employees = () => {
       .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name)')
       .neq('is_anonymised', true)
       .order('created_at', { ascending: false })
+      // Hard cap — Supabase single-request ceiling; results beyond 500 are not fetched.
       .limit(500);
     if (!showInactive) {
       query = query.eq('status', 'active');
@@ -194,7 +195,11 @@ const Employees = () => {
     if (employeesRes.error) {
       toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
     }
-    setEmployees((employeesRes.data as Employee[]) || []);
+    const loadedEmployees = (employeesRes.data as Employee[]) || [];
+    setEmployees(loadedEmployees);
+    if (loadedEmployees.length === 500) {
+      toast({ title: 'Results capped', description: 'Showing the first 500 employees. Some records may be hidden — use filters to narrow results.' });
+    }
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setDepartments((deptsRes.data as DeptOption[]) || []);
     setLoading(false);
