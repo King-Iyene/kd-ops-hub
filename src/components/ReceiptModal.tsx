@@ -46,6 +46,7 @@ import {
   friendlyProviderError,
   verifyItem,
 } from '@/lib/payments/item-facade';
+import { receiptTheme } from '@/lib/receipt-theme';
 
 interface Props {
   open: boolean;
@@ -56,7 +57,7 @@ interface Props {
   logoUrl?: string | null;
 }
 
-const BRAND = '#006994';
+const BRAND = receiptTheme.brand;
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -65,15 +66,15 @@ const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionD
 // family instead of drifting to separate, unrelated color sets.
 function statusInfo(status: string) {
   if (status === 'succeeded' || status === 'processed' || status === 'completed') {
-    return { label: 'SUCCESSFUL', dot: '#117a3d', text: 'text-[#117a3d]', tone: 'success' as const };
+    return { label: 'SUCCESSFUL', dot: receiptTheme.success, text: `text-[${receiptTheme.success}]`, tone: 'success' as const };
   }
   if (status === 'failed' || status === 'rejected') {
-    return { label: 'FAILED', dot: '#b22222', text: 'text-[#b22222]', tone: 'failed' as const };
+    return { label: 'FAILED', dot: receiptTheme.failed, text: `text-[${receiptTheme.failed}]`, tone: 'failed' as const };
   }
   if (status === 'reversed' || status === 'refunded') {
-    return { label: 'REVERSED', dot: '#5b6b75', text: 'text-[#5b6b75]', tone: 'reversed' as const };
+    return { label: 'REVERSED', dot: receiptTheme.muted, text: `text-[${receiptTheme.muted}]`, tone: 'reversed' as const };
   }
-  return { label: 'PENDING', dot: '#8c6700', text: 'text-[#8c6700]', tone: 'pending' as const };
+  return { label: 'PENDING', dot: receiptTheme.pending, text: `text-[${receiptTheme.pending}]`, tone: 'pending' as const };
 }
 
 export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl }: Props) {

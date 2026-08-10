@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { formatDate, formatDateTime, formatNaira, formatReceiptDateTime, maskAccountNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { receiptTheme as R } from '@/lib/receipt-theme';
 import { logAudit } from '@/lib/audit';
 import {
   writeRejectionNotification,
@@ -1542,9 +1543,9 @@ const BatchDetail = () => {
       return ref.length > 20 ? escapeHtml(ref.slice(0, 20)) + '…' : escapeHtml(ref);
     };
     const reasonCell = (it: any) => {
-      if (it.status === 'failed') return `<span style="color:#b22222">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</span>`;
-      if (it.status === 'succeeded') return '<span style="color:#117a3d">Successful</span>';
-      return '<span style="color:#8c6700">Pending</span>';
+      if (it.status === 'failed') return `<span style="color:${R.failed}">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</span>`;
+      if (it.status === 'succeeded') return `<span style="color:${R.success}">Successful</span>`;
+      return `<span style="color:${R.pending}">Pending</span>`;
     };
 
     const html = `<!doctype html>
@@ -1555,33 +1556,33 @@ const BatchDetail = () => {
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;600;700&display=swap');
     * { box-sizing: border-box; }
-    body { font-family: 'Cabin', system-ui, sans-serif; color: #0a2533; padding: 32px; max-width: 900px; margin: 0 auto; }
-    .brand { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 3px solid #006994; margin-bottom: 24px; }
-    .brand .mark { width: 44px; height: 44px; border-radius: 8px; background: #006994; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+    body { font-family: 'Cabin', system-ui, sans-serif; color: ${R.bodyText}; padding: 32px; max-width: 900px; margin: 0 auto; }
+    .brand { display: flex; align-items: center; gap: 12px; padding-bottom: 16px; border-bottom: 3px solid ${R.brand}; margin-bottom: 24px; }
+    .brand .mark { width: 44px; height: 44px; border-radius: 8px; background: ${R.brand}; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
     h1 { font-size: 22px; margin: 0 0 4px; }
-    h2 { font-size: 16px; margin: 24px 0 8px; color: #006994; }
-    .failed-banner { background: #fde9e9; border: 2px solid #f5c0c0; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: #b22222; font-size: 13px; }
+    h2 { font-size: 16px; margin: 24px 0 8px; color: ${R.brand}; }
+    .failed-banner { background: ${R.failedBg}; border: 2px solid ${R.failedBorder}; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; color: ${R.failed}; font-size: 13px; }
     .failed-banner strong { display: block; font-size: 15px; margin-bottom: 6px; }
     .meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; font-size: 13px; }
     .meta div { padding: 6px 0; }
-    .meta .l { color: #5b6b75; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .meta .l { color: ${R.muted}; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     .meta .v { font-weight: 600; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
-    th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid #e8edf0; }
-    th { background: #f6f9fb; color: #5b6b75; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+    th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid ${R.border}; }
+    th { background: ${R.panelBg}; color: ${R.muted}; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
     td.mono { font-family: monospace; font-size: 10px; }
     .right { text-align: right; }
-    .totals { margin-top: 16px; padding: 12px 16px; background: #f6f9fb; border-radius: 8px; display: flex; justify-content: flex-end; gap: 24px; font-size: 13px; }
+    .totals { margin-top: 16px; padding: 12px 16px; background: ${R.panelBg}; border-radius: 8px; display: flex; justify-content: flex-end; gap: 24px; font-size: 13px; }
     .totals .v { font-weight: 700; }
-    .stamp { margin-top: 32px; padding: 12px; border: 2px dashed #D6AC50; border-radius: 8px; color: #6f5a25; font-size: 12px; text-align: center; }
-    .footer { margin-top: 28px; font-size: 11px; color: #8194a0; text-align: center; }
+    .stamp { margin-top: 32px; padding: 12px; border: 2px dashed ${R.gold}; border-radius: 8px; color: ${R.stampText}; font-size: 12px; text-align: center; }
+    .footer { margin-top: 28px; font-size: 11px; color: ${R.mutedLight}; text-align: center; }
     .pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
-    .pill.success { background: #e6f7ec; color: #117a3d; }
-    .pill.failed  { background: #fde9e9; color: #b22222; }
-    .pill.pending { background: #fff5e0; color: #8c6700; }
+    .pill.success { background: ${R.successBg}; color: ${R.success}; }
+    .pill.failed  { background: ${R.failedBg}; color: ${R.failed}; }
+    .pill.pending { background: ${R.pendingBg}; color: ${R.pending}; }
     .failed-section { margin-top: 28px; }
-    .failed-section h2 { color: #b22222; }
-    .bank-ops-note { margin-top: 12px; padding: 10px 14px; background: #fff5e0; border: 1px solid #f0d890; border-radius: 6px; font-size: 11px; color: #6f5a25; }
+    .failed-section h2 { color: ${R.failed}; }
+    .bank-ops-note { margin-top: 12px; padding: 10px 14px; background: ${R.pendingBg}; border: 1px solid ${R.pendingBorder}; border-radius: 6px; font-size: 11px; color: ${R.stampText}; }
     @media print { body { padding: 16px; } .no-print { display: none; } }
   </style>
 </head>
@@ -1594,7 +1595,7 @@ const BatchDetail = () => {
     />
     <div>
       <h1>Payment Batch Receipt</h1>
-      <div style="font-size:12px;color:#5b6b75">${escapeHtml(companyName)} · KDOps</div>
+      <div style="font-size:12px;color:${R.muted}">${escapeHtml(companyName)} · KDOps</div>
     </div>
   </div>
 
@@ -1633,7 +1634,7 @@ const BatchDetail = () => {
     <tbody>
       ${items
         .map((it, i) => `
-          <tr${it.status === 'failed' ? ' style="background:#fff8f8"' : ''}>
+          <tr${it.status === 'failed' ? ` style="background:${R.failedRowBg}"` : ''}>
             <td>${i + 1}</td>
             <td>${escapeHtml(it.account_name || it.full_name || 'Unknown Recipient')}</td>
             <td>${escapeHtml(it.bank_name)}</td>
@@ -1649,9 +1650,9 @@ const BatchDetail = () => {
   </table>
 
   <div class="totals">
-    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Succeeded:</span> <span class="v">${escapeHtml(formatNaira(totalSucceeded))}</span></div>
-    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Failed:</span> <span class="v">${escapeHtml(formatNaira(totalFailed))}</span></div>
-    <div><span style="color:#5b6b75;font-size:11px;text-transform:uppercase">Total:</span> <span class="v">${amountDisplay}</span></div>
+    <div><span style="color:${R.muted};font-size:11px;text-transform:uppercase">Succeeded:</span> <span class="v">${escapeHtml(formatNaira(totalSucceeded))}</span></div>
+    <div><span style="color:${R.muted};font-size:11px;text-transform:uppercase">Failed:</span> <span class="v">${escapeHtml(formatNaira(totalFailed))}</span></div>
+    <div><span style="color:${R.muted};font-size:11px;text-transform:uppercase">Total:</span> <span class="v">${amountDisplay}</span></div>
   </div>
 
   ${hasFailed && failedRows.length > 0 ? `
@@ -1674,7 +1675,7 @@ const BatchDetail = () => {
             <td>${escapeHtml(it.bank_name)}</td>
             <td>${escapeHtml(maskAccountNumber(it.account_number))}</td>
             <td class="right">${escapeHtml(formatNaira(it.amount_ngn || 0))}</td>
-            <td style="color:#b22222">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</td>
+            <td style="color:${R.failed}">${escapeHtml(it.failure_reason || 'Transfer rejected by bank')}</td>
           </tr>
         `).join('')}
       </tbody>
