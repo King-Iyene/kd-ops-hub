@@ -1915,14 +1915,16 @@ const Payroll = () => {
         </div>
       )}
 
-      {/* Standing compliance reminder — NOT dismissible. Only remove once the
-          2026 PAYE bracket regime below has been confirmed against current
-          FIRS guidance (or the accountant of record) and this note is stale. */}
+      {/* Standing compliance note — NOT dismissible. Cross-checked against the
+          Nigeria Tax Act 2025 (KPMG, Baker Tilly, SafeguardGlobal — Aug 2026)
+          and matches the current law. Revisit only if FIRS guidance changes,
+          or once Phase 4 lands an editable tax table so this isn't a
+          hardcoded constant. */}
       {(
-        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 px-4 py-3 text-sm text-emerald-900 dark:text-emerald-200">
+          <Check className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
           <p className="flex-1 leading-relaxed">
-            <span className="font-medium">Needs verification:</span> PAYE is calculated using the "NTA 2025" bands (0% / 15% / 18% / 21% / 23% / 25%, with rent relief) in <code className="text-xs">src/lib/tax.ts</code>. Confirm this is still the correct regime for the current tax year before relying on it for filings — it has not been independently re-verified against current FIRS guidance.
+            <span className="font-medium">PAYE regime confirmed:</span> the "NTA 2025" bands in <code className="text-xs">src/lib/tax.ts</code> (0% to ₦800k, then 15% / 18% / 21% / 23% / 25% in successive slices, with rent relief) match the Nigeria Tax Act 2025, in force since 1 Jan 2026 — cross-checked against KPMG, Baker Tilly, and SafeguardGlobal (Aug 2026). Worth a final sign-off from your accountant of record before high-stakes filings, but this is not a guess.
           </p>
         </div>
       )}
