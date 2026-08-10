@@ -31,6 +31,7 @@ import {
   rejectExpense,
 } from '@/lib/transfer-safety';
 import { formatDate, formatNaira } from '@/lib/format';
+import { SubPageHeader } from '@/components/SubPageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -969,6 +970,14 @@ const Approvals = () => {
           {/* Spacer so the last list item isn't hidden behind the sticky bar */}
           <div aria-hidden className="md:hidden" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
         </>
+      )}
+
+      {tab !== 'all' && (
+        <SubPageHeader
+          parentTitle="Approvals"
+          currentTitle={KIND_LABELS[tab as Kind] ?? tab}
+          onBack={() => setTab('all')}
+        />
       )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>

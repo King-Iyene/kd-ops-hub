@@ -11,6 +11,7 @@ import { notifyAnomalyToAdmins } from '@/lib/notify-events';
 import { formatNaira, formatDate, formatTime } from '@/lib/format';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer } from 'recharts';
 import { FilePreviewTrigger } from '@/components/FilePreview';
+import { SubPageHeader } from '@/components/SubPageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -3122,6 +3123,21 @@ const Fleet = () => {
           </div>
         </div>
       </div>
+
+      {/* ─── Sub-page back arrow ─── */}
+      {tab !== 'dashboard' && tab !== 'my_requests' && (
+        <SubPageHeader
+          parentTitle="Fleet"
+          currentTitle={{
+            fuel: 'Fuel Requests', trips: 'Trip Logs', vehicles: 'Vehicles',
+            activity: 'Activity', anomalies: 'Anomalies', geofences: 'Geofences',
+            live: 'Live Tracking', compliance: 'Compliance', drivers: 'Drivers',
+            incidents: 'Incidents', maintenance: 'Maintenance', inspections: 'Inspections',
+            lifecycle: 'Lifecycle',
+          }[tab] ?? tab}
+          onBack={() => setTab(isAdmin ? 'dashboard' : 'my_requests')}
+        />
+      )}
 
       {/* ─── Content ─── */}
       <div>

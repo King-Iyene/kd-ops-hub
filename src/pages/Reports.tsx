@@ -15,6 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { SubPageHeader } from '@/components/SubPageHeader';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   BarChart,
@@ -191,6 +192,18 @@ const Reports = () => {
           <TabsTrigger value="budgets"><PiggyBank className="mr-2 h-4 w-4" /> Budgets</TabsTrigger>
           <TabsTrigger value="reconciliation"><Library className="mr-2 h-4 w-4" /> Reconciliation</TabsTrigger>
         </TabsList>
+
+        {tab !== 'payments' && (
+          <SubPageHeader
+            parentTitle="Reports"
+            currentTitle={{
+              pnl: 'P&L', cashflow: 'Cash Flow', concentration: 'Concentration',
+              payments: 'Payments', expenses: 'Expenses', fleet: 'Fleet',
+              contractors: 'Contractors', budgets: 'Budgets', reconciliation: 'Reconciliation',
+            }[tab] ?? tab}
+            onBack={() => setTab('payments')}
+          />
+        )}
 
         <TabsContent value="pnl" className="mt-4">
           <PnLReport range={range} />

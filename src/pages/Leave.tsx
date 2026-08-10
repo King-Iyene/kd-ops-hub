@@ -16,6 +16,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { SubPageHeader } from '@/components/SubPageHeader';
 import LeaveCalendar from '@/components/leave/LeaveCalendar';
 import { cn } from '@/lib/utils';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -803,6 +804,14 @@ const Leave = () => {
           icon={CalendarDays}
         />
       </div>
+
+      {tab !== (isManager ? 'team' : 'mine') && (
+        <SubPageHeader
+          parentTitle="Leave"
+          currentTitle={{ mine: 'My Leave', team: 'Team Leave', calendar: 'Calendar' }[tab]}
+          onBack={() => setTab(isManager ? 'team' : 'mine')}
+        />
+      )}
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as 'mine' | 'team' | 'calendar')}>
         <TabsList>
