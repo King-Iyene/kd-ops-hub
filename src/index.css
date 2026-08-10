@@ -773,6 +773,53 @@
     .kd-scan-ring { animation: none; opacity: 0; }
   }
 
+  /* Lost-robot mascot (404 page) — gentle idle float, periodic blink,
+     pulsing antenna light, and two staggered "searching for signal"
+     rings expanding from the antenna tip. */
+  .kd-robot-bob {
+    animation: kd-robot-bob 3.2s ease-in-out infinite;
+    transform-origin: 60px 66px;
+  }
+  @keyframes kd-robot-bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-5px) rotate(-1.5deg); }
+  }
+
+  .kd-robot-blink {
+    animation: kd-robot-blink 4.5s ease-in-out infinite;
+  }
+  @keyframes kd-robot-blink {
+    0%, 92%, 100% { transform: scaleY(1); }
+    95%           { transform: scaleY(0.1); }
+  }
+
+  .kd-robot-antenna-glow {
+    animation: kd-robot-antenna-glow 1.8s ease-in-out infinite;
+  }
+  @keyframes kd-robot-antenna-glow {
+    0%, 100% { opacity: 0.6; r: 3.5; }
+    50%      { opacity: 1;   r: 4.2; }
+  }
+
+  .kd-robot-signal {
+    transform-origin: 60px 10px;
+    animation: kd-robot-signal 2.4s ease-out infinite;
+  }
+  .kd-robot-signal-delay {
+    animation-delay: 1.2s;
+  }
+  @keyframes kd-robot-signal {
+    0%   { transform: scale(0.4); opacity: 0.7; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kd-robot-bob, .kd-robot-blink, .kd-robot-antenna-glow, .kd-robot-signal {
+      animation: none;
+    }
+    .kd-robot-signal { opacity: 0; }
+  }
+
   /* Slow breathing glow behind the login logo badge. */
   .kd-glow-pulse {
     animation: kd-glow-pulse var(--tod-pulse, 3.5s) ease-in-out infinite;

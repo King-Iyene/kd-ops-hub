@@ -1,7 +1,8 @@
 import { useLocation, Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { Compass, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { AuthAtmosphere } from '@/components/AuthAtmosphere';
+import { LostRobot } from '@/components/LostRobot';
 
 const NotFound = () => {
   const location = useLocation();
@@ -13,15 +14,11 @@ const NotFound = () => {
   return (
     <AuthAtmosphere>
       <div className="relative z-10 text-center max-w-md">
-        <div className="relative inline-flex mb-6">
-          {/* Radar-scan ring — reads as the system still searching for
-              the missing route, a small "robotic" touch that fits the
-              lost-in-space narrative. */}
-          <div className="kd-scan-ring" />
-          <div className="absolute inset-0 rounded-full bg-[hsl(var(--tod-glow))] blur-2xl opacity-40" />
-          <div className="relative h-20 w-20 rounded-full bg-white/5 backdrop-blur-md border border-white/15 flex items-center justify-center">
-            <Compass className="h-9 w-9 text-white/90 kd-animate-spin-slow" />
-          </div>
+        {/* A small robot searching for a signal it can't find — the
+            "lost in space" narrative made literal instead of abstract. */}
+        <div className="relative inline-flex mb-4">
+          <div className="absolute inset-0 rounded-full bg-[hsl(var(--tod-glow))] blur-2xl opacity-30" />
+          <LostRobot className="relative h-28 w-28" />
         </div>
 
         {/* One-shot glitch shake on mount — settles quickly, not a loop. */}
