@@ -772,7 +772,7 @@ const SettingsPage = () => {
                   )}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Used only if the PAYSTACK_SECRET_KEY environment variable is not set.
+                  Manage via PAYSTACK_SECRET_KEY environment variable or Supabase vault.
                 </p>
               </div>
               <Separator />

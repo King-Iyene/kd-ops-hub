@@ -636,6 +636,7 @@ const Payroll = () => {
       let extUpdate = supabase.from('payroll_runs').update({
         period_type: form.period_type,
         employee_count: empCount,
+        employer_pension_ngn: employerPension,
         bonuses_json: form.bonuses.length > 0 ? form.bonuses : null,
         allowances_json: totalAllowances > 0
           ? { housing_pct: form.housing_allowance_pct, transport_per_emp: form.transport_per_emp, meal_per_emp: form.meal_per_emp, total: totalAllowances }
