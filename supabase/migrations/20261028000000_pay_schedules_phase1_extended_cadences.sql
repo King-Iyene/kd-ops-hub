@@ -40,6 +40,10 @@ DECLARE
   v_candidate  date;
   v_cursor     date := current_date;
   v_iterations integer := 0;
+  v_a1         date;
+  v_a2         date;
+  v_days_ahead int;
+  v_dow        int;
 BEGIN
   SELECT * INTO v_schedule FROM pay_schedules WHERE id = p_schedule_id;
   IF NOT FOUND THEN RETURN v_result; END IF;
@@ -66,35 +70,28 @@ BEGIN
 
     -- ── semimonthly ──────────────────────────────────────────────────────────
     ELSIF v_schedule.frequency = 'semimonthly' THEN
-      DECLARE
-        a1 date := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, v_schedule.anchor_day);
-        a2 date := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, COALESCE(v_schedule.second_anchor_day, 15));
-      BEGIN
-        IF a1 > v_cursor THEN
-          v_candidate := a1;
-        ELSIF a2 > v_cursor THEN
-          v_candidate := a2;
-        ELSE
-          v_cursor := date_trunc('month', v_cursor + interval '1 month')::date;
-          CONTINUE;
-        END IF;
-      END;
+      v_a1 := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, v_schedule.anchor_day);
+      v_a2 := make_date(extract(year FROM v_cursor)::int, extract(month FROM v_cursor)::int, COALESCE(v_schedule.second_anchor_day, 15));
+      IF v_a1 > v_cursor THEN
+        v_candidate := v_a1;
+      ELSIF v_a2 > v_cursor THEN
+        v_candidate := v_a2;
+      ELSE
+        v_cursor := date_trunc('month', v_cursor + interval '1 month')::date;
+        CONTINUE;
+      END IF;
 
     -- ── biweekly ─────────────────────────────────────────────────────────────
     ELSIF v_schedule.frequency = 'biweekly' THEN
-      DECLARE days_ahead int := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
-      BEGIN
-        v_candidate := v_cursor + interval '1 day' + (days_ahead || ' days')::interval;
-        v_cursor    := v_candidate + interval '13 days';
-      END;
+      v_days_ahead := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
+      v_candidate := v_cursor + interval '1 day' + (v_days_ahead || ' days')::interval;
+      v_cursor    := v_candidate + interval '13 days';
 
     -- ── weekly ───────────────────────────────────────────────────────────────
     ELSIF v_schedule.frequency = 'weekly' THEN
-      DECLARE days_ahead int := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
-      BEGIN
-        v_candidate := v_cursor + interval '1 day' + (days_ahead || ' days')::interval;
-        v_cursor    := v_candidate;
-      END;
+      v_days_ahead := (v_schedule.anchor_day - extract(isodow FROM v_cursor + interval '1 day')::int + 7) % 7;
+      v_candidate := v_cursor + interval '1 day' + (v_days_ahead || ' days')::interval;
+      v_cursor    := v_candidate;
 
     -- ── bimonthly (every 2 months) ───────────────────────────────────────────
     ELSIF v_schedule.frequency = 'bimonthly' THEN
@@ -181,18 +178,16 @@ BEGIN
     END IF;
 
     -- ── weekend / holiday adjustment ─────────────────────────────────────────
-    DECLARE dow int := extract(isodow FROM v_candidate)::int;
-    BEGIN
-      IF dow = 6 THEN
-        IF v_schedule.day_adjustment = 'before' THEN v_candidate := v_candidate - interval '1 day';
-        ELSIF v_schedule.day_adjustment = 'after' THEN v_candidate := v_candidate + interval '2 days';
-        END IF;
-      ELSIF dow = 7 THEN
-        IF v_schedule.day_adjustment = 'before' THEN v_candidate := v_candidate - interval '2 days';
-        ELSIF v_schedule.day_adjustment = 'after' THEN v_candidate := v_candidate + interval '1 day';
-        END IF;
+    v_dow := extract(isodow FROM v_candidate)::int;
+    IF v_dow = 6 THEN
+      IF v_schedule.day_adjustment = 'before' THEN v_candidate := v_candidate - interval '1 day';
+      ELSIF v_schedule.day_adjustment = 'after' THEN v_candidate := v_candidate + interval '2 days';
       END IF;
-    END;
+    ELSIF v_dow = 7 THEN
+      IF v_schedule.day_adjustment = 'before' THEN v_candidate := v_candidate - interval '2 days';
+      ELSIF v_schedule.day_adjustment = 'after' THEN v_candidate := v_candidate + interval '1 day';
+      END IF;
+    END IF;
 
     v_result := array_append(v_result, v_candidate);
 
