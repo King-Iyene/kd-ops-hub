@@ -156,7 +156,7 @@ export const renderPayslipHtml = (
 
   const logoHtml = data.logo_url
     ? `<img src="${esc(data.logo_url)}" alt="${esc(data.company_name)} logo" class="logo-img" />`
-    : `<div class="logo-fallback">${esc(initials(data.company_name || 'KD'))}</div>`;
+    : `<div class="logo-fallback">KD</div>`;
 
   const companyIdLine = [
     data.company_rc  ? `RC ${data.company_rc}`   : '',
@@ -165,7 +165,7 @@ export const renderPayslipHtml = (
 
   const watermarkHtml = data.logo_url
     ? `<div class="watermark"><img src="${esc(data.logo_url)}" alt="" /></div>`
-    : `<div class="watermark"><span class="wm-text">${esc(initials(data.company_name || 'KD'))}</span></div>`;
+    : `<div class="watermark"><span class="wm-text">KD</span></div>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -199,7 +199,7 @@ export const renderPayslipHtml = (
     .page::before {
       content: '';
       position: absolute; inset: 0;
-      background-image: radial-gradient(circle, #d4d4d4 0.5px, transparent 0.5px);
+      background-image: radial-gradient(circle, #8fcde0 0.5px, transparent 0.5px);
       background-size: 24px 24px;
       opacity: 0.4;
       pointer-events: none;
@@ -221,7 +221,7 @@ export const renderPayslipHtml = (
     }
     .watermark .wm-text {
       font-size: 280px; font-weight: 900; letter-spacing: -8px;
-      color: #000; line-height: 1;
+      color: #006994; line-height: 1;
     }
 
     /* ─── Header ─────────────────────────────────────────── */
@@ -239,7 +239,7 @@ export const renderPayslipHtml = (
     }
     .logo-fallback {
       width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0;
-      background: #1a1a1a; color: #fff;
+      background: #006994; color: #fff;
       display: flex; align-items: center; justify-content: center;
       font-weight: 800; font-size: 16px; letter-spacing: 0.03em;
     }
@@ -274,7 +274,7 @@ export const renderPayslipHtml = (
     }
     .net-hero .amount {
       font-size: 40px; font-weight: 800; letter-spacing: -1.5px;
-      color: #1a1a1a; line-height: 1;
+      color: #006994; line-height: 1;
     }
     .net-hero .breakdown {
       font-size: 12px; color: #a3a3a3; margin-top: 4px;
@@ -318,7 +318,7 @@ export const renderPayslipHtml = (
       margin-bottom: 8px;
     }
     .comp-bar .seg { height: 100%; }
-    .seg.take    { background: #1a1a1a; }
+    .seg.take    { background: #006994; }
     .seg.paye    { background: #737373; }
     .seg.pension { background: #a3a3a3; }
     .seg.nhf     { background: #c4c4c4; }
@@ -357,7 +357,7 @@ export const renderPayslipHtml = (
     tbody tr.deduction td.right { color: #1a1a1a; }
     tbody tr.subtotal td {
       font-weight: 700;
-      border-top: 2px solid #1a1a1a;
+      border-top: 2px solid #006994;
       border-bottom: none;
       padding-top: 10px;
     }
@@ -365,7 +365,7 @@ export const renderPayslipHtml = (
 
     /* ─── Net pay panel ──────────────────────────────────── */
     .net-panel {
-      background: #1a1a1a;
+      background: #006994;
       padding: 22px 28px;
       display: flex; align-items: center; justify-content: space-between;
       gap: 16px; flex-wrap: wrap; color: #fff;
@@ -408,7 +408,7 @@ export const renderPayslipHtml = (
       height: 4px; background: #e5e5e5; border-radius: 2px; overflow: hidden;
     }
     .ytd-strip .fill {
-      height: 100%; background: #1a1a1a; border-radius: 2px;
+      height: 100%; background: #006994; border-radius: 2px;
     }
     .ytd-strip .note { font-size: 10px; color: #a3a3a3; margin-top: 5px; }
 
@@ -454,9 +454,9 @@ export const renderPayslipHtml = (
     .confidential {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 2px 8px;
-      border: 1px solid #d4d4d4;
+      border: 1px solid #D6AC50;
       font-size: 9px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #737373;
+      letter-spacing: 0.08em; color: #D6AC50;
     }
     .verify {
       font-family: ui-monospace, 'SF Mono', monospace;
@@ -535,7 +535,7 @@ export const renderPayslipHtml = (
           ${extraDeductTotal > 0 ? `<div class="seg extra" style="width:${seg.extra}%"></div>` : ''}
         </div>
         <div class="comp-legend">
-          <span><span class="dot" style="background:#1a1a1a"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
+          <span><span class="dot" style="background:#006994"></span>Take-home ${esc(formatNaira(data.net_ngn))}</span>
           ${data.paye_ngn > 0 ? `<span><span class="dot" style="background:#737373"></span>PAYE ${esc(formatNaira(data.paye_ngn))}</span>` : ''}
           ${data.pension_ngn > 0 ? `<span><span class="dot" style="background:#a3a3a3"></span>Pension ${esc(formatNaira(data.pension_ngn))}</span>` : ''}
           ${data.nhf_ngn > 0 ? `<span><span class="dot" style="background:#c4c4c4"></span>NHF ${esc(formatNaira(data.nhf_ngn))}</span>` : ''}
