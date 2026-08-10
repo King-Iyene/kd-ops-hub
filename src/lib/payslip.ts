@@ -154,18 +154,16 @@ export const renderPayslipHtml = (
     extra:   (rawSeg.extra / segTotal) * 100,
   };
 
-  const logoHtml = data.logo_url
-    ? `<img src="${esc(data.logo_url)}" alt="${esc(data.company_name)} logo" class="logo-img" />`
-    : `<div class="logo-fallback">KD</div>`;
+  const FALLBACK_LOGO = 'https://ops.kdsquares.com/icon-192.png';
+  const logoSrc = data.logo_url || FALLBACK_LOGO;
+  const logoHtml = `<img src="${esc(logoSrc)}" alt="${esc(data.company_name)} logo" class="logo-img" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" />`;
 
   const companyIdLine = [
     data.company_rc  ? `RC ${data.company_rc}`   : '',
     data.company_tin ? `TIN ${data.company_tin}` : '',
   ].filter(Boolean).join(' · ');
 
-  const watermarkHtml = data.logo_url
-    ? `<div class="watermark"><img src="${esc(data.logo_url)}" alt="" /></div>`
-    : `<div class="watermark"><span class="wm-text">KD</span></div>`;
+  const watermarkHtml = `<div class="watermark"><img src="${esc(logoSrc)}" alt="" onerror="this.onerror=null;this.src='${FALLBACK_LOGO}'" /></div>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -219,10 +217,6 @@ export const renderPayslipHtml = (
     .watermark img {
       width: 400px; height: 400px; object-fit: contain;
     }
-    .watermark .wm-text {
-      font-size: 280px; font-weight: 900; letter-spacing: -8px;
-      color: #006994; line-height: 1;
-    }
 
     /* ─── Header ─────────────────────────────────────────── */
     .header {
@@ -236,12 +230,6 @@ export const renderPayslipHtml = (
     .brand { display: flex; align-items: center; gap: 14px; }
     .logo-img {
       width: 48px; height: 48px; border-radius: 8px; object-fit: contain; flex-shrink: 0;
-    }
-    .logo-fallback {
-      width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0;
-      background: #006994; color: #fff;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 800; font-size: 16px; letter-spacing: 0.03em;
     }
     .brand-text { line-height: 1.3; }
     .brand-text .co { font-size: 16px; font-weight: 700; color: #1a1a1a; }
