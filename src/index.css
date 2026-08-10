@@ -68,39 +68,58 @@
     --shadow-xl: 0 20px 48px -8px rgb(0 105 148 / 0.16), 0 8px 16px -4px rgb(0 0 0 / 0.08);
     --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.12), 0 4px 16px -2px hsl(var(--primary) / 0.2);
 
-    /* ─── Ambient time-of-day palette ────────────────────────────────── */
-    /* Default (afternoon) — clear daylight */
+    /* ─── Ambient time-of-day palette ─────────────────────────────────────
+       Each period is a distinct *feeling*, not just a different hue: the
+       arc runs bright/energetic (morning) → confident baseline (afternoon)
+       → warm/winding-down (evening) → calm/focused (night). Night in
+       particular is deliberately dimmer and slower-moving rather than an
+       equally-bright palette in a darker shirt — a small courtesy for
+       anyone actually working late, and it reads as considered rather
+       than just "the dark one". --tod-pulse/--tod-drift pace the ambient
+       animations (logo glow breathe, grid drift) to match: brisk in the
+       morning, unhurried at night. */
+    /* Default (afternoon) — confident daylight baseline */
     --tod-aurora-1: 200 100% 45%;   /* primary cyan-teal */
     --tod-aurora-2: 186 100% 50%;   /* bright cyan */
     --tod-aurora-3: 200 100% 30%;   /* deep teal */
     --tod-glow:     186 100% 50%;
+    --tod-pulse:    3.5s;
+    --tod-drift:    14s;
     --tod-greeting: 'Good afternoon';
   }
 
-  /* Morning — warm amber sunrise (5am–11am) */
+  /* Morning — brightest, most energetic cyan (5am–11am) */
   html[data-tod="morning"] {
-    --tod-aurora-1: 32 95% 60%;     /* amber */
-    --tod-aurora-2: 14 90% 65%;     /* coral */
-    --tod-aurora-3: 41 80% 55%;     /* gold */
-    --tod-glow:     32 95% 60%;
+    --tod-aurora-1: 190 85% 50%;    /* fresh teal-cyan */
+    --tod-aurora-2: 186 100% 62%;   /* brightest cyan of the four */
+    --tod-aurora-3: 196 85% 42%;    /* clear teal */
+    --tod-glow:     186 100% 62%;
+    --tod-pulse:    2.6s;
+    --tod-drift:    10s;
     --tod-greeting: 'Good morning';
   }
 
-  /* Evening — golden hour (5pm–8pm) */
+  /* Evening — golden hour, brand gold instead of off-brand violet/coral (5pm–8pm) */
   html[data-tod="evening"] {
-    --tod-aurora-1: 270 70% 55%;    /* violet */
-    --tod-aurora-2: 14 85% 60%;     /* coral */
-    --tod-aurora-3: 41 80% 50%;     /* warm gold */
-    --tod-glow:     270 70% 55%;
+    --tod-aurora-1: 200 70% 30%;    /* deep teal */
+    --tod-aurora-2: 41 70% 55%;     /* brand gold */
+    --tod-aurora-3: 186 90% 45%;    /* cyan accent */
+    --tod-glow:     41 70% 55%;
+    --tod-pulse:    4s;
+    --tod-drift:    16s;
     --tod-greeting: 'Good evening';
   }
 
-  /* Night — deep space (8pm–5am) */
+  /* Night — deliberately calmer: deeper, less saturated blue-teal (never
+     the same bright cyan as morning), slower pulse and drift. Working
+     late shouldn't feel visually louder than the middle of the day. */
   html[data-tod="night"] {
-    --tod-aurora-1: 220 80% 35%;    /* deep blue */
-    --tod-aurora-2: 186 100% 50%;   /* neon cyan */
-    --tod-aurora-3: 270 60% 40%;    /* indigo */
-    --tod-glow:     186 100% 50%;
+    --tod-aurora-1: 218 70% 24%;    /* deep indigo-teal */
+    --tod-aurora-2: 205 80% 42%;    /* muted blue-teal, not neon cyan */
+    --tod-aurora-3: 222 55% 20%;    /* near-navy */
+    --tod-glow:     205 80% 42%;
+    --tod-pulse:    5.5s;
+    --tod-drift:    22s;
     --tod-greeting: 'Working late';
   }
 
@@ -632,7 +651,11 @@
     background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--primary) / 0.03) 100%);
   }
 
-  /* Hex grid — removed (no-op) */
+  /* Hex grid — removed (no-op). Left inert; still referenced by several
+     authenticated pages as a decorative overlay div and none of them
+     should change appearance from this pass — see .kd-square-grid below
+     for the unauthenticated-shell's own (differently named) replacement,
+     used only by <AuthAtmosphere>. */
   .kd-hex-grid {}
 
   /* Dot grid — removed (no-op) */
@@ -641,6 +664,126 @@
   /* Particle layer — removed (no-op) */
   .kd-particles {}
   .kd-particle {}
+
+  /* ─── Unauthenticated-shell atmosphere ────────────────────────────────
+     Used by <AuthAtmosphere> (Login, 404 — any full-page unauthenticated
+     screen). A fine square-grid line texture (a nod to "KD Squares", not
+     a generic hex/particle pattern) plus a slow ambient brightness drift
+     so the background reads as quietly alive rather than static, without
+     competing with the form. */
+  .kd-square-grid {
+    background-image:
+      linear-gradient(hsl(var(--tod-glow) / 0.14) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--tod-glow) / 0.14) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 46% 42% at 50% 42%, black 0%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 46% 42% at 50% 42%, black 0%, transparent 100%);
+    animation: kd-square-grid-drift var(--tod-drift, 14s) ease-in-out infinite;
+  }
+  @keyframes kd-square-grid-drift {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-square-grid { animation: none; opacity: 0.75; }
+  }
+
+  /* Diagonal light sweep across the primary CTA on hover — a quiet
+     premium touch (Stripe/Ramp/Mercury pattern), not a looping effect. */
+  .kd-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .kd-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 40%, hsl(0 0% 100% / 0.35) 50%, transparent 60%);
+    transform: translateX(-120%);
+    transition: transform 650ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .kd-shimmer:hover::after {
+    transform: translateX(120%);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-shimmer::after { display: none; }
+  }
+
+  /* Unauthenticated-shell card — top-edge brand sweep (teal → cyan →
+     gold) plus a colour-tinted floating shadow instead of a flat
+     generic black one. Used by <AuthAtmosphere> consumers. */
+  .kd-glass-card-premium {
+    position: relative;
+    box-shadow:
+      0 24px 60px -12px hsl(var(--tod-glow) / 0.35),
+      0 8px 24px -8px hsl(0 0% 0% / 0.5);
+  }
+  .kd-glass-card-premium::before {
+    content: '';
+    position: absolute;
+    inset: 0 1px auto 1px;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      hsl(var(--tod-aurora-1)) 20%,
+      hsl(var(--tod-aurora-2)) 50%,
+      hsl(var(--kd-gold)) 80%,
+      transparent 100%);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* 404 page — a one-shot glitch shake on the numerals when the page
+     mounts (plays once, settles quickly — not a looping distraction)
+     plus a slow radar-scan ring around the compass badge, like the
+     system is still searching for the missing route. */
+  .kd-glitch-shake {
+    animation: kd-glitch-shake 550ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  }
+  @keyframes kd-glitch-shake {
+    0%   { transform: translate(0, 0); }
+    10%  { transform: translate(-3px, 1px); }
+    20%  { transform: translate(3px, -1px); }
+    30%  { transform: translate(-2px, 2px) skewX(-2deg); }
+    40%  { transform: translate(2px, -1px) skewX(2deg); }
+    50%  { transform: translate(-1px, 1px); }
+    60%  { transform: translate(1px, -1px); }
+    70%  { transform: translate(-2px, 0); }
+    80%  { transform: translate(1px, 1px); }
+    90%  { transform: translate(-1px, 0); }
+    100% { transform: translate(0, 0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-glitch-shake { animation: none; }
+  }
+
+  .kd-scan-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 1.5px solid hsl(var(--tod-glow) / 0.55);
+    animation: kd-scan-ring 2.6s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  }
+  @keyframes kd-scan-ring {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    100% { transform: scale(1.6); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-scan-ring { animation: none; opacity: 0; }
+  }
+
+  /* Slow breathing glow behind the login logo badge. */
+  .kd-glow-pulse {
+    animation: kd-glow-pulse var(--tod-pulse, 3.5s) ease-in-out infinite;
+  }
+  @keyframes kd-glow-pulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 0.65; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .kd-glow-pulse { animation: none; opacity: 0.5; }
+  }
 
   /* Holographic — removed (no-op) */
   .kd-holographic {}

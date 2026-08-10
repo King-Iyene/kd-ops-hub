@@ -15,17 +15,13 @@ import {
 } from 'lucide-react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import HrDataExport from '@/components/hr/HrDataExport';
+import { chartPalette } from '@/components/ChartKit';
 
 /**
  * HR Analytics dashboard — headcount, attrition, salary, tenure, gender split,
  * plus a simple org chart. All data is read-only aggregates from profiles,
  * terminations, and departments. Never writes.
  */
-
-const CHART_COLORS = [
-  '#0ea5e9', '#8b5cf6', '#ec4899', '#f97316', '#10b981', '#eab308',
-  '#14b8a6', '#f43f5e', '#6366f1', '#84cc16', '#06b6d4', '#a855f7',
-];
 
 interface EmployeeSummary {
   id: string;
@@ -402,7 +398,7 @@ const HrAnalytics = () => {
                     label={(entry: any) => `${entry.name} ${entry.value}`}
                   >
                     {byGender.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      <Cell key={i} fill={chartPalette[i % chartPalette.length]} />
                     ))}
                   </Pie>
                   <RTooltip />

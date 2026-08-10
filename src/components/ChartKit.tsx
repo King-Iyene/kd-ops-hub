@@ -21,6 +21,19 @@ export const chartTheme = {
   gridLine:   'rgba(148, 163, 184, 0.22)',
 };
 
+/** Ordered, on-brand palette for categorical charts (pie/donut cells, multi-
+ *  series bars) that need more than the 3 named brand colors. Cycles via
+ *  `chartPalette[i % chartPalette.length]` for any N categories. */
+export const chartPalette = [
+  chartTheme.primary,
+  chartTheme.cyan,
+  chartTheme.gold,
+  chartTheme.violet,
+  chartTheme.success,
+  chartTheme.warning,
+  chartTheme.danger,
+];
+
 /** Single source of truth for every gradient referenced by id. */
 export function ChartGradients() {
   return (
