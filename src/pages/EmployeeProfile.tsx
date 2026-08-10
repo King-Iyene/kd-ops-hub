@@ -173,6 +173,7 @@ const EmployeeProfile = () => {
   const [increments, setIncrements] = useState<any[]>([]);
   const [advances, setAdvances] = useState<any[]>([]);
   const [deductions, setDeductions] = useState<any[]>([]);
+  const [earnings, setEarnings] = useState<any[]>([]);
   const [benefits, setBenefits] = useState<any[]>([]);
   const [assignedAssets, setAssignedAssets] = useState<any[]>([]);
   const [nsitfEnabled, setNsitfEnabled] = useState(true);
@@ -185,6 +186,17 @@ const EmployeeProfile = () => {
     start_date: new Date().toISOString().slice(0, 10),
     end_date: '',
     total_deductible_amount: '',
+  });
+  const [showEarningDialog, setShowEarningDialog] = useState(false);
+  const [savingEarning, setSavingEarning] = useState(false);
+  const [earningForm, setEarningForm] = useState({
+    description: '',
+    amount_ngn: 0,
+    frequency: 'monthly' as 'monthly' | 'per_payroll_run' | 'one_time',
+    earning_type: 'allowance' as 'allowance' | 'basic_component' | 'bonus' | 'overtime' | 'commission',
+    is_taxable: true,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: '',
   });
   const [showIncrementDialog, setShowIncrementDialog] = useState(false);
   const [savingIncrement, setSavingIncrement] = useState(false);
@@ -379,7 +391,7 @@ const EmployeeProfile = () => {
       })
       .catch(() => { /* company name is cosmetic on the payslip */ });
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, benefitRes, assetRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, earningsRes, benefitRes, assetRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
@@ -408,6 +420,9 @@ const EmployeeProfile = () => {
       supabase.from('employee_deductions').select('*')
         .eq('entity_id', id).eq('entity_type', 'employee')
         .order('created_at', { ascending: false }).limit(20),
+      supabase.from('employee_earnings').select('*')
+        .eq('entity_id', id).eq('entity_type', 'employee')
+        .order('created_at', { ascending: false }).limit(20),
       // Benefits the company pays a real premium for (HMO, group life, etc).
       // Excludes 'pension_pfa' rows — pension employer cost is derived from
       // payslips instead, so summing both here would double-count it.
@@ -426,6 +441,7 @@ const EmployeeProfile = () => {
     setIncrements(incrRes.data || []);
     setAdvances(advRes.data || []);
     setDeductions(deductRes.data || []);
+    setEarnings(earningsRes.data || []);
     setBenefits(benefitRes.data || []);
     setAssignedAssets(assetRes.data || []);
     setLoading(false);
@@ -854,6 +870,43 @@ const EmployeeProfile = () => {
     load();
   };
 
+  const saveEarning = async () => {
+    if (!id || !earningForm.description.trim() || !earningForm.amount_ngn || !earningForm.start_date) return;
+    setSavingEarning(true);
+    try {
+      const payload: Record<string, unknown> = {
+        entity_id: id,
+        entity_type: 'employee',
+        description: earningForm.description.trim(),
+        amount_ngn: Number(earningForm.amount_ngn),
+        frequency: earningForm.frequency,
+        earning_type: earningForm.earning_type,
+        is_taxable: earningForm.is_taxable,
+        start_date: earningForm.start_date,
+        end_date: earningForm.end_date || null,
+        created_by: currentUser?.id || null,
+      };
+      const { error } = await supabase.from('employee_earnings').insert(payload);
+      if (error) throw error;
+      await logAudit('earning_created', `Earning "${earningForm.description}" added for "${employee?.full_name}"`, currentUser);
+      toast({ title: 'Earning added' });
+      setShowEarningDialog(false);
+      setEarningForm({ description: '', amount_ngn: 0, frequency: 'monthly', earning_type: 'allowance', is_taxable: true, start_date: new Date().toISOString().slice(0, 10), end_date: '' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to add earning', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingEarning(false);
+    }
+  };
+
+  const deactivateEarning = async (earningId: string) => {
+    const { error } = await supabase.from('employee_earnings').update({ status: 'paused' }).eq('id', earningId);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Earning paused' });
+    load();
+  };
+
   const yoyGrowth = useMemo(() => {
     if (increments.length === 0 || !employee?.salary_ngn) return null;
     const oneYearAgo = new Date();
@@ -1137,6 +1190,19 @@ const EmployeeProfile = () => {
             )}
           >
             {`Deductions (${deductions.length})`}
+          </button>
+        )}
+        {canFinance && (
+          <button
+            onClick={() => setActiveTab('earnings')}
+            className={cn(
+              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
+              activeTab === 'earnings'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
+            )}
+          >
+            {`Earnings (${earnings.filter((e: any) => e.status === 'active').length})`}
           </button>
         )}
         {increments.length > 0 && (
@@ -3014,6 +3080,70 @@ const EmployeeProfile = () => {
         </div>
       )}
 
+      {activeTab === 'earnings' && canFinance && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Recurring Earnings</CardTitle>
+              {canFinance && (
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowEarningDialog(true)}>
+                  <Plus className="h-4 w-4" /> Add Earning
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              {earnings.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">No recurring earnings configured. Add allowances like meal, transport, utility, etc.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="pl-4">Description</TableHead>
+                      <TableHead className="text-right">Amount (₦)</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Taxable</TableHead>
+                      <TableHead>Start</TableHead>
+                      <TableHead>End</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {earnings.map((e: any) => (
+                      <TableRow key={e.id}>
+                        <TableCell className="pl-4 font-medium">{e.description}</TableCell>
+                        <TableCell className="text-right">{formatNaira(e.amount_ngn)}</TableCell>
+                        <TableCell className="capitalize text-xs">{e.earning_type.replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="capitalize text-xs">{e.frequency.replace(/_/g, ' ')}</TableCell>
+                        <TableCell>{e.is_taxable ? 'Yes' : 'No'}</TableCell>
+                        <TableCell>{formatDate(e.start_date)}</TableCell>
+                        <TableCell>{e.end_date ? formatDate(e.end_date) : '—'}</TableCell>
+                        <TableCell>
+                          <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${e.status === 'active' ? 'bg-emerald-100 text-emerald-700' : e.status === 'completed' ? 'bg-blue-100 text-blue-700' : 'bg-muted text-muted-foreground'}`}>
+                            {e.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {e.status === 'active' && (
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
+                              onClick={() => deactivateEarning(e.id)}>
+                              Pause
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {activeTab === 'increments' && (
         <div className="mt-4">
           <Card>
@@ -3413,6 +3543,96 @@ const EmployeeProfile = () => {
             >
               {savingDeduction && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add Deduction
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEarningDialog} onOpenChange={(o) => { if (!o) setShowEarningDialog(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Recurring Earning</DialogTitle>
+            <DialogDescription>Add a recurring allowance or earning for this employee (e.g. meal, utility, phone).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Description <span className="text-destructive">*</span></Label>
+              <Input
+                className="mt-1"
+                placeholder="e.g. Meal allowance"
+                value={earningForm.description}
+                onChange={(e) => setEarningForm((f) => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Amount per period (₦) <span className="text-destructive">*</span></Label>
+                <Input
+                  className="mt-1"
+                  type="number"
+                  min={1}
+                  placeholder="0"
+                  value={earningForm.amount_ngn || ''}
+                  onChange={(e) => setEarningForm((f) => ({ ...f, amount_ngn: Number(e.target.value) }))}
+                />
+              </div>
+              <div>
+                <Label>Frequency</Label>
+                <Select value={earningForm.frequency} onValueChange={(v) => setEarningForm((f) => ({ ...f, frequency: v as typeof f.frequency }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="per_payroll_run">Per Payroll Run</SelectItem>
+                    <SelectItem value="one_time">One-Time</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Earning type</Label>
+                <Select value={earningForm.earning_type} onValueChange={(v) => setEarningForm((f) => ({ ...f, earning_type: v as typeof f.earning_type }))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="allowance">Allowance</SelectItem>
+                    <SelectItem value="bonus">Bonus</SelectItem>
+                    <SelectItem value="overtime">Overtime</SelectItem>
+                    <SelectItem value="commission">Commission</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end gap-2 pb-0.5">
+                <input
+                  type="checkbox"
+                  id="earning-taxable"
+                  checked={earningForm.is_taxable}
+                  onChange={(e) => setEarningForm((f) => ({ ...f, is_taxable: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="earning-taxable" className="text-sm">Taxable</Label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Start Date <span className="text-destructive">*</span></Label>
+                <Input className="mt-1" type="date" value={earningForm.start_date}
+                  onChange={(e) => setEarningForm((f) => ({ ...f, start_date: e.target.value }))} />
+              </div>
+              <div>
+                <Label>End Date (optional)</Label>
+                <Input className="mt-1" type="date" value={earningForm.end_date}
+                  onChange={(e) => setEarningForm((f) => ({ ...f, end_date: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEarningDialog(false)}>Cancel</Button>
+            <Button
+              onClick={saveEarning}
+              disabled={savingEarning || !earningForm.description.trim() || !earningForm.amount_ngn || !earningForm.start_date}
+            >
+              {savingEarning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add Earning
             </Button>
           </DialogFooter>
         </DialogContent>
