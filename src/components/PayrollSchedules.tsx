@@ -60,7 +60,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type PayFrequency = 'monthly' | 'biweekly' | 'weekly' | 'semimonthly';
+export type PayFrequency = 'monthly' | 'biweekly' | 'weekly' | 'semimonthly' | 'bimonthly' | 'quarterly' | 'triannual' | 'biannual' | 'annual';
+export type ScheduleKind = 'regular' | 'off_cycle';
 export type DayAdjustment = 'before' | 'after' | 'none';
 
 export interface PaySchedule {
@@ -77,6 +78,9 @@ export interface PaySchedule {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  schedule_kind: ScheduleKind;
+  linked_schedule_id: string | null;
+  allowance_context: string | null;
 }
 
 interface PayGroup {
@@ -119,6 +123,9 @@ const EMPTY_FORM: FormState = {
   auto_approve: false,
   notify_roles: ['finance', 'admin', 'super_admin'],
   is_active: true,
+  schedule_kind: 'regular' as ScheduleKind,
+  linked_schedule_id: null,
+  allowance_context: null,
 };
 
 // ─── Schedule presets — Nigeria-standard cadences ─────────────────────────────
@@ -173,6 +180,24 @@ const PRESETS: SchedulePreset[] = [
     description: 'Pay every Friday — short-cycle workforce.',
     config: { frequency: 'weekly', anchor_day: 5, day_adjustment: 'before', processing_lead_days: 1, cutoff_lead_days: 0 },
   },
+  {
+    key: 'ng-bimonthly-25',
+    label: 'Bi-monthly (every 2 months)',
+    description: 'Pay on the 25th every two months — common for contract retainers.',
+    config: { frequency: 'bimonthly', anchor_day: 25, day_adjustment: 'before', processing_lead_days: 5, cutoff_lead_days: 2 },
+  },
+  {
+    key: 'ng-quarterly-25',
+    label: 'Quarterly',
+    description: 'Pay on the 25th every three months — board fees, quarterly bonuses.',
+    config: { frequency: 'quarterly', anchor_day: 25, day_adjustment: 'before', processing_lead_days: 7, cutoff_lead_days: 3 },
+  },
+  {
+    key: 'ng-annual-dec',
+    label: 'Annual (December — 13th month)',
+    description: 'Once per year in December — 13th month salary, annual bonus.',
+    config: { frequency: 'annual', anchor_day: 20, day_adjustment: 'before', processing_lead_days: 10, cutoff_lead_days: 5 },
+  },
 ];
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -184,10 +209,15 @@ function daysUntil(d: Date): number {
 }
 
 const FREQ_LABELS: Record<PayFrequency, string> = {
-  monthly: 'Monthly',
-  biweekly: 'Bi-weekly',
   weekly: 'Weekly',
+  biweekly: 'Bi-weekly',
   semimonthly: 'Semi-monthly',
+  monthly: 'Monthly',
+  bimonthly: 'Bi-monthly',
+  quarterly: 'Quarterly',
+  triannual: 'Tri-annual',
+  biannual: 'Bi-annual',
+  annual: 'Annual',
 };
 
 const DAY_LABELS: Record<DayAdjustment, string> = {
@@ -213,6 +243,8 @@ function anchorLabel(s: PaySchedule | FormState): string {
   }
   return s.anchor_day === 99 ? 'Last working day' : `${ordinal(s.anchor_day)} of month`;
 }
+
+const MONTH_BASED_FREQUENCIES: PayFrequency[] = ['monthly', 'semimonthly', 'bimonthly', 'quarterly', 'triannual', 'biannual', 'annual'];
 
 // ─── RPC helpers ──────────────────────────────────────────────────────────────
 
@@ -1063,6 +1095,7 @@ function PayScheduleForm({
 }) {
   const needsSecondAnchor = form.frequency === 'semimonthly';
   const isWeekBased = form.frequency === 'biweekly' || form.frequency === 'weekly';
+  const isOffCycle = form.schedule_kind === 'off_cycle';
 
   const applyPreset = (preset: SchedulePreset) => {
     setForm((f) => ({
@@ -1112,21 +1145,27 @@ function PayScheduleForm({
           <Label>Pay frequency</Label>
           <Select
             value={form.frequency}
-            onValueChange={(v) =>
+            onValueChange={(v) => {
+              const isWeek = v === 'weekly' || v === 'biweekly';
               setForm((f) => ({
                 ...f,
                 frequency: v as PayFrequency,
-                anchor_day: v === 'weekly' || v === 'biweekly' ? 5 : 25,
+                anchor_day: isWeek ? 5 : 25,
                 second_anchor_day: v === 'semimonthly' ? 15 : null,
-              }))
-            }
+              }));
+            }}
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="semimonthly">Semi-monthly (2× / month)</SelectItem>
-              <SelectItem value="biweekly">Bi-weekly (every 2 weeks)</SelectItem>
               <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="biweekly">Bi-weekly (every 2 weeks)</SelectItem>
+              <SelectItem value="semimonthly">Semi-monthly (2× / month)</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="bimonthly">Bi-monthly (every 2 months)</SelectItem>
+              <SelectItem value="quarterly">Quarterly (every 3 months)</SelectItem>
+              <SelectItem value="triannual">Tri-annual (3× / year)</SelectItem>
+              <SelectItem value="biannual">Bi-annual (2× / year)</SelectItem>
+              <SelectItem value="annual">Annual (1× / year)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1266,6 +1305,42 @@ function PayScheduleForm({
           onCheckedChange={(v) => setForm((f) => ({ ...f, auto_approve: v }))}
         />
       </div>
+
+      <div className="border-t border-border/40" />
+
+      {/* Schedule kind */}
+      <div className="space-y-1.5">
+        <Label>Schedule type</Label>
+        <Select
+          value={form.schedule_kind}
+          onValueChange={(v) => setForm((f) => ({
+            ...f,
+            schedule_kind: v as ScheduleKind,
+            linked_schedule_id: v === 'regular' ? null : f.linked_schedule_id,
+            allowance_context: v === 'regular' ? null : f.allowance_context,
+          }))}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="regular">Regular payroll</SelectItem>
+            <SelectItem value="off_cycle">Off-cycle (bonus, 13th month, etc.)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isOffCycle && (
+        <div className="space-y-4 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4">
+          <p className="text-xs text-amber-700 dark:text-amber-300 font-medium">Off-cycle configuration</p>
+          <div className="space-y-1.5">
+            <Label>Allowance context</Label>
+            <Input
+              value={form.allowance_context ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, allowance_context: e.target.value || null }))}
+              placeholder="e.g. 13th month salary, performance bonus, leave encashment"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1358,6 +1433,9 @@ export function PayrollSchedules() {
       second_anchor_day: s.second_anchor_day, day_adjustment: s.day_adjustment,
       processing_lead_days: s.processing_lead_days, cutoff_lead_days: s.cutoff_lead_days,
       auto_approve: s.auto_approve, notify_roles: s.notify_roles, is_active: s.is_active,
+      schedule_kind: s.schedule_kind ?? 'regular',
+      linked_schedule_id: s.linked_schedule_id ?? null,
+      allowance_context: s.allowance_context ?? null,
     });
     setDialogOpen(true);
   };
@@ -1491,6 +1569,11 @@ export function PayrollSchedules() {
                                   className={cn('h-4 w-4 text-muted-foreground transition-transform shrink-0', isExpanded && 'rotate-90')}
                                 />
                                 {s.name}
+                                {s.schedule_kind === 'off_cycle' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-medium">
+                                    Off-cycle
+                                  </span>
+                                )}
                                 {s.auto_approve && (
                                   <Tooltip>
                                     <TooltipTrigger><Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" /></TooltipTrigger>
@@ -1609,6 +1692,16 @@ export function PayrollSchedules() {
                                           {s.auto_approve ? 'Yes' : 'No (manual review)'}
                                         </dd>
                                       </div>
+                                      <div className="flex justify-between">
+                                        <dt className="text-muted-foreground">Type</dt>
+                                        <dd className="font-medium">{s.schedule_kind === 'off_cycle' ? 'Off-cycle' : 'Regular'}</dd>
+                                      </div>
+                                      {s.allowance_context && (
+                                        <div className="flex justify-between">
+                                          <dt className="text-muted-foreground">Context</dt>
+                                          <dd className="font-medium">{s.allowance_context}</dd>
+                                        </div>
+                                      )}
                                     </dl>
                                   </div>
 
