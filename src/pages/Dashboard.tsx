@@ -450,11 +450,11 @@ const Dashboard = () => {
         {/* Greeting */}
         <AuroraHero className="p-5 sm:p-6">
           <div className="flex items-center gap-2 mb-1">
-            <Sparkles className="h-4 w-4 opacity-80 kd-icon-glow" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Personal Overview</span>
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Personal Overview</span>
           </div>
           <h1 className="kd-display text-3xl sm:text-4xl font-bold">{greeting}, {firstName}.</h1>
-          <p className="text-sm opacity-70 mt-1.5">{todSubtitle[tod]}</p>
+          <p className="text-sm text-muted-foreground mt-1.5">{todSubtitle[tod]}</p>
         </AuroraHero>
 
         <PushNotificationsBanner />
@@ -481,15 +481,15 @@ const Dashboard = () => {
       {/* ── Aurora greeting hero ─────────────────────────────────── */}
       <AuroraHero className="p-5 sm:p-7" scanLine>
         <div className="flex items-center gap-2 mb-1">
-          <LayoutDashboard className="h-4 w-4 opacity-80 kd-icon-glow" />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Operations Command</span>
+          <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Operations Overview</span>
         </div>
         <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
           {greeting}, {firstName}.
         </h1>
-        <p className="text-sm opacity-70 mt-1.5">
+        <p className="text-sm text-muted-foreground mt-1.5">
           {todSubtitle[tod]}
-          <span className="opacity-50"> · {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+          <span className="text-muted-foreground/60"> · {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
         </p>
       </AuroraHero>
 

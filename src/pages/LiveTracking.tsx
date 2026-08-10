@@ -649,15 +649,15 @@ export default function LiveTracking() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Radio className="h-4 w-4 opacity-80 kd-icon-glow" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Fleet · Live Tracking</span>
+              <Radio className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Live Tracking</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {tripList.length > 0
                 ? `${tripList.length} driver${tripList.length === 1 ? '' : 's'} on the move`
                 : 'No active trips right now'}
             </h1>
-            <p className="text-sm opacity-80 mt-1 max-w-xl">
+            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
               Real-time map of every in-progress trip. Driver positions update every few seconds while the trip is active.
             </p>
           </div>

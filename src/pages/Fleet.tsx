@@ -2995,13 +2995,13 @@ const Fleet = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Car className="h-4 w-4 opacity-80 kd-icon-glow" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Fleet · Operations Deck</span>
+              <Car className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Fleet</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {totalAnomalies > 0 ? `${totalAnomalies} anomal${totalAnomalies === 1 ? 'y' : 'ies'} flagged` : 'Fleet running smoothly'}
             </h1>
-            <p className="text-sm opacity-70 mt-1.5">
+            <p className="text-sm text-muted-foreground mt-1.5">
               {isAdmin
                 ? 'Review fuel requests, trip logs, and keep the fleet on the road.'
                 : 'Submit fuel requests and daily trip logs.'}
@@ -3009,18 +3009,18 @@ const Fleet = () => {
           </div>
           {/* Live status pills */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
               <Car className="h-3 w-3" /> {activeVehicleCount} active vehicle{activeVehicleCount === 1 ? '' : 's'}
             </span>
             {isAdmin && (
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
                 <Fuel className="h-3 w-3" />
                 <span className={`h-1.5 w-1.5 rounded-full ${pendingFuelCount > 0 ? 'bg-amber-300 kd-status-live-warning' : 'bg-emerald-400 kd-status-live-success'}`} />
                 {pendingFuelCount} pending fuel
               </span>
             )}
             {totalAnomalies > 0 && (
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 backdrop-blur-md border border-red-300/30 text-xs font-medium">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-300/30 text-xs font-medium">
                 <AlertTriangle className="h-3 w-3 text-red-200" />
                 <span className="h-1.5 w-1.5 rounded-full bg-red-400 kd-status-live-danger" />
                 {totalAnomalies} anomal{totalAnomalies === 1 ? 'y' : 'ies'}
@@ -3029,7 +3029,7 @@ const Fleet = () => {
             <button
               type="button"
               onClick={manualRefresh}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
               title="Refresh fleet data"
             >
               <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}

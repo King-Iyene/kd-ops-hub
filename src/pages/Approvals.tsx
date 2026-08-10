@@ -846,13 +846,13 @@ const Approvals = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Inbox className="h-4 w-4 opacity-80 kd-icon-glow" />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] opacity-80">Approvals · Mission Control</span>
+              <Inbox className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Approvals</span>
             </div>
             <h1 className="kd-display text-3xl sm:text-4xl font-bold tracking-tight">
               {counts.total === 0 ? 'All clear.' : `${counts.total} pending`}
             </h1>
-            <p className="text-sm opacity-70 mt-1.5">
+            <p className="text-sm text-muted-foreground mt-1.5">
               {counts.total === 0
                 ? 'No items waiting for review. The queue is empty.'
                 : `${formatNaira(totalPendingValue)} in flight${oldestDays > 0 ? ` · oldest ${oldestDays}d` : ''}`}
@@ -860,17 +860,17 @@ const Approvals = () => {
           </div>
           {/* Live status pills */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
               <span className={`h-1.5 w-1.5 rounded-full ${counts.total === 0 ? 'bg-emerald-400 kd-status-live-success' : 'bg-amber-300 kd-status-live-warning'}`} />
               {counts.total === 0 ? 'System idle' : 'Awaiting review'}
             </span>
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium">
               <ShieldCheck className="h-3 w-3" /> {canApprove ? 'Approver' : 'View only'}
             </span>
             <button
               type="button"
               onClick={manualRefresh}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-medium hover:bg-white/20 transition-colors"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium hover:bg-muted/80 transition-colors"
               title="Refresh now"
             >
               <RefreshCw className="h-3 w-3" /> {lastUpdatedLabel}
@@ -888,12 +888,12 @@ const Approvals = () => {
               { k: 'budgets', label: 'Budgets', n: counts.budgets, icon: PiggyBank },
               { k: 'leave', label: 'Leave', n: counts.leave, icon: Calendar },
             ].map(({ k, label, n, icon: Icon }) => (
-              <div key={k} className="rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 px-3 py-2.5 flex items-center gap-2.5">
-                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${n > 0 ? 'bg-amber-400/20' : 'bg-white/10'}`}>
-                  <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-amber-200' : 'text-white/50'}`} />
+              <div key={k} className="rounded-lg bg-muted/50 border border-border px-3 py-2.5 flex items-center gap-2.5">
+                <div className={`h-7 w-7 rounded-md flex items-center justify-center ${n > 0 ? 'bg-amber-100 dark:bg-amber-400/20' : 'bg-muted'}`}>
+                  <Icon className={`h-3.5 w-3.5 ${n > 0 ? 'text-amber-600 dark:text-amber-200' : 'text-muted-foreground'}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] uppercase tracking-wider opacity-60">{label}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
                   <p className={`kd-display text-base font-bold leading-none ${n > 0 ? '' : 'opacity-40'}`}>{n}</p>
                 </div>
               </div>
