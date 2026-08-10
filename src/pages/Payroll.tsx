@@ -888,7 +888,7 @@ const Payroll = () => {
       // requests that need to be settled this period in one batch.
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
-      const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }] = await Promise.all([
+      const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }, { data: allEarnings }] = await Promise.all([
         supabase
           .from('employee_deductions')
           .select('id, entity_id, description, amount_ngn, total_deductible_amount, amount_deducted_to_date')
@@ -910,6 +910,13 @@ const Payroll = () => {
           .from('payslip_adjustments')
           .select('id, employee_id, kind, description, amount_ngn, taxable')
           .eq('payroll_run_id', run.id),
+        supabase
+          .from('employee_earnings')
+          .select('id, entity_id, description, amount_ngn, earning_type, is_taxable')
+          .eq('entity_type', 'employee')
+          .eq('status', 'active')
+          .lte('start_date', periodStartDate)
+          .or(`end_date.is.null,end_date.gte.${periodStartDate}`),
       ]);
 
       // Group deductions by employee id, excluding capped ones
@@ -942,6 +949,13 @@ const Payroll = () => {
       for (const adj of ((allAdjustments || []) as any[])) {
         if (!adjustmentsByEmployee.has(adj.employee_id)) adjustmentsByEmployee.set(adj.employee_id, []);
         adjustmentsByEmployee.get(adj.employee_id)!.push(adj);
+      }
+
+      // Group recurring earnings by employee id
+      const earningsByEmployee = new Map<string, any[]>();
+      for (const earn of ((allEarnings || []) as any[])) {
+        if (!earningsByEmployee.has(earn.entity_id)) earningsByEmployee.set(earn.entity_id, []);
+        earningsByEmployee.get(earn.entity_id)!.push(earn);
       }
 
       // ── YTD aggregation ─────────────────────────────────────────────
@@ -997,11 +1011,20 @@ const Payroll = () => {
           const adjDeductions = empAdjustments.filter((a: any) => a.kind === 'deduction');
           const taxableEarningsAdd = adjEarnings.reduce((s: number, a: any) => s + (a.taxable !== false ? Number(a.amount_ngn || 0) : 0), 0);
           const nonTaxEarningsAdd  = adjEarnings.reduce((s: number, a: any) => s + (a.taxable === false ? Number(a.amount_ngn || 0) : 0), 0);
-          const earningsAddTotal   = taxableEarningsAdd + nonTaxEarningsAdd;
+
+          // Recurring earnings from employee_earnings table
+          const empRecurringEarnings = earningsByEmployee.get(e.id) || [];
+          const recurTaxable    = empRecurringEarnings.filter((r: any) => r.is_taxable !== false).reduce((s: number, r: any) => s + Number(r.amount_ngn || 0), 0);
+          const recurNonTaxable = empRecurringEarnings.filter((r: any) => r.is_taxable === false).reduce((s: number, r: any) => s + Number(r.amount_ngn || 0), 0);
+
+          const earningsAddTotal   = taxableEarningsAdd + nonTaxEarningsAdd + recurTaxable + recurNonTaxable;
           const adjDeductTotal     = adjDeductions.reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
           const bonusSum    = adjEarnings.filter((a: any) => a.kind === 'bonus').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
           const overtimeSum = adjEarnings.filter((a: any) => a.kind === 'overtime').reduce((s: number, a: any) => s + Number(a.amount_ngn || 0), 0);
-          const allowanceLines = adjEarnings.filter((a: any) => a.kind === 'allowance').map((a: any) => ({ description: a.description, amount_ngn: Number(a.amount_ngn || 0) }));
+          const allowanceLines = [
+            ...adjEarnings.filter((a: any) => a.kind === 'allowance').map((a: any) => ({ description: a.description, amount_ngn: Number(a.amount_ngn || 0) })),
+            ...empRecurringEarnings.map((r: any) => ({ description: r.description, amount_ngn: Number(r.amount_ngn || 0) })),
+          ];
 
           // Honour the per-employee statutory toggles. Defaults match
           // Nigerian regulatory baseline: PAYE + Pension on, NHF off.
@@ -1014,7 +1037,7 @@ const Payroll = () => {
           const compOther     = Number(e.other_allowances_ngn || 0);
           const pensionBaseM  = useComps ? (compBasic + compHousing + compTransport) : empGross;
           const nhfBaseM      = useComps ? compBasic : empGross;
-          const payeBase   = empGross + taxableEarningsAdd;
+          const payeBase   = empGross + taxableEarningsAdd + recurTaxable;
           const empBreak   = computePayslip({
             grossMonthlyNgn: payeBase,
             pensionEnabled: e.pension_enabled !== false,
@@ -1202,6 +1225,13 @@ const Payroll = () => {
                     description: a.description,
                     amount_ngn: Number(a.amount_ngn || 0),
                   })),
+                ];
+                return lines.length > 0 ? lines : null;
+              })(),
+              earnings_json: (() => {
+                const lines = [
+                  ...adjEarnings.map((a: any) => ({ adjustment_id: a.id, description: a.description, amount_ngn: Number(a.amount_ngn || 0), kind: a.kind })),
+                  ...empRecurringEarnings.map((r: any) => ({ earning_id: r.id, description: r.description, amount_ngn: Number(r.amount_ngn || 0), type: r.earning_type })),
                 ];
                 return lines.length > 0 ? lines : null;
               })(),
