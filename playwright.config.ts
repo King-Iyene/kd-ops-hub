@@ -46,8 +46,24 @@ export default defineConfig({
       timeout: 90_000,
     },
     // All spec files run after setup, reusing the saved session.
+    // payroll-live-verification.spec.ts is excluded here — it mutates real
+    // production payroll data and must only run via the dedicated
+    // 'live-verification' project below, triggered by hand
+    // (payroll-live-verification.yml, workflow_dispatch only), never on a
+    // routine push.
     {
       name: 'chromium',
+      testIgnore: /payroll-live-verification\.spec\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/.auth/user.json',
+      },
+      dependencies: ['setup'],
+    },
+    // One-shot, manually-triggered only — see payroll-live-verification.yml.
+    {
+      name: 'live-verification',
+      testMatch: /payroll-live-verification\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests/.auth/user.json',

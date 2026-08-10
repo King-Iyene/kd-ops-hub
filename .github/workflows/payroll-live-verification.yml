@@ -1,15 +1,20 @@
-name: Playwright E2E Tests
+name: Payroll Live Verification (manual)
+
+# One-shot, manually-triggered verification that the payroll run pipeline
+# (draft -> submit -> approve -> generate payslips) actually works
+# end-to-end against the live database, using the same Super Admin test
+# account as the regular E2E suite. This mutates real production payroll
+# data for the targeted period (see tests/payroll-live-verification.spec.ts)
+# — it must never run on a routine push, only when someone deliberately
+# triggers it here.
 
 on:
-  push:
-    branches: [main, develop, "feature/**"]
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:
 
 jobs:
-  e2e:
+  live-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -49,21 +54,21 @@ jobs:
             sleep 1
           done
 
-      - name: Run Playwright tests
-        run: npx playwright test --project=chromium
+      - name: Run payroll live verification
+        run: npx playwright test --project=live-verification
 
       - name: Upload HTML test report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
+          name: payroll-live-verification-report
           path: playwright-report/
           retention-days: 30
 
-      - name: Upload failure screenshots and traces
+      - name: Upload screenshots
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
-          name: test-results
+          name: payroll-live-verification-screenshots
           path: test-results/
-          retention-days: 7
+          retention-days: 30
