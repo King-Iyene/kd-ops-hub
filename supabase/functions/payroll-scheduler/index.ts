@@ -3,33 +3,51 @@
 // Auto-scheduled payroll: generates draft payroll runs when a pay schedule's
 // processing window opens, and notifies Finance / Admin.
 //
-// Invoke via Supabase scheduled triggers (pg_cron) or externally (cron job):
-//   SELECT cron.schedule(
-//     'payroll-auto-draft',
-//     '0 6 * * *',   -- 06:00 UTC daily
-//     $$ SELECT net.http_post(
-//       url := 'https://<ref>.supabase.co/functions/v1/payroll-scheduler',
-//       headers := '{"Authorization":"Bearer <service_role_key>"}'::jsonb
-//     ) $$
-//   );
+// Registered via 20261025000000_payroll_scheduler_cron.sql (pg_cron, daily
+// 06:00 UTC tick through Vault-stored URL + shared secret — same pattern as
+// batch-worker / fx-rate-sync). Previously this function had no actual cron
+// registration anywhere, so it only ever ran if invoked by hand.
 //
-// Or call manually: supabase functions invoke payroll-scheduler
+// AUTH (deployed --no-verify-jwt, validated in code):
+//   • X-Cron-Secret == CRON_SHARED_SECRET   (pg_cron daily tick), or
+//   • a Supabase JWT for a super_admin / admin / finance user (manual run).
+//
 // Deploy: supabase functions deploy payroll-scheduler --no-verify-jwt
+// Secrets: CRON_SHARED_SECRET (already set for batch-worker — reused).
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const SUPABASE_URL        = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY    = Deno.env.get("SUPABASE_ANON_KEY")!;
+const CRON_SHARED_SECRET   = Deno.env.get("CRON_SHARED_SECRET");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // ── Auth gate ────────────────────────────────────────────────────────────
+  const isCron = !!CRON_SHARED_SECRET && req.headers.get("X-Cron-Secret") === CRON_SHARED_SECRET;
+  if (!isCron) {
+    const bearer = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
+    if (!bearer) return json(401, { ok: false, error: "Not authenticated" });
+    const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { user }, error: authErr } = await anon.auth.getUser(bearer);
+    if (authErr || !user) return json(401, { ok: false, error: authErr?.message ?? "Not authenticated" });
+    const svcCheck = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, { auth: { persistSession: false } });
+    const { data: profile } = await svcCheck.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (!["super_admin", "admin", "finance"].includes((profile as any)?.role)) {
+      return json(403, { ok: false, error: "Requires admin or finance role" });
+    }
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
