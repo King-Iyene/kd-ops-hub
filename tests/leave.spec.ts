@@ -18,7 +18,7 @@ test.describe('Leave', () => {
       await expect(dialog).toBeVisible({ timeout: 5_000 });
       // Leave type, start/end dates must be present.
       await expect(
-        dialog.locator('label:has-text("Type"), label:has-text("Leave type"), text=Leave type').first(),
+        dialog.locator('label:has-text("Type"), label:has-text("Leave type")').or(dialog.getByText('Leave type')).first(),
       ).toBeVisible();
       await expect(
         dialog.locator('label:has-text("Start"), input[type="date"]').first(),
@@ -34,7 +34,7 @@ test.describe('Leave', () => {
       await myTab.click();
     }
     await expect(
-      page.locator('table, text=/no leave|no request/i').first(),
+      page.locator('table').or(page.getByText(/no leave|no request/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -44,7 +44,7 @@ test.describe('Leave', () => {
     if (await teamTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await teamTab.click();
       await expect(
-        page.locator('table, text=/no leave|no request/i').first(),
+        page.locator('table').or(page.getByText(/no leave|no request/i)).first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });

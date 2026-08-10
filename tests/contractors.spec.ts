@@ -5,7 +5,7 @@ test.describe('Contractors', () => {
     await page.goto('/contractors');
     await expect(page.locator('h1:has-text("Contractors")')).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.locator('table, text=/no contractor/i').first(),
+      page.locator('table').or(page.getByText(/no contractor/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -19,7 +19,7 @@ test.describe('Contractors', () => {
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     // Scope all assertions to the dialog.
     await expect(dialog.locator('label:has-text("Full Name"), [placeholder*="Name"]').first()).toBeVisible();
-    await expect(dialog.locator('label:has-text("Bank"), text=Bank').first()).toBeVisible();
+    await expect(dialog.locator('label:has-text("Bank")').or(dialog.getByText('Bank')).first()).toBeVisible();
     await expect(dialog.locator('label:has-text("Account Number"), [placeholder*="Account"]').first()).toBeVisible();
     await expect(dialog.locator('label:has-text("Default Amount"), label:has-text("Amount")').first()).toBeVisible();
   });
@@ -51,7 +51,7 @@ test.describe('Contractors', () => {
     if (await appsTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await appsTab.click();
       await expect(
-        page.locator('table, text=/no.*application/i').first(),
+        page.locator('table').or(page.getByText(/no.*application/i)).first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });

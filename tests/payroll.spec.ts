@@ -11,7 +11,7 @@ test.describe('Payroll', () => {
   test('payroll list or empty state is visible', async ({ page }) => {
     await page.goto('/payroll');
     await expect(
-      page.locator('table, text=/no payroll|no pay run/i').first(),
+      page.locator('table').or(page.getByText(/no payroll|no pay run/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -39,7 +39,7 @@ test.describe('Payroll', () => {
       await firstRow.click();
       // Should navigate into a payroll run detail or show a payslip table.
       await expect(
-        page.locator('table, text=/payslip|employee/i').first(),
+        page.locator('table').or(page.getByText(/payslip|employee/i)).first(),
       ).toBeVisible({ timeout: 10_000 });
     }
   });

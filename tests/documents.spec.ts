@@ -5,7 +5,7 @@ test.describe('Documents', () => {
     await page.goto('/documents');
     await expect(page.locator('h1:has-text("Documents")')).toBeVisible({ timeout: 10_000 });
     await expect(
-      page.locator('table, text=/no document/i').first(),
+      page.locator('table').or(page.getByText(/no document/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 
@@ -18,7 +18,7 @@ test.describe('Documents', () => {
       await expect(dialog).toBeVisible({ timeout: 5_000 });
       // Scope label checks inside the dialog.
       await expect(dialog.locator('label:has-text("Title"), [placeholder*="title"]').first()).toBeVisible();
-      await expect(dialog.locator('label:has-text("Category"), text=Category').first()).toBeVisible();
+      await expect(dialog.locator('label:has-text("Category")').or(dialog.getByText('Category')).first()).toBeVisible();
       await expect(dialog.locator('input[type="file"]')).toBeVisible();
     }
   });

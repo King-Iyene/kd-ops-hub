@@ -9,7 +9,7 @@ test.describe('Employees', () => {
   test('employee table or empty state is visible', async ({ page }) => {
     await page.goto('/employees');
     await expect(
-      page.locator('table, text=/no employee/i').first(),
+      page.locator('table').or(page.getByText(/no employee/i)).first(),
     ).toBeVisible({ timeout: 10_000 });
   });
 

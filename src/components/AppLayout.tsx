@@ -129,9 +129,9 @@ export default function AppLayout() {
               {/* Mobile: page title always visible */}
               <div className="flex items-center gap-2 min-w-0">
                 {pageTitle && (
-                  <h1 className="text-sm font-semibold text-foreground truncate">
+                  <p className="text-sm font-semibold text-foreground truncate">
                     {pageTitle}
-                  </h1>
+                  </p>
                 )}
                 {portal && (
                   <>

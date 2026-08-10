@@ -16,7 +16,7 @@ test.describe('Budgets', () => {
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     // Scope all label checks inside the dialog to avoid matching page content.
     await expect(dialog.locator('label:has-text("Name"), [placeholder*="Budget name"]').first()).toBeVisible();
-    await expect(dialog.locator('label:has-text("Period"), label:has-text("Start"), text=Period start').first()).toBeVisible();
+    await expect(dialog.locator('label:has-text("Period"), label:has-text("Start")').or(dialog.getByText('Period start')).first()).toBeVisible();
     await expect(dialog.locator('text=Line items').or(dialog.locator('text=Add line')).first()).toBeVisible();
   });
 
@@ -40,7 +40,7 @@ test.describe('Budgets', () => {
     await page.goto('/budgets');
     await expect(page.locator('h1:has-text("Budgets")')).toBeVisible({ timeout: 10_000 });
     // Table or empty state must render without errors.
-    const content = page.locator('table, text=/no budget/i').first();
+    const content = page.locator('table').or(page.getByText(/no budget/i)).first();
     await expect(content).toBeVisible({ timeout: 10_000 });
   });
 });

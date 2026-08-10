@@ -32,7 +32,7 @@ test.describe('Dashboard', () => {
 
   test('full audit log link navigates to /audit', async ({ page }) => {
     await page.goto('/dashboard');
-    const link = page.locator('a:has-text("Full audit log"), text=Full audit log').first();
+    const link = page.locator('a:has-text("Full audit log")').or(page.getByText('Full audit log')).first();
     if (await link.isVisible()) {
       await link.click();
       await page.waitForURL('**/audit', { timeout: 10_000 });
