@@ -14,8 +14,9 @@ import { Loader as Loader2 } from 'lucide-react';
 
 // Eagerly loaded — shown before auth resolves or needed for public routes.
 import Login from './pages/Login';
-import Register from './pages/Register';
-import Signup from './pages/Signup';
+// Register & Signup disabled — routes redirect to /login (invite-only).
+// import Register from './pages/Register';
+// import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import JoinForm from './pages/JoinForm';
@@ -137,8 +138,9 @@ function AppRoutes() {
     <MfaChallengeGate />
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/signup" element={<Signup />} />
+      {/* Self-registration disabled — use /join (invite-based) flow instead. */}
+      <Route path="/register" element={<Navigate to="/login" replace />} />
+      <Route path="/signup" element={<Navigate to="/login" replace />} />
       {/* Public routes — no auth required. */}
       <Route path="/join" element={<JoinForm />} />
       <Route path="/ref/:code" element={<JoinForm />} />

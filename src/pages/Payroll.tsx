@@ -600,33 +600,43 @@ const Payroll = () => {
         paye + pension + nhf + employerPension + nsitfCharge +
         bonusTotal + totalAllowances - totalDeductions - totalAdvanceRepayments;
 
-      // Core upsert — works with the existing schema.
+      // Core upsert — uses partial unique indexes:
+      //   payroll_runs_period_no_segment_uniq (period) WHERE segment IS NULL
+      //   payroll_runs_period_segment_uniq (period, payroll_segment_id) WHERE NOT NULL
+      // For un-segmented runs, onConflict targets the period-only index.
+      // For segmented runs, we include payroll_segment_id in the payload.
+      const segmentId = form.payroll_segment_id || null;
+      const upsertPayload: Record<string, unknown> = {
+        period: form.period,
+        total_contractor_ngn: totalContractor,
+        total_employee_ngn: totalEmployee,
+        total_expenses_ngn: totalExpenses,
+        paye_ngn: paye,
+        pension_ngn: pension,
+        nhf_ngn: nhf,
+        total_burn_ngn: burn,
+        status: 'draft',
+        created_by: profile?.id || null,
+      };
+      if (segmentId) upsertPayload.payroll_segment_id = segmentId;
       const { error } = await supabase.from('payroll_runs').upsert(
-        {
-          period: form.period,
-          total_contractor_ngn: totalContractor,
-          total_employee_ngn: totalEmployee,
-          total_expenses_ngn: totalExpenses,
-          paye_ngn: paye,
-          pension_ngn: pension,
-          nhf_ngn: nhf,
-          total_burn_ngn: burn,
-          status: 'draft',
-          created_by: profile?.id || null,
-        },
-        { onConflict: 'period' },
+        upsertPayload,
+        { onConflict: segmentId ? 'period,payroll_segment_id' : 'period' },
       );
 
       // Extended columns — best-effort; silently ignored if DB migration not run.
-      await supabase.from('payroll_runs').update({
+      let extUpdate = supabase.from('payroll_runs').update({
         period_type: form.period_type,
         employee_count: empCount,
         bonuses_json: form.bonuses.length > 0 ? form.bonuses : null,
         allowances_json: totalAllowances > 0
           ? { housing_pct: form.housing_allowance_pct, transport_per_emp: form.transport_per_emp, meal_per_emp: form.meal_per_emp, total: totalAllowances }
           : null,
-        payroll_segment_id: form.payroll_segment_id || null,
+        payroll_segment_id: segmentId,
       } as any).eq('period', form.period);
+      if (segmentId) extUpdate = extUpdate.eq('payroll_segment_id', segmentId);
+      else extUpdate = extUpdate.is('payroll_segment_id', null);
+      await extUpdate;
       if (error) throw error;
       await logAudit(
         'payroll_created',
@@ -1722,12 +1732,19 @@ const Payroll = () => {
       return;
     }
     setConfirmPaidRun(null);
-    const { error } = await supabase
+    const { error, data: updatedRows } = await supabase
       .from('payroll_runs')
       .update({ status: 'paid' })
-      .eq('id', run.id);
+      .eq('id', run.id)
+      .eq('status', 'approved')
+      .select('id');
     if (error) {
       toast({ title: 'Could not update', description: error.message, variant: 'destructive' });
+      return;
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      toast({ title: 'Already marked paid', description: 'Another user may have already processed this run.', variant: 'destructive' });
+      load();
       return;
     }
 
