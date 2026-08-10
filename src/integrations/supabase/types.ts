@@ -1538,6 +1538,7 @@ export type Database = {
           partner_pay_usd_minor: number
           paternity_leave_days: number
           payment_email_audience: string
+          payroll_notifications_muted: boolean
           paystack_funding_account_name: string | null
           paystack_funding_account_number: string | null
           paystack_funding_bank: string | null
@@ -1639,6 +1640,7 @@ export type Database = {
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
           payment_email_audience?: string
+          payroll_notifications_muted?: boolean
           paystack_funding_account_name?: string | null
           paystack_funding_account_number?: string | null
           paystack_funding_bank?: string | null
@@ -1740,6 +1742,7 @@ export type Database = {
           partner_pay_usd_minor?: number
           paternity_leave_days?: number
           payment_email_audience?: string
+          payroll_notifications_muted?: boolean
           paystack_funding_account_name?: string | null
           paystack_funding_account_number?: string | null
           paystack_funding_bank?: string | null
