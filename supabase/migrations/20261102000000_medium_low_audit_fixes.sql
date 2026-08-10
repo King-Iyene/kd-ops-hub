@@ -3,25 +3,17 @@
 -- employer_pension column, missing indexes, updated_at columns,
 -- NUMERIC(18,2) precision on monetary columns.
 
-BEGIN;
-
--- ══════════════════════════════════════════════════════════════════════
 -- 1. SECURITY DEFINER: pin search_path on the two functions that use it
--- ══════════════════════════════════════════════════════════════════════
 
 ALTER FUNCTION public.soft_delete_contractor(uuid) SET search_path = public;
 ALTER FUNCTION public.schedule_auto_draft()       SET search_path = public;
 
--- ══════════════════════════════════════════════════════════════════════
 -- 2. payroll_runs: add employer_pension_ngn column
--- ══════════════════════════════════════════════════════════════════════
 
 ALTER TABLE payroll_runs
   ADD COLUMN IF NOT EXISTS employer_pension_ngn NUMERIC(18,2);
 
--- ══════════════════════════════════════════════════════════════════════
 -- 3. Payroll audit trigger — log every status transition to audit_logs
--- ══════════════════════════════════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.trg_payroll_status_audit()
 RETURNS TRIGGER
@@ -34,7 +26,6 @@ DECLARE
   v_row_hash  text;
 BEGIN
   IF OLD.status IS DISTINCT FROM NEW.status THEN
-    -- Grab the latest hash for chain continuity
     SELECT row_hash INTO v_prev_hash
       FROM audit_logs
      ORDER BY created_at DESC
@@ -86,33 +77,17 @@ CREATE TRIGGER trg_payroll_status_audit
   FOR EACH ROW
   EXECUTE FUNCTION public.trg_payroll_status_audit();
 
--- ══════════════════════════════════════════════════════════════════════
 -- 4. Missing indexes for common query patterns
--- ══════════════════════════════════════════════════════════════════════
 
-CREATE INDEX IF NOT EXISTS idx_payslips_period
-  ON payslips (period);
+CREATE INDEX IF NOT EXISTS idx_payslips_period     ON payslips (period);
+CREATE INDEX IF NOT EXISTS idx_profiles_role       ON profiles (role);
+CREATE INDEX IF NOT EXISTS idx_profiles_status     ON profiles (status);
+CREATE INDEX IF NOT EXISTS idx_profiles_department ON profiles (department_id);
+CREATE INDEX IF NOT EXISTS idx_payroll_runs_status ON payroll_runs (status);
+CREATE INDEX IF NOT EXISTS idx_notifications_user  ON notifications (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_profiles_role
-  ON profiles (role);
-
-CREATE INDEX IF NOT EXISTS idx_profiles_status
-  ON profiles (status);
-
-CREATE INDEX IF NOT EXISTS idx_profiles_department
-  ON profiles (department_id);
-
-CREATE INDEX IF NOT EXISTS idx_payroll_runs_status
-  ON payroll_runs (status);
-
-CREATE INDEX IF NOT EXISTS idx_notifications_user
-  ON notifications (user_id);
-
--- ══════════════════════════════════════════════════════════════════════
 -- 5. updated_at columns on tables that lack them
--- ══════════════════════════════════════════════════════════════════════
 
--- payroll_run_items
 ALTER TABLE payroll_run_items
   ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
@@ -140,7 +115,6 @@ BEGIN
 END;
 $$;
 
--- payslips
 ALTER TABLE payslips
   ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
@@ -158,7 +132,6 @@ BEGIN
 END;
 $$;
 
--- batch_items
 ALTER TABLE batch_items
   ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
 
@@ -176,13 +149,13 @@ BEGIN
 END;
 $$;
 
--- ══════════════════════════════════════════════════════════════════════
 -- 6. Ensure NUMERIC(18,2) precision on monetary columns
---    (ALTER TYPE is a no-op when the column is already unconstrained
---     numeric — Postgres will coerce existing values to the new scale)
--- ══════════════════════════════════════════════════════════════════════
+--    Must handle trigger and view dependencies.
 
--- payroll_runs
+-- 6a. Drop variance trigger that depends on total_burn_ngn
+DROP TRIGGER IF EXISTS trg_payroll_runs_variance ON payroll_runs;
+
+-- 6b. payroll_runs monetary columns
 ALTER TABLE payroll_runs
   ALTER COLUMN total_contractor_ngn TYPE NUMERIC(18,2),
   ALTER COLUMN total_employee_ngn   TYPE NUMERIC(18,2),
@@ -192,7 +165,13 @@ ALTER TABLE payroll_runs
   ALTER COLUMN nhf_ngn              TYPE NUMERIC(18,2),
   ALTER COLUMN total_burn_ngn       TYPE NUMERIC(18,2);
 
--- payroll_run_items
+-- Recreate variance trigger
+CREATE TRIGGER trg_payroll_runs_variance
+  AFTER INSERT OR UPDATE OF total_burn_ngn ON payroll_runs
+  FOR EACH ROW
+  EXECUTE FUNCTION _trg_payroll_runs_compute_variance();
+
+-- 6c. payroll_run_items monetary columns
 ALTER TABLE payroll_run_items
   ALTER COLUMN gross_ngn   TYPE NUMERIC(18,2),
   ALTER COLUMN paye_ngn    TYPE NUMERIC(18,2),
@@ -200,7 +179,7 @@ ALTER TABLE payroll_run_items
   ALTER COLUMN nhf_ngn     TYPE NUMERIC(18,2),
   ALTER COLUMN net_ngn     TYPE NUMERIC(18,2);
 
--- payslips
+-- 6d. payslips monetary columns
 ALTER TABLE payslips
   ALTER COLUMN gross_ngn   TYPE NUMERIC(18,2),
   ALTER COLUMN paye_ngn    TYPE NUMERIC(18,2),
@@ -208,12 +187,45 @@ ALTER TABLE payslips
   ALTER COLUMN nhf_ngn     TYPE NUMERIC(18,2),
   ALTER COLUMN net_ngn     TYPE NUMERIC(18,2);
 
--- batch_items
+-- 6e. Drop transactions_view, alter batch_items + payment_batches, recreate view
+DROP VIEW IF EXISTS transactions_view;
+
 ALTER TABLE batch_items
   ALTER COLUMN amount_ngn TYPE NUMERIC(18,2);
 
--- payment_batches
 ALTER TABLE payment_batches
   ALTER COLUMN total_amount TYPE NUMERIC(18,2);
 
-COMMIT;
+CREATE VIEW transactions_view AS
+ SELECT bi.id,
+    COALESCE(bi.processed_at, bi.created_at, pb.created_at) AS created_at,
+    CASE WHEN pb.is_quick_pay THEN 'quick_pay'::text ELSE 'transfer'::text END AS txn_type,
+    COALESCE(bi.full_name, 'Unknown recipient'::text) AS description,
+    COALESCE(pb.payment_category, 'transfer'::text) AS category,
+    bi.amount_ngn,
+    CASE WHEN bi.provider = 'flutterwave'::text THEN bi.flutterwave_fee_ngn
+         ELSE bi.paystack_fee_ngn END AS paystack_fee_ngn,
+    bi.status,
+    COALESCE(bi.provider, 'paystack'::text) AS provider,
+    CASE WHEN bi.provider = 'flutterwave'::text
+         THEN COALESCE(bi.flutterwave_reference, bi.id::text)
+         ELSE COALESCE(bi.paystack_reference, bi.id::text) END AS reference,
+    pb.created_by,
+    bi.contractor_id,
+    bi.employee_id,
+    pb.name AS batch_name,
+    NULL::integer AS beneficiary_count,
+    NULL::integer AS succeeded_count,
+    NULL::integer AS failed_count,
+    pb.payment_date,
+    pb.approved_by,
+    bi.failure_reason AS rejection_reason,
+    bi.narration AS notes,
+    bi.bank_name,
+    bi.account_number,
+    COALESCE(bi.account_name, bi.full_name) AS account_name,
+    NULL::text AS receipt_url,
+    pb.id AS parent_batch_id
+ FROM batch_items bi
+ JOIN payment_batches pb ON pb.id = bi.batch_id
+ WHERE bi.paystack_reference IS NOT NULL OR bi.flutterwave_reference IS NOT NULL;
