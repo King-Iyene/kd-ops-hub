@@ -459,7 +459,7 @@ export type Database = {
       audit_logs: {
         Row: {
           action_type: string
-          created_at: string | null
+          created_at: string
           description: string
           entity_id: string | null
           entity_type: string | null
@@ -475,7 +475,7 @@ export type Database = {
         }
         Insert: {
           action_type: string
-          created_at?: string | null
+          created_at?: string
           description: string
           entity_id?: string | null
           entity_type?: string | null
@@ -491,7 +491,7 @@ export type Database = {
         }
         Update: {
           action_type?: string
-          created_at?: string | null
+          created_at?: string
           description?: string
           entity_id?: string | null
           entity_type?: string | null
@@ -731,6 +731,7 @@ export type Database = {
           reference: string | null
           source_usd_minor: number | null
           status: string
+          updated_at: string | null
         }
         Insert: {
           account_name?: string | null
@@ -769,6 +770,7 @@ export type Database = {
           reference?: string | null
           source_usd_minor?: number | null
           status?: string
+          updated_at?: string | null
         }
         Update: {
           account_name?: string | null
@@ -807,6 +809,7 @@ export type Database = {
           reference?: string | null
           source_usd_minor?: number | null
           status?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -6436,6 +6439,7 @@ export type Database = {
           paye_ngn: number
           payroll_run_id: string
           pension_ngn: number
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
@@ -6448,6 +6452,7 @@ export type Database = {
           paye_ngn?: number
           payroll_run_id: string
           pension_ngn?: number
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
@@ -6460,6 +6465,7 @@ export type Database = {
           paye_ngn?: number
           payroll_run_id?: string
           pension_ngn?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -6542,6 +6548,7 @@ export type Database = {
           created_by: string | null
           cutoff_date: string | null
           employee_count: number | null
+          employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
           nhf_ngn: number
@@ -6570,6 +6577,7 @@ export type Database = {
           created_by?: string | null
           cutoff_date?: string | null
           employee_count?: number | null
+          employer_pension_ngn?: number | null
           id?: string
           is_auto_generated?: boolean
           nhf_ngn?: number
@@ -6598,6 +6606,7 @@ export type Database = {
           created_by?: string | null
           cutoff_date?: string | null
           employee_count?: number | null
+          employer_pension_ngn?: number | null
           id?: string
           is_auto_generated?: boolean
           nhf_ngn?: number
@@ -6844,6 +6853,7 @@ export type Database = {
           pension_ngn: number
           period: string
           storage_path: string | null
+          updated_at: string | null
         }
         Insert: {
           batch_item_id?: string | null
@@ -6863,6 +6873,7 @@ export type Database = {
           pension_ngn?: number
           period: string
           storage_path?: string | null
+          updated_at?: string | null
         }
         Update: {
           batch_item_id?: string | null
@@ -6882,6 +6893,7 @@ export type Database = {
           pension_ngn?: number
           period?: string
           storage_path?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -11645,6 +11657,7 @@ export type Database = {
           created_by: string | null
           cutoff_date: string | null
           employee_count: number | null
+          employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
           nhf_ngn: number
@@ -12043,6 +12056,7 @@ export type Database = {
           created_by: string | null
           cutoff_date: string | null
           employee_count: number | null
+          employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
           nhf_ngn: number
@@ -12138,6 +12152,7 @@ export type Database = {
           created_by: string | null
           cutoff_date: string | null
           employee_count: number | null
+          employer_pension_ngn: number | null
           id: string
           is_auto_generated: boolean
           nhf_ngn: number
