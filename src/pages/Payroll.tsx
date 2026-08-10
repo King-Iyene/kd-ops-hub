@@ -856,7 +856,7 @@ const Payroll = () => {
       // empty company_settings row still produces a valid payslip.
       const { data: settings } = await supabase
         .from('company_settings')
-        .select('company_name, rc_number, tin, address, logo_url, nsitf_enabled, itf_enabled')
+        .select('company_name, rc_number, tin, address, logo_url, nsitf_enabled, itf_enabled, payroll_notifications_muted')
         .eq('id', '00000000-0000-0000-0000-000000000001')
         .maybeSingle();
       const companyName    = (settings as any)?.company_name || 'KD Squares Ltd';
@@ -866,6 +866,10 @@ const Payroll = () => {
       const companyLogo    = (settings as any)?.logo_url     || null;
       const nsitfEnabled   = (settings as any)?.nsitf_enabled !== false;
       const itfEnabled     = (settings as any)?.itf_enabled !== false;
+      // Dry-run / correction escape hatch — payslips still generate and
+      // save normally, only the employee-facing notification fan-out
+      // (email/in-app/WhatsApp/SMS) is skipped. Flip back off afterward.
+      const notificationsMuted = (settings as any)?.payroll_notifications_muted === true;
 
       // Fetch all active employee deductions, advances, AND outstanding EWA
       // requests that need to be settled this period in one batch.
@@ -1196,43 +1200,45 @@ const Payroll = () => {
           if (upsertErr) throw upsertErr;
 
           succeeded++;
-          // Multi-channel notification (in-app + WhatsApp + optional SMS).
-          // Respects each user's notification_preferences.whatsapp_payslip /
-          // sms_payslip toggles, validates the NG phone format, and dedups
-          // re-runs via the per-(payroll, employee) idempotency key.
-          notifyChannels({
-            user: {
-              id: e.id,
-              full_name: empName,
-              email: e.email,
-              phone: e.phone,
-            },
-            category: 'payslip',
-            kind: 'payslip_ready',
-            payload: {
-              name: empName,
+          if (!notificationsMuted) {
+            // Multi-channel notification (in-app + WhatsApp + optional SMS).
+            // Respects each user's notification_preferences.whatsapp_payslip /
+            // sms_payslip toggles, validates the NG phone format, and dedups
+            // re-runs via the per-(payroll, employee) idempotency key.
+            notifyChannels({
+              user: {
+                id: e.id,
+                full_name: empName,
+                email: e.email,
+                phone: e.phone,
+              },
+              category: 'payslip',
+              kind: 'payslip_ready',
+              payload: {
+                name: empName,
+                period: monthLabel(run.period),
+                net_ngn: empNet,
+                url: payslipViewUrl,
+              },
+              idempotencyKey: `payslip_ready:${run.id}:${e.id}`,
+            });
+            // Email dispatch — separate from notifyChannels because the
+            // notify module explicitly excludes email today. Best-effort; the
+            // helper swallows failures so a template outage never blocks
+            // payslip generation or downstream payroll actions.
+            notifyPayslipReady({
+              employeeEmail: e.email,
+              employeeName: empName,
               period: monthLabel(run.period),
-              net_ngn: empNet,
-              url: payslipViewUrl,
-            },
-            idempotencyKey: `payslip_ready:${run.id}:${e.id}`,
-          });
-          // Email dispatch — separate from notifyChannels because the
-          // notify module explicitly excludes email today. Best-effort; the
-          // helper swallows failures so a template outage never blocks
-          // payslip generation or downstream payroll actions.
-          notifyPayslipReady({
-            employeeEmail: e.email,
-            employeeName: empName,
-            period: monthLabel(run.period),
-            grossFormatted: formatNaira(empGrossTotal),
-            deductionsFormatted: formatNaira(
-              empPaye + empPension + empNhf +
-              empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
-            ),
-            netFormatted: formatNaira(empNet),
-            payslipUrl: payslipViewUrl,
-          });
+              grossFormatted: formatNaira(empGrossTotal),
+              deductionsFormatted: formatNaira(
+                empPaye + empPension + empNhf +
+                empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
+              ),
+              netFormatted: formatNaira(empNet),
+              payslipUrl: payslipViewUrl,
+            });
+          }
         } catch (empErr: any) {
           console.warn('[KDOps] payslip generation failed for', e.email, empErr);
           failed++;
