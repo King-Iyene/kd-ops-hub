@@ -188,79 +188,87 @@ const Payments = () => {
 
   const fetchBatches = async () => {
     setLoading(true);
-    let query = supabase
-      .from('payment_batches')
-      .select('*')
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .range(page * 1000, (page + 1) * 1000 - 1);
+    try {
+      let query = supabase
+        .from('payment_batches')
+        .select('*')
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(page * 1000, (page + 1) * 1000 - 1);
 
-    if (statusFilter !== 'all') {
-      // 'pending' is a VIRTUAL tab covering the whole pre-dispatch pipeline
-      // (pending_approval + pending_second_approval + approved + funded).
-      // Anything else maps 1:1 to a single DB status value — the existing
-      // .eq path is preserved for those. No payment-processing paths are
-      // touched by this filter change; it's purely a client-side display
-      // query against the read-only payment_batches list.
-      if (statusFilter === 'pending') {
-        query = query.in('status', [
-          'pending_approval',
-          'pending_second_approval',
-          'approved',
-          'funded',
-        ]);
-      } else {
-        query = query.eq('status', statusFilter);
-      }
-    }
-
-    const { data, error } = await query;
-    if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    const fetched = (data as PaymentBatch[]) || [];
-
-    const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
-    if (stale.length > 0) {
-      const staleIds = stale.map((b) => b.id);
-      const { data: allItems } = await supabase
-        .from('batch_items')
-        .select('batch_id, status')
-        .in('batch_id', staleIds);
-
-      const itemsByBatch = new Map<string, { status: string }[]>();
-      for (const it of (allItems || []) as { batch_id: string; status: string }[]) {
-        const arr = itemsByBatch.get(it.batch_id) ?? [];
-        arr.push({ status: it.status });
-        itemsByBatch.set(it.batch_id, arr);
-      }
-
-      const updates: Promise<unknown>[] = [];
-      for (const b of stale) {
-        const items = itemsByBatch.get(b.id) ?? [];
-        if (items.length === 0) continue;
-        const anyPending = items.some((r) => r.status === 'pending' || r.status === 'retry');
-        const anyFailed = items.some((r) => r.status === 'failed');
-        const anySucceeded = items.some((r) => r.status === 'succeeded');
-        // 'failed' when EVERY non-pending item failed (no succeeded).
-        // 'partially_processed' when failures coexist with successes.
-        const correct = anyPending ? 'processing'
-          : anyFailed && !anySucceeded ? 'failed'
-          : anyFailed ? 'partially_processed'
-          : 'processed';
-        if (correct !== b.status) {
-          // Route through the SECURITY DEFINER sync RPC so direct status
-          // writes from authenticated stay blocked. RPC is idempotent and
-          // bounded — only flips processing/partially/funded → derived state.
-          updates.push(
-            supabase.rpc('sync_batch_status_from_items', { p_batch_id: b.id }),
-          );
-          b.status = correct;
+      if (statusFilter !== 'all') {
+        // 'pending' is a VIRTUAL tab covering the whole pre-dispatch pipeline
+        // (pending_approval + pending_second_approval + approved + funded).
+        // Anything else maps 1:1 to a single DB status value — the existing
+        // .eq path is preserved for those. No payment-processing paths are
+        // touched by this filter change; it's purely a client-side display
+        // query against the read-only payment_batches list.
+        if (statusFilter === 'pending') {
+          query = query.in('status', [
+            'pending_approval',
+            'pending_second_approval',
+            'approved',
+            'funded',
+          ]);
+        } else {
+          query = query.eq('status', statusFilter);
         }
       }
-      if (updates.length > 0) await Promise.all(updates);
-    }
 
-    setBatches(fetched);
-    setLoading(false);
+      const { data, error } = await query;
+      if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      const fetched = (data as PaymentBatch[]) || [];
+
+      const stale = fetched.filter((b) => b.status === 'processing' || b.status === 'partially_processed');
+      if (stale.length > 0) {
+        const staleIds = stale.map((b) => b.id);
+        const { data: allItems } = await supabase
+          .from('batch_items')
+          .select('batch_id, status')
+          .in('batch_id', staleIds);
+
+        const itemsByBatch = new Map<string, { status: string }[]>();
+        for (const it of (allItems || []) as { batch_id: string; status: string }[]) {
+          const arr = itemsByBatch.get(it.batch_id) ?? [];
+          arr.push({ status: it.status });
+          itemsByBatch.set(it.batch_id, arr);
+        }
+
+        const updates: Promise<unknown>[] = [];
+        for (const b of stale) {
+          const items = itemsByBatch.get(b.id) ?? [];
+          if (items.length === 0) continue;
+          const anyPending = items.some((r) => r.status === 'pending' || r.status === 'retry');
+          const anyFailed = items.some((r) => r.status === 'failed');
+          const anySucceeded = items.some((r) => r.status === 'succeeded');
+          // 'failed' when EVERY non-pending item failed (no succeeded).
+          // 'partially_processed' when failures coexist with successes.
+          const correct = anyPending ? 'processing'
+            : anyFailed && !anySucceeded ? 'failed'
+            : anyFailed ? 'partially_processed'
+            : 'processed';
+          if (correct !== b.status) {
+            // Route through the SECURITY DEFINER sync RPC so direct status
+            // writes from authenticated stay blocked. RPC is idempotent and
+            // bounded — only flips processing/partially/funded → derived state.
+            updates.push(
+              supabase.rpc('sync_batch_status_from_items', { p_batch_id: b.id }),
+            );
+            b.status = correct;
+          }
+        }
+        if (updates.length > 0) await Promise.all(updates);
+      }
+
+      setBatches(fetched);
+    } catch (err: any) {
+      // Without this catch, any exception above (a network blip, a rejected
+      // RPC call) leaves loading stuck true forever — the page shows an
+      // endless skeleton with no error and no way to retry.
+      toast({ title: 'Error', description: err?.message || 'Failed to load payment batches', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const reconcileNow = async () => {

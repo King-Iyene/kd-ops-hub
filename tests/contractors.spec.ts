@@ -18,7 +18,7 @@ test.describe('Contractors', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 5_000 });
     // Scope all assertions to the dialog.
-    await expect(dialog.locator('label:has-text("Full Name"), [placeholder*="Name"]').first()).toBeVisible();
+    await expect(dialog.locator('label:has-text("First name"), label:has-text("Last name")').first()).toBeVisible();
     await expect(dialog.locator('label:has-text("Bank")').or(dialog.getByText('Bank')).first()).toBeVisible();
     await expect(dialog.locator('label:has-text("Account Number"), [placeholder*="Account"]').first()).toBeVisible();
     await expect(dialog.locator('label:has-text("Default Amount"), label:has-text("Amount")').first()).toBeVisible();

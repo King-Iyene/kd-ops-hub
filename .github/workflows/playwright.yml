@@ -50,7 +50,10 @@ jobs:
           done
 
       - name: Run Playwright tests
-        run: npx playwright test --project=chromium
+        # ops-diagnose.spec.ts is a workflow_dispatch-only diagnostic (see
+        # ops-diagnose.yml) that requires OPS_FUNCTION/OPS_RPC to be set —
+        # it always fails on a routine push, so exclude it by test title.
+        run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC"
 
       - name: Upload HTML test report
         uses: actions/upload-artifact@v4
