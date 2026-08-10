@@ -481,15 +481,15 @@
   /* Glass morphism */
   .kd-glass {
     background: hsl(var(--card) / 0.85);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border: 1px solid hsl(var(--border) / 0.6);
   }
 
   .kd-glass-dark {
     background: hsl(var(--sidebar-background) / 0.9);
-    backdrop-filter: blur(16px) saturate(160%);
-    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid hsl(var(--sidebar-border) / 0.5);
   }
 
@@ -511,23 +511,7 @@
   }
 
   .kd-gradient-mesh {
-    /* Visible aurora canvas — three brand-coloured radials + a faint dot
-     * grid overlay for that "sci-fi command-deck" feel without sacrificing
-     * legibility of content layered on top. */
-    background:
-      radial-gradient(ellipse 80% 50% at 12% 10%, hsl(var(--primary) / 0.10) 0%, transparent 55%),
-      radial-gradient(ellipse 60% 50% at 92% 18%, hsl(var(--kd-cyan) / 0.08) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 60% at 50% 100%, hsl(var(--accent) / 0.06) 0%, transparent 60%),
-      radial-gradient(circle, hsl(var(--foreground) / 0.04) 1px, transparent 1px) 0 0/26px 26px,
-      hsl(var(--background));
-  }
-  html.dark .kd-gradient-mesh {
-    background:
-      radial-gradient(ellipse 80% 50% at 12% 10%, hsl(var(--primary) / 0.18) 0%, transparent 55%),
-      radial-gradient(ellipse 60% 50% at 92% 18%, hsl(var(--kd-cyan) / 0.14) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 60% at 50% 100%, hsl(var(--accent) / 0.10) 0%, transparent 60%),
-      radial-gradient(circle, hsl(var(--foreground) / 0.05) 1px, transparent 1px) 0 0/26px 26px,
-      hsl(var(--background));
+    background: hsl(var(--background));
   }
 
   /* Text gradient */
@@ -661,25 +645,21 @@
   /* Holographic — removed (no-op) */
   .kd-holographic {}
 
-  /* Living status dots — breathing rings */
-  .kd-status-live-success { animation: kd-breathe-success 2.4s ease-in-out infinite; }
-  .kd-status-live-warning { animation: kd-breathe-warning 1.8s ease-in-out infinite; }
-  .kd-status-live-danger  { animation: kd-breathe-danger  1.2s ease-in-out infinite; }
-  .kd-status-live-cyan    { animation: kd-breathe-cyan    2.0s ease-in-out infinite; }
+  /* Status dots — static (no pulsing animation) */
+  .kd-status-live-success {}
+  .kd-status-live-warning {}
+  .kd-status-live-danger  {}
+  .kd-status-live-cyan    {}
 
-  /* Time-of-day aware glow */
-  .kd-tod-glow {
-    box-shadow: 0 0 0 1px hsl(var(--tod-glow) / 0.25), 0 6px 24px -4px hsl(var(--tod-glow) / 0.35);
-  }
+  /* Time-of-day glow — removed */
+  .kd-tod-glow {}
 
   .kd-tod-text {
     color: hsl(var(--tod-glow));
   }
 
-  /* Animated icon glow (use on lucide icons) */
-  .kd-icon-glow {
-    animation: kd-glow-pulse 3s ease-in-out infinite;
-  }
+  /* Icon glow — removed (no-op) */
+  .kd-icon-glow {}
 
   /* Premium page transition — desktop and tablet feel */
   .kd-page-transition {
@@ -699,31 +679,8 @@
     }
   }
 
-  /* Aurora shimmer — a soft diagonal highlight that drifts across the hero
-     every ~9s. Replaces the old top-to-bottom scan bar (too aggressive). */
-  .kd-scan-line {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-  }
-  .kd-scan-line::before {
-    content: '';
-    position: absolute;
-    inset-block: 0;
-    width: 60%;
-    background: linear-gradient(
-      105deg,
-      transparent 0%,
-      hsl(var(--tod-glow) / 0) 20%,
-      hsl(var(--tod-glow) / 0.18) 50%,
-      hsl(var(--tod-glow) / 0) 80%,
-      transparent 100%
-    );
-    filter: blur(8px);
-    animation: kd-aurora-shimmer 9s ease-in-out infinite;
-    will-change: transform, opacity;
-  }
+  /* Scan line — removed (no-op) */
+  .kd-scan-line {}
 
   /* SVG line draw-on */
   .kd-draw-line {
@@ -731,24 +688,9 @@
     animation: kd-draw-line 1200ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  /* Sci-fi border — subtle gradient ring */
+  /* Border gradient — simplified to a clean border */
   .kd-border-gradient {
-    position: relative;
-  }
-  .kd-border-gradient::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg,
-      hsl(var(--tod-aurora-1) / 0.6),
-      hsl(var(--tod-aurora-2) / 0.3),
-      hsl(var(--tod-aurora-3) / 0.5));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    pointer-events: none;
+    border: 1px solid hsl(var(--border));
   }
 
   /* Magnetic CTA — gentle press-down + glow on hover */
@@ -939,15 +881,6 @@
 
   /* Reduced motion fallback */
   @media (prefers-reduced-motion: reduce) {
-    .kd-aurora::before,
-    .kd-aurora::after,
-    .kd-particle,
-    .kd-status-live-success,
-    .kd-status-live-warning,
-    .kd-status-live-danger,
-    .kd-status-live-cyan,
-    .kd-icon-glow,
-    .kd-scan-line::before,
     .kd-trip-marker-start,
     .kd-trip-marker-event {
       animation: none !important;
