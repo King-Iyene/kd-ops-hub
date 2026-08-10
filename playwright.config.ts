@@ -61,9 +61,14 @@ export default defineConfig({
       dependencies: ['setup'],
     },
     // One-shot, manually-triggered only — see payroll-live-verification.yml.
+    // Own timeout is much longer than the 30s default: approve() and
+    // generate-payslips each do one sequential network round-trip per
+    // active employee before the UI reflects the result, which at a
+    // real headcount can genuinely take well over a minute per step.
     {
       name: 'live-verification',
       testMatch: /payroll-live-verification\.spec\.ts/,
+      timeout: 300_000,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests/.auth/user.json',

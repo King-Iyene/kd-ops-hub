@@ -60,6 +60,7 @@ jobs:
       - name: Upload HTML test report
         uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true # storage quota, etc. shouldn't mask the real test result
         with:
           name: payroll-live-verification-report
           path: playwright-report/
@@ -68,6 +69,7 @@ jobs:
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
         if: always()
+        continue-on-error: true
         with:
           name: payroll-live-verification-screenshots
           path: test-results/

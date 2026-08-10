@@ -84,18 +84,34 @@ test('payroll pipeline: draft -> submit -> approve -> generate payslips (2026-08
       const disabled = await approveBtn.isDisabled().catch(() => false);
       expect(disabled, 'Approve button is disabled — likely the self-approval block. The test user must be admin/super_admin, or a different account must approve.').toBe(false);
       await approveBtn.click();
-      await page.waitForTimeout(2500);
+      // approve() awaits the full compliance auto-fill + anomaly scan +
+      // (if permitted) generatePayslips() chain — which itself does one
+      // sequential network round-trip per active employee — before it
+      // calls load() to refresh the row. With headcount in the 20s this
+      // can genuinely take over a minute; a short wait here just means
+      // the next step finds a stale, still-pending_approval row.
+      await page.waitForTimeout(90_000);
       await screenshot(page, '05-approved');
     }
   });
 
   await test.step('generate payslips, if approved and not yet generated', async () => {
+    // A fresh reload guarantees the row reflects current DB state rather
+    // than whatever the client had in memory when the approve step's wait
+    // elapsed — approve_payroll_run() commits fast; the client-side
+    // generatePayslips() that follows it in the same async chain is the
+    // slow part and may not have finished re-rendering yet.
+    await page.reload();
+    await expect(page.locator('h1').first()).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(1500);
+
     const genBtn = row().locator('button', { hasText: 'Generate payslips' });
-    if (await genBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    if (await genBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await genBtn.click();
-      // Payslip generation loops per-employee with a toast per step —
-      // give it real time for a small headcount rather than a fixed guess.
-      await page.waitForTimeout(15_000);
+      // Payslip generation loops per-employee (toast per step, one network
+      // round-trip each) — real headcount here is in the 20s, so give it
+      // real time rather than a guess sized for a much smaller test set.
+      await page.waitForTimeout(120_000);
       await screenshot(page, '06-payslips-generated');
     }
   });
