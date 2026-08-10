@@ -755,16 +755,22 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="space-y-1">
                 <Label>Secret key (fallback)</Label>
-                <Input
-                  type="password"
-                  value={(settings as any).paystack_secret_key_enc || ''}
-                  onChange={(e) => patch({ paystack_secret_key_enc: e.target.value } as any)}
-                  placeholder={
-                    (settings as any).paystack_secret_key_enc
-                      ? '••••••••' + ((settings as any).paystack_secret_key_enc || '').slice(-4)
-                      : 'sk_test_...'
-                  }
-                />
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium px-2 py-1 rounded ${(settings as any).paystack_secret_key_enc ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-muted text-muted-foreground'}`}>
+                    {(settings as any).paystack_secret_key_enc ? 'Configured' : 'Not configured'}
+                  </span>
+                  {(settings as any).paystack_secret_key_enc && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-destructive"
+                      onClick={() => { if (window.confirm('Remove the stored Paystack key? The env-var key will still be used if set.')) patch({ paystack_secret_key_enc: null } as any); }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </div>
                 <p className="text-[11px] text-muted-foreground">
                   Used only if the PAYSTACK_SECRET_KEY environment variable is not set.
                 </p>

@@ -147,6 +147,7 @@ interface PayrollRun {
   pension_ngn: number;
   nhf_ngn: number;
   total_burn_ngn: number;
+  employer_pension_ngn?: number | null;
   bonuses_json?: BonusLine[] | null;
   allowances_json?: AllowancesSnapshot | null;
   status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid';
@@ -157,14 +158,17 @@ interface PayrollRun {
 }
 
 const monthLabel = (period: string, periodType?: string): string => {
+  if (!/^\d{4}-\d{1,2}$/.test(period)) return period;
   const [y, m] = period.split('-');
   const year = parseInt(y, 10);
+  const month = parseInt(m, 10);
+  if (isNaN(year) || isNaN(month)) return period;
   if (periodType === 'annual') return `${year} Annual Payroll`;
   if (periodType === 'quarterly') {
-    const q = Math.ceil(parseInt(m, 10) / 3);
+    const q = Math.ceil(month / 3);
     return `Q${q} ${year} Payroll`;
   }
-  const date = new Date(year, parseInt(m, 10) - 1, 1);
+  const date = new Date(year, month - 1, 1);
   if (periodType === 'monthly') {
     return `${date.toLocaleString('en-GB', { month: 'long', year: 'numeric' })} Payroll`;
   }
@@ -185,6 +189,9 @@ const advanceDeductionFor = (deductionPerMonth: any, outstanding: any): number =
   return (out - ded) < ded ? out : ded;
 };
 
+
+const esc = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const BONUS_TYPES = [
   'Performance Bonus',
@@ -614,6 +621,7 @@ const Payroll = () => {
         paye_ngn: paye,
         pension_ngn: pension,
         nhf_ngn: nhf,
+        employer_pension_ngn: employerPension,
         total_burn_ngn: burn,
         status: 'draft',
         created_by: profile?.id || null,
@@ -1838,7 +1846,7 @@ const Payroll = () => {
       ['Reimbursable expenses', run.total_expenses_ngn],
       ['PAYE (est.)', run.paye_ngn],
       ['Pension employee (est.)', run.pension_ngn],
-      ['Pension employer (est.)', run.total_employee_ngn * EMPLOYER_PENSION_RATE],
+      ['Pension employer (est.)', run.employer_pension_ngn ?? (run.total_employee_ngn * EMPLOYER_PENSION_RATE)],
       ['NHF (est.)', run.nhf_ngn],
     ];
     if (bonusTotal > 0) {
@@ -1866,7 +1874,7 @@ const Payroll = () => {
     const bonusRows = bonusTotal > 0
       ? `<tr><td>Bonuses &amp; Extras</td><td class="right">${formatNaira(bonusTotal)}</td></tr>` +
         (run.bonuses_json || []).map((b) =>
-          `<tr style="font-size:12px"><td>&nbsp;&nbsp;— ${b.type}</td><td class="right">${formatNaira(Number(b.amount || 0))}</td></tr>`,
+          `<tr style="font-size:12px"><td>&nbsp;&nbsp;— ${esc(String(b.type || ''))}</td><td class="right">${formatNaira(Number(b.amount || 0))}</td></tr>`,
         ).join('')
       : '';
     const allowRow = allowTotal > 0
@@ -1877,8 +1885,7 @@ const Payroll = () => {
       : '';
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Payroll ${run.period}</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=Cabin:wght@400;600;700&display=swap');
-      body { font-family: 'Cabin', sans-serif; padding: 32px; max-width: 820px; margin: 0 auto; color: #0a2533; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; padding: 32px; max-width: 820px; margin: 0 auto; color: #0a2533; }
       h1 { color: #006994; border-bottom: 3px solid #006994; padding-bottom: 8px; margin-bottom: 24px; }
       table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
       th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e8edf0; }
@@ -1888,8 +1895,8 @@ const Payroll = () => {
       .badge { display: inline-block; padding: 3px 10px; background: #D6AC50; color: #3a2e12; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
     </style></head><body>
     <h1>KDOps Payroll Report</h1>
-    <p><strong>Period:</strong> ${monthLabel(run.period, run.period_type)} · <span class="badge">${run.status.replace('_', ' ')}</span></p>
-    <p><strong>Generated:</strong> ${formatDateTime(new Date())}</p>
+    <p><strong>Period:</strong> ${esc(monthLabel(run.period, run.period_type))} · <span class="badge">${esc(run.status.replace('_', ' '))}</span></p>
+    <p><strong>Generated:</strong> ${esc(formatDateTime(new Date()))}</p>
     <table>
       <thead><tr><th>Line item</th><th class="right">Amount (NGN)</th></tr></thead>
       <tbody>
@@ -1899,7 +1906,7 @@ const Payroll = () => {
         <tr><td>Reimbursable expenses</td><td class="right">${formatNaira(run.total_expenses_ngn)}</td></tr>
         <tr><td>PAYE (est.)</td><td class="right">${formatNaira(run.paye_ngn)}</td></tr>
         <tr><td>Pension — employee (est.)</td><td class="right">${formatNaira(run.pension_ngn)}</td></tr>
-        <tr><td>Pension — employer (est.)</td><td class="right">${formatNaira(run.total_employee_ngn * EMPLOYER_PENSION_RATE)}</td></tr>
+        <tr><td>Pension — employer (est.)</td><td class="right">${formatNaira(run.employer_pension_ngn ?? (run.total_employee_ngn * EMPLOYER_PENSION_RATE))}</td></tr>
         <tr><td>NHF (est.)</td><td class="right">${formatNaira(run.nhf_ngn)}</td></tr>
         ${bonusRows}
         ${allowRow}
@@ -1907,7 +1914,7 @@ const Payroll = () => {
       </tbody>
     </table>
     <p style="margin-top: 32px; padding: 12px; border: 2px dashed #D6AC50; color: #6f5a25; font-size: 12px; text-align: center;">
-      Generated by KDOps · ${profile?.full_name || profile?.email || 'unknown user'}
+      Generated by KDOps · ${esc(profile?.full_name || profile?.email || 'unknown user')}
     </p>
     <script>setTimeout(() => window.print(), 300);</script>
     </body></html>`;
@@ -2194,7 +2201,7 @@ const Payroll = () => {
                       {formatNaira(r.pension_ngn)}
                     </TableCell>
                     <TableCell className="text-right currency">
-                      {formatNaira(r.total_employee_ngn * EMPLOYER_PENSION_RATE)}
+                      {formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}
                     </TableCell>
                     <TableCell className="text-right currency font-semibold">
                       <div className="flex items-center justify-end gap-1">
@@ -2369,7 +2376,7 @@ const Payroll = () => {
                     <MobileCardRow label="Expenses">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
                     <MobileCardRow label="PAYE">{formatNaira(r.paye_ngn)}</MobileCardRow>
                     <MobileCardRow label="Pension (emp)">{formatNaira(r.pension_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Pension (er)">{formatNaira(r.total_employee_ngn * EMPLOYER_PENSION_RATE)}</MobileCardRow>
+                    <MobileCardRow label="Pension (er)">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</MobileCardRow>
 
                     <MobileCardFooter className="flex-wrap">
                       {r.status === 'draft' && (

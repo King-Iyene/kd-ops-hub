@@ -293,7 +293,7 @@ const EmployeeProfile = () => {
   const downloadPayslip = async (slip: any) => {
     // Batch-item payslips have no stored file — generate HTML client-side
     if (!slip.storage_path && !slip.file_url) {
-      openPayslipPrintWindow(fallbackPayslipData(slip));
+      openPayslipPrintWindow(fallbackPayslipData(slip), { autoPrint: false });
       return;
     }
     // Payroll-module payslips are stored as HTML in Supabase Storage —
@@ -970,6 +970,11 @@ const EmployeeProfile = () => {
         nhfEnabled: nhfOn,
         nhisEnabled: nhisOn,
         payeEnabled: payeOn,
+        useComponents: !!(employee as any).use_salary_components,
+        basicMonthlyNgn: Number((employee as any).basic_ngn || 0),
+        housingMonthlyNgn: Number((employee as any).housing_ngn || 0),
+        transportMonthlyNgn: Number((employee as any).transport_ngn || 0),
+        otherAllowancesMonthlyNgn: Number((employee as any).other_allowances_ngn || 0),
       })
     : null;
   const payeMonthly            = payslipBreakdown?.payeMonthlyNgn ?? 0;
@@ -999,7 +1004,7 @@ const EmployeeProfile = () => {
   costCutoff.setMonth(costCutoff.getMonth() - 12);
   const payslipsInRange = payslips.filter((p: any) => p.created_at && new Date(p.created_at) >= costCutoff);
   const payrollGross          = payslipsInRange.reduce((s: number, p: any) => s + Number(p.gross_ngn || 0), 0);
-  const payrollEmployerPension = payslipsInRange.reduce((s: number, p: any) => s + Number(p.pension_ngn || 0) * 1.25, 0);
+  const payrollEmployerPension = payslipsInRange.reduce((s: number, p: any) => s + Number(p.employer_pension_ngn || 0) || Number(p.pension_ngn || 0) * 1.25, 0);
   const payrollEmployerNsitf   = nsitfEnabled ? Math.round(payrollGross * 0.01) : 0;
   const payrollTotal = payrollGross + payrollEmployerPension + payrollEmployerNsitf;
 
@@ -1472,7 +1477,7 @@ const EmployeeProfile = () => {
                       )}
                       {nhisOn && (
                         <TableRow className="text-muted-foreground">
-                          <TableCell className="pl-4">NHIS 1.75%</TableCell>
+                          <TableCell className="pl-4">NHIS (5%)</TableCell>
                           <TableCell className="text-right">{formatNaira(nhisMonthly * 12)}</TableCell>
                           <TableCell className="text-right pr-4">{formatNaira(nhisMonthly)}</TableCell>
                         </TableRow>
@@ -2029,7 +2034,7 @@ const EmployeeProfile = () => {
                         <SelectTrigger><SelectValue placeholder="Choose period" /></SelectTrigger>
                         <SelectContent>
                           {payslips.map((p: any) => (
-                            <SelectItem key={p.id} value={p.id}>{p.period || formatDate(p.created_at)}</SelectItem>
+                            <SelectItem key={p.id} value={p.id}>{p.period && /^\d{4}-\d{1,2}$/.test(p.period) ? new Date(parseInt(p.period.split('-')[0], 10), parseInt(p.period.split('-')[1], 10) - 1, 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : (p.period || formatDate(p.created_at))}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -2910,7 +2915,7 @@ const EmployeeProfile = () => {
                 <div className="divide-y">
                   {payslips.map((slip: any) => (
                     <div key={slip.id} className="flex items-center justify-between px-4 py-3">
-                      <span className="text-sm font-medium">{slip.period || '—'}</span>
+                      <span className="text-sm font-medium">{slip.period && /^\d{4}-\d{1,2}$/.test(slip.period) ? new Date(parseInt(slip.period.split('-')[0], 10), parseInt(slip.period.split('-')[1], 10) - 1, 1).toLocaleString('en-GB', { month: 'long', year: 'numeric' }) : (slip.period || '—')}</span>
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"

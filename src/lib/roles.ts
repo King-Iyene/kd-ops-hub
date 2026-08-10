@@ -52,6 +52,7 @@ export const SIMULATABLE_ROLES: Role[] = [
   'finance',
   'operations',
   'field_staff',
+  'driver',
 ];
 
 /** A compact role label for UI display. */
