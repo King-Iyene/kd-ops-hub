@@ -60,7 +60,16 @@ const Login = () => {
         }
       } catch { /* best-effort */ }
       toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
-      setLoginError('Incorrect email or password. Please try again.');
+      // Network/connectivity failures (offline, DNS, timeout, blocked
+      // request) surface here as a Supabase error too — don't tell the
+      // user their password is wrong when the real problem is that their
+      // browser never reached the server at all.
+      const isNetworkError = /fetch|network|timeout|offline/i.test(error.message);
+      setLoginError(
+        isNetworkError
+          ? 'Could not reach the server. Check your internet connection and try again.'
+          : 'Incorrect email or password. Please try again.',
+      );
       setLoading(false);
       return;
     }
