@@ -109,8 +109,10 @@ export function AppSidebar() {
   // ─── Group collapse state (initialised from localStorage) ─────────────────
 
   const [groupCollapsed, setGroupCollapsed] = useState<Record<NavGroupKey, boolean>>(() => ({
-    finance:    loadCollapsed('finance'),
-    treasury:   loadCollapsed('treasury'),
+    moneyOut:   loadCollapsed('moneyOut'),
+    moneyIn:    loadCollapsed('moneyIn'),
+    risk:       loadCollapsed('risk'),
+    people:     loadCollapsed('people'),
     operations: loadCollapsed('operations'),
     workspace:  loadCollapsed('workspace'),
     crm:        loadCollapsed('crm'),

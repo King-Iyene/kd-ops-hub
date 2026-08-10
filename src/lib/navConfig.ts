@@ -133,19 +133,30 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
 ];
 
+// Grouped by money-flow direction and function rather than department —
+// "Finance" and "Treasury" used to mix calculation tools (Payroll) with
+// movement tools (Cards) with balance-sheet tools (Assets) under one label.
+// Money Out / Money In & Treasury / Risk & Controls maps to how a finance
+// person actually thinks about these modules, and puts a visible seam in
+// the nav between "calculating payroll" and "moving money" that mirrors
+// the hard line already enforced at the database layer.
 export const NAV_GROUPS = [
-  { key: 'finance',    label: 'Finance',    titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Budgets', 'Anomalies'] },
-  { key: 'treasury',   label: 'Treasury',   titles: ['Subscriptions', 'Cards', 'Invoices', 'Assets', 'Compliance', 'Cash Flow', 'Finance'] },
-  { key: 'operations', label: 'Operations', titles: ['Expenses', 'Fleet', 'Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',  titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
-  { key: 'crm',        label: 'CRM',        titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',      titles: ['Audit Log', 'Settings'] },
+  { key: 'moneyOut',   label: 'Money Out',          titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
+  { key: 'moneyIn',    label: 'Money In & Treasury', titles: ['Invoices', 'Assets', 'Cash Flow'] },
+  { key: 'risk',       label: 'Risk & Controls',    titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
+  { key: 'people',     label: 'People & Contractors', titles: ['Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary'] },
+  { key: 'operations', label: 'Operations',         titles: ['Fleet', 'Vendors'] },
+  { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
+  { key: 'crm',        label: 'CRM',                titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
+  { key: 'admin',      label: 'Admin',              titles: ['Settings'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 
-/** Items above all groups (always visible at the top). */
-export const UNGROUPED_TITLES = ['Dashboard', 'Approvals'];
+/** Items above all groups (always visible at the top). Finance sits here
+ *  too — it's a CFO-level hub aggregating Payroll/Compliance/Budgets/
+ *  Vendors/Cash data, not a peer of the line items inside any one group. */
+export const UNGROUPED_TITLES = ['Dashboard', 'Approvals', 'Finance'];
 
 /**
  * Filters ALL_NAV using the same role + permission logic the desktop
