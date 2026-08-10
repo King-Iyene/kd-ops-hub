@@ -118,6 +118,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { CalendarClock, CalendarDays } from 'lucide-react';
 import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
+import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
 
 interface BonusLine {
@@ -2415,6 +2416,8 @@ const Payroll = () => {
                 </p>
               )}
             </div>
+
+            <PayrollRosterPreview payrollSegmentId={form.payroll_segment_id} />
 
             <div className="space-y-2">
               <Label>Bonuses &amp; Extras</Label>
