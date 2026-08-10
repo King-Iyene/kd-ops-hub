@@ -66,15 +66,15 @@ const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionD
 // family instead of drifting to separate, unrelated color sets.
 function statusInfo(status: string) {
   if (status === 'succeeded' || status === 'processed' || status === 'completed') {
-    return { label: 'SUCCESSFUL', dot: receiptTheme.success, text: `text-[${receiptTheme.success}]`, tone: 'success' as const };
+    return { label: 'SUCCESSFUL', dot: receiptTheme.success, tone: 'success' as const };
   }
   if (status === 'failed' || status === 'rejected') {
-    return { label: 'FAILED', dot: receiptTheme.failed, text: `text-[${receiptTheme.failed}]`, tone: 'failed' as const };
+    return { label: 'FAILED', dot: receiptTheme.failed, tone: 'failed' as const };
   }
   if (status === 'reversed' || status === 'refunded') {
-    return { label: 'REVERSED', dot: receiptTheme.muted, text: `text-[${receiptTheme.muted}]`, tone: 'reversed' as const };
+    return { label: 'REVERSED', dot: receiptTheme.muted, tone: 'reversed' as const };
   }
-  return { label: 'PENDING', dot: receiptTheme.pending, text: `text-[${receiptTheme.pending}]`, tone: 'pending' as const };
+  return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
 export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl }: Props) {
