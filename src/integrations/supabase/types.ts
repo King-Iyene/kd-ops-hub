@@ -7489,6 +7489,20 @@ export type Database = {
             foreignKeyName: "personal_transfer_beneficiaries_owner_id_fkey"
             columns: ["owner_id"]
             isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_beneficiaries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_beneficiaries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
