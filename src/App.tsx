@@ -81,6 +81,7 @@ const SettingsPage     = lazy(() => import('./pages/Settings'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
 const Assistant        = lazy(() => import('./pages/Assistant'));
 const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
+const Messages          = lazy(() => import('./pages/Messages'));
 
 const queryClient = new QueryClient();
 
@@ -696,6 +697,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin']}>
               <AssistantAdmin />
+            </RoleGuard>
+          }
+        />
+
+        {/* Direct messages — every signed-in user. */}
+        <Route
+          path="/messages"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Messages />
             </RoleGuard>
           }
         />
