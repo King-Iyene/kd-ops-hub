@@ -7732,7 +7732,29 @@ export type Database = {
           id?: string
           paystack_customer_code?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "principal_wallet_dva_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_dva_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_dva_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       principal_wallet_ledger: {
         Row: {
@@ -7773,10 +7795,38 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "principal_wallet_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_ledger_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "principal_wallet_ledger_related_batch_item_id_fkey"
             columns: ["related_batch_item_id"]
             isOneToOne: false
             referencedRelation: "batch_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_ledger_related_batch_item_id_fkey"
+            columns: ["related_batch_item_id"]
+            isOneToOne: false
+            referencedRelation: "transactions_view"
             referencedColumns: ["id"]
           },
           {
@@ -12476,9 +12526,32 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      credit_back_principal_wallet: {
+        Args: { p_amount_ngn: number; p_reference: string }
+        Returns: Json
+      }
+      credit_principal_wallet: {
+        Args: {
+          p_amount_ngn: number
+          p_paystack_raw: Json
+          p_receiver_account_number: string
+          p_reference: string
+        }
+        Returns: Json
+      }
       current_tenant_id: { Args: never; Returns: string }
       current_user_is_active: { Args: never; Returns: boolean }
       current_user_role: { Args: never; Returns: string }
+      debit_principal_wallet: {
+        Args: {
+          p_amount_ngn: number
+          p_reference: string
+          p_related_batch_item_id: string
+          p_related_personal_transfer_id: string
+          p_source: string
+        }
+        Returns: Json
+      }
       decrypt_account_number: { Args: { ciphertext: string }; Returns: string }
       decrypt_linkedin_password: {
         Args: { ciphertext: string }
