@@ -6696,74 +6696,6 @@ export type Database = {
           },
         ]
       }
-      personal_transfers: {
-        Row: {
-          amount_ngn: number
-          created_at: string
-          failure_reason: string | null
-          id: string
-          initiated_by: string
-          memo: string | null
-          paystack_raw: Json | null
-          paystack_recipient_code: string | null
-          paystack_reference: string | null
-          paystack_transfer_code: string | null
-          processed_at: string | null
-          recipient_account_name: string | null
-          recipient_account_number: string
-          recipient_bank_code: string
-          recipient_bank_name: string | null
-          recipient_name: string
-          status: string
-        }
-        Insert: {
-          amount_ngn: number
-          created_at?: string
-          failure_reason?: string | null
-          id?: string
-          initiated_by: string
-          memo?: string | null
-          paystack_raw?: Json | null
-          paystack_recipient_code?: string | null
-          paystack_reference?: string | null
-          paystack_transfer_code?: string | null
-          processed_at?: string | null
-          recipient_account_name?: string | null
-          recipient_account_number: string
-          recipient_bank_code: string
-          recipient_bank_name?: string | null
-          recipient_name: string
-          status?: string
-        }
-        Update: {
-          amount_ngn?: number
-          created_at?: string
-          failure_reason?: string | null
-          id?: string
-          initiated_by?: string
-          memo?: string | null
-          paystack_raw?: Json | null
-          paystack_recipient_code?: string | null
-          paystack_reference?: string | null
-          paystack_transfer_code?: string | null
-          processed_at?: string | null
-          recipient_account_name?: string | null
-          recipient_account_number?: string
-          recipient_bank_code?: string
-          recipient_bank_name?: string | null
-          recipient_name?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "personal_transfers_initiated_by_fkey"
-            columns: ["initiated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payroll_run_items: {
         Row: {
           created_at: string
@@ -7514,6 +7446,88 @@ export type Database = {
             columns: ["cycle_id"]
             isOneToOne: false
             referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_transfers: {
+        Row: {
+          amount_ngn: number
+          created_at: string
+          failure_reason: string | null
+          id: string
+          initiated_by: string
+          memo: string | null
+          paystack_raw: Json | null
+          paystack_recipient_code: string | null
+          paystack_reference: string | null
+          paystack_transfer_code: string | null
+          processed_at: string | null
+          recipient_account_name: string | null
+          recipient_account_number: string
+          recipient_bank_code: string
+          recipient_bank_name: string | null
+          recipient_name: string
+          status: string
+        }
+        Insert: {
+          amount_ngn: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          initiated_by: string
+          memo?: string | null
+          paystack_raw?: Json | null
+          paystack_recipient_code?: string | null
+          paystack_reference?: string | null
+          paystack_transfer_code?: string | null
+          processed_at?: string | null
+          recipient_account_name?: string | null
+          recipient_account_number: string
+          recipient_bank_code: string
+          recipient_bank_name?: string | null
+          recipient_name: string
+          status?: string
+        }
+        Update: {
+          amount_ngn?: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          initiated_by?: string
+          memo?: string | null
+          paystack_raw?: Json | null
+          paystack_recipient_code?: string | null
+          paystack_reference?: string | null
+          paystack_transfer_code?: string | null
+          processed_at?: string | null
+          recipient_account_name?: string | null
+          recipient_account_number?: string
+          recipient_bank_code?: string
+          recipient_bank_name?: string | null
+          recipient_name?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transfers_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfers_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfers_initiated_by_fkey"
+            columns: ["initiated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
