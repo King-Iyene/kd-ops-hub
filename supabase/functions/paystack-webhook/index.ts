@@ -258,37 +258,44 @@ serve(async (req) => {
 
   // ------------------------------------------------------------------
   // Principal Disbursements wallet funding — a Dedicated Virtual Account
-  // credit arrives as charge.success with authorization.channel
-  // 'dedicated_nuban'. Handled here, separately from the transfer.*
-  // dispatch below, since it's a completely different shape (no
-  // batch_items/personal_transfers row to look up — it's new money
+  // credit arrives as charge.success. Handled here, separately from the
+  // transfer.* dispatch below, since it's a completely different shape
+  // (no batch_items/personal_transfers row to look up — it's new money
   // arriving, not a payment being resolved). credit_principal_wallet()
   // is idempotent (webhook_idempotency, same table transfer events use)
-  // and only credits if the receiving account matches a registered DVA —
-  // any other charge.success (a normal card/bank payment elsewhere in
-  // Paystack, unrelated to this account) is a no-op.
+  // and only credits if EITHER the receiving account number or the
+  // charge's customer_code matches a registered DVA — any other
+  // charge.success (unrelated to this account) is a no-op. Matching on
+  // both, rather than gating on authorization.channel === 'dedicated_nuban'
+  // first, is deliberate: a real ₦199 test funding was silently missed
+  // once already because the channel/account-number field names were
+  // guessed (Paystack's docs were unreachable from this sandbox) and
+  // didn't match the live payload closely enough. customer_code is a
+  // well-documented, always-present top-level field and a much safer
+  // primary signal than a guessed nested path.
   // ------------------------------------------------------------------
   if (event === "charge.success") {
     const receiverAccount = data?.authorization?.receiver_bank_account_number as string | undefined;
-    const channel = data?.authorization?.channel as string | undefined;
+    const customerCode = data?.customer?.customer_code as string | undefined;
     const chargeRef = data?.reference as string | undefined;
     const amountNgn = Number(data?.amount || 0) / 100;
 
-    if (channel === "dedicated_nuban" && receiverAccount && chargeRef && amountNgn > 0) {
+    if ((receiverAccount || customerCode) && chargeRef && amountNgn > 0) {
       try {
         const { data: creditResult, error: creditErr } = await supabase.rpc(
           "credit_principal_wallet",
           {
             p_reference: chargeRef,
             p_amount_ngn: amountNgn,
-            p_receiver_account_number: receiverAccount,
+            p_receiver_account_number: receiverAccount ?? null,
             p_paystack_raw: data,
+            p_customer_code: customerCode ?? null,
           },
         );
         if (creditErr) {
           console.error("[webhook] credit_principal_wallet failed:", creditErr.message, chargeRef);
         } else {
-          console.info("[webhook] charge.success (dedicated_nuban):", (creditResult as any)?.outcome, chargeRef);
+          console.info("[webhook] charge.success:", (creditResult as any)?.outcome, chargeRef, "receiverAccount:", receiverAccount, "customerCode:", customerCode);
         }
       } catch (e) {
         console.error("[webhook] credit_principal_wallet threw:", e, chargeRef);
