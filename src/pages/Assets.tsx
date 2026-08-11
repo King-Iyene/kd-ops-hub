@@ -10,6 +10,7 @@ import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, differenceInMonths } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -256,16 +257,19 @@ export default function Assets() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader
-        title="Asset Register"
-        description="Track fixed assets, depreciation, and insurance."
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1.5" />Export</Button>
-            <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Asset</Button>
-          </div>
-        }
-      />
+      <AuroraHero className="p-5 sm:p-6" pattern="contour">
+        <PageHeader
+          className="mb-0"
+          title="Asset Register"
+          description="Track fixed assets, depreciation, and insurance."
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={exportCSV}><Download className="h-4 w-4 mr-1.5" />Export</Button>
+              <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Asset</Button>
+            </div>
+          }
+        />
+      </AuroraHero>
 
       {/* Stats */}
       <div className="kd-stat-grid">

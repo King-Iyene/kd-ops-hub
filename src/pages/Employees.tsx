@@ -17,6 +17,7 @@ import {
 import EmployeeCsvImport from '@/components/hr/EmployeeCsvImport';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { AuroraHero } from '@/components/AuroraHero';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -479,33 +480,35 @@ const Employees = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
-            <InfoHint>Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.</InfoHint>
+      <AuroraHero className="p-5 sm:p-6" pattern="constellation">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
+              <InfoHint>Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.</InfoHint>
+            </div>
+            <p className="text-muted-foreground text-sm mt-1">{`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">{`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
+          <div className="flex gap-2 flex-wrap">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => setShowCsvImport(true)}>
+                <Upload className="mr-2 h-4 w-4" /> Import CSV
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                onClick={() => {
+                  resetForm();
+                  setEditing(null);
+                  setShowForm(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add Employee
+              </Button>
+            )}
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {isAdmin && (
-            <Button variant="outline" onClick={() => setShowCsvImport(true)}>
-              <Upload className="mr-2 h-4 w-4" /> Import CSV
-            </Button>
-          )}
-          {isAdmin && (
-            <Button
-              onClick={() => {
-                resetForm();
-                setEditing(null);
-                setShowForm(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add Employee
-            </Button>
-          )}
-        </div>
-      </div>
+      </AuroraHero>
 
       <EmployeeCsvImport
         open={showCsvImport}

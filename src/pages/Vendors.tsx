@@ -12,6 +12,7 @@ import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, addDays } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -218,11 +219,14 @@ export default function Vendors() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      <PageHeader
-        title="Vendor Registry"
-        description="Track suppliers, contracts, and banking details."
-        actions={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Vendor</Button>}
-      />
+      <AuroraHero className="p-5 sm:p-6" pattern="contour">
+        <PageHeader
+          className="mb-0"
+          title="Vendor Registry"
+          description="Track suppliers, contracts, and banking details."
+          actions={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add Vendor</Button>}
+        />
+      </AuroraHero>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
