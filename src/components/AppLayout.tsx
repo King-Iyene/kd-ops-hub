@@ -51,6 +51,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/referrals':            'Referrals',
   '/audit':                'Audit Log',
   '/settings':             'Settings',
+  '/director-disbursements': 'Director Disbursements',
   '/ewa':                  'Earned Wages',
   '/invoices':             'Invoices',
   '/assets':               'Assets',

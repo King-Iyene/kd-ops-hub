@@ -78,6 +78,7 @@ const Attendance       = lazy(() => import('./pages/Attendance'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
+const DirectorDisbursements = lazy(() => import('./pages/DirectorDisbursements'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
 const Assistant        = lazy(() => import('./pages/Assistant'));
 const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
@@ -669,6 +670,18 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin']}>
               <SettingsPage />
+            </RoleGuard>
+          }
+        />
+
+        {/* Director Disbursements — Super Admin only. No `permission` prop:
+            this route must never be reachable via a permissions.jsonb
+            grant override, only the real (non-simulated) super_admin role. */}
+        <Route
+          path="/director-disbursements"
+          element={
+            <RoleGuard roles={['super_admin']}>
+              <DirectorDisbursements />
             </RoleGuard>
           }
         />

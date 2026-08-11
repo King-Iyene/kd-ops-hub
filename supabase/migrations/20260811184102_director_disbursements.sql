@@ -1,0 +1,6 @@
+-- Accidental no-op: the first apply_migration call for this feature was
+-- made with a placeholder comment instead of the real SQL (caught and
+-- fixed immediately in the follow-up migration, 20260811184147). This
+-- file exists only so the tracked migration history matches exactly what
+-- was actually applied to the remote database — it does nothing.
+-- content mirrors supabase/migrations/20260811190000_director_disbursements.sql verbatim
