@@ -12563,6 +12563,10 @@ export type Database = {
         Returns: number
       }
       is_device_trusted: { Args: { p_device_id: string }; Returns: boolean }
+      is_director_disbursement_batch: {
+        Args: { p_batch_id: string }
+        Returns: boolean
+      }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
       lock_payroll_run_for_disbursement: {
         Args: { p_run_id: string }
