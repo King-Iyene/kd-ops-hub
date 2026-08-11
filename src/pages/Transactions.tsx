@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -367,6 +368,12 @@ const Transactions = () => {
   const hasActiveFilters =
     search || typeFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all' || from || to;
 
+  // Count of active secondary filters (category/status/date range) — search
+  // and the type tiles above are surfaced separately, so they don't count
+  // toward the MobileFilterBar "Filters" button badge.
+  const activeFilterCount =
+    [categoryFilter !== 'all', statusFilter !== 'all', !!from, !!to].filter(Boolean).length;
+
   const handleRowClick = (r: Transaction) => {
     navigate(`/payments/${r.parent_batch_id || r.id}`);
   };
@@ -440,57 +447,71 @@ const Transactions = () => {
       <div className="rounded-lg border border-border/50 bg-card overflow-hidden">
         {/* Single combined filter strip — search front and centre,
             secondary filters tucked next to it. Drops one full row
-            vs. the previous tab + filter split. */}
-        <div className="px-3 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 flex items-center gap-2 flex-wrap print:hidden">
-          <div className="relative flex-1 min-w-[160px] sm:min-w-[200px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
-              placeholder="Search reference, beneficiary, bank…"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
-            />
-          </div>
-          <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-full sm:w-[140px] h-8 text-[12px] bg-transparent border-border/60">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((c) => (
-                <SelectItem key={c} value={c}>{c.replace(/_/g, ' ')}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
-            <SelectTrigger className="w-full sm:w-[120px] h-8 text-[12px] bg-transparent border-border/60">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
-            className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
-          />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
-            className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
-          />
-          {hasActiveFilters && (
+            vs. the previous tab + filter split. On mobile the
+            category/status/date fields move behind a "Filters" sheet
+            (MobileFilterBar) instead of wrapping into extra full-width
+            rows under the sticky strip. */}
+        <MobileFilterBar
+          className="px-3 py-2.5 border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 print:hidden"
+          activeCount={activeFilterCount}
+          onClear={clearFilters}
+          search={
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
+                placeholder="Search reference, beneficiary, bank…"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
+              />
+            </div>
+          }
+          trailing={hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-[12px]">
               <X className="h-3 w-3 mr-1" /> Clear
             </Button>
           )}
-        </div>
+          filters={
+            <>
+              <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
+                <SelectTrigger className="w-full sm:w-[140px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>{c.replace(/_/g, ' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); pagination.reset(); }}>
+                <SelectTrigger className="w-full sm:w-[120px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={from}
+                onChange={(e) => { setFrom(e.target.value); pagination.reset(); }}
+                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+                data-mobile-filter-row
+              />
+              <Input
+                type="date"
+                value={to}
+                onChange={(e) => { setTo(e.target.value); pagination.reset(); }}
+                className="w-[calc(50%-4px)] sm:w-[130px] h-8 text-[12px] bg-transparent border-border/60"
+                data-mobile-filter-row
+              />
+            </>
+          }
+        />
 
         {/* Filtered totals — slim inline strip */}
         {hasActiveFilters && (

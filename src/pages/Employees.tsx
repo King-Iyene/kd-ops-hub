@@ -54,6 +54,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -468,6 +469,16 @@ const Employees = () => {
 
   const pagination = usePagination(filtered, 20);
 
+  const clearEmployeeFilters = () => {
+    setSearch('');
+    setRoleFilter('all');
+    setDeptFilter('all');
+    setShowInactive(false);
+    pagination.reset();
+  };
+  const activeEmployeeFilterCount =
+    [roleFilter !== 'all', deptFilter !== 'all', showInactive].filter(Boolean).length;
+
   const inviteCount = employees.filter((e) => e.status === 'invited').length;
 
   return (
@@ -513,53 +524,63 @@ const Employees = () => {
           filter strip, no card chrome. Replaces shadcn Card so the
           page reads as one ledger-grade list. */}
       <div className="rounded-lg border border-border/70 bg-card overflow-hidden">
-        <div className="px-3 py-2.5 border-b border-border/70 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 flex items-center gap-2 flex-wrap print:hidden">
-          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, role…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                pagination.reset();
-              }}
-              className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
-            />
-          </div>
-          <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
-            <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
-              {ROLE_OPTIONS.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v as any)}>
-            <SelectTrigger className="w-[170px] h-8 text-[12px] bg-transparent border-border/60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All departments</SelectItem>
-              <SelectItem value="none">No department</SelectItem>
-              {departments.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
-            <Switch
-              checked={showInactive}
-              onCheckedChange={(v) => { setShowInactive(v); pagination.reset(); }}
-            />
-            Show inactive
-          </label>
+        <div className="px-3 py-2.5 border-b border-border/70 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 sticky top-0 z-10 print:hidden">
+          <MobileFilterBar
+            activeCount={activeEmployeeFilterCount}
+            onClear={clearEmployeeFilters}
+            search={
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, email, role…"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    pagination.reset();
+                  }}
+                  className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
+                />
+              </div>
+            }
+            filters={
+              <>
+                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
+                  <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {ROLE_OPTIONS.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v as any)}>
+                  <SelectTrigger className="w-[170px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All departments</SelectItem>
+                    <SelectItem value="none">No department</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
+                  <Switch
+                    checked={showInactive}
+                    onCheckedChange={(v) => { setShowInactive(v); pagination.reset(); }}
+                  />
+                  Show inactive
+                </label>
+              </>
+            }
+          />
         </div>
         <div className="p-0">
           {loading ? (

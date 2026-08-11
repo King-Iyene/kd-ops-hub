@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -270,6 +271,15 @@ const AuditLog = () => {
 
   const pagination = usePagination(filtered, 20);
 
+  const clearFilters = () => {
+    setSearch('');
+    setModuleFilter('all');
+    setFrom('');
+    setTo('');
+    pagination.reset();
+  };
+  const activeFilterCount = [moduleFilter !== 'all', !!from, !!to].filter(Boolean).length;
+
   const verifyChain = async () => {
     setChainVerifying(true);
     try {
@@ -336,43 +346,55 @@ const AuditLog = () => {
       </div>
 
       <Card className="rounded-xl">
-        <div className="p-3 sm:p-4 border-b border-border flex items-center gap-2 flex-wrap">
-          <div className="relative w-full sm:flex-1 sm:min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-9 h-10 sm:h-9"
-              placeholder="Search description, actor, action type..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                pagination.reset();
-              }}
-            />
-          </div>
-          <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All modules</SelectItem>
-              {modules.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
-          />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
+        <div className="p-3 sm:p-4 border-b border-border">
+          <MobileFilterBar
+            activeCount={activeFilterCount}
+            onClear={clearFilters}
+            search={
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9 h-10 sm:h-9"
+                  placeholder="Search description, actor, action type..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    pagination.reset();
+                  }}
+                />
+              </div>
+            }
+            filters={
+              <>
+                <Select value={moduleFilter} onValueChange={setModuleFilter}>
+                  <SelectTrigger className="flex-1 sm:flex-initial sm:w-[180px] h-10 sm:h-9" data-mobile-filter-row>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All modules</SelectItem>
+                    {modules.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="date"
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
+                  data-mobile-filter-row
+                />
+                <Input
+                  type="date"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="flex-1 sm:flex-initial sm:w-[150px] h-10 sm:h-9"
+                  data-mobile-filter-row
+                />
+              </>
+            }
           />
         </div>
         <CardContent className="p-0">

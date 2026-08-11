@@ -40,6 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { AuroraHero } from '@/components/AuroraHero';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -261,37 +262,45 @@ export default function Anomalies() {
       <Card className="rounded-xl">
         <CardHeader className="flex flex-row items-center gap-3 flex-wrap">
           <CardTitle className="kd-section-title flex-1">Queue</CardTitle>
-          <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="acknowledged">Acknowledged</SelectItem>
-              <SelectItem value="escalated">Escalated</SelectItem>
-              <SelectItem value="dismissed">Dismissed</SelectItem>
-              <SelectItem value="all">All statuses</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterSeverity} onValueChange={(v) => setFilterSeverity(v as any)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All severities</SelectItem>
-              <SelectItem value="critical">Critical</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={filterModule} onValueChange={(v) => setFilterModule(v as any)}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All modules</SelectItem>
-              <SelectItem value="payroll">Payroll</SelectItem>
-              <SelectItem value="payments">Payments</SelectItem>
-              <SelectItem value="ewa">EWA</SelectItem>
-              <SelectItem value="profile">Profile</SelectItem>
-              <SelectItem value="expenses">Expenses</SelectItem>
-            </SelectContent>
-          </Select>
+          <MobileFilterBar
+            activeCount={[filterStatus !== 'open', filterSeverity !== 'all', filterModule !== 'all'].filter(Boolean).length}
+            onClear={() => { setFilterStatus('open'); setFilterSeverity('all'); setFilterModule('all'); }}
+            filters={
+              <>
+                <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as any)}>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="acknowledged">Acknowledged</SelectItem>
+                    <SelectItem value="escalated">Escalated</SelectItem>
+                    <SelectItem value="dismissed">Dismissed</SelectItem>
+                    <SelectItem value="all">All statuses</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterSeverity} onValueChange={(v) => setFilterSeverity(v as any)}>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All severities</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterModule} onValueChange={(v) => setFilterModule(v as any)}>
+                  <SelectTrigger className="w-[140px]" data-mobile-filter-row><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All modules</SelectItem>
+                    <SelectItem value="payroll">Payroll</SelectItem>
+                    <SelectItem value="payments">Payments</SelectItem>
+                    <SelectItem value="ewa">EWA</SelectItem>
+                    <SelectItem value="profile">Profile</SelectItem>
+                    <SelectItem value="expenses">Expenses</SelectItem>
+                  </SelectContent>
+                </Select>
+              </>
+            }
+          />
         </CardHeader>
         <CardContent>
           {loading ? (

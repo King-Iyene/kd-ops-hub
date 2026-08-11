@@ -73,6 +73,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
@@ -773,60 +774,70 @@ const Documents = () => {
           )}
 
           {/* Toolbar */}
-          <div className="flex gap-2 items-center flex-wrap">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                className="pl-9 h-9"
-                placeholder="Search documents..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
-              />
-            </div>
-            <Select value={category} onValueChange={(v) => { setCategory(v); pagination.reset(); }}>
-              <SelectTrigger className="w-[140px] h-9">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c} className="capitalize">
-                    {c.replace(/_/g, ' ')}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v); pagination.reset(); }}>
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue placeholder="Linked to" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All entities</SelectItem>
-                <SelectItem value="unlinked">Unlinked</SelectItem>
-                {ENTITY_TYPES.map((et) => (
-                  <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex border rounded-md">
-              <Button
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-9 px-2 rounded-r-none"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
-                size="sm"
-                className="h-9 px-2 rounded-l-none"
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <MobileFilterBar
+            activeCount={[category !== 'all', entityFilter !== 'all'].filter(Boolean).length}
+            onClear={() => { setCategory('all'); setEntityFilter('all'); pagination.reset(); }}
+            search={
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="pl-9 h-9"
+                  placeholder="Search documents..."
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); pagination.reset(); }}
+                />
+              </div>
+            }
+            filters={
+              <>
+                <Select value={category} onValueChange={(v) => { setCategory(v); pagination.reset(); }}>
+                  <SelectTrigger className="w-[140px] h-9" data-mobile-filter-row>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={entityFilter} onValueChange={(v) => { setEntityFilter(v); pagination.reset(); }}>
+                  <SelectTrigger className="w-[130px] h-9" data-mobile-filter-row>
+                    <SelectValue placeholder="Linked to" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All entities</SelectItem>
+                    <SelectItem value="unlinked">Unlinked</SelectItem>
+                    {ENTITY_TYPES.map((et) => (
+                      <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            }
+            trailing={
+              <div className="flex border rounded-md">
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-9 px-2 rounded-r-none"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-9 px-2 rounded-l-none"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+              </div>
+            }
+          />
         </div>
 
         <CardContent className="p-0">

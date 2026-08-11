@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -254,6 +255,7 @@ const Subscriptions = () => {
   }, [subs, search, statusFilter, categoryFilter]);
 
   const pagination = usePagination(filtered, 20);
+  const activeSubFilterCount = [statusFilter !== 'all', categoryFilter !== 'all'].filter(Boolean).length;
 
   const openCreate = () => {
     setEditing(null);
@@ -548,42 +550,52 @@ const Subscriptions = () => {
       </div>
 
       <Card className="rounded-xl">
-        <div className="p-3 sm:p-4 border-b border-border/50 flex items-center gap-3 flex-wrap">
-          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search subscriptions..."
-              className="pl-9 h-10 sm:h-9"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                pagination.reset();
-              }}
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c} className="capitalize">
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="p-3 sm:p-4 border-b border-border/50">
+          <MobileFilterBar
+            activeCount={activeSubFilterCount}
+            onClear={() => { setStatusFilter('all'); setCategoryFilter('all'); }}
+            search={
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search subscriptions..."
+                  className="pl-9 h-10 sm:h-9"
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    pagination.reset();
+                  }}
+                />
+              </div>
+            }
+            filters={
+              <>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9" data-mobile-filter-row>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9" data-mobile-filter-row>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c} className="capitalize">
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            }
+          />
         </div>
 
         <CardContent className="p-0">

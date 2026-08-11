@@ -10,6 +10,7 @@ import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, differenceInMonths } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { AuroraHero } from '@/components/AuroraHero';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -280,26 +281,40 @@ export default function Assets() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search assets…" value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="space-y-2">
+        <MobileFilterBar
+          activeCount={catFilter !== 'all' ? 1 : 0}
+          onClear={() => setCatFilter('all')}
+          search={
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input className="pl-9" placeholder="Search assets…" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          }
+          filters={
+            <Select value={catFilter} onValueChange={setCatFilter}>
+              <SelectTrigger className="w-48" data-mobile-filter-row><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {Object.entries(CATEGORY_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          }
+        />
+        {/* Status stays as always-visible Tabs (not tucked behind the
+            Filters sheet) since it's the primary, most-used toggle here.
+            overflow-x-auto guards against the 4-label TabsList (its own
+            inline-flex with no wrap) overrunning a narrow screen. */}
+        <div className="overflow-x-auto">
+          <Tabs value={statusFilter} onValueChange={setStatusFilter}>
+            <TabsList>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="disposed">Disposed</TabsTrigger>
+              <TabsTrigger value="written_off">Written Off</TabsTrigger>
+              <TabsTrigger value="all">All</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <Select value={catFilter} onValueChange={setCatFilter}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Category" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {Object.entries(CATEGORY_META).map(([k, v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-          <TabsList>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="disposed">Disposed</TabsTrigger>
-            <TabsTrigger value="written_off">Written Off</TabsTrigger>
-            <TabsTrigger value="all">All</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
       {/* Table */}

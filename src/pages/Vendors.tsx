@@ -12,6 +12,7 @@ import { formatNaira } from '@/lib/format';
 import { format, parseISO, differenceInDays, addDays } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
 import { AuroraHero } from '@/components/AuroraHero';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -249,29 +250,39 @@ export default function Vendors() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search vendors…" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={catFilter} onValueChange={setCatFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Category" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="blacklisted">Blacklisted</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="icon" onClick={exportCSV} title="Export CSV"><Download className="h-4 w-4" /></Button>
-      </div>
+      <MobileFilterBar
+        activeCount={[catFilter !== 'all', statusFilter !== 'active'].filter(Boolean).length}
+        onClear={() => { setCatFilter('all'); setStatusFilter('active'); }}
+        search={
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Search vendors…" value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        }
+        filters={
+          <>
+            <Select value={catFilter} onValueChange={setCatFilter}>
+              <SelectTrigger className="w-44" data-mobile-filter-row><SelectValue placeholder="Category" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABEL[c]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36" data-mobile-filter-row><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="blacklisted">Blacklisted</SelectItem>
+              </SelectContent>
+            </Select>
+          </>
+        }
+        trailing={
+          <Button variant="outline" size="icon" onClick={exportCSV} title="Export CSV"><Download className="h-4 w-4" /></Button>
+        }
+      />
 
       {/* Table */}
       {loading ? (
