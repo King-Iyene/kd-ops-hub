@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
+import { ChartGradients, GlassTooltip, chartTheme, axisTick } from '@/components/ChartKit';
 import { cn } from '@/lib/utils';
 import {
   bandForRunwayWeeks,
@@ -217,21 +218,26 @@ export default function CashFlow() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" fontSize={11} />
-                <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                <ChartGradients />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="label" tick={axisTick} axisLine={{ stroke: chartTheme.gridLine }} tickLine={false} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
                 <ReTooltip
-                  formatter={(value: number) => formatNaira(value)}
-                  labelFormatter={(l: string) => `Week of ${l}`}
+                  content={
+                    <GlassTooltip
+                      formatter={(value: number) => formatNaira(value)}
+                      labelFormatter={(l: string) => `Week of ${l}`}
+                    />
+                  }
+                  cursor={{ stroke: chartTheme.primary, strokeOpacity: 0.3 }}
                 />
-                <ReferenceLine y={0} stroke="#dc2626" strokeDasharray="3 3" />
+                <ReferenceLine y={0} stroke={chartTheme.danger} strokeDasharray="3 3" />
                 <Area
                   type="monotone"
                   dataKey="balance"
                   name="Projected balance"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.18}
+                  stroke={chartTheme.primary}
+                  fill="url(#kd-grad-primary)"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -252,14 +258,19 @@ export default function CashFlow() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" fontSize={11} />
-                <YAxis fontSize={11} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                <XAxis dataKey="label" tick={axisTick} axisLine={{ stroke: chartTheme.gridLine }} tickLine={false} />
+                <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₦${(v / 1_000_000).toFixed(1)}M`} />
                 <ReTooltip
-                  formatter={(value: number) => formatNaira(value)}
-                  labelFormatter={(l: string) => `On ${l}`}
+                  content={
+                    <GlassTooltip
+                      formatter={(value: number) => formatNaira(value)}
+                      labelFormatter={(l: string) => `On ${l}`}
+                    />
+                  }
+                  cursor={{ stroke: chartTheme.primary, strokeOpacity: 0.3 }}
                 />
-                <Line type="monotone" dataKey="balance" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="balance" stroke={chartTheme.primary} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           )}
