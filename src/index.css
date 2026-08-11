@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Cabin+Condensed:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -199,24 +198,24 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
-  /* Page-level headings use Space Grotesk for strong visual hierarchy.
-     Inline headings (card titles, section labels) stay with Cabin so the
-     reading rhythm doesn't shift inside data-dense surfaces. */
+  /* One typeface (Inter) end to end — hierarchy comes from weight and
+     letter-spacing, not switching families, so the reading rhythm never
+     shifts between a page heading and a card title. */
   h1 {
-    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.03em;
     font-weight: 700;
   }
   h2 {
-    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.025em;
     font-weight: 600;
   }
   h3, h4, h5, h6 {
-    font-family: 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.015em;
     font-weight: 600;
   }
@@ -640,7 +639,7 @@
 
   /* Display font for hero / headline moments */
   .kd-display {
-    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.025em;
     font-feature-settings: "ss01", "ss02";
   }
@@ -1044,7 +1043,7 @@
   }
   .kd-trip-map .leaflet-popup-content {
     margin: 10px 12px;
-    font-family: 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 12px;
     line-height: 1.4;
   }
@@ -1142,7 +1141,7 @@
 
   /* Number display */
   .kd-stat-number {
-    font-family: 'Cabin Condensed', 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
@@ -1169,7 +1168,7 @@
     @apply flex items-center justify-between gap-3 mb-3;
   }
   .kd-section-title {
-    font-family: 'Space Grotesk', 'Cabin', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     @apply text-base font-semibold tracking-tight text-foreground;
   }
 

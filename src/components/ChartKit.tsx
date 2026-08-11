@@ -128,7 +128,7 @@ export function GlassTooltip(props: any) {
 export const axisTick = {
   fontSize: 11,
   fill: chartTheme.axis,
-  fontFamily: 'Cabin, sans-serif',
+  fontFamily: 'Inter, sans-serif',
 };
 
 /** Animation defaults for charts — pass via animationDuration, animationBegin. */
