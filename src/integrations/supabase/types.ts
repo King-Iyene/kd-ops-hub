@@ -7701,6 +7701,93 @@ export type Database = {
         }
         Relationships: []
       }
+      principal_wallet_dva: {
+        Row: {
+          account_name: string | null
+          account_number: string
+          bank_name: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          paystack_customer_code: string
+        }
+        Insert: {
+          account_name?: string | null
+          account_number: string
+          bank_name: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          paystack_customer_code: string
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string
+          bank_name?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          paystack_customer_code?: string
+        }
+        Relationships: []
+      }
+      principal_wallet_ledger: {
+        Row: {
+          amount_ngn: number
+          created_at: string
+          created_by: string | null
+          direction: string
+          id: string
+          paystack_raw: Json | null
+          reference: string | null
+          related_batch_item_id: string | null
+          related_personal_transfer_id: string | null
+          source: string
+        }
+        Insert: {
+          amount_ngn: number
+          created_at?: string
+          created_by?: string | null
+          direction: string
+          id?: string
+          paystack_raw?: Json | null
+          reference?: string | null
+          related_batch_item_id?: string | null
+          related_personal_transfer_id?: string | null
+          source: string
+        }
+        Update: {
+          amount_ngn?: number
+          created_at?: string
+          created_by?: string | null
+          direction?: string
+          id?: string
+          paystack_raw?: Json | null
+          reference?: string | null
+          related_batch_item_id?: string | null
+          related_personal_transfer_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "principal_wallet_ledger_related_batch_item_id_fkey"
+            columns: ["related_batch_item_id"]
+            isOneToOne: false
+            referencedRelation: "batch_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "principal_wallet_ledger_related_personal_transfer_id_fkey"
+            columns: ["related_personal_transfer_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           account_name: string | null

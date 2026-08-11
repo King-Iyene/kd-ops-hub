@@ -1,0 +1,112 @@
+/**
+ * Principal Disbursements wallet — the internal ring-fenced ledger funded
+ * by a real Paystack Dedicated Virtual Account (see migration
+ * 20261105000400_principal_wallet_dva.sql). Paystack itself doesn't
+ * segregate DVA funds from the rest of the merchant balance; this is an
+ * internal accounting wall that KDOps tracks and enforces.
+ *
+ * Credits are written ONLY by the paystack-webhook edge function (via
+ * credit_principal_wallet, a SECURITY DEFINER RPC not reachable from the
+ * client) when the registered DVA receives a charge.success. Debits are
+ * written by the webhook too, on confirmed transfer.success for a
+ * director-only batch_item or a personal_transfer — never at send time —
+ * so this file is read-mostly: balance/history reads, plus the one-time
+ * account registration/removal flow.
+ */
+import { supabase } from '@/lib/supabase';
+
+export interface PrincipalWalletDva {
+  id: string;
+  paystack_customer_code: string;
+  account_number: string;
+  bank_name: string;
+  account_name: string | null;
+  currency: string;
+  created_at: string;
+}
+
+export interface PrincipalWalletLedgerRow {
+  id: string;
+  direction: 'credit' | 'debit';
+  amount_ngn: number;
+  source: 'dva_funding' | 'company_disbursement' | 'personal_transfer' | 'reversal_refund';
+  reference: string | null;
+  created_at: string;
+}
+
+export async function fetchDvaAccount(): Promise<PrincipalWalletDva | null> {
+  const { data, error } = await supabase
+    .from('principal_wallet_dva')
+    .select('*')
+    .maybeSingle();
+  if (error) throw error;
+  return (data as unknown as PrincipalWalletDva) ?? null;
+}
+
+export async function createDvaAccount(input: {
+  paystackCustomerCode: string;
+  accountNumber: string;
+  bankName: string;
+  accountName: string | null;
+  createdBy: string;
+}): Promise<PrincipalWalletDva> {
+  const { data, error } = await supabase
+    .from('principal_wallet_dva')
+    .insert({
+      paystack_customer_code: input.paystackCustomerCode,
+      account_number: input.accountNumber,
+      bank_name: input.bankName,
+      account_name: input.accountName,
+      created_by: input.createdBy,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as PrincipalWalletDva;
+}
+
+export async function deleteDvaAccount(id: string): Promise<void> {
+  const { error } = await supabase.from('principal_wallet_dva').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/** Balance = SUM(credit) - SUM(debit). RLS already scopes the ledger to
+ *  super_admin, so this reads the whole (small) table client-side rather
+ *  than adding a dedicated balance RPC. */
+export async function fetchWalletBalance(): Promise<number> {
+  const { data, error } = await supabase
+    .from('principal_wallet_ledger')
+    .select('direction, amount_ngn');
+  if (error) throw error;
+  return (data ?? []).reduce((sum: number, row: any) => (
+    row.direction === 'credit' ? sum + Number(row.amount_ngn) : sum - Number(row.amount_ngn)
+  ), 0);
+}
+
+/** Pre-send gate used by every Principal Disbursements send path. No-op
+ *  (always ok) if no DVA is registered yet — this only starts enforcing
+ *  once the director has actually wired up a dedicated account. */
+export async function checkWalletCanCover(
+  amountNgn: number,
+): Promise<{ ok: boolean; reason?: string }> {
+  const dva = await fetchDvaAccount();
+  if (!dva) return { ok: true };
+  const balance = await fetchWalletBalance();
+  if (balance < amountNgn) {
+    return {
+      ok: false,
+      reason: `Principal Disbursements wallet balance is ₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })} — fund ${dva.bank_name} ${dva.account_number} before sending ₦${amountNgn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
+    };
+  }
+  return { ok: true };
+}
+
+export async function fetchWalletLedger(limit = 50): Promise<PrincipalWalletLedgerRow[]> {
+  const { data, error } = await supabase
+    .from('principal_wallet_ledger')
+    .select('id, direction, amount_ngn, source, reference, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as unknown as PrincipalWalletLedgerRow[];
+}

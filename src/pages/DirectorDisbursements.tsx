@@ -29,8 +29,8 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Wallet, Users, Layers, Trash2, Plus, RefreshCw,
-  Receipt, Repeat, Pause, Play, AlertTriangle,
+  Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Users, Layers, Trash2, Plus, RefreshCw,
+  Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -41,7 +41,6 @@ import {
   verifyTransfer,
   getBankCode,
   buildNarration,
-  getPaystackBalance,
   bulkTransfer,
   type BulkTransferItem,
 } from '@/lib/paystack';
@@ -62,6 +61,16 @@ import {
   type PersonalTransferRow,
   type PersonalTransferBeneficiaryRow,
 } from '@/lib/personal-transfers';
+import {
+  fetchDvaAccount,
+  createDvaAccount,
+  deleteDvaAccount,
+  fetchWalletBalance,
+  fetchWalletLedger,
+  checkWalletCanCover,
+  type PrincipalWalletDva,
+  type PrincipalWalletLedgerRow,
+} from '@/lib/principal-wallet';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { AuroraHero } from '@/components/AuroraHero';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -129,6 +138,8 @@ export default function DirectorDisbursements() {
         />
       </AuroraHero>
 
+      <PrincipalWalletPanel profile={profile} toast={toast} />
+
       <Tabs defaultValue="company" className="space-y-4">
         <TabsList>
           <TabsTrigger value="company">Company Disbursement</TabsTrigger>
@@ -142,6 +153,216 @@ export default function DirectorDisbursements() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Principal Disbursements wallet — the real Paystack Dedicated Virtual
+   Account (see src/lib/principal-wallet.ts) that now funds every send in
+   this module, shared above both tabs since it's one account backing
+   both Company Disbursement and Personal Transfer.
+   ═══════════════════════════════════════════════════════════════════════ */
+function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
+  const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [history, setHistory] = useState<PrincipalWalletLedgerRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [account, bal] = await Promise.all([fetchDvaAccount(), fetchWalletBalance()]);
+      setDva(account);
+      setBalance(bal);
+    } catch (err: any) {
+      toast({ title: 'Could not load wallet', description: err?.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const toggleHistory = async () => {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next && history.length === 0) {
+      setHistoryLoading(true);
+      try {
+        setHistory(await fetchWalletLedger(50));
+      } catch (err: any) {
+        toast({ title: 'Could not load funding history', description: err?.message, variant: 'destructive' });
+      } finally {
+        setHistoryLoading(false);
+      }
+    }
+  };
+
+  const remove = async () => {
+    if (!dva) return;
+    try {
+      await deleteDvaAccount(dva.id);
+      toast({ title: 'Dedicated account removed', description: 'Sends will no longer be checked against a wallet balance.' });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Could not remove account', description: friendlyDbError(err), variant: 'destructive' });
+    }
+  };
+
+  const sourceLabel = (s: string) => (
+    s === 'dva_funding' ? 'Dedicated account funding'
+    : s === 'company_disbursement' ? 'Company Disbursement sent'
+    : s === 'personal_transfer' ? 'Personal Transfer sent'
+    : 'Reversal refund'
+  );
+
+  if (loading) return null;
+
+  return (
+    <Card className="rounded-xl">
+      <CardContent className="p-4 space-y-3">
+        {!dva ? (
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              No dedicated account linked — sends use the company Paystack balance directly, unchecked against a wallet.
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+              <Plus className="mr-1.5 h-3.5 w-3.5" /> Link dedicated account
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
+                  <Building2 className="h-3.5 w-3.5" /> Dedicated account
+                </div>
+                <p className="text-sm font-medium mt-0.5">{dva.bank_name} · {dva.account_number}</p>
+                <p className="text-xs text-muted-foreground">{dva.account_name} · {dva.paystack_customer_code}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Wallet balance</p>
+                <p className="text-2xl font-bold currency">{formatNaira(balance ?? 0)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={toggleHistory}>
+                <History className="mr-1.5 h-3.5 w-3.5" /> {historyOpen ? 'Hide' : 'Funding'} history
+              </Button>
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={remove}>
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove account
+              </Button>
+            </div>
+            {historyOpen && (
+              <div className="rounded-lg border border-border/60 divide-y">
+                {historyLoading ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+                ) : history.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">No wallet activity yet.</div>
+                ) : (
+                  history.map((h) => (
+                    <div key={h.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium">{sourceLabel(h.source)}</p>
+                        <p className="text-xs text-muted-foreground">{formatDateTime(h.created_at)}{h.reference ? ` · ${h.reference}` : ''}</p>
+                      </div>
+                      <span className={`font-medium currency shrink-0 ${h.direction === 'credit' ? 'text-success' : 'text-destructive'}`}>
+                        {h.direction === 'credit' ? '+' : '−'}{formatNaira(h.amount_ngn)}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+
+      <LinkDvaDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} toast={toast} onLinked={load} />
+    </Card>
+  );
+}
+
+function LinkDvaDialog({
+  open, onOpenChange, profile, toast, onLinked,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  profile: any;
+  toast: ReturnType<typeof useToast>['toast'];
+  onLinked: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ customerCode: '', accountNumber: '', bankName: '', accountName: '' });
+
+  const reset = () => setForm({ customerCode: '', accountNumber: '', bankName: '', accountName: '' });
+
+  const save = async () => {
+    if (!form.customerCode.trim() || !form.accountNumber.trim() || !form.bankName.trim()) {
+      toast({ title: 'Customer code, account number, and bank name are required', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    try {
+      await createDvaAccount({
+        paystackCustomerCode: form.customerCode.trim(),
+        accountNumber: form.accountNumber.trim(),
+        bankName: form.bankName.trim(),
+        accountName: form.accountName.trim() || null,
+        createdBy: profile?.id,
+      });
+      toast({ title: 'Dedicated account linked' });
+      reset();
+      onOpenChange(false);
+      onLinked();
+    } catch (err: any) {
+      toast({ title: 'Could not link account', description: friendlyDbError(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}
+      size="lg"
+      title={<span className="flex items-center gap-2"><Building2 className="h-5 w-5 text-primary" /> Link dedicated account</span>}
+      description="Paste in the Dedicated Virtual Account details from your Paystack dashboard — create the account there first, this just tells KDOps which incoming funds to track."
+      footer={(
+        <>
+          <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving} className="kd-mobile-tap">
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Link account
+          </Button>
+        </>
+      )}
+    >
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <Label>Paystack customer code</Label>
+          <Input value={form.customerCode} onChange={(e) => setForm({ ...form, customerCode: e.target.value })} placeholder="CUS_xxxxxxxxxxxxxxx" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>Account number</Label>
+            <Input value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} placeholder="0000000000" />
+          </div>
+          <div className="space-y-1">
+            <Label>Bank name</Label>
+            <Input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="e.g. Wema Bank" />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Label>Account name (optional)</Label>
+          <Input value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} placeholder="As shown on Paystack" />
+        </div>
+      </div>
+    </ResponsiveDialog>
   );
 }
 
@@ -367,6 +588,8 @@ function CompanyDisbursementSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
+      const walletCheck = await checkWalletCanCover(amount);
+      if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
@@ -729,8 +952,6 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [batchOpen, setBatchOpen] = useState(false);
   const [beneficiariesOpen, setBeneficiariesOpen] = useState(false);
   const [beneficiaries, setBeneficiaries] = useState<PersonalTransferBeneficiaryRow[]>([]);
-  const [balance, setBalance] = useState<{ available: number; currency: string } | null>(null);
-  const [balanceError, setBalanceError] = useState(false);
   const [receiptRow, setReceiptRow] = useState<PersonalTransferRow | null>(null);
 
   const load = async () => {
@@ -789,13 +1010,6 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   useEffect(() => {
     void load();
     void loadBeneficiaries();
-    void (async () => {
-      try {
-        setBalance(await getPaystackBalance());
-      } catch {
-        setBalanceError(true);
-      }
-    })();
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
@@ -807,14 +1021,6 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           ledger, expense reports, or payables. Visible only to you.
         </p>
         <div className="flex items-center gap-2 flex-wrap">
-          {balance && (
-            <Badge variant="outline" className="text-xs font-normal gap-1.5">
-              <Wallet className="h-3 w-3" /> Paystack balance: <span className="font-semibold currency">{formatNaira(balance.available)}</span>
-            </Badge>
-          )}
-          {balanceError && (
-            <Badge variant="outline" className="text-xs font-normal text-muted-foreground">Balance unavailable</Badge>
-          )}
           <Button variant="outline" onClick={() => setBeneficiariesOpen(true)}>
             <Users className="mr-2 h-4 w-4" /> Beneficiaries
           </Button>
@@ -1128,6 +1334,8 @@ function PersonalTransferSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
+      const walletCheck = await checkWalletCanCover(amount);
+      if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const bankCode = getBankCode(bank.bank_name);
       if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
@@ -1416,6 +1624,8 @@ function PersonalTransferBatchDialog({
         const cap = await previewCapCheck(profile.id, totalAmount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
+      const walletCheck = await checkWalletCanCover(totalAmount);
+      if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const label = batchLabel.trim() || null;
 

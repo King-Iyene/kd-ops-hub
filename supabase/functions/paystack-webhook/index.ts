@@ -10,6 +10,10 @@
 //   transfer.success  — mark batch_item succeeded, recalc batch, sync expense
 //   transfer.failed   — mark batch_item failed with reason, recalc batch, sync expense
 //   transfer.reversed — mark batch_item reversed, recalc batch, sync expense
+//   charge.success (dedicated_nuban) — credit the Principal Disbursements
+//     wallet when the registered DVA (principal_wallet_dva) receives funds
+//   transfer.success/reversed for a director-only batch_item or a
+//     personal_transfers row — debit/credit-back the same wallet
 //
 // Atomic processing (H-8): the idempotency claim and the batch_item update
 // happen inside a single SECURITY DEFINER RPC `process_paystack_webhook` so
@@ -247,15 +251,56 @@ serve(async (req) => {
     return new Response("Missing event or data", { status: 400 });
   }
 
-  // Only process transfer events — ignore charge.success, refund.*, etc.
-  if (!event.startsWith("transfer.")) {
-    return new Response("ok", { status: 200, headers: corsHeaders });
-  }
-
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // ------------------------------------------------------------------
+  // Principal Disbursements wallet funding — a Dedicated Virtual Account
+  // credit arrives as charge.success with authorization.channel
+  // 'dedicated_nuban'. Handled here, separately from the transfer.*
+  // dispatch below, since it's a completely different shape (no
+  // batch_items/personal_transfers row to look up — it's new money
+  // arriving, not a payment being resolved). credit_principal_wallet()
+  // is idempotent (webhook_idempotency, same table transfer events use)
+  // and only credits if the receiving account matches a registered DVA —
+  // any other charge.success (a normal card/bank payment elsewhere in
+  // Paystack, unrelated to this account) is a no-op.
+  // ------------------------------------------------------------------
+  if (event === "charge.success") {
+    const receiverAccount = data?.authorization?.receiver_bank_account_number as string | undefined;
+    const channel = data?.authorization?.channel as string | undefined;
+    const chargeRef = data?.reference as string | undefined;
+    const amountNgn = Number(data?.amount || 0) / 100;
+
+    if (channel === "dedicated_nuban" && receiverAccount && chargeRef && amountNgn > 0) {
+      try {
+        const { data: creditResult, error: creditErr } = await supabase.rpc(
+          "credit_principal_wallet",
+          {
+            p_reference: chargeRef,
+            p_amount_ngn: amountNgn,
+            p_receiver_account_number: receiverAccount,
+            p_paystack_raw: data,
+          },
+        );
+        if (creditErr) {
+          console.error("[webhook] credit_principal_wallet failed:", creditErr.message, chargeRef);
+        } else {
+          console.info("[webhook] charge.success (dedicated_nuban):", (creditResult as any)?.outcome, chargeRef);
+        }
+      } catch (e) {
+        console.error("[webhook] credit_principal_wallet threw:", e, chargeRef);
+      }
+    }
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
+
+  // Only process transfer events beyond this point — ignore refund.*, etc.
+  if (!event.startsWith("transfer.")) {
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
 
   const reference = data.reference as string | undefined;
   if (!reference) {
@@ -352,6 +397,42 @@ serve(async (req) => {
       reference,
       (rpcData as any)?.status,
     );
+
+    // Principal Disbursements wallet — every personal_transfers row is
+    // director-only by table design (no separate category check needed,
+    // unlike batch_items below). Debit on confirmed success; credit back
+    // on a later reversal. Best-effort: the real Paystack transfer has
+    // already resolved by this point regardless of what happens here.
+    try {
+      if (event === "transfer.success" || event === "transfer.reversed") {
+        const { data: pt } = await supabase
+          .from("personal_transfers")
+          .select("id, amount_ngn")
+          .eq("paystack_reference", reference)
+          .maybeSingle();
+        if (pt) {
+          if (event === "transfer.success") {
+            const { error: debitErr } = await supabase.rpc("debit_principal_wallet", {
+              p_amount_ngn: (pt as any).amount_ngn,
+              p_source: "personal_transfer",
+              p_reference: reference,
+              p_related_batch_item_id: null,
+              p_related_personal_transfer_id: (pt as any).id,
+            });
+            if (debitErr) console.warn("[webhook] wallet debit failed (personal_transfer):", debitErr.message, reference);
+          } else {
+            const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
+              p_amount_ngn: (pt as any).amount_ngn,
+              p_reference: reference,
+            });
+            if (refundErr) console.warn("[webhook] wallet refund failed (personal_transfer):", refundErr.message, reference);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[webhook] wallet effect threw (personal_transfer):", e, reference);
+    }
+
     return new Response("ok (personal_transfer)", { status: 200, headers: corsHeaders });
   }
 
@@ -427,6 +508,39 @@ serve(async (req) => {
       `Paystack ref: ${reference}`,
       "high",
     );
+  }
+
+  // Principal Disbursements wallet — only Company Disbursement batches
+  // (the 3 director-only payment_category values) touch the wallet;
+  // ordinary payroll/vendor/contractor batch_items never do. Debit on
+  // confirmed success; credit back on a later reversal. Best-effort —
+  // the real Paystack transfer has already resolved regardless.
+  if (event === "transfer.success" || event === "transfer.reversed") {
+    try {
+      const { data: isDirectorBatch } = await supabase.rpc("is_director_disbursement_batch", {
+        p_batch_id: item.batch_id,
+      });
+      if (isDirectorBatch) {
+        if (event === "transfer.success") {
+          const { error: debitErr } = await supabase.rpc("debit_principal_wallet", {
+            p_amount_ngn: item.amount_ngn,
+            p_source: "company_disbursement",
+            p_reference: reference,
+            p_related_batch_item_id: item.id,
+            p_related_personal_transfer_id: null,
+          });
+          if (debitErr) console.warn("[webhook] wallet debit failed (company_disbursement):", debitErr.message, reference);
+        } else {
+          const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
+            p_amount_ngn: item.amount_ngn,
+            p_reference: reference,
+          });
+          if (refundErr) console.warn("[webhook] wallet refund failed (company_disbursement):", refundErr.message, reference);
+        }
+      }
+    } catch (e) {
+      console.warn("[webhook] wallet effect threw (company_disbursement):", e, reference);
+    }
   }
 
   // ------------------------------------------------------------------
