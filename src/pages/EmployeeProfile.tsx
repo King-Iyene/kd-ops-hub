@@ -1589,12 +1589,7 @@ const EmployeeProfile = () => {
                           <SelectContent>
                             {assignableRoles.map((r) => (
                               <SelectItem key={r} value={r}>
-                                {r === 'super_admin' ? 'Super Admin'
-                                  : r === 'admin' ? 'Admin'
-                                  : r === 'finance' ? 'Finance'
-                                  : r === 'operations' ? 'Operations'
-                                  : r === 'driver' ? 'Driver'
-                                  : 'Field Staff'}
+                                {roleLabel(r)}
                               </SelectItem>
                             ))}
                           </SelectContent>

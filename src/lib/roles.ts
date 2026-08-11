@@ -69,7 +69,7 @@ export const roleLabel = (role: string): string => {
     case 'field_staff':
       return 'Field Staff';
     case 'driver':
-      return 'Employee';
+      return 'Fleet Staff';
     default:
       return role || 'Unknown';
   }

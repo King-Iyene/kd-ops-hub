@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { roleLabel } from '@/lib/roles';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -89,13 +90,9 @@ const DEFAULT_ONBOARDING_ITEMS: {
   { category: 'training',      title: 'Health & safety induction',                    offsetDays: 7 },
 ];
 
-const ROLE_OPTIONS = [
-  { value: 'field_staff', label: 'Field staff' },
-  { value: 'operations',  label: 'Operations' },
-  { value: 'finance',     label: 'Finance' },
-  { value: 'admin',       label: 'Admin' },
-  { value: 'driver',      label: 'Driver' },
-];
+const ROLE_OPTIONS = (['field_staff', 'operations', 'finance', 'admin', 'driver'] as const).map(
+  (value) => ({ value, label: roleLabel(value) }),
+);
 
 export const HireApplicantDialog = ({
   open, onOpenChange, applicant, opening, departments, onHired,

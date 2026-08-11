@@ -21,6 +21,7 @@ import { AuroraHero } from '@/components/AuroraHero';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { roleLabel, type Role } from '@/lib/roles';
 import { formatDate } from '@/lib/format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,7 +76,6 @@ interface Tag {
   module: string | null;
 }
 
-type Role = 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
 type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 
 interface Employee {
@@ -94,14 +94,9 @@ interface Employee {
   photo_url?: string | null;
 }
 
-const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'operations', label: 'Operations' },
-  { value: 'field_staff', label: 'Field Staff' },
-  { value: 'driver', label: 'Driver' },
-];
+const ROLE_OPTIONS: { value: Role; label: string }[] = (
+  ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] as Role[]
+).map((value) => ({ value, label: roleLabel(value) }));
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [
   { value: 'full_time', label: 'Full Time' },
@@ -122,9 +117,6 @@ const FALLBACK_DEPARTMENTS = [
   'People',
   'Sales',
 ];
-
-const roleLabel = (role: string) =>
-  ROLE_OPTIONS.find((r) => r.value === role)?.label ?? role;
 
 const STATUS_BADGE: Record<string, string> = {
   active: 'bg-success/10 text-success',

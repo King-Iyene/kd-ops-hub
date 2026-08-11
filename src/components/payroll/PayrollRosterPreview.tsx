@@ -28,7 +28,7 @@ type ExclusionReason = 'inactive' | 'driver' | 'no_salary' | 'segment';
 
 const REASON_LABEL: Record<ExclusionReason, string> = {
   inactive: 'Inactive',
-  driver: 'Driver role (paid via Fleet, not Payroll)',
+  driver: 'Fleet Staff role (paid via Fleet, not Payroll)',
   no_salary: 'No salary configured (₦0 or empty)',
   segment: 'Outside the selected payroll segment',
 };
