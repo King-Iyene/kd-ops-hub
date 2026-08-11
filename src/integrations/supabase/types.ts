@@ -2759,6 +2759,155 @@ export type Database = {
           },
         ]
       }
+      dm_conversation_participants: {
+        Row: {
+          conversation_id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dm_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dm_conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_conversation_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_conversations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          last_message_at: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message_at?: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_message_at?: string
+          name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_conversations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dm_messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dm_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "dm_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dm_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "dm_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_folders: {
         Row: {
           color: string | null
