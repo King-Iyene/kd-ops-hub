@@ -70,6 +70,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -119,6 +121,40 @@ const dedupe = (rs: Recipient[]): Recipient[] => {
   });
 };
 
+/** A small pill-row of mutually exclusive options — used in place of a
+ *  native Select for short, frequently-toggled choices, where a dropdown
+ *  hides the options behind an extra click for no reason. */
+function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { value: T; label: string; icon?: React.ReactNode }[];
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-border bg-muted/40 p-1 gap-1 flex-wrap">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            value === opt.value
+              ? 'bg-card text-foreground shadow-sm border border-border/60'
+              : 'text-muted-foreground hover:text-foreground',
+          )}
+        >
+          {opt.icon}
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Communications() {
   usePageTitle('Communications');
   const { toast } = useToast();
@@ -142,6 +178,8 @@ export default function Communications() {
   const [manualText, setManualText] = useState('');
   const [pickedRecipients, setPickedRecipients] = useState<Recipient[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [deptFilter, setDeptFilter] = useState<string>('all');
 
   // Send / preview state
   const [view, setView] = useState<'edit' | 'preview'>('edit');
@@ -165,18 +203,20 @@ export default function Communications() {
   useEffect(() => {
     void (async () => {
       try {
-        const [tpls, cs] = await Promise.all([
+        const [tpls, cs, depts] = await Promise.all([
           listEmailTemplates(),
           supabase.from('company_settings')
             .select('company_name, logo_url')
             .eq('id', '00000000-0000-0000-0000-000000000001')
             .maybeSingle(),
+          supabase.from('departments').select('id, name').order('name'),
         ]);
         setTemplates(tpls);
         if (cs.data) {
           setCompanyName((cs.data as any).company_name || 'KD Squares');
           setLogoUrl((cs.data as any).logo_url || null);
         }
+        setDepartments((depts.data as { id: string; name: string }[]) || []);
       } catch {
         // non-fatal
       }
@@ -285,10 +325,12 @@ export default function Communications() {
           .not('email', 'is', null);
         data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
       } else if (src === 'employees') {
-        const { data: rows } = await supabase
+        let q = supabase
           .from('profiles').select('email, full_name')
           .eq('status', 'active')
           .not('email', 'is', null);
+        if (deptFilter !== 'all') q = q.eq('department_id', deptFilter);
+        const { data: rows } = await q;
         data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
       } else if (src === 'contractors') {
         const { data: rows } = await supabase
@@ -308,6 +350,13 @@ export default function Communications() {
       setPickerLoading(false);
     }
   };
+
+  // Re-pull the employee list whenever the department filter changes while
+  // that source is active — the filter is meaningless for any other source.
+  useEffect(() => {
+    if (recipientSource === 'employees') void loadFromSource('employees');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deptFilter]);
 
   // ─── Body resolution (template or custom) ─────────────────────────────
   const activeTemplate = useMemo(
@@ -478,11 +527,14 @@ export default function Communications() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Communications"
-        description="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
-        icon={Mail}
-      />
+      <AuroraHero className="p-5 sm:p-6" scanLine={!!activeProgress} pattern="pulse">
+        <PageHeader
+          className="mb-0"
+          title="Communications"
+          description="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
+          icon={Mail}
+        />
+      </AuroraHero>
 
       {/* Composer */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4">
@@ -492,15 +544,16 @@ export default function Communications() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Body source */}
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="kd-label">Body source</Label>
-              <Select value={bodySource} onValueChange={(v) => setBodySource(v as BodySource)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="custom">Write a one-off message</SelectItem>
-                  <SelectItem value="template">Use a saved template</SelectItem>
-                </SelectContent>
-              </Select>
+              <SegmentedControl
+                value={bodySource}
+                onChange={(v) => setBodySource(v as BodySource)}
+                options={[
+                  { value: 'custom', label: 'One-off message' },
+                  { value: 'template', label: 'Saved template' },
+                ]}
+              />
             </div>
 
             {bodySource === 'template' ? (
@@ -587,25 +640,37 @@ export default function Communications() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <Label className="kd-label">Source</Label>
-              <Select
+              <SegmentedControl
                 value={recipientSource}
-                onValueChange={(v) => {
-                  const s = v as RecipientSource;
+                onChange={(s) => {
                   setRecipientSource(s);
                   if (s !== 'manual') void loadFromSource(s);
                 }}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="manual">Type addresses</SelectItem>
-                  <SelectItem value="contacts">All contacts</SelectItem>
-                  <SelectItem value="employees">Active employees</SelectItem>
-                  <SelectItem value="contractors">Contractors</SelectItem>
-                </SelectContent>
-              </Select>
+                options={[
+                  { value: 'manual', label: 'Type addresses' },
+                  { value: 'contacts', label: 'Contacts' },
+                  { value: 'employees', label: 'Employees' },
+                  { value: 'contractors', label: 'Contractors' },
+                ]}
+              />
             </div>
+
+            {recipientSource === 'employees' && (
+              <div className="space-y-1">
+                <Label className="kd-label">Department</Label>
+                <Select value={deptFilter} onValueChange={setDeptFilter}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All departments</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             {recipientSource === 'manual' ? (
               <div className="space-y-1">
@@ -632,16 +697,22 @@ export default function Communications() {
                     <Loader2 className="h-3 w-3 animate-spin" /> Loading…
                   </div>
                 ) : (
-                  <div className="border border-border rounded-lg max-h-[260px] overflow-y-auto divide-y">
+                  <div className="border border-border rounded-lg max-h-[260px] overflow-y-auto divide-y divide-border/60">
                     {pickedRecipients.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic p-2">No recipients found.</p>
+                      <p className="text-xs text-muted-foreground italic p-3">No recipients found.</p>
                     )}
                     {pickedRecipients.map((r) => (
-                      <div key={r.email} className="text-xs px-2 py-1.5 flex items-center justify-between">
-                        <span>{r.name || r.email}</span>
+                      <div key={r.email} className="text-xs px-2.5 py-1.5 flex items-center gap-2 group">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase">
+                          {(r.name || r.email).slice(0, 1)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-foreground">{r.name || r.email}</p>
+                          {r.name && <p className="truncate text-[10px] text-muted-foreground">{r.email}</p>}
+                        </div>
                         <button
                           onClick={() => setPickedRecipients((cur) => cur.filter((x) => x.email !== r.email))}
-                          className="text-muted-foreground hover:text-rose-500"
+                          className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity"
                           aria-label="Remove"
                         ><Trash2 className="h-3 w-3" /></button>
                       </div>
