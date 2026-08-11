@@ -331,6 +331,7 @@ serve(async (req) => {
     | "duplicate"
     | "no_match"
     | "processed"
+    | "processed_personal_transfer"
     | undefined;
 
   if (outcome === "duplicate") {
@@ -340,6 +341,18 @@ serve(async (req) => {
   if (outcome === "no_match") {
     console.info("[webhook] No batch_item for reference:", reference);
     return new Response("ok (no_match)", { status: 200, headers: corsHeaders });
+  }
+  if (outcome === "processed_personal_transfer") {
+    // Deliberately minimal — personal_transfers has no batch/contractor/
+    // employee shape and no notification/reporting needs, so this takes
+    // its own short-circuit rather than falling into the batch-shaped
+    // logic below (which expects item_id/batch_id/full_name etc.).
+    console.info(
+      "[webhook] personal_transfers updated:",
+      reference,
+      (rpcData as any)?.status,
+    );
+    return new Response("ok (personal_transfer)", { status: 200, headers: corsHeaders });
   }
 
   // outcome === 'processed' — the transactional update succeeded.

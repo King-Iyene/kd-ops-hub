@@ -28,7 +28,7 @@
  */
 import { useEffect, useState } from 'react';
 import {
-  Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send,
+  Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Wallet, Users, Layers, Trash2, Plus, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -36,8 +36,12 @@ import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
   initiateTransferIdempotent,
+  verifyTransfer,
   getBankCode,
   buildNarration,
+  getPaystackBalance,
+  bulkTransfer,
+  type BulkTransferItem,
 } from '@/lib/paystack';
 import { previewCapCheck, startBatchProcessing } from '@/lib/transfer-safety';
 import { formatNaira, formatDateTime } from '@/lib/format';
@@ -50,7 +54,11 @@ import {
 import {
   fetchPersonalTransfers,
   logPersonalTransferDetailView,
+  fetchPersonalTransferBeneficiaries,
+  createPersonalTransferBeneficiary,
+  deletePersonalTransferBeneficiary,
   type PersonalTransferRow,
+  type PersonalTransferBeneficiaryRow,
 } from '@/lib/personal-transfers';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { AuroraHero } from '@/components/AuroraHero';
@@ -477,6 +485,11 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [rows, setRows] = useState<PersonalTransferRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [beneficiariesOpen, setBeneficiariesOpen] = useState(false);
+  const [beneficiaries, setBeneficiaries] = useState<PersonalTransferBeneficiaryRow[]>([]);
+  const [balance, setBalance] = useState<{ available: number; currency: string } | null>(null);
+  const [balanceError, setBalanceError] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -490,18 +503,86 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  const loadBeneficiaries = async () => {
+    try {
+      setBeneficiaries(await fetchPersonalTransferBeneficiaries());
+    } catch (err: any) {
+      toast({ title: 'Could not load beneficiaries', description: err?.message, variant: 'destructive' });
+    }
+  };
+
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  // Manual reconciliation — the webhook path normally resolves a pending
+  // transfer automatically, but this is a safety net for any case it
+  // doesn't (missed delivery, transient error). Calls Paystack directly
+  // via verify_transfer, so it reflects real status even if no webhook
+  // ever arrives.
+  const verifyStatus = async (row: PersonalTransferRow, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!row.paystack_reference) return;
+    setVerifyingId(row.id);
+    try {
+      const verified = await verifyTransfer(row.paystack_reference);
+      const st = verified.status.toLowerCase();
+      const status = st === 'success' ? 'succeeded' : st === 'failed' || st === 'reversed' ? st : 'pending';
+      if (status !== 'pending') {
+        await supabase.from('personal_transfers').update({
+          status,
+          processed_at: status === 'succeeded' ? new Date().toISOString() : null,
+          failure_reason: status === 'failed' ? (verified.reason || 'Paystack rejected the transfer') : null,
+        }).eq('id', row.id);
+        toast({ title: `Transfer ${status}`, description: row.recipient_name });
+        load();
+      } else {
+        toast({ title: 'Still pending', description: 'Paystack has not resolved this transfer yet.' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Could not check status', description: err?.message, variant: 'destructive' });
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    void loadBeneficiaries();
+    void (async () => {
+      try {
+        setBalance(await getPaystackBalance());
+      } catch {
+        setBalanceError(true);
+      }
+    })();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground max-w-xl">
           Your own post-salary money. Uses Paystack as a pure transfer utility — never touches the company
           ledger, expense reports, or payables. Visible only to you.
         </p>
-        <Button onClick={() => setSendOpen(true)}>
-          <Send className="mr-2 h-4 w-4" /> New transfer
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {balance && (
+            <Badge variant="outline" className="text-xs font-normal gap-1.5">
+              <Wallet className="h-3 w-3" /> Paystack balance: <span className="font-semibold currency">{formatNaira(balance.available)}</span>
+            </Badge>
+          )}
+          {balanceError && (
+            <Badge variant="outline" className="text-xs font-normal text-muted-foreground">Balance unavailable</Badge>
+          )}
+          <Button variant="outline" onClick={() => setBeneficiariesOpen(true)}>
+            <Users className="mr-2 h-4 w-4" /> Beneficiaries
+          </Button>
+          <Button variant="outline" onClick={() => setBatchOpen(true)}>
+            <Layers className="mr-2 h-4 w-4" /> New batch
+          </Button>
+          <Button onClick={() => setSendOpen(true)}>
+            <Send className="mr-2 h-4 w-4" /> New transfer
+          </Button>
+        </div>
       </div>
 
       <Card className="rounded-xl">
@@ -519,7 +600,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Recipient</TableHead>
-                      <TableHead>Memo</TableHead>
+                      <TableHead>Memo / Batch</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -529,9 +610,30 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => logPersonalTransferDetailView(r, profile)}>
                         <TableCell>{formatDateTime(r.created_at)}</TableCell>
                         <TableCell>{r.recipient_account_name || r.recipient_name}</TableCell>
-                        <TableCell className="max-w-[280px] truncate">{r.memo || '—'}</TableCell>
+                        <TableCell className="max-w-[280px] truncate">
+                          {r.batch_label && <Badge variant="outline" className="mr-1.5 text-[10px]">{r.batch_label}</Badge>}
+                          {r.memo || (r.batch_label ? '' : '—')}
+                        </TableCell>
                         <TableCell className="text-right font-medium currency">{formatNaira(r.amount_ngn)}</TableCell>
-                        <TableCell><StatusBadge status={r.status} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status={r.status} />
+                            {r.status === 'pending' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                title="Check status with Paystack"
+                                disabled={verifyingId === r.id}
+                                onClick={(e) => verifyStatus(r, e)}
+                              >
+                                {verifyingId === r.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -545,7 +647,26 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                       <MobileCardMeta className="currency">{formatNaira(r.amount_ngn)}</MobileCardMeta>
                     </MobileCardHeader>
                     <MobileCardRow label="Date">{formatDateTime(r.created_at)}</MobileCardRow>
-                    <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>
+                    {r.batch_label && <MobileCardRow label="Batch">{r.batch_label}</MobileCardRow>}
+                    <MobileCardRow label="Status">
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={r.status} />
+                        {r.status === 'pending' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            title="Check status with Paystack"
+                            disabled={verifyingId === r.id}
+                            onClick={(e) => verifyStatus(r, e)}
+                          >
+                            {verifyingId === r.id
+                              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
+                          </Button>
+                        )}
+                      </div>
+                    </MobileCardRow>
                   </MobileCard>
                 ))}
               </div>
@@ -554,27 +675,177 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         </CardContent>
       </Card>
 
-      <PersonalTransferSendDialog open={sendOpen} onOpenChange={setSendOpen} profile={profile} toast={toast} onSent={load} />
+      <PersonalTransferSendDialog
+        open={sendOpen}
+        onOpenChange={setSendOpen}
+        profile={profile}
+        toast={toast}
+        onSent={load}
+        beneficiaries={beneficiaries}
+      />
+      <PersonalTransferBatchDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        profile={profile}
+        toast={toast}
+        onSent={load}
+        beneficiaries={beneficiaries}
+      />
+      <PersonalTransferBeneficiariesDialog
+        open={beneficiariesOpen}
+        onOpenChange={setBeneficiariesOpen}
+        profile={profile}
+        toast={toast}
+        beneficiaries={beneficiaries}
+        onChanged={loadBeneficiaries}
+      />
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Beneficiaries manager — saved recipients, reused across single sends
+   and batches. Caches paystack_recipient_code per Paystack's own
+   documented guidance (create once, reuse from your own database).
+   ═══════════════════════════════════════════════════════════════════════ */
+function PersonalTransferBeneficiariesDialog({
+  open, onOpenChange, profile, toast, beneficiaries, onChanged,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  profile: any;
+  toast: ReturnType<typeof useToast>['toast'];
+  beneficiaries: PersonalTransferBeneficiaryRow[];
+  onChanged: () => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [bank, setBank] = useState<BankAccountValue>(emptyBank);
+  const [label, setLabel] = useState('');
+
+  const reset = () => { setAdding(false); setBank(emptyBank); setLabel(''); };
+
+  const save = async () => {
+    if (!bank.verified) { toast({ title: 'Verify bank account first', variant: 'destructive' }); return; }
+    if (!label.trim()) { toast({ title: 'Give this beneficiary a name', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      const bankCode = getBankCode(bank.bank_name);
+      if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
+      const recipient = await createTransferRecipient({
+        name: bank.account_name || bank.account_number,
+        account_number: bank.account_number,
+        bank_code: bankCode,
+      });
+      await createPersonalTransferBeneficiary({
+        ownerId: profile?.id,
+        label: label.trim(),
+        accountNumber: bank.account_number,
+        bankCode,
+        bankName: bank.bank_name,
+        accountName: bank.account_name,
+        paystackRecipientCode: recipient.recipient_code,
+      });
+      toast({ title: 'Beneficiary saved' });
+      reset();
+      onChanged();
+    } catch (err: any) {
+      toast({ title: 'Could not save beneficiary', description: friendlyDbError(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (b: PersonalTransferBeneficiaryRow) => {
+    try {
+      await deletePersonalTransferBeneficiary(b.id);
+      toast({ title: `${b.label} removed` });
+      onChanged();
+    } catch (err: any) {
+      toast({ title: 'Could not remove beneficiary', description: friendlyDbError(err), variant: 'destructive' });
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}
+      size="lg"
+      title={<span className="flex items-center gap-2"><Users className="h-5 w-5 text-primary" /> Beneficiaries</span>}
+      description="Saved recipients for Personal Transfer — private to you, reused for single and batch sends."
+      footer={<Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)}>Close</Button>}
+    >
+      <div className="space-y-3">
+        {beneficiaries.length === 0 && !adding && (
+          <EmptyState icon={Users} title="No saved beneficiaries yet" description="Add one below to reuse it in future transfers." />
+        )}
+        {beneficiaries.map((b) => (
+          <div key={b.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{b.label}</p>
+              <p className="text-xs text-muted-foreground truncate">{b.account_name || b.account_number} · {b.bank_name} · {b.account_number}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(b)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+
+        {adding ? (
+          <div className="space-y-3 rounded-lg border border-dashed border-primary/40 p-3">
+            <div className="space-y-1">
+              <Label>Name</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Mum" />
+            </div>
+            <BankAccountField value={bank} onChange={setBank} provider="paystack" />
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={reset} disabled={saving}>Cancel</Button>
+              <Button onClick={save} disabled={saving || !bank.verified || !label.trim()}>
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="outline" className="w-full" onClick={() => setAdding(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add beneficiary
+          </Button>
+        )}
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
 function PersonalTransferSendDialog({
-  open, onOpenChange, profile, toast, onSent,
+  open, onOpenChange, profile, toast, onSent, beneficiaries,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   profile: any;
   toast: ReturnType<typeof useToast>['toast'];
   onSent: () => void;
+  beneficiaries: PersonalTransferBeneficiaryRow[];
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [form, setForm] = useState({ amount: '', memo: '' });
   const [showConfirm, setShowConfirm] = useState(false);
+  const [beneficiaryId, setBeneficiaryId] = useState<string>('');
 
-  const reset = () => { setBank(emptyBank); setForm({ amount: '', memo: '' }); setResult(null); };
+  const reset = () => { setBank(emptyBank); setForm({ amount: '', memo: '' }); setResult(null); setBeneficiaryId(''); };
+
+  const pickBeneficiary = (id: string) => {
+    setBeneficiaryId(id);
+    const b = beneficiaries.find((x) => x.id === id);
+    if (b) {
+      setBank({
+        bank_name: b.bank_name || '',
+        account_number: b.account_number,
+        account_name: b.account_name || b.label,
+        verified: true,
+      });
+    }
+  };
 
   const handleSend = () => {
     if (!bank.verified) { toast({ title: 'Verify bank account first', variant: 'destructive' }); return; }
@@ -596,11 +867,17 @@ function PersonalTransferSendDialog({
       const bankCode = getBankCode(bank.bank_name);
       if (!bankCode) throw new Error(`Unknown bank: ${bank.bank_name}`);
 
-      const recipient = await createTransferRecipient({
-        name: bank.account_name || bank.account_number,
-        account_number: bank.account_number,
-        bank_code: bankCode,
-      });
+      // Reuse the saved beneficiary's cached recipient_code when picked from
+      // the list (Paystack's own guidance: create once, reuse from your own
+      // database) — only creates a fresh Paystack recipient for a one-off,
+      // unsaved account.
+      const selectedBeneficiary = beneficiaries.find((b) => b.id === beneficiaryId);
+      const recipientCode = selectedBeneficiary?.paystack_recipient_code
+        || (await createTransferRecipient({
+          name: bank.account_name || bank.account_number,
+          account_number: bank.account_number,
+          bank_code: bankCode,
+        })).recipient_code;
 
       const { data: inserted, error: insertErr } = await supabase.from('personal_transfers').insert({
         initiated_by: profile?.id,
@@ -611,7 +888,8 @@ function PersonalTransferSendDialog({
         recipient_account_name: bank.account_name || null,
         amount_ngn: amount,
         memo: form.memo?.trim() || null,
-        paystack_recipient_code: recipient.recipient_code,
+        paystack_recipient_code: recipientCode,
+        beneficiary_id: beneficiaryId || null,
         status: 'pending',
       }).select('id').single();
       if (insertErr || !inserted) throw new Error(`Could not create transfer record: ${insertErr?.message || 'no id'}`);
@@ -626,7 +904,7 @@ function PersonalTransferSendDialog({
         || buildNarration({ kind: 'generic', label: 'Personal transfer' });
 
       const transfer = await initiateTransferIdempotent({
-        recipient_code: recipient.recipient_code!,
+        recipient_code: recipientCode!,
         amount_ngn: amount,
         reference: ref,
         reason: narration,
@@ -708,7 +986,20 @@ function PersonalTransferSendDialog({
                 expense/payables view — only here.
               </AlertDescription>
             </Alert>
-            <BankAccountField value={bank} onChange={setBank} provider="paystack" />
+            {beneficiaries.length > 0 && (
+              <div className="space-y-1">
+                <Label>Saved beneficiary (optional)</Label>
+                <Select value={beneficiaryId} onValueChange={pickBeneficiary}>
+                  <SelectTrigger><SelectValue placeholder="Pick a saved beneficiary, or enter a new account below…" /></SelectTrigger>
+                  <SelectContent>
+                    {beneficiaries.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.label} — {b.bank_name} · {b.account_number}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <BankAccountField value={bank} onChange={(v) => { setBank(v); setBeneficiaryId(''); }} provider="paystack" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Amount (₦)</Label>
@@ -739,5 +1030,238 @@ function PersonalTransferSendDialog({
         onConfirm={(narration) => executeSend(narration)}
       />
     </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Batch send — pick multiple saved beneficiaries, one amount each, one
+   Paystack /transfer/bulk call (chunked at 100/call, ≥5s between chunks —
+   the same discipline batch-worker uses for company payroll). Scoped to
+   saved beneficiaries only (not ad-hoc accounts) to keep this dialog to a
+   single, safe shape — add a new one-off account as a beneficiary first
+   if it needs to be part of a batch.
+   ═══════════════════════════════════════════════════════════════════════ */
+const BULK_CHUNK_SIZE = 100;
+const BULK_INTER_CHUNK_MS = 5_000;
+
+function PersonalTransferBatchDialog({
+  open, onOpenChange, profile, toast, onSent, beneficiaries,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  profile: any;
+  toast: ReturnType<typeof useToast>['toast'];
+  onSent: () => void;
+  beneficiaries: PersonalTransferBeneficiaryRow[];
+}) {
+  const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [result, setResult] = useState<null | { ok: true; count: number } | { ok: false; reason: string }>(null);
+  const [batchLabel, setBatchLabel] = useState('');
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const reset = () => { setBatchLabel(''); setAmounts({}); setSelected(new Set()); setResult(null); setProgress(''); };
+
+  const toggle = (id: string) => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedBeneficiaries = beneficiaries.filter((b) => selected.has(b.id));
+  const totalAmount = selectedBeneficiaries.reduce((sum, b) => sum + (parseFloat(amounts[b.id]) || 0), 0);
+  const allAmountsValid = selectedBeneficiaries.length > 0
+    && selectedBeneficiaries.every((b) => Number.isFinite(parseFloat(amounts[b.id])) && parseFloat(amounts[b.id]) > 0);
+
+  const executeBatch = async () => {
+    setProcessing(true);
+    setResult(null);
+    try {
+      if (profile?.id) {
+        const cap = await previewCapCheck(profile.id, totalAmount);
+        if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
+      }
+
+      const label = batchLabel.trim() || null;
+
+      // Insert one pending row per recipient first — same discipline as the
+      // single-send path: the DB row exists before any Paystack call, so a
+      // dropped connection mid-batch still leaves a traceable pending record
+      // rather than a payment nobody can find.
+      const rowsToInsert = selectedBeneficiaries.map((b) => ({
+        initiated_by: profile?.id,
+        recipient_name: b.account_name || b.label,
+        recipient_account_number: b.account_number,
+        recipient_bank_code: b.bank_code,
+        recipient_bank_name: b.bank_name,
+        recipient_account_name: b.account_name,
+        amount_ngn: parseFloat(amounts[b.id]),
+        beneficiary_id: b.id,
+        batch_label: label,
+        paystack_recipient_code: b.paystack_recipient_code,
+        status: 'pending' as const,
+      }));
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from('personal_transfers')
+        .insert(rowsToInsert)
+        .select('id, amount_ngn, paystack_recipient_code');
+      if (insertErr || !inserted) throw new Error(`Could not create batch records: ${insertErr?.message || 'no rows'}`);
+
+      // Pre-write deterministic references before dispatch (idempotency —
+      // same pattern as every other send path in this app).
+      const withRefs = inserted.map((row: any) => ({
+        ...row,
+        reference: `kdopspt_${String(row.id).replace(/-/g, '').slice(0, 20)}`,
+      }));
+      await Promise.all(withRefs.map((row: any) =>
+        supabase.from('personal_transfers').update({ paystack_reference: row.reference }).eq('id', row.id),
+      ));
+
+      const narration = label
+        ? buildNarration({ kind: 'generic', label: label.slice(0, 40) })
+        : buildNarration({ kind: 'generic', label: 'Personal transfer' });
+
+      // Chunk at 100/call, ≥5s between chunks — Paystack's documented bulk
+      // transfer limits, same constants batch-worker uses for payroll.
+      let succeededCount = 0;
+      for (let i = 0; i < withRefs.length; i += BULK_CHUNK_SIZE) {
+        const chunk = withRefs.slice(i, i + BULK_CHUNK_SIZE);
+        if (i > 0) {
+          setProgress(`Waiting to stay under Paystack's rate limit… (${i}/${withRefs.length} sent)`);
+          await new Promise((r) => setTimeout(r, BULK_INTER_CHUNK_MS));
+        }
+        setProgress(`Sending ${Math.min(i + chunk.length, withRefs.length)}/${withRefs.length}…`);
+
+        const items: BulkTransferItem[] = chunk.map((row: any) => ({
+          reference: row.reference,
+          recipient: row.paystack_recipient_code,
+          amount: Math.round(row.amount_ngn * 100), // bulkTransfer takes kobo
+          reason: narration,
+        }));
+        const results = await bulkTransfer(items);
+        const byRef = new Map(results.map((r) => [r.reference, r]));
+
+        await Promise.all(chunk.map(async (row: any) => {
+          const r = byRef.get(row.reference);
+          const st = String(r?.status || '').toLowerCase();
+          const status = st === 'success' ? 'succeeded' : st === 'failed' || st === 'reversed' ? st : 'pending';
+          if (status === 'succeeded') succeededCount += 1;
+          await supabase.from('personal_transfers').update({
+            status,
+            paystack_transfer_code: r?.transfer_code || null,
+            processed_at: status === 'succeeded' ? new Date().toISOString() : null,
+            failure_reason: status === 'failed' ? 'Paystack rejected the transfer' : null,
+          }).eq('id', row.id);
+        }));
+      }
+
+      await logAudit(
+        'personal_transfer_sent',
+        `Personal Transfer batch${label ? ` "${label}"` : ''}: ${withRefs.length} recipients, ${formatNaira(totalAmount)} total (${succeededCount} succeeded)`,
+        profile,
+      );
+
+      setResult({ ok: true, count: withRefs.length });
+      toast({ title: 'Batch sent', description: `${withRefs.length} transfers dispatched` });
+      onSent();
+    } catch (err: any) {
+      const friendly = friendlyDbError(err);
+      setResult({ ok: false, reason: friendly });
+      toast({ title: 'Batch failed', description: friendly, variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+      setProgress('');
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}
+      size="lg"
+      title={<span className="flex items-center gap-2"><Layers className="h-5 w-5 text-primary" /> New Batch</span>}
+      description="Send to several saved beneficiaries in one go. Add a new one-off account as a beneficiary first if it needs to be included."
+      footer={result ? (
+        <Button variant="outline" className="kd-mobile-tap" onClick={() => { reset(); onOpenChange(false); }}>Close</Button>
+      ) : (
+        <>
+          <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
+          <Button onClick={executeBatch} disabled={processing || !allAmountsValid} className="kd-mobile-tap">
+            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Layers className="mr-2 h-4 w-4" /> Send batch {selectedBeneficiaries.length > 0 && `(${selectedBeneficiaries.length})`}
+          </Button>
+        </>
+      )}
+    >
+      {result ? (
+        <div className="space-y-4 py-4 text-center">
+          {result.ok && (
+            <>
+              <CheckCircle2 className="h-12 w-12 text-success mx-auto" />
+              <p className="text-lg font-semibold">Batch sent</p>
+              <p className="text-sm text-muted-foreground">{result.count} transfers dispatched</p>
+            </>
+          )}
+          {result.ok === false && (
+            <>
+              <XCircle className="h-12 w-12 text-destructive mx-auto" />
+              <p className="text-lg font-semibold">Batch failed</p>
+              <p className="text-sm text-muted-foreground">{result.reason}</p>
+            </>
+          )}
+        </div>
+      ) : processing ? (
+        <div className="py-10 text-center space-y-3">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="text-sm text-muted-foreground">{progress || 'Sending…'}</p>
+        </div>
+      ) : beneficiaries.length === 0 ? (
+        <EmptyState icon={Users} title="No saved beneficiaries" description="Add beneficiaries first — batches are built from your saved list." />
+      ) : (
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Batch label (optional)</Label>
+            <Input value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="e.g. August family transfers" />
+          </div>
+          <div className="space-y-2">
+            {beneficiaries.map((b) => {
+              const isSelected = selected.has(b.id);
+              return (
+                <div key={b.id} className={`rounded-lg border px-3 py-2.5 kd-transition ${isSelected ? 'border-primary/40 bg-primary/5' : 'border-border/60'}`}>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={isSelected} onChange={() => toggle(b.id)} className="h-4 w-4 accent-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">{b.label}</p>
+                      <p className="text-xs text-muted-foreground truncate">{b.bank_name} · {b.account_number}</p>
+                    </div>
+                    {isSelected && (
+                      <Input
+                        type="number"
+                        min="0"
+                        className="w-32 h-8 text-sm"
+                        placeholder="Amount (₦)"
+                        value={amounts[b.id] || ''}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setAmounts((a) => ({ ...a, [b.id]: e.target.value }))}
+                      />
+                    )}
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          {selectedBeneficiaries.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              {selectedBeneficiaries.length} recipient{selectedBeneficiaries.length !== 1 ? 's' : ''} ·{' '}
+              total <span className="font-semibold currency">{formatNaira(totalAmount)}</span>
+            </p>
+          )}
+        </div>
+      )}
+    </ResponsiveDialog>
   );
 }

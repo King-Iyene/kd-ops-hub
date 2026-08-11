@@ -7450,9 +7450,55 @@ export type Database = {
           },
         ]
       }
+      personal_transfer_beneficiaries: {
+        Row: {
+          account_name: string | null
+          account_number: string
+          bank_code: string
+          bank_name: string | null
+          created_at: string
+          id: string
+          label: string
+          owner_id: string
+          paystack_recipient_code: string | null
+        }
+        Insert: {
+          account_name?: string | null
+          account_number: string
+          bank_code: string
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          owner_id: string
+          paystack_recipient_code?: string | null
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string
+          bank_code?: string
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          owner_id?: string
+          paystack_recipient_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transfer_beneficiaries_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_transfers: {
         Row: {
           amount_ngn: number
+          batch_label: string | null
+          beneficiary_id: string | null
           created_at: string
           failure_reason: string | null
           id: string
@@ -7472,6 +7518,8 @@ export type Database = {
         }
         Insert: {
           amount_ngn: number
+          batch_label?: string | null
+          beneficiary_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
@@ -7491,6 +7539,8 @@ export type Database = {
         }
         Update: {
           amount_ngn?: number
+          batch_label?: string | null
+          beneficiary_id?: string | null
           created_at?: string
           failure_reason?: string | null
           id?: string
@@ -7509,6 +7559,13 @@ export type Database = {
           status?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "personal_transfers_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transfer_beneficiaries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "personal_transfers_initiated_by_fkey"
             columns: ["initiated_by"]
