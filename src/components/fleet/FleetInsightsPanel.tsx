@@ -459,7 +459,7 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                   <p className="text-sm font-medium">{insight.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
                   {insight.impact && (
-                    <Badge variant="outline" className="mt-1 text-xs">{insight.impact}</Badge>
+                    <Badge variant="outline" className="mt-1 text-xs currency">{insight.impact}</Badge>
                   )}
                 </div>
               </div>

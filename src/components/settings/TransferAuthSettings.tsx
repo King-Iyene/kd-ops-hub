@@ -998,7 +998,7 @@ export default function TransferAuthSettings() {
                           </TableCell>
                           <TableCell className="text-xs font-mono">{row.action}</TableCell>
                           <TableCell>{outcomeBadge(row.outcome)}</TableCell>
-                          <TableCell className="text-right text-xs whitespace-nowrap">
+                          <TableCell className="text-right text-xs whitespace-nowrap currency">
                             {row.amount_ngn ? formatNaira(row.amount_ngn) : '—'}
                           </TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">

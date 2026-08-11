@@ -276,7 +276,7 @@ export function PaymentSummaryModal({
         <div className="rounded-lg border p-4 text-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">{providerLabel(activeProvider)} balance</span>
-            <span>
+            <span className="currency">
               {balanceLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : balance != null ? (
@@ -289,7 +289,7 @@ export function PaymentSummaryModal({
           {balance != null && (
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Balance after this payment</span>
-              <span className={balanceShort ? 'text-destructive font-semibold' : balanceTight ? 'text-warning font-semibold' : ''}>
+              <span className={balanceShort ? 'text-destructive font-semibold currency' : balanceTight ? 'text-warning font-semibold currency' : 'currency'}>
                 {formatNaira(balanceAfter ?? 0)}
               </span>
             </div>
@@ -400,7 +400,7 @@ export function PaymentSummaryModal({
                       </span>
                     )}
                   </div>
-                  <span className="font-mono shrink-0">{formatNaira(it.amount_ngn)}</span>
+                  <span className="font-mono shrink-0 currency">{formatNaira(it.amount_ngn)}</span>
                 </div>
               ))}
             </div>
@@ -411,7 +411,7 @@ export function PaymentSummaryModal({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={submitting || balanceShort || items.length === 0}>
+          <Button className="currency" onClick={handleConfirm} disabled={submitting || balanceShort || items.length === 0}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             {submitting ? 'Processing…' : `Send ${formatNaira(cost.totalAmount)}`}
           </Button>
@@ -433,7 +433,7 @@ function Row({
   return (
     <div className={`flex items-center justify-between py-1 ${muted ? 'text-muted-foreground' : ''}`}>
       <span>{label}</span>
-      <span className="font-mono">{value}</span>
+      <span className="font-mono currency">{value}</span>
     </div>
   );
 }

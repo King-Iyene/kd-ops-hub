@@ -201,16 +201,16 @@ export default function CostIntelligenceTab() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Current CTC / mo</p>
-                  <p className="text-lg font-semibold">{formatNaira(scenario.baseline_ctc_ngn)}</p>
+                  <p className="text-lg font-semibold currency">{formatNaira(scenario.baseline_ctc_ngn)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Scenario CTC / mo</p>
-                  <p className="text-lg font-semibold">{formatNaira(scenario.scenario_ctc_ngn)}</p>
+                  <p className="text-lg font-semibold currency">{formatNaira(scenario.scenario_ctc_ngn)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Monthly impact</p>
                   <p className={cn(
-                    'text-lg font-semibold flex items-center gap-1',
+                    'text-lg font-semibold flex items-center gap-1 currency',
                     scenario.delta_ctc_ngn >= 0 ? 'text-destructive' : 'text-emerald-600',
                   )}>
                     {scenario.delta_ctc_ngn >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -224,7 +224,7 @@ export default function CostIntelligenceTab() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Annualized impact: <span className="font-medium text-foreground">
+                Annualized impact: <span className="font-medium text-foreground currency">
                   {scenario.delta_ctc_ngn >= 0 ? '+' : ''}{formatNaira(scenario.delta_ctc_ngn * 12)}/yr
                 </span>
               </p>
@@ -242,10 +242,10 @@ export default function CostIntelligenceTab() {
                     {scenario.by_department.filter((d) => d.baseline_ctc_ngn !== 0 || d.scenario_ctc_ngn !== 0).map((d) => (
                       <TableRow key={d.department_id ?? 'none'}>
                         <TableCell className="font-medium">{d.department_name}</TableCell>
-                        <TableCell className="text-right">{formatNaira(d.baseline_ctc_ngn)}</TableCell>
-                        <TableCell className="text-right">{formatNaira(d.scenario_ctc_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(d.baseline_ctc_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(d.scenario_ctc_ngn)}</TableCell>
                         <TableCell className={cn(
-                          'text-right font-medium',
+                          'text-right font-medium currency',
                           d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-emerald-600' : '',
                         )}>
                           {d.delta_ctc_ngn === 0 ? '—' : `${d.delta_ctc_ngn > 0 ? '+' : ''}${formatNaira(d.delta_ctc_ngn)}`}
@@ -289,11 +289,11 @@ export default function CostIntelligenceTab() {
                       <TableCell className="font-medium">{c.employee_name}</TableCell>
                       <TableCell className="text-muted-foreground">{c.department_name}</TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(c.effective_date)}</TableCell>
-                      <TableCell className="text-right text-xs">
+                      <TableCell className="text-right text-xs currency">
                         {formatNaira(c.old_salary_ngn)} → {formatNaira(c.new_salary_ngn)}
                       </TableCell>
                       <TableCell className={cn(
-                        'text-right font-medium',
+                        'text-right font-medium currency',
                         c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-emerald-600' : '',
                       )}>
                         {c.direction === 'unchanged' ? '—' : `${c.monthly_delta_ngn > 0 ? '+' : ''}${formatNaira(c.monthly_delta_ngn)}`}
@@ -303,7 +303,7 @@ export default function CostIntelligenceTab() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right currency">
                         {c.direction === 'unchanged' ? '—' : `${c.fully_loaded_annual_delta_ngn > 0 ? '+' : ''}${formatNaira(c.fully_loaded_annual_delta_ngn)}`}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs max-w-[200px] truncate">{c.reason ?? '—'}</TableCell>
@@ -332,7 +332,7 @@ export default function CostIntelligenceTab() {
               <div key={b.budget_id} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{b.name}</span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground currency">
                     {formatNaira(b.actual_ngn)} / {formatNaira(b.planned_ngn)}
                     {b.utilization_pct != null && ` (${b.utilization_pct.toFixed(0)}%)`}
                   </span>

@@ -118,7 +118,7 @@ export default function WorkingCapitalTab() {
                 <div className="text-center sm:text-left">
                   <p className="text-xs text-muted-foreground mb-1">Net working capital</p>
                   <p className={cn(
-                    'text-3xl font-bold',
+                    'text-3xl font-bold currency',
                     snap.working_capital_ngn >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
                   )}>
                     {formatNaira(snap.working_capital_ngn)}

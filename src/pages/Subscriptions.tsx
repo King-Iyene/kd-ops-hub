@@ -712,7 +712,7 @@ const Subscriptions = () => {
                           <span className="block text-xs font-normal text-muted-foreground truncate">{s.vendor}</span>
                         )}
                       </MobileCardTitle>
-                      <MobileCardMeta>
+                      <MobileCardMeta className="currency">
                         {s.currency === 'USD' && s.amount_usd != null
                           ? `$${Number(s.amount_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                           : formatNaira(s.amount_ngn)}

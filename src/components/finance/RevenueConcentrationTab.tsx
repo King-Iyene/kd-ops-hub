@@ -198,7 +198,7 @@ export default function RevenueConcentrationTab() {
                     <TableRow key={c.client_id}>
                       <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                       <TableCell className="font-medium">{c.client_name}</TableCell>
-                      <TableCell className="text-right">{formatNaira(c.total_ngn)}</TableCell>
+                      <TableCell className="text-right currency">{formatNaira(c.total_ngn)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">

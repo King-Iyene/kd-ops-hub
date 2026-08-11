@@ -337,7 +337,7 @@ function FleetAnalyticsDashboard({
                       </TableCell>
                       <TableCell className="text-right">
                         {s.cost_per_km != null ? (
-                          <span className={highCost ? 'text-amber-600 font-semibold' : ''}>
+                          <span className={highCost ? 'text-amber-600 font-semibold currency' : 'currency'}>
                             {formatNaira(s.cost_per_km)}/km
                             {highCost && <AlertTriangle className="inline h-3 w-3 ml-1 -mt-0.5" />}
                           </span>

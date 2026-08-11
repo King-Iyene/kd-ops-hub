@@ -536,7 +536,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatNaira(totalRepairCost)}</div>
+            <div className="text-2xl font-bold currency">{formatNaira(totalRepairCost)}</div>
           </CardContent>
         </Card>
       </div>
@@ -685,7 +685,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
                       <TableCell>{severityBadge(inc.severity)}</TableCell>
                       <TableCell>{resolutionBadge(inc.resolution_status)}</TableCell>
                       <TableCell>{insuranceBadge(inc.insurance_claim_status)}</TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap currency">
                         {inc.estimated_repair_cost_ngn != null ? formatNaira(inc.estimated_repair_cost_ngn) : '--'}
                       </TableCell>
                     </TableRow>

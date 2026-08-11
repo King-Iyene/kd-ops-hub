@@ -320,7 +320,7 @@ export default function Vendors() {
                   <td className="px-3 py-3 text-xs text-muted-foreground">{v.payment_terms}</td>
                   <td className="px-3 py-3 space-y-1">
                     {v.contract_value_ngn && (
-                      <p className="text-xs font-medium">{formatNaira(v.contract_value_ngn)}</p>
+                      <p className="text-xs font-medium currency">{formatNaira(v.contract_value_ngn)}</p>
                     )}
                     {v.contract_end && (
                       <div className="flex items-center gap-1">

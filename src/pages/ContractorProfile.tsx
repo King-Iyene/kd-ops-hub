@@ -600,7 +600,7 @@ const ContractorProfile = () => {
                   <Linkedin className="h-3.5 w-3.5" /> {contractor.linkedin_id}
                 </p>
               )}
-              <p className="text-sm flex items-center gap-2 text-muted-foreground">
+              <p className="text-sm flex items-center gap-2 text-muted-foreground currency">
                 <Briefcase className="h-3.5 w-3.5" /> Default: {formatNaira(contractor.default_amount_ngn)}
               </p>
               <p className="text-sm flex items-center gap-2 text-muted-foreground">
@@ -1091,7 +1091,7 @@ const ContractorProfile = () => {
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-medium">{formatNaira(d.amount_ngn)}</p>
+                          <p className="text-sm font-medium currency">{formatNaira(d.amount_ngn)}</p>
                           <p className="text-xs text-muted-foreground">
                             Deducted: {formatNaira(d.amount_deducted_to_date || 0)}
                             {d.total_deductible_amount ? ` / ${formatNaira(d.total_deductible_amount)}` : ''}

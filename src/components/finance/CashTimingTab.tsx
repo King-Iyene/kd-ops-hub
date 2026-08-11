@@ -232,7 +232,7 @@ export default function CashTimingTab() {
                                 {r.days_overdue}d overdue
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right font-medium">{formatNaira(r.total_ngn)}</TableCell>
+                            <TableCell className="text-right font-medium currency">{formatNaira(r.total_ngn)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

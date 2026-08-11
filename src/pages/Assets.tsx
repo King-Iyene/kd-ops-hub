@@ -335,10 +335,10 @@ export default function Assets() {
                     <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {format(parseISO(a.purchase_date), 'd MMM yyyy')}
                     </td>
-                    <td className="px-3 py-3 text-xs font-medium">{formatNaira(a.cost_ngn)}</td>
-                    <td className="px-3 py-3 text-xs font-medium text-success">{formatNaira(bv)}</td>
+                    <td className="px-3 py-3 text-xs font-medium currency">{formatNaira(a.cost_ngn)}</td>
+                    <td className="px-3 py-3 text-xs font-medium text-success currency">{formatNaira(bv)}</td>
                     <td className="px-3 py-3">
-                      <p className="text-xs text-muted-foreground">{formatNaira(depn)}</p>
+                      <p className="text-xs text-muted-foreground currency">{formatNaira(depn)}</p>
                       <p className="text-[10px] text-muted-foreground/60">{depnPct.toFixed(0)}%</p>
                     </td>
                     <td className="px-3 py-3 text-xs text-muted-foreground">
@@ -401,7 +401,7 @@ export default function Assets() {
                 <MobileCardRow label="Category">{CATEGORY_META[a.category].label}</MobileCardRow>
                 <MobileCardRow label="Purchase date">{format(parseISO(a.purchase_date), 'd MMM yyyy')}</MobileCardRow>
                 <MobileCardRow label="Cost">{formatNaira(a.cost_ngn)}</MobileCardRow>
-                <MobileCardRow label="Book value"><span className="text-success">{formatNaira(bv)}</span></MobileCardRow>
+                <MobileCardRow label="Book value"><span className="text-success currency">{formatNaira(bv)}</span></MobileCardRow>
                 <MobileCardRow label="Depreciation">{formatNaira(depn)}</MobileCardRow>
                 <MobileCardRow label="Assigned">{a.assigned_to ? nameOf(a.assigned_to) : '—'}</MobileCardRow>
                 {a.insurance_expiry && (

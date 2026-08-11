@@ -139,7 +139,7 @@ export default function AutopilotTab() {
 
               <div className="rounded-lg border bg-muted/30 p-4">
                 <p className="text-sm">
-                  Total modeled exposure: <span className="font-semibold">{formatNaira(totalExposure)}</span>
+                  Total modeled exposure: <span className="font-semibold currency">{formatNaira(totalExposure)}</span>
                 </p>
               </div>
 
@@ -160,8 +160,8 @@ export default function AutopilotTab() {
                         <TableCell className="font-medium">{COMPLIANCE_KIND_LABEL[r.kind] ?? r.kind.toUpperCase()}</TableCell>
                         <TableCell className="text-muted-foreground">{r.period}</TableCell>
                         <TableCell className="text-right">{r.days_overdue}</TableCell>
-                        <TableCell className="text-right">{r.amount_ngn == null ? '—' : formatNaira(r.amount_ngn)}</TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right currency">{r.amount_ngn == null ? '—' : formatNaira(r.amount_ngn)}</TableCell>
+                        <TableCell className="text-right font-medium currency">
                           {!r.rule_configured ? (
                             <span className="text-muted-foreground text-xs">Not configured</span>
                           ) : (
@@ -208,7 +208,7 @@ export default function AutopilotTab() {
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.label}</TableCell>
                       <TableCell className="text-muted-foreground">{formatDate(s.scheduled_date)}</TableCell>
-                      <TableCell className="text-right">{formatNaira(s.amount_ngn)}</TableCell>
+                      <TableCell className="text-right currency">{formatNaira(s.amount_ngn)}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={cn('text-[10px] capitalize', ACTION_TONE[s.action])}>{s.action}</Badge>
                       </TableCell>

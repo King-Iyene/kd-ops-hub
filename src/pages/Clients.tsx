@@ -388,7 +388,7 @@ const Clients = () => {
                         <TableCell className="text-muted-foreground">
                           {c.industry || '—'}
                         </TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="text-right font-medium currency">
                           {c.contract_value_ngn > 0 ? formatNaira(c.contract_value_ngn) : '—'}
                         </TableCell>
                         <TableCell>

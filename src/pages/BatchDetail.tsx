@@ -2720,7 +2720,7 @@ const BatchDetail = () => {
                 <MobileCard key={item.id}>
                   <MobileCardHeader>
                     <MobileCardTitle>{item.full_name || 'Unknown Recipient'}</MobileCardTitle>
-                    <MobileCardMeta>
+                    <MobileCardMeta className="currency">
                       {canSeeAmounts ? formatNaira(item.amount_ngn || 0) : '--- ---'}
                     </MobileCardMeta>
                   </MobileCardHeader>

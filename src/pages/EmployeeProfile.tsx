@@ -1459,50 +1459,50 @@ const EmployeeProfile = () => {
                     <TableBody>
                       <TableRow className="font-medium">
                         <TableCell className="pl-4">Gross Pay</TableCell>
-                        <TableCell className="text-right">{formatNaira(salary * 12)}</TableCell>
-                        <TableCell className="text-right pr-4">{formatNaira(salary)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(salary * 12)}</TableCell>
+                        <TableCell className="text-right pr-4 currency">{formatNaira(salary)}</TableCell>
                       </TableRow>
                       <TableRow className="text-muted-foreground">
                         <TableCell className="pl-4">PAYE Tax</TableCell>
-                        <TableCell className="text-right">{formatNaira(payeMonthly * 12)}</TableCell>
-                        <TableCell className="text-right pr-4">{formatNaira(payeMonthly)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(payeMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4 currency">{formatNaira(payeMonthly)}</TableCell>
                       </TableRow>
                       {pensionOn && (
                         <TableRow className="text-muted-foreground">
                           <TableCell className="pl-4">Pension (employee) 8%</TableCell>
-                          <TableCell className="text-right">{formatNaira(pensionEmployeeMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(pensionEmployeeMonthly)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(pensionEmployeeMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 currency">{formatNaira(pensionEmployeeMonthly)}</TableCell>
                         </TableRow>
                       )}
                       {nhfOn && (
                         <TableRow className="text-muted-foreground">
                           <TableCell className="pl-4">NHF 2.5%</TableCell>
-                          <TableCell className="text-right">{formatNaira(nhfMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(nhfMonthly)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(nhfMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 currency">{formatNaira(nhfMonthly)}</TableCell>
                         </TableRow>
                       )}
                       {nhisOn && (
                         <TableRow className="text-muted-foreground">
                           <TableCell className="pl-4">NHIS (5%)</TableCell>
-                          <TableCell className="text-right">{formatNaira(nhisMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(nhisMonthly)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(nhisMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 currency">{formatNaira(nhisMonthly)}</TableCell>
                         </TableRow>
                       )}
                       <TableRow className="text-muted-foreground border-t-2">
                         <TableCell className="pl-4">Total Deductions</TableCell>
-                        <TableCell className="text-right">{formatNaira(totalDeductMonthly * 12)}</TableCell>
-                        <TableCell className="text-right pr-4">{formatNaira(totalDeductMonthly)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(totalDeductMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4 currency">{formatNaira(totalDeductMonthly)}</TableCell>
                       </TableRow>
                       <TableRow className="font-bold bg-emerald-50/60">
                         <TableCell className="pl-4 text-base">Net Pay</TableCell>
-                        <TableCell className="text-right text-base">{formatNaira(netMonthly * 12)}</TableCell>
-                        <TableCell className="text-right pr-4 text-base">{formatNaira(netMonthly)}</TableCell>
+                        <TableCell className="text-right text-base currency">{formatNaira(netMonthly * 12)}</TableCell>
+                        <TableCell className="text-right pr-4 text-base currency">{formatNaira(netMonthly)}</TableCell>
                       </TableRow>
                       {pensionOn && (
                         <TableRow className="text-xs text-muted-foreground bg-muted/10 border-t">
                           <TableCell className="pl-4">Employer Contribution — Pension 10%</TableCell>
-                          <TableCell className="text-right">{formatNaira(employerContribMonthly * 12)}</TableCell>
-                          <TableCell className="text-right pr-4">{formatNaira(employerContribMonthly)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(employerContribMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 currency">{formatNaira(employerContribMonthly)}</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -2878,7 +2878,7 @@ const EmployeeProfile = () => {
                         <TableCell className="pl-4">{formatDate(expense.created_at)}</TableCell>
                         <TableCell className="font-medium">{expense.description || '—'}</TableCell>
                         <TableCell>{expense.category || '—'}</TableCell>
-                        <TableCell className="text-right">{formatNaira(expense.amount || 0)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(expense.amount || 0)}</TableCell>
                         <TableCell className="pr-4">
                           <Badge
                             className={
@@ -3061,11 +3061,11 @@ const EmployeeProfile = () => {
                     {deductions.map((d: any) => (
                       <TableRow key={d.id}>
                         <TableCell className="pl-4 font-medium">{d.description}</TableCell>
-                        <TableCell className="text-right">{formatNaira(d.amount_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(d.amount_ngn)}</TableCell>
                         <TableCell className="capitalize">{d.frequency.replace(/_/g, ' ')}</TableCell>
                         <TableCell>{formatDate(d.start_date)}</TableCell>
                         <TableCell>{d.end_date ? formatDate(d.end_date) : '—'}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right currency">
                           {formatNaira(d.amount_deducted_to_date || 0)}
                           {d.total_deductible_amount ? (
                             <span className="text-xs text-muted-foreground"> / {formatNaira(d.total_deductible_amount)}</span>
@@ -3129,7 +3129,7 @@ const EmployeeProfile = () => {
                     {earnings.map((e: any) => (
                       <TableRow key={e.id}>
                         <TableCell className="pl-4 font-medium">{e.description}</TableCell>
-                        <TableCell className="text-right">{formatNaira(e.amount_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(e.amount_ngn)}</TableCell>
                         <TableCell className="capitalize text-xs">{e.earning_type.replace(/_/g, ' ')}</TableCell>
                         <TableCell className="capitalize text-xs">{e.frequency.replace(/_/g, ' ')}</TableCell>
                         <TableCell>{e.is_taxable ? 'Yes' : 'No'}</TableCell>
@@ -3191,9 +3191,9 @@ const EmployeeProfile = () => {
                       return (
                         <TableRow key={inc.id}>
                           <TableCell className="pl-4">{formatDate(inc.effective_date)}</TableCell>
-                          <TableCell className="text-right">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
-                          <TableCell className="text-right">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right currency">{formatNaira(inc.old_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(inc.new_salary_ngn || 0)}</TableCell>
+                          <TableCell className="text-right currency">
                             <span className={diff >= 0 ? 'text-emerald-600' : 'text-red-600'}>
                               {diff >= 0 ? '+' : ''}{formatNaira(diff)}
                             </span>
@@ -3226,13 +3226,13 @@ const EmployeeProfile = () => {
                     <Card>
                       <CardContent className="pt-5">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Total Outstanding</p>
-                        <p className="text-2xl font-bold text-destructive">{formatNaira(totalOutstanding)}</p>
+                        <p className="text-2xl font-bold text-destructive currency">{formatNaira(totalOutstanding)}</p>
                       </CardContent>
                     </Card>
                     <Card>
                       <CardContent className="pt-5">
                         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Monthly Deduction</p>
-                        <p className="text-2xl font-bold">{formatNaira(totalDeduction)}</p>
+                        <p className="text-2xl font-bold currency">{formatNaira(totalDeduction)}</p>
                       </CardContent>
                     </Card>
                     <Card>

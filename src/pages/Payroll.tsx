@@ -2374,11 +2374,11 @@ const Payroll = () => {
                     <MobileCardRow label="Status">
                       <StatusBadge status={r.status} />
                     </MobileCardRow>
-                    <MobileCardRow label="Contractor">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Expenses">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
-                    <MobileCardRow label="PAYE">{formatNaira(r.paye_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Pension (emp)">{formatNaira(r.pension_ngn)}</MobileCardRow>
-                    <MobileCardRow label="Pension (er)">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</MobileCardRow>
+                    <MobileCardRow label="Contractor" className="currency">{formatNaira(r.total_contractor_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Expenses" className="currency">{formatNaira(r.total_expenses_ngn)}</MobileCardRow>
+                    <MobileCardRow label="PAYE" className="currency">{formatNaira(r.paye_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Pension (emp)" className="currency">{formatNaira(r.pension_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Pension (er)" className="currency">{formatNaira(r.employer_pension_ngn ?? (r.total_employee_ngn * EMPLOYER_PENSION_RATE))}</MobileCardRow>
 
                     <MobileCardFooter className="flex-wrap">
                       {r.status === 'draft' && (

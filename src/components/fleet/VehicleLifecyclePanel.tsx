@@ -214,7 +214,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalFleetValue > 0 ? formatNaira(totalFleetValue) : '—'}</div>
+            <div className="text-2xl font-bold currency">{totalFleetValue > 0 ? formatNaira(totalFleetValue) : '—'}</div>
             <p className="text-xs text-muted-foreground">{vehiclesWithCost.length} of {vehicles.length} vehicles valued</p>
           </CardContent>
         </Card>
@@ -225,7 +225,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{totalDepreciation > 0 ? formatNaira(totalDepreciation) : '—'}</div>
+            <div className="text-2xl font-bold text-red-600 currency">{totalDepreciation > 0 ? formatNaira(totalDepreciation) : '—'}</div>
             <p className="text-xs text-muted-foreground">Per year across fleet</p>
           </CardContent>
         </Card>
@@ -236,7 +236,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
             <Calendar className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{totalInsurancePremium > 0 ? formatNaira(totalInsurancePremium) : '—'}</div>
+            <div className="text-2xl font-bold text-blue-600 currency">{totalInsurancePremium > 0 ? formatNaira(totalInsurancePremium) : '—'}</div>
             <p className="text-xs text-muted-foreground">Total annual premiums</p>
           </CardContent>
         </Card>
@@ -289,15 +289,15 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
                       {(v.fuel_type || 'pms').toUpperCase()}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className="text-sm currency">
                     {v.purchase_price_ngn ? formatNaira(v.purchase_price_ngn) : '—'}
                     {v.purchase_date && <div className="text-xs text-muted-foreground">{new Date(v.purchase_date).toLocaleDateString('en-NG', { month: 'short', year: 'numeric' })}</div>}
                   </TableCell>
                   <TableCell className="text-sm">
                     {dep ? (
                       <>
-                        <div className="font-medium">{formatNaira(dep.currentValue)}</div>
-                        <div className="text-xs text-red-500">-{formatNaira(dep.totalDep)} dep.</div>
+                        <div className="font-medium currency">{formatNaira(dep.currentValue)}</div>
+                        <div className="text-xs text-red-500 currency">-{formatNaira(dep.totalDep)} dep.</div>
                       </>
                     ) : '—'}
                   </TableCell>
@@ -306,14 +306,14 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
                       {(v.financing_type || 'owned').replace('_', ' ')}
                     </Badge>
                     {v.financing_type === 'leased' && v.lease_monthly_ngn && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{formatNaira(v.lease_monthly_ngn)}/mo</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 currency">{formatNaira(v.lease_monthly_ngn)}/mo</div>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">
                     {v.insurance_provider ? (
                       <>
                         <div>{v.insurance_provider}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground currency">
                           {v.insurance_type === 'comprehensive' ? 'Comprehensive' : '3rd Party'}
                           {v.insurance_premium_ngn ? ` · ${formatNaira(v.insurance_premium_ngn)}` : ''}
                         </div>

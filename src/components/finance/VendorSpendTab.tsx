@@ -209,8 +209,8 @@ export default function VendorSpendTab() {
                           {v.source === 'subscription' ? 'Sub' : 'Expense'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{formatNaira(v.total_ngn)}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">{formatNaira(v.avg_monthly_ngn)}</TableCell>
+                      <TableCell className="text-right currency">{formatNaira(v.total_ngn)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground currency">{formatNaira(v.avg_monthly_ngn)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">{v.transaction_count}</TableCell>
                     </TableRow>
                   ))}
@@ -237,7 +237,7 @@ export default function VendorSpendTab() {
                     <div key={c.category} className="rounded-lg border p-3">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm font-medium capitalize">{c.category}</span>
-                        <span className="text-sm font-semibold">{formatNaira(c.combined_monthly_ngn)}<span className="text-xs text-muted-foreground font-normal"> / mo</span></span>
+                        <span className="text-sm font-semibold currency">{formatNaira(c.combined_monthly_ngn)}<span className="text-xs text-muted-foreground font-normal"> / mo</span></span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {c.vendors.map((v) => (

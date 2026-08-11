@@ -2140,7 +2140,7 @@ const Contractors = () => {
                 >
                   <MobileCardHeader>
                     <MobileCardTitle>{displayName(c.first_name, c.last_name, c.full_name)}</MobileCardTitle>
-                    <MobileCardMeta>{formatNaira(c.default_amount_ngn || 0)}</MobileCardMeta>
+                    <MobileCardMeta className="currency">{formatNaira(c.default_amount_ngn || 0)}</MobileCardMeta>
                   </MobileCardHeader>
                   <MobileCardRow label="Bank">
                     <span className="font-mono text-[11px] tracking-tight">

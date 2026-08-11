@@ -764,7 +764,7 @@ const Budgets = () => {
                           <p className={cn('text-base font-bold currency leading-tight', pct >= 100 && 'text-destructive')}>
                             {formatNaira(spent)}
                           </p>
-                          <p className="text-[11px] text-muted-foreground">of {formatNaira(total)}</p>
+                          <p className="text-[11px] text-muted-foreground currency">of {formatNaira(total)}</p>
                         </div>
                       </MobileCardHeader>
 

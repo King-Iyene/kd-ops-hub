@@ -292,7 +292,7 @@ export default function EarnedWageAccess() {
           <CardContent className="space-y-5 pt-6">
             <div className="flex items-baseline gap-3">
               <span className="text-4xl font-bold tabular-nums">{formatNaira(eligibility.available_now_ngn)}</span>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground currency">
                 of {formatNaira(eligibility.max_for_month_ngn)} max this month ({Math.round(eligibility.max_draw_percent * 100)}%)
               </span>
             </div>
@@ -300,7 +300,7 @@ export default function EarnedWageAccess() {
             <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                 <span>Accrued ({eligibility.day_of_month} of {eligibility.days_in_month} days)</span>
-                <span>{formatNaira(eligibility.accrued_to_date_ngn)} of {formatNaira(eligibility.monthly_salary_ngn)}</span>
+                <span className="currency">{formatNaira(eligibility.accrued_to_date_ngn)} of {formatNaira(eligibility.monthly_salary_ngn)}</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div
@@ -313,7 +313,7 @@ export default function EarnedWageAccess() {
             <div>
               <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
                 <span>Already drawn this month</span>
-                <span>{formatNaira(eligibility.already_drawn_ngn)}</span>
+                <span className="currency">{formatNaira(eligibility.already_drawn_ngn)}</span>
               </div>
               <div className="h-2 bg-muted rounded-full overflow-hidden">
                 <div

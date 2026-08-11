@@ -130,12 +130,12 @@ export default function TalentCostTab() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="rounded-lg border p-4">
               <p className="text-xs text-muted-foreground">Avg. employee cost / mo</p>
-              <p className="text-xl font-bold mt-1">{formatNaira(comparison?.employee_avg_monthly_cost_ngn ?? 0)}</p>
+              <p className="text-xl font-bold mt-1 currency">{formatNaira(comparison?.employee_avg_monthly_cost_ngn ?? 0)}</p>
               <p className="text-xs text-muted-foreground mt-1">{comparison?.employee_count ?? 0} active employees</p>
             </div>
             <div className="rounded-lg border p-4">
               <p className="text-xs text-muted-foreground">Avg. contractor cost / mo</p>
-              <p className="text-xl font-bold mt-1">{formatNaira(comparison?.contractor_avg_monthly_cost_ngn ?? 0)}</p>
+              <p className="text-xl font-bold mt-1 currency">{formatNaira(comparison?.contractor_avg_monthly_cost_ngn ?? 0)}</p>
               <p className="text-xs text-muted-foreground mt-1">{comparison?.contractor_count ?? 0} active contractors</p>
             </div>
             <div className="rounded-lg border p-4">
@@ -252,7 +252,7 @@ export default function TalentCostTab() {
           </div>
 
           <p className="text-sm">
-            Total modeled cost of attrition: <span className="font-semibold">{formatNaira(totalAttritionCost)}</span>
+            Total modeled cost of attrition: <span className="font-semibold currency">{formatNaira(totalAttritionCost)}</span>
             {attrition.length > 0 && (
               <span className="text-muted-foreground"> across {attrition.length} exit{attrition.length === 1 ? '' : 's'}</span>
             )}

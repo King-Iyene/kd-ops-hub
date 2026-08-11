@@ -180,7 +180,7 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNaira(pulse?.cash_on_hand_ngn ?? 0)}</p>
+            <p className="text-2xl font-bold currency">{formatNaira(pulse?.cash_on_hand_ngn ?? 0)}</p>
             {pulse?.cash_is_stale && (
               <p className="text-xs text-amber-600 mt-1">Not updated in over 7 days</p>
             )}
@@ -194,7 +194,7 @@ export default function FinanceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNaira(pulse?.net_monthly_burn_ngn ?? 0)}</p>
+            <p className="text-2xl font-bold currency">{formatNaira(pulse?.net_monthly_burn_ngn ?? 0)}</p>
             <p className="text-xs text-muted-foreground mt-1">External burn − revenue estimate</p>
           </CardContent>
         </Card>
@@ -263,7 +263,7 @@ export default function FinanceDashboard() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">People cost by department</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground currency">
             Total cost-to-company: {formatNaira(totalCtc)} (gross salary + employer pension 10% + NSITF 1%)
           </p>
         </CardHeader>
@@ -303,8 +303,8 @@ export default function FinanceDashboard() {
                       <TableRow key={d.department_id ?? 'none'}>
                         <TableCell className="font-medium">{d.department_name}</TableCell>
                         <TableCell className="text-right">{d.headcount}</TableCell>
-                        <TableCell className="text-right">{formatNaira(d.total_gross_ngn)}</TableCell>
-                        <TableCell className="text-right font-medium">{formatNaira(d.total_ctc_ngn)}</TableCell>
+                        <TableCell className="text-right currency">{formatNaira(d.total_gross_ngn)}</TableCell>
+                        <TableCell className="text-right font-medium currency">{formatNaira(d.total_ctc_ngn)}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
                           {totalCtc > 0 ? `${((d.total_ctc_ngn / totalCtc) * 100).toFixed(0)}%` : '—'}
                         </TableCell>
@@ -323,7 +323,7 @@ export default function FinanceDashboard() {
         <CardHeader>
           <CardTitle className="text-base">Payroll cost trend</CardTitle>
           {latestTrend?.delta_ngn != null && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground currency">
               {latestTrend.delta_ngn >= 0 ? '+' : ''}{formatNaira(latestTrend.delta_ngn)}
               {latestTrend.delta_pct != null && ` (${latestTrend.delta_pct >= 0 ? '+' : ''}${latestTrend.delta_pct.toFixed(1)}%)`} vs previous run
             </p>
@@ -376,7 +376,7 @@ export default function FinanceDashboard() {
                       <p className="text-xs text-muted-foreground">Due {formatDate(c.due_date)}</p>
                     </div>
                     <div className="text-right">
-                      {c.amount_ngn != null && <p className="text-sm font-medium">{formatNaira(c.amount_ngn)}</p>}
+                      {c.amount_ngn != null && <p className="text-sm font-medium currency">{formatNaira(c.amount_ngn)}</p>}
                       <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
                         {c.status}
                       </Badge>
@@ -405,7 +405,7 @@ export default function FinanceDashboard() {
                       <p className="text-sm font-medium">{r.name}</p>
                       <p className="text-xs text-muted-foreground">Renews {formatDate(r.next_renewal_date)}</p>
                     </div>
-                    <p className="text-sm font-medium">{formatNaira(r.amount_ngn)}</p>
+                    <p className="text-sm font-medium currency">{formatNaira(r.amount_ngn)}</p>
                   </div>
                 ))}
               </div>
@@ -427,7 +427,7 @@ export default function FinanceDashboard() {
               <div key={b.budget_id} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{b.name}</span>
-                  <span className="text-muted-foreground">
+                  <span className="text-muted-foreground currency">
                     {formatNaira(b.actual_ngn)} / {formatNaira(b.planned_ngn)}
                     {b.utilization_pct != null && ` (${b.utilization_pct.toFixed(0)}%)`}
                   </span>

@@ -152,7 +152,7 @@ export default function CashFlow() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNaira(cashOnHand)}</p>
+            <p className="text-2xl font-bold currency">{formatNaira(cashOnHand)}</p>
             <p className="text-xs text-muted-foreground mt-1">From Settings → Company</p>
           </CardContent>
         </Card>
@@ -164,7 +164,7 @@ export default function CashFlow() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold currency">
               {formatNaira(Math.max(0, externalBurn - revenue))}
             </p>
             <p className="text-xs text-muted-foreground mt-1">External − revenue (from Settings)</p>
@@ -199,7 +199,7 @@ export default function CashFlow() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNaira(totalProjectedOutflow)}</p>
+            <p className="text-2xl font-bold currency">{formatNaira(totalProjectedOutflow)}</p>
             <p className="text-xs text-muted-foreground mt-1">Sum of all upcoming outflows</p>
           </CardContent>
         </Card>
@@ -303,7 +303,7 @@ export default function CashFlow() {
                     <TableCell>
                       <Badge variant="outline">{CATEGORY_LABEL[o.category] ?? o.category}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{formatNaira(o.amount_ngn)}</TableCell>
+                    <TableCell className="text-right font-medium currency">{formatNaira(o.amount_ngn)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

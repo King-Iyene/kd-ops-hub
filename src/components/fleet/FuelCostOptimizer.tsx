@@ -165,7 +165,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fleet avg cost/km</p>
-                <p className="text-lg font-bold">{formatNaira(avgCostPerKm)}/km</p>
+                <p className="text-lg font-bold currency">{formatNaira(avgCostPerKm)}/km</p>
               </div>
             </CardContent>
           </Card>
@@ -178,7 +178,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Monthly savings opportunity</p>
-                <p className="text-lg font-bold text-green-600">{formatNaira(potentialSavings)}</p>
+                <p className="text-lg font-bold text-green-600 currency">{formatNaira(potentialSavings)}</p>
                 <p className="text-[10px] text-muted-foreground">By optimizing worst performers</p>
               </div>
             </CardContent>
@@ -193,7 +193,7 @@ export function FuelCostOptimizer({ vehicles }: Props) {
               <div>
                 <p className="text-xs text-muted-foreground">Best station (price/L)</p>
                 <p className="text-sm font-bold truncate">{bestStation.station}</p>
-                <p className="text-xs text-muted-foreground">{formatNaira(bestStation.avg_price_per_litre)}/L</p>
+                <p className="text-xs text-muted-foreground currency">{formatNaira(bestStation.avg_price_per_litre)}/L</p>
               </div>
             </CardContent>
           </Card>

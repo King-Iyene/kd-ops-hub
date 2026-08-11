@@ -100,15 +100,15 @@ export default function CashConversionTab() {
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Outstanding invoices</span>
-                <span className="font-medium">{formatNaira(data.dso.outstanding_receivables_ngn)}</span>
+                <span className="font-medium currency">{formatNaira(data.dso.outstanding_receivables_ngn)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Trailing {data.dso.trailing_days}-day revenue</span>
-                <span className="font-medium">{formatNaira(data.dso.trailing_revenue_ngn)}</span>
+                <span className="font-medium currency">{formatNaira(data.dso.trailing_revenue_ngn)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Daily revenue avg</span>
-                <span className="font-medium">
+                <span className="font-medium currency">
                   {data.dso.trailing_days > 0 && data.dso.trailing_revenue_ngn > 0
                     ? formatNaira(data.dso.trailing_revenue_ngn / data.dso.trailing_days)
                     : '—'}
@@ -143,15 +143,15 @@ export default function CashConversionTab() {
             <CardContent className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Approved unpaid expenses</span>
-                <span className="font-medium">{formatNaira(data.dpo.outstanding_payables_ngn)}</span>
+                <span className="font-medium currency">{formatNaira(data.dpo.outstanding_payables_ngn)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Trailing {data.dpo.trailing_days}-day outflows</span>
-                <span className="font-medium">{formatNaira(data.dpo.trailing_cost_ngn)}</span>
+                <span className="font-medium currency">{formatNaira(data.dpo.trailing_cost_ngn)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Daily cost avg</span>
-                <span className="font-medium">
+                <span className="font-medium currency">
                   {data.dpo.trailing_days > 0 && data.dpo.trailing_cost_ngn > 0
                     ? formatNaira(data.dpo.trailing_cost_ngn / data.dpo.trailing_days)
                     : '—'}

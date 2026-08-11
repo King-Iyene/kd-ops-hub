@@ -120,7 +120,7 @@ export function PayrollRosterPreview({
           className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs"
         >
           <span className="flex flex-wrap items-center gap-3">
-            <span className="flex items-center gap-1.5 font-medium text-foreground">
+            <span className="flex items-center gap-1.5 font-medium text-foreground currency">
               <Users className="h-3.5 w-3.5" /> {included.length} will be paid · {formatNaira(totalNgn)}
             </span>
             {totalExcluded > 0 && (

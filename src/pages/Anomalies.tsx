@@ -489,7 +489,7 @@ export default function Anomalies() {
                       </Badge>
                       {RULE_LABEL[r.rule_code]}
                     </MobileCardTitle>
-                    <MobileCardMeta>
+                    <MobileCardMeta className="currency">
                       {r.amount_ngn ? formatNaira(r.amount_ngn) : '—'}
                     </MobileCardMeta>
                   </MobileCardHeader>

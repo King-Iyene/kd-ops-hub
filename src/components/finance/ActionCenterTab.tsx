@@ -94,7 +94,7 @@ export default function ActionCenterTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{formatNaira(data?.pulse.cash_on_hand_ngn ?? 0)}</p>
+            <p className="text-2xl font-bold currency">{formatNaira(data?.pulse.cash_on_hand_ngn ?? 0)}</p>
             {data?.pulse.cash_is_stale && (
               <p className="text-xs text-amber-600 mt-1">Not updated in over 7 days — figures below may be stale</p>
             )}

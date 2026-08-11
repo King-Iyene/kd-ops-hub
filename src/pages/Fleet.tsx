@@ -157,7 +157,7 @@ function WeeklyBudgetBar({
     <div className="rounded-md border px-3 py-2.5 space-y-2 bg-muted/30 text-xs">
       <div className="flex items-center justify-between">
         <span className="font-medium text-muted-foreground">Weekly Budget</span>
-        <span className={`font-semibold ${remainColour}`}>
+        <span className={`font-semibold currency ${remainColour}`}>
           {formatNaira(remaining)} remaining
         </span>
       </div>
@@ -4459,11 +4459,11 @@ const Fleet = () => {
                   {/* Live amount display */}
                   {requested > 0 && (
                     <div className={`rounded-xl border px-4 py-3 text-center transition-all duration-300 ${isOverBudget ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
-                      <p className={`text-2xl font-bold tracking-tight ${isOverBudget ? 'text-red-700' : 'text-emerald-700'}`}>
+                      <p className={`text-2xl font-bold tracking-tight currency ${isOverBudget ? 'text-red-700' : 'text-emerald-700'}`}>
                         {formatNaira(requested)}
                       </p>
                       {weekBudget && weekBudget.total > 0 && (
-                        <p className={`text-xs mt-0.5 ${isOverBudget ? 'text-red-500' : 'text-emerald-600'}`}>
+                        <p className={`text-xs mt-0.5 currency ${isOverBudget ? 'text-red-500' : 'text-emerald-600'}`}>
                           {isOverBudget
                             ? `${formatNaira(requested - weekBudget.remaining)} over budget`
                             : `${formatNaira(weekBudget.remaining - requested)} remaining after this`}
@@ -5400,7 +5400,7 @@ const Fleet = () => {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Fuel (₦)</p>
-                  <p className="font-medium">{selectedTrip.fuel_amount_ngn ? formatNaira(selectedTrip.fuel_amount_ngn) : '—'}</p>
+                  <p className="font-medium currency">{selectedTrip.fuel_amount_ngn ? formatNaira(selectedTrip.fuel_amount_ngn) : '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Litres</p>

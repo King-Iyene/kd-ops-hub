@@ -1099,7 +1099,7 @@ function ProjectDetailPanel({
             </div>
           )}
           {project.budget_ngn != null && (
-            <div><span className="text-muted-foreground text-xs">Budget</span><p className="font-medium">{formatNaira(project.budget_ngn)}</p></div>
+            <div><span className="text-muted-foreground text-xs">Budget</span><p className="font-medium currency">{formatNaira(project.budget_ngn)}</p></div>
           )}
         </div>
 

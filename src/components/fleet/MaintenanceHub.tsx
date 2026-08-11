@@ -439,7 +439,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
               <DollarSign className="h-3.5 w-3.5" />
               Cost (MTD)
             </div>
-            <p className="text-xl font-bold">{loading ? '...' : formatNaira(stats.mtdCost)}</p>
+            <p className="text-xl font-bold currency">{loading ? '...' : formatNaira(stats.mtdCost)}</p>
           </CardContent>
         </Card>
       </div>
@@ -614,7 +614,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                         <TableCell>
                           <Badge className={cfg.className}>{cfg.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-right">
+                        <TableCell className="text-sm text-right currency">
                           {item.cost_ngn != null ? formatNaira(Number(item.cost_ngn)) : '---'}
                         </TableCell>
                         <TableCell className="text-sm">{item.vendor ?? '---'}</TableCell>
@@ -728,7 +728,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
                       <p className="text-sm font-medium truncate">{v.name}</p>
                       <p className="text-xs text-muted-foreground">{v.plate_number}</p>
                     </div>
-                    <p className="text-sm font-semibold shrink-0">
+                    <p className="text-sm font-semibold shrink-0 currency">
                       {formatNaira(vehicleCosts.get(v.id) ?? 0)}
                     </p>
                   </div>

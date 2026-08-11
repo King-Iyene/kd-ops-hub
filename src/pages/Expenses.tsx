@@ -2169,7 +2169,7 @@ const Expenses = () => {
               {detailExpense.mileage_km && (
                 <div>
                   <p className="text-xs text-muted-foreground">Mileage</p>
-                  <p>{detailExpense.mileage_km} km × {formatNaira(detailExpense.rate_per_km_ngn || 0)}/km</p>
+                  <p className="currency">{detailExpense.mileage_km} km × {formatNaira(detailExpense.rate_per_km_ngn || 0)}/km</p>
                 </div>
               )}
               <div>

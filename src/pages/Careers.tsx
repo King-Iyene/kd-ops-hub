@@ -256,7 +256,7 @@ const Careers = () => {
                     </div>
 
                     {(o.salary_min_ngn || o.salary_max_ngn) && (
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-medium currency">
                         {o.salary_min_ngn && o.salary_max_ngn
                           ? `${formatNaira(o.salary_min_ngn)} – ${formatNaira(
                               o.salary_max_ngn,
