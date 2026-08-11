@@ -1,31 +1,44 @@
 // Communications → Compose
 //
-// Single-screen email composer + recent campaign history.
+// Multi-channel composer (Email / SMS / WhatsApp) + a unified send history.
+//
+// Channel is the first choice, not an afterthought — audience, scheduling,
+// and the send action all adapt to whichever channel is picked, instead of
+// SMS/WhatsApp being separate bolted-on tabs. Email uses email_campaigns
+// (Resend); SMS/WhatsApp use the parallel message_campaigns table (Termii) —
+// see the message_campaigns_and_scheduling migration for why that's a
+// separate table rather than overloading email_campaigns' schema.
 //
 // Recipients can be:
-//   - typed manually (comma/newline separated)
+//   - typed manually (comma/newline separated — emails for the Email
+//     channel, phone numbers for SMS/WhatsApp)
 //   - selected from contacts (paste from CRM)
-//   - selected from active employees (profiles with role IN drivers/staff/etc.)
+//   - selected from active employees (optionally filtered by department)
 //   - selected from contractors
 //
-// Body source:
+// Body source (Email only):
 //   - Pick a saved template by key OR
 //   - Author a one-off subject + HTML body inline
+// SMS/WhatsApp bodies are always a one-off plain-text message — Termii's
+// WhatsApp free-form send (used here) doesn't have a template system of its
+// own the way Meta's stricter Business API template flow does.
+//
+// Scheduling: any channel can be sent now or scheduled for later. A
+// scheduled campaign is inserted with status='scheduled' and picked up by
+// the campaign-scheduler cron job (fires every 5 minutes) instead of being
+// dispatched immediately.
 //
 // Test mode:
-//   - "Send test to me" button — fires a single email to the operator's
-//     own profile email with a synthetic recipient row, BEFORE the bulk
-//     send. Lets the operator verify rendering with real Resend without
-//     blasting recipients.
-//
-// Sending:
-//   - Inserts email_campaigns + email_campaign_recipients rows.
-//   - Invokes bulk-email-sender edge fn which throttles + writes per-row
-//     status. Page polls campaign progress every 2s until terminal.
+//   - "Send test to me" — fires a single message to the operator's own
+//     email/phone before the bulk send, so rendering can be checked without
+//     blasting recipients. Always immediate, regardless of the schedule
+//     toggle.
 
 import { useEffect, useMemo, useState } from 'react';
 import {
   Mail,
+  MessageSquare,
+  MessageCircle,
   Send,
   Users,
   Code,
@@ -39,6 +52,7 @@ import {
   RefreshCw,
   Pencil,
   RotateCcw,
+  CalendarClock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -74,6 +88,7 @@ import { AuroraHero } from '@/components/AuroraHero';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { parseNigerianPhone } from '@/lib/phone';
 import {
   listEmailTemplates,
   renderTemplate,
@@ -90,17 +105,23 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 
+type Channel = 'email' | 'sms' | 'whatsapp';
 type RecipientSource = 'manual' | 'contacts' | 'employees' | 'contractors';
 type BodySource = 'template' | 'custom';
+type SendMode = 'now' | 'schedule';
 
 interface Recipient {
-  email: string;
+  email?: string;
+  /** Termii-form phone (digits only, country code, no leading +). */
+  phone?: string;
   name?: string;
 }
 
 interface CampaignSummary {
   id: string;
+  channel: Channel;
   name: string | null;
+  /** Email subject, or the first ~80 chars of an SMS/WhatsApp message. */
   subject: string;
   status: string;
   total_recipients: number;
@@ -108,18 +129,31 @@ interface CampaignSummary {
   total_failed: number;
   created_at: string;
   completed_at: string | null;
+  scheduled_for?: string | null;
 }
 
 const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const dedupe = (rs: Recipient[]): Recipient[] => {
+const SMS_SEGMENT_LEN = 160;
+
+const CHANNEL_META: Record<Channel, { label: string; icon: React.ReactNode }> = {
+  email: { label: 'Email', icon: <Mail className="h-3.5 w-3.5" /> },
+  sms: { label: 'SMS', icon: <MessageSquare className="h-3.5 w-3.5" /> },
+  whatsapp: { label: 'WhatsApp', icon: <MessageCircle className="h-3.5 w-3.5" /> },
+};
+
+function recipientKey(r: Recipient, channel: Channel): string | undefined {
+  return channel === 'email' ? r.email?.trim().toLowerCase() : r.phone;
+}
+
+function dedupeRecipients(rs: Recipient[], channel: Channel): Recipient[] {
   const seen = new Set<string>();
   return rs.filter((r) => {
-    const k = r.email.trim().toLowerCase();
+    const k = recipientKey(r, channel);
     if (!k || seen.has(k)) return false;
     seen.add(k);
     return true;
   });
-};
+}
 
 /** A small pill-row of mutually exclusive options — used in place of a
  *  native Select for short, frequently-toggled choices, where a dropdown
@@ -160,18 +194,23 @@ export default function Communications() {
   const { toast } = useToast();
   const { user, profile } = useAuthStore();
 
-  // Templates
+  // Channel — the first choice; everything below adapts to it.
+  const [channel, setChannel] = useState<Channel>('email');
+
+  // Templates (Email only)
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [companyName, setCompanyName] = useState('KD Squares');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  // Body
+  // Body — Email
   const [bodySource, setBodySource] = useState<BodySource>('custom');
   const [templateKey, setTemplateKey] = useState<string>('');
   const [subject, setSubject] = useState('');
   const [htmlBody, setHtmlBody] = useState(
     '<p>Hi {{recipient_name}},</p>\n<p>Write your message here.</p>\n<p>— KD Squares</p>',
   );
+  // Body — SMS / WhatsApp
+  const [textMessage, setTextMessage] = useState('');
 
   // Recipients
   const [recipientSource, setRecipientSource] = useState<RecipientSource>('manual');
@@ -181,11 +220,15 @@ export default function Communications() {
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [deptFilter, setDeptFilter] = useState<string>('all');
 
+  // Scheduling
+  const [sendMode, setSendMode] = useState<SendMode>('now');
+  const [scheduledFor, setScheduledFor] = useState('');
+
   // Send / preview state
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [sending, setSending] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
-  const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
+  const [activeCampaign, setActiveCampaign] = useState<{ id: string; channel: Channel } | null>(null);
   const [activeProgress, setActiveProgress] = useState<CampaignSummary | null>(null);
 
   // Template editing
@@ -226,12 +269,32 @@ export default function Communications() {
 
   const reloadHistory = async () => {
     setHistoryLoading(true);
-    const { data } = await supabase
-      .from('email_campaigns')
-      .select('id, name, subject, status, total_recipients, total_sent, total_failed, created_at, completed_at')
-      .order('created_at', { ascending: false })
-      .limit(25);
-    setHistory(((data ?? []) as CampaignSummary[]));
+    const [emailRes, msgRes] = await Promise.all([
+      supabase
+        .from('email_campaigns')
+        .select('id, name, subject, status, total_recipients, total_sent, total_failed, created_at, completed_at, scheduled_for')
+        .order('created_at', { ascending: false })
+        .limit(25),
+      supabase
+        .from('message_campaigns')
+        .select('id, name, channel, message, status, total_recipients, total_sent, total_failed, created_at, completed_at, scheduled_for')
+        .order('created_at', { ascending: false })
+        .limit(25),
+    ]);
+    const emailRows: CampaignSummary[] = ((emailRes.data ?? []) as any[]).map((r) => ({
+      id: r.id, channel: 'email', name: r.name, subject: r.subject, status: r.status,
+      total_recipients: r.total_recipients, total_sent: r.total_sent, total_failed: r.total_failed,
+      created_at: r.created_at, completed_at: r.completed_at, scheduled_for: r.scheduled_for,
+    }));
+    const msgRows: CampaignSummary[] = ((msgRes.data ?? []) as any[]).map((r) => ({
+      id: r.id, channel: r.channel, name: r.name, subject: String(r.message || '').slice(0, 80), status: r.status,
+      total_recipients: r.total_recipients, total_sent: r.total_sent, total_failed: r.total_failed,
+      created_at: r.created_at, completed_at: r.completed_at, scheduled_for: r.scheduled_for,
+    }));
+    const merged = [...emailRows, ...msgRows]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 25);
+    setHistory(merged);
     setHistoryLoading(false);
   };
 
@@ -291,59 +354,67 @@ export default function Communications() {
 
   // ─── Recipient builder ─────────────────────────────────────────────────
   const manualRecipients: Recipient[] = useMemo(() => {
-    return manualText
-      .split(/[\n,;]+/)
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((s) => {
-        // "Display Name <email@example.com>" format
-        const m1 = s.match(/^(.+?)\s*<([^\s@]+@[^\s@]+\.[^\s@]+)>\s*$/);
-        if (m1) return { name: m1[1].trim(), email: m1[2].trim() };
-        // "email@example.com (Display Name)" format
-        const m2 = s.match(/^([^\s@]+@[^\s@]+\.[^\s@]+)\s*\((.+?)\)\s*$/);
-        if (m2) return { email: m2[1].trim(), name: m2[2].trim() };
-        // Plain email
-        if (EMAIL_RX.test(s)) return { email: s };
-        return null;
+    const lines = manualText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (channel === 'email') {
+      return lines
+        .map((s): Recipient | null => {
+          const m1 = s.match(/^(.+?)\s*<([^\s@]+@[^\s@]+\.[^\s@]+)>\s*$/);
+          if (m1) return { name: m1[1].trim(), email: m1[2].trim() };
+          const m2 = s.match(/^([^\s@]+@[^\s@]+\.[^\s@]+)\s*\((.+?)\)\s*$/);
+          if (m2) return { email: m2[1].trim(), name: m2[2].trim() };
+          if (EMAIL_RX.test(s)) return { email: s };
+          return null;
+        })
+        .filter((r): r is Recipient => r !== null && EMAIL_RX.test(r.email!));
+    }
+    return lines
+      .map((s): Recipient | null => {
+        const parsed = parseNigerianPhone(s);
+        return parsed.ok && parsed.termii ? { phone: parsed.termii } : null;
       })
-      .filter((r): r is Recipient => r !== null && EMAIL_RX.test(r.email));
-  }, [manualText]);
+      .filter((r): r is Recipient => r !== null);
+  }, [manualText, channel]);
 
   const allRecipients = useMemo(
-    () => dedupe(recipientSource === 'manual' ? manualRecipients : pickedRecipients),
-    [recipientSource, manualRecipients, pickedRecipients],
+    () => dedupeRecipients(recipientSource === 'manual' ? manualRecipients : pickedRecipients, channel),
+    [recipientSource, manualRecipients, pickedRecipients, channel],
   );
 
-  const loadFromSource = async (src: Exclude<RecipientSource, 'manual'>) => {
+  const loadFromSource = async (src: Exclude<RecipientSource, 'manual'>, ch: Channel) => {
     setPickerLoading(true);
     setPickedRecipients([]);
     try {
-      let data: { email: string | null; name?: string | null }[] = [];
+      const field = ch === 'email' ? 'email' : 'phone';
+      let rows: { val: string | null; name?: string | null }[] = [];
       if (src === 'contacts') {
-        const { data: rows } = await supabase
-          .from('contacts').select('email, full_name')
-          .not('email', 'is', null);
-        data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
+        const { data } = await supabase.from('contacts').select(`${field}, full_name`).not(field, 'is', null);
+        rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));
       } else if (src === 'employees') {
-        let q = supabase
-          .from('profiles').select('email, full_name')
-          .eq('status', 'active')
-          .not('email', 'is', null);
+        let q = supabase.from('profiles').select(`${field}, full_name`).eq('status', 'active').not(field, 'is', null);
         if (deptFilter !== 'all') q = q.eq('department_id', deptFilter);
-        const { data: rows } = await q;
-        data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
+        const { data } = await q;
+        rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));
       } else if (src === 'contractors') {
-        const { data: rows } = await supabase
-          .from('contractors').select('email, full_name')
-          .neq('status', 'deleted')
-          .neq('is_anonymised', true)
-          .not('email', 'is', null);
-        data = (rows ?? []).map((r: any) => ({ email: r.email, name: r.full_name }));
+        const { data } = await supabase.from('contractors').select(`${field}, full_name`)
+          .neq('status', 'deleted').neq('is_anonymised', true).not(field, 'is', null);
+        rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));
       }
-      const cleaned = data
-        .filter((r) => r.email && EMAIL_RX.test(r.email))
-        .map((r) => ({ email: r.email!, name: r.name ?? undefined }));
-      setPickedRecipients(dedupe(cleaned));
+
+      let cleaned: Recipient[];
+      if (ch === 'email') {
+        cleaned = rows
+          .filter((r) => r.val && EMAIL_RX.test(r.val))
+          .map((r) => ({ email: r.val!, name: r.name ?? undefined }));
+      } else {
+        cleaned = rows
+          .map((r): Recipient | null => {
+            if (!r.val) return null;
+            const parsed = parseNigerianPhone(r.val);
+            return parsed.ok && parsed.termii ? { phone: parsed.termii, name: r.name ?? undefined } : null;
+          })
+          .filter((r): r is Recipient => r !== null);
+      }
+      setPickedRecipients(dedupeRecipients(cleaned, ch));
     } catch (e: any) {
       toast({ title: 'Could not load recipients', description: e?.message, variant: 'destructive' });
     } finally {
@@ -351,14 +422,21 @@ export default function Communications() {
     }
   };
 
-  // Re-pull the employee list whenever the department filter changes while
-  // that source is active — the filter is meaningless for any other source.
+  // Re-pull whenever the department filter changes while Employees is
+  // active, or the channel changes (email needs addresses, SMS/WhatsApp
+  // need phone numbers — an entirely different column).
   useEffect(() => {
-    if (recipientSource === 'employees') void loadFromSource('employees');
+    setManualText('');
+    if (recipientSource !== 'manual') void loadFromSource(recipientSource, channel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel]);
+
+  useEffect(() => {
+    if (recipientSource === 'employees') void loadFromSource('employees', channel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deptFilter]);
 
-  // ─── Body resolution (template or custom) ─────────────────────────────
+  // ─── Body resolution (template or custom) — Email only ────────────────
   const activeTemplate = useMemo(
     () => (bodySource === 'template' ? templates.find((t) => t.key === templateKey) ?? null : null),
     [bodySource, templates, templateKey],
@@ -391,14 +469,22 @@ export default function Communications() {
 
   // ─── Sending ───────────────────────────────────────────────────────────
   const validateBeforeSend = (): string | null => {
-    if (!effectiveSubject.trim()) return 'Subject is required.';
-    if (!effectiveHtml.trim()) return 'Body is required.';
+    if (channel === 'email') {
+      if (!effectiveSubject.trim()) return 'Subject is required.';
+      if (!effectiveHtml.trim()) return 'Body is required.';
+    } else {
+      if (!textMessage.trim()) return 'Message is required.';
+    }
+    if (sendMode === 'schedule') {
+      if (!scheduledFor) return 'Pick a date and time to schedule for.';
+      if (new Date(scheduledFor).getTime() <= Date.now()) return 'Scheduled time must be in the future.';
+    }
     return null;
   };
 
-  const createCampaign = async (
+  const createEmailCampaign = async (
     recipients: Recipient[],
-    opts: { test_mode: boolean; name?: string },
+    opts: { test_mode: boolean; name?: string; schedule?: string | null },
   ): Promise<string | null> => {
     const { data: campaign, error: cErr } = await supabase
       .from('email_campaigns')
@@ -412,7 +498,8 @@ export default function Communications() {
         created_by: user?.id ?? null,
         test_mode: opts.test_mode,
         total_recipients: recipients.length,
-        status: 'draft',
+        status: opts.schedule ? 'scheduled' : 'draft',
+        scheduled_for: opts.schedule ?? null,
       })
       .select('id')
       .single();
@@ -421,8 +508,6 @@ export default function Communications() {
       return null;
     }
     const campaignId = (campaign as any).id as string;
-
-    // Insert recipients in batches of 500 to stay under PostgREST payload limits.
     const rows = recipients.map((r) => ({
       campaign_id: campaignId,
       email: r.email,
@@ -440,9 +525,49 @@ export default function Communications() {
     return campaignId;
   };
 
-  const triggerSender = async (campaignId: string): Promise<void> => {
+  const createMessageCampaign = async (
+    recipients: Recipient[],
+    opts: { test_mode: boolean; name?: string; schedule?: string | null },
+  ): Promise<string | null> => {
+    const { data: campaign, error: cErr } = await supabase
+      .from('message_campaigns')
+      .insert({
+        name: opts.name ?? null,
+        channel,
+        message: textMessage,
+        created_by: user?.id ?? null,
+        test_mode: opts.test_mode,
+        total_recipients: recipients.length,
+        status: opts.schedule ? 'scheduled' : 'draft',
+        scheduled_for: opts.schedule ?? null,
+      })
+      .select('id')
+      .single();
+    if (cErr) {
+      toast({ title: 'Could not create campaign', description: cErr.message, variant: 'destructive' });
+      return null;
+    }
+    const campaignId = (campaign as any).id as string;
+    const rows = recipients.map((r) => ({
+      campaign_id: campaignId,
+      to_address: r.phone,
+      name: r.name ?? null,
+    }));
+    for (let i = 0; i < rows.length; i += 500) {
+      const slice = rows.slice(i, i + 500);
+      const { error } = await supabase.from('message_campaign_recipients').insert(slice);
+      if (error) {
+        toast({ title: 'Recipient insert failed', description: error.message, variant: 'destructive' });
+        return null;
+      }
+    }
+    return campaignId;
+  };
+
+  const triggerSender = async (campaignId: string, ch: Channel): Promise<void> => {
     const { data: { session } } = await supabase.auth.getSession();
-    const { error } = await supabase.functions.invoke('bulk-email-sender', {
+    const fn = ch === 'email' ? 'bulk-email-sender' : 'message-campaign-sender';
+    const { error } = await supabase.functions.invoke(fn, {
       body: { campaign_id: campaignId },
       headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
     });
@@ -450,22 +575,36 @@ export default function Communications() {
   };
 
   const handleSendTest = async () => {
-    const myEmail = (profile as any)?.email || (user as any)?.email;
-    if (!myEmail) {
-      toast({ title: 'No email on profile', variant: 'destructive' });
-      return;
-    }
-    const v = validateBeforeSend();
-    if (v) { toast({ title: v, variant: 'destructive' }); return; }
     setSendingTest(true);
     try {
-      const cid = await createCampaign(
-        [{ email: myEmail, name: (profile as any)?.full_name ?? 'You' }],
-        { test_mode: true, name: 'Test send' },
-      );
-      if (!cid) return;
-      await triggerSender(cid);
-      toast({ title: 'Test sent', description: `Check ${myEmail}` });
+      if (channel === 'email') {
+        const myEmail = (profile as any)?.email || (user as any)?.email;
+        if (!myEmail) { toast({ title: 'No email on profile', variant: 'destructive' }); return; }
+        const v = validateBeforeSend();
+        if (v && !v.startsWith('Pick a date') && !v.startsWith('Scheduled')) { toast({ title: v, variant: 'destructive' }); return; }
+        const cid = await createEmailCampaign(
+          [{ email: myEmail, name: (profile as any)?.full_name ?? 'You' }],
+          { test_mode: true, name: 'Test send' },
+        );
+        if (!cid) return;
+        await triggerSender(cid, 'email');
+        toast({ title: 'Test sent', description: `Check ${myEmail}` });
+      } else {
+        const myPhone = (profile as any)?.phone;
+        const parsed = myPhone ? parseNigerianPhone(myPhone) : null;
+        if (!parsed?.ok || !parsed.termii) {
+          toast({ title: 'No valid Nigerian phone number on profile', variant: 'destructive' });
+          return;
+        }
+        if (!textMessage.trim()) { toast({ title: 'Message is required.', variant: 'destructive' }); return; }
+        const cid = await createMessageCampaign(
+          [{ phone: parsed.termii, name: (profile as any)?.full_name ?? 'You' }],
+          { test_mode: true, name: 'Test send' },
+        );
+        if (!cid) return;
+        await triggerSender(cid, channel);
+        toast({ title: 'Test sent', description: `Check ${parsed.local}` });
+      }
       void reloadHistory();
     } catch (e: any) {
       toast({ title: 'Test send failed', description: e?.message, variant: 'destructive' });
@@ -478,20 +617,31 @@ export default function Communications() {
     const v = validateBeforeSend();
     if (v) { toast({ title: v, variant: 'destructive' }); return; }
     if (allRecipients.length === 0) {
-      toast({ title: 'No recipients', description: 'Add at least one valid email.', variant: 'destructive' });
+      toast({ title: 'No recipients', description: `Add at least one valid ${channel === 'email' ? 'email' : 'phone number'}.`, variant: 'destructive' });
       return;
     }
-    if (!confirm(`Send to ${allRecipients.length} recipient${allRecipients.length === 1 ? '' : 's'}?`)) return;
+    const scheduling = sendMode === 'schedule';
+    const confirmMsg = scheduling
+      ? `Schedule for ${allRecipients.length} recipient${allRecipients.length === 1 ? '' : 's'} at ${new Date(scheduledFor).toLocaleString()}?`
+      : `Send to ${allRecipients.length} recipient${allRecipients.length === 1 ? '' : 's'}?`;
+    if (!confirm(confirmMsg)) return;
+
     setSending(true);
     try {
-      const cid = await createCampaign(allRecipients, {
-        test_mode: false,
-        name: effectiveSubject.slice(0, 80),
-      });
+      const scheduleIso = scheduling ? new Date(scheduledFor).toISOString() : null;
+      const name = channel === 'email' ? effectiveSubject.slice(0, 80) : textMessage.slice(0, 80);
+      const cid = channel === 'email'
+        ? await createEmailCampaign(allRecipients, { test_mode: false, name, schedule: scheduleIso })
+        : await createMessageCampaign(allRecipients, { test_mode: false, name, schedule: scheduleIso });
       if (!cid) return;
-      setActiveCampaignId(cid);
-      await triggerSender(cid);
-      toast({ title: 'Send started', description: 'Watch the progress card below.' });
+
+      if (scheduling) {
+        toast({ title: 'Scheduled', description: `Will send at ${new Date(scheduledFor).toLocaleString()}.` });
+      } else {
+        setActiveCampaign({ id: cid, channel });
+        await triggerSender(cid, channel);
+        toast({ title: 'Send started', description: 'Watch the progress card below.' });
+      }
       void reloadHistory();
     } catch (e: any) {
       toast({ title: 'Send failed', description: e?.message, variant: 'destructive' });
@@ -502,17 +652,30 @@ export default function Communications() {
 
   // ─── Active campaign progress polling ─────────────────────────────────
   useEffect(() => {
-    if (!activeCampaignId) return;
+    if (!activeCampaign) return;
     let cancelled = false;
+    const table = activeCampaign.channel === 'email' ? 'email_campaigns' : 'message_campaigns';
     const tick = async () => {
       const { data } = await supabase
-        .from('email_campaigns')
-        .select('id, name, subject, status, total_recipients, total_sent, total_failed, created_at, completed_at')
-        .eq('id', activeCampaignId)
+        .from(table)
+        .select('*')
+        .eq('id', activeCampaign.id)
         .maybeSingle();
       if (!cancelled && data) {
-        setActiveProgress(data as CampaignSummary);
-        if (['sent', 'partially_sent', 'failed', 'cancelled'].includes((data as any).status)) {
+        const row = data as any;
+        setActiveProgress({
+          id: row.id,
+          channel: activeCampaign.channel,
+          name: row.name,
+          subject: row.subject ?? String(row.message || '').slice(0, 80),
+          status: row.status,
+          total_recipients: row.total_recipients,
+          total_sent: row.total_sent,
+          total_failed: row.total_failed,
+          created_at: row.created_at,
+          completed_at: row.completed_at,
+        });
+        if (['sent', 'partially_sent', 'failed', 'cancelled'].includes(row.status)) {
           void reloadHistory();
         }
       }
@@ -520,10 +683,12 @@ export default function Communications() {
     void tick();
     const id = window.setInterval(tick, 2000);
     return () => { cancelled = true; window.clearInterval(id); };
-  }, [activeCampaignId]);
+  }, [activeCampaign]);
 
   const isProgressTerminal = activeProgress
     && ['sent', 'partially_sent', 'failed', 'cancelled'].includes(activeProgress.status);
+
+  const smsSegments = channel !== 'email' ? Math.max(1, Math.ceil(textMessage.length / SMS_SEGMENT_LEN)) : 1;
 
   return (
     <div className="space-y-4">
@@ -531,7 +696,7 @@ export default function Communications() {
         <PageHeader
           className="mb-0"
           title="Communications"
-          description="Compose templated or one-off emails. Send to a single recipient, or to a curated list."
+          description="Compose across email, SMS, and WhatsApp. Send to a single recipient, or to a curated list."
           icon={Mail}
         />
       </AuroraHero>
@@ -543,80 +708,147 @@ export default function Communications() {
             <CardTitle className="kd-section-title">Compose</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Body source */}
+            {/* Channel — the top-level choice everything else adapts to */}
             <div className="space-y-1.5">
-              <Label className="kd-label">Body source</Label>
+              <Label className="kd-label">Send via</Label>
               <SegmentedControl
-                value={bodySource}
-                onChange={(v) => setBodySource(v as BodySource)}
-                options={[
-                  { value: 'custom', label: 'One-off message' },
-                  { value: 'template', label: 'Saved template' },
-                ]}
+                value={channel}
+                onChange={(v) => setChannel(v)}
+                options={(['email', 'sms', 'whatsapp'] as Channel[]).map((c) => ({
+                  value: c, label: CHANNEL_META[c].label, icon: CHANNEL_META[c].icon,
+                }))}
               />
+              {channel === 'whatsapp' && (
+                <p className="kd-field-hint">
+                  Business-initiated WhatsApp messages outside a 24-hour reply window may require an
+                  approved template on Meta's side — if sends fail, that's usually why.
+                </p>
+              )}
             </div>
 
-            {bodySource === 'template' ? (
-              <div className="space-y-2">
-                <Label className="kd-label">Template</Label>
-                <Select value={templateKey} onValueChange={setTemplateKey}>
-                  <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
-                  <SelectContent>
-                    {templates.map((t) => (
-                      <SelectItem key={t.id} value={t.key}>
-                        {t.name} <span className="text-muted-foreground ml-1">({t.key})</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {activeTemplate && (
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-muted-foreground flex-1">{activeTemplate.description}</p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="shrink-0 h-7 text-xs"
-                      onClick={() => openTemplateEditor(activeTemplate)}
-                    >
-                      <Pencil className="h-3 w-3 mr-1" /> Edit template
-                    </Button>
+            {channel === 'email' ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="kd-label">Body source</Label>
+                  <SegmentedControl
+                    value={bodySource}
+                    onChange={(v) => setBodySource(v as BodySource)}
+                    options={[
+                      { value: 'custom', label: 'One-off message' },
+                      { value: 'template', label: 'Saved template' },
+                    ]}
+                  />
+                </div>
+
+                {bodySource === 'template' ? (
+                  <div className="space-y-2">
+                    <Label className="kd-label">Template</Label>
+                    <Select value={templateKey} onValueChange={setTemplateKey}>
+                      <SelectTrigger><SelectValue placeholder="Pick a template…" /></SelectTrigger>
+                      <SelectContent>
+                        {templates.map((t) => (
+                          <SelectItem key={t.id} value={t.key}>
+                            {t.name} <span className="text-muted-foreground ml-1">({t.key})</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {activeTemplate && (
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground flex-1">{activeTemplate.description}</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 h-7 text-xs"
+                          onClick={() => openTemplateEditor(activeTemplate)}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" /> Edit template
+                        </Button>
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="kd-label">Subject</Label>
+                      <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="kd-label">HTML body</Label>
+                      <Textarea
+                        value={htmlBody}
+                        onChange={(e) => setHtmlBody(e.target.value)}
+                        className="font-mono text-xs min-h-[260px]"
+                      />
+                      <p className="kd-field-hint">
+                        Use <code>{'{{recipient_name}}'}</code> for personalization.
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                <Tabs value={view} onValueChange={(v) => setView(v as any)}>
+                  <TabsList>
+                    <TabsTrigger value="edit"><Code className="h-3 w-3 mr-1" /> Editor</TabsTrigger>
+                    <TabsTrigger value="preview"><Eye className="h-3 w-3 mr-1" /> Preview</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="preview" className="pt-3">
+                    <div className="border border-border rounded-xl overflow-hidden">
+                      <div className="bg-muted/40 px-3 py-2 border-b border-border text-xs text-muted-foreground">
+                        Subject: <strong>{previewSubject}</strong>
+                      </div>
+                      <iframe title="Preview" srcDoc={previewHtml} className="w-full h-[420px] bg-white" />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <Label className="kd-label mb-0">Message</Label>
+                  <span className={cn(
+                    'text-[10px] tabular-nums',
+                    channel === 'sms' && smsSegments > 1 ? 'text-amber-500' : 'text-muted-foreground',
+                  )}>
+                    {textMessage.length} chars
+                    {channel === 'sms' && ` · ${smsSegments} segment${smsSegments === 1 ? '' : 's'}`}
+                  </span>
+                </div>
+                <Textarea
+                  value={textMessage}
+                  onChange={(e) => setTextMessage(e.target.value)}
+                  className="text-sm min-h-[180px]"
+                  placeholder="Write your message…"
+                />
+                {channel === 'sms' && smsSegments > 1 && (
+                  <p className="kd-field-hint text-amber-500">
+                    Messages over {SMS_SEGMENT_LEN} characters are billed as multiple SMS segments per recipient.
+                  </p>
                 )}
               </div>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <Label className="kd-label">Subject</Label>
-                  <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="kd-label">HTML body</Label>
-                  <Textarea
-                    value={htmlBody}
-                    onChange={(e) => setHtmlBody(e.target.value)}
-                    className="font-mono text-xs min-h-[260px]"
-                  />
-                  <p className="kd-field-hint">
-                    Use <code>{'{{recipient_name}}'}</code> for personalization.
-                  </p>
-                </div>
-              </>
             )}
 
-            <Tabs value={view} onValueChange={(v) => setView(v as any)}>
-              <TabsList>
-                <TabsTrigger value="edit"><Code className="h-3 w-3 mr-1" /> Editor</TabsTrigger>
-                <TabsTrigger value="preview"><Eye className="h-3 w-3 mr-1" /> Preview</TabsTrigger>
-              </TabsList>
-              <TabsContent value="preview" className="pt-3">
-                <div className="border border-border rounded-xl overflow-hidden">
-                  <div className="bg-muted/40 px-3 py-2 border-b border-border text-xs text-muted-foreground">
-                    Subject: <strong>{previewSubject}</strong>
-                  </div>
-                  <iframe title="Preview" srcDoc={previewHtml} className="w-full h-[420px] bg-white" />
-                </div>
-              </TabsContent>
-            </Tabs>
+            {/* Scheduling — applies to every channel */}
+            <div className="space-y-1.5 pt-1 border-t border-border/60">
+              <Label className="kd-label pt-3 block">When</Label>
+              <SegmentedControl
+                value={sendMode}
+                onChange={(v) => setSendMode(v)}
+                options={[
+                  { value: 'now', label: 'Send now' },
+                  { value: 'schedule', label: 'Schedule for later', icon: <CalendarClock className="h-3.5 w-3.5" /> },
+                ]}
+              />
+              {sendMode === 'schedule' && (
+                <Input
+                  type="datetime-local"
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                  className="mt-1.5 max-w-[240px]"
+                />
+              )}
+            </div>
 
             {/* Action row */}
             <div className="flex gap-2 pt-1 flex-wrap">
@@ -625,8 +857,8 @@ export default function Communications() {
                 Send test to me
               </Button>
               <Button onClick={handleSendAll} disabled={sending || allRecipients.length === 0}>
-                {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                Send to {allRecipients.length || 0}
+                {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : sendMode === 'schedule' ? <CalendarClock className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                {sendMode === 'schedule' ? 'Schedule for' : 'Send to'} {allRecipients.length || 0}
               </Button>
             </div>
           </CardContent>
@@ -646,10 +878,10 @@ export default function Communications() {
                 value={recipientSource}
                 onChange={(s) => {
                   setRecipientSource(s);
-                  if (s !== 'manual') void loadFromSource(s);
+                  if (s !== 'manual') void loadFromSource(s, channel);
                 }}
                 options={[
-                  { value: 'manual', label: 'Type addresses' },
+                  { value: 'manual', label: channel === 'email' ? 'Type addresses' : 'Type numbers' },
                   { value: 'contacts', label: 'Contacts' },
                   { value: 'employees', label: 'Employees' },
                   { value: 'contractors', label: 'Contractors' },
@@ -674,12 +906,16 @@ export default function Communications() {
 
             {recipientSource === 'manual' ? (
               <div className="space-y-1">
-                <Label className="kd-label">Addresses — one per line or comma-separated</Label>
+                <Label className="kd-label">
+                  {channel === 'email' ? 'Addresses' : 'Phone numbers'} — one per line or comma-separated
+                </Label>
                 <Textarea
                   value={manualText}
                   onChange={(e) => setManualText(e.target.value)}
                   className="text-xs min-h-[120px]"
-                  placeholder={"bola@example.com\nLola Adeyemi <lola@example.com>"}
+                  placeholder={channel === 'email'
+                    ? 'bola@example.com\nLola Adeyemi <lola@example.com>'
+                    : '08012345678\n+2348098765432'}
                 />
               </div>
             ) : (
@@ -688,7 +924,7 @@ export default function Communications() {
                   <p className="text-xs text-muted-foreground">
                     Loaded from {recipientSource}.
                   </p>
-                  <Button size="sm" variant="ghost" onClick={() => void loadFromSource(recipientSource as any)}>
+                  <Button size="sm" variant="ghost" onClick={() => void loadFromSource(recipientSource as any, channel)}>
                     <RefreshCw className="h-3 w-3 mr-1" /> Reload
                   </Button>
                 </div>
@@ -701,29 +937,36 @@ export default function Communications() {
                     {pickedRecipients.length === 0 && (
                       <p className="text-xs text-muted-foreground italic p-3">No recipients found.</p>
                     )}
-                    {pickedRecipients.map((r) => (
-                      <div key={r.email} className="text-xs px-2.5 py-1.5 flex items-center gap-2 group">
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase">
-                          {(r.name || r.email).slice(0, 1)}
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-foreground">{r.name || r.email}</p>
-                          {r.name && <p className="truncate text-[10px] text-muted-foreground">{r.email}</p>}
+                    {pickedRecipients.map((r) => {
+                      const key = recipientKey(r, channel) ?? '';
+                      const display = r.name || (channel === 'email' ? r.email : r.phone) || '';
+                      return (
+                        <div key={key} className="text-xs px-2.5 py-1.5 flex items-center gap-2 group">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold uppercase">
+                            {display.slice(0, 1)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium text-foreground">{display}</p>
+                            {r.name && <p className="truncate text-[10px] text-muted-foreground">{channel === 'email' ? r.email : r.phone}</p>}
+                          </div>
+                          <button
+                            onClick={() => setPickedRecipients((cur) => cur.filter((x) => recipientKey(x, channel) !== key))}
+                            className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity"
+                            aria-label="Remove"
+                          ><Trash2 className="h-3 w-3" /></button>
                         </div>
-                        <button
-                          onClick={() => setPickedRecipients((cur) => cur.filter((x) => x.email !== r.email))}
-                          className="shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-rose-500 transition-opacity"
-                          aria-label="Remove"
-                        ><Trash2 className="h-3 w-3" /></button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
             )}
 
             <p className="text-[10px] text-muted-foreground">
-              Supports plain emails and <code className="text-[9px]">Name &lt;email&gt;</code> format. Duplicates filtered automatically.
+              {channel === 'email'
+                ? <>Supports plain emails and <code className="text-[9px]">Name &lt;email&gt;</code> format.</>
+                : 'Nigerian mobile numbers only — any common format works. '}
+              Duplicates filtered automatically.
             </p>
           </CardContent>
         </Card>
@@ -739,16 +982,16 @@ export default function Communications() {
                   ? <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   : <AlertTriangle className="h-4 w-4 text-amber-500" />
                 : <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-              Campaign {activeProgress.status}
+              {CHANNEL_META[activeProgress.channel].label} campaign {activeProgress.status}
             </CardTitle>
             {isProgressTerminal && (
-              <Button size="sm" variant="ghost" onClick={() => { setActiveCampaignId(null); setActiveProgress(null); }}>
+              <Button size="sm" variant="ghost" onClick={() => { setActiveCampaign(null); setActiveProgress(null); }}>
                 Dismiss
               </Button>
             )}
           </CardHeader>
           <CardContent className="text-sm space-y-1">
-            <p>{activeProgress.subject}</p>
+            <p className="truncate">{activeProgress.subject}</p>
             <div className="text-xs text-muted-foreground">
               {activeProgress.total_sent} sent · {activeProgress.total_failed} failed · {activeProgress.total_recipients} total
             </div>
@@ -779,7 +1022,8 @@ export default function Communications() {
               <TableHeader>
                 <TableRow>
                   <TableHead>When</TableHead>
-                  <TableHead>Subject</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead>Subject / message</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Sent</TableHead>
                   <TableHead className="text-right">Failed</TableHead>
@@ -788,18 +1032,30 @@ export default function Communications() {
               </TableHeader>
               <TableBody>
                 {history.map((h) => (
-                  <TableRow key={h.id}>
-                    <TableCell className="text-xs whitespace-nowrap">{new Date(h.created_at).toLocaleString()}</TableCell>
-                    <TableCell className="text-xs max-w-[420px] truncate" title={h.subject}>{h.subject}</TableCell>
+                  <TableRow key={`${h.channel}-${h.id}`}>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {h.status === 'scheduled' && h.scheduled_for
+                        ? `Scheduled · ${new Date(h.scheduled_for).toLocaleString()}`
+                        : new Date(h.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <span className="inline-flex items-center gap-1">
+                        {CHANNEL_META[h.channel].icon}
+                        {CHANNEL_META[h.channel].label}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs max-w-[360px] truncate" title={h.subject}>{h.subject}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={
                         h.status === 'sent' ? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400' :
                         h.status === 'sending' ? 'border-sky-500/40 text-sky-700 dark:text-sky-400' :
+                        h.status === 'scheduled' ? 'border-violet-500/40 text-violet-700 dark:text-violet-400' :
                         h.status === 'partially_sent' ? 'border-amber-500/40 text-amber-700 dark:text-amber-400' :
                         h.status === 'failed' ? 'border-rose-500/40 text-rose-700 dark:text-rose-400' :
                         'border-slate-500/40 text-slate-700 dark:text-slate-400'
                       }>
                         {h.status === 'sending' && <Loader2 className="h-3 w-3 mr-1 animate-spin inline" />}
+                        {h.status === 'scheduled' && <CalendarClock className="h-3 w-3 mr-1 inline" />}
                         {h.status}
                       </Badge>
                     </TableCell>
