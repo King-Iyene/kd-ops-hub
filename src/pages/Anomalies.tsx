@@ -40,6 +40,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -235,17 +236,20 @@ export default function Anomalies() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Anomalies"
-        description="Review payroll, payment, and EWA flags surfaced by the detection engine. Dismiss false positives, escalate suspicious activity."
-        icon={ShieldAlert}
-        actions={
-          <Button onClick={runScan} disabled={scanRunning} variant="outline" size="sm">
-            {scanRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Run scan now
-          </Button>
-        }
-      />
+      <AuroraHero className="p-5 sm:p-6" scanLine={stats.open > 0} pattern="pulse">
+        <PageHeader
+          className="mb-0"
+          title="Anomalies"
+          description="Review payroll, payment, and EWA flags surfaced by the detection engine. Dismiss false positives, escalate suspicious activity."
+          icon={ShieldAlert}
+          actions={
+            <Button onClick={runScan} disabled={scanRunning} variant="outline" size="sm">
+              {scanRunning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+              Run scan now
+            </Button>
+          }
+        />
+      </AuroraHero>
 
       <div className="kd-stat-grid">
         <StatCard title="Open" value={stats.open.toString()} icon={Flag} />

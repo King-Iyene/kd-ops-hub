@@ -32,6 +32,7 @@ import { buildNsitfSchedule } from '@/lib/statutory/nsitf';
 import { buildItfAnnualSchedule } from '@/lib/statutory/itf';
 import { generateP9Cards, p9CardsToCsv } from '@/lib/statutory/p9';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { AuroraHero } from '@/components/AuroraHero';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -572,27 +573,29 @@ const Compliance = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">Compliance Centre</h1>
-            <InfoHint>Track every Nigerian statutory filing deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF. Export a compliance calendar.</InfoHint>
+      <AuroraHero className="p-5 sm:p-6" scanLine={counts.overdue > 0} pattern="pulse">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight">Compliance Centre</h1>
+              <InfoHint>Track every Nigerian statutory filing deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF. Export a compliance calendar.</InfoHint>
+            </div>
+            <p className="text-muted-foreground text-sm mt-1">Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF.</p>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">Every Nigerian statutory deadline in one place — PAYE, Pension, VAT, WHT, TCC, CAC, ITF, NSITF.</p>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={exportP9} disabled={downloadingP9}>
+              {downloadingP9 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+              P9 Tax Cards
+            </Button>
+            <Button variant="outline" onClick={exportCalendar}>
+              <Download className="mr-2 h-4 w-4" /> Export calendar
+            </Button>
+            <Button onClick={() => setDialog(true)}>
+              <CalendarDays className="mr-2 h-4 w-4" /> New filing
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={exportP9} disabled={downloadingP9}>
-            {downloadingP9 ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-            P9 Tax Cards
-          </Button>
-          <Button variant="outline" onClick={exportCalendar}>
-            <Download className="mr-2 h-4 w-4" /> Export calendar
-          </Button>
-          <Button onClick={() => setDialog(true)}>
-            <CalendarDays className="mr-2 h-4 w-4" /> New filing
-          </Button>
-        </div>
-      </div>
+      </AuroraHero>
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <StatCard
