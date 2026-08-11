@@ -30,6 +30,66 @@ export interface PersonalTransferRow {
   failure_reason: string | null;
   created_at: string;
   processed_at: string | null;
+  beneficiary_id: string | null;
+  batch_label: string | null;
+}
+
+export interface PersonalTransferBeneficiaryRow {
+  id: string;
+  owner_id: string;
+  label: string;
+  account_number: string;
+  bank_code: string;
+  bank_name: string | null;
+  account_name: string | null;
+  paystack_recipient_code: string | null;
+  created_at: string;
+}
+
+/** Saved recipients for Personal Transfer — Paystack's own documented
+ *  guidance is "save recipient_code to your database and reuse it rather
+ *  than repeatedly calling the API", so paystack_recipient_code is cached
+ *  here the first time a beneficiary is verified, and reused on every
+ *  subsequent send without re-creating the recipient. Owner-scoped, no
+ *  view-logging (these are contacts, not financial records). */
+export async function fetchPersonalTransferBeneficiaries(): Promise<PersonalTransferBeneficiaryRow[]> {
+  const { data, error } = await supabase
+    .from('personal_transfer_beneficiaries')
+    .select('*')
+    .order('label', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as PersonalTransferBeneficiaryRow[];
+}
+
+export async function createPersonalTransferBeneficiary(input: {
+  ownerId: string;
+  label: string;
+  accountNumber: string;
+  bankCode: string;
+  bankName: string;
+  accountName: string;
+  paystackRecipientCode: string | null;
+}): Promise<PersonalTransferBeneficiaryRow> {
+  const { data, error } = await supabase
+    .from('personal_transfer_beneficiaries')
+    .insert({
+      owner_id: input.ownerId,
+      label: input.label,
+      account_number: input.accountNumber,
+      bank_code: input.bankCode,
+      bank_name: input.bankName,
+      account_name: input.accountName,
+      paystack_recipient_code: input.paystackRecipientCode,
+    })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as unknown as PersonalTransferBeneficiaryRow;
+}
+
+export async function deletePersonalTransferBeneficiary(id: string): Promise<void> {
+  const { error } = await supabase.from('personal_transfer_beneficiaries').delete().eq('id', id);
+  if (error) throw error;
 }
 
 /** Fetch the director's own personal transfers AND log that this list was
