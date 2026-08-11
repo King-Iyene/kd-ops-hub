@@ -56,6 +56,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Pagination } from '@/components/ui-kit/Pagination';
@@ -342,28 +343,31 @@ const Contacts = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Contacts"
-        description="Leads, students, partners — every person KD Squares talks to."
-        icon={Users}
-        info="Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type."
-        actions={
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={exportCsv} disabled={contacts.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                reset();
-                setDialog(true);
-              }}
-            >
-              <Plus className="mr-2 h-4 w-4" /> Add contact
-            </Button>
-          </div>
-        }
-      />
+      <AuroraHero className="p-5 sm:p-6" pattern="constellation">
+        <PageHeader
+          className="mb-0"
+          title="Contacts"
+          description="Leads, students, partners — every person KD Squares talks to."
+          icon={Users}
+          info="Central directory for everyone KD Squares works with — clients, leads, students, partners and vendors. Tag and search by type."
+          actions={
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={exportCsv} disabled={contacts.length === 0}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  reset();
+                  setDialog(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" /> Add contact
+              </Button>
+            </div>
+          }
+        />
+      </AuroraHero>
 
       <Tabs defaultValue="contacts">
         <TabsList>

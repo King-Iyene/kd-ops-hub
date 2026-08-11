@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import ReferralCommissions from '@/components/ReferralCommissions';
 import { ContractorCombobox } from '@/components/ContractorCombobox';
@@ -202,24 +203,27 @@ const Referrals = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Referrals"
-        description="Track who referred whom. Manage affiliates and commissions."
-        actions={
-          <>
-            {isAdmin && (
-              <Button variant="outline" onClick={exportCsv} disabled={referrals.length === 0}>
-                <Download className="mr-2 h-4 w-4" /> Export CSV
-              </Button>
-            )}
-            {isAdmin && (
-              <Button onClick={() => setDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Add referral
-              </Button>
-            )}
-          </>
-        }
-      />
+      <AuroraHero className="p-5 sm:p-6" pattern="constellation">
+        <PageHeader
+          className="mb-0"
+          title="Referrals"
+          description="Track who referred whom. Manage affiliates and commissions."
+          actions={
+            <>
+              {isAdmin && (
+                <Button variant="outline" onClick={exportCsv} disabled={referrals.length === 0}>
+                  <Download className="mr-2 h-4 w-4" /> Export CSV
+                </Button>
+              )}
+              {isAdmin && (
+                <Button onClick={() => setDialog(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Add referral
+                </Button>
+              )}
+            </>
+          }
+        />
+      </AuroraHero>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard title="Total referrals" value={referrals.length} icon={Users} tone="primary" />

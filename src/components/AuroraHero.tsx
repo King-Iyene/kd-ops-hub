@@ -12,8 +12,9 @@ interface Props {
    *  'grid' (ledger squares — ops/finance hubs), 'route' (dotted travel
    *  paths — Fleet), 'pulse' (a single live signal line — Approvals,
    *  anything "here's what's active right now"), 'constellation' (nodes
-   *  + connections — CRM/people pages). Omit for a plain hero. */
-  pattern?: 'grid' | 'route' | 'pulse' | 'constellation' | 'none';
+   *  + connections — CRM/people pages), 'contour' (topographic elevation
+   *  rings — geography/terrain/distance framing). Omit for a plain hero. */
+  pattern?: 'grid' | 'route' | 'pulse' | 'constellation' | 'contour' | 'none';
 }
 
 export function AuroraHero({
@@ -45,6 +46,7 @@ export function AuroraHero({
           {pattern === 'route' && <HeroRoute />}
           {pattern === 'pulse' && <HeroPulse />}
           {pattern === 'constellation' && <HeroConstellation />}
+          {pattern === 'contour' && <HeroContour />}
         </div>
       )}
       <div className="relative">{children}</div>
@@ -53,13 +55,14 @@ export function AuroraHero({
 }
 
 function HeroGrid() {
+  // "Ledger Rules" — ruled-paper lines only, no verticals. Deliberately the
+  // quietest pattern: a ledger/spreadsheet feel without reading as a grid.
   return (
     <div
       className="absolute inset-0"
       style={{
-        backgroundImage:
-          'linear-gradient(hsl(var(--primary) / 0.32) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.32) 1px, transparent 1px)',
-        backgroundSize: '26px 26px',
+        backgroundImage: 'linear-gradient(hsl(var(--primary) / 0.32) 1px, transparent 1px)',
+        backgroundSize: '100% 26px',
       }}
     />
   );
@@ -123,6 +126,46 @@ function HeroConstellation() {
         <circle cx="300" cy="105" r="2.5" />
       </g>
       <circle cx="270" cy="150" r="3" fill="hsl(var(--accent) / 0.6)" />
+    </svg>
+  );
+}
+
+function HeroContour() {
+  return (
+    <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+      {/* Nested elevation rings, each pass slightly larger and fainter */}
+      <path
+        d="M300,120 Q285,95 305,72 Q328,50 358,60 Q385,69 380,98 Q376,126 350,138 Q322,150 300,120 Z"
+        fill="none"
+        stroke="hsl(var(--primary) / 0.4)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M280,132 Q258,90 296,55 Q336,20 382,38 Q422,54 414,98 Q408,140 366,158 Q322,176 280,132 Z"
+        fill="none"
+        stroke="hsl(var(--primary) / 0.28)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M258,145 Q225,85 285,38 Q348,-10 412,15 Q465,36 452,95 Q443,150 385,175 Q325,199 258,145 Z"
+        fill="none"
+        stroke="hsl(var(--primary) / 0.18)"
+        strokeWidth="1.5"
+      />
+      {/* A second, smaller peak lower-left for depth */}
+      <path
+        d="M70,175 Q60,158 74,144 Q90,130 108,138 Q124,145 120,163 Q117,180 98,186 Q78,191 70,175 Z"
+        fill="none"
+        stroke="hsl(var(--accent) / 0.32)"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M55,182 Q38,155 65,128 Q95,100 130,115 Q160,128 152,160 Q146,188 112,198 Q76,208 55,182 Z"
+        fill="none"
+        stroke="hsl(var(--accent) / 0.2)"
+        strokeWidth="1.5"
+      />
+      <circle cx="358" cy="60" r="3" fill="hsl(var(--primary) / 0.55)" />
     </svg>
   );
 }

@@ -50,6 +50,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { AuroraHero } from '@/components/AuroraHero';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
@@ -290,23 +291,26 @@ const Clients = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Clients"
-        description="Track your active clients, prospects, and contract values"
-        icon={Building2}
-        actions={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
-              <Download className="mr-2 h-4 w-4" /> Export CSV
-            </Button>
-            {canManage && (
-              <Button size="sm" onClick={openAdd}>
-                <Plus className="mr-2 h-4 w-4" /> Add Client
+      <AuroraHero className="p-5 sm:p-6" pattern="constellation">
+        <PageHeader
+          className="mb-0"
+          title="Clients"
+          description="Track your active clients, prospects, and contract values"
+          icon={Building2}
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+                <Download className="mr-2 h-4 w-4" /> Export CSV
               </Button>
-            )}
-          </div>
-        }
-      />
+              {canManage && (
+                <Button size="sm" onClick={openAdd}>
+                  <Plus className="mr-2 h-4 w-4" /> Add Client
+                </Button>
+              )}
+            </div>
+          }
+        />
+      </AuroraHero>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
