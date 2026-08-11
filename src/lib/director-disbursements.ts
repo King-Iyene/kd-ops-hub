@@ -21,7 +21,7 @@ export interface DirectorDisbursementCategoryDef {
 }
 
 export const DIRECTOR_DISBURSEMENT_CATEGORIES: DirectorDisbursementCategoryDef[] = [
-  { key: 'director_salary', icon: Wallet, label: 'Director salary',
+  { key: 'director_salary', icon: Wallet, label: 'Salary',
     hint: 'Recurring or ad-hoc salary payment to the director.' },
   { key: 'director_drawings', icon: HandCoins, label: 'Drawings',
     hint: "Owner's drawings — money taken out against the director's equity in the company." },

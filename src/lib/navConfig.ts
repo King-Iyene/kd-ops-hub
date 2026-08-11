@@ -131,7 +131,7 @@ export const ALL_NAV: NavItem[] = [
   // Admin — strict role only (see comment block above).
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
-  { title: 'Director Disbursements', url: '/director-disbursements', icon: Landmark, roles: ['super_admin'] },
+  { title: 'Principal Disbursements', url: '/principal-disbursements', icon: Landmark, roles: ['super_admin'] },
   // Workspace addition (Assistant)
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
@@ -152,7 +152,7 @@ export const NAV_GROUPS = [
   { key: 'operations', label: 'Operations',         titles: ['Fleet', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
   { key: 'crm',        label: 'CRM',                titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',              titles: ['Settings', 'Director Disbursements'] },
+  { key: 'admin',      label: 'Admin',              titles: ['Settings', 'Principal Disbursements'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];

@@ -674,11 +674,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Director Disbursements — Super Admin only. No `permission` prop:
+        {/* Principal Disbursements — Super Admin only. No `permission` prop:
             this route must never be reachable via a permissions.jsonb
             grant override, only the real (non-simulated) super_admin role. */}
         <Route
-          path="/director-disbursements"
+          path="/principal-disbursements"
           element={
             <RoleGuard roles={['super_admin']}>
               <DirectorDisbursements />

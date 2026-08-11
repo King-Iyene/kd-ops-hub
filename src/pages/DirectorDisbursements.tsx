@@ -1,6 +1,7 @@
 /**
- * Director Disbursements — super_admin-only module for two hard-separated
- * ways the director moves money out via Paystack:
+ * Principal Disbursements (internal module name: Director Disbursements) —
+ * super_admin-only module for two hard-separated ways the director moves
+ * money out via Paystack:
  *
  *   Company Disbursement — director salary / drawings / loan repayments.
  *     Reuses payment_batches/batch_items verbatim (see src/lib/
@@ -26,9 +27,10 @@
  * inline calls below for Company Disbursement) — "log every view of past
  * records, not just every send."
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Wallet, Users, Layers, Trash2, Plus, RefreshCw,
+  Receipt, Repeat, Pause, Play, AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -83,6 +85,8 @@ import {
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
+import { ReceiptModal } from '@/components/ReceiptModal';
+import { PersonalTransferReceiptModal } from '@/components/PersonalTransferReceiptModal';
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -105,10 +109,11 @@ interface DisbursementRow {
   payment_date: string;
   created_at: string;
   payment_description: string | null;
+  batch_items: any[] | null;
 }
 
 export default function DirectorDisbursements() {
-  usePageTitle('Director Disbursements');
+  usePageTitle('Principal Disbursements');
   const { profile } = useAuthStore();
   const { toast } = useToast();
 
@@ -117,7 +122,7 @@ export default function DirectorDisbursements() {
       <AuroraHero className="p-5 sm:p-6" pattern="grid">
         <PageHeader
           className="mb-0"
-          title="Director Disbursements"
+          title="Principal Disbursements"
           description="Company disbursements (salary, drawings, loan repayments) and your own personal transfers — kept structurally separate."
           icon={Landmark}
           badge={<Badge variant="outline" className="border-primary/30 text-primary">Super admin only</Badge>}
@@ -147,6 +152,22 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
   const [rows, setRows] = useState<DisbursementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
+  const [receiptRow, setReceiptRow] = useState<DisbursementRow | null>(null);
+  const [recurRow, setRecurRow] = useState<DisbursementRow | null>(null);
+  const [companyName, setCompanyName] = useState('KD Squares Ltd');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from('company_settings').select('company_name, logo_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
+      .then(({ data: cs }) => {
+        if (cs) {
+          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
+          setLogoUrl((cs as any).logo_url || null);
+        }
+      })
+      .catch(() => { /* receipt falls back to defaults */ });
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -156,7 +177,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
     // even though this super_admin's role could otherwise see everything).
     const { data, error } = await supabase
       .from('payment_batches')
-      .select('id, name, payment_category, total_amount, status, payment_date, created_at, payment_description')
+      .select('id, name, payment_category, total_amount, status, payment_date, created_at, payment_description, batch_items(*)')
       .in('payment_category', ['director_salary', 'director_drawings', 'director_loan_repayment'])
       .order('created_at', { ascending: false });
     if (!error) {
@@ -210,6 +231,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                       <TableHead>Description</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-[1%]" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -220,6 +242,26 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                         <TableCell className="max-w-[280px] truncate">{r.payment_description || '—'}</TableCell>
                         <TableCell className="text-right font-medium currency">{formatNaira(r.total_amount)}</TableCell>
                         <TableCell><StatusBadge status={r.status} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-0.5">
+                            {r.batch_items && r.batch_items.length > 0 && (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7" title="Receipt"
+                                onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
+                              >
+                                <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            )}
+                            {r.status !== 'draft' && (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7" title="Make recurring monthly"
+                                onClick={(e) => { e.stopPropagation(); setRecurRow(r); }}
+                              >
+                                <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -233,7 +275,27 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                       <MobileCardMeta className="currency">{formatNaira(r.total_amount)}</MobileCardMeta>
                     </MobileCardHeader>
                     <MobileCardRow label="Date">{formatDateTime(r.created_at)}</MobileCardRow>
-                    <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>
+                    <MobileCardRow label="Status">
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={r.status} />
+                        {r.batch_items && r.batch_items.length > 0 && (
+                          <Button
+                            variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
+                            onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
+                          >
+                            <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                        {r.status !== 'draft' && (
+                          <Button
+                            variant="ghost" size="icon" className="h-6 w-6" title="Make recurring monthly"
+                            onClick={(e) => { e.stopPropagation(); setRecurRow(r); }}
+                          >
+                            <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                    </MobileCardRow>
                   </MobileCard>
                 ))}
               </div>
@@ -242,12 +304,30 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         </CardContent>
       </Card>
 
+      <RecurringSchedulesCard profile={profile} toast={toast} />
+
       <CompanyDisbursementSendDialog
         open={sendOpen}
         onOpenChange={setSendOpen}
         profile={profile}
         toast={toast}
         onSent={load}
+      />
+
+      <ReceiptModal
+        open={!!receiptRow}
+        onClose={() => setReceiptRow(null)}
+        item={receiptRow?.batch_items?.[0] ?? null}
+        batch={receiptRow}
+        companyName={companyName}
+        logoUrl={logoUrl}
+      />
+
+      <MakeRecurringDialog
+        row={recurRow}
+        onOpenChange={(v) => { if (!v) setRecurRow(null); }}
+        profile={profile}
+        toast={toast}
       />
     </div>
   );
@@ -291,7 +371,7 @@ function CompanyDisbursementSendDialog({
       const { data: batch, error: batchErr } = await supabase
         .from('payment_batches')
         .insert({
-          name: `Director Disbursement — ${directorDisbursementCategoryLabel(form.category)}`,
+          name: `Principal Disbursement — ${directorDisbursementCategoryLabel(form.category)}`,
           payment_date: new Date().toISOString().slice(0, 10),
           total_amount: amount,
           beneficiary_count: 1,
@@ -479,6 +559,167 @@ function CompanyDisbursementSendDialog({
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
+   Recurring schedules — reuses the app-wide recurring_schedules table +
+   kdops_recurring_payments cron (see 20260429080000_recurring_scheduler_cron.sql)
+   that payroll/vendor batches already use. That cron ONLY ever clones a
+   source batch into a new payment_batches row with status
+   'pending_approval' — it never dispatches a transfer itself — so a
+   monthly Company Disbursement schedule still requires the director's own
+   review + Send/Approve, exactly like every other recurring batch in this
+   app. A RESTRICTIVE RLS policy (see migration alongside this change)
+   keeps schedules pointed at a director-only source batch invisible to
+   anyone but super_admin, matching payment_batches/batch_items themselves.
+   ═══════════════════════════════════════════════════════════════════════ */
+function MakeRecurringDialog({
+  row, onOpenChange, profile, toast,
+}: {
+  row: DisbursementRow | null;
+  onOpenChange: (v: boolean) => void;
+  profile: any;
+  toast: ReturnType<typeof useToast>['toast'];
+}) {
+  const [day, setDay] = useState(1);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (row) setDay(new Date(row.payment_date || row.created_at).getDate() || 1);
+  }, [row]);
+
+  const save = async () => {
+    if (!row) return;
+    setSaving(true);
+    try {
+      const today = new Date();
+      const nextMonth = today.getDate() >= day ? today.getMonth() + 1 : today.getMonth();
+      const nextDate = new Date(today.getFullYear(), nextMonth, day);
+      const { error } = await supabase.from('recurring_schedules').insert({
+        source_batch_id: row.id,
+        frequency: 'monthly',
+        day_of_month: day,
+        next_run_date: nextDate.toISOString().slice(0, 10),
+        created_by: profile?.id,
+      });
+      if (error) throw error;
+      await logAudit(
+        'batch_scheduled',
+        `Company Disbursement "${row.name}" set to recur monthly (day ${day}) — new drafts require approval`,
+        profile,
+      );
+      toast({
+        title: 'Recurring schedule created',
+        description: `Next draft: ${nextDate.toLocaleDateString('en-GB')} — you'll review and approve it before anything sends.`,
+      });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: 'Could not create schedule', description: friendlyDbError(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={!!row}
+      onOpenChange={onOpenChange}
+      title={<span className="flex items-center gap-2"><Repeat className="h-5 w-5 text-primary" /> Make recurring — monthly</span>}
+      description={row ? `Repeat "${row.name}" (${formatNaira(row.total_amount)}) every month.` : ''}
+      footer={(
+        <>
+          <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving} className="kd-mobile-tap">
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Create schedule
+          </Button>
+        </>
+      )}
+    >
+      <div className="space-y-3">
+        <Alert className="border-primary/30 bg-primary/5">
+          <ShieldAlert className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            Nothing sends automatically. Each month KDOps creates a draft here for you to review — you still click Send.
+          </AlertDescription>
+        </Alert>
+        <div className="space-y-1">
+          <Label>Day of month</Label>
+          <Input type="number" min={1} max={31} value={day} onChange={(e) => setDay(Number(e.target.value) || 1)} />
+        </div>
+      </div>
+    </ResponsiveDialog>
+  );
+}
+
+function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    const { data: batches } = await supabase
+      .from('payment_batches')
+      .select('id, name, payment_category, total_amount')
+      .in('payment_category', ['director_salary', 'director_drawings', 'director_loan_repayment']);
+    const batchIds = (batches ?? []).map((b: any) => b.id);
+    if (batchIds.length === 0) { setSchedules([]); setLoading(false); return; }
+    const byId = new Map((batches ?? []).map((b: any) => [b.id, b]));
+    const { data: sched, error } = await supabase
+      .from('recurring_schedules')
+      .select('id, frequency, day_of_month, next_run_date, status, source_batch_id')
+      .in('source_batch_id', batchIds)
+      .order('next_run_date', { ascending: true });
+    if (!error) {
+      setSchedules((sched ?? []).map((s: any) => ({ ...s, batch: byId.get(s.source_batch_id) })));
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  const togglePause = async (s: any) => {
+    const next = s.status === 'paused' ? 'active' : 'paused';
+    const { error } = await supabase.from('recurring_schedules').update({ status: next }).eq('id', s.id);
+    if (error) { toast({ title: 'Could not update schedule', description: friendlyDbError(error), variant: 'destructive' }); return; }
+    await logAudit('batch_scheduled', `Recurring schedule for "${s.batch?.name}" ${next === 'paused' ? 'paused' : 'resumed'}`, profile);
+    load();
+  };
+
+  const remove = async (s: any) => {
+    const { error } = await supabase.from('recurring_schedules').delete().eq('id', s.id);
+    if (error) { toast({ title: 'Could not delete schedule', description: friendlyDbError(error), variant: 'destructive' }); return; }
+    await logAudit('batch_scheduled', `Recurring schedule for "${s.batch?.name}" deleted`, profile);
+    load();
+  };
+
+  if (loading || schedules.length === 0) return null;
+
+  return (
+    <Card className="rounded-xl">
+      <CardHeader><CardTitle className="text-base flex items-center gap-2"><Repeat className="h-4 w-4" /> Recurring schedules</CardTitle></CardHeader>
+      <CardContent className="space-y-2">
+        {schedules.map((s) => (
+          <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium truncate">{s.batch?.name ?? 'Batch removed'}</p>
+              <p className="text-xs text-muted-foreground">
+                Monthly, day {s.day_of_month} · Next: {s.next_run_date ? formatDateTime(s.next_run_date) : '—'} · {formatNaira(s.batch?.total_amount ?? 0)}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
+              <Button variant="ghost" size="icon" className="h-7 w-7" title={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
+                {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Delete" onClick={() => remove(s)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
    Personal Transfer section
    ═══════════════════════════════════════════════════════════════════════ */
 function PersonalTransferSection({ profile, toast }: { profile: any; toast: ReturnType<typeof useToast>['toast'] }) {
@@ -490,6 +731,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [beneficiaries, setBeneficiaries] = useState<PersonalTransferBeneficiaryRow[]>([]);
   const [balance, setBalance] = useState<{ available: number; currency: string } | null>(null);
   const [balanceError, setBalanceError] = useState(false);
+  const [receiptRow, setReceiptRow] = useState<PersonalTransferRow | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -632,6 +874,14 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                                   : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
                               </Button>
                             )}
+                            {r.status !== 'pending' && (
+                              <Button
+                                variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
+                                onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
+                              >
+                                <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -665,6 +915,14 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                               : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
                           </Button>
                         )}
+                        {r.status !== 'pending' && (
+                          <Button
+                            variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
+                            onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
+                          >
+                            <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                          </Button>
+                        )}
                       </div>
                     </MobileCardRow>
                   </MobileCard>
@@ -690,6 +948,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         toast={toast}
         onSent={load}
         beneficiaries={beneficiaries}
+        history={rows}
       />
       <PersonalTransferBeneficiariesDialog
         open={beneficiariesOpen}
@@ -698,6 +957,12 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         toast={toast}
         beneficiaries={beneficiaries}
         onChanged={loadBeneficiaries}
+      />
+
+      <PersonalTransferReceiptModal
+        open={!!receiptRow}
+        onClose={() => setReceiptRow(null)}
+        row={receiptRow}
       />
     </div>
   );
@@ -1044,8 +1309,58 @@ function PersonalTransferSendDialog({
 const BULK_CHUNK_SIZE = 100;
 const BULK_INTER_CHUNK_MS = 5_000;
 
+/** Soft-warning risk flags for a batch — never blocks Send, matches the
+ *  "soft warnings only" philosophy already used by batch_velocity_flags.sql
+ *  for payroll. personal_transfers has no equivalent risk coverage today
+ *  (confirmed: nothing references personal_transfers in that migration or
+ *  payment_anomaly_detection.sql), so this fills that gap for batches
+ *  specifically, computed client-side from data already on hand — no new
+ *  DB surface needed for a purely advisory check. */
+interface RiskFlag { key: string; text: string; detail: string }
+
+function computeBatchRiskFlags(
+  selected: PersonalTransferBeneficiaryRow[],
+  amounts: Record<string, string>,
+  history: PersonalTransferRow[],
+): RiskFlag[] {
+  const flags: RiskFlag[] = [];
+  const now = Date.now();
+
+  const byAccount = new Map<string, string[]>();
+  selected.forEach((b) => {
+    const key = `${b.bank_code}:${b.account_number}`;
+    byAccount.set(key, [...(byAccount.get(key) ?? []), b.label]);
+  });
+  byAccount.forEach((labels, key) => {
+    if (labels.length > 1) {
+      flags.push({ key: `dup:${key}`, text: 'Duplicate account in this batch', detail: `${labels.join(', ')} share the same bank account.` });
+    }
+  });
+
+  const succeededAmounts = history.filter((h) => h.status === 'succeeded').map((h) => h.amount_ngn);
+  const overallAvg = succeededAmounts.length > 0 ? succeededAmounts.reduce((a, c) => a + c, 0) / succeededAmounts.length : null;
+
+  selected.forEach((b) => {
+    const amount = parseFloat(amounts[b.id]) || 0;
+    if (amount <= 0) return;
+
+    const createdMs = new Date(b.created_at).getTime();
+    if (Number.isFinite(createdMs) && now - createdMs < 48 * 60 * 60 * 1000) {
+      flags.push({ key: `new:${b.id}`, text: `${b.label} is a new beneficiary`, detail: 'Added within the last 48 hours.' });
+    }
+
+    const own = history.filter((h) => h.beneficiary_id === b.id && h.status === 'succeeded').map((h) => h.amount_ngn);
+    const baseline = own.length > 0 ? own.reduce((a, c) => a + c, 0) / own.length : overallAvg;
+    if (baseline && amount > baseline * 3) {
+      flags.push({ key: `high:${b.id}`, text: `${b.label}: unusually high amount`, detail: `${formatNaira(amount)} vs a typical ${formatNaira(baseline)}.` });
+    }
+  });
+
+  return flags;
+}
+
 function PersonalTransferBatchDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, history,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1053,6 +1368,7 @@ function PersonalTransferBatchDialog({
   toast: ReturnType<typeof useToast>['toast'];
   onSent: () => void;
   beneficiaries: PersonalTransferBeneficiaryRow[];
+  history: PersonalTransferRow[];
 }) {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState('');
@@ -1060,8 +1376,18 @@ function PersonalTransferBatchDialog({
   const [batchLabel, setBatchLabel] = useState('');
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sameAmount, setSameAmount] = useState('');
 
-  const reset = () => { setBatchLabel(''); setAmounts({}); setSelected(new Set()); setResult(null); setProgress(''); };
+  const reset = () => { setBatchLabel(''); setAmounts({}); setSelected(new Set()); setResult(null); setProgress(''); setSameAmount(''); };
+
+  const applySameAmount = () => {
+    if (!sameAmount || !(parseFloat(sameAmount) > 0)) return;
+    setAmounts((a) => {
+      const next = { ...a };
+      selected.forEach((id) => { next[id] = sameAmount; });
+      return next;
+    });
+  };
 
   const toggle = (id: string) => {
     setSelected((s) => {
@@ -1075,6 +1401,12 @@ function PersonalTransferBatchDialog({
   const totalAmount = selectedBeneficiaries.reduce((sum, b) => sum + (parseFloat(amounts[b.id]) || 0), 0);
   const allAmountsValid = selectedBeneficiaries.length > 0
     && selectedBeneficiaries.every((b) => Number.isFinite(parseFloat(amounts[b.id])) && parseFloat(amounts[b.id]) > 0);
+
+  const riskFlags = useMemo(
+    () => computeBatchRiskFlags(selectedBeneficiaries, amounts, history),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selected, amounts, history],
+  );
 
   const executeBatch = async () => {
     setProcessing(true);
@@ -1227,6 +1559,20 @@ function PersonalTransferBatchDialog({
             <Label>Batch label (optional)</Label>
             <Input value={batchLabel} onChange={(e) => setBatchLabel(e.target.value)} placeholder="e.g. August family transfers" />
           </div>
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-dashed border-primary/40 px-3 py-2">
+              <Label className="text-xs text-muted-foreground shrink-0">Same amount for all {selected.size} selected</Label>
+              <Input
+                type="number" min="0" className="h-8 text-sm"
+                placeholder="₦0.00"
+                value={sameAmount}
+                onChange={(e) => setSameAmount(e.target.value)}
+              />
+              <Button type="button" size="sm" variant="secondary" className="shrink-0" onClick={applySameAmount} disabled={!(parseFloat(sameAmount) > 0)}>
+                Apply
+              </Button>
+            </div>
+          )}
           <div className="space-y-2">
             {beneficiaries.map((b) => {
               const isSelected = selected.has(b.id);
@@ -1259,6 +1605,23 @@ function PersonalTransferBatchDialog({
               {selectedBeneficiaries.length} recipient{selectedBeneficiaries.length !== 1 ? 's' : ''} ·{' '}
               total <span className="font-semibold currency">{formatNaira(totalAmount)}</span>
             </p>
+          )}
+          {riskFlags.length > 0 && (
+            <Alert className="border-amber-500/40 bg-amber-500/5">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm space-y-1">
+                <p className="font-medium text-amber-700 dark:text-amber-400">
+                  {riskFlags.length} thing{riskFlags.length !== 1 ? 's' : ''} worth a look — nothing here blocks sending
+                </p>
+                <ul className="space-y-0.5">
+                  {riskFlags.map((f) => (
+                    <li key={f.key} className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{f.text}</span> — {f.detail}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       )}
