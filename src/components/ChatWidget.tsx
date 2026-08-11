@@ -319,7 +319,7 @@ export function ChatWidget() {
       {open && (
         <div
           className={`
-            fixed z-50 flex flex-col
+            fixed z-40 flex flex-col
             bg-card border border-border/60 shadow-2xl shadow-black/20
             kd-animate-scale-in overflow-hidden
             /* Mobile: full-width bottom sheet */
@@ -570,7 +570,7 @@ export function ChatWidget() {
         type="button"
         onClick={open ? handleClose : handleOpen}
         className={`
-          fixed right-4 z-50 h-14 w-14 rounded-full
+          fixed right-4 z-40 h-14 w-14 rounded-full
           bg-gradient-to-br from-primary to-cyan-500
           text-white shadow-lg shadow-primary/30
           hover:shadow-primary/50 hover:scale-105 active:scale-95

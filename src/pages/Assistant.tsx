@@ -337,7 +337,7 @@ export default function Assistant() {
   const recentConvs  = filteredConversations.filter((c) => !c.pinned);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -mx-4 sm:-mx-6 -my-4 sm:-my-6">
+    <div className="flex flex-col h-[calc(100dvh-4rem-3.5rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] -mx-4 sm:-mx-6 -my-4 sm:-my-6">
 
       {/* ── Page header ─────────────────────────────────────────────── */}
       <div className="px-4 sm:px-6 py-3 border-b bg-card/80 backdrop-blur-sm flex items-center justify-between gap-3 shrink-0">

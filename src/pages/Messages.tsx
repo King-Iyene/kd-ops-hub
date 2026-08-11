@@ -324,7 +324,7 @@ export default function Messages() {
       </AuroraHero>
 
       <Card className="rounded-xl overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-[calc(100vh-260px)] min-h-[420px]">
+        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] h-[calc(100dvh-260px-3.5rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-260px)] min-h-[420px]">
           {/* Conversation list */}
           <div className={cn(
             'border-r border-border overflow-y-auto',

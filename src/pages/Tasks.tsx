@@ -819,7 +819,7 @@ const Tasks = () => {
   // ─── Render ──────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.14)-theme(spacing.8))] -m-4 md:-m-5 lg:-m-6">
+    <div className="flex h-[calc(100dvh-theme(spacing.14)-theme(spacing.8)-3.5rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-theme(spacing.14)-theme(spacing.8))] -m-4 md:-m-5 lg:-m-6">
       {/* ─── Module Sidebar ─────────────────────────────────────────── */}
       <div className="hidden md:flex w-[220px] lg:w-[240px] shrink-0 border-r border-border/60 bg-card/50 p-3 overflow-y-auto">
         <TaskSidebar

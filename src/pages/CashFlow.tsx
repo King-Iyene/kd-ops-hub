@@ -14,6 +14,7 @@ import {
 import { Activity, AlertTriangle, Banknote, RefreshCw, TrendingDown, Wallet } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -288,26 +289,43 @@ export default function CashFlow() {
               No specific upcoming obligations detected. Forecast is based purely on the external burn estimate.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Week</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Week</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {topObs.map((o, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{o.week_start}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{CATEGORY_LABEL[o.category] ?? o.category}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium currency">{formatNaira(o.amount_ngn)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="md:hidden space-y-2">
                 {topObs.map((o, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{o.week_start}</TableCell>
-                    <TableCell>
+                  <MobileCard key={i}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{o.week_start}</MobileCardTitle>
+                      <MobileCardMeta className="currency">{formatNaira(o.amount_ngn)}</MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Category">
                       <Badge variant="outline">{CATEGORY_LABEL[o.category] ?? o.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right font-medium currency">{formatNaira(o.amount_ngn)}</TableCell>
-                  </TableRow>
+                    </MobileCardRow>
+                  </MobileCard>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
