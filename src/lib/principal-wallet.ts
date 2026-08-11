@@ -83,22 +83,37 @@ export async function fetchWalletBalance(): Promise<number> {
   ), 0);
 }
 
-/** Pre-send gate used by every Principal Disbursements send path. No-op
- *  (always ok) if no DVA is registered yet — this only starts enforcing
- *  once the director has actually wired up a dedicated account. */
+/** Pre-send gate used by every Principal Disbursements send path as a
+ *  final, server-side-adjacent safety net (the UI-level check lives in
+ *  PaymentSummaryModal via fetchWalletBalanceOrNull below — this one
+ *  catches the case where the wallet balance changed between opening
+ *  that modal and actually clicking Send). No-op (always ok) if no DVA
+ *  is registered yet. `totalNgn` must already include the Paystack
+ *  transfer fee + stamp duty (see src/lib/paystack.ts totalChargeFor /
+ *  batchCostBreakdown) — not just the raw transfer amount. */
 export async function checkWalletCanCover(
-  amountNgn: number,
+  totalNgn: number,
 ): Promise<{ ok: boolean; reason?: string }> {
   const dva = await fetchDvaAccount();
   if (!dva) return { ok: true };
   const balance = await fetchWalletBalance();
-  if (balance < amountNgn) {
+  if (balance < totalNgn) {
     return {
       ok: false,
-      reason: `Principal Disbursements wallet balance is ₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })} — fund ${dva.bank_name} ${dva.account_number} before sending ₦${amountNgn.toLocaleString('en-NG', { minimumFractionDigits: 2 })}.`,
+      reason: `Principal Disbursements wallet balance is ₦${balance.toLocaleString('en-NG', { minimumFractionDigits: 2 })} — fund ${dva.bank_name} ${dva.account_number} before sending ₦${totalNgn.toLocaleString('en-NG', { minimumFractionDigits: 2 })} (including fees).`,
     };
   }
   return { ok: true };
+}
+
+/** Used by PaymentSummaryModal's optional wallet-balance block — returns
+ *  null (meaning "skip this check, no wallet configured") rather than
+ *  throwing, so the modal can render its normal single-balance layout
+ *  until a DVA is actually linked. */
+export async function fetchWalletBalanceOrNull(): Promise<number | null> {
+  const dva = await fetchDvaAccount();
+  if (!dva) return null;
+  return fetchWalletBalance();
 }
 
 export async function fetchWalletLedger(limit = 50): Promise<PrincipalWalletLedgerRow[]> {

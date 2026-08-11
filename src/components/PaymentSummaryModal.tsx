@@ -85,6 +85,16 @@ export interface PaymentSummaryModalProps {
   onConfirm: (narration: string) => void | Promise<void>;
   /** Stamp-duty exempt (registered payroll merchants only). Default false. */
   exempt?: boolean;
+  /**
+   * Optional second, independent balance check — used by Principal
+   * Disbursements (a ring-fenced internal wallet, separate from the
+   * company-wide provider balance checked above). Resolving to `null`
+   * means "no wallet configured, skip this block entirely" so callers
+   * without a wallet see the modal's normal single-balance layout.
+   * Confirm is blocked if EITHER balance is short.
+   */
+  fetchWalletBalance?: () => Promise<number | null>;
+  walletBalanceLabel?: string;
 }
 
 /** Balance threshold below which we warn the operator regardless of the run. */
@@ -100,10 +110,15 @@ export function PaymentSummaryModal({
   title = 'Confirm payment',
   onConfirm,
   exempt = false,
+  fetchWalletBalance,
+  walletBalanceLabel = 'Wallet balance',
 }: PaymentSummaryModalProps) {
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletBalanceLoading, setWalletBalanceLoading] = useState(!!fetchWalletBalance);
+  const [walletBalanceError, setWalletBalanceError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [customNarration, setCustomNarration] = useState('');
   // Which provider will actually pay this batch — was previously hardcoded
@@ -128,6 +143,14 @@ export function PaymentSummaryModal({
     setBalanceError(null);
     setFwFeeTotal(null);
     setFwFeeError(null);
+    if (fetchWalletBalance) {
+      setWalletBalanceLoading(true);
+      setWalletBalanceError(null);
+      fetchWalletBalance()
+        .then((b) => setWalletBalance(b))
+        .catch((e: any) => setWalletBalanceError(e?.message || 'Could not check wallet balance'))
+        .finally(() => setWalletBalanceLoading(false));
+    }
     (async () => {
       try {
         const { data } = await supabase
@@ -187,6 +210,10 @@ export function PaymentSummaryModal({
   const balanceAfter = balance != null ? balance - effectiveGrandTotal : null;
   const balanceShort = balanceAfter != null && balanceAfter < 0;
   const balanceTight = balanceAfter != null && balanceAfter >= 0 && balanceAfter < LOW_BALANCE_HEADROOM;
+
+  const walletBalanceAfter = walletBalance != null ? walletBalance - effectiveGrandTotal : null;
+  const walletBalanceShort = walletBalanceAfter != null && walletBalanceAfter < 0;
+  const walletBalanceTight = walletBalanceAfter != null && walletBalanceAfter >= 0 && walletBalanceAfter < LOW_BALANCE_HEADROOM;
 
   const sampleRecipient = items[0]?.full_name || 'John Doe';
   const sampleNarration = buildNarration({
@@ -320,6 +347,49 @@ export function PaymentSummaryModal({
           )}
         </div>
 
+        {/* Second, independent wallet check (e.g. Principal Disbursements) —
+            only rendered when the caller passed fetchWalletBalance AND it
+            resolved to a real number (not null, which means "no wallet
+            configured, nothing to check here"). */}
+        {fetchWalletBalance && walletBalance != null && (
+          <div className="rounded-lg border p-4 text-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">{walletBalanceLabel}</span>
+              <span className="currency">
+                {walletBalanceLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : formatNaira(walletBalance)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Balance after this payment</span>
+              <span className={walletBalanceShort ? 'text-destructive font-semibold currency' : walletBalanceTight ? 'text-warning font-semibold currency' : 'currency'}>
+                {formatNaira(walletBalanceAfter ?? 0)}
+              </span>
+            </div>
+            {walletBalanceError && (
+              <p className="text-xs text-muted-foreground">Couldn't check {walletBalanceLabel.toLowerCase()}: {walletBalanceError}</p>
+            )}
+            {walletBalanceShort && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Insufficient {walletBalanceLabel.toLowerCase()}</AlertTitle>
+                <AlertDescription>
+                  This payment (including fees) is{' '}
+                  <strong>{formatNaira(Math.abs(walletBalanceAfter ?? 0))}</strong>{' '}
+                  more than the {walletBalanceLabel.toLowerCase()} — fund the dedicated account before sending.
+                </AlertDescription>
+              </Alert>
+            )}
+            {!walletBalanceShort && walletBalanceTight && (
+              <Alert className="mt-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {walletBalanceLabel} will be low after this payment. Consider topping up.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
+
         {/* Narration — editable */}
         <div className="rounded-lg border p-4 text-sm space-y-2">
           <div className="flex items-center gap-2 font-medium">
@@ -411,7 +481,7 @@ export function PaymentSummaryModal({
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
           </Button>
-          <Button className="currency" onClick={handleConfirm} disabled={submitting || balanceShort || items.length === 0}>
+          <Button className="currency" onClick={handleConfirm} disabled={submitting || balanceShort || walletBalanceShort || items.length === 0}>
             {submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             {submitting ? 'Processing…' : `Send ${formatNaira(cost.totalAmount)}`}
           </Button>

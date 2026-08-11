@@ -37,6 +37,8 @@ import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import {
   createTransferRecipient,
+  totalChargeFor,
+  batchCostBreakdown,
   initiateTransferIdempotent,
   verifyTransfer,
   getBankCode,
@@ -66,6 +68,7 @@ import {
   createDvaAccount,
   deleteDvaAccount,
   fetchWalletBalance,
+  fetchWalletBalanceOrNull,
   fetchWalletLedger,
   checkWalletCanCover,
   type PrincipalWalletDva,
@@ -84,7 +87,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -588,7 +591,7 @@ function CompanyDisbursementSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(amount);
+      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount));
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const { data: batch, error: batchErr } = await supabase
@@ -776,6 +779,8 @@ function CompanyDisbursementSendDialog({
         label={form.description || directorDisbursementCategoryLabel(form.category)}
         title="Confirm Company Disbursement"
         onConfirm={(narration) => executeSend(narration)}
+        fetchWalletBalance={fetchWalletBalanceOrNull}
+        walletBalanceLabel="Principal Disbursements wallet"
       />
     </>
   );
@@ -1334,7 +1339,7 @@ function PersonalTransferSendDialog({
         const cap = await previewCapCheck(profile.id, amount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(amount);
+      const walletCheck = await checkWalletCanCover(amount + totalChargeFor(amount));
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const bankCode = getBankCode(bank.bank_name);
@@ -1501,6 +1506,8 @@ function PersonalTransferSendDialog({
         label={form.memo || 'Personal transfer'}
         title="Confirm Personal Transfer"
         onConfirm={(narration) => executeSend(narration)}
+        fetchWalletBalance={fetchWalletBalanceOrNull}
+        walletBalanceLabel="Principal Disbursements wallet"
       />
     </>
   );
@@ -1610,6 +1617,15 @@ function PersonalTransferBatchDialog({
   const allAmountsValid = selectedBeneficiaries.length > 0
     && selectedBeneficiaries.every((b) => Number.isFinite(parseFloat(amounts[b.id])) && parseFloat(amounts[b.id]) > 0);
 
+  const batchCost = batchCostBreakdown(selectedBeneficiaries.map((b) => parseFloat(amounts[b.id]) || 0));
+
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open) { setWalletBalance(null); return; }
+    void fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => setWalletBalance(null));
+  }, [open]);
+  const walletInsufficient = walletBalance != null && batchCost.grandTotal > walletBalance;
+
   const riskFlags = useMemo(
     () => computeBatchRiskFlags(selectedBeneficiaries, amounts, history),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1624,7 +1640,7 @@ function PersonalTransferBatchDialog({
         const cap = await previewCapCheck(profile.id, totalAmount);
         if (cap && !cap.allowed) throw new Error(cap.reason || 'Transfer cap exceeded');
       }
-      const walletCheck = await checkWalletCanCover(totalAmount);
+      const walletCheck = await checkWalletCanCover(batchCost.grandTotal);
       if (!walletCheck.ok) throw new Error(walletCheck.reason);
 
       const label = batchLabel.trim() || null;
@@ -1732,7 +1748,7 @@ function PersonalTransferBatchDialog({
       ) : (
         <>
           <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
-          <Button onClick={executeBatch} disabled={processing || !allAmountsValid} className="kd-mobile-tap">
+          <Button onClick={executeBatch} disabled={processing || !allAmountsValid || walletInsufficient} className="kd-mobile-tap">
             {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <Layers className="mr-2 h-4 w-4" /> Send batch {selectedBeneficiaries.length > 0 && `(${selectedBeneficiaries.length})`}
           </Button>
@@ -1814,7 +1830,21 @@ function PersonalTransferBatchDialog({
             <p className="text-sm text-muted-foreground">
               {selectedBeneficiaries.length} recipient{selectedBeneficiaries.length !== 1 ? 's' : ''} ·{' '}
               total <span className="font-semibold currency">{formatNaira(totalAmount)}</span>
+              {batchCost.totalCharges > 0 && (
+                <> + <span className="currency">{formatNaira(batchCost.totalCharges)}</span> fees = <span className="font-semibold currency">{formatNaira(batchCost.grandTotal)}</span></>
+              )}
             </p>
+          )}
+          {walletInsufficient && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Insufficient Principal Disbursements wallet balance</AlertTitle>
+              <AlertDescription>
+                This batch (₦{batchCost.grandTotal.toLocaleString('en-NG', { minimumFractionDigits: 2 })} including fees) is{' '}
+                ₦{(batchCost.grandTotal - (walletBalance ?? 0)).toLocaleString('en-NG', { minimumFractionDigits: 2 })}{' '}
+                more than the wallet balance (₦{(walletBalance ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}) — fund the dedicated account before sending.
+              </AlertDescription>
+            </Alert>
           )}
           {riskFlags.length > 0 && (
             <Alert className="border-amber-500/40 bg-amber-500/5">
