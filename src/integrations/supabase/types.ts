@@ -3219,6 +3219,7 @@ export type Database = {
           html_body: string
           id: string
           name: string | null
+          scheduled_for: string | null
           started_at: string | null
           status: string
           subject: string
@@ -3237,6 +3238,7 @@ export type Database = {
           html_body: string
           id?: string
           name?: string | null
+          scheduled_for?: string | null
           started_at?: string | null
           status?: string
           subject: string
@@ -3255,6 +3257,7 @@ export type Database = {
           html_body?: string
           id?: string
           name?: string | null
+          scheduled_for?: string | null
           started_at?: string | null
           status?: string
           subject?: string
@@ -5466,6 +5469,123 @@ export type Database = {
             columns: ["loan_id"]
             isOneToOne: false
             referencedRelation: "employee_loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_campaign_recipients: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error: string | null
+          id: string
+          name: string | null
+          provider_id: string | null
+          sent_at: string | null
+          status: string
+          to_address: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          name?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_address: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          name?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_campaign_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "message_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_campaigns: {
+        Row: {
+          channel: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          name: string | null
+          scheduled_for: string | null
+          started_at: string | null
+          status: string
+          test_mode: boolean
+          total_failed: number
+          total_recipients: number
+          total_sent: number
+        }
+        Insert: {
+          channel: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          name?: string | null
+          scheduled_for?: string | null
+          started_at?: string | null
+          status?: string
+          test_mode?: boolean
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+        }
+        Update: {
+          channel?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          name?: string | null
+          scheduled_for?: string | null
+          started_at?: string | null
+          status?: string
+          test_mode?: boolean
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "message_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "message_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -12949,6 +13069,7 @@ export type Database = {
         }
       }
       tick_batch_worker: { Args: never; Returns: undefined }
+      tick_campaign_scheduler: { Args: never; Returns: undefined }
       tick_fx_rate_sync: { Args: never; Returns: undefined }
       tick_heyreach_sync: { Args: never; Returns: undefined }
       tick_payment_reconciliation: { Args: never; Returns: undefined }
