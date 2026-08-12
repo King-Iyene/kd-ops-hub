@@ -12530,15 +12530,26 @@ export type Database = {
         Args: { p_amount_ngn: number; p_reference: string }
         Returns: Json
       }
-      credit_principal_wallet: {
-        Args: {
-          p_amount_ngn: number
-          p_paystack_raw: Json
-          p_receiver_account_number: string
-          p_reference: string
-        }
-        Returns: Json
-      }
+      credit_principal_wallet:
+        | {
+            Args: {
+              p_amount_ngn: number
+              p_paystack_raw: Json
+              p_receiver_account_number: string
+              p_reference: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_amount_ngn: number
+              p_customer_code?: string
+              p_paystack_raw: Json
+              p_receiver_account_number: string
+              p_reference: string
+            }
+            Returns: Json
+          }
       current_tenant_id: { Args: never; Returns: string }
       current_user_is_active: { Args: never; Returns: boolean }
       current_user_role: { Args: never; Returns: string }
