@@ -140,13 +140,21 @@ serve(async (req) => {
           const reason = body.data?.failures?.[0]?.reason || body.data?.reason;
 
           if (status === "success") {
+            // body.data.fee is the COMBINED total (transfer fee + stamp
+            // duty), not the pure fee — see the identical fix + evidence
+            // in paystack-webhook/index.ts. Subtract duty here too so
+            // paystack_fee_ngn stays "fee alone" everywhere it's written.
             const feeKobo = Number(body.data?.fee) || 0;
+            const totalFeeNgn = feeKobo > 0 ? feeKobo / 100 : 0;
+            const txnAmountNgn = Number(body.data?.amount || 0) / 100;
+            const stampDuty = txnAmountNgn >= 10_000 ? 50 : 0;
+            const pureFeeNgn = Math.max(0, totalFeeNgn - stampDuty);
             await service.from("batch_items").update({
               status: "succeeded",
               failure_reason: null,
               processed_at: new Date().toISOString(),
               paystack_raw: body.data,
-              paystack_fee_ngn: feeKobo > 0 ? feeKobo / 100 : 0,
+              paystack_fee_ngn: pureFeeNgn,
             }).eq("id", it.id);
             succeeded++;
           } else if (status === "reversed") {
@@ -301,10 +309,16 @@ serve(async (req) => {
             break;
           }
           const body = await res.json();
+          // Same combined-total-vs-pure-fee issue as Pass 1 above —
+          // subtract stamp duty before storing.
           const feeKobo = Number(body.data?.fee) || 0;
           if (feeKobo > 0) {
+            const totalFeeNgn = feeKobo / 100;
+            const txnAmountNgn = Number(body.data?.amount || 0) / 100;
+            const stampDuty = txnAmountNgn >= 10_000 ? 50 : 0;
+            const pureFeeNgn = Math.max(0, totalFeeNgn - stampDuty);
             await service.from("batch_items")
-              .update({ paystack_fee_ngn: feeKobo / 100 })
+              .update({ paystack_fee_ngn: pureFeeNgn })
               .eq("id", it.id);
             feesBackfilled++;
           }

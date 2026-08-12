@@ -318,7 +318,23 @@ serve(async (req) => {
   // ------------------------------------------------------------------
   // H-8: For transfer.success, fetch the fee BEFORE the atomic RPC so
   // we can pass it in the same DB transaction.
+  //
+  // Paystack's /transfer/verify `data.fee` is the COMBINED total —
+  // transfer fee + government stamp duty — not the pure transfer fee.
+  // Confirmed against a real Paystack dashboard entry: "Total fees ₦75"
+  // = "Transfer fees ₦25" + "Stamp duty fee ₦50". Every other place in
+  // this app (receipts, cost previews, wallet checks) treats fee and
+  // stamp duty as two separate line items and adds stampDutyFor() on
+  // top of paystack_fee_ngn — so storing the combined value here was
+  // silently double-counting the ₦50 duty on every receipt for a
+  // transfer ≥ ₦10,000. Subtract it here, once, at the source, so
+  // paystack_fee_ngn always means "pure transfer fee" everywhere it's
+  // read. Mirrors STAMP_DUTY_THRESHOLD_NGN/STAMP_DUTY_AMOUNT_NGN in
+  // src/lib/paystack.ts — keep both in sync if Paystack's duty rule
+  // ever changes.
   // ------------------------------------------------------------------
+  const STAMP_DUTY_THRESHOLD_NGN = 10_000;
+  const STAMP_DUTY_AMOUNT_NGN = 50;
   let feeNgn = 0;
   if (event === "transfer.success") {
     try {
@@ -330,7 +346,10 @@ serve(async (req) => {
         );
         const feeBody = await feeRes.json();
         const feeKobo = Number(feeBody.data?.fee) || 0;
-        feeNgn = feeKobo > 0 ? feeKobo / 100 : 0;
+        const totalFeeNgn = feeKobo > 0 ? feeKobo / 100 : 0;
+        const transferAmountNgn = Number(data?.amount || 0) / 100;
+        const stampDuty = transferAmountNgn >= STAMP_DUTY_THRESHOLD_NGN ? STAMP_DUTY_AMOUNT_NGN : 0;
+        feeNgn = Math.max(0, totalFeeNgn - stampDuty);
       }
     } catch (feeErr) {
       console.warn("[webhook] Could not fetch transfer fee:", feeErr);

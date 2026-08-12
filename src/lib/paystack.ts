@@ -34,7 +34,21 @@ export function generateKdopsRef(sourceId: string): string {
 const STAMP_DUTY_THRESHOLD_NGN = 10_000;
 const STAMP_DUTY_AMOUNT_NGN = 50;
 
-/** Paystack flat-tier transfer fee only (no stamp duty). */
+/** Paystack flat-tier transfer fee only (no stamp duty).
+ *
+ *  This formula was briefly "corrected" to a 10/25/75/100 schedule after
+ *  paystack_fee_ngn on real transfers showed ₦75 for a ₦15,191 transfer —
+ *  that was wrong. A user-supplied Paystack dashboard screenshot showed
+ *  the real breakdown: Transfer fees ₦25 + Stamp duty fee ₦50 = Total
+ *  fees ₦75. Paystack's /transfer/verify `data.fee` field (what the
+ *  webhook stores into paystack_fee_ngn) is the COMBINED total, not the
+ *  pure transfer fee. Subtracting stampDutyFor(amount) from every stored
+ *  paystack_fee_ngn value in the real dataset reproduces this exact
+ *  10/25/50 schedule with zero exceptions across 23 real transfers
+ *  (₦500–₦582,531) — this was correct all along. The actual bug is
+ *  elsewhere: paystack_fee_ngn already includes stamp duty, so anywhere
+ *  that reads it AND separately adds stampDutyFor() double-counts the
+ *  duty. See credit_principal_wallet-adjacent fee-display fixes. */
 export function paystackTransferFee(amountNgn: number): number {
   if (amountNgn <= 0) return 0;
   if (amountNgn <= 5_000) return 10;

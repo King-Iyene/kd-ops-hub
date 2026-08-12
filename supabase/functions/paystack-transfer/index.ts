@@ -538,9 +538,28 @@ serve(async (req) => {
         // `fee` — fall back to either spelling. Convert to NGN for
         // consistency with how every other amount is stored on our
         // side. NULL when Paystack hasn't decided yet (still pending).
+        //
+        // This is the COMBINED total (transfer fee + government stamp
+        // duty), not the pure transfer fee — confirmed against a real
+        // Paystack dashboard entry ("Total fees" = "Transfer fees" +
+        // "Stamp duty fee"). Every caller of this action (ReceiptModal's
+        // fee backfill, Transactions' background reconcile) treats the
+        // stored fee_ngn as the fee alone and separately adds stamp duty
+        // on top, so returning the raw combined value double-counted the
+        // ₦50 duty on every backfilled fee for a transfer ≥ ₦10,000.
+        // Subtract it here, mirroring the identical fix in
+        // paystack-webhook/index.ts. Keep STAMP_DUTY_* in sync with
+        // src/lib/paystack.ts if Paystack's duty rule ever changes.
+        const STAMP_DUTY_THRESHOLD_NGN = 10_000;
+        const STAMP_DUTY_AMOUNT_NGN = 50;
         const feeKobo =
           body.data?.fee_charged ?? body.data?.fee ?? body.data?.transfer?.fee_charged ?? null;
-        const feeNgn = feeKobo == null ? null : Number(feeKobo) / 100;
+        let feeNgn = feeKobo == null ? null : Number(feeKobo) / 100;
+        if (feeNgn != null) {
+          const transferAmountNgn = Number(body.data?.amount || 0) / 100;
+          const stampDuty = transferAmountNgn >= STAMP_DUTY_THRESHOLD_NGN ? STAMP_DUTY_AMOUNT_NGN : 0;
+          feeNgn = Math.max(0, feeNgn - stampDuty);
+        }
         result = {
           status: body.data?.status,
           transfer_code: body.data?.transfer_code,
