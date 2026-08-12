@@ -7508,6 +7508,143 @@ export type Database = {
           },
         ]
       }
+      personal_transfer_drafts: {
+        Row: {
+          amount_ngn: number
+          beneficiary_id: string | null
+          created_at: string
+          created_by: string
+          id: string
+          memo: string | null
+          schedule_id: string | null
+        }
+        Insert: {
+          amount_ngn: number
+          beneficiary_id?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          memo?: string | null
+          schedule_id?: string | null
+        }
+        Update: {
+          amount_ngn?: number
+          beneficiary_id?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          memo?: string | null
+          schedule_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transfer_drafts_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transfer_beneficiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_drafts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_drafts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_drafts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_drafts_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transfer_recurring_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_transfer_recurring_schedules: {
+        Row: {
+          amount_ngn: number
+          beneficiary_id: string
+          created_at: string
+          created_by: string
+          day_of_month: number
+          id: string
+          last_run_date: string | null
+          memo: string | null
+          next_run_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_ngn: number
+          beneficiary_id: string
+          created_at?: string
+          created_by: string
+          day_of_month: number
+          id?: string
+          last_run_date?: string | null
+          memo?: string | null
+          next_run_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_ngn?: number
+          beneficiary_id?: string
+          created_at?: string
+          created_by?: string
+          day_of_month?: number
+          id?: string
+          last_run_date?: string | null
+          memo?: string | null
+          next_run_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transfer_recurring_schedules_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transfer_beneficiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_recurring_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_recurring_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "personal_transfer_recurring_schedules_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_transfers: {
         Row: {
           amount_ngn: number
@@ -12998,6 +13135,10 @@ export type Database = {
           p_reference: string
         }
         Returns: Json
+      }
+      process_personal_transfer_recurring_schedules: {
+        Args: never
+        Returns: undefined
       }
       process_recurring_schedules: { Args: never; Returns: undefined }
       purge_archived_payment_batches: {
