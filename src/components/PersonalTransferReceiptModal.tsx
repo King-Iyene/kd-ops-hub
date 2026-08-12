@@ -386,22 +386,25 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
                   </div>
                 )}
 
-                {/* Rotated verification stamp — replaces the giant diagonal
-                    watermark with something that reads like an actual
-                    document mark instead of a template placeholder. */}
-                <div
-                  aria-hidden
-                  style={{
-                    position: 'absolute', right: '30px', bottom: '18px', width: '84px', height: '84px',
-                    borderRadius: '50%', border: `2.5px dashed ${s.dot}`, display: 'flex', alignItems: 'center',
-                    justifyContent: 'center', transform: 'rotate(-13deg)', background: 'rgba(255,255,255,0.72)',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <div style={{ textAlign: 'center', color: s.dot, lineHeight: 1.3 }}>
-                    <div style={{ fontSize: '7.5px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Paystack</div>
-                    <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '0.03em' }}>{s.label}</div>
-                    <div style={{ fontSize: '7px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Verified</div>
+                {/* Verification stamp — in normal document flow (NOT
+                    absolutely positioned) so it can never sit on top of
+                    the total or any other figure, regardless of content
+                    length. Reads like an actual document mark instead of
+                    a template placeholder. */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                  <div
+                    aria-hidden
+                    style={{
+                      width: '76px', height: '76px', flexShrink: 0,
+                      borderRadius: '50%', border: `2.5px dashed ${s.dot}`, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', transform: 'rotate(-13deg)', background: hexToRgba(s.dot, 0.04),
+                    }}
+                  >
+                    <div style={{ textAlign: 'center', color: s.dot, lineHeight: 1.3 }}>
+                      <div style={{ fontSize: '7px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Paystack</div>
+                      <div style={{ fontSize: '11px', fontWeight: 900, letterSpacing: '0.03em' }}>{s.label}</div>
+                      <div style={{ fontSize: '6.5px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Verified</div>
+                    </div>
                   </div>
                 </div>
               </div>
