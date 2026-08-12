@@ -13,8 +13,10 @@ interface Props {
    *  paths — Fleet), 'pulse' (a single live signal line — Approvals,
    *  anything "here's what's active right now"), 'constellation' (nodes
    *  + connections — CRM/people pages), 'contour' (topographic elevation
-   *  rings — geography/terrain/distance framing). Omit for a plain hero. */
-  pattern?: 'grid' | 'route' | 'pulse' | 'constellation' | 'contour' | 'none';
+   *  rings — geography/terrain/distance framing), 'nest' (fine dot grid +
+   *  nested faceted gems — a vault/treasury feel for a ring-fenced wallet).
+   *  Omit for a plain hero. */
+  pattern?: 'grid' | 'route' | 'pulse' | 'constellation' | 'contour' | 'nest' | 'none';
 }
 
 export function AuroraHero({
@@ -47,6 +49,7 @@ export function AuroraHero({
           {pattern === 'pulse' && <HeroPulse />}
           {pattern === 'constellation' && <HeroConstellation />}
           {pattern === 'contour' && <HeroContour />}
+          {pattern === 'nest' && <HeroNest />}
         </div>
       )}
       <div className="relative">{children}</div>
@@ -166,6 +169,35 @@ function HeroContour() {
         strokeWidth="1.5"
       />
       <circle cx="358" cy="60" r="3" fill="hsl(var(--primary) / 0.55)" />
+    </svg>
+  );
+}
+
+function HeroNest() {
+  // Fine dot-grid texture + nested faceted "gems" (diamonds cut like a
+  // cube/vault door) — money held somewhere faceted and secure, not a
+  // flat ledger. Colors still derive from --primary/--accent so this
+  // stays theme-safe; a page can retint both by scoping a CSS class
+  // around its AuroraHero (see .principal-hero in index.css).
+  return (
+    <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+      <defs>
+        <pattern id="hero-nest-dots" width="14" height="14" patternUnits="userSpaceOnUse">
+          <circle cx="1.5" cy="1.5" r="1.1" fill="hsl(var(--primary) / 0.16)" />
+        </pattern>
+      </defs>
+      <rect width="400" height="200" fill="url(#hero-nest-dots)" />
+      <g transform="translate(330,70)">
+        <path d="M0,-58 L58,0 L0,58 L-58,0 Z" fill="none" stroke="hsl(var(--primary) / 0.22)" strokeWidth="1.5" />
+        <path d="M0,-40 L40,0 L0,40 L-40,0 Z" fill="none" stroke="hsl(var(--primary) / 0.34)" strokeWidth="1.5" />
+        <path d="M0,-24 L24,0 L0,24 L-24,0 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1.5" />
+        <path d="M0,-11 L11,0 L0,11 L-11,0 Z" fill="hsl(var(--accent) / 0.55)" />
+      </g>
+      <g transform="translate(88,148)">
+        <path d="M0,-30 L30,0 L0,30 L-30,0 Z" fill="none" stroke="hsl(var(--primary) / 0.2)" strokeWidth="1.5" />
+        <path d="M0,-16 L16,0 L0,16 L-16,0 Z" fill="none" stroke="hsl(var(--primary) / 0.32)" strokeWidth="1.5" />
+        <circle cx="0" cy="0" r="3" fill="hsl(var(--accent) / 0.5)" />
+      </g>
     </svg>
   );
 }

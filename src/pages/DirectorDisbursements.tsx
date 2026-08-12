@@ -136,7 +136,13 @@ export default function DirectorDisbursements() {
 
   return (
     <div className="space-y-4">
-      <AuroraHero className="p-5 sm:p-6" pattern="grid">
+      <AuroraHero className="principal-hero p-5 sm:p-6" pattern="nest">
+        <img
+          src="/icon-192.png"
+          alt=""
+          aria-hidden
+          className="pointer-events-none select-none absolute -right-6 -bottom-8 h-32 w-32 opacity-[0.06] dark:opacity-[0.08] rotate-[-8deg]"
+        />
         <PageHeader
           className="mb-0"
           title="Principal Disbursements"
