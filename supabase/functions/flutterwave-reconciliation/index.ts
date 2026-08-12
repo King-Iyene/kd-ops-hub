@@ -15,6 +15,7 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
@@ -58,9 +59,14 @@ serve(async (req) => {
     let triggeredBy: string | null = null;
 
     if (scheduled) {
+      // Timing-safe comparison — mirrors paystack-reconciliation, which
+      // already used timingSafeEqual here; this one used a plain !== that
+      // leaks comparison timing on a security-sensitive service-role check.
       const auth = req.headers.get("Authorization") ?? "";
-      if (auth.replace("Bearer ", "") !== SERVICE_ROLE) {
-        return json({ error: "Scheduled runs require service-role auth" }, 401);
+      const enc = new TextEncoder();
+      const token = auth.replace("Bearer ", "");
+      if (token.length !== SERVICE_ROLE.length || !timingSafeEqual(enc.encode(token), enc.encode(SERVICE_ROLE))) {
+        return json({ error: "Scheduled runs require service-role auth" }, 401, corsHeaders);
       }
     } else {
       const authHeader = req.headers.get("Authorization") ?? "";
@@ -68,11 +74,11 @@ serve(async (req) => {
       const { data: { user } } = await userClient.auth.getUser(
         authHeader.replace("Bearer ", ""),
       );
-      if (!user) return json({ error: "Not authenticated" }, 401);
+      if (!user) return json({ error: "Not authenticated" }, 401, corsHeaders);
       const { data: profile } = await service
         .from("profiles").select("role").eq("id", user.id).single();
       if (!["super_admin", "admin", "finance"].includes(profile?.role)) {
-        return json({ error: "Insufficient permissions" }, 403);
+        return json({ error: "Insufficient permissions" }, 403, corsHeaders);
       }
       triggeredBy = user.id;
     }
@@ -172,14 +178,14 @@ serve(async (req) => {
       failed,
       unchanged,
       triggered_by: triggeredBy,
-    });
+    }, 200, corsHeaders);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500);
+    return json({ ok: false, error: message }, 500, corsHeaders);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status: number, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },

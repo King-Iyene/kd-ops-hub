@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       advance_requests: {
@@ -4009,6 +3984,86 @@ export type Database = {
           },
         ]
       }
+      employee_earnings: {
+        Row: {
+          amount_ngn: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          earning_type: string
+          end_date: string | null
+          entity_id: string
+          entity_type: string
+          frequency: string
+          id: string
+          is_taxable: boolean
+          start_date: string
+          status: string
+        }
+        Insert: {
+          amount_ngn: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description: string
+          earning_type?: string
+          end_date?: string | null
+          entity_id: string
+          entity_type: string
+          frequency?: string
+          id?: string
+          is_taxable?: boolean
+          start_date: string
+          status?: string
+        }
+        Update: {
+          amount_ngn?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          earning_type?: string
+          end_date?: string | null
+          entity_id?: string
+          entity_type?: string
+          frequency?: string
+          id?: string
+          is_taxable?: boolean
+          start_date?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_earnings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "employee_earnings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "employee_earnings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_earnings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_loans: {
         Row: {
           amount_ngn: number
@@ -7655,6 +7710,7 @@ export type Database = {
           created_at: string
           deductions_json: Json | null
           deductions_ngn: number | null
+          earnings_json: Json | null
           employee_email: string | null
           employee_id: string | null
           employee_name: string
@@ -7675,6 +7731,7 @@ export type Database = {
           created_at?: string
           deductions_json?: Json | null
           deductions_ngn?: number | null
+          earnings_json?: Json | null
           employee_email?: string | null
           employee_id?: string | null
           employee_name: string
@@ -7695,6 +7752,7 @@ export type Database = {
           created_at?: string
           deductions_json?: Json | null
           deductions_ngn?: number | null
+          earnings_json?: Json | null
           employee_email?: string | null
           employee_id?: string | null
           employee_name?: string
@@ -14843,9 +14901,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

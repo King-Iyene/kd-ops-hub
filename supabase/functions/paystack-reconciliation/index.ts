@@ -70,7 +70,7 @@ serve(async (req) => {
       const enc = new TextEncoder();
       const token = auth.replace("Bearer ", "");
       if (token.length !== SERVICE_ROLE.length || !timingSafeEqual(enc.encode(token), enc.encode(SERVICE_ROLE))) {
-        return json({ error: "Scheduled runs require service-role auth" }, 401);
+        return json({ error: "Scheduled runs require service-role auth" }, 401, corsHeaders);
       }
     } else {
       // Manual run — require admin/finance/super_admin.
@@ -79,14 +79,14 @@ serve(async (req) => {
       const { data: { user } } = await userClient.auth.getUser(
         authHeader.replace("Bearer ", ""),
       );
-      if (!user) return json({ error: "Not authenticated" }, 401);
+      if (!user) return json({ error: "Not authenticated" }, 401, corsHeaders);
       const { data: profile } = await service
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
       if (!["super_admin", "admin", "finance"].includes(profile?.role)) {
-        return json({ error: "Insufficient permissions" }, 403);
+        return json({ error: "Insufficient permissions" }, 403, corsHeaders);
       }
       triggeredBy = user.id;
     }
@@ -351,7 +351,7 @@ serve(async (req) => {
         unchanged,
         otp_required: otpRequired,
         fees_backfilled: feesBackfilled,
-      });
+      }, 200, corsHeaders);
     } catch (e: any) {
       await service.from("paystack_reconciliation_runs").update({
         completed_at: new Date().toISOString(),
@@ -362,11 +362,11 @@ serve(async (req) => {
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return json({ ok: false, error: message }, 500);
+    return json({ ok: false, error: message }, 500, corsHeaders);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status: number, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
