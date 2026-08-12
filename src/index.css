@@ -87,12 +87,19 @@
     --tod-greeting: 'Good afternoon';
   }
 
-  /* Morning — brightest, most energetic cyan (5am–11am) */
+  /* Morning — brightest, most energetic cyan (5am–11am). Shares afternoon's
+     186° hue at only +12 lightness — inside a 120px-blurred, 25%-opacity
+     glow that delta is imperceptible (blur/low-alpha collapse fine
+     lightness differences), so morning read as visually identical to
+     afternoon. Evening/night avoid this because they also shift hue
+     (41° gold, 205° muted blue) — giving morning its own hue (a fresher
+     aqua-teal, still the brand's blue-green family) instead of reusing
+     afternoon's exactly is what actually makes it read as different. */
   html[data-tod="morning"] {
-    --tod-aurora-1: 190 85% 50%;    /* fresh teal-cyan */
-    --tod-aurora-2: 186 100% 62%;   /* brightest cyan of the four */
-    --tod-aurora-3: 196 85% 42%;    /* clear teal */
-    --tod-glow:     186 100% 62%;
+    --tod-aurora-1: 178 90% 48%;    /* fresh aqua-teal */
+    --tod-aurora-2: 172 100% 62%;   /* brightest, coolest cyan of the four */
+    --tod-aurora-3: 185 85% 40%;    /* clear teal */
+    --tod-glow:     172 100% 62%;
     --tod-pulse:    2.6s;
     --tod-drift:    10s;
     --tod-greeting: 'Good morning';
