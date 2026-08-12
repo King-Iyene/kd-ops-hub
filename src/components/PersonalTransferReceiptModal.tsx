@@ -232,7 +232,6 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               fontFamily: 'Inter, system-ui, sans-serif',
               color: '#18181b',
               zIndex: 1,
-              borderLeft: bold ? `5px solid ${BRAND}` : undefined,
             }}
           >
             {/* In-card status watermark, colour-matched to the outcome */}
@@ -260,27 +259,42 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               }}
             />
 
-            <div style={{ height: bold ? '7px' : '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            {!bold && (
+              <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            )}
 
-            {/* Header */}
-            <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+            {/* Header — a solid brand-colored band when bold, plain otherwise */}
+            <div style={{
+              padding: '24px 28px 18px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              position: 'relative',
+              zIndex: 1,
+              ...(bold
+                ? { background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)` }
+                : { borderBottom: '1px solid #f0f0f0' }),
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                <img
-                  src={logoUrl || '/icon-192.png'}
-                  alt=""
-                  style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
-                  crossOrigin="anonymous"
-                />
+                <div style={bold ? { background: '#fff', borderRadius: '9px', padding: '3px', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' } : undefined}>
+                  <img
+                    src={logoUrl || '/icon-192.png'}
+                    alt=""
+                    style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
+                    crossOrigin="anonymous"
+                  />
+                </div>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>{shortName}</div>
-                  <div style={{ fontSize: '11px', color: '#888', marginTop: '1px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: bold ? '#fff' : '#111' }}>{shortName}</div>
+                  <div style={{ fontSize: '11px', color: bold ? 'rgba(255,255,255,0.75)' : '#888', marginTop: '1px' }}>
                     {s.tone === 'failed' ? 'Transfer Failed' : s.tone === 'reversed' ? 'Transfer Reversed' : s.tone === 'pending' ? 'Transfer Pending' : 'Personal Transfer Confirmation'}
                   </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
-                <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: bold ? '#fff' : '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
+                <div style={{ fontSize: '10px', color: bold ? 'rgba(255,255,255,0.7)' : '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
             </div>
 

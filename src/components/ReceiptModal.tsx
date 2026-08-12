@@ -412,18 +412,18 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               margin: '0 auto',
               // Subtle brand-tinted dot pattern on the white card —
               // "engineered paper" feel without overpowering content.
-              // Tinted to whichever BRAND is active (blue by default,
-              // Principal Disbursements' purple when overridden) instead
-              // of a hardcoded blue, so this stays consistent even when
-              // the backdrop itself goes neutral.
-              background: `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              // Only tinted/varied when `bold` (Principal Disbursements) —
+              // the default (regular payroll/vendor receipt) keeps the
+              // exact original hardcoded value, unchanged.
+              background: bold
+                ? `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`
+                : `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
               fontFamily: 'Inter, system-ui, sans-serif',
               color: '#18181b',
               zIndex: 1,
-              borderLeft: bold ? `5px solid ${BRAND}` : undefined,
             }}
           >
             {/* In-card status watermark — faded "SUCCESSFUL" / "FAILED" /
@@ -455,48 +455,79 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               {s.label}
             </div>
 
-            {/* Faint brand-mark watermark, bottom-right of the card — same
-                emblem the app itself uses, low-opacity so it reads as
-                texture rather than a second logo. */}
-            <img
-              src={logoUrl || '/icon-192.png'}
-              alt=""
-              aria-hidden
-              crossOrigin="anonymous"
-              style={{
-                position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
-                objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
-              }}
-            />
+            {/* Faint brand-mark watermark, bottom-right of the card — ONLY
+                on the bold (Principal Disbursements) variant. The regular
+                payroll/vendor receipt must render exactly as it did before
+                today's changes. */}
+            {bold && (
+              <img
+                src={logoUrl || '/icon-192.png'}
+                alt=""
+                aria-hidden
+                crossOrigin="anonymous"
+                style={{
+                  position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
+                  objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
+                }}
+              />
+            )}
 
-            {/* Top accent bar — thicker when bold */}
-            <div style={{ height: bold ? '7px' : '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            {/* Top accent bar — skipped when bold, since the header band below
+                already carries the brand color much more visibly. */}
+            {!bold && (
+              <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            )}
 
-            {/* Header */}
-            <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+            {/* Header — a solid brand-colored band when bold (the actual
+                "designed receipt" look), plain white/black otherwise. */}
+            <div style={{
+              padding: '24px 28px 18px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: '16px',
+              position: 'relative',
+              zIndex: 1,
+              ...(bold
+                ? { background: `linear-gradient(135deg, ${BRAND} 0%, ${BRAND_DARK} 100%)` }
+                : { borderBottom: '1px solid #f0f0f0' }),
+            }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                 {/* Always render the brand emblem — never initials.
                     The "KS" text fallback was the source of cross-role
                     inconsistency (one user saw the proper logo, another
                     saw "KS"). When company_settings.logo_url is empty
                     or unreadable for the current role, the bundled PWA
-                    icon stands in as a deterministic emblem. */}
-                <img
-                  src={logoUrl || '/icon-192.png'}
-                  alt=""
-                  style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
-                  crossOrigin="anonymous"
-                />
+                    icon stands in as a deterministic emblem. White pad
+                    behind it when bold so a transparent/dark logo still
+                    reads clearly on the colored band. */}
+                {bold ? (
+                  <div style={{ background: '#fff', borderRadius: '9px', padding: '3px', display: 'flex', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
+                    <img
+                      src={logoUrl || '/icon-192.png'}
+                      alt=""
+                      style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
+                      crossOrigin="anonymous"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src={logoUrl || '/icon-192.png'}
+                    alt=""
+                    style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
+                    crossOrigin="anonymous"
+                  />
+                )}
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>{shortName}</div>
-                  <div style={{ fontSize: '11px', color: '#888', marginTop: '1px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: bold ? '#fff' : '#111' }}>{shortName}</div>
+                  <div style={{ fontSize: '11px', color: bold ? 'rgba(255,255,255,0.75)' : '#888', marginTop: '1px' }}>
                     {s.tone === 'failed' ? 'Payment Failed' : s.tone === 'reversed' ? 'Payment Reversed' : s.tone === 'pending' ? 'Payment Pending' : 'Payment Confirmation'}
                   </div>
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '26px', fontWeight: 800, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
-                <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: bold ? '#fff' : '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
+                <div style={{ fontSize: '10px', color: bold ? 'rgba(255,255,255,0.7)' : '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
               </div>
             </div>
 
