@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { BulkActionBar } from '@/components/ui-kit/BulkActionBar';
+import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { Checkbox } from '@/components/ui/checkbox';
 import { displayName } from '@/lib/name';
 import { formatDate, formatNaira } from '@/lib/format';
@@ -2039,7 +2040,7 @@ const Contractors = () => {
                     )}
                   </TableCell>
                   <TableCell>{c.bank_name}</TableCell>
-                  <TableCell>{c.account_number}</TableCell>
+                  <TableCell><MaskedAccountNumber value={c.account_number} /></TableCell>
                   <TableCell className="text-right currency">
                     {formatNaira(c.default_amount_ngn || 0)}
                   </TableCell>
@@ -2143,8 +2144,8 @@ const Contractors = () => {
                     <MobileCardMeta className="currency">{formatNaira(c.default_amount_ngn || 0)}</MobileCardMeta>
                   </MobileCardHeader>
                   <MobileCardRow label="Bank">
-                    <span className="font-mono text-[11px] tracking-tight">
-                      {c.bank_name || '—'} · {c.account_number || '—'}
+                    <span className="text-[11px] tracking-tight flex items-center gap-1">
+                      {c.bank_name || '—'} · <MaskedAccountNumber value={c.account_number} />
                     </span>
                   </MobileCardRow>
                   <MobileCardRow label="HeyReach">

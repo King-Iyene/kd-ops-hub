@@ -9,6 +9,7 @@ let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
 let particles: Particle[] = [];
 let raf: number | null = null;
+let resizeListenerAttached = false;
 
 interface Particle {
   x: number;
@@ -33,11 +34,18 @@ function ensureCanvas() {
   ctx = canvas.getContext('2d');
   document.body.appendChild(canvas);
 
-  window.addEventListener('resize', () => {
-    if (!canvas) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  });
+  // Registered once for the module's lifetime — canvas is torn down and
+  // recreated between bursts (see loop()'s teardown branch), but the resize
+  // handler doesn't need to be; re-registering a new closure on every burst
+  // leaked one listener per burst cycle for the life of the page.
+  if (!resizeListenerAttached) {
+    resizeListenerAttached = true;
+    window.addEventListener('resize', () => {
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  }
 }
 
 function loop() {

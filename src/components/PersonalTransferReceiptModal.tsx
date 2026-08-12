@@ -35,12 +35,6 @@ interface Props {
   row: PersonalTransferRow | null;
   companyName?: string;
   logoUrl?: string | null;
-  /** Override the brand accent — see ReceiptModal's identical prop for why
-   *  Principal Disbursements passes its own here. */
-  brand?: string;
-  brandDark?: string;
-  /** See ReceiptModal's identical prop. */
-  neutralBackdrop?: boolean;
   /** Switches to the document-style layout (masthead, FROM/TO, itemized
    *  table, stamp, wave flourish) instead of the plain sectioned card. */
   bold?: boolean;
@@ -55,19 +49,15 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark, neutralBackdrop, bold }: Props) {
+export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, bold }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
-  const BRAND = brand || receiptTheme.brand;
-  const BRAND_DARK = brandDark || '#00547a';
-  const backdropBg = neutralBackdrop
-    ? `linear-gradient(180deg, #f4f2f7 0%, #e9e6ef 100%)`
-    : `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
-  const backdropWatermarkColor = neutralBackdrop ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.10)';
-  const closeBtnStyle = neutralBackdrop
-    ? { border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(0,0,0,0.05)', color: '#333' }
-    : { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
+  const BRAND = receiptTheme.brand;
+  const BRAND_DARK = '#00547a';
+  const backdropBg = `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
+  const backdropWatermarkColor = 'rgba(255,255,255,0.10)';
+  const closeBtnStyle = { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
   // The document-style layout sits on a plain paper surround, not a solid
   // color block — the typography/table/stamp carry the brand identity now.
   const docBackdropBg = '#eef1f4';

@@ -114,6 +114,37 @@ async function audit(
 }
 
 /**
+ * A wallet debit/refund RPC failing here means the Paystack transfer has
+ * already resolved (success/reversed) but the Principal Disbursements
+ * wallet balance did NOT move to match — a real desync, not a cosmetic
+ * error. Previously this was only console.warn'd, which is invisible
+ * outside a live log tail. Record it the same durable way every other
+ * payment-state event in this file is recorded (audit_logs + a high-
+ * priority finance notification) so it surfaces in the UI and can be
+ * reconciled, instead of silently drifting the wallet balance.
+ */
+async function alertWalletDesync(
+  supabase: Supabase,
+  op: "debit" | "refund",
+  scope: "personal_transfer" | "company_disbursement",
+  reference: string,
+  detail: string,
+): Promise<void> {
+  const description =
+    `Wallet ${op} failed for ${scope} (ref ${reference}): ${detail}. ` +
+    `The Paystack transfer already resolved — the wallet balance may now ` +
+    `be out of sync and needs manual reconciliation.`;
+  await audit(supabase, "principal_wallet_desync", description);
+  await notifyFinance(
+    supabase,
+    "wallet_desync",
+    `Wallet ${op} failed — balance may be out of sync`,
+    description,
+    "high",
+  );
+}
+
+/**
  * Resolve recipient email + name for a batch_item and dispatch the templated
  * 'payment.completed' email. Tries the employee profile first, then the
  * contractor row. Silent on any failure — email is informational only.
@@ -445,18 +476,31 @@ serve(async (req) => {
               p_related_batch_item_id: null,
               p_related_personal_transfer_id: (pt as any).id,
             });
-            if (debitErr) console.warn("[webhook] wallet debit failed (personal_transfer):", debitErr.message, reference);
+            if (debitErr) {
+              console.warn("[webhook] wallet debit failed (personal_transfer):", debitErr.message, reference);
+              await alertWalletDesync(supabase, "debit", "personal_transfer", reference, debitErr.message);
+            }
           } else {
             const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
               p_amount_ngn: (pt as any).amount_ngn,
               p_reference: reference,
             });
-            if (refundErr) console.warn("[webhook] wallet refund failed (personal_transfer):", refundErr.message, reference);
+            if (refundErr) {
+              console.warn("[webhook] wallet refund failed (personal_transfer):", refundErr.message, reference);
+              await alertWalletDesync(supabase, "refund", "personal_transfer", reference, refundErr.message);
+            }
           }
         }
       }
     } catch (e) {
       console.warn("[webhook] wallet effect threw (personal_transfer):", e, reference);
+      await alertWalletDesync(
+        supabase,
+        event === "transfer.success" ? "debit" : "refund",
+        "personal_transfer",
+        reference,
+        String(e),
+      );
     }
 
     return new Response("ok (personal_transfer)", { status: 200, headers: corsHeaders });
@@ -555,17 +599,30 @@ serve(async (req) => {
             p_related_batch_item_id: item.id,
             p_related_personal_transfer_id: null,
           });
-          if (debitErr) console.warn("[webhook] wallet debit failed (company_disbursement):", debitErr.message, reference);
+          if (debitErr) {
+            console.warn("[webhook] wallet debit failed (company_disbursement):", debitErr.message, reference);
+            await alertWalletDesync(supabase, "debit", "company_disbursement", reference, debitErr.message);
+          }
         } else {
           const { error: refundErr } = await supabase.rpc("credit_back_principal_wallet", {
             p_amount_ngn: item.amount_ngn,
             p_reference: reference,
           });
-          if (refundErr) console.warn("[webhook] wallet refund failed (company_disbursement):", refundErr.message, reference);
+          if (refundErr) {
+            console.warn("[webhook] wallet refund failed (company_disbursement):", refundErr.message, reference);
+            await alertWalletDesync(supabase, "refund", "company_disbursement", reference, refundErr.message);
+          }
         }
       }
     } catch (e) {
       console.warn("[webhook] wallet effect threw (company_disbursement):", e, reference);
+      await alertWalletDesync(
+        supabase,
+        event === "transfer.success" ? "debit" : "refund",
+        "company_disbursement",
+        reference,
+        String(e),
+      );
     }
   }
 

@@ -55,17 +55,6 @@ interface Props {
   batch: any;
   companyName?: string;
   logoUrl?: string | null;
-  /** Override the brand accent (header bar, status bar, section labels).
-   *  Used by Principal Disbursements to give its receipts a distinct
-   *  identity from a regular payroll/vendor receipt — pass both ends of
-   *  the backdrop gradient together or not at all. */
-  brand?: string;
-  brandDark?: string;
-  /** Swap the colored backdrop for a plain neutral panel — the brand
-   *  identity still shows on the white card itself (dot texture, logo
-   *  watermark, accent bar), it just isn't repeated as a big solid block
-   *  behind it too. Default false keeps the existing payroll receipt. */
-  neutralBackdrop?: boolean;
   /** Heavier brand presence on the card itself — thicker top accent bar
    *  plus a solid brand-colored left edge — for a receipt that should read
    *  as a step up from the standard payroll receipt without changing hue. */
@@ -90,19 +79,15 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark, neutralBackdrop, bold }: Props) {
+export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, bold }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
-  const BRAND = brand || receiptTheme.brand;
-  const BRAND_DARK = brandDark || '#00547a';
-  const backdropBg = neutralBackdrop
-    ? `linear-gradient(180deg, #f4f2f7 0%, #e9e6ef 100%)`
-    : `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
-  const backdropWatermarkColor = neutralBackdrop ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.10)';
-  const closeBtnStyle = neutralBackdrop
-    ? { border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(0,0,0,0.05)', color: '#333' }
-    : { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
+  const BRAND = receiptTheme.brand;
+  const BRAND_DARK = '#00547a';
+  const backdropBg = `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
+  const backdropWatermarkColor = 'rgba(255,255,255,0.10)';
+  const closeBtnStyle = { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
 
   // The webhook normally writes the fee column (paystack_fee_ngn or
   // flutterwave_fee_ngn) when the transfer succeeds, and the reconcile job

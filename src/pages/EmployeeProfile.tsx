@@ -19,6 +19,7 @@ import SignedDocumentsList from '@/components/hr/SignedDocumentsList';
 import LeaveBalancesPanel from '@/components/hr/LeaveBalancesPanel';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
+import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { displayName, initialsOf } from '@/lib/name';
 import { computePayslip, PENSION_EMPLOYER_RATE, PENSION_EMPLOYEE_RATE } from '@/lib/tax';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1926,7 +1927,9 @@ const EmployeeProfile = () => {
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account number</dt>
-                        <dd className="font-medium font-mono">{employee.bank_account_number || '—'}</dd>
+                        <dd className="font-medium">
+                          <MaskedAccountNumber value={employee.bank_account_number} />
+                        </dd>
                       </div>
                       <div className="flex items-center justify-between text-sm">
                         <dt className="text-muted-foreground">Account name</dt>
@@ -1956,7 +1959,7 @@ const EmployeeProfile = () => {
                       <div key={req.id} className="space-y-2">
                         <div className="text-sm space-y-1">
                           <div className="flex justify-between"><span className="text-muted-foreground">Bank</span><span className="font-medium">{req.new_bank_name}</span></div>
-                          <div className="flex justify-between"><span className="text-muted-foreground">Account</span><span className="font-mono text-xs">{req.new_account_number}</span></div>
+                          <div className="flex justify-between"><span className="text-muted-foreground">Account</span><MaskedAccountNumber value={req.new_account_number} className="text-xs" /></div>
                           <div className="flex justify-between"><span className="text-muted-foreground">Name</span><span className="font-medium">{req.new_account_name}</span></div>
                           {req.reason && <div className="flex justify-between"><span className="text-muted-foreground">Reason</span><span className="italic text-xs max-w-[60%] text-right">{req.reason}</span></div>}
                         </div>

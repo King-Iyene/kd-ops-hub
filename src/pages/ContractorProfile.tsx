@@ -28,6 +28,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { PageBreadcrumbs } from '@/components/ui-kit/PageBreadcrumbs';
 import { WhatsAppButton } from '@/components/ui-kit/WhatsAppButton';
+import { MaskedAccountNumber } from '@/components/ui-kit/MaskedAccountNumber';
 import { logAudit } from '@/lib/audit';
 import { formatDate, formatDateTime, formatNaira, maskAccountNumber } from '@/lib/format';
 import { displayName, initialsOf } from '@/lib/name';
@@ -435,8 +436,8 @@ const ContractorProfile = () => {
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{ctrName}</h1>
-          <p className="text-muted-foreground text-sm">
-            {contractor.bank_name} · <span className="font-mono">{contractor.account_number || '—'}</span>
+          <p className="text-muted-foreground text-sm flex items-center gap-1">
+            {contractor.bank_name} · <MaskedAccountNumber value={contractor.account_number} />
           </p>
         </div>
         <Badge
@@ -593,7 +594,7 @@ const ContractorProfile = () => {
                 );
               })()}
               <p className="text-sm flex items-center gap-2 text-muted-foreground">
-                <Landmark className="h-3.5 w-3.5" /> {contractor.bank_name} — <span className="font-mono">{contractor.account_number || '—'}</span>
+                <Landmark className="h-3.5 w-3.5" /> {contractor.bank_name} — <MaskedAccountNumber value={contractor.account_number} />
               </p>
               {contractor.linkedin_id && (
                 <p className="text-sm flex items-center gap-2 text-muted-foreground">
@@ -907,7 +908,7 @@ const ContractorProfile = () => {
                     </div>
                     <div className="space-y-1">
                       <Label>Account Number</Label>
-                      <p className="text-sm py-2 font-mono">{contractor.account_number || '—'}</p>
+                      <p className="text-sm py-2"><MaskedAccountNumber value={contractor.account_number} /></p>
                     </div>
                     {contractor.account_name && (
                       <div className="space-y-1 sm:col-span-2">

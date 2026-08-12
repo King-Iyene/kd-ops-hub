@@ -56,16 +56,22 @@ jobs:
         run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC"
 
       - name: Upload HTML test report
+        # Only on failure — a green run doesn't need its report kept, and
+        # uploading on every push was what exhausted the repo's Actions
+        # artifact storage quota (a full-but-unrelated quota error was
+        # failing this job even when every test passed).
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
+        continue-on-error: true
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 30
+          retention-days: 7
 
       - name: Upload failure screenshots and traces
         uses: actions/upload-artifact@v4
         if: failure()
+        continue-on-error: true
         with:
           name: test-results
           path: test-results/
