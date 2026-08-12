@@ -66,6 +66,10 @@ interface Props {
    *  watermark, accent bar), it just isn't repeated as a big solid block
    *  behind it too. Default false keeps the existing payroll receipt. */
   neutralBackdrop?: boolean;
+  /** Heavier brand presence on the card itself — thicker top accent bar
+   *  plus a solid brand-colored left edge — for a receipt that should read
+   *  as a step up from the standard payroll receipt without changing hue. */
+  bold?: boolean;
 }
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
@@ -86,7 +90,7 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark, neutralBackdrop }: Props) {
+export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark, neutralBackdrop, bold }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
@@ -419,6 +423,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               fontFamily: 'Inter, system-ui, sans-serif',
               color: '#18181b',
               zIndex: 1,
+              borderLeft: bold ? `5px solid ${BRAND}` : undefined,
             }}
           >
             {/* In-card status watermark — faded "SUCCESSFUL" / "FAILED" /
@@ -464,8 +469,8 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               }}
             />
 
-            {/* Top accent bar */}
-            <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            {/* Top accent bar — thicker when bold */}
+            <div style={{ height: bold ? '7px' : '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
 
             {/* Header */}
             <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>

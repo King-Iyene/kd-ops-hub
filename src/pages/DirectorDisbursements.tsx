@@ -103,7 +103,6 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { PersonalTransferReceiptModal } from '@/components/PersonalTransferReceiptModal';
-import { receiptTheme } from '@/lib/receipt-theme';
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -630,9 +629,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         batch={receiptRow}
         companyName={companyName}
         logoUrl={logoUrl}
-        brand={receiptTheme.principalBrand}
-        brandDark={receiptTheme.principalBrandDark}
-        neutralBackdrop
+        bold
       />
 
       <MakeRecurringDialog
@@ -1336,9 +1333,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         row={receiptRow}
         companyName={companyName}
         logoUrl={logoUrl}
-        brand={receiptTheme.principalBrand}
-        brandDark={receiptTheme.principalBrandDark}
-        neutralBackdrop
+        bold
       />
     </div>
   );

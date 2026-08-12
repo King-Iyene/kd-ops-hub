@@ -42,6 +42,8 @@ interface Props {
   brandDark?: string;
   /** See ReceiptModal's identical prop. */
   neutralBackdrop?: boolean;
+  /** See ReceiptModal's identical prop. */
+  bold?: boolean;
 }
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
@@ -53,7 +55,7 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark, neutralBackdrop }: Props) {
+export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark, neutralBackdrop, bold }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
@@ -230,6 +232,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               fontFamily: 'Inter, system-ui, sans-serif',
               color: '#18181b',
               zIndex: 1,
+              borderLeft: bold ? `5px solid ${BRAND}` : undefined,
             }}
           >
             {/* In-card status watermark, colour-matched to the outcome */}
@@ -257,7 +260,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               }}
             />
 
-            <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
+            <div style={{ height: bold ? '7px' : '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
 
             {/* Header */}
             <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
@@ -332,7 +335,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
 
             <div style={{ padding: '14px 28px 22px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
               <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
-                {certId} · Personal Transfer, not a company ledger entry
+                {certId}
               </span>
             </div>
           </div>
