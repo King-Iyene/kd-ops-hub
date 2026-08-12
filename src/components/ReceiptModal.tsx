@@ -115,11 +115,15 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
           setFeeOverride(fee);
           // Persist back so subsequent opens are instant and the
           // ledger / Transactions table also see the real value.
-          const feeColumn = providerOf(item) === 'flutterwave' ? 'flutterwave_fee_ngn' : 'paystack_fee_ngn';
-          await supabase
-            .from('batch_items')
-            .update({ [feeColumn]: fee })
-            .eq('id', item.id);
+          // Branched (not a computed key) because a dynamic property name
+          // widens to a generic `{ [x: string]: number }` index signature,
+          // which supabase-js's Update<'batch_items'> type can't verify
+          // against its known columns — TS2345 on every build.
+          if (providerOf(item) === 'flutterwave') {
+            await supabase.from('batch_items').update({ flutterwave_fee_ngn: fee }).eq('id', item.id);
+          } else {
+            await supabase.from('batch_items').update({ paystack_fee_ngn: fee }).eq('id', item.id);
+          }
         }
       } catch (e) {
         // Silent — receipt still renders, just without the fee row

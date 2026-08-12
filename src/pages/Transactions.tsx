@@ -306,8 +306,14 @@ const Transactions = () => {
           const feeNgn = Number(d?.fee_ngn || 0)
             || (Number(d?.raw?.fee || 0) > 0 ? Number(d.raw.fee) / 100 : 0);
           if (feeNgn > 0) {
-            const feeColumn = isFlutterwave ? 'flutterwave_fee_ngn' : 'paystack_fee_ngn';
-            await supabase.from('batch_items').update({ [feeColumn]: feeNgn }).eq('id', r.id);
+            // Branched (not a computed key) — see ReceiptModal's identical
+            // fix for why a dynamic property name breaks Update<'batch_items'>
+            // type-checking.
+            if (isFlutterwave) {
+              await supabase.from('batch_items').update({ flutterwave_fee_ngn: feeNgn }).eq('id', r.id);
+            } else {
+              await supabase.from('batch_items').update({ paystack_fee_ngn: feeNgn }).eq('id', r.id);
+            }
             if (!cancelled) {
               setRows((prev) => prev.map((row) =>
                 row.id === r.id ? { ...row, paystack_fee_ngn: feeNgn } : row,
