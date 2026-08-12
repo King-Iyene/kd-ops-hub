@@ -30,7 +30,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Users, Layers, Trash2, Plus, RefreshCw,
-  Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History,
+  Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History, Search,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -95,6 +95,10 @@ import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
 import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
@@ -204,6 +208,8 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
     }
   };
 
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+
   const remove = async () => {
     if (!dva) return;
     try {
@@ -212,6 +218,8 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
       load();
     } catch (err: any) {
       toast({ title: 'Could not remove account', description: friendlyDbError(err), variant: 'destructive' });
+    } finally {
+      setConfirmRemoveOpen(false);
     }
   };
 
@@ -256,7 +264,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
               <Button variant="outline" size="sm" onClick={toggleHistory}>
                 <History className="mr-1.5 h-3.5 w-3.5" /> {historyOpen ? 'Hide' : 'Funding'} history
               </Button>
-              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={remove}>
+              <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmRemoveOpen(true)}>
                 <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remove account
               </Button>
             </div>
@@ -286,6 +294,25 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
       </CardContent>
 
       <LinkDvaDialog open={addOpen} onOpenChange={setAddOpen} profile={profile} toast={toast} onLinked={load} />
+
+      <AlertDialog open={confirmRemoveOpen} onOpenChange={setConfirmRemoveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove dedicated account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This only removes KDOps's local record of {dva?.bank_name} {dva?.account_number} — it does NOT touch or close the
+              real Paystack account. Sends will stop being checked against a wallet balance until you link it again. The
+              current wallet balance ({formatNaira(balance ?? 0)}) is not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={remove} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remove account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -380,6 +407,9 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
   const [recurRow, setRecurRow] = useState<DisbursementRow | null>(null);
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
 
   useEffect(() => {
     supabase.from('company_settings').select('company_name, logo_url')
@@ -389,8 +419,8 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
           setCompanyName((cs as any).company_name || 'KD Squares Ltd');
           setLogoUrl((cs as any).logo_url || null);
         }
-      })
-      .catch(() => { /* receipt falls back to defaults */ });
+      }, () => { /* receipt falls back to defaults */ });
+    fetchDvaAccount().then(setDva).catch(() => setDva(null));
   }, []);
 
   const load = async () => {
@@ -425,6 +455,23 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
     );
   };
 
+  const statusOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.status))).sort(),
+    [rows],
+  );
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (r.payment_description || '').toLowerCase().includes(q)
+        || directorDisbursementCategoryLabel(r.payment_category).toLowerCase().includes(q)
+        || (r.name || '').toLowerCase().includes(q)
+      );
+    });
+  }, [rows, search, statusFilter]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -438,12 +485,38 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
       </div>
 
       <Card className="rounded-xl">
-        <CardHeader><CardTitle className="text-base">History</CardTitle></CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base">History</CardTitle>
+          {rows.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search description, category…"
+                  className="h-8 w-full sm:w-56 pl-8 text-sm"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 w-[140px] text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
           ) : rows.length === 0 ? (
             <EmptyState icon={Landmark} title="No company disbursements yet" description="Send your first one above." />
+          ) : filteredRows.length === 0 ? (
+            <EmptyState icon={Search} title="No matches" description="Try a different search term or status." />
           ) : (
             <>
               <div className="hidden md:block">
@@ -459,7 +532,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
+                    {filteredRows.map((r) => (
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => viewDetail(r)}>
                         <TableCell>{formatDateTime(r.created_at)}</TableCell>
                         <TableCell><Badge variant="outline">{directorDisbursementCategoryLabel(r.payment_category)}</Badge></TableCell>
@@ -492,7 +565,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                 </Table>
               </div>
               <div className="md:hidden space-y-2 p-3">
-                {rows.map((r) => (
+                {filteredRows.map((r) => (
                   <MobileCard key={r.id} onClick={() => viewDetail(r)} chevron>
                     <MobileCardHeader>
                       <MobileCardTitle>{directorDisbursementCategoryLabel(r.payment_category)}</MobileCardTitle>
@@ -536,6 +609,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         profile={profile}
         toast={toast}
         onSent={load}
+        dva={dva}
       />
 
       <ReceiptModal
@@ -558,13 +632,14 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
 }
 
 function CompanyDisbursementSendDialog({
-  open, onOpenChange, profile, toast, onSent,
+  open, onOpenChange, profile, toast, onSent, dva,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   profile: any;
   toast: ReturnType<typeof useToast>['toast'];
   onSent: () => void;
+  dva: PrincipalWalletDva | null;
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
@@ -781,6 +856,10 @@ function CompanyDisbursementSendDialog({
         onConfirm={(narration) => executeSend(narration)}
         fetchWalletBalance={fetchWalletBalanceOrNull}
         walletBalanceLabel="Principal Disbursements wallet"
+        hideProviderBalance
+        walletBankName={dva?.bank_name}
+        walletAccountNumber={dva?.account_number}
+        walletAccountName={dva?.account_name || undefined}
       />
     </>
   );
@@ -958,6 +1037,23 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [beneficiariesOpen, setBeneficiariesOpen] = useState(false);
   const [beneficiaries, setBeneficiaries] = useState<PersonalTransferBeneficiaryRow[]>([]);
   const [receiptRow, setReceiptRow] = useState<PersonalTransferRow | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [companyName, setCompanyName] = useState('KD Squares Ltd');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
+
+  useEffect(() => {
+    supabase.from('company_settings').select('company_name, logo_url')
+      .eq('id', '00000000-0000-0000-0000-000000000001').maybeSingle()
+      .then(({ data: cs }) => {
+        if (cs) {
+          setCompanyName((cs as any).company_name || 'KD Squares Ltd');
+          setLogoUrl((cs as any).logo_url || null);
+        }
+      }, () => { /* receipt falls back to defaults */ });
+    fetchDvaAccount().then(setDva).catch(() => setDva(null));
+  }, []);
 
   const load = async () => {
     setLoading(true);
@@ -1018,6 +1114,25 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
+  const statusOptions = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.status))).sort(),
+    [rows],
+  );
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (r.recipient_account_name || '').toLowerCase().includes(q)
+        || (r.recipient_name || '').toLowerCase().includes(q)
+        || (r.memo || '').toLowerCase().includes(q)
+        || (r.batch_label || '').toLowerCase().includes(q)
+        || (r.paystack_reference || '').toLowerCase().includes(q)
+      );
+    });
+  }, [rows, search, statusFilter]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1039,12 +1154,38 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
       </div>
 
       <Card className="rounded-xl">
-        <CardHeader><CardTitle className="text-base">History</CardTitle></CardHeader>
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle className="text-base">History</CardTitle>
+          {rows.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search recipient, memo, batch…"
+                  className="h-8 w-full sm:w-56 pl-8 text-sm"
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-8 w-[140px] text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s} className="capitalize">{s.replace(/_/g, ' ')}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </CardHeader>
         <CardContent className="p-0">
           {loading ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
           ) : rows.length === 0 ? (
             <EmptyState icon={Send} title="No personal transfers yet" description="Send your first one above." />
+          ) : filteredRows.length === 0 ? (
+            <EmptyState icon={Search} title="No matches" description="Try a different search or status." />
           ) : (
             <>
               <div className="hidden md:block">
@@ -1059,7 +1200,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((r) => (
+                    {filteredRows.map((r) => (
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => logPersonalTransferDetailView(r, profile)}>
                         <TableCell>{formatDateTime(r.created_at)}</TableCell>
                         <TableCell>{r.recipient_account_name || r.recipient_name}</TableCell>
@@ -1101,7 +1242,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                 </Table>
               </div>
               <div className="md:hidden space-y-2 p-3">
-                {rows.map((r) => (
+                {filteredRows.map((r) => (
                   <MobileCard key={r.id} onClick={() => logPersonalTransferDetailView(r, profile)} chevron>
                     <MobileCardHeader>
                       <MobileCardTitle>{r.recipient_account_name || r.recipient_name}</MobileCardTitle>
@@ -1151,6 +1292,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         toast={toast}
         onSent={load}
         beneficiaries={beneficiaries}
+        dva={dva}
       />
       <PersonalTransferBatchDialog
         open={batchOpen}
@@ -1174,6 +1316,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         open={!!receiptRow}
         onClose={() => setReceiptRow(null)}
         row={receiptRow}
+        companyName={companyName}
+        logoUrl={logoUrl}
       />
     </div>
   );
@@ -1292,7 +1436,7 @@ function PersonalTransferBeneficiariesDialog({
 }
 
 function PersonalTransferSendDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, dva,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1300,6 +1444,7 @@ function PersonalTransferSendDialog({
   toast: ReturnType<typeof useToast>['toast'];
   onSent: () => void;
   beneficiaries: PersonalTransferBeneficiaryRow[];
+  dva: PrincipalWalletDva | null;
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
@@ -1508,6 +1653,10 @@ function PersonalTransferSendDialog({
         onConfirm={(narration) => executeSend(narration)}
         fetchWalletBalance={fetchWalletBalanceOrNull}
         walletBalanceLabel="Principal Disbursements wallet"
+        hideProviderBalance
+        walletBankName={dva?.bank_name}
+        walletAccountNumber={dva?.account_number}
+        walletAccountName={dva?.account_name || undefined}
       />
     </>
   );

@@ -7,6 +7,11 @@
  * parent `batch` here (Personal Transfer is deliberately isolated from
  * payment_batches), and the provider is always Paystack, so this skips
  * the item-facade provider abstraction ReceiptModal needs for payroll.
+ *
+ * Brought up to the same sectioned layout as ReceiptModal (logo header,
+ * Transfer Details / Beneficiary / Reference / Debit Breakdown sections,
+ * in-card status watermark, cert footer) — the original flat key-value
+ * card looked unofficial next to the company-disbursement receipt.
  */
 import { useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
@@ -16,8 +21,11 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Download, Printer, Share2, X, ChevronDown } from 'lucide-react';
+import {
+  Download, Printer, Share2, X, FileImage, FileText, ChevronDown,
+} from 'lucide-react';
 import { formatReceiptDateTime } from '@/lib/format';
+import { paystackTransferFee, stampDutyFor } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
 import { receiptTheme } from '@/lib/receipt-theme';
 import type { PersonalTransferRow } from '@/lib/personal-transfers';
@@ -27,19 +35,20 @@ interface Props {
   onClose: () => void;
   row: PersonalTransferRow | null;
   companyName?: string;
+  logoUrl?: string | null;
 }
 
 const BRAND = receiptTheme.brand;
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
 function statusInfo(status: string) {
-  if (status === 'succeeded') return { label: 'SUCCESSFUL', dot: receiptTheme.success };
-  if (status === 'failed') return { label: 'FAILED', dot: receiptTheme.failed };
-  if (status === 'reversed') return { label: 'REVERSED', dot: receiptTheme.muted };
-  return { label: 'PENDING', dot: receiptTheme.pending };
+  if (status === 'succeeded') return { label: 'SUCCESSFUL', dot: receiptTheme.success, tone: 'success' as const };
+  if (status === 'failed') return { label: 'FAILED', dot: receiptTheme.failed, tone: 'failed' as const };
+  if (status === 'reversed') return { label: 'REVERSED', dot: receiptTheme.muted, tone: 'reversed' as const };
+  return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function PersonalTransferReceiptModal({ open, onClose, row, companyName }: Props) {
+export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
@@ -47,12 +56,20 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName }
   if (!row) return null;
 
   const s = statusInfo(row.status);
+  const isSucceeded = row.status === 'succeeded';
   const amount = Number(row.amount_ngn) || 0;
   const recipient = row.recipient_account_name || row.recipient_name;
   const dateStr = row.processed_at || row.created_at
     ? formatReceiptDateTime(row.processed_at || row.created_at)
     : '—';
+  // Paystack's transfer fee is a flat tier (not a variable "actual" fee we
+  // need from the API), so it's computed the same way it was at send time
+  // rather than stored — deterministic, so this always matches reality.
+  const fee = paystackTransferFee(amount);
+  const duty = stampDutyFor(amount);
+  const total = amount + fee + duty;
   const certId = `kdopspt_${String(row.id).toLowerCase().replace(/-/g, '')}`;
+  const shortName = (companyName || 'KD Squares').replace(/\s*Ltd\.?$/i, '').trim();
   const fileSafe = (str: string) => str.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 40) || 'receipt';
   const filename = `kdops_personal_transfer_${fileSafe(recipient || certId)}.png`;
 
@@ -151,7 +168,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="kd-receipt-dialog max-w-[560px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
+      <DialogContent className="kd-receipt-dialog max-w-[640px] p-0 border-0 bg-transparent shadow-none max-h-[92vh] overflow-y-auto">
         <div
           className="kd-receipt-backdrop"
           style={{
@@ -167,7 +184,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName }
             style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               pointerEvents: 'none', transform: 'rotate(-18deg)', fontFamily: 'Inter, system-ui, sans-serif',
-              fontWeight: 900, fontSize: 'clamp(70px, 13vw, 110px)', letterSpacing: '0.04em',
+              fontWeight: 900, fontSize: 'clamp(80px, 14vw, 120px)', letterSpacing: '0.04em',
               color: 'rgba(255,255,255,0.10)', whiteSpace: 'nowrap',
             }}
           >
@@ -185,73 +202,179 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName }
             <X size={16} />
           </button>
 
-          <div ref={cardRef} className="kd-receipt" style={{ position: 'relative', zIndex: 1, background: '#fff', borderRadius: '12px', padding: '28px 24px', fontFamily: 'Inter, system-ui, sans-serif', color: receiptTheme.bodyText }}>
-            <div style={{ textAlign: 'center', marginBottom: 18 }}>
-              <div style={{ fontSize: 11, letterSpacing: '0.14em', color: receiptTheme.muted, textTransform: 'uppercase' }}>Personal Transfer Receipt</div>
-              <div style={{ fontSize: 12, color: receiptTheme.mutedLight, marginTop: 2 }}>{companyName || 'KD Squares Ltd'} · KDOps · Paystack</div>
+          <div
+            ref={cardRef}
+            id="kd-receipt-card"
+            style={{
+              position: 'relative',
+              maxWidth: '560px',
+              margin: '0 auto',
+              background: `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
+              fontFamily: 'Inter, system-ui, sans-serif',
+              color: '#18181b',
+              zIndex: 1,
+            }}
+          >
+            {/* In-card status watermark, colour-matched to the outcome */}
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                pointerEvents: 'none', transform: 'rotate(-18deg)', fontFamily: 'Inter, system-ui, sans-serif',
+                fontWeight: 900, fontSize: 'clamp(64px, 11vw, 100px)', letterSpacing: '0.05em',
+                color: s.dot, opacity: 0.07, whiteSpace: 'nowrap', zIndex: 0, filter: 'blur(0.5px)',
+              }}
+            >
+              {s.label}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20 }}>
-              <span style={{ height: 8, width: 8, borderRadius: 999, background: s.dot }} />
-              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em' }}>{s.label}</span>
-            </div>
+            <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
 
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 30, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtNgn(amount)}</div>
-              <div style={{ fontSize: 13, color: receiptTheme.muted, marginTop: 2 }}>to {recipient}</div>
-            </div>
-
-            <div style={{ background: receiptTheme.panelBg, border: `1px solid ${receiptTheme.border}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[
-                ['Bank', row.recipient_bank_name || '—'],
-                ['Account number', row.recipient_account_number],
-                ['Date', dateStr],
-                ['Reference', row.paystack_reference || '—'],
-                ...(row.batch_label ? [['Batch', row.batch_label]] : []),
-                ...(row.memo ? [['Memo', row.memo]] : []),
-                ...(row.status === 'failed' && row.failure_reason ? [['Reason', row.failure_reason]] : []),
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5 }}>
-                  <span style={{ color: receiptTheme.muted }}>{label}</span>
-                  <span style={{ fontWeight: 500, textAlign: 'right', wordBreak: 'break-word' }}>{value}</span>
+            {/* Header */}
+            <div style={{ padding: '24px 28px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <img
+                  src={logoUrl || '/icon-192.png'}
+                  alt=""
+                  style={{ height: '34px', width: '34px', objectFit: 'contain', borderRadius: '8px' }}
+                  crossOrigin="anonymous"
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#111' }}>{shortName}</div>
+                  <div style={{ fontSize: '11px', color: '#888', marginTop: '1px' }}>
+                    {s.tone === 'failed' ? 'Transfer Failed' : s.tone === 'reversed' ? 'Transfer Reversed' : s.tone === 'pending' ? 'Transfer Pending' : 'Personal Transfer Confirmation'}
+                  </div>
                 </div>
-              ))}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '26px', fontWeight: 800, color: '#111', letterSpacing: '-0.02em', lineHeight: 1 }}>{fmtNgn(amount)}</div>
+                <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Settlement amount</div>
+              </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 18, fontSize: 10.5, color: receiptTheme.mutedLight }}>
-              {certId} · System-generated receipt · Personal Transfer, not a company ledger entry
+            <Section title="Transfer Details">
+              <Row k="Status" v={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: s.dot, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
+                  {s.label}
+                </span>
+              } />
+              <Row k="Date" v={dateStr} />
+              <Row k="Sent to" v={recipient || '—'} />
+              <Row k="Paid via" v="Paystack" />
+            </Section>
+
+            <Section title="Beneficiary">
+              <Row k="Bank" v={row.recipient_bank_name || '—'} />
+              <Row k="Account number" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{row.recipient_account_number || '—'}</span>} />
+            </Section>
+
+            <Section title="Reference">
+              {row.memo && <Row k="Memo" v={row.memo} />}
+              {row.batch_label && <Row k="Batch" v={row.batch_label} />}
+              {row.paystack_reference && (
+                <Row k="Provider reference" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{row.paystack_reference}</span>} />
+              )}
+              {!row.memo && !row.batch_label && !row.paystack_reference && <Row k="Narration" v={`${shortName} · Personal Transfer`} />}
+            </Section>
+
+            {row.status === 'failed' && (
+              <Section title="Why this transfer failed">
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{row.failure_reason || 'Paystack rejected the transfer'}</p>
+                </div>
+                <Row k="Beneficiary" v={recipient || '—'} />
+                <Row k="Beneficiary bank" v={row.recipient_bank_name || '—'} />
+                <Row k="Beneficiary account" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{row.recipient_account_number || '—'}</span>} />
+              </Section>
+            )}
+
+            {isSucceeded && (
+              <Section title="Debit Breakdown">
+                <Row k="Transfer amount" v={fmtNgn(amount)} />
+                {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
+                <Row k="Transfer fee" v={fmtNgn(fee)} />
+                <div style={{ borderTop: '1px solid #e4e4e7', paddingTop: '10px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: '15px' }}>
+                  <span style={{ fontWeight: 600, color: '#111' }}>Total debit</span>
+                  <span style={{ fontWeight: 700, color: '#111' }}>{fmtNgn(total)}</span>
+                </div>
+              </Section>
+            )}
+
+            <div style={{ padding: '14px 28px 22px', borderTop: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+              <span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '10px', color: '#c4c4c7', letterSpacing: '0.02em', wordBreak: 'break-all' }}>
+                {certId} · Personal Transfer, not a company ledger entry
+              </span>
             </div>
           </div>
+        </div>
 
-          <div className="kd-receipt-actions" style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button size="sm" variant="secondary" onClick={handlePrint}>
-              <Printer className="mr-1.5 h-3.5 w-3.5" /> Print
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="secondary" disabled={busy === 'download'}>
-                  <Download className="mr-1.5 h-3.5 w-3.5" /> Download <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                <DropdownMenuItem onClick={() => handleDownload('pdf')}>PDF</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownload('png')}>Image (PNG)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="secondary" disabled={busy === 'share'}>
-                  <Share2 className="mr-1.5 h-3.5 w-3.5" /> Share <ChevronDown className="ml-1 h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                <DropdownMenuItem onClick={() => handleShare('pdf')}>PDF</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleShare('png')}>Image (PNG)</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        <div className="kd-receipt-actions sticky bottom-0 z-10 flex flex-wrap items-center justify-center sm:justify-end gap-2 px-4 py-3 bg-card/95 backdrop-blur-sm border-t border-border/40 rounded-b-2xl">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
+                <Share2 className="h-4 w-4 mr-1.5" />
+                {busy === 'share' ? 'Preparing…' : 'Share'}
+                <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => void handleShare('png')}>
+                <FileImage className="h-4 w-4 mr-2" /> Share as image
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleShare('pdf')}>
+                <FileText className="h-4 w-4 mr-2" /> Share as PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
+                <Download className="h-4 w-4 mr-1.5" />
+                {busy === 'download' ? 'Saving…' : 'Download'}
+                <ChevronDown className="h-3 w-3 ml-1 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => void handleDownload('png')}>
+                <FileImage className="h-4 w-4 mr-2" /> Image (PNG)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void handleDownload('pdf')}>
+                <FileText className="h-4 w-4 mr-2" /> PDF
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" onClick={handlePrint} disabled={busy !== null} className="flex-1 sm:flex-initial h-10 sm:h-9">
+            <Printer className="h-4 w-4 mr-1.5" />
+            Print
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '16px', padding: '6px 0', fontSize: '13px', lineHeight: 1.5 }}>
+      <span style={{ color: '#71717a', flexShrink: 0 }}>{k}</span>
+      <span style={{ color: '#111', fontWeight: 500, textAlign: 'right', wordBreak: 'break-word' }}>{v}</span>
+    </div>
   );
 }

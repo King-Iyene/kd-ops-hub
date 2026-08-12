@@ -91,10 +91,26 @@ export interface PaymentSummaryModalProps {
    * company-wide provider balance checked above). Resolving to `null`
    * means "no wallet configured, skip this block entirely" so callers
    * without a wallet see the modal's normal single-balance layout.
-   * Confirm is blocked if EITHER balance is short.
+   * Confirm is blocked if EITHER balance is short (unless hideProviderBalance
+   * is set, in which case only the wallet balance gates confirm).
    */
   fetchWalletBalance?: () => Promise<number | null>;
   walletBalanceLabel?: string;
+  /**
+   * Principal Disbursements pays out of the main Paystack merchant balance
+   * under the hood (Paystack has no API to source a transfer from a DVA —
+   * DVAs only receive), but showing that main balance here reads as "this
+   * is company/payroll money" to an operator who thinks of the wallet as
+   * its own bank account. When true, the modal skips fetching AND
+   * rendering the main provider-balance block entirely — only the wallet
+   * block (below) gates the Send button.
+   */
+  hideProviderBalance?: boolean;
+  /** Bank identity shown as a bank-card strip above the wallet balance —
+   *  only rendered when hideProviderBalance is set and all three are given. */
+  walletBankName?: string;
+  walletAccountNumber?: string;
+  walletAccountName?: string;
 }
 
 /** Balance threshold below which we warn the operator regardless of the run. */
@@ -112,6 +128,10 @@ export function PaymentSummaryModal({
   exempt = false,
   fetchWalletBalance,
   walletBalanceLabel = 'Wallet balance',
+  hideProviderBalance = false,
+  walletBankName,
+  walletAccountNumber,
+  walletAccountName,
 }: PaymentSummaryModalProps) {
   const [balance, setBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(true);
@@ -139,8 +159,6 @@ export function PaymentSummaryModal({
 
   useEffect(() => {
     if (!open) return;
-    setBalanceLoading(true);
-    setBalanceError(null);
     setFwFeeTotal(null);
     setFwFeeError(null);
     if (fetchWalletBalance) {
@@ -151,6 +169,14 @@ export function PaymentSummaryModal({
         .catch((e: any) => setWalletBalanceError(e?.message || 'Could not check wallet balance'))
         .finally(() => setWalletBalanceLoading(false));
     }
+    if (hideProviderBalance) {
+      setBalance(null);
+      setBalanceLoading(false);
+      setBalanceError(null);
+      return;
+    }
+    setBalanceLoading(true);
+    setBalanceError(null);
     (async () => {
       try {
         const { data } = await supabase
@@ -300,59 +326,70 @@ export function PaymentSummaryModal({
         </div>
 
         {/* Balance check */}
-        <div className="rounded-lg border p-4 text-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">{providerLabel(activeProvider)} balance</span>
-            <span className="currency">
-              {balanceLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : balance != null ? (
-                formatNaira(balance)
-              ) : (
-                '—'
-              )}
-            </span>
-          </div>
-          {balance != null && (
+        {!hideProviderBalance && (
+          <div className="rounded-lg border p-4 text-sm space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Balance after this payment</span>
-              <span className={balanceShort ? 'text-destructive font-semibold currency' : balanceTight ? 'text-warning font-semibold currency' : 'currency'}>
-                {formatNaira(balanceAfter ?? 0)}
+              <span className="text-muted-foreground">{providerLabel(activeProvider)} balance</span>
+              <span className="currency">
+                {balanceLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : balance != null ? (
+                  formatNaira(balance)
+                ) : (
+                  '—'
+                )}
               </span>
             </div>
-          )}
-          {balanceError && (
-            <p className="text-xs text-muted-foreground">
-              Couldn't fetch balance — proceed at your own risk: {balanceError}
-            </p>
-          )}
-          {balanceShort && (
-            <Alert variant="destructive" className="mt-2">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Insufficient balance</AlertTitle>
-              <AlertDescription>
-                Top up your {providerLabel(activeProvider)} wallet by at least{' '}
-                <strong>{formatNaira(Math.abs(balanceAfter ?? 0))}</strong>{' '}
-                before processing, otherwise some transfers will fail.
-              </AlertDescription>
-            </Alert>
-          )}
-          {!balanceShort && balanceTight && (
-            <Alert className="mt-2">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Balance will be low after this run. Consider topping up.
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
+            {balance != null && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Balance after this payment</span>
+                <span className={balanceShort ? 'text-destructive font-semibold currency' : balanceTight ? 'text-warning font-semibold currency' : 'currency'}>
+                  {formatNaira(balanceAfter ?? 0)}
+                </span>
+              </div>
+            )}
+            {balanceError && (
+              <p className="text-xs text-muted-foreground">
+                Couldn't fetch balance — proceed at your own risk: {balanceError}
+              </p>
+            )}
+            {balanceShort && (
+              <Alert variant="destructive" className="mt-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Insufficient balance</AlertTitle>
+                <AlertDescription>
+                  Top up your {providerLabel(activeProvider)} wallet by at least{' '}
+                  <strong>{formatNaira(Math.abs(balanceAfter ?? 0))}</strong>{' '}
+                  before processing, otherwise some transfers will fail.
+                </AlertDescription>
+              </Alert>
+            )}
+            {!balanceShort && balanceTight && (
+              <Alert className="mt-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Balance will be low after this run. Consider topping up.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+        )}
 
         {/* Second, independent wallet check (e.g. Principal Disbursements) —
             only rendered when the caller passed fetchWalletBalance AND it
             resolved to a real number (not null, which means "no wallet
             configured, nothing to check here"). */}
         {fetchWalletBalance && walletBalance != null && (
-          <div className="rounded-lg border p-4 text-sm space-y-2">
+          <div className="rounded-lg border overflow-hidden text-sm">
+            {hideProviderBalance && walletBankName && walletAccountNumber && (
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-primary/10 border-b">
+                <span className="font-medium">{walletBankName}</span>
+                <span className="font-mono text-xs tracking-wide text-muted-foreground">
+                  {walletAccountNumber}{walletAccountName ? ` · ${walletAccountName}` : ''}
+                </span>
+              </div>
+            )}
+            <div className="p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">{walletBalanceLabel}</span>
               <span className="currency">
@@ -387,6 +424,7 @@ export function PaymentSummaryModal({
                 </AlertDescription>
               </Alert>
             )}
+            </div>
           </div>
         )}
 
