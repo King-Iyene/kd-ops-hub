@@ -103,7 +103,7 @@ export default function Training() {
     setLoading(true);
     const [{ data: rData }, { data: pData }] = await Promise.all([
       supabase.from('training_records').select('*').order('start_date', { ascending: false }).limit(500),
-      supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).limit(200),
+      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
     ]);
     setRecords((rData as TrainingRecord[]) || []);
     setProfiles((pData as Profile[]) || []);

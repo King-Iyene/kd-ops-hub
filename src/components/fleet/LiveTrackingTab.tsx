@@ -236,7 +236,7 @@ export function LiveTrackingTab() {
     const { data: t, error: tErr } = await supabase.from('trip_logs').select('id, driver_id, vehicle_id, trip_start_time, start_location, start_lat, start_lng, status').eq('id', tripId).maybeSingle();
     if (tErr || !t || t.status !== 'in_progress') return null;
     const [{ data: driver }, { data: vehicle }, { data: bc }] = await Promise.all([
-      supabase.from('profiles').select('id, full_name').eq('id', t.driver_id).maybeSingle(),
+      supabase.from('profiles_directory').select('id, full_name').eq('id', t.driver_id).maybeSingle(),
       t.vehicle_id ? supabase.from('vehicles').select('id, plate_number, name').eq('id', t.vehicle_id).maybeSingle() : Promise.resolve({ data: null as any }),
       supabase.from('trip_breadcrumbs').select('lat, lng, speed_kmh, heading, is_speeding, recorded_at').eq('trip_id', tripId).gte('recorded_at', new Date(Date.now() - TRAIL_WINDOW_MS).toISOString()).order('recorded_at', { ascending: true }),
     ]);
@@ -251,7 +251,7 @@ export function LiveTrackingTab() {
       if (error || !tripsData || cancelled) { setLoading(false); return; }
       const ids = tripsData.map((t) => t.id);
       const [profilesRes, vehiclesRes, breadcrumbsRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name').in('id', tripsData.map((t) => t.driver_id)),
+        supabase.from('profiles_directory').select('id, full_name').in('id', tripsData.map((t) => t.driver_id)),
         supabase.from('vehicles').select('id, plate_number, name').in('id', tripsData.filter((t) => t.vehicle_id).map((t) => t.vehicle_id as string)),
         ids.length > 0 ? supabase.from('trip_breadcrumbs').select('trip_id, lat, lng, speed_kmh, heading, is_speeding, recorded_at').in('trip_id', ids).gte('recorded_at', new Date(Date.now() - TRAIL_WINDOW_MS).toISOString()).order('recorded_at', { ascending: true }) : Promise.resolve({ data: [] as any[] }),
       ]);

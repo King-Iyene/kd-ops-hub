@@ -203,7 +203,7 @@ export const HireApplicantDialog = ({
 
       // 4. Look up the new profile id (needed for onboarding_checklists.employee_id).
       const { data: newProfile } = await supabase
-        .from('profiles')
+        .from('profiles_directory')
         .select('id')
         .eq('email', email)
         .maybeSingle();

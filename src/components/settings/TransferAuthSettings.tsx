@@ -257,7 +257,7 @@ export default function TransferAuthSettings() {
     const [lRes, pRes, poolsRes, csRes] = await Promise.allSettled([
       listTransferLimits(),
       supabase
-        .from('profiles')
+        .from('profiles_directory')
         .select('id, full_name, email, role')
         .in('role', ['super_admin', 'admin', 'finance'])
         .order('full_name'),

@@ -133,7 +133,7 @@ export default function Messages() {
       let peopleMap = peopleById;
       const missing = [...otherUserIds].filter((id) => !peopleMap[id]);
       if (missing.length > 0) {
-        const { data: profs } = await supabase.from('profiles').select('id, full_name, photo_url').in('id', missing);
+        const { data: profs } = await supabase.from('profiles_directory').select('id, full_name, photo_url').in('id', missing);
         const merged = { ...peopleMap };
         for (const p of (profs ?? []) as any[]) merged[p.id] = { id: p.id, full_name: p.full_name, photo_url: p.photo_url };
         peopleMap = merged;
@@ -248,7 +248,7 @@ export default function Messages() {
     setGroupName('');
     setPeopleQuery('');
     if (allPeople.length === 0) {
-      const { data } = await supabase.from('profiles').select('id, full_name, photo_url')
+      const { data } = await supabase.from('profiles_directory').select('id, full_name, photo_url')
         .eq('status', 'active').neq('id', myId ?? '').order('full_name');
       setAllPeople(((data ?? []) as any[]).map((p) => ({ id: p.id, full_name: p.full_name, photo_url: p.photo_url })));
     }

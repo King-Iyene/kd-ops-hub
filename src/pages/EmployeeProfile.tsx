@@ -380,7 +380,7 @@ const EmployeeProfile = () => {
     // Active employees for the Reports-to dropdown. Excludes the employee
     // being viewed so they can't pick themselves. Read-only — managers can
     // be anyone, not just admins, so we don't filter by role.
-    supabase.from('profiles')
+    supabase.from('profiles_directory')
       .select('id, full_name, email')
       .eq('status', 'active')
       .neq('id', id || '')

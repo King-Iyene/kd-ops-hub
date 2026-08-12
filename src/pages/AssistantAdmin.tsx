@@ -112,7 +112,7 @@ export default function AssistantAdmin() {
     // Aggregate usage by user
     const userIds = [...new Set((usageRows ?? []).map((u: any) => u.user_id))];
     const { data: profs } = userIds.length
-      ? await supabase.from('profiles').select('id, full_name').in('id', userIds)
+      ? await supabase.from('profiles_directory').select('id, full_name').in('id', userIds)
       : { data: [] };
     const profMap = new Map((profs ?? []).map((p: any) => [p.id, p.full_name]));
     const agg = new Map<string, UsageRow>();

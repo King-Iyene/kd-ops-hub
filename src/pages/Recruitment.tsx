@@ -173,7 +173,7 @@ export default function Recruitment() {
       supabase.from('job_openings').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
       supabase.from('job_applicants').select('*').order('created_at', { ascending: false }),
       supabase.from('departments').select('id, name').order('name'),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
+      supabase.from('profiles_directory').select('id, full_name').order('full_name'),
     ]);
     setOpenings(oData ?? []);
     setApplicants(aData ?? []);

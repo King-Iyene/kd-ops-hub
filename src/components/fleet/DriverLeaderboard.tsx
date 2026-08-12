@@ -155,7 +155,7 @@ export function DriverLeaderboard() {
           .gte('created_at', since)
           .not('driver_id', 'is', null),
         supabase
-          .from('profiles')
+          .from('profiles_directory')
           .select('id, full_name')
           .in('role', ['field_staff', 'driver', 'operations'])
           .eq('status', 'active'),

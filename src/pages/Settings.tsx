@@ -3572,8 +3572,8 @@ function DepartmentsManager() {
     setLoading(true);
     const [{ data }, { data: profilesData }, { data: memberData }] = await Promise.all([
       supabase.from('departments').select('*, head:profiles!head_id(id, full_name)').order('name'),
-      supabase.from('profiles').select('id, full_name').order('full_name'),
-      supabase.from('profiles').select('department_id').not('department_id', 'is', null),
+      supabase.from('profiles_directory').select('id, full_name').order('full_name'),
+      supabase.from('profiles_directory').select('department_id').not('department_id', 'is', null),
     ]);
     setDepts((data as Dept[]) || []);
     setProfileOptions((profilesData as ProfileOption[]) || []);

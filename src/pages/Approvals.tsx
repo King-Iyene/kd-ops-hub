@@ -200,7 +200,7 @@ const Approvals = () => {
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
-          supabase.from('profiles').select('id, full_name, email').limit(500),
+          supabase.from('profiles_directory').select('id, full_name, email').limit(500),
           supabase
             .from('leave_requests')
             .select('id, employee_id, start_date, end_date, leave_type, reason, status, created_at, profiles:employee_id(full_name, first_name, last_name)')

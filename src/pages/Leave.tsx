@@ -275,7 +275,7 @@ const Leave = () => {
       const [myRes, teamRes, profilesRes, balanceRes, holidaysRes] = await Promise.all([
         myQuery,
         teamQuery,
-        supabase.from('profiles').select('id, full_name, email, phone, start_date').neq('is_anonymised', true).limit(500),
+        supabase.from('profiles_directory').select('id, full_name, email, phone, start_date').neq('is_anonymised', true).limit(500),
         supabase
           .from('leave_balances')
           .select('*')

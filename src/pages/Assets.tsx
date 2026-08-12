@@ -133,7 +133,7 @@ export default function Assets() {
     setLoading(true);
     const [{ data: aData }, { data: pData }, { data: dData }] = await Promise.all([
       supabase.from('assets').select('*').order('purchase_date', { ascending: false }).limit(500),
-      supabase.from('profiles').select('id, full_name').limit(200),
+      supabase.from('profiles_directory').select('id, full_name').limit(200),
       supabase.from('departments').select('id, name').order('name').limit(100),
     ]);
     setAssets((aData as Asset[]) || []);

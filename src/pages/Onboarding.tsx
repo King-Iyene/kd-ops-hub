@@ -147,7 +147,7 @@ export default function Onboarding() {
     const [{ data: clData }, { data: itData }, { data: pData }] = await Promise.all([
       supabase.from('onboarding_checklists').select('*').order('created_at', { ascending: false }),
       supabase.from('onboarding_items').select('*').order('sort_order'),
-      supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
+      supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setChecklists(clData ?? []);
     const map: Record<string, OnboardingItem[]> = {};

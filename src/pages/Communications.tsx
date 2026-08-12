@@ -390,7 +390,7 @@ export default function Communications() {
         const { data } = await supabase.from('contacts').select(`${field}, full_name`).not(field, 'is', null);
         rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));
       } else if (src === 'employees') {
-        let q = supabase.from('profiles').select(`${field}, full_name`).eq('status', 'active').not(field, 'is', null);
+        let q = supabase.from('profiles_directory').select(`${field}, full_name`).eq('status', 'active').not(field, 'is', null);
         if (deptFilter !== 'all') q = q.eq('department_id', deptFilter);
         const { data } = await q;
         rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));

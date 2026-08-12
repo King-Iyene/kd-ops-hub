@@ -387,7 +387,7 @@ const BatchDetail = () => {
       const approverIds = [b.approved_by, b.second_approver_id].filter(Boolean) as string[];
       if (approverIds.length > 0) {
         supabase
-          .from('profiles')
+          .from('profiles_directory')
           .select('id, full_name, email')
           .in('id', approverIds)
           .then(({ data: rows }) => {

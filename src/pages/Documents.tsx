@@ -264,7 +264,7 @@ const Documents = () => {
     (async () => {
       const [cRes, eRes, vRes, pRes] = await Promise.all([
         supabase.from('clients').select('id, name').order('name'),
-        supabase.from('profiles').select('id, full_name').eq('status', 'active').order('full_name'),
+        supabase.from('profiles_directory').select('id, full_name').eq('status', 'active').order('full_name'),
         supabase.from('vehicles').select('id, name, plate_number').order('name'),
         supabase.from('projects').select('id, name').order('name'),
       ]);

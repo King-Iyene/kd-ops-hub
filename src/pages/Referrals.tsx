@@ -98,7 +98,7 @@ const Referrals = () => {
           .select('*')
           .order('created_at', { ascending: false })
           .limit(200),
-        supabase.from('profiles').select('id, full_name, email').limit(500),
+        supabase.from('profiles_directory').select('id, full_name, email').limit(500),
         supabase.from('contractors').select('id, full_name').eq('status', 'active').order('full_name').limit(500),
       ]);
       if (refRes.error) throw refRes.error;

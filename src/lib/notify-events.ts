@@ -76,7 +76,7 @@ export async function notifyAnomalyToAdmins(args: {
   link?: string;
 }): Promise<void> {
   const { data: admins } = await supabase
-    .from('profiles')
+    .from('profiles_directory')
     .select('email')
     .in('role', ['super_admin', 'admin'])
     .eq('status', 'active');

@@ -797,12 +797,12 @@ const Fleet = () => {
 
       const [staffRes, profilesRes, fuelRes, tripRes, activityRes, vehicleRes, settingsRes, fleetPricesRes] = await Promise.all([
         supabase
-          .from('profiles')
+          .from('profiles_directory')
           .select('id, full_name, email')
           .eq('role', 'field_staff')
           .eq('status', 'active')
           .order('full_name'),
-        supabase.from('profiles').select('id, full_name, email'),
+        supabase.from('profiles_directory').select('id, full_name, email'),
         canSeeAll ? fuelBase : fuelBase.eq('driver_id', uid),
         canSeeAll ? tripBase : tripBase.eq('driver_id', uid),
         supabase
@@ -1120,7 +1120,7 @@ const Fleet = () => {
         }
         if (repairSeverity === 'critical') {
           const { data: adminProfiles } = await supabase
-            .from('profiles')
+            .from('profiles_directory')
             .select('id, full_name, email, phone')
             .in('role', ['super_admin', 'admin'])
             .eq('status', 'active');
@@ -2644,7 +2644,7 @@ const Fleet = () => {
         // even when they're not looking at the app.
         if (severity === 'critical') {
           const { data: adminProfiles } = await supabase
-            .from('profiles')
+            .from('profiles_directory')
             .select('id, full_name, email, phone')
             .in('role', ['super_admin', 'admin'])
             .eq('status', 'active');

@@ -193,7 +193,7 @@ const Goals = () => {
     setLoading(true);
     const [goalsRes, profilesRes, depsRes] = await Promise.all([
       supabase.from('goals').select('*').order('created_at', { ascending: false }).limit(200),
-      supabase.from('profiles').select('id, full_name, email').neq('is_anonymised', true).order('full_name').limit(500),
+      supabase.from('profiles_directory').select('id, full_name, email').neq('is_anonymised', true).order('full_name').limit(500),
       supabase.from('departments').select('id, name').order('name'),
     ]);
     const goalsData = (goalsRes.data as Goal[]) || [];

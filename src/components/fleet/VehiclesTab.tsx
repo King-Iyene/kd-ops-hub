@@ -216,7 +216,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
       const [vRes, dRes] = await Promise.all([
         supabase.from('vehicles').select('*').order('name'),
         supabase
-          .from('profiles')
+          .from('profiles_directory')
           .select('id, full_name, email')
           .in('role', ['field_staff', 'driver', 'operations'])
           .eq('status', 'active')

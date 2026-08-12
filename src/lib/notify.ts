@@ -110,7 +110,7 @@ export async function notifyRoles(opts: {
 }): Promise<void> {
   try {
     const { data: users } = await supabase
-      .from('profiles')
+      .from('profiles_directory')
       .select('id')
       .in('role', opts.roles)
       .eq('status', 'active');

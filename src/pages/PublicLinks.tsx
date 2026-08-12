@@ -138,7 +138,7 @@ export default function PublicLinks() {
         .in('status', ['published', 'draft'])
         .order('created_at', { ascending: false }),
       supabase
-        .from('profiles')
+        .from('profiles_directory')
         .select('id, full_name, email, referral_code')
         .eq('status', 'active')
         .order('full_name'),

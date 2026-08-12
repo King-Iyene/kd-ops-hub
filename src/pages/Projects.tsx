@@ -153,7 +153,7 @@ export default function Projects() {
       supabase.from('project_milestones').select('*').order('sort_order').limit(2000),
       supabase.from('tasks').select('id, title, status, project_id, due_date, parent_id').is('parent_id', null).limit(2000),
       supabase.from('clients').select('id, name').order('name').limit(200),
-      supabase.from('profiles').select('id, full_name').limit(200),
+      supabase.from('profiles_directory').select('id, full_name').limit(200),
       supabase.from('departments').select('id, name').order('name').limit(100),
     ]);
     setSpaces((sData as Space[]) || []);
