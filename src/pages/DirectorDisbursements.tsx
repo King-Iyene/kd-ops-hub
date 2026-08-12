@@ -136,7 +136,11 @@ export default function DirectorDisbursements() {
 
   return (
     <div className="space-y-4">
-      <AuroraHero className="principal-hero p-5 sm:p-6" pattern="nest">
+      <AuroraHero
+        className="principal-hero-pattern p-5 sm:p-6"
+        pattern="nest"
+        patternColor="var(--principal-accent)"
+      >
         <img
           src="/icon-192.png"
           alt=""
@@ -535,7 +539,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                       <TableHead>Description</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="w-[1%]" />
+                      <TableHead className="w-[1%] whitespace-nowrap">Receipt</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -628,6 +632,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         logoUrl={logoUrl}
         brand={receiptTheme.principalBrand}
         brandDark={receiptTheme.principalBrandDark}
+        neutralBackdrop
       />
 
       <MakeRecurringDialog
@@ -1206,6 +1211,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                       <TableHead>Memo / Batch</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="w-[1%] whitespace-nowrap">Receipt</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1235,15 +1241,17 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                                   : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
                               </Button>
                             )}
-                            {r.status !== 'pending' && (
-                              <Button
-                                variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
-                                onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
-                              >
-                                <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
-                              </Button>
-                            )}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {r.status !== 'pending' && (
+                            <Button
+                              variant="ghost" size="icon" className="h-7 w-7" title="Receipt"
+                              onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
+                            >
+                              <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1330,6 +1338,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         logoUrl={logoUrl}
         brand={receiptTheme.principalBrand}
         brandDark={receiptTheme.principalBrandDark}
+        neutralBackdrop
       />
     </div>
   );

@@ -46,7 +46,7 @@ import {
   friendlyProviderError,
   verifyItem,
 } from '@/lib/payments/item-facade';
-import { receiptTheme } from '@/lib/receipt-theme';
+import { receiptTheme, hexToRgba } from '@/lib/receipt-theme';
 
 interface Props {
   open: boolean;
@@ -61,6 +61,11 @@ interface Props {
    *  the backdrop gradient together or not at all. */
   brand?: string;
   brandDark?: string;
+  /** Swap the colored backdrop for a plain neutral panel — the brand
+   *  identity still shows on the white card itself (dot texture, logo
+   *  watermark, accent bar), it just isn't repeated as a big solid block
+   *  behind it too. Default false keeps the existing payroll receipt. */
+  neutralBackdrop?: boolean;
 }
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
@@ -81,12 +86,19 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark }: Props) {
+export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark, neutralBackdrop }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
   const BRAND = brand || receiptTheme.brand;
   const BRAND_DARK = brandDark || '#00547a';
+  const backdropBg = neutralBackdrop
+    ? `linear-gradient(180deg, #f4f2f7 0%, #e9e6ef 100%)`
+    : `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
+  const backdropWatermarkColor = neutralBackdrop ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.10)';
+  const closeBtnStyle = neutralBackdrop
+    ? { border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(0,0,0,0.05)', color: '#333' }
+    : { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
 
   // The webhook normally writes the fee column (paystack_fee_ngn or
   // flutterwave_fee_ngn) when the transfer succeeds, and the reconcile job
@@ -334,8 +346,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
           className="kd-receipt-backdrop"
           style={{
             position: 'relative',
-            background:
-              `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+            background: backdropBg,
             padding: '24px 18px',
             borderRadius: '16px',
             overflow: 'hidden',
@@ -356,7 +367,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               fontWeight: 900,
               fontSize: 'clamp(80px, 14vw, 120px)',
               letterSpacing: '0.04em',
-              color: 'rgba(255,255,255,0.10)',
+              color: backdropWatermarkColor,
               whiteSpace: 'nowrap',
             }}
           >
@@ -376,9 +387,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               height: '32px',
               width: '32px',
               borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.25)',
-              background: 'rgba(255,255,255,0.10)',
-              color: '#fff',
+              ...closeBtnStyle,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -399,7 +408,11 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
               margin: '0 auto',
               // Subtle brand-tinted dot pattern on the white card —
               // "engineered paper" feel without overpowering content.
-              background: `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              // Tinted to whichever BRAND is active (blue by default,
+              // Principal Disbursements' purple when overridden) instead
+              // of a hardcoded blue, so this stays consistent even when
+              // the backdrop itself goes neutral.
+              background: `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -436,6 +449,20 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
             >
               {s.label}
             </div>
+
+            {/* Faint brand-mark watermark, bottom-right of the card — same
+                emblem the app itself uses, low-opacity so it reads as
+                texture rather than a second logo. */}
+            <img
+              src={logoUrl || '/icon-192.png'}
+              alt=""
+              aria-hidden
+              crossOrigin="anonymous"
+              style={{
+                position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
+                objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
+              }}
+            />
 
             {/* Top accent bar */}
             <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />

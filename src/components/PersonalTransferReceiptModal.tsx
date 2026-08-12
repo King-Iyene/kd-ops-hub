@@ -27,7 +27,7 @@ import {
 import { formatReceiptDateTime } from '@/lib/format';
 import { paystackTransferFee, stampDutyFor } from '@/lib/paystack';
 import { useToast } from '@/hooks/use-toast';
-import { receiptTheme } from '@/lib/receipt-theme';
+import { receiptTheme, hexToRgba } from '@/lib/receipt-theme';
 import type { PersonalTransferRow } from '@/lib/personal-transfers';
 
 interface Props {
@@ -40,6 +40,8 @@ interface Props {
    *  Principal Disbursements passes its own here. */
   brand?: string;
   brandDark?: string;
+  /** See ReceiptModal's identical prop. */
+  neutralBackdrop?: boolean;
 }
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
@@ -51,12 +53,19 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark }: Props) {
+export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark, neutralBackdrop }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
   const BRAND = brand || receiptTheme.brand;
   const BRAND_DARK = brandDark || '#00547a';
+  const backdropBg = neutralBackdrop
+    ? `linear-gradient(180deg, #f4f2f7 0%, #e9e6ef 100%)`
+    : `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`;
+  const backdropWatermarkColor = neutralBackdrop ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.10)';
+  const closeBtnStyle = neutralBackdrop
+    ? { border: '1px solid rgba(0,0,0,0.12)', background: 'rgba(0,0,0,0.05)', color: '#333' }
+    : { border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff' };
 
   if (!row) return null;
 
@@ -178,7 +187,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
           className="kd-receipt-backdrop"
           style={{
             position: 'relative',
-            background: `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
+            background: backdropBg,
             padding: '24px 18px',
             borderRadius: '16px',
             overflow: 'hidden',
@@ -190,7 +199,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
               pointerEvents: 'none', transform: 'rotate(-18deg)', fontFamily: 'Inter, system-ui, sans-serif',
               fontWeight: 900, fontSize: 'clamp(80px, 14vw, 120px)', letterSpacing: '0.04em',
-              color: 'rgba(255,255,255,0.10)', whiteSpace: 'nowrap',
+              color: backdropWatermarkColor, whiteSpace: 'nowrap',
             }}
           >
             {s.label}
@@ -200,7 +209,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
             type="button" onClick={onClose} aria-label="Close receipt"
             style={{
               position: 'absolute', top: '12px', right: '12px', height: '32px', width: '32px', borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.10)', color: '#fff',
+              ...closeBtnStyle,
               display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 5,
             }}
           >
@@ -214,7 +223,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               position: 'relative',
               maxWidth: '560px',
               margin: '0 auto',
-              background: `radial-gradient(circle, rgba(0,105,148,0.045) 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
+              background: `radial-gradient(circle, ${hexToRgba(BRAND, 0.05)} 1px, transparent 1.4px) 0 0/14px 14px, #ffffff`,
               borderRadius: '12px',
               overflow: 'hidden',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 18px 40px -12px rgba(0,0,0,0.45)',
@@ -235,6 +244,18 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
             >
               {s.label}
             </div>
+
+            {/* Faint brand-mark watermark, bottom-right of the card */}
+            <img
+              src={logoUrl || '/icon-192.png'}
+              alt=""
+              aria-hidden
+              crossOrigin="anonymous"
+              style={{
+                position: 'absolute', right: '-18px', bottom: '-18px', height: '128px', width: '128px',
+                objectFit: 'contain', opacity: 0.05, transform: 'rotate(-8deg)', zIndex: 0, pointerEvents: 'none',
+              }}
+            />
 
             <div style={{ height: '4px', background: `linear-gradient(90deg, ${BRAND} 0%, ${s.dot} 50%, ${BRAND} 100%)`, position: 'relative', zIndex: 1 }} />
 

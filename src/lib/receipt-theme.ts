@@ -39,3 +39,14 @@ export const receiptTheme = {
   stampText: '#6f5a25',
   badgeText: '#3a2e12',
 } as const;
+
+/** '#rrggbb' -> 'rgba(r, g, b, alpha)' — used to tint the receipt card's
+ *  dot-texture background to whatever brand color is active (default blue
+ *  or Principal Disbursements' purple) instead of a hardcoded hex. */
+export function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
