@@ -13,6 +13,15 @@
 export const receiptTheme = {
   brand: '#006994',
   gold: '#D6AC50',
+  // Principal Disbursements (director salary/drawings/loan repayments +
+  // personal transfers) gets its own accent so its receipts read as
+  // visually distinct from a regular payroll/vendor receipt at a glance —
+  // deliberately not blue (regular receipts), green/red (success/fail),
+  // or amber (pending status watermark). Until the platform goes
+  // multi-tenant this is the one override point; a real per-client theme
+  // would slot in here instead of a hardcoded pair.
+  principalBrand: '#5b2a86',
+  principalBrandDark: '#3a1758',
   bodyText: '#0a2533',
   muted: '#5b6b75',
   mutedLight: '#8194a0',

@@ -103,6 +103,7 @@ import { BankAccountField, type BankAccountValue } from '@/components/BankAccoun
 import { PaymentSummaryModal } from '@/components/PaymentSummaryModal';
 import { ReceiptModal } from '@/components/ReceiptModal';
 import { PersonalTransferReceiptModal } from '@/components/PersonalTransferReceiptModal';
+import { receiptTheme } from '@/lib/receipt-theme';
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -619,6 +620,8 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         batch={receiptRow}
         companyName={companyName}
         logoUrl={logoUrl}
+        brand={receiptTheme.principalBrand}
+        brandDark={receiptTheme.principalBrandDark}
       />
 
       <MakeRecurringDialog
@@ -1302,6 +1305,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         onSent={load}
         beneficiaries={beneficiaries}
         history={rows}
+        dva={dva}
       />
       <PersonalTransferBeneficiariesDialog
         open={beneficiariesOpen}
@@ -1318,6 +1322,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         row={receiptRow}
         companyName={companyName}
         logoUrl={logoUrl}
+        brand={receiptTheme.principalBrand}
+        brandDark={receiptTheme.principalBrandDark}
       />
     </div>
   );
@@ -1724,7 +1730,7 @@ function computeBatchRiskFlags(
 }
 
 function PersonalTransferBatchDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries, history,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, history, dva,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1733,6 +1739,7 @@ function PersonalTransferBatchDialog({
   onSent: () => void;
   beneficiaries: PersonalTransferBeneficiaryRow[];
   history: PersonalTransferRow[];
+  dva: PrincipalWalletDva | null;
 }) {
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState('');
@@ -1741,6 +1748,7 @@ function PersonalTransferBatchDialog({
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sameAmount, setSameAmount] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const reset = () => { setBatchLabel(''); setAmounts({}); setSelected(new Set()); setResult(null); setProgress(''); setSameAmount(''); };
 
@@ -1781,7 +1789,8 @@ function PersonalTransferBatchDialog({
     [selected, amounts, history],
   );
 
-  const executeBatch = async () => {
+  const executeBatch = async (customNarration?: string) => {
+    setShowConfirm(false);
     setProcessing(true);
     setResult(null);
     try {
@@ -1828,9 +1837,9 @@ function PersonalTransferBatchDialog({
         supabase.from('personal_transfers').update({ paystack_reference: row.reference }).eq('id', row.id),
       ));
 
-      const narration = label
+      const narration = customNarration?.trim() || (label
         ? buildNarration({ kind: 'generic', label: label.slice(0, 40) })
-        : buildNarration({ kind: 'generic', label: 'Personal transfer' });
+        : buildNarration({ kind: 'generic', label: 'Personal transfer' }));
 
       // Chunk at 100/call, ≥5s between chunks — Paystack's documented bulk
       // transfer limits, same constants batch-worker uses for payroll.
@@ -1897,9 +1906,9 @@ function PersonalTransferBatchDialog({
       ) : (
         <>
           <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={processing}>Cancel</Button>
-          <Button onClick={executeBatch} disabled={processing || !allAmountsValid || walletInsufficient} className="kd-mobile-tap">
+          <Button onClick={() => setShowConfirm(true)} disabled={processing || !allAmountsValid || walletInsufficient} className="kd-mobile-tap">
             {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Layers className="mr-2 h-4 w-4" /> Send batch {selectedBeneficiaries.length > 0 && `(${selectedBeneficiaries.length})`}
+            <Layers className="mr-2 h-4 w-4" /> Review &amp; send {selectedBeneficiaries.length > 0 && `(${selectedBeneficiaries.length})`}
           </Button>
         </>
       )}
@@ -2014,6 +2023,27 @@ function PersonalTransferBatchDialog({
           )}
         </div>
       )}
+
+      <PaymentSummaryModal
+        open={showConfirm}
+        onOpenChange={setShowConfirm}
+        items={selectedBeneficiaries.map((b) => ({
+          full_name: b.account_name || b.label,
+          amount_ngn: parseFloat(amounts[b.id]) || 0,
+          bank_name: b.bank_name || undefined,
+          account_number: b.account_number || undefined,
+        }))}
+        narrationKind="generic"
+        label={batchLabel || 'Personal transfer'}
+        title="Confirm Personal Transfer Batch"
+        onConfirm={(narration) => executeBatch(narration)}
+        fetchWalletBalance={fetchWalletBalanceOrNull}
+        walletBalanceLabel="Principal Disbursements wallet"
+        hideProviderBalance
+        walletBankName={dva?.bank_name}
+        walletAccountNumber={dva?.account_number}
+        walletAccountName={dva?.account_name || undefined}
+      />
     </ResponsiveDialog>
   );
 }

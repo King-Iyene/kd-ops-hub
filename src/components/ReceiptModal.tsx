@@ -55,9 +55,13 @@ interface Props {
   batch: any;
   companyName?: string;
   logoUrl?: string | null;
+  /** Override the brand accent (header bar, status bar, section labels).
+   *  Used by Principal Disbursements to give its receipts a distinct
+   *  identity from a regular payroll/vendor receipt — pass both ends of
+   *  the backdrop gradient together or not at all. */
+  brand?: string;
+  brandDark?: string;
 }
-
-const BRAND = receiptTheme.brand;
 
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
@@ -77,10 +81,12 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl }: Props) {
+export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl, brand, brandDark }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
+  const BRAND = brand || receiptTheme.brand;
+  const BRAND_DARK = brandDark || '#00547a';
 
   // The webhook normally writes the fee column (paystack_fee_ngn or
   // flutterwave_fee_ngn) when the transfer succeeds, and the reconcile job
@@ -325,7 +331,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
           style={{
             position: 'relative',
             background:
-              `linear-gradient(180deg, ${BRAND} 0%, #00547a 100%)`,
+              `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
             padding: '24px 18px',
             borderRadius: '16px',
             overflow: 'hidden',
@@ -459,7 +465,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             </div>
 
             {/* Transfer details */}
-            <Section title="Transfer Details">
+            <Section brand={BRAND} title="Transfer Details">
               <Row k="Status" v={
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: s.dot, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
@@ -472,13 +478,13 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
             </Section>
 
             {/* Beneficiary */}
-            <Section title="Beneficiary">
+            <Section brand={BRAND} title="Beneficiary">
               <Row k="Bank" v={item.bank_name || '—'} />
               <Row k="Account number" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{item.account_number || '—'}</span>} />
             </Section>
 
             {/* Reference */}
-            <Section title="Reference">
+            <Section brand={BRAND} title="Reference">
               <Row k="Narration" v={narration} />
               {itemReference(item) && (
                 <Row k="Provider reference" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{itemReference(item)}</span>} />
@@ -492,7 +498,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
               const bankPerspective = bankPerspectiveFor(item.failure_reason);
               const recipientCanFix = recipientCanFixThis(item.failure_reason);
               return (
-                <Section title="Why this transfer failed">
+                <Section brand={BRAND} title="Why this transfer failed">
                   <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
                     <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{f.title}</p>
                   </div>
@@ -508,7 +514,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl 
 
             {/* Cost breakdown — only on succeeded */}
             {isSucceeded && (
-              <Section title="Debit Breakdown">
+              <Section brand={BRAND} title="Debit Breakdown">
                 {/* "Transfer amount" matches CBN bank-statement terminology
                     — the principal sum being moved. "Principal" was the
                     word a developer would use; "Transfer amount" is what
@@ -614,12 +620,12 @@ function recipientCanFixThis(raw?: string | null): string | null {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, brand }: { title: string; children: React.ReactNode; brand?: string }) {
   return (
     // position: relative + zIndex: 1 so the section content sits above the
     // status watermark that lives at z-index 0 on the white card.
     <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: brand || receiptTheme.brand, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
         {title}
       </div>
       {children}

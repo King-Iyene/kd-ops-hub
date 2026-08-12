@@ -36,9 +36,12 @@ interface Props {
   row: PersonalTransferRow | null;
   companyName?: string;
   logoUrl?: string | null;
+  /** Override the brand accent — see ReceiptModal's identical prop for why
+   *  Principal Disbursements passes its own here. */
+  brand?: string;
+  brandDark?: string;
 }
 
-const BRAND = receiptTheme.brand;
 const fmtNgn = (n: number) => `₦${n.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
 function statusInfo(status: string) {
@@ -48,10 +51,12 @@ function statusInfo(status: string) {
   return { label: 'PENDING', dot: receiptTheme.pending, tone: 'pending' as const };
 }
 
-export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl }: Props) {
+export function PersonalTransferReceiptModal({ open, onClose, row, companyName, logoUrl, brand, brandDark }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const [busy, setBusy] = useState<'download' | 'share' | null>(null);
+  const BRAND = brand || receiptTheme.brand;
+  const BRAND_DARK = brandDark || '#00547a';
 
   if (!row) return null;
 
@@ -173,7 +178,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
           className="kd-receipt-backdrop"
           style={{
             position: 'relative',
-            background: `linear-gradient(180deg, ${BRAND} 0%, #00547a 100%)`,
+            background: `linear-gradient(180deg, ${BRAND} 0%, ${BRAND_DARK} 100%)`,
             padding: '24px 18px',
             borderRadius: '16px',
             overflow: 'hidden',
@@ -255,7 +260,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               </div>
             </div>
 
-            <Section title="Transfer Details">
+            <Section brand={BRAND} title="Transfer Details">
               <Row k="Status" v={
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: s.dot, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
@@ -267,12 +272,12 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
               <Row k="Paid via" v="Paystack" />
             </Section>
 
-            <Section title="Beneficiary">
+            <Section brand={BRAND} title="Beneficiary">
               <Row k="Bank" v={row.recipient_bank_name || '—'} />
               <Row k="Account number" v={<span style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '12px', letterSpacing: '0.04em' }}>{row.recipient_account_number || '—'}</span>} />
             </Section>
 
-            <Section title="Reference">
+            <Section brand={BRAND} title="Reference">
               {row.memo && <Row k="Memo" v={row.memo} />}
               {row.batch_label && <Row k="Batch" v={row.batch_label} />}
               {row.paystack_reference && (
@@ -282,7 +287,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
             </Section>
 
             {row.status === 'failed' && (
-              <Section title="Why this transfer failed">
+              <Section brand={BRAND} title="Why this transfer failed">
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '12px 14px', marginBottom: '8px' }}>
                   <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>{row.failure_reason || 'Paystack rejected the transfer'}</p>
                 </div>
@@ -293,7 +298,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
             )}
 
             {isSucceeded && (
-              <Section title="Debit Breakdown">
+              <Section brand={BRAND} title="Debit Breakdown">
                 <Row k="Transfer amount" v={fmtNgn(amount)} />
                 {duty > 0 && <Row k="Stamp duty" v={fmtNgn(duty)} />}
                 <Row k="Transfer fee" v={fmtNgn(fee)} />
@@ -359,10 +364,10 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, brand }: { title: string; children: React.ReactNode; brand?: string }) {
   return (
     <div style={{ padding: '18px 28px', borderBottom: '1px solid #f0f0f0', position: 'relative', zIndex: 1 }}>
-      <div style={{ fontSize: '10px', fontWeight: 700, color: BRAND, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
+      <div style={{ fontSize: '10px', fontWeight: 700, color: brand || receiptTheme.brand, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '10px' }}>
         {title}
       </div>
       {children}
