@@ -108,25 +108,67 @@ async function writeTransferAudit(serviceClient: any, row: AuditRow) {
   }
 }
 
-async function getPaystackSecret(): Promise<string> {
-  const envSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (envSecret) return envSecret;
+// Mode-aware secret lookup — mirrors getFlutterwaveSecret() in
+// flutterwave-transfer/index.ts. Reads company_settings.paystack_mode
+// ('test' | 'live', default 'live') and picks the matching env var.
+// Falls back to the legacy single PAYSTACK_SECRET_KEY for backward compat.
+let _cachedPaystackSecret: string | null = null;
 
-  const serviceClient = createClient(
+async function getPaystackSecret(serviceClient?: any): Promise<string> {
+  if (_cachedPaystackSecret) return _cachedPaystackSecret;
+
+  const svc = serviceClient ?? createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const { data } = await serviceClient
+
+  const { data } = await svc
     .from("company_settings")
-    .select("paystack_secret_key_enc")
+    .select("paystack_mode, paystack_secret_key_enc")
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .maybeSingle();
-  const dbSecret = (data as any)?.paystack_secret_key_enc;
-  if (dbSecret) return dbSecret;
+  const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
 
-  throw new Error(
-    "PAYSTACK_SECRET_KEY not found. Set it via Supabase secrets or in Settings → Integrations.",
-  );
+  // Try mode-specific env vars first (PAYSTACK_SECRET_KEY_TEST / _LIVE).
+  const envName = mode === "live"
+    ? "PAYSTACK_SECRET_KEY_LIVE"
+    : "PAYSTACK_SECRET_KEY_TEST";
+  let secret = Deno.env.get(envName);
+
+  // Fallback: legacy single PAYSTACK_SECRET_KEY (backward compatible).
+  if (!secret) {
+    secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+  }
+
+  // Last resort: DB-stored key.
+  if (!secret) {
+    secret = (data as any)?.paystack_secret_key_enc || null;
+  }
+
+  if (!secret) {
+    throw new Error(
+      `No Paystack secret key found. Set ${envName} via 'supabase secrets set ${envName}=sk_...' and redeploy.`,
+    );
+  }
+
+  // Sanity: test-mode key must start with sk_test_; live must start with
+  // sk_live_. Guards against a paste error where a live key lands under the
+  // _TEST env var and vice versa.
+  const looksTest = secret.startsWith("sk_test_");
+  const looksLive = secret.startsWith("sk_live_");
+  if (mode === "test" && !looksTest && looksLive) {
+    throw new Error(
+      `Mode is TEST but the key starts with sk_live_. Refusing to make an accidental live call.`,
+    );
+  }
+  if (mode === "live" && !looksLive && looksTest) {
+    throw new Error(
+      `Mode is LIVE but the key starts with sk_test_. Refusing to fire with a test key.`,
+    );
+  }
+
+  _cachedPaystackSecret = secret;
+  return secret;
 }
 
 // Rate-limit handling --------------------------------------------------------
@@ -427,48 +469,120 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        // Pre-flight de-dup: if this reference was already dispatched, return
-        // the existing transfer instead of firing a duplicate. Paystack stores
-        // refs in `paystack_reference`, not `reference` (that column is the
-        // human-facing payment label and may collide).
-        const { data: existing } = await serviceClient
-          .from("batch_items")
-          .select("id, paystack_transfer_code, paystack_reference, status")
-          .eq("paystack_reference", params.reference)
-          .not("paystack_transfer_code", "is", null)
-          .maybeSingle();
-        if (existing?.paystack_transfer_code) {
-          // We've seen this ref before — verify Paystack so callers receive
-          // the live status, not a stale pending. Cheap call, ~250ms.
-          let liveStatus = existing.status;
-          try {
-            const verifyBody = await paystackFetch(
-              `/transfer/verify/${encodeURIComponent(params.reference)}`,
+
+        // ── Payment integrity: resolve the authoritative amount and
+        // recipient from the DB rather than trusting client-supplied values.
+        // Reference prefix determines the table:
+        //   kdopspt_ → personal_transfers (director's personal money)
+        //   kdops_   → batch_items (company disbursements / payroll)
+        const isPersonalTransfer = String(params.reference).startsWith("kdopspt_");
+        let dbAmountNgn: number;
+        let dbRecipientCode: string;
+        if (isPersonalTransfer) {
+          const { data: ptRow, error: ptErr } = await serviceClient
+            .from("personal_transfers")
+            .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
+            .eq("paystack_reference", params.reference)
+            .maybeSingle();
+          if (ptErr || !ptRow) {
+            return new Response(
+              JSON.stringify({ error: "No approved personal_transfers record for this reference" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
             );
-            liveStatus = verifyBody.data?.status || existing.status;
-          } catch (verifyErr) {
-            console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
           }
-          result = {
-            transfer_code: existing.paystack_transfer_code,
-            reference: params.reference,
-            status: liveStatus,
-            recovered: true,
-            verified_status: liveStatus,
-          };
-          break;
+          if ((ptRow as any).paystack_transfer_code) {
+            let liveStatus = (ptRow as any).status;
+            try {
+              const verifyBody = await paystackFetch(
+                `/transfer/verify/${encodeURIComponent(params.reference)}`,
+              );
+              liveStatus = verifyBody.data?.status || liveStatus;
+            } catch (verifyErr) {
+              console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
+            }
+            result = {
+              transfer_code: (ptRow as any).paystack_transfer_code,
+              reference: params.reference,
+              status: liveStatus,
+              recovered: true,
+              verified_status: liveStatus,
+            };
+            break;
+          }
+          dbAmountNgn = Number((ptRow as any).amount_ngn);
+          dbRecipientCode = (ptRow as any).paystack_recipient_code;
+        } else {
+          const { data: biRow, error: biErr } = await serviceClient
+            .from("batch_items")
+            .select("id, amount_ngn, paystack_recipient_code, paystack_transfer_code, paystack_reference, status")
+            .eq("paystack_reference", params.reference)
+            .maybeSingle();
+          if (biErr || !biRow) {
+            return new Response(
+              JSON.stringify({ error: "No approved batch_items record for this reference" }),
+              { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
+          if ((biRow as any).paystack_transfer_code) {
+            let liveStatus = (biRow as any).status;
+            try {
+              const verifyBody = await paystackFetch(
+                `/transfer/verify/${encodeURIComponent(params.reference)}`,
+              );
+              liveStatus = verifyBody.data?.status || liveStatus;
+            } catch (verifyErr) {
+              console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
+            }
+            result = {
+              transfer_code: (biRow as any).paystack_transfer_code,
+              reference: params.reference,
+              status: liveStatus,
+              recovered: true,
+              verified_status: liveStatus,
+            };
+            break;
+          }
+          dbAmountNgn = Number((biRow as any).amount_ngn);
+          dbRecipientCode = (biRow as any).paystack_recipient_code;
         }
-        // Initiate at Paystack. Self-heal if Paystack reports a duplicate ref
-        // we don't have on file (covers cases where the DB write failed after
-        // a successful Paystack call on a prior attempt).
+
+        if (!dbRecipientCode) {
+          return new Response(
+            JSON.stringify({ error: "DB record has no paystack_recipient_code — cannot send" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        // Log if client-supplied values differ from DB (possible tampering).
+        const clientAmount = Number(params.amount_ngn ?? 0);
+        if (clientAmount !== dbAmountNgn || params.recipient_code !== dbRecipientCode) {
+          console.warn(
+            "[INTEGRITY] Client/DB mismatch on initiate_transfer:",
+            { ref: params.reference, clientAmount, dbAmountNgn, clientRecipient: params.recipient_code, dbRecipient: dbRecipientCode },
+          );
+          await writeTransferAudit(serviceClient, {
+            actor_id: user.id,
+            actor_role: actorRole,
+            action: "integrity_mismatch",
+            outcome: "denied",
+            amount_ngn: clientAmount,
+            recipient_code: params.recipient_code,
+            reference: params.reference,
+            ip_hash: ipHash,
+            user_agent: userAgent,
+            reason: `Client sent amount=${clientAmount}/recipient=${params.recipient_code} but DB has amount=${dbAmountNgn}/recipient=${dbRecipientCode}`,
+          });
+        }
+
+        // Initiate at Paystack using DB-authoritative values.
         try {
           const body = await paystackFetch("/transfer", {
             method: "POST",
             body: JSON.stringify({
               source: "balance",
               reason: params.reason || "KDOps disbursement",
-              amount: Math.round((params.amount_ngn ?? 0) * 100),
-              recipient: params.recipient_code,
+              amount: Math.round(dbAmountNgn * 100),
+              recipient: dbRecipientCode,
               reference: params.reference,
             }),
           });
@@ -480,7 +594,6 @@ serve(async (req) => {
             msg.includes("unique reference") ||
             msg.includes("duplicate");
           if (!isDup) throw initErr;
-          // Recover: query Paystack for the existing transfer state.
           const verifyBody = await paystackFetch(
             `/transfer/verify/${encodeURIComponent(params.reference)}`,
           );
@@ -497,9 +610,6 @@ serve(async (req) => {
       }
 
       case "bulk_transfer": {
-        // Send up to 100 transfers in a single Paystack API call. Caller is
-        // responsible for chunking larger batches and spacing chunks ≥ 5s
-        // apart (Paystack rate limit on bulk transfers).
         const transfers = Array.isArray(params.transfers) ? params.transfers : [];
         if (transfers.length === 0) {
           return new Response(
@@ -521,9 +631,51 @@ serve(async (req) => {
             );
           }
         }
+
+        // ── Payment integrity: re-validate every item against the DB.
+        // Bulk transfers are always batch_items (never personal_transfers).
+        const bulkRefs = transfers.map((t: any) => String(t.reference));
+        const { data: dbItems, error: dbBulkErr } = await serviceClient
+          .from("batch_items")
+          .select("paystack_reference, amount_ngn, paystack_recipient_code")
+          .in("paystack_reference", bulkRefs);
+        if (dbBulkErr) {
+          console.error("[INTEGRITY] bulk DB lookup failed:", dbBulkErr);
+          return new Response(
+            JSON.stringify({ error: "Could not verify transfer records against DB" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const dbMap = new Map(
+          ((dbItems || []) as any[]).map((r: any) => [r.paystack_reference, r]),
+        );
+        const verifiedTransfers = transfers.map((t: any) => {
+          const dbRow = dbMap.get(t.reference);
+          if (!dbRow) {
+            console.warn("[INTEGRITY] bulk ref not found in DB:", t.reference);
+            return t;
+          }
+          const dbAmountKobo = Math.round(Number(dbRow.amount_ngn) * 100);
+          const dbRecipient = dbRow.paystack_recipient_code;
+          if (Number(t.amount) !== dbAmountKobo || t.recipient !== dbRecipient) {
+            console.warn("[INTEGRITY] bulk mismatch:", {
+              ref: t.reference,
+              clientAmount: t.amount,
+              dbAmountKobo,
+              clientRecipient: t.recipient,
+              dbRecipient,
+            });
+          }
+          return {
+            ...t,
+            amount: dbAmountKobo,
+            recipient: dbRecipient || t.recipient,
+          };
+        });
+
         const body = await paystackFetch("/transfer/bulk", {
           method: "POST",
-          body: JSON.stringify({ source: "balance", transfers }),
+          body: JSON.stringify({ source: "balance", transfers: verifiedTransfers }),
         });
         result = body.data;
         break;

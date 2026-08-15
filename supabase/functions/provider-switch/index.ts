@@ -78,20 +78,20 @@ async function probeFlutterwave(mode: "test" | "live"): Promise<{ ok: boolean; b
   }
 }
 
-async function probePaystack(): Promise<{ ok: boolean; balance?: number; error?: string }> {
-  const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+async function probePaystack(mode: "test" | "live"): Promise<{ ok: boolean; balance?: number; error?: string }> {
+  // Mode-specific env vars first, then legacy fallback, then DB.
+  const envName = mode === "live" ? "PAYSTACK_SECRET_KEY_LIVE" : "PAYSTACK_SECRET_KEY_TEST";
+  let secret = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
   if (!secret) {
-    // Fall back to the DB-stored secret (legacy Paystack path).
     try {
       const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const { data } = await svc.from("company_settings")
         .select("paystack_secret_key_enc").eq("id", "00000000-0000-0000-0000-000000000001").maybeSingle();
-      const dbSecret = (data as any)?.paystack_secret_key_enc;
-      if (!dbSecret) return { ok: false, error: "PAYSTACK_SECRET_KEY not set." };
-      return await probePaystackWith(dbSecret);
-    } catch (e) {
-      return { ok: false, error: (e as Error)?.message || "Failed to resolve Paystack secret" };
-    }
+      secret = (data as any)?.paystack_secret_key_enc;
+    } catch { /* fall through */ }
+  }
+  if (!secret) {
+    return { ok: false, error: `${envName} (or PAYSTACK_SECRET_KEY) is not set.` };
   }
   return await probePaystackWith(secret);
 }
@@ -141,32 +141,34 @@ serve(async (req) => {
 
     // Current state.
     const { data: settings } = await service.from("company_settings")
-      .select("active_payment_provider, flutterwave_mode, provider_switched_at, provider_switched_by")
+      .select("active_payment_provider, flutterwave_mode, paystack_mode, provider_switched_at, provider_switched_by")
       .eq("id", "00000000-0000-0000-0000-000000000001").maybeSingle();
     const currentProvider = (settings as any)?.active_payment_provider || "paystack";
-    const currentMode = (settings as any)?.flutterwave_mode || "test";
+    const currentFwMode = (settings as any)?.flutterwave_mode || "test";
+    const currentPsMode = (settings as any)?.paystack_mode || "live";
 
     // ────────────────────────────────────────────────────────────────
     // preflight — dry run, no state change
     // ────────────────────────────────────────────────────────────────
     if (action === "preflight") {
       const to = body.to_provider === "flutterwave" ? "flutterwave" : "paystack";
-      const toMode = body.to_mode === "live" ? "live" : "test";
+      const toMode = body.to_mode === "live" ? "live" : (body.to_mode === "test" ? "test" : (to === "flutterwave" ? currentFwMode : currentPsMode));
       let probe;
       if (to === "flutterwave") {
         probe = await probeFlutterwave(toMode);
       } else {
-        probe = await probePaystack();
+        probe = await probePaystack(toMode);
       }
       return json(cors, {
         ok: probe.ok,
         target_provider: to,
-        target_mode: to === "flutterwave" ? toMode : null,
+        target_mode: toMode,
         balance: probe.balance ?? null,
         error: probe.error ?? null,
         current: {
           provider: currentProvider,
-          mode: currentMode,
+          fw_mode: currentFwMode,
+          ps_mode: currentPsMode,
         },
       });
     }
@@ -176,7 +178,8 @@ serve(async (req) => {
     // ────────────────────────────────────────────────────────────────
     if (action === "switch") {
       const toProvider = body.to_provider === "flutterwave" ? "flutterwave" : "paystack";
-      const toMode = body.to_mode === "live" ? "live" : (body.to_mode === "test" ? "test" : currentMode);
+      const currentModeForProvider = toProvider === "flutterwave" ? currentFwMode : currentPsMode;
+      const toMode = body.to_mode === "live" ? "live" : (body.to_mode === "test" ? "test" : currentModeForProvider);
       const reason = String(body.reason || "").trim();
       const confirmation = String(body.confirmation || "");
 
@@ -184,10 +187,8 @@ serve(async (req) => {
         return json(cors, { error: "Reason is required (audit trail)." }, 400);
       }
 
-      // Typed confirmation must equal target provider name (uppercase) — or,
-      // if only mode is changing, the target mode name (uppercase).
       const providerChanging = toProvider !== currentProvider;
-      const modeChanging = toProvider === "flutterwave" && toMode !== currentMode;
+      const modeChanging = toMode !== currentModeForProvider;
       if (!providerChanging && !modeChanging) {
         return json(cors, { error: "Nothing to change." }, 400);
       }
@@ -196,13 +197,12 @@ serve(async (req) => {
         return json(cors, { error: `Confirmation mismatch. Type "${expected}" to confirm.` }, 400);
       }
 
-      // Preflight the TARGET (as if we were switching TO it) — refuse if unreachable.
       const probe = toProvider === "flutterwave"
         ? await probeFlutterwave(toMode)
-        : await probePaystack();
+        : await probePaystack(toMode);
       if (!probe.ok) {
         return json(cors, {
-          error: `Preflight failed on target ${toProvider}${toProvider === "flutterwave" ? " (" + toMode + ")" : ""}: ${probe.error}`,
+          error: `Preflight failed on target ${toProvider} (${toMode}): ${probe.error}`,
           preflight: probe,
         }, 422);
       }
@@ -211,8 +211,6 @@ serve(async (req) => {
       const userAgent = req.headers.get("user-agent") ?? null;
       const now = new Date().toISOString();
 
-      // Write the audit row FIRST — even if the settings update fails, we
-      // know a switch was attempted.
       const { data: switchRow, error: switchErr } = await service
         .from("provider_switches")
         .insert({
@@ -232,13 +230,15 @@ serve(async (req) => {
         return json(cors, { error: "Failed to write switch audit — refusing to change state.", detail: switchErr.message }, 500);
       }
 
-      // Apply the change.
       const update: Record<string, any> = {
         provider_switched_at: now,
         provider_switched_by: user.id,
       };
       if (providerChanging) update.active_payment_provider = toProvider;
-      if (modeChanging) update.flutterwave_mode = toMode;
+      if (modeChanging) {
+        if (toProvider === "flutterwave") update.flutterwave_mode = toMode;
+        else update.paystack_mode = toMode;
+      }
 
       const { error: updErr } = await service
         .from("company_settings")
@@ -253,7 +253,7 @@ serve(async (req) => {
         switched: {
           from_provider: currentProvider,
           to_provider: toProvider,
-          from_mode: currentMode,
+          from_mode: currentModeForProvider,
           to_mode: toMode,
         },
         switch_id: switchRow.id,
