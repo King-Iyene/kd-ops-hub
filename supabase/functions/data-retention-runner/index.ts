@@ -71,21 +71,21 @@ serve(async (req) => {
     });
 
     const body = await req.json().catch(() => ({}));
-    const { policy_id, scheduled = false } = body as {
-      policy_id?: string;
-      scheduled?: boolean;
-    };
+    const { policy_id } = body as { policy_id?: string };
 
-    // ── Authorize: admin/super_admin OR service-role for scheduled runs ──
+    // ── Authorize: service-role bearer for scheduled runs, otherwise
+    //    require a valid JWT from an admin/super_admin user. ──────────────
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearer = authHeader.replace("Bearer ", "");
+    const isServiceRole = bearer && bearer === SERVICE_ROLE;
+
     let triggeredBy: string | null = null;
-    if (!scheduled) {
-      const authHeader = req.headers.get("Authorization") ?? "";
+    if (!isServiceRole) {
       const userClient = createClient(
         SUPABASE_URL,
         Deno.env.get("SUPABASE_ANON_KEY")!,
       );
-      const jwt = authHeader.replace("Bearer ", "");
-      const { data: { user } } = await userClient.auth.getUser(jwt);
+      const { data: { user } } = await userClient.auth.getUser(bearer);
       if (!user) {
         return json({ error: "Not authenticated" }, 401);
       }

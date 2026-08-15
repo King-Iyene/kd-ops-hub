@@ -106,6 +106,30 @@ serve(async (req) => {
         );
       }
       user = authUser;
+
+      // Role gate: only admin, super_admin, and operations may send
+      // notifications directly. Other roles (field_staff, drivers) have
+      // no business invoking this endpoint — notifications for them are
+      // sent server-side via service-role callers (webhooks, edge functions).
+      const roleClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: senderProfile } = await roleClient
+        .from("profiles")
+        .select("role")
+        .eq("id", authUser.id)
+        .single();
+      const allowedSendRoles = ["super_admin", "admin", "operations"];
+      if (!senderProfile || !allowedSendRoles.includes((senderProfile as any).role)) {
+        return new Response(
+          JSON.stringify({ ok: false, error: "Your role is not permitted to send notifications" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     // Rate limit: max 10 notifications per user per 60 seconds.

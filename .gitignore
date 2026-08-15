@@ -39,3 +39,7 @@ supabase/.temp/
 .env.local
 .env.*.local
 
+# Bun lockfiles — npm is the canonical package manager
+bun.lock
+bun.lockb
+

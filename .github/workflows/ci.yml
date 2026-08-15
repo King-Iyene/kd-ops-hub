@@ -22,20 +22,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Lint and type-check run as REPORTS (non-blocking); the build is the hard
-      # correctness gate. Type-check currently surfaces ~1k errors that are stale
-      # generated Supabase types (src/integrations/supabase/types.ts is out of
-      # date with the migrations) — the real fix is regenerating those types
-      # (`supabase gen types`), not hand-editing them. Lint has a small backlog
-      # too. Both are surfaced so the debt stays visible; flip the
-      # continue-on-error off once they're burned down.
-      - name: Lint (report only)
+      - name: Lint
         run: npm run lint
-        continue-on-error: true
 
-      - name: Type-check (report only — pending type regeneration)
+      - name: Type-check
         run: npm run typecheck
-        continue-on-error: true
 
       - name: Build
         run: npm run build
