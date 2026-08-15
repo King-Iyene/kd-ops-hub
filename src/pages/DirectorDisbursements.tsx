@@ -30,7 +30,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Users, Layers, Trash2, Plus, RefreshCw,
-  Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History, Search,
+  Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History, Search, Calendar, Clock, FileText,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -60,8 +60,16 @@ import {
   fetchPersonalTransferBeneficiaries,
   createPersonalTransferBeneficiary,
   deletePersonalTransferBeneficiary,
+  fetchPersonalRecurringSchedules,
+  createPersonalRecurringSchedule,
+  togglePersonalRecurringSchedule,
+  deletePersonalRecurringSchedule,
+  fetchPersonalTransferDrafts,
+  deletePersonalTransferDraft,
   type PersonalTransferRow,
   type PersonalTransferBeneficiaryRow,
+  type PersonalRecurringScheduleRow,
+  type PersonalTransferDraftRow,
 } from '@/lib/personal-transfers';
 import {
   fetchDvaAccount,
@@ -1053,6 +1061,10 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const [schedules, setSchedules] = useState<PersonalRecurringScheduleRow[]>([]);
+  const [drafts, setDrafts] = useState<PersonalTransferDraftRow[]>([]);
+  const [sendDraft, setSendDraft] = useState<PersonalTransferDraftRow | null>(null);
 
   useEffect(() => {
     supabase.from('company_settings').select('company_name, logo_url')
@@ -1084,6 +1096,15 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
     } catch (err: any) {
       toast({ title: 'Could not load beneficiaries', description: err?.message, variant: 'destructive' });
     }
+  };
+
+  const loadSchedules = async () => {
+    try { setSchedules(await fetchPersonalRecurringSchedules()); }
+    catch { /* RLS will return empty if table doesn't exist yet */ }
+  };
+  const loadDrafts = async () => {
+    try { setDrafts(await fetchPersonalTransferDrafts()); }
+    catch { /* same */ }
   };
 
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
@@ -1122,6 +1143,8 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   useEffect(() => {
     void load();
     void loadBeneficiaries();
+    void loadSchedules();
+    void loadDrafts();
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
@@ -1155,6 +1178,9 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           <Button variant="outline" onClick={() => setBeneficiariesOpen(true)}>
             <Users className="mr-2 h-4 w-4" /> Beneficiaries
           </Button>
+          <Button variant="outline" onClick={() => setRecurringOpen(true)}>
+            <Repeat className="mr-2 h-4 w-4" /> Recurring
+          </Button>
           <Button variant="outline" onClick={() => setBatchOpen(true)}>
             <Layers className="mr-2 h-4 w-4" /> New batch
           </Button>
@@ -1163,6 +1189,115 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           </Button>
         </div>
       </div>
+
+      {/* ── Drafts awaiting send (created by recurring cron) ──────────── */}
+      {drafts.length > 0 && (
+        <Card className="rounded-xl border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" /> Drafts awaiting send
+              <Badge variant="secondary" className="text-[10px]">{drafts.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {drafts.map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{d.beneficiary?.label || d.beneficiary?.account_name || 'Beneficiary removed'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatNaira(d.amount_ngn)}{d.memo ? ` · ${d.memo}` : ''} · Created {formatDateTime(d.created_at)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {d.beneficiary && (
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => {
+                        setSendDraft(d);
+                        setSendOpen(true);
+                      }}
+                    >
+                      <Send className="mr-1 h-3 w-3" /> Send
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    title="Discard"
+                    onClick={async () => {
+                      try {
+                        await deletePersonalTransferDraft(d.id);
+                        await logAudit('personal_transfer_draft_discarded', `Discarded recurring draft for ${d.beneficiary?.label || 'unknown'}`, profile);
+                        toast({ title: 'Draft discarded' });
+                        loadDrafts();
+                      } catch (err: any) {
+                        toast({ title: 'Could not discard', description: err?.message, variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Active recurring schedules ─────────────────────────────────── */}
+      {schedules.length > 0 && (
+        <Card className="rounded-xl">
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><Repeat className="h-4 w-4" /> Recurring schedules</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {schedules.map((s) => (
+              <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{s.beneficiary?.label || s.beneficiary?.account_name || 'Beneficiary removed'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Monthly, day {s.day_of_month} · Next: {s.next_run_date ? formatDateTime(s.next_run_date) : '—'} · {formatNaira(s.amount_ngn)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7"
+                    title={s.status === 'paused' ? 'Resume' : 'Pause'}
+                    onClick={async () => {
+                      try {
+                        await togglePersonalRecurringSchedule(s.id, s.status);
+                        const action = s.status === 'paused' ? 'resumed' : 'paused';
+                        await logAudit('personal_transfer_schedule_updated', `Recurring schedule for "${s.beneficiary?.label || 'unknown'}" ${action}`, profile);
+                        loadSchedules();
+                      } catch (err: any) {
+                        toast({ title: 'Could not update', description: err?.message, variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                  </Button>
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Delete"
+                    onClick={async () => {
+                      try {
+                        await deletePersonalRecurringSchedule(s.id);
+                        await logAudit('personal_transfer_schedule_deleted', `Recurring schedule for "${s.beneficiary?.label || 'unknown'}" deleted`, profile);
+                        toast({ title: 'Schedule deleted' });
+                        loadSchedules();
+                      } catch (err: any) {
+                        toast({ title: 'Could not delete', description: err?.message, variant: 'destructive' });
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="rounded-xl">
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1301,12 +1436,14 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
 
       <PersonalTransferSendDialog
         open={sendOpen}
-        onOpenChange={setSendOpen}
+        onOpenChange={(v) => { setSendOpen(v); if (!v) setSendDraft(null); }}
         profile={profile}
         toast={toast}
         onSent={load}
         beneficiaries={beneficiaries}
         dva={dva}
+        draft={sendDraft}
+        onDraftSent={loadDrafts}
       />
       <PersonalTransferBatchDialog
         open={batchOpen}
@@ -1326,6 +1463,14 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         beneficiaries={beneficiaries}
         onChanged={loadBeneficiaries}
       />
+      <PersonalRecurringDialog
+        open={recurringOpen}
+        onOpenChange={setRecurringOpen}
+        profile={profile}
+        toast={toast}
+        beneficiaries={beneficiaries}
+        onCreated={loadSchedules}
+      />
 
       <PersonalTransferReceiptModal
         open={!!receiptRow}
@@ -1336,6 +1481,128 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         bold
       />
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Recurring schedule creator for Personal Transfer
+   ═══════════════════════════════════════════════════════════════════════ */
+function PersonalRecurringDialog({
+  open, onOpenChange, profile, toast, beneficiaries, onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  profile: any;
+  toast: ReturnType<typeof useToast>['toast'];
+  beneficiaries: PersonalTransferBeneficiaryRow[];
+  onCreated: () => void;
+}) {
+  const [beneficiaryId, setBeneficiaryId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [memo, setMemo] = useState('');
+  const [day, setDay] = useState(1);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) { setBeneficiaryId(''); setAmount(''); setMemo(''); setDay(1); }
+  }, [open]);
+
+  const selectedBen = beneficiaries.find((b) => b.id === beneficiaryId);
+  const amountNum = parseFloat(amount) || 0;
+  const valid = !!beneficiaryId && amountNum > 0 && day >= 1 && day <= 28;
+
+  const save = async () => {
+    if (!valid || !profile?.id) return;
+    setSaving(true);
+    try {
+      await createPersonalRecurringSchedule({
+        createdBy: profile.id,
+        beneficiaryId,
+        amountNgn: amountNum,
+        memo: memo.trim() || null,
+        dayOfMonth: day,
+      });
+      await logAudit(
+        'personal_transfer_schedule_created',
+        `Created recurring schedule: ${selectedBen?.label || 'beneficiary'} — ₦${amountNum.toLocaleString()} monthly (day ${day})`,
+        profile,
+      );
+      toast({
+        title: 'Recurring schedule created',
+        description: `Each month on day ${day}, a draft will appear for you to review and send.`,
+      });
+      onCreated();
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: 'Could not create schedule', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ResponsiveDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={<span className="flex items-center gap-2"><Repeat className="h-5 w-5 text-primary" /> New recurring transfer</span>}
+      description="Set up a monthly transfer that creates a draft for you to review and send."
+      footer={(
+        <>
+          <Button variant="outline" className="kd-mobile-tap" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button onClick={save} disabled={saving || !valid} className="kd-mobile-tap">
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Create schedule
+          </Button>
+        </>
+      )}
+    >
+      <div className="space-y-3">
+        <Alert className="border-primary/30 bg-primary/5">
+          <ShieldAlert className="h-4 w-4 text-primary" />
+          <AlertDescription className="text-sm">
+            Nothing sends automatically. Each month KDOps creates a draft here for you to review — you still click Send.
+          </AlertDescription>
+        </Alert>
+
+        {beneficiaries.length === 0 ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>Save a beneficiary first — recurring schedules need a saved recipient.</AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="space-y-1">
+              <Label>Beneficiary</Label>
+              <Select value={beneficiaryId} onValueChange={setBeneficiaryId}>
+                <SelectTrigger><SelectValue placeholder="Pick a saved beneficiary" /></SelectTrigger>
+                <SelectContent>
+                  {beneficiaries.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.label} · {b.bank_name || b.bank_code} · {b.account_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Amount (₦)</Label>
+              <Input type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 50000" />
+            </div>
+
+            <div className="space-y-1">
+              <Label>Day of month (1–28)</Label>
+              <Input type="number" min={1} max={28} value={day} onChange={(e) => setDay(Number(e.target.value) || 1)} />
+              <p className="text-[11px] text-muted-foreground">Capped at 28 to avoid month-end ambiguity.</p>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Memo (optional)</Label>
+              <Input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="e.g. Parent allowance" />
+            </div>
+          </>
+        )}
+      </div>
+    </ResponsiveDialog>
   );
 }
 
@@ -1452,7 +1719,7 @@ function PersonalTransferBeneficiariesDialog({
 }
 
 function PersonalTransferSendDialog({
-  open, onOpenChange, profile, toast, onSent, beneficiaries, dva,
+  open, onOpenChange, profile, toast, onSent, beneficiaries, dva, draft, onDraftSent,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -1461,6 +1728,8 @@ function PersonalTransferSendDialog({
   onSent: () => void;
   beneficiaries: PersonalTransferBeneficiaryRow[];
   dva: PrincipalWalletDva | null;
+  draft?: PersonalTransferDraftRow | null;
+  onDraftSent?: () => void;
 }) {
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<SendResult>(null);
@@ -1468,6 +1737,19 @@ function PersonalTransferSendDialog({
   const [form, setForm] = useState({ amount: '', memo: '' });
   const [showConfirm, setShowConfirm] = useState(false);
   const [beneficiaryId, setBeneficiaryId] = useState<string>('');
+
+  useEffect(() => {
+    if (open && draft?.beneficiary) {
+      setBeneficiaryId(draft.beneficiary.id);
+      setBank({
+        bank_name: draft.beneficiary.bank_name || '',
+        account_number: draft.beneficiary.account_number,
+        account_name: draft.beneficiary.account_name || draft.beneficiary.label,
+        verified: true,
+      });
+      setForm({ amount: String(draft.amount_ngn), memo: draft.memo || '' });
+    }
+  }, [open, draft]);
 
   const reset = () => { setBank(emptyBank); setForm({ amount: '', memo: '' }); setResult(null); setBeneficiaryId(''); };
 
@@ -1540,7 +1822,7 @@ function PersonalTransferSendDialog({
 
       const narration = customNarration?.trim()
         || (form.memo?.trim() ? form.memo.trim().slice(0, 60) : '')
-        || buildNarration({ kind: 'generic', label: 'Personal transfer' });
+        || buildNarration({ kind: 'generic' });
 
       const transfer = await initiateTransferIdempotent({
         recipient_code: recipientCode!,
@@ -1570,6 +1852,10 @@ function PersonalTransferSendDialog({
       setResult({ ok: true, ref });
       toast({ title: 'Transfer sent', description: `Ref: ${ref}` });
       onSent();
+      if (draft) {
+        await deletePersonalTransferDraft(draft.id).catch(() => {});
+        onDraftSent?.();
+      }
     } catch (err: any) {
       const friendly = friendlyDbError(err);
       setResult({ ok: false, reason: friendly });
@@ -1585,7 +1871,7 @@ function PersonalTransferSendDialog({
         open={open}
         onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}
         size="lg"
-        title={<span className="flex items-center gap-2"><Send className="h-5 w-5 text-primary" /> New Personal Transfer</span>}
+        title={<span className="flex items-center gap-2"><Send className="h-5 w-5 text-primary" /> {draft ? 'Send Recurring Draft' : 'New Personal Transfer'}</span>}
         description="Your own money. Never touches the company ledger, expense reports, or payables — visible only to you."
         footer={result ? (
           <Button variant="outline" className="kd-mobile-tap" onClick={() => { reset(); onOpenChange(false); }}>Close</Button>
@@ -1664,7 +1950,7 @@ function PersonalTransferSendDialog({
         onOpenChange={setShowConfirm}
         items={[{ full_name: bank.account_name || bank.account_number || 'recipient', amount_ngn: parseFloat(form.amount) || 0, bank_name: bank.bank_name || undefined, account_number: bank.account_number || undefined }]}
         narrationKind="generic"
-        label={form.memo || 'Personal transfer'}
+        label={form.memo || undefined}
         title="Confirm Personal Transfer"
         onConfirm={(narration) => executeSend(narration)}
         fetchWalletBalance={fetchWalletBalanceOrNull}
@@ -1849,7 +2135,7 @@ function PersonalTransferBatchDialog({
 
       const narration = customNarration?.trim() || (label
         ? buildNarration({ kind: 'generic', label: label.slice(0, 40) })
-        : buildNarration({ kind: 'generic', label: 'Personal transfer' }));
+        : buildNarration({ kind: 'generic' }));
 
       // Chunk at 100/call, ≥5s between chunks — Paystack's documented bulk
       // transfer limits, same constants batch-worker uses for payroll.

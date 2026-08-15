@@ -122,3 +122,99 @@ export async function logPersonalTransferDetailView(
     actor,
   );
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Recurring schedules + drafts
+   ═══════════════════════════════════════════════════════════════════════ */
+
+export interface PersonalRecurringScheduleRow {
+  id: string;
+  created_by: string;
+  beneficiary_id: string;
+  amount_ngn: number;
+  memo: string | null;
+  day_of_month: number;
+  next_run_date: string;
+  last_run_date: string | null;
+  status: 'active' | 'paused' | 'cancelled';
+  created_at: string;
+  updated_at: string;
+  beneficiary?: PersonalTransferBeneficiaryRow;
+}
+
+export interface PersonalTransferDraftRow {
+  id: string;
+  schedule_id: string | null;
+  created_by: string;
+  beneficiary_id: string | null;
+  amount_ngn: number;
+  memo: string | null;
+  created_at: string;
+  beneficiary?: PersonalTransferBeneficiaryRow;
+}
+
+export async function fetchPersonalRecurringSchedules(): Promise<PersonalRecurringScheduleRow[]> {
+  const { data, error } = await supabase
+    .from('personal_transfer_recurring_schedules')
+    .select('*, beneficiary:personal_transfer_beneficiaries(*)')
+    .order('next_run_date', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as unknown as PersonalRecurringScheduleRow[];
+}
+
+export async function createPersonalRecurringSchedule(input: {
+  createdBy: string;
+  beneficiaryId: string;
+  amountNgn: number;
+  memo: string | null;
+  dayOfMonth: number;
+}): Promise<void> {
+  const today = new Date();
+  const nextMonth = today.getDate() >= input.dayOfMonth ? today.getMonth() + 1 : today.getMonth();
+  const nextDate = new Date(today.getFullYear(), nextMonth, input.dayOfMonth);
+  const { error } = await supabase
+    .from('personal_transfer_recurring_schedules')
+    .insert({
+      created_by: input.createdBy,
+      beneficiary_id: input.beneficiaryId,
+      amount_ngn: input.amountNgn,
+      memo: input.memo || null,
+      day_of_month: input.dayOfMonth,
+      next_run_date: nextDate.toISOString().slice(0, 10),
+    });
+  if (error) throw error;
+}
+
+export async function togglePersonalRecurringSchedule(id: string, currentStatus: string): Promise<void> {
+  const next = currentStatus === 'paused' ? 'active' : 'paused';
+  const { error } = await supabase
+    .from('personal_transfer_recurring_schedules')
+    .update({ status: next, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deletePersonalRecurringSchedule(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('personal_transfer_recurring_schedules')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchPersonalTransferDrafts(): Promise<PersonalTransferDraftRow[]> {
+  const { data, error } = await supabase
+    .from('personal_transfer_drafts')
+    .select('*, beneficiary:personal_transfer_beneficiaries(*)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as PersonalTransferDraftRow[];
+}
+
+export async function deletePersonalTransferDraft(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('personal_transfer_drafts')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
