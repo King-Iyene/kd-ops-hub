@@ -98,6 +98,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -1674,39 +1675,44 @@ function PersonalRecurringDialog({
   beneficiaries: PersonalTransferBeneficiaryRow[];
   onCreated: () => void;
 }) {
-  const [beneficiaryId, setBeneficiaryId] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [amount, setAmount] = useState('');
   const [memo, setMemo] = useState('');
   const [day, setDay] = useState(1);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) { setBeneficiaryId(''); setAmount(''); setMemo(''); setDay(1); }
+    if (open) { setSelectedIds([]); setAmount(''); setMemo(''); setDay(1); }
   }, [open]);
 
-  const selectedBen = beneficiaries.find((b) => b.id === beneficiaryId);
+  const toggleBen = (id: string) =>
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
   const amountNum = parseFloat(amount) || 0;
-  const valid = !!beneficiaryId && amountNum > 0 && day >= 1 && day <= 28;
+  const valid = selectedIds.length > 0 && amountNum > 0 && day >= 1 && day <= 28;
 
   const save = async () => {
     if (!valid || !profile?.id) return;
     setSaving(true);
     try {
-      await createPersonalRecurringSchedule({
-        createdBy: profile.id,
-        beneficiaryId,
-        amountNgn: amountNum,
-        memo: memo.trim() || null,
-        dayOfMonth: day,
-      });
-      await logAudit(
-        'personal_transfer_schedule_created',
-        `Created recurring schedule: ${selectedBen?.label || 'beneficiary'} — ₦${amountNum.toLocaleString()} monthly (day ${day})`,
-        profile,
-      );
+      for (const bid of selectedIds) {
+        await createPersonalRecurringSchedule({
+          createdBy: profile.id,
+          beneficiaryId: bid,
+          amountNgn: amountNum,
+          memo: memo.trim() || null,
+          dayOfMonth: day,
+        });
+        const ben = beneficiaries.find((b) => b.id === bid);
+        await logAudit(
+          'personal_transfer_schedule_created',
+          `Created recurring schedule: ${ben?.label || 'beneficiary'} — ₦${amountNum.toLocaleString()} monthly (day ${day})`,
+          profile,
+        );
+      }
       toast({
-        title: 'Recurring schedule created',
-        description: `Each month on day ${day}, a draft will appear for you to review and send.`,
+        title: `${selectedIds.length} recurring schedule${selectedIds.length > 1 ? 's' : ''} created`,
+        description: `Each month on day ${day}, draft${selectedIds.length > 1 ? 's' : ''} will appear for you to review and send.`,
       });
       onCreated();
       onOpenChange(false);
@@ -1748,17 +1754,18 @@ function PersonalRecurringDialog({
         ) : (
           <>
             <div className="space-y-1">
-              <Label>Beneficiary</Label>
-              <Select value={beneficiaryId} onValueChange={setBeneficiaryId}>
-                <SelectTrigger><SelectValue placeholder="Pick a saved beneficiary" /></SelectTrigger>
-                <SelectContent>
-                  {beneficiaries.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.label} · {b.bank_name || b.bank_code} · {b.account_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Beneficiaries{selectedIds.length > 0 && ` (${selectedIds.length})`}</Label>
+              <div className="max-h-40 overflow-y-auto rounded-md border p-2 space-y-1">
+                {beneficiaries.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm cursor-pointer hover:bg-muted/50">
+                    <Checkbox
+                      checked={selectedIds.includes(b.id)}
+                      onCheckedChange={() => toggleBen(b.id)}
+                    />
+                    <span className="truncate">{b.label} · {b.bank_name || b.bank_code} · {b.account_number}</span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-1">
