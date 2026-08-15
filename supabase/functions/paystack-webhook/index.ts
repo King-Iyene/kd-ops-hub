@@ -45,9 +45,6 @@ type Supabase = ReturnType<typeof createClient>;
 // ---------------------------------------------------------------------------
 
 async function getPaystackSecret(): Promise<string | null> {
-  const envSecret = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (envSecret) return envSecret;
-
   try {
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -55,12 +52,22 @@ async function getPaystackSecret(): Promise<string | null> {
     );
     const { data } = await serviceClient
       .from("company_settings")
-      .select("paystack_secret_key_enc")
+      .select("paystack_mode, paystack_secret_key_enc")
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .maybeSingle();
-    return (data as any)?.paystack_secret_key_enc || null;
+    const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
+
+    // Mode-specific env vars first, then legacy fallback, then DB.
+    const envName = mode === "live"
+      ? "PAYSTACK_SECRET_KEY_LIVE"
+      : "PAYSTACK_SECRET_KEY_TEST";
+    const secret = Deno.env.get(envName)
+      ?? Deno.env.get("PAYSTACK_SECRET_KEY")
+      ?? (data as any)?.paystack_secret_key_enc
+      ?? null;
+    return secret;
   } catch {
-    return null;
+    return Deno.env.get("PAYSTACK_SECRET_KEY") ?? null;
   }
 }
 

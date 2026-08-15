@@ -34,16 +34,21 @@ const STUCK_THRESHOLD_HOURS = 1;
 const MAX_ITEMS_PER_RUN = 200;
 
 async function getPaystackSecret(service: any): Promise<string> {
-  const env = Deno.env.get("PAYSTACK_SECRET_KEY");
-  if (env) return env;
   const { data } = await service
     .from("company_settings")
-    .select("paystack_secret_key_enc")
+    .select("paystack_mode, paystack_secret_key_enc")
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .maybeSingle();
-  const dbSecret = data?.paystack_secret_key_enc;
-  if (dbSecret) return dbSecret;
-  throw new Error("PAYSTACK_SECRET_KEY not configured");
+  const mode = ((data as any)?.paystack_mode || "live") as "test" | "live";
+
+  const envName = mode === "live"
+    ? "PAYSTACK_SECRET_KEY_LIVE"
+    : "PAYSTACK_SECRET_KEY_TEST";
+  const secret = Deno.env.get(envName)
+    ?? Deno.env.get("PAYSTACK_SECRET_KEY")
+    ?? (data as any)?.paystack_secret_key_enc;
+  if (!secret) throw new Error(`No Paystack secret key found. Set ${envName} or PAYSTACK_SECRET_KEY.`);
+  return secret;
 }
 
 serve(async (req) => {

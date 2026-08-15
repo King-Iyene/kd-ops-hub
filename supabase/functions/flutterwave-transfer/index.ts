@@ -463,31 +463,37 @@ serve(async (req) => {
             { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
         }
-        // Pre-flight de-dup: if this reference already has a Flutterwave
-        // transfer_id, return the existing transfer + live status instead
-        // of firing a duplicate. Mirrors Paystack's pre-flight behaviour.
-        const { data: existing } = await serviceClient
+
+        // ── Payment integrity: resolve authoritative amount, account, and
+        // bank from the DB. Flutterwave transfers are always batch_items
+        // (personal transfers go through Paystack).
+        const { data: fwRow, error: fwRowErr } = await serviceClient
           .from("batch_items")
-          .select("id, flutterwave_transfer_id, flutterwave_reference, status")
+          .select("id, amount_ngn, account_number, bank_code, flutterwave_transfer_id, flutterwave_reference, status")
           .eq("flutterwave_reference", params.reference)
-          .not("flutterwave_transfer_id", "is", null)
           .maybeSingle();
-        if (existing?.flutterwave_transfer_id) {
-          // Verify live status via Flutterwave /transfers?reference=X to
-          // avoid returning stale info to the caller.
-          let liveStatus = existing.status;
+        if (fwRowErr || !fwRow) {
+          return new Response(
+            JSON.stringify({ error: "No approved batch_items record for this Flutterwave reference" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+
+        // De-dup: if already dispatched, return existing + live status.
+        if ((fwRow as any).flutterwave_transfer_id) {
+          let liveStatus = (fwRow as any).status;
           try {
             const verifyBody = await flutterwaveFetch(
               serviceClient,
               `/transfers?reference=${encodeURIComponent(params.reference)}`,
             );
             const t = Array.isArray(verifyBody.data) ? verifyBody.data[0] : verifyBody.data;
-            liveStatus = mapFlutterwaveStatus(t?.status) || existing.status;
+            liveStatus = mapFlutterwaveStatus(t?.status) || liveStatus;
           } catch (verifyErr) {
             console.warn("[transfer] verify of existing ref failed:", String(verifyErr));
           }
           result = {
-            transfer_id: existing.flutterwave_transfer_id,
+            transfer_id: (fwRow as any).flutterwave_transfer_id,
             reference: params.reference,
             status: liveStatus,
             recovered: true,
@@ -496,18 +502,45 @@ serve(async (req) => {
           break;
         }
 
-        // Initiate at Flutterwave. Self-heal if FW reports a duplicate.
+        const fwDbAmount = Number((fwRow as any).amount_ngn);
+        const fwDbAccount = String((fwRow as any).account_number || "").replace(/\D/g, "");
+        const fwDbBankCode = String((fwRow as any).bank_code || "");
+
+        // Log if client-supplied values differ from DB (possible tampering).
+        const fwClientAmount = Number(params.amount_ngn ?? 0);
+        const fwClientAccount = String(params.account_number || "").replace(/\D/g, "");
+        if (fwClientAmount !== fwDbAmount || fwClientAccount !== fwDbAccount || params.bank_code !== fwDbBankCode) {
+          console.warn("[INTEGRITY] FW Client/DB mismatch:", {
+            ref: params.reference,
+            clientAmount: fwClientAmount, dbAmount: fwDbAmount,
+            clientAccount: fwClientAccount, dbAccount: fwDbAccount,
+            clientBank: params.bank_code, dbBank: fwDbBankCode,
+          });
+          await writeTransferAudit(serviceClient, {
+            actor_id: user.id,
+            actor_role: actorRole,
+            action: "integrity_mismatch",
+            outcome: "denied",
+            amount_ngn: fwClientAmount,
+            reference: params.reference,
+            ip_hash: ipHash,
+            user_agent: userAgent,
+            reason: `FW mismatch: client amount=${fwClientAmount}/acct=${fwClientAccount} vs DB amount=${fwDbAmount}/acct=${fwDbAccount}`,
+            provider: "flutterwave",
+          });
+        }
+
+        // Initiate at Flutterwave using DB-authoritative values.
         try {
           const body = await flutterwaveFetch(serviceClient, "/transfers", {
             method: "POST",
             body: JSON.stringify({
-              account_bank: params.bank_code,
-              account_number: String(params.account_number || "").replace(/\D/g, ""),
-              amount: Number(params.amount_ngn ?? 0),
+              account_bank: fwDbBankCode,
+              account_number: fwDbAccount,
+              amount: fwDbAmount,
               narration: (params.reason || "KDOps disbursement").slice(0, 100),
               currency: "NGN",
               reference: params.reference,
-              // debit_currency defaults to NGN for NGN transfers; be explicit.
               debit_currency: "NGN",
             }),
           });
@@ -519,22 +552,13 @@ serve(async (req) => {
             raw: body.data,
           };
         } catch (initErr) {
-          // Check-before-overwrite: a "duplicate reference" message means
-          // Flutterwave definitely has a prior attempt to recover. But a
-          // timeout / 5xx / network drop on the POST above is ambiguous —
-          // the transfer may have processed before the response was lost.
-          // Rather than only recovering on the string-matched duplicate
-          // case (which left every other error class un-verified), always
-          // query Flutterwave for this deterministic reference before
-          // concluding the transfer failed. If Flutterwave has no record of
-          // it at all, it genuinely never landed and rethrowing is correct.
           try {
             const verifyBody = await flutterwaveFetch(
               serviceClient,
               `/transfers?reference=${encodeURIComponent(params.reference)}`,
             );
             const t = Array.isArray(verifyBody.data) ? verifyBody.data[0] : verifyBody.data;
-            if (!t) throw initErr; // no record at Flutterwave — really did fail.
+            if (!t) throw initErr;
             result = {
               transfer_id: String(t?.id ?? ""),
               reference: params.reference,
@@ -545,11 +569,6 @@ serve(async (req) => {
               raw: t,
             };
           } catch (verifyErr) {
-            // Verify itself failed too — genuinely can't tell what happened.
-            // Rethrow the ORIGINAL error rather than the verify error so the
-            // caller's message stays meaningful; the caller (doDisburse /
-            // batch-worker) leaves the item recoverable via reconciliation
-            // rather than a hard 'failed' on an unconfirmed guess.
             throw initErr;
           }
         }
@@ -557,9 +576,6 @@ serve(async (req) => {
       }
 
       case "bulk_transfer": {
-        // Flutterwave v3 /bulk-transfers accepts { title, bulk_data: [...] }
-        // Batch worker chunks larger runs and spaces them ≥ 5s apart (same
-        // rate-limit discipline as Paystack).
         const transfers = Array.isArray(params.transfers) ? params.transfers : [];
         if (transfers.length === 0) {
           return new Response(
@@ -581,21 +597,46 @@ serve(async (req) => {
             );
           }
         }
+
+        // ── Payment integrity: re-validate every item against the DB.
+        const fwBulkRefs = transfers.map((t: any) => String(t.reference));
+        const { data: fwDbItems, error: fwDbBulkErr } = await serviceClient
+          .from("batch_items")
+          .select("flutterwave_reference, amount_ngn, account_number, bank_code")
+          .in("flutterwave_reference", fwBulkRefs);
+        if (fwDbBulkErr) {
+          console.error("[INTEGRITY] FW bulk DB lookup failed:", fwDbBulkErr);
+          return new Response(
+            JSON.stringify({ error: "Could not verify transfer records against DB" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const fwDbMap = new Map(
+          ((fwDbItems || []) as any[]).map((r: any) => [r.flutterwave_reference, r]),
+        );
+
         const title = String(params.title || "KDOps bulk").slice(0, 100);
-        const bulk_data = transfers.map((t: any) => ({
-          bank_code: t.bank_code,
-          account_number: String(t.account_number || "").replace(/\D/g, ""),
-          amount: Number(t.amount),
-          currency: "NGN",
-          narration: String(t.narration || title).slice(0, 100),
-          reference: t.reference,
-        }));
+        const bulk_data = transfers.map((t: any) => {
+          const dbRow = fwDbMap.get(t.reference);
+          const amount = dbRow ? Number(dbRow.amount_ngn) : Number(t.amount);
+          const account = dbRow ? String(dbRow.account_number || "").replace(/\D/g, "") : String(t.account_number || "").replace(/\D/g, "");
+          const bank = dbRow ? String(dbRow.bank_code || "") : t.bank_code;
+          if (dbRow && (Number(t.amount) !== amount || String(t.account_number || "").replace(/\D/g, "") !== account)) {
+            console.warn("[INTEGRITY] FW bulk mismatch:", { ref: t.reference, clientAmount: t.amount, dbAmount: amount });
+          }
+          return {
+            bank_code: bank,
+            account_number: account,
+            amount,
+            currency: "NGN",
+            narration: String(t.narration || title).slice(0, 100),
+            reference: t.reference,
+          };
+        });
         const body = await flutterwaveFetch(serviceClient, "/bulk-transfers", {
           method: "POST",
           body: JSON.stringify({ title, bulk_data }),
         });
-        // Flutterwave returns { id: <batch_id>, ... } — individual per-recipient
-        // outcomes come via webhooks OR by polling /bulk-transfers/{id}/transfers.
         result = {
           batch_id: String(body.data?.id ?? ""),
           approver: body.data?.approver ?? null,

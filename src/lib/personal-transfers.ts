@@ -87,6 +87,17 @@ export async function createPersonalTransferBeneficiary(input: {
   return data as unknown as PersonalTransferBeneficiaryRow;
 }
 
+export async function updatePersonalTransferBeneficiary(
+  id: string,
+  updates: { label?: string; paystack_recipient_code?: string | null },
+): Promise<void> {
+  const { error } = await supabase
+    .from('personal_transfer_beneficiaries')
+    .update(updates)
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function deletePersonalTransferBeneficiary(id: string): Promise<void> {
   const { error } = await supabase.from('personal_transfer_beneficiaries').delete().eq('id', id);
   if (error) throw error;
@@ -217,4 +228,37 @@ export async function deletePersonalTransferDraft(id: string): Promise<void> {
     .delete()
     .eq('id', id);
   if (error) throw error;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CSV statement export
+   ═══════════════════════════════════════════════════════════════════════ */
+
+function csvEscape(v: string): string {
+  if (/[,"\r\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
+}
+
+export function exportPersonalTransfersCsv(rows: PersonalTransferRow[], filename?: string): void {
+  const header = ['Date', 'Recipient', 'Account', 'Bank', 'Amount (NGN)', 'Memo', 'Batch', 'Status', 'Reference'];
+  const lines = rows.map((r) => [
+    r.created_at ? new Date(r.created_at).toISOString().slice(0, 19).replace('T', ' ') : '',
+    r.recipient_account_name || r.recipient_name || '',
+    r.recipient_account_number || '',
+    r.recipient_bank_name || '',
+    String(r.amount_ngn),
+    r.memo || '',
+    r.batch_label || '',
+    r.status,
+    r.paystack_reference || '',
+  ].map(csvEscape).join(','));
+
+  const csv = [header.join(','), ...lines].join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || `personal-transfers-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

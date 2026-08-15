@@ -341,7 +341,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
 
                 <div style={{ display: 'flex', padding: '14px 0', borderBottom: '1px solid #eee' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Personal transfer to {recipient || 'recipient'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '13px' }}>Transfer to {recipient || 'recipient'}</div>
                     {row.memo && <div style={{ fontSize: '11.5px', color: '#8194a0', fontStyle: 'italic', marginTop: '2px' }}>{row.memo}</div>}
                     {row.batch_label && <div style={{ fontSize: '11px', color: BRAND, marginTop: '2px' }}>Batch: {row.batch_label}</div>}
                   </div>

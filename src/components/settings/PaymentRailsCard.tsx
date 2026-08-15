@@ -53,6 +53,7 @@ async function extractEdgeError(error: any, fallback: string): Promise<string> {
 interface PaymentRailsSettings {
   active_payment_provider: Provider;
   flutterwave_mode: 'test' | 'live';
+  paystack_mode: 'test' | 'live';
   provider_switched_at: string | null;
   provider_switched_by: string | null;
 }
@@ -110,7 +111,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
     try {
       const [settingsRes, historyRes] = await Promise.all([
         supabase.from('company_settings')
-          .select('active_payment_provider, flutterwave_mode, provider_switched_at, provider_switched_by')
+          .select('active_payment_provider, flutterwave_mode, paystack_mode, provider_switched_at, provider_switched_by')
           .eq('id', '00000000-0000-0000-0000-000000000001')
           .maybeSingle(),
         supabase.from('provider_switches')
@@ -122,6 +123,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         setSettings({
           active_payment_provider: (settingsRes.data as any).active_payment_provider === 'flutterwave' ? 'flutterwave' : 'paystack',
           flutterwave_mode: (settingsRes.data as any).flutterwave_mode === 'live' ? 'live' : 'test',
+          paystack_mode: (settingsRes.data as any).paystack_mode === 'test' ? 'test' : 'live',
           provider_switched_at: (settingsRes.data as any).provider_switched_at,
           provider_switched_by: (settingsRes.data as any).provider_switched_by,
         });
@@ -150,24 +152,27 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
   function openSwitchDialog(toProvider: Provider) {
     setDialogTargetProvider(toProvider);
-    setDialogTargetMode(settings?.flutterwave_mode || 'test');
+    const currentMode = toProvider === 'flutterwave'
+      ? (settings?.flutterwave_mode || 'test')
+      : (settings?.paystack_mode || 'live');
+    setDialogTargetMode(currentMode);
     setDialogModeOnly(false);
     setPreflight(null);
     setConfirmationText('');
     setReason('');
     setDialogOpen(true);
-    void runPreflight(toProvider, settings?.flutterwave_mode || 'test');
+    void runPreflight(toProvider, currentMode);
   }
 
-  function openModeSwitchDialog(toMode: 'test' | 'live') {
-    setDialogTargetProvider('flutterwave');
+  function openModeSwitchDialog(provider: Provider, toMode: 'test' | 'live') {
+    setDialogTargetProvider(provider);
     setDialogTargetMode(toMode);
     setDialogModeOnly(true);
     setPreflight(null);
     setConfirmationText('');
     setReason('');
     setDialogOpen(true);
-    void runPreflight('flutterwave', toMode);
+    void runPreflight(provider, toMode);
   }
 
   async function runPreflight(to: Provider, mode: 'test' | 'live') {
@@ -213,7 +218,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
       } else if ((data as any)?.error) {
         toast({ variant: 'destructive', title: 'Switch rejected', description: (data as any).error });
       } else {
-        toast({ title: 'Switch applied', description: `Now paying through ${providerLabel(dialogTargetProvider)}${dialogTargetProvider === 'flutterwave' ? ` (${dialogTargetMode})` : ''}` });
+        toast({ title: 'Switch applied', description: `Now paying through ${providerLabel(dialogTargetProvider)} (${dialogTargetMode})` });
         setDialogOpen(false);
         await loadAll();
       }
@@ -273,6 +278,11 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                 {settings.flutterwave_mode.toUpperCase()}
               </strong></>
             )}
+            {active === 'paystack' && (
+              <> — mode: <strong className={settings.paystack_mode === 'live' ? 'text-red-600' : 'text-amber-600'}>
+                {settings.paystack_mode.toUpperCase()}
+              </strong></>
+            )}
             {settings.provider_switched_at && (
               <span className="block text-xs mt-1">Last switched {formatDateTime(settings.provider_switched_at)}</span>
             )}
@@ -284,7 +294,9 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               provider="paystack"
               isActive={active === 'paystack'}
               balance={balances.paystack}
+              mode={settings.paystack_mode}
               onSwitchTo={() => openSwitchDialog('paystack')}
+              onSwitchMode={(m) => openModeSwitchDialog('paystack', m)}
             />
             <ProviderCard
               provider="flutterwave"
@@ -292,7 +304,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
               balance={balances.flutterwave}
               mode={settings.flutterwave_mode}
               onSwitchTo={() => openSwitchDialog('flutterwave')}
-              onSwitchMode={(m) => openModeSwitchDialog(m)}
+              onSwitchMode={(m) => openModeSwitchDialog('flutterwave', m)}
             />
           </div>
 
@@ -322,7 +334,7 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             <DialogTitle className="flex items-center gap-2">
               <ArrowRightLeft className="h-4 w-4" />
               {dialogModeOnly
-                ? <>Switch Flutterwave mode to <span className={dialogTargetMode === 'live' ? 'text-red-600' : 'text-amber-600'}>{dialogTargetMode.toUpperCase()}</span></>
+                ? <>Switch {providerLabel(dialogTargetProvider)} mode to <span className={dialogTargetMode === 'live' ? 'text-red-600' : 'text-amber-600'}>{dialogTargetMode.toUpperCase()}</span></>
                 : <>Switch payment provider to <ProviderPill provider={dialogTargetProvider} size="sm" /></>
               }
             </DialogTitle>
@@ -373,10 +385,10 @@ export function PaymentRailsCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                 autoComplete="off"
               />
             </div>
-            {dialogTargetProvider === 'flutterwave' && dialogTargetMode === 'live' && !dialogModeOnly && (
+            {dialogTargetMode === 'live' && (
               <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/30 p-2 text-xs text-red-800 dark:text-red-200">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                <span>Switching to Flutterwave in <strong>LIVE</strong> mode. Real money will move. Test the flow with a small ₦100 batch before running payroll.</span>
+                <span>Switching to <strong>LIVE</strong> mode on {providerLabel(dialogTargetProvider)}. Real money will move. Test with a small ₦100 batch before running payroll.</span>
               </div>
             )}
           </div>
@@ -441,16 +453,16 @@ function ProviderCard({
       <div className="text-xs text-muted-foreground mb-1">Balance</div>
       <div className="text-lg font-mono font-semibold mb-2">{formatNaira(balance)}</div>
 
-      {provider === 'flutterwave' && mode && (
+      {mode && (
         <div className="mb-2 flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Mode:</span>
           <button
             onClick={() => onSwitchMode?.('test')}
-            className={`px-2 py-0.5 rounded border ${mode === 'test' ? 'bg-amber-100 text-amber-800 border-amber-300 font-medium' : 'text-muted-foreground'}`}
+            className={`px-2 py-0.5 rounded border ${mode === 'test' ? 'bg-amber-100 text-amber-800 border-amber-300 font-medium dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-600' : 'text-muted-foreground'}`}
           >TEST</button>
           <button
             onClick={() => onSwitchMode?.('live')}
-            className={`px-2 py-0.5 rounded border ${mode === 'live' ? 'bg-red-100 text-red-800 border-red-300 font-medium' : 'text-muted-foreground'}`}
+            className={`px-2 py-0.5 rounded border ${mode === 'live' ? 'bg-red-100 text-red-800 border-red-300 font-medium dark:bg-red-950/40 dark:text-red-200 dark:border-red-600' : 'text-muted-foreground'}`}
           >LIVE</button>
         </div>
       )}

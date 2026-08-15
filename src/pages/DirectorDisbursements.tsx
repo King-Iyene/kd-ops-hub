@@ -31,6 +31,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Landmark, Loader2, CheckCircle2, XCircle, ShieldAlert, Send, Users, Layers, Trash2, Plus, RefreshCw,
   Receipt, Repeat, Pause, Play, AlertTriangle, Building2, History, Search, Calendar, Clock, FileText,
+  Download, ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Star, StarOff, Pencil, ChevronDown,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -59,6 +60,7 @@ import {
   logPersonalTransferDetailView,
   fetchPersonalTransferBeneficiaries,
   createPersonalTransferBeneficiary,
+  updatePersonalTransferBeneficiary,
   deletePersonalTransferBeneficiary,
   fetchPersonalRecurringSchedules,
   createPersonalRecurringSchedule,
@@ -66,6 +68,7 @@ import {
   deletePersonalRecurringSchedule,
   fetchPersonalTransferDrafts,
   deletePersonalTransferDraft,
+  exportPersonalTransfersCsv,
   type PersonalTransferRow,
   type PersonalTransferBeneficiaryRow,
   type PersonalRecurringScheduleRow,
@@ -1058,13 +1061,19 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
   const [receiptRow, setReceiptRow] = useState<PersonalTransferRow | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState<'all' | '7d' | '30d' | '90d' | 'custom'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [companyName, setCompanyName] = useState('KD Squares Ltd');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [dva, setDva] = useState<PrincipalWalletDva | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [schedules, setSchedules] = useState<PersonalRecurringScheduleRow[]>([]);
   const [drafts, setDrafts] = useState<PersonalTransferDraftRow[]>([]);
   const [sendDraft, setSendDraft] = useState<PersonalTransferDraftRow | null>(null);
+  const [pageSize] = useState(50);
+  const [visibleCount, setVisibleCount] = useState(50);
 
   useEffect(() => {
     supabase.from('company_settings').select('company_name, logo_url')
@@ -1074,8 +1083,9 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           setCompanyName((cs as any).company_name || 'KD Squares Ltd');
           setLogoUrl((cs as any).logo_url || null);
         }
-      }, () => { /* receipt falls back to defaults */ });
+      }, () => {});
     fetchDvaAccount().then(setDva).catch(() => setDva(null));
+    fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => setWalletBalance(null));
   }, []);
 
   const load = async () => {
@@ -1109,11 +1119,6 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
 
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
-  // Manual reconciliation — the webhook path normally resolves a pending
-  // transfer automatically, but this is a safety net for any case it
-  // doesn't (missed delivery, transient error). Calls Paystack directly
-  // via verify_transfer, so it reflects real status even if no webhook
-  // ever arrives.
   const verifyStatus = async (row: PersonalTransferRow, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!row.paystack_reference) return;
@@ -1148,14 +1153,56 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
     /* eslint-disable-next-line react-hooks/exhaustive-deps */
   }, []);
 
+  // ── Summary stats ──────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonth = rows.filter((r) => new Date(r.created_at) >= startOfMonth);
+    const sentThisMonth = thisMonth.filter((r) => r.status === 'succeeded').reduce((s, r) => s + r.amount_ngn, 0);
+    const pendingCount = rows.filter((r) => r.status === 'pending').length;
+    const pendingAmount = rows.filter((r) => r.status === 'pending').reduce((s, r) => s + r.amount_ngn, 0);
+    const succeededCount = thisMonth.filter((r) => r.status === 'succeeded').length;
+    const failedCount = thisMonth.filter((r) => r.status === 'failed').length;
+    return { sentThisMonth, pendingCount, pendingAmount, succeededCount, failedCount, totalThisMonth: thisMonth.length };
+  }, [rows]);
+
+  // ── Recent contacts (last 5 unique recipients by most recent send) ─
+  const recentContacts = useMemo(() => {
+    const seen = new Set<string>();
+    const result: PersonalTransferRow[] = [];
+    for (const r of rows) {
+      const key = r.recipient_account_number;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      result.push(r);
+      if (result.length >= 5) break;
+    }
+    return result;
+  }, [rows]);
+
+  // ── Date + status + search filter ──────────────────────────────────
   const statusOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.status))).sort(),
     [rows],
   );
+
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
+    let dateStart: Date | null = null;
+    let dateEnd: Date | null = null;
+    const now = new Date();
+    if (dateRange === '7d') dateStart = new Date(now.getTime() - 7 * 86400_000);
+    else if (dateRange === '30d') dateStart = new Date(now.getTime() - 30 * 86400_000);
+    else if (dateRange === '90d') dateStart = new Date(now.getTime() - 90 * 86400_000);
+    else if (dateRange === 'custom') {
+      if (dateFrom) dateStart = new Date(dateFrom);
+      if (dateTo) { dateEnd = new Date(dateTo); dateEnd.setHours(23, 59, 59, 999); }
+    }
+
     return rows.filter((r) => {
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+      if (dateStart && new Date(r.created_at) < dateStart) return false;
+      if (dateEnd && new Date(r.created_at) > dateEnd) return false;
       if (!q) return true;
       return (
         (r.recipient_account_name || '').toLowerCase().includes(q)
@@ -1165,30 +1212,116 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         || (r.paystack_reference || '').toLowerCase().includes(q)
       );
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, statusFilter, dateRange, dateFrom, dateTo]);
+
+  const paginatedRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
+  const hasMore = filteredRows.length > visibleCount;
+
+  useEffect(() => { setVisibleCount(pageSize); }, [search, statusFilter, dateRange, dateFrom, dateTo, pageSize]);
+
+  const handleQuickSend = (r: PersonalTransferRow) => {
+    const match = beneficiaries.find(
+      (b) => b.account_number === r.recipient_account_number && b.bank_code === r.recipient_bank_code,
+    );
+    if (match) {
+      setSendOpen(true);
+    } else {
+      setSendOpen(true);
+    }
+  };
 
   return (
     <div className="space-y-4">
+      {/* ── Dashboard summary cards ─────────────────────────────────── */}
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <Wallet className="h-3.5 w-3.5" /> Available balance
+            </div>
+            <p className="text-xl font-semibold font-mono currency">
+              {walletBalance != null ? formatNaira(walletBalance) : '—'}
+            </p>
+            {dva && <p className="text-[10px] text-muted-foreground mt-1">{dva.bank_name} · {dva.account_number}</p>}
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <ArrowUpRight className="h-3.5 w-3.5" /> Sent this month
+            </div>
+            <p className="text-xl font-semibold font-mono currency">{formatNaira(stats.sentThisMonth)}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{stats.succeededCount} transfer{stats.succeededCount !== 1 ? 's' : ''} completed</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <Clock className="h-3.5 w-3.5" /> Pending
+            </div>
+            <p className="text-xl font-semibold font-mono currency">{formatNaira(stats.pendingAmount)}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{stats.pendingCount} transfer{stats.pendingCount !== 1 ? 's' : ''} in queue</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <TrendingUp className="h-3.5 w-3.5" /> This month
+            </div>
+            <p className="text-xl font-semibold">{stats.totalThisMonth}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {stats.failedCount > 0 ? `${stats.failedCount} failed · ` : ''}
+              {stats.succeededCount} succeeded
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Quick actions bar ──────────────────────────────────────── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-sm text-muted-foreground max-w-xl">
-          Your own post-salary money. Uses Paystack as a pure transfer utility — never touches the company
-          ledger, expense reports, or payables. Visible only to you.
-        </p>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button onClick={() => setSendOpen(true)}>
+            <Send className="mr-2 h-4 w-4" /> Send money
+          </Button>
+          <Button variant="outline" onClick={() => setBatchOpen(true)}>
+            <Layers className="mr-2 h-4 w-4" /> Batch send
+          </Button>
           <Button variant="outline" onClick={() => setBeneficiariesOpen(true)}>
             <Users className="mr-2 h-4 w-4" /> Beneficiaries
           </Button>
           <Button variant="outline" onClick={() => setRecurringOpen(true)}>
             <Repeat className="mr-2 h-4 w-4" /> Recurring
           </Button>
-          <Button variant="outline" onClick={() => setBatchOpen(true)}>
-            <Layers className="mr-2 h-4 w-4" /> New batch
-          </Button>
-          <Button onClick={() => setSendOpen(true)}>
-            <Send className="mr-2 h-4 w-4" /> New transfer
-          </Button>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={filteredRows.length === 0}
+          onClick={() => exportPersonalTransfersCsv(filteredRows)}
+        >
+          <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
+        </Button>
       </div>
+
+      {/* ── Recent contacts / quick-send ──────────────────────────── */}
+      {recentContacts.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">Recent:</span>
+          {recentContacts.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => handleQuickSend(r)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs hover:bg-accent transition whitespace-nowrap shrink-0"
+            >
+              <div className="h-5 w-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold">
+                {(r.recipient_account_name || r.recipient_name || '?')[0].toUpperCase()}
+              </div>
+              <span className="max-w-[100px] truncate">{r.recipient_account_name || r.recipient_name}</span>
+              <Send className="h-3 w-3 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── Drafts awaiting send (created by recurring cron) ──────────── */}
       {drafts.length > 0 && (
@@ -1299,9 +1432,13 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         </Card>
       )}
 
+      {/* ── Transaction history ────────────────────────────────────── */}
       <Card className="rounded-xl">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <CardTitle className="text-base">History</CardTitle>
+        <CardHeader className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Transaction history</CardTitle>
+            <span className="text-xs text-muted-foreground">{filteredRows.length} transaction{filteredRows.length !== 1 ? 's' : ''}</span>
+          </div>
           {rows.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <div className="relative">
@@ -1322,6 +1459,23 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   ))}
                 </SelectContent>
               </Select>
+              <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
+                <SelectTrigger className="h-8 w-[130px] text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                  <SelectItem value="custom">Custom range</SelectItem>
+                </SelectContent>
+              </Select>
+              {dateRange === 'custom' && (
+                <>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 w-[140px] text-sm" />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 w-[140px] text-sm" />
+                </>
+              )}
             </div>
           )}
         </CardHeader>
@@ -1329,9 +1483,9 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
           {loading ? (
             <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
           ) : rows.length === 0 ? (
-            <EmptyState icon={Send} title="No personal transfers yet" description="Send your first one above." />
+            <EmptyState icon={Send} title="No transfers yet" description="Send your first one above." />
           ) : filteredRows.length === 0 ? (
-            <EmptyState icon={Search} title="No matches" description="Try a different search or status." />
+            <EmptyState icon={Search} title="No matches" description="Try a different search, status, or date range." />
           ) : (
             <>
               <div className="hidden md:block">
@@ -1347,10 +1501,20 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRows.map((r) => (
+                    {paginatedRows.map((r) => (
                       <TableRow key={r.id} className="cursor-pointer" onClick={() => logPersonalTransferDetailView(r, profile)}>
-                        <TableCell>{formatDateTime(r.created_at)}</TableCell>
-                        <TableCell>{r.recipient_account_name || r.recipient_name}</TableCell>
+                        <TableCell className="whitespace-nowrap">{formatDateTime(r.created_at)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                              {(r.recipient_account_name || r.recipient_name || '?')[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{r.recipient_account_name || r.recipient_name}</p>
+                              <p className="text-[10px] text-muted-foreground">{r.recipient_bank_name}</p>
+                            </div>
+                          </div>
+                        </TableCell>
                         <TableCell className="max-w-[280px] truncate">
                           {r.batch_label && <Badge variant="outline" className="mr-1.5 text-[10px]">{r.batch_label}</Badge>}
                           {r.memo || (r.batch_label ? '' : '—')}
@@ -1391,10 +1555,15 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                 </Table>
               </div>
               <div className="md:hidden space-y-2 p-3">
-                {filteredRows.map((r) => (
+                {paginatedRows.map((r) => (
                   <MobileCard key={r.id} onClick={() => logPersonalTransferDetailView(r, profile)} chevron>
                     <MobileCardHeader>
-                      <MobileCardTitle>{r.recipient_account_name || r.recipient_name}</MobileCardTitle>
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                          {(r.recipient_account_name || r.recipient_name || '?')[0].toUpperCase()}
+                        </div>
+                        <MobileCardTitle>{r.recipient_account_name || r.recipient_name}</MobileCardTitle>
+                      </div>
                       <MobileCardMeta className="currency">{formatNaira(r.amount_ngn)}</MobileCardMeta>
                     </MobileCardHeader>
                     <MobileCardRow label="Date">{formatDateTime(r.created_at)}</MobileCardRow>
@@ -1429,6 +1598,14 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   </MobileCard>
                 ))}
               </div>
+              {hasMore && (
+                <div className="py-3 text-center border-t">
+                  <Button variant="ghost" size="sm" onClick={() => setVisibleCount((c) => c + pageSize)}>
+                    <ChevronDown className="mr-1 h-3.5 w-3.5" />
+                    Show more ({filteredRows.length - visibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -1439,7 +1616,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         onOpenChange={(v) => { setSendOpen(v); if (!v) setSendDraft(null); }}
         profile={profile}
         toast={toast}
-        onSent={load}
+        onSent={() => { load(); fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => {}); }}
         beneficiaries={beneficiaries}
         dva={dva}
         draft={sendDraft}
@@ -1450,7 +1627,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         onOpenChange={setBatchOpen}
         profile={profile}
         toast={toast}
-        onSent={load}
+        onSent={() => { load(); fetchWalletBalanceOrNull().then(setWalletBalance).catch(() => {}); }}
         beneficiaries={beneficiaries}
         history={rows}
         dva={dva}
@@ -1625,6 +1802,8 @@ function PersonalTransferBeneficiariesDialog({
   const [saving, setSaving] = useState(false);
   const [bank, setBank] = useState<BankAccountValue>(emptyBank);
   const [label, setLabel] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState('');
 
   const reset = () => { setAdding(false); setBank(emptyBank); setLabel(''); };
 
@@ -1659,6 +1838,18 @@ function PersonalTransferBeneficiariesDialog({
     }
   };
 
+  const rename = async (b: PersonalTransferBeneficiaryRow) => {
+    if (!editLabel.trim() || editLabel.trim() === b.label) { setEditingId(null); return; }
+    try {
+      await updatePersonalTransferBeneficiary(b.id, { label: editLabel.trim() });
+      toast({ title: `Renamed to "${editLabel.trim()}"` });
+      setEditingId(null);
+      onChanged();
+    } catch (err: any) {
+      toast({ title: 'Could not rename', description: friendlyDbError(err), variant: 'destructive' });
+    }
+  };
+
   const remove = async (b: PersonalTransferBeneficiaryRow) => {
     try {
       await deletePersonalTransferBeneficiary(b.id);
@@ -1684,13 +1875,34 @@ function PersonalTransferBeneficiariesDialog({
         )}
         {beneficiaries.map((b) => (
           <div key={b.id} className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="text-sm font-medium truncate">{b.label}</p>
+            <div className="min-w-0 flex-1">
+              {editingId === b.id ? (
+                <Input
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  onBlur={() => rename(b)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') rename(b); if (e.key === 'Escape') setEditingId(null); }}
+                  className="h-7 text-sm"
+                  autoFocus
+                />
+              ) : (
+                <p className="text-sm font-medium truncate">{b.label}</p>
+              )}
               <p className="text-xs text-muted-foreground truncate">{b.account_name || b.account_number} · {b.bank_name} · {b.account_number}</p>
             </div>
-            <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-destructive" onClick={() => remove(b)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-0.5 shrink-0">
+              <Button
+                variant="ghost" size="icon"
+                className="text-muted-foreground hover:text-foreground h-7 w-7"
+                title="Rename"
+                onClick={() => { setEditingId(b.id); setEditLabel(b.label); }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive h-7 w-7" onClick={() => remove(b)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         ))}
 
@@ -2330,7 +2542,7 @@ function PersonalTransferBatchDialog({
           account_number: b.account_number || undefined,
         }))}
         narrationKind="generic"
-        label={batchLabel || 'Personal transfer'}
+        label={batchLabel || undefined}
         title="Confirm Personal Transfer Batch"
         onConfirm={(narration) => executeBatch(narration)}
         fetchWalletBalance={fetchWalletBalanceOrNull}
