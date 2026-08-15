@@ -280,6 +280,8 @@ const Payroll = () => {
     include_pay_group_ids: string[];
   }>({ name: '', description: '', exclude_employee_categories: [], exclude_department_ids: [], include_pay_group_ids: [] });
 
+  const canGeneratePayslipsPerm = usePermission('payroll.generate_payslips');
+
   const loadSegments = useCallback(() => {
     fetchPayrollSegments().then(setSegments).catch(() => setSegments([]));
   }, []);
@@ -843,7 +845,7 @@ const Payroll = () => {
     setAdjustList((l) => l.filter((a) => a.id !== id));
   };
 
-  const generatePayslips = async (run: PayrollRun) => {
+  async function generatePayslips(run: PayrollRun) {
     setWorking(true);
     setSalaryErrors([]);
     try {
@@ -1356,11 +1358,10 @@ const Payroll = () => {
     } finally {
       setWorking(false);
     }
-  };
+  }
 
   const canDisburse = ['super_admin', 'admin', 'finance'].includes(profile?.role || '');
   const canApprovePerm = usePermission('payroll.approve');
-  const canGeneratePayslipsPerm = usePermission('payroll.generate_payslips');
 
   const openDisburse = async (run: PayrollRun) => {
     setWorking(true);

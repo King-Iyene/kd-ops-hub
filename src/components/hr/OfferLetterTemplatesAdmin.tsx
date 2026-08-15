@@ -74,7 +74,7 @@ export const OfferLetterTemplatesAdmin = () => {
     load();
   }, []);
 
-  const load = async () => {
+  async function load() {
     setLoading(true);
     const { data } = await supabase
       .from('offer_letter_templates' as any)

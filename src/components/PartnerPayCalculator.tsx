@@ -304,7 +304,7 @@ export default function PartnerPayCalculator() {
 
   // Performs the actual draft-batch insert. `overrideReason` is set only when the
   // operator chose "Pay anyway" past the duplicate guard, and is audit-logged.
-  const createBatch = async (overrideReason?: string) => {
+  async function createBatch(overrideReason?: string) {
     setGenerating(true);
     try {
       const now = new Date();

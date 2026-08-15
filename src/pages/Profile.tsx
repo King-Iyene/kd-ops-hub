@@ -354,6 +354,46 @@ const ProfilePage = () => {
     });
   }, [employment]);
 
+  const [downloadingSlip, setDownloadingSlip] = useState<string | null>(null);
+  const [previewingSlip, setPreviewingSlip] = useState<string | null>(null);
+
+  const stats = useMemo(() => {
+    const pending = requests.filter((r) => /pending|draft/i.test(r.status)).length;
+    return { pending, total: requests.length, payslips: payslips.length };
+  }, [requests, payslips]);
+
+  // Indicative monthly compensation breakdown from the employee's own gross
+  // and statutory toggles. The issued payslip is authoritative — this mirrors
+  // the same vetted computePayslip() used by payroll.
+  const comp = useMemo(() => {
+    const gross = Number(employment?.salary_ngn || 0);
+    if (gross <= 0) return null;
+    return computePayslip({
+      grossMonthlyNgn: gross,
+      payeEnabled: employment?.paye_enabled !== false,
+      pensionEnabled: employment?.pension_enabled !== false,
+      nhfEnabled: employment?.nhf_enabled === true,
+      nhisEnabled: employment?.nhis_enabled === true,
+    });
+  }, [employment]);
+
+  // Year-to-date totals across this calendar year's payslips.
+  const ytd = useMemo(() => {
+    const year = String(new Date().getFullYear());
+    return payslips
+      .filter((p) => p.period?.startsWith(year))
+      .reduce(
+        (acc, p) => ({
+          gross: acc.gross + (p.gross_ngn || 0),
+          paye: acc.paye + (p.paye_ngn || 0),
+          pension: acc.pension + (p.pension_ngn || 0),
+          net: acc.net + (p.net_ngn || 0),
+          count: acc.count + 1,
+        }),
+        { gross: 0, paye: 0, pension: 0, net: 0, count: 0 },
+      );
+  }, [payslips]);
+
   if (!profile) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center text-sm text-muted-foreground" role="status" aria-live="polite">
@@ -562,9 +602,6 @@ const ProfilePage = () => {
     window.open(data.signedUrl, '_blank', 'noopener');
   };
 
-  const [downloadingSlip, setDownloadingSlip] = useState<string | null>(null);
-  const [previewingSlip, setPreviewingSlip] = useState<string | null>(null);
-
   const fallbackPayslipData = (p: Payslip) => ({
     company_name: 'KD Squares Ltd',
     employee_name: profile.full_name || profile.email,
@@ -631,45 +668,6 @@ const ProfilePage = () => {
       setDownloadingSlip(null);
     }
   };
-
-  // ── Stats for the hero strip ───────────────────────────────────
-
-  const stats = useMemo(() => {
-    const pending = requests.filter((r) => /pending|draft/i.test(r.status)).length;
-    return { pending, total: requests.length, payslips: payslips.length };
-  }, [requests, payslips]);
-
-  // Indicative monthly compensation breakdown from the employee's own gross
-  // and statutory toggles. The issued payslip is authoritative — this mirrors
-  // the same vetted computePayslip() used by payroll.
-  const comp = useMemo(() => {
-    const gross = Number(employment?.salary_ngn || 0);
-    if (gross <= 0) return null;
-    return computePayslip({
-      grossMonthlyNgn: gross,
-      payeEnabled: employment?.paye_enabled !== false,
-      pensionEnabled: employment?.pension_enabled !== false,
-      nhfEnabled: employment?.nhf_enabled === true,
-      nhisEnabled: employment?.nhis_enabled === true,
-    });
-  }, [employment]);
-
-  // Year-to-date totals across this calendar year's payslips.
-  const ytd = useMemo(() => {
-    const year = String(new Date().getFullYear());
-    return payslips
-      .filter((p) => p.period?.startsWith(year))
-      .reduce(
-        (acc, p) => ({
-          gross: acc.gross + (p.gross_ngn || 0),
-          paye: acc.paye + (p.paye_ngn || 0),
-          pension: acc.pension + (p.pension_ngn || 0),
-          net: acc.net + (p.net_ngn || 0),
-          count: acc.count + 1,
-        }),
-        { gross: 0, paye: 0, pension: 0, net: 0, count: 0 },
-      );
-  }, [payslips]);
 
   // ── Render ─────────────────────────────────────────────────────
 

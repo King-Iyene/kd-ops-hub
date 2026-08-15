@@ -50,7 +50,7 @@ interface CalendarEvent {
 // next_pay_dates RPC so the client-side fallback feels identical
 // once a real schedule is configured. holidays is a Set of yyyy-mm-dd.
 function rollBackToBusinessDay(iso: string, holidaySet: Set<string>): { date: string; rolledFrom?: string } {
-  let cur = new Date(iso);
+  const cur = new Date(iso);
   const original = iso;
   let safety = 0;
   while (safety++ < 31) {

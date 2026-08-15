@@ -324,7 +324,7 @@ const BatchDetail = () => {
     itemsRef.current = items;
   }, [items]);
 
-  const fetchBatch = async () => {
+  async function fetchBatch() {
     // Filter archived (soft-deleted) batches at the query layer so a leaked
     // URL can't open a row that has been removed from the active workflow.
     // RLS will also enforce this for non-admin roles (see migration
@@ -1086,7 +1086,7 @@ const BatchDetail = () => {
       // behaviour where the modal's edit box was a lie ("legacy override;
       // worker uses default narration").
       const narrationForWorker = (customNarration || '').trim();
-      const ACCOUNT_LEVEL_ERR = /third[\- ]?party payouts|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
+      const ACCOUNT_LEVEL_ERR = /third[- ]?party payouts|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
 
       // Resolve a fresh JWT and attach it explicitly. supabase.functions.invoke
       // does NOT reliably auto-attach the auth header in every environment
@@ -2199,7 +2199,7 @@ const BatchDetail = () => {
       // daily/monthly/batch transfer CAP being hit — since every remaining
       // recipient would fail identically. The operator fixes the root cause
       // (raise the cap / top up) and retries the remaining items.
-      const ACCOUNT_LEVEL_ERR = /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
+      const ACCOUNT_LEVEL_ERR = /cannot initiate third[- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled|balance is not enough|insufficient funds|account.*restricted|account.*suspended|cap of ₦|would be exceeded/i;
                 for (const it of toRetry) {
                   const r = await retryItem(it);
                   if (r && !r.ok && r.reason && ACCOUNT_LEVEL_ERR.test(r.reason)) {

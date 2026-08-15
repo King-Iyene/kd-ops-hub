@@ -73,9 +73,9 @@ export const formatDate = (date: string | Date | null | undefined): string => {
  * Reads timezone from localStorage (set by Settings on load/save).
  * Falls back to Africa/Lagos if not set.
  */
-export const formatDateTime = (
+export function formatDateTime(
   date: string | Date | null | undefined,
-): string => {
+): string {
   if (!date) return '—';
   try {
     const tz = getTimezone();
@@ -98,7 +98,7 @@ export const formatDateTime = (
   } catch {
     return '—';
   }
-};
+}
 
 /**
  * "9:45 AM" — time only, 12-hour, org timezone, no date.

@@ -362,7 +362,7 @@ function extractVendor(text: string): string | undefined {
       lower.includes('services') || lower.includes('limited') ||
       lower.includes('nig') || lower.includes('ltd')
     ) {
-      const cleaned = line.replace(/[\[\]{}|]/g, '').trim();
+      const cleaned = line.replace(/[[\]{}|]/g, '').trim();
       if (cleaned.length >= 3 && cleaned.length <= 80) return cleaned;
     }
   }

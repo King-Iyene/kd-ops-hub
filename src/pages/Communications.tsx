@@ -267,7 +267,7 @@ export default function Communications() {
     })();
   }, []);
 
-  const reloadHistory = async () => {
+  async function reloadHistory() {
     setHistoryLoading(true);
     const [emailRes, msgRes] = await Promise.all([
       supabase

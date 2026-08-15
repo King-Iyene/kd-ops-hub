@@ -192,6 +192,7 @@ const Expenses = () => {
   const [dualThreshold, setDualThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>(
@@ -312,7 +313,6 @@ const Expenses = () => {
     } finally {
       setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -615,8 +615,6 @@ const Expenses = () => {
   };
 
   // -- Approve / reject -----------------------------------------------------
-
-  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
 
   const [rejectingExpense, setRejectingExpense] = useState<Expense | null>(null);
   const [rejectReason, setRejectReason] = useState('');

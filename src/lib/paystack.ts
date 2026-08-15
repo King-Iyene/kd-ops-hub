@@ -204,7 +204,7 @@ const ERROR_MAP: { match: RegExp; title: string; hint: string }[] = [
     // payment-collection KYC). Returned for EVERY recipient until enabled,
     // so when the whole batch fails with this, do not retry — fix the
     // account first on dashboard.paystack.co.
-    match: /cannot initiate third[\- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled/i,
+    match: /cannot initiate third[- ]?party payouts|third party payouts.*not.*allowed|payouts.*not.*enabled/i,
     title: 'Paystack account is "Pre-Approved" — transfers not yet unlocked',
     hint: 'Pre-Approved means Paystack lets you COLLECT payments but not SEND them. To unlock transfers: (1) dashboard.paystack.co → Settings → Compliance — submit any pending KYC docs (CAC, director NIN, proof of address, bank statement, TIN); (2) once Compliance shows "all clear" but transfers still blocked, email support@paystack.com with subject "Approve [merchant ID] for transfers" — reply within 24–48h. Do NOT retry until the dashboard badge says "Approved" instead of "Pre-Approved" — every retry will fail identically.',
   },

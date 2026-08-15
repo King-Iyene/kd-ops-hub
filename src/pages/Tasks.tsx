@@ -409,7 +409,7 @@ const Tasks = () => {
     setForm({ title: '', description: '', assignee_id: '', due_date: '', priority: 'normal', status: 'open' });
   };
 
-  const openCreate = () => { reset(); setDialog(true); };
+  function openCreate() { reset(); setDialog(true); }
 
   const openCreateWithStatus = (status: TaskStatus) => {
     reset();
@@ -569,7 +569,7 @@ const Tasks = () => {
   const toggleSelect = (taskId: string) => {
     setSelectedTasks((prev) => {
       const next = new Set(prev);
-      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
+      if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
       return next;
     });
   };

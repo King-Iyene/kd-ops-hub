@@ -111,7 +111,7 @@ export function DriverVerificationPanel() {
       const uniqueMap = new Map<string, (typeof allProfiles)[0]>();
       for (const p of allProfiles) uniqueMap.set(p.id, p);
 
-      let extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
+      const extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
       const allIds = [...uniqueMap.keys()];
 
       if (allIds.length > 0) {

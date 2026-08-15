@@ -211,7 +211,7 @@ export default function Messages() {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  const markRead = async (conversationId: string) => {
+  async function markRead(conversationId: string) {
     if (!myId) return;
     await (supabase as any)
       .from('dm_conversation_participants')
