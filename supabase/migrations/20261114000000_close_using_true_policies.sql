@@ -223,7 +223,6 @@ CREATE POLICY "notifications_delete_own"
 DROP POLICY IF EXISTS "notifications_insert_service" ON public.notifications;
 CREATE POLICY "notifications_insert_service"
   ON public.notifications FOR INSERT TO authenticated
-  USING (true)
   WITH CHECK (true);
 
 
