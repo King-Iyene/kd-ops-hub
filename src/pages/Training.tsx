@@ -52,6 +52,7 @@ interface TrainingRecord {
   score: string | null;
   certificate_url: string | null;
   cost_ngn: number | null;
+  duration_hours: number | null;
   status: 'completed' | 'in_progress' | 'expired' | 'pending';
   notes: string | null;
   created_at: string;
@@ -76,7 +77,7 @@ const EMPTY_FORM = {
   employee_id: '__none__', record_type: 'training' as 'training'|'certification',
   title: '', provider: '', category: 'professional_development' as TrainingCategory,
   is_mandatory: false, start_date: '', completion_date: '', expiry_date: '',
-  score: '', cost_ngn: '', status: 'completed' as TrainingRecord['status'], notes: '',
+  score: '', cost_ngn: '', duration_hours: '', status: 'completed' as TrainingRecord['status'], notes: '',
 };
 
 export default function Training() {
@@ -128,6 +129,7 @@ export default function Training() {
       start_date: r.start_date, completion_date: r.completion_date ?? '',
       expiry_date: r.expiry_date ?? '', score: r.score ?? '',
       cost_ngn: r.cost_ngn != null ? String(r.cost_ngn) : '',
+      duration_hours: r.duration_hours != null ? String(r.duration_hours) : '',
       status: r.status, notes: r.notes ?? '',
     });
     setDialogOpen(true);
@@ -145,6 +147,7 @@ export default function Training() {
       start_date: form.start_date, completion_date: form.completion_date || null,
       expiry_date: form.expiry_date || null, score: form.score.trim() || null,
       cost_ngn: form.cost_ngn ? Number(form.cost_ngn) : null,
+      duration_hours: form.duration_hours ? Number(form.duration_hours) : null,
       status: form.status, notes: form.notes.trim() || null, created_by: profile?.id,
     };
     const { error } = editing
@@ -197,6 +200,14 @@ export default function Training() {
   const completed = records.filter(r => effectiveStatus(r) === 'completed').length;
   const mandatory = records.filter(r => r.is_mandatory).length;
 
+  const avgTrainingHours = (() => {
+    const withHours = records.filter(r => r.duration_hours != null && r.duration_hours > 0);
+    if (withHours.length === 0) return null;
+    const uniqueEmployees = new Set(withHours.map(r => r.employee_id));
+    const totalHours = withHours.reduce((s, r) => s + Number(r.duration_hours), 0);
+    return Math.round((totalHours / uniqueEmployees.size) * 10) / 10;
+  })();
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
@@ -216,6 +227,9 @@ export default function Training() {
         <StatCard title="Mandatory" value={mandatory} icon={Award} tone="primary" />
         <StatCard title="Certs expiring ≤30d" value={expiring} icon={AlertTriangle} tone="warning" />
         <StatCard title="Expired" value={expired} icon={Clock} tone="danger" />
+        {avgTrainingHours !== null && (
+          <StatCard title="Avg hrs / employee" value={avgTrainingHours} icon={GraduationCap} tone="info" subtitle="ISO 30414" />
+        )}
       </div>
 
       {/* Filters */}
@@ -463,10 +477,14 @@ export default function Training() {
                 <Input value={form.score} onChange={e => setForm(p => ({ ...p, score: e.target.value }))} placeholder="e.g. 87%, Pass, Distinction" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label>Cost (₦)</Label>
                 <Input type="number" min={0} value={form.cost_ngn} onChange={e => setForm(p => ({ ...p, cost_ngn: e.target.value }))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Duration (hrs)</Label>
+                <Input type="number" min={0} step={0.5} value={form.duration_hours} onChange={e => setForm(p => ({ ...p, duration_hours: e.target.value }))} placeholder="e.g. 8" />
               </div>
               <div className="space-y-1.5">
                 <Label>Status</Label>

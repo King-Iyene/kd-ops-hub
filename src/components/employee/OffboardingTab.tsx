@@ -19,8 +19,8 @@ type EmployeeLite = {
   full_name?: string | null;
   salary_ngn?: number | null;
   status?: string | null;
-  // Sprint D — needed for gratuity calc
   start_date?: string | null;
+  notice_period_days?: number | null;
 };
 
 const TYPE_OPTIONS = [
@@ -263,6 +263,23 @@ export default function OffboardingTab({
             <Label>Reason / notes</Label>
             <Textarea value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} rows={3} />
           </div>
+          {/* Notice period validation */}
+          {(() => {
+            const noticeDays = employee.notice_period_days ?? 30;
+            if (form.notice_date && form.last_working_day) {
+              const notice = new Date(form.notice_date);
+              const lwd = new Date(form.last_working_day);
+              const gap = Math.round((lwd.getTime() - notice.getTime()) / 86400000);
+              if (gap < noticeDays) {
+                return (
+                  <div className="sm:col-span-2 rounded-lg border border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
+                    Notice period is {gap} day{gap === 1 ? '' : 's'} but the employee's contractual notice is {noticeDays} days (Labour Act s.11). This may expose the company to a claim for payment in lieu of notice.
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
           <div className="sm:col-span-2 flex justify-end">
             <Button onClick={startOffboarding} disabled={busy}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Start offboarding

@@ -158,6 +158,10 @@ export interface PayslipInput {
   housingMonthlyNgn?: number;
   transportMonthlyNgn?: number;
   otherAllowancesMonthlyNgn?: number;
+  /** Additional Voluntary Contribution (AVC) — percentage of pension base
+   *  above the statutory 8%. PRA 2014 s.4(3). Applied on top of the mandatory
+   *  8% and deducted pre-tax like the mandatory pension contribution. */
+  voluntaryPensionPct?: number;
 }
 
 export interface PayslipBreakdown {
@@ -175,6 +179,8 @@ export interface PayslipBreakdown {
   nhfMonthlyNgn: number;
   nhisEmployeeMonthlyNgn: number;
   nhisEmployerMonthlyNgn: number;
+  /** AVC — Additional Voluntary Contribution above mandatory 8%. */
+  voluntaryPensionMonthlyNgn: number;
   /** Monthly rent relief (annual relief / 12). */
   rentReliefMonthlyNgn: number;
   /** Monthly life-assurance relief (annual / 12). */
@@ -257,6 +263,11 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     ? pensionBaseMonthlyNgn * PENSION_EMPLOYER_RATE
     : 0;
 
+  const voluntaryPensionPct = Math.max(0, input.voluntaryPensionPct || 0) / 100;
+  const voluntaryPensionMonthlyNgn = input.pensionEnabled !== false
+    ? pensionBaseMonthlyNgn * voluntaryPensionPct
+    : 0;
+
   const nhfMonthlyNgn = input.nhfEnabled
     ? nhfBaseMonthlyNgn * NHF_RATE
     : 0;
@@ -285,6 +296,7 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     0,
     payableGrossMonthlyNgn
       - pensionEmployeeMonthlyNgn
+      - voluntaryPensionMonthlyNgn
       - nhfMonthlyNgn
       - nhisEmployeeMonthlyNgn
       - rentReliefMonthlyNgn
@@ -295,11 +307,12 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const payeMonthlyNgn = input.payeEnabled !== false ? annualPaye / 12 : 0;
 
   const rPension = round(pensionEmployeeMonthlyNgn);
+  const rAvc = round(voluntaryPensionMonthlyNgn);
   const rNhf = round(nhfMonthlyNgn);
   const rNhis = round(nhisEmployeeMonthlyNgn);
   const rPaye = round(payeMonthlyNgn);
   const rUnpaidLeave = round(unpaidLeaveDeductionMonthlyNgn);
-  const statutoryDeductionsMonthlyNgn = rPension + rNhf + rNhis + rPaye;
+  const statutoryDeductionsMonthlyNgn = rPension + rAvc + rNhf + rNhis + rPaye;
 
   const extraDeductionsMonthlyNgn = Math.max(0, input.extraDeductionsMonthlyNgn || 0);
 
@@ -317,6 +330,7 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     unpaidLeaveDeductionMonthlyNgn: rUnpaidLeave,
     pensionEmployeeMonthlyNgn: round(pensionEmployeeMonthlyNgn),
     pensionEmployerMonthlyNgn: round(pensionEmployerMonthlyNgn),
+    voluntaryPensionMonthlyNgn: round(voluntaryPensionMonthlyNgn),
     nhfMonthlyNgn: round(nhfMonthlyNgn),
     nhisEmployeeMonthlyNgn: round(nhisEmployeeMonthlyNgn),
     nhisEmployerMonthlyNgn: round(nhisEmployerMonthlyNgn),

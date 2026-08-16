@@ -3606,6 +3606,7 @@ const EmployeeProfile = () => {
             salary_ngn: employee.salary_ngn,
             status: employee.status,
             start_date: employee.start_date,
+            notice_period_days: (employee as any).notice_period_days,
           }}
           onChanged={load}
         />

@@ -206,6 +206,9 @@ const Dashboard = () => {
   const [expiringDocs, setExpiringDocs] = useState<{ id: string; title: string; expires_at: string }[]>([]);
   const [dueFilings, setDueFilings] = useState<{ id: string; kind: string; period: string; due_date: string }[]>([]);
 
+  // ── Birthdays & work anniversaries in the next 14 days ────────────────────
+  const [celebrations, setCelebrations] = useState<{ id: string; name: string; type: 'birthday' | 'anniversary'; date: string; detail: string }[]>([]);
+
   useEffect(() => {
     if (!isPersonal) {
       const today = new Date().toISOString().slice(0, 10);
@@ -227,9 +230,43 @@ const Dashboard = () => {
           .lte('due_date', in30)
           .order('due_date', { ascending: true })
           .limit(5),
-      ]).then(([docsRes, filingsRes]) => {
+        supabase
+          .from('profiles')
+          .select('id, full_name, date_of_birth, start_date')
+          .eq('status', 'active')
+          .neq('is_anonymised', true)
+          .limit(500),
+      ]).then(([docsRes, filingsRes, profilesRes]) => {
         setExpiringDocs((docsRes.data as any[]) || []);
         setDueFilings((filingsRes.data as any[]) || []);
+
+        const now = new Date();
+        const in14 = new Date(now.getTime() + 14 * 86400000);
+        const items: typeof celebrations = [];
+        for (const p of (profilesRes.data || []) as any[]) {
+          if (p.date_of_birth) {
+            const dob = new Date(p.date_of_birth);
+            const thisYear = new Date(now.getFullYear(), dob.getMonth(), dob.getDate());
+            if (thisYear < now) thisYear.setFullYear(thisYear.getFullYear() + 1);
+            if (thisYear >= now && thisYear <= in14) {
+              items.push({ id: `bday-${p.id}`, name: p.full_name || 'Employee', type: 'birthday', date: thisYear.toISOString().slice(0, 10), detail: thisYear.toDateString() === now.toDateString() ? 'Today!' : `${formatDate(thisYear.toISOString().slice(0, 10))}` });
+            }
+          }
+          if (p.start_date) {
+            const sd = new Date(p.start_date);
+            const years = now.getFullYear() - sd.getFullYear();
+            if (years >= 1) {
+              const anniv = new Date(now.getFullYear(), sd.getMonth(), sd.getDate());
+              if (anniv < now) anniv.setFullYear(anniv.getFullYear() + 1);
+              const annivYears = anniv.getFullYear() - sd.getFullYear();
+              if (anniv >= now && anniv <= in14) {
+                items.push({ id: `anniv-${p.id}`, name: p.full_name || 'Employee', type: 'anniversary', date: anniv.toISOString().slice(0, 10), detail: `${annivYears} year${annivYears > 1 ? 's' : ''}` });
+              }
+            }
+          }
+        }
+        items.sort((a, b) => a.date.localeCompare(b.date));
+        setCelebrations(items.slice(0, 10));
       });
     }
   }, [isPersonal]);
@@ -539,6 +576,31 @@ const Dashboard = () => {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Birthdays & work anniversaries ────────────────────────── */}
+      {celebrations.length > 0 && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            <p className="text-sm font-semibold text-foreground">Celebrations coming up</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {celebrations.map((c) => (
+              <span
+                key={c.id}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border',
+                  c.type === 'birthday'
+                    ? 'bg-pink-50 text-pink-700 border-pink-200/60 dark:bg-pink-500/10 dark:text-pink-300 dark:border-pink-500/25'
+                    : 'bg-indigo-50 text-indigo-700 border-indigo-200/60 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/25',
+                )}
+              >
+                {c.type === 'birthday' ? '🎂' : '🎉'} {c.name} · {c.detail}
+              </span>
+            ))}
           </div>
         </div>
       )}

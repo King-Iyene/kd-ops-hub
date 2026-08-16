@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, isPast, parseISO } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { confirm } from '@/hooks/use-confirm';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -330,6 +331,8 @@ export default function Performance() {
   };
 
   const deletePlan = async (id: string) => {
+    const ok = await confirm({ title: 'Delete plan', description: 'This development plan will be permanently deleted. Continue?', variant: 'destructive', confirmLabel: 'Delete' });
+    if (!ok) return;
     const { error } = await supabase.from('development_plans').delete().eq('id', id);
     if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Plan deleted' });

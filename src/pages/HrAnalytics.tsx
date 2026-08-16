@@ -70,11 +70,13 @@ const HrAnalytics = () => {
   const [employees, setEmployees] = useState<EmployeeSummary[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [terminations, setTerminations] = useState<Termination[]>([]);
+  const [absenceDaysYtd, setAbsenceDaysYtd] = useState(0);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [pRes, dRes, tRes] = await Promise.all([
+      const yearStart = `${new Date().getFullYear()}-01-01`;
+      const [pRes, dRes, tRes, leaveRes] = await Promise.all([
         supabase
           .from('profiles')
           .select(
@@ -82,7 +84,6 @@ const HrAnalytics = () => {
           )
           .limit(2000),
         supabase.from('departments').select('id, name, head_id').order('name'),
-        // terminations may not exist on every install
         supabase
           .from('terminations' as any)
           .select('id, employee_id, last_working_day, reason, rehire_eligible')
@@ -90,10 +91,23 @@ const HrAnalytics = () => {
           .limit(500)
           .then((r) => ({ data: r.data || [], error: null }))
           .catch(() => ({ data: [] as Termination[], error: null })),
+        supabase
+          .from('leave_requests')
+          .select('days, half_day')
+          .in('leave_type', ['sick', 'unpaid'])
+          .eq('status', 'approved')
+          .gte('start_date', yearStart)
+          .then((r) => ({ data: r.data || [], error: null }))
+          .catch(() => ({ data: [] as any[], error: null })),
       ]);
       setEmployees((pRes.data as any[]) ?? []);
       setDepartments((dRes.data as Department[]) ?? []);
       setTerminations((tRes as any).data ?? []);
+      const totalAbsence = ((leaveRes as any).data || []).reduce(
+        (s: number, r: any) => s + (r.half_day ? 0.5 : Number(r.days || 1)),
+        0,
+      );
+      setAbsenceDaysYtd(totalAbsence);
       setLoading(false);
     })();
   }, []);
@@ -259,6 +273,22 @@ const HrAnalytics = () => {
           icon={Building2}
           tone="primary"
         />
+        {(() => {
+          const now = new Date();
+          const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1;
+          const workingDaysYtd = Math.round(dayOfYear * (5 / 7));
+          const available = active.length * workingDaysYtd;
+          const rate = available > 0 ? (absenceDaysYtd / available) * 100 : 0;
+          return (
+            <StatCard
+              title="Absenteeism (YTD)"
+              value={`${rate.toFixed(1)}%`}
+              subtitle={`${absenceDaysYtd} absence day${absenceDaysYtd === 1 ? '' : 's'} · ISO 30414`}
+              icon={Activity}
+              tone={rate > 5 ? 'danger' : rate > 3 ? 'warning' : 'success'}
+            />
+          );
+        })()}
       </div>
 
       <Tabs defaultValue="overview">

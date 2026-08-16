@@ -353,6 +353,17 @@ export default function Recruitment() {
   const totalHired = applicants.filter(a => a.stage === 'hired').length;
   const totalOffers = applicants.filter(a => a.stage === 'offer').length;
 
+  const avgTimeToHire = (() => {
+    const hired = applicants.filter(a => a.stage === 'hired' && (a as any).updated_at);
+    if (hired.length === 0) return null;
+    const totalDays = hired.reduce((s, a) => {
+      const created = new Date(a.created_at).getTime();
+      const updated = new Date((a as any).updated_at).getTime();
+      return s + Math.max(0, (updated - created) / 86400000);
+    }, 0);
+    return Math.round(totalDays / hired.length);
+  })();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -375,6 +386,9 @@ export default function Recruitment() {
         ] as { label: string; value: number; icon: typeof Briefcase; tone: 'primary' | 'default' | 'warning' | 'success' }[]).map(({ label, value, icon, tone }) => (
           <StatCard key={label} title={label} value={value} icon={icon} tone={tone} />
         ))}
+        {avgTimeToHire !== null && (
+          <StatCard title="Avg time to hire" value={`${avgTimeToHire}d`} icon={Calendar} tone="info" subtitle="ISO 30414" />
+        )}
       </div>
 
       {/* Filters */}
