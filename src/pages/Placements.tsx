@@ -4,7 +4,7 @@ import {
   Calendar, DollarSign, Users, CheckCircle2, Clock, AlertCircle,
   Eye, RotateCcw, TrendingUp, Building2, BarChart3, PieChart as PieIcon,
   AlertTriangle, ArrowUpRight, Percent, RefreshCw, ArrowRightLeft,
-  Zap, Globe, TrendingDown, Shield,
+  Zap, Globe, TrendingDown, Shield, Save,
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
@@ -109,6 +109,10 @@ interface PlacementPayment {
   operator_paid: boolean;
   operator_paid_at: string | null;
   operator_paid_ref: string | null;
+  fx_rate_locked: boolean;
+  fx_rate_edit_reason: string | null;
+  fx_rate_edited_by: string | null;
+  fx_rate_edited_at: string | null;
 }
 
 interface EmployeeOption { id: string; full_name: string; }
@@ -210,6 +214,7 @@ function Placements() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isAdmin = hasRole(profile?.role, ['super_admin', 'admin']);
+  const isSuperAdmin = profile?.role === 'super_admin';
 
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -247,6 +252,12 @@ function Placements() {
   // ── Payment tracker filters ──
   const [payFilterStatus, setPayFilterStatus] = useState<string>('all');
   const [payFilterMonth, setPayFilterMonth] = useState<string>('all');
+
+  // ── FX rate edit (super_admin only) ──
+  const [fxEditOpen, setFxEditOpen] = useState<PlacementPayment | null>(null);
+  const [fxEditRate, setFxEditRate] = useState('');
+  const [fxEditReason, setFxEditReason] = useState('');
+  const [fxEditSaving, setFxEditSaving] = useState(false);
 
   // ── Fetch FX rate ──
   const fetchFxRate = useCallback(async () => {
@@ -781,6 +792,35 @@ function Placements() {
       setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as PlacementPayment : pp)));
       setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as any : pp)));
     }
+  }
+
+  async function editPaymentFxRate(paymentId: string, newRate: number, reason: string, placementUsd: number | null, commissionPct: number) {
+    if (!isSuperAdmin) return;
+    setFxEditSaving(true);
+    const ngn = (placementUsd && placementUsd > 0) ? placementUsd * newRate : null;
+    const update: Record<string, unknown> = {
+      fx_rate_used: newRate,
+      fx_rate_edit_reason: reason,
+      fx_rate_edited_by: profile?.id,
+      fx_rate_edited_at: new Date().toISOString(),
+    };
+    if (ngn != null) {
+      update.gross_amount_ngn = ngn;
+      update.commission_ngn = ngn * (commissionPct / 100);
+      update.net_employee_ngn = ngn * (1 - commissionPct / 100);
+    }
+    const { error } = await supabase.from('placement_payments').update(update).eq('id', paymentId);
+    if (error) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'FX rate updated', description: `Rate changed to ₦${newRate.toLocaleString()} with reason recorded.` });
+      setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as PlacementPayment : pp)));
+      setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as any : pp)));
+      setFxEditOpen(null);
+      setFxEditRate('');
+      setFxEditReason('');
+    }
+    setFxEditSaving(false);
   }
 
   // ── Export ──
@@ -2109,15 +2149,11 @@ function Placements() {
                 </div>
               </div>
 
-              {detailPlacement.fx_rate_used && (
+              {(detailPlacement.client_rate_usd != null && detailPlacement.client_rate_usd > 0) && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <ArrowRightLeft className="h-3.5 w-3.5" />
-                  Locked FX rate: 1 USD = {formatFxRate(detailPlacement.fx_rate_used)}
-                  {currentFxRate && detailPlacement.fx_rate_used !== currentFxRate && (
-                    <span className={currentFxRate > detailPlacement.fx_rate_used ? 'text-emerald-600' : 'text-red-600'}>
-                      (current: {formatFxRate(currentFxRate)}, {currentFxRate > detailPlacement.fx_rate_used ? '+' : ''}{(((currentFxRate - detailPlacement.fx_rate_used) / detailPlacement.fx_rate_used) * 100).toFixed(1)}%)
-                    </span>
-                  )}
+                  Current live FX: 1 USD = {formatFxRate(currentFxRate)}
+                  <span className="text-muted-foreground/60">· Each payment locks its own rate at generation time</span>
                 </div>
               )}
 
@@ -2166,6 +2202,9 @@ function Placements() {
                           <TableHead className="text-right">Operator Net</TableHead>
                           {detailPlacement?.rate_type === 'hourly' && <TableHead className="text-right">Hours</TableHead>}
                           {detailPlacement?.rate_type === 'daily' && <TableHead className="text-right">Days</TableHead>}
+                          {detailPlacement?.client_rate_usd != null && detailPlacement.client_rate_usd > 0 && (
+                            <TableHead className="text-right">FX Rate</TableHead>
+                          )}
                           <TableHead className="text-center">Client Paid</TableHead>
                           <TableHead className="text-center">Operator Paid</TableHead>
                         </TableRow>
@@ -2201,6 +2240,27 @@ function Placements() {
                             {detailPlacement?.rate_type === 'daily' && (
                               <TableCell className="text-right">
                                 {pp.days_worked != null ? pp.days_worked : <span className="text-muted-foreground text-xs">—</span>}
+                              </TableCell>
+                            )}
+                            {detailPlacement?.client_rate_usd != null && detailPlacement.client_rate_usd > 0 && (
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className="tabular-nums text-xs">{formatFxRate(pp.fx_rate_used)}</span>
+                                  {isSuperAdmin && (
+                                    <button
+                                      className="text-muted-foreground hover:text-foreground"
+                                      title="Edit FX rate"
+                                      onClick={() => { setFxEditOpen(pp); setFxEditRate(String(pp.fx_rate_used ?? '')); setFxEditReason(''); }}
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                  {pp.fx_rate_edit_reason && (
+                                    <span title={`Edited: ${pp.fx_rate_edit_reason}`} className="text-amber-500">
+                                      <AlertTriangle className="h-3 w-3" />
+                                    </span>
+                                  )}
+                                </div>
                               </TableCell>
                             )}
                             <TableCell className="text-center">
@@ -2267,6 +2327,20 @@ function Placements() {
                         <MobileCardRow label="Operator Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
                         {pp.hours_worked != null && <MobileCardRow label="Hours">{pp.hours_worked}</MobileCardRow>}
                         {pp.days_worked != null && <MobileCardRow label="Days">{pp.days_worked}</MobileCardRow>}
+                        {pp.fx_rate_used != null && (
+                          <MobileCardRow label="FX Rate">
+                            <span className="tabular-nums">{formatFxRate(pp.fx_rate_used)}</span>
+                            {pp.fx_rate_edit_reason && <span className="text-amber-500 ml-1" title={pp.fx_rate_edit_reason}>edited</span>}
+                            {isSuperAdmin && (
+                              <button
+                                className="text-muted-foreground hover:text-foreground ml-1"
+                                onClick={() => { setFxEditOpen(pp); setFxEditRate(String(pp.fx_rate_used ?? '')); setFxEditReason(''); }}
+                              >
+                                <Pencil className="h-3 w-3 inline" />
+                              </button>
+                            )}
+                          </MobileCardRow>
+                        )}
                         <MobileCardRow label="Client Paid">
                           {pp.client_paid
                             ? <span className="text-emerald-600">Yes{pp.client_paid_at ? ` — ${formatDate(pp.client_paid_at)}` : ''}</span>
@@ -2298,6 +2372,83 @@ function Placements() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* FX Rate Edit Dialog (super_admin only) */}
+      <Dialog open={!!fxEditOpen} onOpenChange={(open) => { if (!open) { setFxEditOpen(null); setFxEditRate(''); setFxEditReason(''); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-amber-500" />
+              Edit Locked FX Rate
+            </DialogTitle>
+          </DialogHeader>
+          {fxEditOpen && (
+            <div className="space-y-4">
+              <div className="rounded-lg border bg-muted/30 p-3 text-sm space-y-1">
+                <p><span className="text-muted-foreground">Period:</span> {monthLabel(fxEditOpen.month)}</p>
+                <p><span className="text-muted-foreground">Current rate:</span> {formatFxRate(fxEditOpen.fx_rate_used)}</p>
+                <p><span className="text-muted-foreground">Gross (USD):</span> {formatUsd(fxEditOpen.gross_amount_usd)}</p>
+                <p><span className="text-muted-foreground">Gross (NGN):</span> {formatNaira(fxEditOpen.gross_amount_ngn)}</p>
+                {fxEditOpen.fx_rate_edit_reason && (
+                  <p className="text-amber-600 text-xs">Previously edited: {fxEditOpen.fx_rate_edit_reason}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fx-edit-rate">New FX Rate (₦ per $1)</Label>
+                <Input
+                  id="fx-edit-rate"
+                  inputMode="decimal"
+                  placeholder="e.g. 1650.00"
+                  value={fxEditRate}
+                  onChange={(e) => setFxEditRate(e.target.value)}
+                  className="tabular-nums"
+                />
+                {fxEditRate && parseFloat(fxEditRate) > 0 && fxEditOpen.gross_amount_usd != null && fxEditOpen.gross_amount_usd > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    New gross: {formatNaira(fxEditOpen.gross_amount_usd * parseFloat(fxEditRate))}
+                    {fxEditOpen.fx_rate_used != null && (
+                      <span className={parseFloat(fxEditRate) > fxEditOpen.fx_rate_used ? ' text-amber-600' : parseFloat(fxEditRate) < fxEditOpen.fx_rate_used ? ' text-emerald-600' : ''}>
+                        {' '}({((parseFloat(fxEditRate) - fxEditOpen.fx_rate_used) / fxEditOpen.fx_rate_used * 100).toFixed(1)}% change)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="fx-edit-reason">Reason for change (required)</Label>
+                <Textarea
+                  id="fx-edit-reason"
+                  placeholder="e.g. Correcting rate to match actual transfer rate for this period"
+                  value={fxEditReason}
+                  onChange={(e) => setFxEditReason(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setFxEditOpen(null); setFxEditRate(''); setFxEditReason(''); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={fxEditSaving || !fxEditRate || !fxEditReason.trim() || !(parseFloat(fxEditRate.replace(/,/g, '')) > 0)}
+              onClick={() => {
+                if (!fxEditOpen || !detailPlacement) return;
+                editPaymentFxRate(
+                  fxEditOpen.id,
+                  parseFloat(fxEditRate.replace(/,/g, '')),
+                  fxEditReason.trim(),
+                  fxEditOpen.gross_amount_usd,
+                  detailPlacement.commission_pct,
+                );
+              }}
+            >
+              {fxEditSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
+              Save Rate
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

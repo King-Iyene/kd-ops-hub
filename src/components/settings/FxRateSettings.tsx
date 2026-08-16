@@ -97,6 +97,20 @@ export default function FxRateSettings() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-refresh the live rate every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const { data } = await supabase
+        .from('fx_rates')
+        .select('*')
+        .eq('base', BASE).eq('quote', QUOTE).eq('status', 'active')
+        .order('valid_from', { ascending: false })
+        .limit(1);
+      if (data?.[0]) setActive(data[0] as FxRate);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Paginate history so the table stays compact as entries accrue daily.
   const histPage = usePagination(history, 6);
 
