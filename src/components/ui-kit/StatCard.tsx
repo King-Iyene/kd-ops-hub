@@ -8,7 +8,7 @@ interface Props {
   value: string | number;
   subtitle?: string;
   icon?: LucideIcon;
-  tone?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'gold';
+  tone?: 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'gold' | 'info';
   trend?: { value: number; label?: string };
   className?: string;
   onClick?: () => void;
@@ -70,6 +70,14 @@ const toneConfig: Record<NonNullable<Props['tone']>, {
     trendUp: 'text-emerald-600 dark:text-emerald-400',
     trendDown: 'text-rose-600 dark:text-rose-400',
     bg:      'kd-stat-gold',
+  },
+  info: {
+    iconBg:  'bg-sky-50 dark:bg-sky-900/20',
+    iconColor: 'text-sky-600 dark:text-sky-400',
+    dot:     'bg-sky-500',
+    trendUp: 'text-emerald-600 dark:text-emerald-400',
+    trendDown: 'text-rose-600 dark:text-rose-400',
+    bg:      '',
   },
 };
 
