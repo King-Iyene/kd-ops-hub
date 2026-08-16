@@ -49,6 +49,13 @@ export async function buildPaymentInstructions(
 
   return (payslips as any[])
     .filter((p) => p.profiles?.bank_account_number && p.net_ngn > 0)
+    // Exclude non-NGN payslips: the NIBSS format is Nigeria-only and does not
+    // support foreign currencies.  A USD payslip's `net_ngn` field holds the
+    // USD amount, so including it would produce wildly incorrect naira figures.
+    .filter((p) => {
+      const ccy = p.currency || p.profiles?.pay_currency;
+      return !ccy || ccy === 'NGN';
+    })
     .map((p) => ({
       employee_name: p.profiles.full_name || '',
       bank_name: p.profiles.bank_name || '',
