@@ -387,6 +387,7 @@ const Fleet = () => {
 
   const [staff, setStaff] = useState<FieldStaff[]>([]);
   const [fuelRequests, setFuelRequests] = useState<FuelRequest[]>([]);
+  const [fuelStatusFilter, setFuelStatusFilter] = useState<string>('all');
   const [tripLogs, setTripLogs] = useState<TripLog[]>([]);
   const [loading, setLoading] = useState(true);
   const hasFetchedRef = useRef(false);
@@ -2976,7 +2977,11 @@ const Fleet = () => {
       )
     : [];
 
-  const visibleFuel = isAdmin ? fuelRequests : myFuelRequests;
+  const visibleFuel = useMemo(() => {
+    const base = isAdmin ? fuelRequests : myFuelRequests;
+    if (fuelStatusFilter === 'all') return base;
+    return base.filter((r) => r.status === fuelStatusFilter);
+  }, [isAdmin, fuelRequests, myFuelRequests, fuelStatusFilter]);
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;
 
   const anomalousTrips = tripLogs.filter((t) => t.is_anomaly || t.is_out_of_area);
@@ -3213,9 +3218,37 @@ const Fleet = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">
-                {isAdmin ? 'All Fuel Requests' : 'My Fuel Requests'}
-              </CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <CardTitle className="text-base">
+                  {isAdmin ? 'All Fuel Requests' : 'My Fuel Requests'}
+                </CardTitle>
+                <div className="flex flex-wrap gap-1">
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: 'pending', label: 'Pending' },
+                    { value: 'approved', label: 'Approved' },
+                    { value: 'payment_sent', label: 'Paid' },
+                    { value: 'receipt_uploaded', label: 'Receipt' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'rejected', label: 'Rejected' },
+                  ].map((f) => {
+                    const base = isAdmin ? fuelRequests : myFuelRequests;
+                    const count = f.value === 'all' ? base.length : base.filter((r) => r.status === f.value).length;
+                    if (f.value !== 'all' && count === 0) return null;
+                    return (
+                      <Button
+                        key={f.value}
+                        variant={fuelStatusFilter === f.value ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setFuelStatusFilter(f.value)}
+                      >
+                        {f.label} <span className="ml-1 opacity-70">{count}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               <div className="hidden md:block overflow-x-auto">
