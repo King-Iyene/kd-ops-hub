@@ -174,6 +174,30 @@ describe('computePayslip — full breakdown', () => {
   });
 });
 
+describe('AVC — Additional Voluntary Contribution (PRA 2014 s.4.3)', () => {
+  it('deducts voluntary pension on pension base, pre-tax', () => {
+    const base = computePayslip({ grossMonthlyNgn: 500_000, pensionEnabled: true });
+    const withAvc = computePayslip({ grossMonthlyNgn: 500_000, pensionEnabled: true, voluntaryPensionPct: 5 });
+    expect(withAvc.voluntaryPensionMonthlyNgn).toBeGreaterThan(0);
+    // AVC reduces chargeable income → PAYE should be lower
+    expect(withAvc.payeMonthlyNgn).toBeLessThan(base.payeMonthlyNgn);
+    // Net is lower because AVC deduction exceeds the PAYE savings
+    expect(withAvc.netMonthlyNgn).toBeLessThan(base.netMonthlyNgn);
+  });
+
+  it('is zero when voluntaryPensionPct is 0 or omitted', () => {
+    const r1 = computePayslip({ grossMonthlyNgn: 500_000, voluntaryPensionPct: 0 });
+    const r2 = computePayslip({ grossMonthlyNgn: 500_000 });
+    expect(r1.voluntaryPensionMonthlyNgn).toBe(0);
+    expect(r2.voluntaryPensionMonthlyNgn).toBe(0);
+  });
+
+  it('is zero when pension is disabled', () => {
+    const r = computePayslip({ grossMonthlyNgn: 500_000, pensionEnabled: false, voluntaryPensionPct: 10 });
+    expect(r.voluntaryPensionMonthlyNgn).toBe(0);
+  });
+});
+
 describe('Employer-borne statutory contributions', () => {
   it('calculates 1% NSITF on monthly payroll', () => {
     expect(calculateNSITF(0)).toBe(0);
