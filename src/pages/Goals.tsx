@@ -73,6 +73,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 type Scope = 'company' | 'team' | 'individual';
 type Status = 'open' | 'in_progress' | 'complete' | 'missed';
@@ -544,9 +545,7 @@ const Goals = () => {
         </div>
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton rows={6} cols={7} />
           ) : visible.length === 0 ? (
             <EmptyState
               illustration="satellite"

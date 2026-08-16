@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 const CATEGORIES = ['professional_development','compliance','safety','technical','leadership','software','other'] as const;
 type TrainingCategory = typeof CATEGORIES[number];
@@ -274,9 +275,7 @@ export default function Training() {
 
       {/* Table */}
       {loading ? (
-        <div className="py-12 flex items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
+        <TableSkeleton rows={6} cols={8} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={GraduationCap}

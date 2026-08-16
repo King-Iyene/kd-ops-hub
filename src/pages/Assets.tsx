@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -319,7 +320,7 @@ export default function Assets() {
 
       {/* Table */}
       {loading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+        <TableSkeleton rows={6} cols={10} />
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border/50 bg-card">
           <EmptyState icon={Package} title="No assets found" description="Add your first asset above to start tracking depreciation, custody and insurance." />
