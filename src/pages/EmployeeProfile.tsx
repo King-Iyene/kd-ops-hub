@@ -2033,12 +2033,19 @@ const EmployeeProfile = () => {
                         })()}
                       </dd>
                     </div>
-                    {employee.contract_end_date && (
-                      <div className="flex items-center justify-between text-sm">
-                        <dt className="text-muted-foreground">Contract ends</dt>
-                        <dd className="font-medium">{formatDate(employee.contract_end_date)}</dd>
-                      </div>
-                    )}
+                    {employee.contract_end_date && (() => {
+                      const daysUntil = Math.ceil((new Date(employee.contract_end_date).getTime() - Date.now()) / 86400000);
+                      return (
+                        <div className="flex items-center justify-between text-sm">
+                          <dt className="text-muted-foreground">Contract ends</dt>
+                          <dd className="flex items-center gap-2">
+                            <span className="font-medium">{formatDate(employee.contract_end_date)}</span>
+                            {daysUntil <= 0 && <Badge variant="destructive" className="text-[10px]">Expired</Badge>}
+                            {daysUntil > 0 && daysUntil <= 30 && <Badge className="bg-warning/15 text-warning border-warning/30 text-[10px]">{daysUntil}d left</Badge>}
+                          </dd>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-between text-sm">
                       <dt className="text-muted-foreground">PFA</dt>
                       <dd className="font-medium">{employee.pfa_name || '—'}</dd>
