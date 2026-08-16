@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, GraduationCap,
   Award, AlertTriangle, CheckCircle2, Clock, Loader2,
+  DollarSign, BarChart3, TrendingUp,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -209,6 +210,23 @@ export default function Training() {
     return Math.round((totalHours / uniqueEmployees.size) * 10) / 10;
   })();
 
+  const analytics = useMemo(() => {
+    const completedRecords = records.filter(r => effectiveStatus(r) === 'completed');
+    const totalHours = completedRecords.reduce((s, r) => s + (r.duration_hours ?? 0), 0);
+    const uniqueEmployees = new Set(records.map(r => r.employee_id));
+    const avgHoursPerEmployee = uniqueEmployees.size > 0 ? Math.round((totalHours / uniqueEmployees.size) * 10) / 10 : 0;
+    const completionRate = records.length > 0 ? Math.round((completedRecords.length / records.length) * 100) : 0;
+    const totalSpend = records.reduce((s, r) => s + (r.cost_ngn ?? 0), 0);
+    return { totalHours, avgHoursPerEmployee, completionRate, totalSpend };
+  }, [records]);
+
+  const expiringCerts = useMemo(() => {
+    const now = new Date();
+    return records
+      .filter(r => r.expiry_date && differenceInDays(parseISO(r.expiry_date), now) >= 0 && differenceInDays(parseISO(r.expiry_date), now) <= 30)
+      .sort((a, b) => differenceInDays(parseISO(a.expiry_date!), now) - differenceInDays(parseISO(b.expiry_date!), now));
+  }, [records]);
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
@@ -232,6 +250,40 @@ export default function Training() {
           <StatCard title="Avg hrs / employee" value={avgTrainingHours} icon={GraduationCap} tone="info" subtitle="ISO 30414" />
         )}
       </div>
+
+      {/* Training Analytics */}
+      <div className="kd-stat-grid">
+        <StatCard title="Total training hours" value={analytics.totalHours} icon={BarChart3} tone="primary" />
+        <StatCard title="Avg hrs / employee" value={analytics.avgHoursPerEmployee} icon={TrendingUp} tone="info" />
+        <StatCard title="Completion rate" value={`${analytics.completionRate}%`} icon={CheckCircle2} tone="success" />
+        <StatCard title="Total training spend" value={`₦${analytics.totalSpend.toLocaleString()}`} icon={DollarSign} tone="primary" />
+      </div>
+
+      {/* Expiring certifications alert */}
+      {expiringCerts.length > 0 && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <h3 className="text-sm font-semibold">Certifications expiring within 30 days</h3>
+          </div>
+          <div className="space-y-2">
+            {expiringCerts.map(r => {
+              const days = differenceInDays(parseISO(r.expiry_date!), new Date());
+              return (
+                <div key={r.id} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{r.title}</p>
+                    <p className="text-xs text-muted-foreground">{nameOf(r.employee_id)}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0 border-warning text-warning ml-2">
+                    {days === 0 ? 'Expires today' : `${days}d left`}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2">

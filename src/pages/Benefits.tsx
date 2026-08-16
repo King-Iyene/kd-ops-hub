@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 
-type BenefitType = 'hmo' | 'pension_pfa' | 'group_life' | 'other';
+type BenefitType = 'hmo' | 'pension_pfa' | 'group_life' | 'dental' | 'vision' | 'life_insurance' | 'other';
 type BenefitFreq = 'monthly' | 'quarterly' | 'annually';
 type BenefitStatus = 'active' | 'suspended' | 'expired';
 
@@ -30,6 +30,9 @@ const TYPE_LABEL: Record<BenefitType, string> = {
   hmo: 'HMO (Health)',
   pension_pfa: 'Pension (PFA)',
   group_life: 'Group Life',
+  dental: 'Dental',
+  vision: 'Vision',
+  life_insurance: 'Life Insurance',
   other: 'Other',
 };
 
@@ -37,6 +40,9 @@ const TYPE_ICON: Record<BenefitType, React.ElementType> = {
   hmo: HeartPulse,
   pension_pfa: Shield,
   group_life: Shield,
+  dental: HeartPulse,
+  vision: HeartPulse,
+  life_insurance: Shield,
   other: CheckCircle2,
 };
 
@@ -285,10 +291,10 @@ export default function Benefits() {
 
       {/* Summary cards */}
       <div className="kd-stat-grid">
-        {(['hmo', 'pension_pfa', 'group_life', 'other'] as BenefitType[]).map((t, i) => {
+        {(['hmo', 'pension_pfa', 'group_life', 'dental', 'vision', 'life_insurance', 'other'] as BenefitType[]).map((t) => {
           const active = benefits.filter(b => b.benefit_type === t && b.status === 'active').length;
+          if (active === 0 && !['hmo', 'pension_pfa', 'group_life'].includes(t)) return null;
           const Icon = TYPE_ICON[t];
-          const tones = ['success', 'primary', 'default', 'default'] as const;
           return (
             <StatCard
               key={t}
@@ -296,10 +302,17 @@ export default function Benefits() {
               value={active}
               subtitle="active enrolments"
               icon={Icon as any}
-              tone={tones[i]}
+              tone={t === 'hmo' ? 'success' : t === 'pension_pfa' ? 'primary' : 'default'}
             />
           );
         })}
+        <StatCard
+          title="Total Monthly Cost"
+          value={`₦${Math.round(benefits.filter(b => b.status === 'active' && b.premium_ngn != null).reduce((s, b) => s + monthlyEquivalent(b.premium_ngn!, b.premium_frequency), 0)).toLocaleString('en-NG')}`}
+          subtitle="across all active plans"
+          icon={Shield as any}
+          tone="default"
+        />
       </div>
 
       {/* List */}

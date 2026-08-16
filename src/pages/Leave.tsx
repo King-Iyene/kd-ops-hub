@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Baby,
   Heart,
+  BookOpen,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { SubPageHeader } from '@/components/SubPageHeader';
@@ -90,7 +91,7 @@ import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 
-type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'paternity';
+type LeaveType = 'annual' | 'sick' | 'unpaid' | 'maternity' | 'paternity' | 'compassionate' | 'study';
 type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 interface LeaveRequest {
@@ -117,6 +118,8 @@ interface LeaveBalance {
   // Sprint C — Labour-Act-aligned leave types
   maternity_used?: number;
   paternity_used?: number;
+  compassionate_used?: number;
+  study_used?: number;
   carryover_days?: number;
 }
 
@@ -134,6 +137,8 @@ const LEAVE_TYPES: { value: LeaveType; label: string; icon: typeof Plane }[] = [
   { value: 'maternity', label: 'Maternity', icon: Baby },
   { value: 'paternity', label: 'Paternity', icon: Heart },
   { value: 'unpaid', label: 'Unpaid', icon: Clock },
+  { value: 'compassionate', label: 'Compassionate', icon: Heart },
+  { value: 'study', label: 'Study Leave', icon: BookOpen },
 ];
 
 const TYPE_BADGE: Record<LeaveType, string> = {
@@ -142,6 +147,8 @@ const TYPE_BADGE: Record<LeaveType, string> = {
   unpaid: 'bg-muted text-muted-foreground border-border',
   maternity: 'bg-pink-100 text-pink-700 border-pink-200',
   paternity: 'bg-violet-100 text-violet-700 border-violet-200',
+  compassionate: 'bg-rose-100 text-rose-700 border-rose-200',
+  study: 'bg-amber-100 text-amber-700 border-amber-200',
 };
 
 
@@ -488,6 +495,8 @@ const Leave = () => {
       unpaid_used: 0,
       maternity_used: 0,
       paternity_used: 0,
+      compassionate_used: 0,
+      study_used: 0,
       carryover_days: 0,
     };
     const updates = { ...base };
@@ -496,6 +505,8 @@ const Leave = () => {
     if (req.leave_type === 'unpaid') updates.unpaid_used += req.days_requested;
     if (req.leave_type === 'maternity') updates.maternity_used = (updates.maternity_used || 0) + req.days_requested;
     if (req.leave_type === 'paternity') updates.paternity_used = (updates.paternity_used || 0) + req.days_requested;
+    if (req.leave_type === 'compassionate') updates.compassionate_used = (updates.compassionate_used || 0) + req.days_requested;
+    if (req.leave_type === 'study') updates.study_used = (updates.study_used || 0) + req.days_requested;
     await supabase
       .from('leave_balances')
       .upsert(updates, { onConflict: 'employee_id,year' });
@@ -535,6 +546,8 @@ const Leave = () => {
         if (req.leave_type === 'unpaid') updates.unpaid_used = Math.max(0, updates.unpaid_used - req.days_requested);
         if (req.leave_type === 'maternity') updates.maternity_used = Math.max(0, (updates.maternity_used || 0) - req.days_requested);
         if (req.leave_type === 'paternity') updates.paternity_used = Math.max(0, (updates.paternity_used || 0) - req.days_requested);
+        if (req.leave_type === 'compassionate') updates.compassionate_used = Math.max(0, (updates.compassionate_used || 0) - req.days_requested);
+        if (req.leave_type === 'study') updates.study_used = Math.max(0, (updates.study_used || 0) - req.days_requested);
         await supabase
           .from('leave_balances')
           .upsert(updates, { onConflict: 'employee_id,year' });
@@ -1130,6 +1143,60 @@ const Leave = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {isManager && (() => {
+        const currentYear = new Date().getFullYear();
+        const allThisYear = teamRequests.filter(
+          (r) => new Date(r.created_at).getFullYear() === currentYear,
+        );
+        const totalRequests = allThisYear.length;
+        const approvedCount = allThisYear.filter((r) => r.status === 'approved').length;
+        const approvedPct = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 0;
+        const avgDays = totalRequests > 0
+          ? (allThisYear.reduce((sum, r) => sum + r.days_requested, 0) / totalRequests).toFixed(1)
+          : '0';
+        const typeCounts = allThisYear.reduce<Record<string, number>>((acc, r) => {
+          acc[r.leave_type] = (acc[r.leave_type] || 0) + 1;
+          return acc;
+        }, {});
+        const mostCommonType =
+          Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+        const typeLabel = LEAVE_TYPES.find((t) => t.value === mostCommonType)?.label || mostCommonType;
+
+        return (
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight">Leave Analytics</h2>
+            <div className="kd-stat-grid">
+              <StatCard
+                title="Total Requests"
+                value={totalRequests}
+                subtitle={`${currentYear} to date`}
+                icon={CalendarDays}
+              />
+              <StatCard
+                title="Approved"
+                value={`${approvedPct}%`}
+                subtitle={`${approvedCount} of ${totalRequests} requests`}
+                icon={Check}
+                tone="success"
+              />
+              <StatCard
+                title="Avg Days / Request"
+                value={avgDays}
+                subtitle="Working days"
+                icon={Clock}
+                tone="primary"
+              />
+              <StatCard
+                title="Most Common Type"
+                value={typeLabel}
+                subtitle={`${typeCounts[mostCommonType] || 0} requests`}
+                icon={Info}
+              />
+            </div>
+          </div>
+        );
+      })()}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>

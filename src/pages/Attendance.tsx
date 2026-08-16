@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, Clock,
   CheckCircle2, XCircle, AlertTriangle, CalendarDays,
@@ -242,6 +242,21 @@ export default function Attendance() {
   const totalOvertimeHours = records.reduce((sum, r) => sum + r.overtime_minutes, 0) / 60;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // --- Per-month analytics summary ---
+  const analytics = useMemo(() => {
+    const presentDays = records.filter(r => r.status === 'present').length;
+    const lateDays = records.filter(r => r.status === 'late').length;
+    const absentDays = records.filter(r => r.status === 'absent').length;
+    const totalOTMinutes = records.reduce((sum, r) => sum + r.overtime_minutes, 0);
+    const avgOTMinutes = records.length > 0 ? totalOTMinutes / records.length : 0;
+
+    const attendedStatuses: AttendanceStatus[] = ['present', 'late', 'half_day', 'remote'];
+    const attendedCount = records.filter(r => attendedStatuses.includes(r.status)).length;
+    const attendanceRate = records.length > 0 ? (attendedCount / records.length) * 100 : 0;
+
+    return { presentDays, lateDays, absentDays, avgOTMinutes, attendanceRate };
+  }, [records]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -292,6 +307,48 @@ export default function Attendance() {
       {totalOvertimeHours > 0 && (
         <p className="text-sm text-muted-foreground">Total overtime this period: <strong className="text-foreground">{totalOvertimeHours.toFixed(1)} hrs</strong></p>
       )}
+
+      {/* Monthly analytics summary */}
+      <div className="kd-stat-grid">
+        <StatCard
+          title="Present Days"
+          value={analytics.presentDays}
+          subtitle="this month"
+          icon={CheckCircle2 as any}
+          tone="success"
+        />
+        <StatCard
+          title="Late Arrivals"
+          value={analytics.lateDays}
+          subtitle="this month"
+          icon={AlertTriangle as any}
+          tone="warning"
+        />
+        <StatCard
+          title="Absent Days"
+          value={analytics.absentDays}
+          subtitle="this month"
+          icon={XCircle as any}
+          tone="danger"
+        />
+        <StatCard
+          title="Avg Overtime"
+          value={`${Math.round(analytics.avgOTMinutes)} min`}
+          subtitle="per record this month"
+          icon={Clock as any}
+          tone="default"
+        />
+      </div>
+
+      {/* Attendance rate */}
+      <div className="rounded-xl border border-border/60 bg-card px-4 py-3 flex items-center gap-3">
+        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+        <p className="text-sm text-muted-foreground">
+          Overall attendance rate:{' '}
+          <strong className="text-foreground text-base">{analytics.attendanceRate.toFixed(1)}%</strong>
+          <span className="ml-1.5 text-xs">(present + late + half day + remote)</span>
+        </p>
+      </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
