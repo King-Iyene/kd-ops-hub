@@ -3,11 +3,13 @@ import {
   Briefcase, Plus, Search, Download, Pencil, Trash2, Loader2,
   Calendar, DollarSign, Users, CheckCircle2, Clock, AlertCircle,
   Eye, RotateCcw, TrendingUp, Building2, BarChart3, PieChart as PieIcon,
-  AlertTriangle, ArrowUpRight, Percent,
+  AlertTriangle, ArrowUpRight, Percent, RefreshCw, ArrowRightLeft,
+  Zap, Globe, TrendingDown, Shield,
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, Line,
 } from 'recharts';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -62,6 +64,8 @@ interface Placement {
   commission_pct: number;
   placement_category: PlacementCategory;
   client_rate_ngn: number;
+  client_rate_usd: number | null;
+  fx_rate_used: number | null;
   employee_rate_ngn: number;
   commission_ngn: number;
   start_date: string;
@@ -80,6 +84,8 @@ interface PlacementPayment {
   placement_id: string;
   month: string;
   gross_amount_ngn: number;
+  gross_amount_usd: number | null;
+  fx_rate_used: number | null;
   commission_ngn: number;
   net_employee_ngn: number;
   status: PaymentStatus;
@@ -141,6 +147,7 @@ const emptyForm = {
   placement_type: 'kd_receives' as PlacementType,
   commission_pct: '40',
   placement_category: 'general' as PlacementCategory,
+  client_rate_usd: '',
   client_rate_ngn: '',
   start_date: '',
   end_date: '',
@@ -156,6 +163,16 @@ function monthLabel(dateStr: string) {
 
 function shortMonth(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-NG', { month: 'short', year: '2-digit' });
+}
+
+function formatUsd(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  return '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatFxRate(rate: number | null | undefined): string {
+  if (rate == null) return '—';
+  return '₦' + Number(rate).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -175,6 +192,10 @@ function Placements() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [allPayments, setAllPayments] = useState<(PlacementPayment & { employee_name?: string; client_name?: string; placement_type?: PlacementType })[]>([]);
   const [loadingAllPayments, setLoadingAllPayments] = useState(false);
+
+  // ── FX ──
+  const [currentFxRate, setCurrentFxRate] = useState<number | null>(null);
+  const [loadingFxRate, setLoadingFxRate] = useState(false);
 
   // ── Filters ──
   const [search, setSearch] = useState('');
@@ -198,6 +219,18 @@ function Placements() {
   // ── Payment tracker filters ──
   const [payFilterStatus, setPayFilterStatus] = useState<string>('all');
   const [payFilterMonth, setPayFilterMonth] = useState<string>('all');
+
+  // ── Fetch FX rate ──
+  const fetchFxRate = useCallback(async () => {
+    setLoadingFxRate(true);
+    try {
+      const { data, error } = await supabase.rpc('get_current_rate', { p_base: 'USD', p_quote: 'NGN' });
+      if (!error && data) setCurrentFxRate(Number(data));
+    } catch {
+      // FX rate not available — user can still enter NGN directly
+    }
+    setLoadingFxRate(false);
+  }, []);
 
   // ── Fetch ──
   const fetchPlacements = useCallback(async () => {
@@ -265,7 +298,7 @@ function Placements() {
     setLoadingAllPayments(false);
   }, [toast]);
 
-  useEffect(() => { fetchPlacements(); fetchLookups(); fetchAllPayments(); }, [fetchPlacements, fetchLookups, fetchAllPayments]);
+  useEffect(() => { fetchPlacements(); fetchLookups(); fetchAllPayments(); fetchFxRate(); }, [fetchPlacements, fetchLookups, fetchAllPayments, fetchFxRate]);
 
   // ── Filter logic ──
   const filtered = useMemo(() => {
@@ -290,9 +323,12 @@ function Placements() {
     const totalRevenue = active.reduce((s, p) => s + (p.commission_ngn ?? 0), 0);
     const totalPayout = active.reduce((s, p) => s + (p.employee_rate_ngn ?? 0), 0);
     const totalGross = active.reduce((s, p) => s + (p.client_rate_ngn ?? 0), 0);
+    const totalGrossUsd = active.reduce((s, p) => s + (p.client_rate_usd ?? 0), 0);
     const kdReceives = active.filter((p) => p.placement_type === 'kd_receives').length;
     const empReceives = active.filter((p) => p.placement_type === 'employee_receives').length;
     const avgCommission = active.length > 0 ? active.reduce((s, p) => s + p.commission_pct, 0) / active.length : 0;
+    const usdPlacements = active.filter((p) => p.client_rate_usd != null && p.client_rate_usd > 0);
+    const ngnOnlyPlacements = active.filter((p) => p.client_rate_usd == null || p.client_rate_usd === 0);
 
     const paidPayments = allPayments.filter((pp) => pp.status === 'paid');
     const pendingPayments = allPayments.filter((pp) => pp.status === 'pending');
@@ -309,32 +345,51 @@ function Placements() {
       return daysLeft >= 0 && daysLeft <= 30;
     });
 
+    // FX margin analysis
+    const fxExposure = usdPlacements.reduce((s, p) => s + (p.client_rate_usd ?? 0), 0);
+    const avgFxRate = usdPlacements.length > 0
+      ? usdPlacements.reduce((s, p) => s + (p.fx_rate_used ?? 0), 0) / usdPlacements.length
+      : 0;
+    const currentRateVal = currentFxRate ?? 0;
+    const fxGainLoss = currentRateVal > 0 && avgFxRate > 0
+      ? ((currentRateVal - avgFxRate) / avgFxRate) * 100
+      : 0;
+
     return {
       active: active.length, total: placements.length, totalRevenue, totalPayout, totalGross,
-      kdReceives, empReceives, avgCommission, totalCollected, totalOutstanding,
+      totalGrossUsd, kdReceives, empReceives, avgCommission, totalCollected, totalOutstanding,
       collectionRate, paidCount: paidPayments.length, pendingCount: pendingPayments.length,
       overdueCount: overduePayments.length, expiringPlacements,
+      usdPlacementCount: usdPlacements.length, ngnOnlyCount: ngnOnlyPlacements.length,
+      fxExposure, avgFxRate, fxGainLoss,
     };
-  }, [placements, allPayments]);
+  }, [placements, allPayments, currentFxRate]);
 
   // ── Chart data ──
   const chartData = useMemo(() => {
-    // Revenue by month (last 12 months)
-    const monthMap = new Map<string, { month: string; commission: number; payout: number; gross: number; paid: number; pending: number }>();
+    const monthMap = new Map<string, { month: string; commission: number; payout: number; gross: number; paid: number; pending: number; grossUsd: number; fxRate: number; fxCount: number }>();
     allPayments.forEach((pp) => {
       const m = pp.month.slice(0, 7);
-      const existing = monthMap.get(m) || { month: m, commission: 0, payout: 0, gross: 0, paid: 0, pending: 0 };
+      const existing = monthMap.get(m) || { month: m, commission: 0, payout: 0, gross: 0, paid: 0, pending: 0, grossUsd: 0, fxRate: 0, fxCount: 0 };
       existing.commission += pp.commission_ngn;
       existing.payout += pp.net_employee_ngn;
       existing.gross += pp.gross_amount_ngn;
       if (pp.status === 'paid') existing.paid += 1;
       else existing.pending += 1;
+      if (pp.gross_amount_usd != null && pp.gross_amount_usd > 0) {
+        existing.grossUsd += pp.gross_amount_usd;
+        if (pp.fx_rate_used) { existing.fxRate += pp.fx_rate_used; existing.fxCount += 1; }
+      }
       monthMap.set(m, existing);
     });
     const revenueByMonth = Array.from(monthMap.values())
       .sort((a, b) => a.month.localeCompare(b.month))
       .slice(-12)
-      .map((d) => ({ ...d, label: shortMonth(d.month + '-01') }));
+      .map((d) => ({
+        ...d,
+        label: shortMonth(d.month + '-01'),
+        avgFxRate: d.fxCount > 0 ? d.fxRate / d.fxCount : null,
+      }));
 
     // By category
     const catMap = new Map<string, number>();
@@ -347,10 +402,11 @@ function Placements() {
     })).sort((a, b) => b.value - a.value);
 
     // By client (top 10 by revenue)
-    const clientMap = new Map<string, { name: string; revenue: number; count: number }>();
+    const clientMap = new Map<string, { name: string; revenue: number; revenueUsd: number; count: number }>();
     placements.filter((p) => p.status === 'active').forEach((p) => {
-      const existing = clientMap.get(p.client_id) || { name: p.client_name || 'Unknown', revenue: 0, count: 0 };
+      const existing = clientMap.get(p.client_id) || { name: p.client_name || 'Unknown', revenue: 0, revenueUsd: 0, count: 0 };
       existing.revenue += p.commission_ngn ?? 0;
+      existing.revenueUsd += p.client_rate_usd ?? 0;
       existing.count += 1;
       clientMap.set(p.client_id, existing);
     });
@@ -383,7 +439,18 @@ function Placements() {
       { name: 'Overdue', value: stats.overdueCount, color: chartTheme.danger },
     ].filter((d) => d.value > 0);
 
-    return { revenueByMonth, byCategory, byClient, topEarners, directionSplit, paymentDist };
+    // Currency split
+    const currencySplit = [
+      { name: 'USD Contracts', value: stats.usdPlacementCount, color: chartTheme.primary },
+      { name: 'NGN Only', value: stats.ngnOnlyCount, color: chartTheme.gold },
+    ].filter((d) => d.value > 0);
+
+    // FX rate history from payments
+    const fxHistory = revenueByMonth
+      .filter((d) => d.avgFxRate != null)
+      .map((d) => ({ label: d.label, rate: d.avgFxRate }));
+
+    return { revenueByMonth, byCategory, byClient, topEarners, directionSplit, paymentDist, currencySplit, fxHistory };
   }, [placements, allPayments, stats]);
 
   // ── Payment tracker filtered ──
@@ -402,6 +469,65 @@ function Placements() {
 
   const paymentPagination = usePagination(filteredPayments, 20);
 
+  // ── FX impact data ──
+  const fxImpact = useMemo(() => {
+    if (!currentFxRate) return null;
+    const usdPlacements = placements.filter((p) => p.status === 'active' && p.client_rate_usd != null && p.client_rate_usd > 0);
+    if (usdPlacements.length === 0) return null;
+
+    const rows = usdPlacements.map((p) => {
+      const lockedNgn = p.client_rate_ngn;
+      const currentNgn = (p.client_rate_usd ?? 0) * currentFxRate;
+      const diff = currentNgn - lockedNgn;
+      const diffPct = lockedNgn > 0 ? (diff / lockedNgn) * 100 : 0;
+      return {
+        id: p.id,
+        employee: p.employee_name ?? 'Unknown',
+        client: p.client_name ?? 'Unknown',
+        rateUsd: p.client_rate_usd ?? 0,
+        lockedFx: p.fx_rate_used ?? 0,
+        currentFx: currentFxRate,
+        lockedNgn,
+        currentNgn,
+        diff,
+        diffPct,
+      };
+    });
+
+    const totalDiff = rows.reduce((s, r) => s + r.diff, 0);
+    const totalLockedNgn = rows.reduce((s, r) => s + r.lockedNgn, 0);
+    const totalCurrentNgn = rows.reduce((s, r) => s + r.currentNgn, 0);
+
+    return { rows, totalDiff, totalLockedNgn, totalCurrentNgn };
+  }, [placements, currentFxRate]);
+
+  // ── Margin analysis ──
+  const marginAnalysis = useMemo(() => {
+    const active = placements.filter((p) => p.status === 'active');
+    if (active.length === 0) return [];
+
+    return active
+      .map((p) => {
+        const grossNgn = p.client_rate_ngn;
+        const commission = p.commission_ngn ?? 0;
+        const marginPct = grossNgn > 0 ? (commission / grossNgn) * 100 : 0;
+        const annualCommission = commission * 12;
+        return {
+          id: p.id,
+          employee: p.employee_name ?? 'Unknown',
+          client: p.client_name ?? 'Unknown',
+          category: CATEGORY_LABELS[p.placement_category],
+          rateUsd: p.client_rate_usd,
+          rateNgn: grossNgn,
+          commission,
+          marginPct,
+          annualCommission,
+          commissionPct: p.commission_pct,
+        };
+      })
+      .sort((a, b) => b.annualCommission - a.annualCommission);
+  }, [placements]);
+
   // ── Form handlers ──
   function openCreate() {
     setEditing(null);
@@ -417,6 +543,7 @@ function Placements() {
       placement_type: p.placement_type,
       commission_pct: String(p.commission_pct),
       placement_category: p.placement_category,
+      client_rate_usd: p.client_rate_usd != null ? String(p.client_rate_usd) : '',
       client_rate_ngn: String(p.client_rate_ngn),
       start_date: p.start_date,
       end_date: p.end_date ?? '',
@@ -426,9 +553,19 @@ function Placements() {
     setShowForm(true);
   }
 
+  const formNgnFromUsd = useMemo(() => {
+    const usd = Number(form.client_rate_usd);
+    if (!isNaN(usd) && usd > 0 && currentFxRate) {
+      return usd * currentFxRate;
+    }
+    return null;
+  }, [form.client_rate_usd, currentFxRate]);
+
   async function handleSubmit() {
-    if (!form.employee_id || !form.client_id || !form.client_rate_ngn || !form.start_date) {
-      toast({ title: 'Missing fields', description: 'Employee, client, rate, and start date are required.', variant: 'destructive' });
+    const hasUsd = form.client_rate_usd && Number(form.client_rate_usd) > 0;
+    const hasNgn = form.client_rate_ngn && Number(form.client_rate_ngn) > 0;
+    if (!form.employee_id || !form.client_id || (!hasUsd && !hasNgn) || !form.start_date) {
+      toast({ title: 'Missing fields', description: 'Employee, client, rate (USD or NGN), and start date are required.', variant: 'destructive' });
       return;
     }
     const pct = Number(form.commission_pct);
@@ -436,8 +573,21 @@ function Placements() {
       toast({ title: 'Invalid commission', description: 'Commission must be between 1 and 100.', variant: 'destructive' });
       return;
     }
-    const rate = Number(form.client_rate_ngn);
-    if (isNaN(rate) || rate < 0) {
+
+    let ngnRate: number;
+    let usdRate: number | null = null;
+    let fxRate: number | null = null;
+
+    if (hasUsd && currentFxRate) {
+      usdRate = Number(form.client_rate_usd);
+      fxRate = currentFxRate;
+      ngnRate = usdRate * fxRate;
+    } else {
+      ngnRate = Number(form.client_rate_ngn);
+      if (hasUsd) usdRate = Number(form.client_rate_usd);
+    }
+
+    if (isNaN(ngnRate) || ngnRate < 0) {
       toast({ title: 'Invalid rate', description: 'Client rate must be a positive number.', variant: 'destructive' });
       return;
     }
@@ -449,7 +599,9 @@ function Placements() {
       placement_type: form.placement_type,
       commission_pct: pct,
       placement_category: form.placement_category,
-      client_rate_ngn: rate,
+      client_rate_ngn: ngnRate,
+      client_rate_usd: usdRate,
+      fx_rate_used: fxRate,
       start_date: form.start_date,
       end_date: form.end_date || null,
       status: form.status,
@@ -563,6 +715,8 @@ function Placements() {
       Category: CATEGORY_LABELS[p.placement_category],
       'Payment Direction': TYPE_SHORT[p.placement_type],
       'Commission %': p.commission_pct,
+      'Client Rate (USD)': p.client_rate_usd ?? '',
+      'FX Rate': p.fx_rate_used ?? '',
       'Client Rate (NGN)': p.client_rate_ngn,
       'Employee Rate (NGN)': p.employee_rate_ngn,
       'Commission (NGN)': p.commission_ngn,
@@ -579,6 +733,8 @@ function Placements() {
       Employee: pp.employee_name,
       Client: pp.client_name,
       Month: monthLabel(pp.month),
+      'Gross (USD)': pp.gross_amount_usd ?? '',
+      'FX Rate': pp.fx_rate_used ?? '',
       'Gross (NGN)': pp.gross_amount_ngn,
       'Commission (NGN)': pp.commission_ngn,
       'Employee Net (NGN)': pp.net_employee_ngn,
@@ -592,14 +748,19 @@ function Placements() {
 
   // ── Computed ──
   const computedRate = useMemo(() => {
-    const rate = Number(form.client_rate_ngn);
+    const usd = Number(form.client_rate_usd);
+    const ngn = Number(form.client_rate_ngn);
     const pct = Number(form.commission_pct);
-    if (isNaN(rate) || isNaN(pct) || rate <= 0) return null;
+    const effectiveNgn = (!isNaN(usd) && usd > 0 && currentFxRate) ? usd * currentFxRate : ngn;
+    if (isNaN(effectiveNgn) || isNaN(pct) || effectiveNgn <= 0) return null;
     return {
-      commission: rate * (pct / 100),
-      employee: rate * (1 - pct / 100),
+      commission: effectiveNgn * (pct / 100),
+      employee: effectiveNgn * (1 - pct / 100),
+      totalNgn: effectiveNgn,
+      hasUsd: !isNaN(usd) && usd > 0,
+      usd,
     };
-  }, [form.client_rate_ngn, form.commission_pct]);
+  }, [form.client_rate_usd, form.client_rate_ngn, form.commission_pct, currentFxRate]);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -609,10 +770,16 @@ function Placements() {
       <AuroraHero className="p-5 sm:p-6" pattern="constellation">
         <PageHeader
           title="Placements"
-          description="Track employee deployments, commissions, and payment collections"
+          description="Track employee deployments, commissions, and payment collections across USD & NGN"
           icon={Briefcase}
           actions={
             <div className="flex items-center gap-2">
+              {currentFxRate && (
+                <Badge variant="outline" className="hidden sm:flex gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                  <Globe className="h-3 w-3" />
+                  1 USD = {formatFxRate(currentFxRate)}
+                </Badge>
+              )}
               <Button variant="outline" size="sm" onClick={exportCsv} disabled={placements.length === 0}>
                 <Download className="h-4 w-4 mr-1.5" /> Export
               </Button>
@@ -642,6 +809,9 @@ function Placements() {
               <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 bg-amber-500/10 text-amber-600">{stats.pendingCount}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="fx" className="gap-1.5">
+            <ArrowRightLeft className="h-3.5 w-3.5" /> FX Intelligence
+          </TabsTrigger>
           <TabsTrigger value="reports" className="gap-1.5">
             <PieIcon className="h-3.5 w-3.5" /> Reports
           </TabsTrigger>
@@ -654,12 +824,29 @@ function Placements() {
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
             <StatCard title="Active Placements" value={stats.active} icon={Users} tone="primary" subtitle={`${stats.total} total`} onClick={() => setActiveTab('placements')} />
-            <StatCard title="Monthly Revenue" value={formatNaira(stats.totalGross)} icon={DollarSign} tone="gold" subtitle="Gross client billing" />
+            <StatCard title="Monthly Revenue" value={stats.totalGrossUsd > 0 ? formatUsd(stats.totalGrossUsd) : formatNaira(stats.totalGross)} icon={DollarSign} tone="gold" subtitle={stats.totalGrossUsd > 0 ? `${formatNaira(stats.totalGross)} NGN` : 'Gross client billing'} />
             <StatCard title="KD Commission" value={formatNaira(stats.totalRevenue)} icon={TrendingUp} tone="success" subtitle={`Avg ${stats.avgCommission.toFixed(0)}% rate`} />
             <StatCard title="Employee Payouts" value={formatNaira(stats.totalPayout)} icon={Briefcase} tone="primary" subtitle="Monthly total" />
             <StatCard title="Collected" value={formatNaira(stats.totalCollected)} icon={CheckCircle2} tone="success" subtitle={`${stats.collectionRate.toFixed(0)}% rate`} onClick={() => setActiveTab('payments')} />
             <StatCard title="Outstanding" value={formatNaira(stats.totalOutstanding)} icon={Clock} tone={stats.totalOutstanding > 0 ? 'warning' : 'default'} subtitle={`${stats.pendingCount} pending`} onClick={() => setActiveTab('payments')} />
           </div>
+
+          {/* Currency & FX Strip */}
+          {(stats.usdPlacementCount > 0 || currentFxRate) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <StatCard title="USD Contracts" value={stats.usdPlacementCount} icon={Globe} tone="primary" subtitle={formatUsd(stats.fxExposure) + '/mo exposure'} onClick={() => setActiveTab('fx')} />
+              <StatCard title="Current FX Rate" value={currentFxRate ? formatFxRate(currentFxRate) : '—'} icon={ArrowRightLeft} tone="default" subtitle="NGN per 1 USD" onClick={() => setActiveTab('fx')} />
+              <StatCard
+                title="FX Gain/Loss"
+                value={stats.fxGainLoss !== 0 ? `${stats.fxGainLoss > 0 ? '+' : ''}${stats.fxGainLoss.toFixed(1)}%` : '—'}
+                icon={stats.fxGainLoss >= 0 ? TrendingUp : TrendingDown}
+                tone={stats.fxGainLoss > 0 ? 'success' : stats.fxGainLoss < 0 ? 'danger' : 'default'}
+                subtitle="vs locked rates"
+                onClick={() => setActiveTab('fx')}
+              />
+              <StatCard title="Avg Locked Rate" value={stats.avgFxRate > 0 ? formatFxRate(stats.avgFxRate) : '—'} icon={Shield} tone="default" subtitle="Across USD placements" />
+            </div>
+          )}
 
           {/* Alerts */}
           {(stats.overdueCount > 0 || stats.expiringPlacements.length > 0) && (
@@ -935,7 +1122,16 @@ function Placements() {
                             <span className="text-xs">{TYPE_SHORT[p.placement_type]}</span>
                           </TableCell>
                           <TableCell className="text-right font-medium">{p.commission_pct}%</TableCell>
-                          <TableCell className="text-right">{formatNaira(p.client_rate_ngn)}</TableCell>
+                          <TableCell className="text-right">
+                            {p.client_rate_usd != null && p.client_rate_usd > 0 ? (
+                              <div>
+                                <span className="font-semibold">{formatUsd(p.client_rate_usd)}</span>
+                                <span className="block text-[10px] text-muted-foreground">{formatNaira(p.client_rate_ngn)}</span>
+                              </div>
+                            ) : (
+                              formatNaira(p.client_rate_ngn)
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">{formatNaira(p.employee_rate_ngn)}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {formatDate(p.start_date)} — {p.end_date ? formatDate(p.end_date) : 'Ongoing'}
@@ -984,7 +1180,11 @@ function Placements() {
                       </MobileCardRow>
                       <MobileCardRow label="Direction">{TYPE_SHORT[p.placement_type]}</MobileCardRow>
                       <MobileCardRow label="Commission">{p.commission_pct}% — {formatNaira(p.commission_ngn)}/mo</MobileCardRow>
-                      <MobileCardRow label="Client Rate">{formatNaira(p.client_rate_ngn)}/mo</MobileCardRow>
+                      <MobileCardRow label="Client Rate">
+                        {p.client_rate_usd != null && p.client_rate_usd > 0
+                          ? `${formatUsd(p.client_rate_usd)} (${formatNaira(p.client_rate_ngn)})`
+                          : `${formatNaira(p.client_rate_ngn)}/mo`}
+                      </MobileCardRow>
                       <MobileCardRow label="Period">
                         {formatDate(p.start_date)} — {p.end_date ? formatDate(p.end_date) : 'Ongoing'}
                       </MobileCardRow>
@@ -1109,7 +1309,16 @@ function Placements() {
                           <TableCell>{pp.employee_name}</TableCell>
                           <TableCell>{pp.client_name}</TableCell>
                           <TableCell className="text-xs">{pp.placement_type ? TYPE_SHORT[pp.placement_type] : '—'}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatNaira(pp.gross_amount_ngn)}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {pp.gross_amount_usd != null && pp.gross_amount_usd > 0 ? (
+                              <div>
+                                <span>{formatUsd(pp.gross_amount_usd)}</span>
+                                <span className="block text-[10px] text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
+                              </div>
+                            ) : (
+                              formatNaira(pp.gross_amount_ngn)
+                            )}
+                          </TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(pp.commission_ngn)}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(pp.net_employee_ngn)}</TableCell>
                           <TableCell>
@@ -1160,7 +1369,11 @@ function Placements() {
                       </MobileCardHeader>
                       <MobileCardRow label="Employee">{pp.employee_name}</MobileCardRow>
                       <MobileCardRow label="Client">{pp.client_name}</MobileCardRow>
-                      <MobileCardRow label="Gross">{formatNaira(pp.gross_amount_ngn)}</MobileCardRow>
+                      <MobileCardRow label="Gross">
+                        {pp.gross_amount_usd != null && pp.gross_amount_usd > 0
+                          ? `${formatUsd(pp.gross_amount_usd)} (${formatNaira(pp.gross_amount_ngn)})`
+                          : formatNaira(pp.gross_amount_ngn)}
+                      </MobileCardRow>
                       <MobileCardRow label="Commission">{formatNaira(pp.commission_ngn)}</MobileCardRow>
                       <MobileCardRow label="Employee Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
                       <MobileCardRow label="Verified">
@@ -1194,6 +1407,242 @@ function Placements() {
               </>
             )}
           </div>
+        </TabsContent>
+
+        {/* ════════════════════════════════════════════════════════════════════
+            FX INTELLIGENCE TAB
+           ════════════════════════════════════════════════════════════════════ */}
+        <TabsContent value="fx" className="space-y-4 mt-4">
+          {/* FX KPI Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard
+              title="Live FX Rate"
+              value={currentFxRate ? formatFxRate(currentFxRate) : '—'}
+              icon={Globe}
+              tone="primary"
+              subtitle={
+                <span className="flex items-center gap-1">
+                  1 USD = NGN
+                  {loadingFxRate && <Loader2 className="h-3 w-3 animate-spin" />}
+                </span>
+              }
+            />
+            <StatCard
+              title="USD Exposure"
+              value={formatUsd(stats.fxExposure)}
+              icon={DollarSign}
+              tone="gold"
+              subtitle={`${stats.usdPlacementCount} USD contract${stats.usdPlacementCount !== 1 ? 's' : ''}`}
+            />
+            <StatCard
+              title="FX Impact"
+              value={fxImpact ? formatNaira(fxImpact.totalDiff) : '—'}
+              icon={fxImpact && fxImpact.totalDiff >= 0 ? TrendingUp : TrendingDown}
+              tone={fxImpact && fxImpact.totalDiff >= 0 ? 'success' : 'danger'}
+              subtitle="Monthly gain/loss at current rate"
+            />
+            <StatCard
+              title="Avg Locked Rate"
+              value={stats.avgFxRate > 0 ? formatFxRate(stats.avgFxRate) : '—'}
+              icon={Shield}
+              tone="default"
+              subtitle="Weighted across placements"
+            />
+          </div>
+
+          {/* FX Explanation */}
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <Zap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-sm">How dual-currency placements work</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Clients pay KD in <strong>USD</strong>. When you create a placement, the current FX rate is locked in,
+                  converting to NGN for employee payments and commission calculations. If the naira weakens (rate goes up),
+                  your USD contracts are worth more in NGN — that&apos;s the FX gain shown above. Use this tab to monitor
+                  your currency exposure and identify renegotiation opportunities.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Currency Split Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <h3 className="text-sm font-semibold mb-3">Contract Currency Split</h3>
+              {chartData.currencySplit.length > 0 ? (
+                <>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={chartData.currencySplit}
+                        cx="50%" cy="50%"
+                        innerRadius={50} outerRadius={80}
+                        paddingAngle={4}
+                        dataKey="value"
+                        {...chartAnim}
+                      >
+                        {chartData.currencySplit.map((d, i) => (
+                          <Cell key={i} fill={d.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<GlassTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="mt-2 space-y-1.5">
+                    {chartData.currencySplit.map((d) => (
+                      <div key={d.name} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                          <span className="text-muted-foreground">{d.name}</span>
+                        </div>
+                        <span className="font-semibold">{d.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <EmptyState icon={Globe} title="No currency data" description="Currency split appears with active placements." />
+              )}
+            </div>
+
+            {/* FX Rate History */}
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">FX Rate Trend (from payments)</h3>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={fetchFxRate}>
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingFxRate ? 'animate-spin' : ''}`} /> Refresh
+                </Button>
+              </div>
+              {chartData.fxHistory.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <ComposedChart data={chartData.fxHistory} {...chartAnim}>
+                    <ChartGradients />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} />
+                    <XAxis dataKey="label" tick={axisTick} />
+                    <YAxis tick={axisTick} tickFormatter={(v) => `₦${v.toLocaleString()}`} />
+                    <Tooltip content={<GlassTooltip formatter={(v: number) => `₦${v.toLocaleString()}`} />} />
+                    <Line type="monotone" dataKey="rate" name="FX Rate" stroke={chartTheme.primary} strokeWidth={2} dot={{ r: 3 }} />
+                    {currentFxRate && (
+                      <Line
+                        type="monotone"
+                        dataKey={() => currentFxRate}
+                        name="Current Rate"
+                        stroke={chartTheme.success}
+                        strokeWidth={1}
+                        strokeDasharray="5 5"
+                        dot={false}
+                      />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyState icon={ArrowRightLeft} title="No FX data" description="FX rate history appears once you create USD-denominated placements." />
+              )}
+            </div>
+          </div>
+
+          {/* FX Impact Table */}
+          {fxImpact && fxImpact.rows.length > 0 && (
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Placement-Level FX Impact Analysis</h3>
+                <div className="text-sm font-semibold">
+                  {fxImpact.totalDiff >= 0 ? (
+                    <span className="text-emerald-600">+{formatNaira(fxImpact.totalDiff)}/mo gain</span>
+                  ) : (
+                    <span className="text-red-600">{formatNaira(fxImpact.totalDiff)}/mo loss</span>
+                  )}
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead className="text-right">USD Rate</TableHead>
+                      <TableHead className="text-right">Locked FX</TableHead>
+                      <TableHead className="text-right">Current FX</TableHead>
+                      <TableHead className="text-right">Locked NGN</TableHead>
+                      <TableHead className="text-right">Current NGN</TableHead>
+                      <TableHead className="text-right">Impact</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {fxImpact.rows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.employee}</TableCell>
+                        <TableCell>{r.client}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatUsd(r.rateUsd)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatFxRate(r.lockedFx)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatFxRate(r.currentFx)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatNaira(r.lockedNgn)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatNaira(r.currentNgn)}</TableCell>
+                        <TableCell className={`text-right font-semibold tabular-nums ${r.diff >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {r.diff >= 0 ? '+' : ''}{formatNaira(r.diff)}
+                          <span className="block text-[10px] font-normal">
+                            {r.diffPct >= 0 ? '+' : ''}{r.diffPct.toFixed(1)}%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3">
+                Impact shows what each placement would be worth today vs. the rate locked at creation.
+                Positive = naira weakened (you earn more NGN per USD). Consider renegotiating placements with large negative impact.
+              </p>
+            </div>
+          )}
+
+          {/* Margin Analysis */}
+          {marginAnalysis.length > 0 && (
+            <div className="rounded-lg border border-border/70 bg-card p-4">
+              <h3 className="text-sm font-semibold mb-3">Profit Margin Leaderboard</h3>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-8">#</TableHead>
+                      <TableHead>Employee</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Client Rate</TableHead>
+                      <TableHead className="text-right">Commission %</TableHead>
+                      <TableHead className="text-right">Monthly Commission</TableHead>
+                      <TableHead className="text-right">Annual Value</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {marginAnalysis.slice(0, 15).map((m, i) => (
+                      <TableRow key={m.id}>
+                        <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                        <TableCell className="font-medium">{m.employee}</TableCell>
+                        <TableCell>{m.client}</TableCell>
+                        <TableCell>{m.category}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {m.rateUsd != null && m.rateUsd > 0 ? (
+                            <div>
+                              <span>{formatUsd(m.rateUsd)}</span>
+                              <span className="block text-[10px] text-muted-foreground">{formatNaira(m.rateNgn)}</span>
+                            </div>
+                          ) : (
+                            formatNaira(m.rateNgn)
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{m.commissionPct}%</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">{formatNaira(m.commission)}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums text-emerald-600">{formatNaira(m.annualCommission)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ════════════════════════════════════════════════════════════════════
@@ -1282,7 +1731,16 @@ function Placements() {
                         <TableRow key={i}>
                           <TableCell className="font-medium">{c.name}</TableCell>
                           <TableCell className="text-right">{c.count}</TableCell>
-                          <TableCell className="text-right font-semibold tabular-nums">{formatNaira(c.revenue)}</TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">
+                            {c.revenueUsd > 0 ? (
+                              <div>
+                                <span>{formatUsd(c.revenueUsd)}</span>
+                                <span className="block text-[10px] text-muted-foreground">{formatNaira(c.revenue)}</span>
+                              </div>
+                            ) : (
+                              formatNaira(c.revenue)
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1355,29 +1813,100 @@ function Placements() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="pf-pct">Commission %</Label>
-                <div className="relative">
-                  <Input id="pf-pct" type="number" min="1" max="100" value={form.commission_pct} onChange={(e) => setForm((f) => ({ ...f, commission_pct: e.target.value }))} />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="pf-pct">Commission %</Label>
+              <div className="relative">
+                <Input id="pf-pct" type="number" min="1" max="100" value={form.commission_pct} onChange={(e) => setForm((f) => ({ ...f, commission_pct: e.target.value }))} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+              </div>
+            </div>
+
+            {/* Dual-Currency Rate Input */}
+            <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold flex items-center gap-1.5">
+                  <ArrowRightLeft className="h-3.5 w-3.5" /> Client Rate
+                </p>
+                {currentFxRate && (
+                  <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                    1 USD = {formatFxRate(currentFxRate)}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="pf-rate-usd" className="text-xs">USD (monthly)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                    <Input
+                      id="pf-rate-usd"
+                      type="number"
+                      min="0"
+                      step="100"
+                      className="pl-7"
+                      placeholder="e.g. 3000"
+                      value={form.client_rate_usd}
+                      onChange={(e) => {
+                        const usd = e.target.value;
+                        setForm((f) => ({
+                          ...f,
+                          client_rate_usd: usd,
+                          client_rate_ngn: usd && currentFxRate ? String(Number(usd) * currentFxRate) : f.client_rate_ngn,
+                        }));
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="pf-rate-ngn" className="text-xs">NGN (monthly)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
+                    <Input
+                      id="pf-rate-ngn"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      className="pl-7"
+                      placeholder={formNgnFromUsd ? formatNaira(formNgnFromUsd).replace('₦', '') : 'e.g. 500000'}
+                      value={form.client_rate_usd && currentFxRate ? '' : form.client_rate_ngn}
+                      disabled={!!(form.client_rate_usd && currentFxRate)}
+                      onChange={(e) => setForm((f) => ({ ...f, client_rate_ngn: e.target.value }))}
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pf-rate">Client Rate (monthly)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
-                  <Input id="pf-rate" type="number" min="0" step="1000" className="pl-7" value={form.client_rate_ngn} onChange={(e) => setForm((f) => ({ ...f, client_rate_ngn: e.target.value }))} />
-                </div>
-              </div>
+
+              {form.client_rate_usd && currentFxRate && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                  <Zap className="h-3 w-3 text-primary" />
+                  Auto-converted: {formatUsd(Number(form.client_rate_usd))} × {formatFxRate(currentFxRate)} = {formatNaira(Number(form.client_rate_usd) * currentFxRate)}
+                </p>
+              )}
+              {!currentFxRate && (
+                <p className="text-[11px] text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  No live FX rate available. Enter the NGN rate directly, or set up an FX rate first.
+                </p>
+              )}
             </div>
 
             {computedRate && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1">
                 <p className="text-xs font-medium text-primary">Monthly Breakdown</p>
+                {computedRate.hasUsd && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Client pays (USD)</span>
+                    <span className="font-semibold">{formatUsd(computedRate.usd)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{computedRate.hasUsd ? 'Converted to NGN' : 'Client Rate (NGN)'}</span>
+                  <span className="font-semibold">{formatNaira(computedRate.totalNgn)}</span>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">KD Commission ({form.commission_pct}%)</span>
-                  <span className="font-semibold">{formatNaira(computedRate.commission)}</span>
+                  <span className="font-semibold text-emerald-600">{formatNaira(computedRate.commission)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Employee Pay ({100 - Number(form.commission_pct)}%)</span>
@@ -1452,9 +1981,25 @@ function Placements() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Monthly Rate</p>
-                  <p className="font-medium">{formatNaira(detailPlacement.client_rate_ngn)}</p>
+                  <p className="font-medium">
+                    {detailPlacement.client_rate_usd != null && detailPlacement.client_rate_usd > 0
+                      ? `${formatUsd(detailPlacement.client_rate_usd)} (${formatNaira(detailPlacement.client_rate_ngn)})`
+                      : formatNaira(detailPlacement.client_rate_ngn)}
+                  </p>
                 </div>
               </div>
+
+              {detailPlacement.fx_rate_used && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  Locked FX rate: 1 USD = {formatFxRate(detailPlacement.fx_rate_used)}
+                  {currentFxRate && detailPlacement.fx_rate_used !== currentFxRate && (
+                    <span className={currentFxRate > detailPlacement.fx_rate_used ? 'text-emerald-600' : 'text-red-600'}>
+                      (current: {formatFxRate(currentFxRate)}, {currentFxRate > detailPlacement.fx_rate_used ? '+' : ''}{(((currentFxRate - detailPlacement.fx_rate_used) / detailPlacement.fx_rate_used) * 100).toFixed(1)}%)
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
@@ -1501,7 +2046,16 @@ function Placements() {
                         {payments.map((pp) => (
                           <TableRow key={pp.id}>
                             <TableCell className="font-medium">{monthLabel(pp.month)}</TableCell>
-                            <TableCell className="text-right">{formatNaira(pp.gross_amount_ngn)}</TableCell>
+                            <TableCell className="text-right">
+                              {pp.gross_amount_usd != null && pp.gross_amount_usd > 0 ? (
+                                <div>
+                                  <span>{formatUsd(pp.gross_amount_usd)}</span>
+                                  <span className="block text-[10px] text-muted-foreground">{formatNaira(pp.gross_amount_ngn)}</span>
+                                </div>
+                              ) : (
+                                formatNaira(pp.gross_amount_ngn)
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">{formatNaira(pp.commission_ngn)}</TableCell>
                             <TableCell className="text-right">{formatNaira(pp.net_employee_ngn)}</TableCell>
                             <TableCell>
@@ -1545,7 +2099,11 @@ function Placements() {
                             <Badge variant="outline" className={`text-[10px] ${PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}`}>{pp.status}</Badge>
                           </MobileCardMeta>
                         </MobileCardHeader>
-                        <MobileCardRow label="Gross">{formatNaira(pp.gross_amount_ngn)}</MobileCardRow>
+                        <MobileCardRow label="Gross">
+                          {pp.gross_amount_usd != null && pp.gross_amount_usd > 0
+                            ? `${formatUsd(pp.gross_amount_usd)} (${formatNaira(pp.gross_amount_ngn)})`
+                            : formatNaira(pp.gross_amount_ngn)}
+                        </MobileCardRow>
                         <MobileCardRow label="Commission">{formatNaira(pp.commission_ngn)}</MobileCardRow>
                         <MobileCardRow label="Employee Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
                         <MobileCardRow label="Verified">
