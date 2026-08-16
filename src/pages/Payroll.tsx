@@ -17,6 +17,7 @@ import {
   X,
   Info,
   Trash2,
+  BarChart3,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -218,6 +219,7 @@ const Payroll = () => {
 
   const [loading, setLoading] = useState(true);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
+  const [summaryYear, setSummaryYear] = useState(new Date().getFullYear());
   const [dialog, setDialog] = useState(false);
   const [working, setWorking] = useState(false);
   const [salaryErrors, setSalaryErrors] = useState<string[]>([]);
@@ -1980,6 +1982,45 @@ const Payroll = () => {
     [runs],
   );
 
+  const annualSummary = useMemo(() => {
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const yearRuns = runs.filter((r) => {
+      const [y] = r.period.split('-');
+      return parseInt(y) === summaryYear && r.status !== 'draft';
+    });
+    const byMonth = MONTHS.map((label, i) => {
+      const m = String(i + 1).padStart(2, '0');
+      const monthRuns = yearRuns.filter((r) => r.period.endsWith(`-${m}`) || r.period.endsWith(`-${i + 1}`));
+      const gross = monthRuns.reduce((s, r) => s + (r.total_employee_ngn || 0), 0);
+      const paye = monthRuns.reduce((s, r) => s + (r.paye_ngn || 0), 0);
+      const pension = monthRuns.reduce((s, r) => s + (r.pension_ngn || 0), 0);
+      const nhf = monthRuns.reduce((s, r) => s + (r.nhf_ngn || 0), 0);
+      const contractors = monthRuns.reduce((s, r) => s + (r.total_contractor_ngn || 0), 0);
+      const burn = monthRuns.reduce((s, r) => s + (r.total_burn_ngn || 0), 0);
+      const headcount = monthRuns.reduce((s, r) => s + (r.employee_count || 0), 0);
+      const status = monthRuns.length === 0 ? 'none' : monthRuns.every((r) => r.status === 'paid') ? 'paid' : 'pending';
+      return { label, gross, paye, pension, nhf, contractors, burn, headcount, status };
+    });
+    const totals = byMonth.reduce(
+      (acc, m) => ({
+        gross: acc.gross + m.gross,
+        paye: acc.paye + m.paye,
+        pension: acc.pension + m.pension,
+        nhf: acc.nhf + m.nhf,
+        contractors: acc.contractors + m.contractors,
+        burn: acc.burn + m.burn,
+      }),
+      { gross: 0, paye: 0, pension: 0, nhf: 0, contractors: 0, burn: 0 },
+    );
+    return { byMonth, totals };
+  }, [runs, summaryYear]);
+
+  const availableYears = useMemo(() => {
+    const years = new Set(runs.map((r) => parseInt(r.period.split('-')[0])));
+    if (years.size === 0) years.add(new Date().getFullYear());
+    return Array.from(years).sort((a, b) => b - a);
+  }, [runs]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -2023,6 +2064,13 @@ const Payroll = () => {
           >
             <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
             Pay schedules
+          </TabsTrigger>
+          <TabsTrigger
+            value="annual"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
+            Annual summary
           </TabsTrigger>
         </TabsList>
 
@@ -2489,6 +2537,101 @@ const Payroll = () => {
 
         <TabsContent value="schedules" className="mt-6">
           <PayrollSchedules />
+        </TabsContent>
+
+        <TabsContent value="annual" className="mt-6 space-y-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h2 className="text-lg font-semibold">Payroll Summary — {summaryYear}</h2>
+            <div className="flex gap-2">
+              {availableYears.map((y) => (
+                <Button
+                  key={y}
+                  size="sm"
+                  variant={y === summaryYear ? 'default' : 'outline'}
+                  onClick={() => setSummaryYear(y)}
+                >
+                  {y}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {annualSummary.totals.burn > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Month-by-month breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={annualSummary.byMonth} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                    <ChartGradients />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridLine} vertical={false} />
+                    <XAxis dataKey="label" tick={axisTick} axisLine={false} tickLine={false} />
+                    <YAxis tickFormatter={(v) => formatNairaCompact(v)} tick={axisTick} axisLine={false} tickLine={false} />
+                    <ChartTooltip
+                      content={<GlassTooltip />}
+                      formatter={(v: number) => formatNaira(v)}
+                      cursor={{ fill: chartTheme.primary, fillOpacity: 0.06 }}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="gross" fill="url(#kd-grad-primary)" name="Gross salary" stackId="a" radius={[0, 0, 0, 0]} {...chartAnim} />
+                    <Bar dataKey="contractors" fill={chartTheme.secondary} name="Contractors" stackId="a" radius={[4, 4, 0, 0]} {...chartAnim} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent className="pt-6">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Month</TableHead>
+                      <TableHead className="text-right">Headcount</TableHead>
+                      <TableHead className="text-right">Gross salary</TableHead>
+                      <TableHead className="text-right">PAYE</TableHead>
+                      <TableHead className="text-right">Pension</TableHead>
+                      <TableHead className="text-right">NHF</TableHead>
+                      <TableHead className="text-right">Contractors</TableHead>
+                      <TableHead className="text-right">Total burn</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {annualSummary.byMonth.map((m) => (
+                      <TableRow key={m.label} className={m.status === 'none' ? 'opacity-40' : ''}>
+                        <TableCell className="font-medium">{m.label}</TableCell>
+                        <TableCell className="text-right tabular-nums">{m.headcount || '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency">{m.gross > 0 ? formatNaira(m.gross) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency">{m.paye > 0 ? formatNaira(m.paye) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency">{m.pension > 0 ? formatNaira(m.pension) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency">{m.nhf > 0 ? formatNaira(m.nhf) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency">{m.contractors > 0 ? formatNaira(m.contractors) : '—'}</TableCell>
+                        <TableCell className="text-right tabular-nums currency font-semibold">{m.burn > 0 ? formatNaira(m.burn) : '—'}</TableCell>
+                        <TableCell className="text-center">
+                          {m.status === 'paid' && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px]">Paid</Badge>}
+                          {m.status === 'pending' && <Badge variant="outline" className="text-[10px]">Pending</Badge>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold border-t-2 bg-muted/30">
+                      <TableCell>Total ({summaryYear})</TableCell>
+                      <TableCell className="text-right">—</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.gross)}</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.paye)}</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.pension)}</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.nhf)}</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.contractors)}</TableCell>
+                      <TableCell className="text-right tabular-nums currency">{formatNaira(annualSummary.totals.burn)}</TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
