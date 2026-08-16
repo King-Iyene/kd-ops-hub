@@ -71,6 +71,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
@@ -216,6 +222,12 @@ const Documents = () => {
   const [folderDialogOpen, setFolderDialogOpen] = useState(false);
   const [folderForm, setFolderForm] = useState({ name: '', description: '', color: '#6366f1', entity_type: '', entity_id: '' });
   const [creatingFolder, setCreatingFolder] = useState(false);
+
+  // Edit folder dialog
+  const [editFolderOpen, setEditFolderOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<FolderRow | null>(null);
+  const [editFolderForm, setEditFolderForm] = useState({ name: '', description: '', color: '#6366f1', entity_type: '', entity_id: '' });
+  const [savingFolder, setSavingFolder] = useState(false);
 
   // Detail/preview dialog
   const [detailDoc, setDetailDoc] = useState<DocumentRow | null>(null);
@@ -587,6 +599,73 @@ const Documents = () => {
     }
   };
 
+  const openEditFolder = (folder: FolderRow) => {
+    setEditingFolder(folder);
+    setEditFolderForm({
+      name: folder.name,
+      description: folder.description || '',
+      color: folder.color,
+      entity_type: folder.entity_type || '',
+      entity_id: folder.entity_id || '',
+    });
+    setEditFolderOpen(true);
+  };
+
+  const updateFolder = async () => {
+    if (!editingFolder) return;
+    if (!editFolderForm.name.trim()) {
+      toast({ title: 'Folder name is required', variant: 'destructive' });
+      return;
+    }
+    setSavingFolder(true);
+    try {
+      const updates: Record<string, unknown> = {
+        name: editFolderForm.name.trim(),
+        description: editFolderForm.description || null,
+        color: editFolderForm.color,
+        entity_type: editFolderForm.entity_type || null,
+        entity_id: editFolderForm.entity_id || null,
+      };
+      const { error } = await supabase
+        .from('document_folders')
+        .update(updates)
+        .eq('id', editingFolder.id);
+      if (error) throw error;
+      toast({ title: 'Folder updated' });
+      setEditFolderOpen(false);
+      setEditingFolder(null);
+      fetchDocs();
+    } catch (err: any) {
+      toast({ title: 'Failed to update folder', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingFolder(false);
+    }
+  };
+
+  const deleteFolder = async (folder: FolderRow) => {
+    const docCount = rows.filter((r) => r.folder === folder.id).length;
+    const subCount = folders.filter((f) => f.parent_id === folder.id).length;
+    const parts: string[] = [];
+    if (docCount) parts.push(`${docCount} document${docCount !== 1 ? 's' : ''}`);
+    if (subCount) parts.push(`${subCount} sub-folder${subCount !== 1 ? 's' : ''}`);
+    const warn = parts.length ? ` It contains ${parts.join(' and ')}.` : '';
+    if (!window.confirm(`Delete folder "${folder.name}"?${warn} Documents inside will be moved to the root.`)) return;
+    try {
+      if (docCount) {
+        await supabase.from('documents').update({ folder: null }).eq('folder', folder.id);
+      }
+      if (subCount) {
+        await supabase.from('document_folders').update({ parent_id: folder.parent_id }).eq('parent_id', folder.id);
+      }
+      const { error } = await supabase.from('document_folders').delete().eq('id', folder.id);
+      if (error) throw error;
+      toast({ title: 'Folder deleted' });
+      fetchDocs();
+    } catch (err: any) {
+      toast({ title: 'Failed to delete folder', description: err?.message, variant: 'destructive' });
+    }
+  };
+
   const getEntityOptions = (type: string): EntityOption[] => {
     switch (type) {
       case 'client': return clients;
@@ -854,18 +933,44 @@ const Documents = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2">
                     {currentSubFolders.map((folder) => {
                       const docCount = rows.filter((r) => r.folder === folder.id).length;
+                      const canEdit = canManage || folder.created_by === profile?.id;
                       return (
-                        <button
-                          key={folder.id}
-                          onClick={() => enterFolder(folder)}
-                          className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left group"
-                        >
-                          <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color }} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate">{folder.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{docCount} file{docCount !== 1 ? 's' : ''}</p>
-                          </div>
-                        </button>
+                        <div key={folder.id} className="relative group">
+                          <button
+                            onClick={() => enterFolder(folder)}
+                            className="flex items-center gap-2 p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left w-full"
+                          >
+                            <FolderIcon className="h-5 w-5 shrink-0" style={{ color: folder.color }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{folder.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{docCount} file{docCount !== 1 ? 's' : ''}</p>
+                            </div>
+                          </button>
+                          {canEdit && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="absolute top-1 right-1 h-7 w-7 p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => openEditFolder(folder)}>
+                                  <Pencil className="h-4 w-4 mr-2" /> Rename / Edit
+                                </DropdownMenuItem>
+                                {canManage && (
+                                  <DropdownMenuItem className="text-destructive" onClick={() => deleteFolder(folder)}>
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -1298,6 +1403,82 @@ const Documents = () => {
             <Button onClick={createFolder} disabled={creatingFolder}>
               {creatingFolder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Folder Dialog */}
+      <Dialog open={editFolderOpen} onOpenChange={setEditFolderOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Edit Folder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Folder name</Label>
+              <Input
+                value={editFolderForm.name}
+                onChange={(e) => setEditFolderForm({ ...editFolderForm, name: e.target.value })}
+                placeholder="e.g. Client Contracts"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Color</Label>
+              <div className="flex gap-2 flex-wrap">
+                {FOLDER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setEditFolderForm({ ...editFolderForm, color: c })}
+                    className={`h-7 w-7 rounded-full border-2 transition-transform ${editFolderForm.color === c ? 'border-foreground scale-110' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Description (optional)</Label>
+              <Input
+                value={editFolderForm.description}
+                onChange={(e) => setEditFolderForm({ ...editFolderForm, description: e.target.value })}
+                placeholder="What goes in this folder?"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Scope to (optional)</Label>
+                <Select value={editFolderForm.entity_type || '__none__'} onValueChange={(v) => setEditFolderForm({ ...editFolderForm, entity_type: v === '__none__' ? '' : v, entity_id: '' })}>
+                  <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {ENTITY_TYPES.map((et) => (
+                      <SelectItem key={et.value} value={et.value}>{et.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {editFolderForm.entity_type && (
+                <div className="space-y-1">
+                  <Label>{ENTITY_TYPES.find((e) => e.value === editFolderForm.entity_type)?.label}</Label>
+                  <Select value={editFolderForm.entity_id || undefined} onValueChange={(v) => setEditFolderForm({ ...editFolderForm, entity_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      {getEntityOptions(editFolderForm.entity_type).map((o) => (
+                        <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditFolderOpen(false)}>Cancel</Button>
+            <Button onClick={updateFolder} disabled={savingFolder}>
+              {savingFolder && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
