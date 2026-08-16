@@ -93,7 +93,7 @@ const HrAnalytics = () => {
           .catch(() => ({ data: [] as Termination[], error: null })),
         supabase
           .from('leave_requests')
-          .select('days, half_day')
+          .select('days_requested, is_half_day')
           .in('leave_type', ['sick', 'unpaid'])
           .eq('status', 'approved')
           .gte('start_date', yearStart)
@@ -104,7 +104,7 @@ const HrAnalytics = () => {
       setDepartments((dRes.data as Department[]) ?? []);
       setTerminations((tRes as any).data ?? []);
       const totalAbsence = ((leaveRes as any).data || []).reduce(
-        (s: number, r: any) => s + (r.half_day ? 0.5 : Number(r.days || 1)),
+        (s: number, r: any) => s + (r.is_half_day ? 0.5 : Number(r.days_requested || 1)),
         0,
       );
       setAbsenceDaysYtd(totalAbsence);
