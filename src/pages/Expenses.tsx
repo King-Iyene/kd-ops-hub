@@ -471,6 +471,7 @@ const Expenses = () => {
   // -- Submit ---------------------------------------------------------------
 
   const submitExpense = async () => {
+    if (submitting) return;
     if (!form.category) {
       toast({ title: 'Pick a category', variant: 'destructive' });
       return;
@@ -537,6 +538,7 @@ const Expenses = () => {
       return;
     }
 
+    if (submitting) return;
     setSubmitting(true);
 
     // Upload receipt if one was selected.

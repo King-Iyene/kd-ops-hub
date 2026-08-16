@@ -942,6 +942,7 @@ const Fleet = () => {
   };
 
   const submitRepairRequest = async () => {
+    if (submitting) return;
     if (!repairForm.employee_id || !repairForm.description || !repairForm.amount_ngn) {
       toast({ title: 'Employee, description and amount are required', variant: 'destructive' });
       return;
@@ -952,6 +953,8 @@ const Fleet = () => {
       return;
     }
 
+    setSubmitting(true);
+    try {
     // Receipt accountability — block a new repair request if this driver
     // has an older repair still missing its receipt.
     const debt = await getReceiptDebt(repairForm.employee_id);
@@ -963,9 +966,6 @@ const Fleet = () => {
       });
       return;
     }
-
-    setSubmitting(true);
-    try {
       let receiptUrl: string | null = null;
       let receiptSha256: string | null = null;
       let originalSha256: string | null = null;
@@ -1164,8 +1164,9 @@ const Fleet = () => {
       fetchData();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   // Loads pending vehicle_maintenance items for the vehicle selected on the
@@ -1682,6 +1683,7 @@ const Fleet = () => {
   // ---- End trip clock-in helpers ----
 
   const submitFuelRequest = async (asException = false, skipDuplicateCheck = false) => {
+    if (submitting) return;
     if (!fuelForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
       return;
@@ -1697,22 +1699,6 @@ const Fleet = () => {
     if (amountVal > 5_000_000) {
       toast({ title: 'Amount too high', description: 'Single fuel request cannot exceed ₦5,000,000.', variant: 'destructive' });
       return;
-    }
-
-    // Receipt accountability — block a new fuel request if this driver has
-    // a fuel payment sent RECEIPT_DEBT_HARD_BLOCK_DAYS+ ago with no receipt.
-    // Re-checked live (not from cached state) so it also covers admins
-    // submitting on behalf of a different employee.
-    {
-      const debt = await getReceiptDebt(fuelForm.employee_id);
-      if (debt.fuelOldestDays !== null && debt.fuelOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
-        toast({
-          title: 'Receipt required first',
-          description: `This driver has a fuel payment from ${debt.fuelOldestDays} day${debt.fuelOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,
-          variant: 'destructive',
-        });
-        return;
-      }
     }
 
     // Block fuel requests for vehicles currently out of service
@@ -1748,6 +1734,27 @@ const Fleet = () => {
       }
     }
 
+    // Lock the button BEFORE any async checks to prevent double-submission
+    setSubmitting(true);
+
+    try {
+    // Receipt accountability — block a new fuel request if this driver has
+    // a fuel payment sent RECEIPT_DEBT_HARD_BLOCK_DAYS+ ago with no receipt.
+    // Re-checked live (not from cached state) so it also covers admins
+    // submitting on behalf of a different employee.
+    {
+      const debt = await getReceiptDebt(fuelForm.employee_id);
+      if (debt.fuelOldestDays !== null && debt.fuelOldestDays >= RECEIPT_DEBT_HARD_BLOCK_DAYS) {
+        toast({
+          title: 'Receipt required first',
+          description: `This driver has a fuel payment from ${debt.fuelOldestDays} day${debt.fuelOldestDays === 1 ? '' : 's'} ago with no receipt uploaded. Upload it before requesting again.`,
+          variant: 'destructive',
+        });
+        setSubmitting(false);
+        return;
+      }
+    }
+
     // Block fuel for vehicles with overdue maintenance
     if (fuelVehicleId) {
       const { data: overdueMaint } = await supabase
@@ -1764,6 +1771,7 @@ const Fleet = () => {
           description: `This vehicle has overdue maintenance: ${items}. Complete maintenance before fueling.`,
           variant: 'destructive',
         });
+        setSubmitting(false);
         return;
       }
     }
@@ -1783,6 +1791,7 @@ const Fleet = () => {
       if (dupes?.length) {
         setPendingFuelAsException(asException);
         setShowDuplicateFuelWarning(true);
+        setSubmitting(false);
         return;
       }
     }
@@ -1819,7 +1828,6 @@ const Fleet = () => {
       noteStr = noteStr ? `${noteStr} [duplicate_same_day]` : 'duplicate_same_day';
     }
 
-    setSubmitting(true);
     const { data: inserted, error } = await supabase.from('fuel_requests').insert({
       driver_id: fuelForm.employee_id,
       station_name: fuelForm.station_name,
@@ -1933,7 +1941,9 @@ const Fleet = () => {
       setFuelDoc(null);
       fetchData();
     }
-    setSubmitting(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const submitTripLog = async () => {
