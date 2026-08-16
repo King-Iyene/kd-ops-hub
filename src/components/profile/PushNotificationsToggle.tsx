@@ -22,22 +22,26 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 export function PushNotificationsToggle() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const { status, supported, error, subscribe, unsubscribe } = usePushNotifications(profile?.id);
+  const { status, supported, subscribe, unsubscribe } = usePushNotifications(profile?.id);
 
   const isBusy = status === 'loading';
   const isOn = status === 'subscribed';
 
   const handleToggle = async (next: boolean) => {
     if (next) {
-      await subscribe();
-      if (error) {
-        toast({ title: 'Could not enable', description: error, variant: 'destructive' });
+      const result = await subscribe();
+      if (!result.ok) {
+        toast({ title: 'Could not enable', description: result.error, variant: 'destructive' });
       } else {
         toast({ title: 'Notifications enabled' });
       }
     } else {
-      await unsubscribe();
-      toast({ title: 'Notifications disabled' });
+      const result = await unsubscribe();
+      if (!result.ok) {
+        toast({ title: 'Could not disable', description: result.error, variant: 'destructive' });
+      } else {
+        toast({ title: 'Notifications disabled' });
+      }
     }
   };
 

@@ -49,15 +49,15 @@ export function usePushNotifications(userId: string | null | undefined) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const subscribe = useCallback(async () => {
-    if (!supported || !userId) return;
+  const subscribe = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!supported || !userId) return { ok: false, error: 'Not supported on this device' };
     setError(null);
     try {
       // Ask for permission first.
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') {
         setStatus(perm === 'denied' ? 'denied' : 'unsubscribed');
-        return;
+        return { ok: false, error: perm === 'denied' ? 'Permission denied' : 'Permission not granted' };
       }
 
       // Pull the VAPID public key via the vapid-keys edge function so the
@@ -86,7 +86,7 @@ export function usePushNotifications(userId: string | null | undefined) {
       if (!p256dh || !auth) throw new Error('Subscription missing keys — try again.');
 
       // Upsert by (user_id, endpoint) — same device twice is one row.
-      await supabase.from('push_subscriptions').upsert({
+      const { error: dbErr } = await supabase.from('push_subscriptions').upsert({
         user_id: userId,
         endpoint: sub.endpoint,
         p256dh_key: p256dh,
@@ -94,16 +94,20 @@ export function usePushNotifications(userId: string | null | undefined) {
         user_agent: navigator.userAgent,
         last_seen_at: new Date().toISOString(),
       }, { onConflict: 'user_id,endpoint' });
+      if (dbErr) throw dbErr;
 
       setStatus('subscribed');
+      return { ok: true };
     } catch (err: any) {
-      setError(err?.message || 'Could not enable push notifications');
+      const message = err?.message || 'Could not enable push notifications';
+      setError(message);
       await refresh();
+      return { ok: false, error: message };
     }
   }, [supported, userId, refresh]);
 
-  const unsubscribe = useCallback(async () => {
-    if (!supported || !userId) return;
+  const unsubscribe = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!supported || !userId) return { ok: false, error: 'Not supported on this device' };
     setError(null);
     try {
       const reg = await navigator.serviceWorker.ready;
@@ -117,8 +121,11 @@ export function usePushNotifications(userId: string | null | undefined) {
           .eq('endpoint', endpoint);
       }
       setStatus('unsubscribed');
+      return { ok: true };
     } catch (err: any) {
-      setError(err?.message || 'Could not disable push notifications');
+      const message = err?.message || 'Could not disable push notifications';
+      setError(message);
+      return { ok: false, error: message };
     }
   }, [supported, userId]);
 

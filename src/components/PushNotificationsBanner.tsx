@@ -35,7 +35,7 @@ function isStandalone(): boolean {
 export function PushNotificationsBanner() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
-  const { status, supported, error, subscribe } = usePushNotifications(profile?.id);
+  const { status, supported, subscribe } = usePushNotifications(profile?.id);
   const [dismissed, setDismissed] = useState(true);
 
   const iosNeedsPwa = isIOSSafari() && !isStandalone();
@@ -88,8 +88,8 @@ export function PushNotificationsBanner() {
                 size="sm"
                 className="h-8 text-xs"
                 onClick={async () => {
-                  await subscribe();
-                  if (error) toast({ title: 'Could not enable', description: error, variant: 'destructive' });
+                  const result = await subscribe();
+                  if (!result.ok) toast({ title: 'Could not enable', description: result.error, variant: 'destructive' });
                   else toast({ title: 'Notifications enabled' });
                 }}
               >
