@@ -17,14 +17,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Loader2, Save, KeyRound, Mail, Phone, CalendarDays, Download,
   FileText, Camera, Receipt, Truck, ChevronRight, Inbox,
-  CheckCircle2, Clock, XCircle, ExternalLink,
+  CheckCircle2, Clock, XCircle, ExternalLink, UserCog, Ban,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { roleBadgeClass, roleLabel } from '@/lib/roles';
-import { formatDate, formatNaira, formatDateTime } from '@/lib/format';
+import { formatDate, formatNaira, formatDateTime, toIsoDate } from '@/lib/format';
 import { computePayslip } from '@/lib/tax';
 import { compressImage } from '@/lib/image-compression';
 import { openPayslipPrintWindow, downloadPayslipPdfFromHtml, openStoredPayslipHtml, downloadStoredPayslipHtml } from '@/lib/payslip';
@@ -35,12 +35,22 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { notifyRoles } from '@/lib/notify';
 import MfaSettings from '@/components/settings/MfaSettings';
 import PrivacyPanel from '@/components/PrivacyPanel';
 import { StickyActionBar } from '@/components/ui-kit/StickyActionBar';
+import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { PushNotificationsToggle } from '@/components/profile/PushNotificationsToggle';
 
 // ── Types ────────────────────────────────────────────────────────
@@ -87,6 +97,23 @@ interface EmploymentRow {
   next_of_kin_phone: string | null;
   next_of_kin_email: string | null;
 }
+
+interface DelegationRow {
+  id: string;
+  delegate_id: string;
+  delegate_name: string;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  is_active: boolean;
+  approval_types: string[];
+}
+
+const APPROVAL_TYPE_OPTIONS: Array<{ value: 'leave' | 'expense' | 'advance'; label: string }> = [
+  { value: 'leave', label: 'Leave' },
+  { value: 'expense', label: 'Expense' },
+  { value: 'advance', label: 'Salary advance' },
+];
 
 interface RequestRow {
   id: string;
@@ -182,7 +209,7 @@ const ProfilePage = () => {
 
   // Tab is URL-driven so links (e.g. the "My Pay" nav item) can deep-link
   // straight to a section like ?tab=payslips.
-  const TAB_KEYS = ['account', 'employment', 'requests', 'payslips', 'security'] as const;
+  const TAB_KEYS = ['account', 'employment', 'requests', 'delegation', 'payslips', 'security'] as const;
   const tabParam = searchParams.get('tab');
   const activeTab = (TAB_KEYS as readonly string[]).includes(tabParam || '')
     ? (tabParam as string)
@@ -236,6 +263,18 @@ const ProfilePage = () => {
   const [advanceForm, setAdvanceForm] = useState({ amount: '', months: '3', reason: '' });
   const [submittingAdvance, setSubmittingAdvance] = useState(false);
   const [loadingActivity, setLoadingActivity] = useState(true);
+
+  // Approval delegation ("cover me while I'm out")
+  const [directoryOptions, setDirectoryOptions] = useState<Array<{ id: string; full_name: string | null; email: string }>>([]);
+  const [delegations, setDelegations] = useState<DelegationRow[]>([]);
+  const [loadingDelegations, setLoadingDelegations] = useState(true);
+  const [delegateId, setDelegateId] = useState('');
+  const [delegationStart, setDelegationStart] = useState(toIsoDate(new Date()));
+  const [delegationEnd, setDelegationEnd] = useState(toIsoDate(new Date()));
+  const [delegationTypes, setDelegationTypes] = useState<string[]>(['leave', 'expense', 'advance']);
+  const [delegationReason, setDelegationReason] = useState('');
+  const [savingDelegation, setSavingDelegation] = useState(false);
+  const [cancellingDelegationId, setCancellingDelegationId] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
     if (!profile?.id) return;
@@ -338,6 +377,103 @@ const ProfilePage = () => {
   }, [profile?.id]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  const loadDelegations = useCallback(async () => {
+    if (!profile?.id) return;
+    setLoadingDelegations(true);
+    const [dirRes, delRes] = await Promise.all([
+      supabase.from('profiles_directory')
+        .select('id, full_name, email')
+        .eq('status', 'active')
+        .neq('id', profile.id)
+        .order('full_name'),
+      (supabase as any).from('approval_delegations')
+        .select('id, delegate_id, start_date, end_date, reason, is_active, approval_types')
+        .eq('delegator_id', profile.id)
+        .order('start_date', { ascending: false }),
+    ]);
+    const dir = (dirRes.data as Array<{ id: string; full_name: string | null; email: string }>) || [];
+    setDirectoryOptions(dir);
+    const nameOf = (id: string) => dir.find((d) => d.id === id)?.full_name || dir.find((d) => d.id === id)?.email || 'Unknown';
+    const rows: DelegationRow[] = ((delRes?.data as any[]) || []).map((d) => ({
+      id: d.id,
+      delegate_id: d.delegate_id,
+      delegate_name: nameOf(d.delegate_id),
+      start_date: d.start_date,
+      end_date: d.end_date,
+      reason: d.reason,
+      is_active: !!d.is_active,
+      approval_types: d.approval_types || [],
+    }));
+    setDelegations(rows);
+    setLoadingDelegations(false);
+  }, [profile?.id]);
+
+  useEffect(() => { loadDelegations(); }, [loadDelegations]);
+
+  const toggleDelegationType = (type: string) => {
+    setDelegationTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
+  };
+
+  const createDelegation = async () => {
+    if (!profile?.id) return;
+    if (!delegateId) {
+      toast({ title: 'Choose a delegate', variant: 'destructive' });
+      return;
+    }
+    if (delegationEnd < delegationStart) {
+      toast({ title: 'End date must be on or after the start date', variant: 'destructive' });
+      return;
+    }
+    if (delegationTypes.length === 0) {
+      toast({ title: 'Choose at least one approval type', variant: 'destructive' });
+      return;
+    }
+    setSavingDelegation(true);
+    try {
+      const { error } = await (supabase as any).from('approval_delegations').insert({
+        delegator_id: profile.id,
+        delegate_id: delegateId,
+        start_date: delegationStart,
+        end_date: delegationEnd,
+        reason: delegationReason || null,
+        approval_types: delegationTypes,
+      });
+      if (error) throw error;
+      await logAudit(
+        'approval_delegation_created',
+        `Delegated ${delegationTypes.join(', ')} approvals to a backup approver: ${formatDate(delegationStart)} → ${formatDate(delegationEnd)}`,
+        profile,
+      );
+      toast({ title: 'Delegation set' });
+      setDelegateId('');
+      setDelegationReason('');
+      setDelegationTypes(['leave', 'expense', 'advance']);
+      loadDelegations();
+    } catch (err: any) {
+      toast({ title: 'Could not set delegation', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingDelegation(false);
+    }
+  };
+
+  const cancelDelegation = async (row: DelegationRow) => {
+    setCancellingDelegationId(row.id);
+    try {
+      const { error } = await (supabase as any)
+        .from('approval_delegations')
+        .update({ is_active: false })
+        .eq('id', row.id);
+      if (error) throw error;
+      await logAudit('approval_delegation_cancelled', `Cancelled approval delegation to ${row.delegate_name}`, profile);
+      toast({ title: 'Delegation cancelled' });
+      loadDelegations();
+    } catch (err: any) {
+      toast({ title: 'Could not cancel delegation', description: err?.message, variant: 'destructive' });
+    } finally {
+      setCancellingDelegationId(null);
+    }
+  };
 
   // Seed the personal-info edit form from the loaded employment record.
   useEffect(() => {
@@ -757,7 +893,7 @@ const ProfilePage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="w-full grid grid-cols-3 sm:grid-cols-5 sm:max-w-2xl sm:mx-auto">
+        <TabsList className="w-full grid grid-cols-3 sm:grid-cols-6 sm:max-w-3xl sm:mx-auto">
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="employment">Employment</TabsTrigger>
           <TabsTrigger value="requests">
@@ -768,6 +904,7 @@ const ProfilePage = () => {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="delegation">Delegation</TabsTrigger>
           <TabsTrigger value="payslips">Payslips</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
@@ -1211,6 +1348,140 @@ const ProfilePage = () => {
         </TabsContent>
 
         {/* ── Payslips tab ─────────────────────────────────────── */}
+        {/* ── Delegation tab ───────────────────────────────────── */}
+        <TabsContent value="delegation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <UserCog className="h-4 w-4 text-primary" /> Delegate my approvals
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                While you're on leave or unavailable, route leave, expense and
+                salary advance approvals that would normally come to you to a
+                backup approver for a set date range.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label>Delegate to</Label>
+                  <Select value={delegateId} onValueChange={setDelegateId}>
+                    <SelectTrigger><SelectValue placeholder="Choose a backup approver" /></SelectTrigger>
+                    <SelectContent>
+                      {directoryOptions.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.full_name || d.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Approval types</Label>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2">
+                    {APPROVAL_TYPE_OPTIONS.map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={delegationTypes.includes(opt.value)}
+                          onCheckedChange={() => toggleDelegationType(opt.value)}
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="delegationStart">Start date</Label>
+                  <Input id="delegationStart" type="date" value={delegationStart} onChange={(e) => setDelegationStart(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="delegationEnd">End date</Label>
+                  <Input id="delegationEnd" type="date" value={delegationEnd} min={delegationStart} onChange={(e) => setDelegationEnd(e.target.value)} />
+                </div>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label htmlFor="delegationReason">Reason (optional)</Label>
+                  <Textarea
+                    id="delegationReason"
+                    value={delegationReason}
+                    onChange={(e) => setDelegationReason(e.target.value)}
+                    placeholder="e.g. Annual leave, out of office"
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <Separator />
+              <div className="flex justify-end">
+                <Button onClick={createDelegation} disabled={savingDelegation}>
+                  {savingDelegation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserCog className="mr-2 h-4 w-4" />}
+                  Set delegation
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">My delegations</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {loadingDelegations ? (
+                <div className="py-4 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : delegations.length === 0 ? (
+                <EmptyState
+                  icon={UserCog}
+                  title="No delegations set"
+                  description="Set a backup approver above before you go on leave so approvals don't stall."
+                  compact
+                />
+              ) : (
+                <div className="space-y-2">
+                  {delegations.map((d) => {
+                    const today = toIsoDate(new Date());
+                    const expired = d.end_date < today;
+                    const live = d.is_active && !expired && d.start_date <= today;
+                    return (
+                      <div key={d.id} className="flex items-center justify-between border rounded-lg p-3 flex-wrap gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium flex items-center gap-2">
+                            {d.delegate_name}
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'font-medium text-[10px]',
+                                live
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                                  : 'bg-muted text-muted-foreground border-border',
+                              )}
+                            >
+                              {d.is_active ? (expired ? 'Ended' : live ? 'Active' : 'Upcoming') : 'Cancelled'}
+                            </Badge>
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDate(d.start_date)} → {formatDate(d.end_date)} · {d.approval_types.join(', ') || '—'}
+                          </p>
+                          {d.reason && <p className="text-xs text-muted-foreground mt-0.5">{d.reason}</p>}
+                        </div>
+                        {d.is_active && !expired && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => cancelDelegation(d)}
+                            disabled={cancellingDelegationId === d.id}
+                          >
+                            {cancellingDelegationId === d.id
+                              ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              : <Ban className="mr-2 h-4 w-4" />} Cancel
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="payslips" className="space-y-4">
           {ytd.count > 0 && (
             <Card>

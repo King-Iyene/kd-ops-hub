@@ -404,15 +404,27 @@ const Leave = () => {
         `Leave requested: ${form.leave_type} ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`,
         profile,
       );
-      // Route the notification to the employee's reporting manager first
-      // (Sprint B), then fall back to broad role-based notify so an unassigned
-      // employee still gets approval coverage.
-      const { data: routing } = await supabase
-        .from('profiles')
-        .select('reporting_manager_id')
-        .eq('id', profile?.id || '')
-        .maybeSingle();
-      const managerId = (routing as any)?.reporting_manager_id || null;
+      // Route the notification to the employee's effective approver — their
+      // reporting manager, or that manager's active delegate if the manager
+      // has delegated leave approvals (e.g. while on leave themselves) —
+      // then fall back to broad role-based notify so an unassigned employee
+      // still gets approval coverage.
+      let managerId: string | null = null;
+      try {
+        const { data: effective, error: effectiveErr } = await (supabase as any).rpc(
+          'get_effective_approver',
+          { p_employee_id: profile?.id || '', p_approval_type: 'leave' },
+        );
+        if (effectiveErr) throw effectiveErr;
+        managerId = effective || null;
+      } catch {
+        const { data: routing } = await supabase
+          .from('profiles')
+          .select('reporting_manager_id')
+          .eq('id', profile?.id || '')
+          .maybeSingle();
+        managerId = (routing as any)?.reporting_manager_id || null;
+      }
       const body = `${form.leave_type} · ${formatDate(form.start_date)} → ${formatDate(form.end_date)} (${days} day${days === 1 ? '' : 's'})`;
       if (managerId) {
         await notifyUser({
