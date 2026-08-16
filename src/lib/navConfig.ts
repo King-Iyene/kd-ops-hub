@@ -135,6 +135,7 @@ export const ALL_NAV: NavItem[] = [
   // Workspace addition (Assistant)
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Company Guide',    url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
 ];
 
 // Grouped by money-flow direction and function rather than department —
@@ -150,7 +151,7 @@ export const NAV_GROUPS = [
   { key: 'risk',       label: 'Risk & Controls',    titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
   { key: 'people',     label: 'People & Contractors', titles: ['Contractors', 'Employees', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary'] },
   { key: 'operations', label: 'Operations',         titles: ['Fleet', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics'] },
+  { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics', 'Company Guide'] },
   { key: 'crm',        label: 'CRM',                titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',              titles: ['Settings', 'Principal Disbursements'] },
 ] as const;

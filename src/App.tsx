@@ -80,6 +80,7 @@ const Attendance       = lazy(() => import('./pages/Attendance'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
+const GuidePage        = lazy(() => import('./pages/Guide'));
 const DirectorDisbursements = lazy(() => import('./pages/DirectorDisbursements'));
 const ProfilePage      = lazy(() => import('./pages/Profile'));
 const Assistant        = lazy(() => import('./pages/Assistant'));
@@ -686,6 +687,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={['super_admin']}>
               <SettingsPage />
+            </RoleGuard>
+          }
+        />
+
+        {/* Company Guide — read-only reference, every role can see it. */}
+        <Route
+          path="/guide"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <GuidePage />
             </RoleGuard>
           }
         />
