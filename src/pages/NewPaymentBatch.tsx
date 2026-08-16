@@ -1171,6 +1171,7 @@ const NewPaymentBatch = () => {
                       <Input
                         type="number"
                         inputMode="decimal"
+                        min={0}
                         value={bulkAmount}
                         placeholder="Amount for everyone"
                         className="pl-7 h-8 tabular-nums"
@@ -1221,6 +1222,7 @@ const NewPaymentBatch = () => {
                             <td className="px-3 py-1.5 text-right">
                               <Input
                                 type="number"
+                                min={0}
                                 className={cn(
                                   'w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60',
                                   !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
@@ -1232,7 +1234,7 @@ const NewPaymentBatch = () => {
                                     ? 'Switch to "Different amounts" to edit individually'
                                     : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
                                 }
-                                onChange={(e) => updateItem(i, 'amount_ngn', round2(parseFloat(e.target.value) || 0))}
+                                onChange={(e) => updateItem(i, 'amount_ngn', round2(Math.max(0, parseFloat(e.target.value) || 0)))}
                               />
                             </td>
                             <td className="px-3 py-1.5">

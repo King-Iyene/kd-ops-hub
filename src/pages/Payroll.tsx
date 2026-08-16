@@ -2721,9 +2721,10 @@ const Payroll = () => {
                   <Input
                     type="number"
                     className="w-36"
+                    min={0}
                     placeholder="₦ Amount"
                     value={b.amount || ''}
-                    onChange={(e) => updateBonus(i, 'amount', Number(e.target.value) || 0)}
+                    onChange={(e) => updateBonus(i, 'amount', Math.max(0, Number(e.target.value) || 0))}
                   />
                   <Button size="icon" variant="ghost" aria-label="Remove bonus" onClick={() => removeBonus(i)}>
                     <X className="h-4 w-4" />
@@ -2994,7 +2995,7 @@ const Payroll = () => {
                       <span className={cn('tabular-nums font-semibold', a.kind === 'deduction' ? 'text-destructive' : 'text-success')}>
                         {a.kind === 'deduction' ? '−' : '+'}{formatNaira(Number(a.amount_ngn))}
                       </span>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeAdjustment(a.id)} title="Remove">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeAdjustment(a.id)} aria-label="Remove adjustment">
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>

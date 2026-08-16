@@ -1141,15 +1141,15 @@ function Placements() {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" onClick={() => openPayments(p)} title="View payments">
+                              <Button variant="ghost" size="icon" onClick={() => openPayments(p)} aria-label="View payments">
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {isAdmin && (
                                 <>
-                                  <Button variant="ghost" size="icon" onClick={() => openEdit(p)} title="Edit">
+                                  <Button variant="ghost" size="icon" onClick={() => openEdit(p)} aria-label="Edit">
                                     <Pencil className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(p)} title="Delete">
+                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(p)} aria-label="Delete">
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                   </Button>
                                 </>

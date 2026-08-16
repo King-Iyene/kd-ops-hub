@@ -281,7 +281,7 @@ export default function Vendors() {
           </>
         }
         trailing={
-          <Button variant="outline" size="icon" onClick={exportCSV} title="Export CSV"><Download className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={exportCSV} aria-label="Export CSV"><Download className="h-4 w-4" /></Button>
         }
       />
 

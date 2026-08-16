@@ -565,7 +565,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                           <div className="flex items-center gap-0.5">
                             {r.batch_items && r.batch_items.length > 0 && (
                               <Button
-                                variant="ghost" size="icon" className="h-7 w-7" title="Receipt"
+                                variant="ghost" size="icon" className="h-7 w-7" aria-label="Receipt"
                                 onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                               >
                                 <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
@@ -573,7 +573,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                             )}
                             {r.status !== 'draft' && (
                               <Button
-                                variant="ghost" size="icon" className="h-7 w-7" title="Make recurring monthly"
+                                variant="ghost" size="icon" className="h-7 w-7" aria-label="Make recurring monthly"
                                 onClick={(e) => { e.stopPropagation(); setRecurRow(r); }}
                               >
                                 <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
@@ -599,7 +599,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                         <StatusBadge status={r.status} />
                         {r.batch_items && r.batch_items.length > 0 && (
                           <Button
-                            variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
+                            variant="ghost" size="icon" className="h-6 w-6" aria-label="Receipt"
                             onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                           >
                             <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
@@ -607,7 +607,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
                         )}
                         {r.status !== 'draft' && (
                           <Button
-                            variant="ghost" size="icon" className="h-6 w-6" title="Make recurring monthly"
+                            variant="ghost" size="icon" className="h-6 w-6" aria-label="Make recurring monthly"
                             onClick={(e) => { e.stopPropagation(); setRecurRow(r); }}
                           >
                             <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1035,10 +1035,10 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
-              <Button variant="ghost" size="icon" className="h-7 w-7" title={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={s.status === 'paused' ? 'Resume' : 'Pause'} onClick={() => togglePause(s)}>
                 {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Delete" onClick={() => remove(s)}>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete" onClick={() => remove(s)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1397,7 +1397,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                   <Badge variant={s.status === 'active' ? 'secondary' : 'outline'} className="text-[10px]">{s.status}</Badge>
                   <Button
                     variant="ghost" size="icon" className="h-7 w-7"
-                    title={s.status === 'paused' ? 'Resume' : 'Pause'}
+                    aria-label={s.status === 'paused' ? 'Resume' : 'Pause'}
                     onClick={async () => {
                       try {
                         await togglePersonalRecurringSchedule(s.id, s.status);
@@ -1412,7 +1412,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                     {s.status === 'paused' ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
                   </Button>
                   <Button
-                    variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Delete"
+                    variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" aria-label="Delete"
                     onClick={async () => {
                       try {
                         await deletePersonalRecurringSchedule(s.id);
@@ -1543,7 +1543,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         <TableCell>
                           {r.status !== 'pending' && (
                             <Button
-                              variant="ghost" size="icon" className="h-7 w-7" title="Receipt"
+                              variant="ghost" size="icon" className="h-7 w-7" aria-label="Receipt"
                               onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                             >
                               <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1588,7 +1588,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
                         )}
                         {r.status !== 'pending' && (
                           <Button
-                            variant="ghost" size="icon" className="h-6 w-6" title="Receipt"
+                            variant="ghost" size="icon" className="h-6 w-6" aria-label="Receipt"
                             onClick={(e) => { e.stopPropagation(); setReceiptRow(r); }}
                           >
                             <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
