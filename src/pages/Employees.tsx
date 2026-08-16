@@ -65,7 +65,6 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { usePagination } from '@/hooks/usePagination';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { cn } from '@/lib/utils';
 import { deptBadgeStyle, deptDotStyle } from '@/lib/dept-colors';
@@ -131,9 +130,14 @@ const Employees = () => {
   const { profile } = useAuthStore();
   const navigate = useNavigate();
 
+  const PAGE_SIZE = 50;
+
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | Role>('all');
   // 'all' = every employee, 'none' = those with no department set,
   // otherwise the selected department id.
@@ -169,18 +173,63 @@ const Employees = () => {
     return true;
   });
 
+  // Debounce free-text search before it drives a server round-trip.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
+    const q = debouncedSearch;
+
+    // Department-name matches feed into the same .or() as name/email/phone,
+    // so a search for "Sales" surfaces everyone in that department too.
+    let deptMatchIds: string[] = [];
+    if (q) {
+      const { data: deptMatches } = await supabase
+        .from('departments')
+        .select('id')
+        .ilike('name', `%${q}%`);
+      deptMatchIds = (deptMatches || []).map((d) => d.id as string);
+    }
+
     let query = supabase
       .from('profiles')
-      .select('id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name)')
+      .select(
+        'id, full_name, first_name, last_name, email, phone, role, status, created_at, tags, photo_url, department_id, department:departments!department_id(id, name)',
+        { count: 'exact' },
+      )
       .neq('is_anonymised', true)
-      .order('created_at', { ascending: false })
-      // Hard cap — Supabase single-request ceiling; results beyond 500 are not fetched.
-      .limit(500);
+      .order('created_at', { ascending: false });
+
     if (!showInactive) {
       query = query.eq('status', 'active');
     }
+    if (roleFilter !== 'all') {
+      query = query.eq('role', roleFilter);
+    }
+    if (deptFilter === 'none') {
+      query = query.is('department_id', null);
+    } else if (deptFilter !== 'all') {
+      query = query.eq('department_id', deptFilter);
+    }
+    if (q) {
+      const orParts = [
+        `full_name.ilike.%${q}%`,
+        `email.ilike.%${q}%`,
+        `phone.ilike.%${q}%`,
+      ];
+      if (deptMatchIds.length > 0) {
+        orParts.push(`department_id.in.(${deptMatchIds.join(',')})`);
+      }
+      query = query.or(orParts.join(','));
+    }
+
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    query = query.range(from, to);
+
     const [employeesRes, tagsRes, deptsRes] = await Promise.all([
       query,
       supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
@@ -189,15 +238,12 @@ const Employees = () => {
     if (employeesRes.error) {
       toast({ title: 'Error', description: employeesRes.error.message, variant: 'destructive' });
     }
-    const loadedEmployees = (employeesRes.data as Employee[]) || [];
-    setEmployees(loadedEmployees);
-    if (loadedEmployees.length === 500) {
-      toast({ title: 'Results capped', description: 'Showing the first 500 employees. Some records may be hidden — use filters to narrow results.' });
-    }
+    setEmployees((employeesRes.data as Employee[]) || []);
+    setTotalCount(employeesRes.count ?? 0);
     setAvailableTags((tagsRes.data as Tag[]) || []);
     setDepartments((deptsRes.data as DeptOption[]) || []);
     setLoading(false);
-  }, [showInactive, toast]);
+  }, [page, showInactive, roleFilter, deptFilter, debouncedSearch, toast]);
 
   useEffect(() => {
     fetchEmployees();
@@ -453,28 +499,14 @@ const Employees = () => {
     fetchEmployees();
   };
 
-  const filtered = employees.filter((e) => {
-    const q = search.trim().toLowerCase();
-    if (roleFilter !== 'all' && e.role !== roleFilter) return false;
-    if (deptFilter === 'none' && e.department_id) return false;
-    if (deptFilter !== 'all' && deptFilter !== 'none' && e.department_id !== deptFilter) return false;
-    if (!q) return true;
-    return (
-      displayName(e.first_name, e.last_name, e.full_name).toLowerCase().includes(q) ||
-      e.email.toLowerCase().includes(q) ||
-      (e.phone || '').toLowerCase().includes(q) ||
-      roleLabel(e.role).toLowerCase().includes(q)
-    );
-  });
-
-  const pagination = usePagination(filtered, 20);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const clearEmployeeFilters = () => {
     setSearch('');
     setRoleFilter('all');
     setDeptFilter('all');
     setShowInactive(false);
-    pagination.reset();
+    setPage(0);
   };
   const activeEmployeeFilterCount =
     [roleFilter !== 'all', deptFilter !== 'all', showInactive].filter(Boolean).length;
@@ -490,7 +522,7 @@ const Employees = () => {
               <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
               <InfoHint>Your full staff directory. Manage roles, salaries, leave balances and increment history. Invite new employees and control access levels.</InfoHint>
             </div>
-            <p className="text-muted-foreground text-sm mt-1">{`${employees.length} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
+            <p className="text-muted-foreground text-sm mt-1">{`${totalCount} team members${inviteCount > 0 ? ` · ${inviteCount} invited` : ''}`}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             {isAdmin && (
@@ -536,7 +568,7 @@ const Employees = () => {
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
-                    pagination.reset();
+                    setPage(0);
                   }}
                   className="pl-8 h-8 text-[13px] bg-transparent border-border/60"
                 />
@@ -544,7 +576,7 @@ const Employees = () => {
             }
             filters={
               <>
-                <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as any)}>
+                <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v as any); setPage(0); }}>
                   <SelectTrigger className="w-[140px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
                     <SelectValue />
                   </SelectTrigger>
@@ -557,7 +589,7 @@ const Employees = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={deptFilter} onValueChange={(v) => setDeptFilter(v as any)}>
+                <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v as any); setPage(0); }}>
                   <SelectTrigger className="w-[170px] h-8 text-[12px] bg-transparent border-border/60" data-mobile-filter-row>
                     <SelectValue />
                   </SelectTrigger>
@@ -574,7 +606,7 @@ const Employees = () => {
                 <label className="flex items-center gap-2 cursor-pointer select-none text-[12px] text-muted-foreground">
                   <Switch
                     checked={showInactive}
-                    onCheckedChange={(v) => { setShowInactive(v); pagination.reset(); }}
+                    onCheckedChange={(v) => { setShowInactive(v); setPage(0); }}
                   />
                   Show inactive
                 </label>
@@ -585,7 +617,7 @@ const Employees = () => {
         <div className="p-0">
           {loading ? (
             <TableSkeleton rows={6} cols={6} />
-          ) : filtered.length === 0 ? (
+          ) : employees.length === 0 ? (
             <EmptyState
               illustration="ghost"
               title="No employees match"
@@ -621,7 +653,7 @@ const Employees = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagination.slice.map((e) => (
+                  {employees.map((e) => (
                     <TableRow key={e.id} className="kd-transition cursor-pointer" onClick={() => e.status !== 'invited' && navigate(`/employees/${e.id}`)}>
                       {/* Avatar + name in a single cell — gives a face to
                           the row at a glance without blowing up the
@@ -758,7 +790,7 @@ const Employees = () => {
 
               {/* Mobile employees list */}
               <div className="md:hidden p-3 space-y-2">
-                {pagination.slice.map((e) => {
+                {employees.map((e) => {
                   const accent =
                     e.status === 'active' ? 'bg-emerald-500'
                     : e.status === 'invited' ? 'bg-amber-500'
@@ -877,14 +909,13 @@ const Employees = () => {
               </div>
 
               <Pagination
-                page={pagination.page}
-                totalPages={pagination.totalPages}
-                totalItems={pagination.totalItems}
-                pageSize={pagination.pageSize}
-                onPrev={pagination.prev}
-                onNext={pagination.next}
-                hasPrev={pagination.hasPrev}
-                hasNext={pagination.hasNext}
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+                hasPrev={page > 0}
+                hasNext={page < totalPages - 1}
               />
             </>
           )}
