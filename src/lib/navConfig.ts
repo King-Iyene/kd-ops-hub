@@ -58,6 +58,16 @@ import {
   Gauge,
   Link2,
   MessageSquare,
+  FileSignature,
+  ClipboardList,
+  AlertTriangle,
+  HandCoins,
+  Clock4,
+  Replace,
+  BookMarked,
+  Timer,
+  LayoutGrid,
+  GitBranch,
 } from 'lucide-react';
 import type { Role } from '@/lib/roles';
 
@@ -80,6 +90,7 @@ export type NavItem = {
 export const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',        url: '/',                  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Approvals',        url: '/approvals',         icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', permission: 'payments.approve_batches' },
+  { title: 'My Dashboard',     url: '/my-dashboard',      icon: LayoutGrid,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   // Finance
   { title: 'Payments',         url: '/payments',          icon: Layers,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
@@ -115,6 +126,14 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Placements',       url: '/placements',        icon: Briefcase,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'placements.view' },
   { title: 'Attendance',       url: '/attendance',        icon: CalendarCheck2,  roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'attendance.view' },
   { title: 'Disciplinary',     url: '/disciplinary',      icon: ShieldAlert,     roles: ['super_admin', 'admin'] },
+  { title: 'HR Letters',       url: '/hr-letters',        icon: FileSignature,   roles: ['super_admin', 'admin'] },
+  { title: 'Surveys',          url: '/surveys',           icon: ClipboardList,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'surveys.view' },
+  { title: 'Grievances',       url: '/grievances',        icon: AlertTriangle,   roles: ['super_admin', 'admin'] },
+  { title: 'Staff Loans',      url: '/staff-loans',       icon: HandCoins,       roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Shifts',           url: '/shifts',            icon: Clock4,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'shifts.view' },
+  { title: 'Succession',       url: '/succession',        icon: Replace,         roles: ['super_admin', 'admin'] },
+  { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Timesheets',       url: '/timesheets',        icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'timesheets.view' },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'vendors.view' },
   // Workspace
   { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
@@ -131,6 +150,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Public Links',     url: '/public-links',      icon: Link2,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
   // Admin — strict role only (see comment block above).
+  { title: 'Approval Workflows', url: '/approval-workflows', icon: GitBranch,    roles: ['super_admin', 'admin'] },
   { title: 'Audit Log',        url: '/audit',             icon: ScrollText,      roles: ['super_admin', 'admin'] },
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
   { title: 'Principal Disbursements', url: '/principal-disbursements', icon: Landmark, roles: ['super_admin'] },
@@ -151,11 +171,11 @@ export const NAV_GROUPS = [
   { key: 'moneyOut',   label: 'Money Out',          titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
   { key: 'moneyIn',    label: 'Money In & Treasury', titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',    titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
-  { key: 'people',     label: 'People & Contractors', titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary'] },
+  { key: 'people',     label: 'People & Contractors', titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'HR Letters', 'Surveys', 'Grievances', 'Staff Loans', 'Shifts', 'Succession', 'Handbook', 'Timesheets'] },
   { key: 'operations', label: 'Operations',         titles: ['Fleet', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics', 'Company Guide'] },
   { key: 'crm',        label: 'CRM',                titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',              titles: ['Settings', 'Principal Disbursements'] },
+  { key: 'admin',      label: 'Admin',              titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
@@ -163,7 +183,7 @@ export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 /** Items above all groups (always visible at the top). Finance sits here
  *  too — it's a CFO-level hub aggregating Payroll/Compliance/Budgets/
  *  Vendors/Cash data, not a peer of the line items inside any one group. */
-export const UNGROUPED_TITLES = ['Dashboard', 'Approvals', 'Finance'];
+export const UNGROUPED_TITLES = ['Dashboard', 'My Dashboard', 'Approvals', 'Finance'];
 
 /**
  * Filters ALL_NAV using the same role + permission logic the desktop

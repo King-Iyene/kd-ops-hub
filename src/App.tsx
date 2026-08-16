@@ -87,6 +87,16 @@ const ProfilePage      = lazy(() => import('./pages/Profile'));
 const Assistant        = lazy(() => import('./pages/Assistant'));
 const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
 const Messages          = lazy(() => import('./pages/Messages'));
+const HrLetters         = lazy(() => import('./pages/HrLetters'));
+const Surveys           = lazy(() => import('./pages/Surveys'));
+const Grievances        = lazy(() => import('./pages/Grievances'));
+const StaffLoans        = lazy(() => import('./pages/StaffLoans'));
+const Shifts            = lazy(() => import('./pages/Shifts'));
+const SuccessionPlanning = lazy(() => import('./pages/SuccessionPlanning'));
+const Handbook          = lazy(() => import('./pages/Handbook'));
+const TimesheetsPage    = lazy(() => import('./pages/Timesheets'));
+const MyDashboard       = lazy(() => import('./pages/MyDashboard'));
+const ApprovalWorkflows = lazy(() => import('./pages/ApprovalWorkflows'));
 
 // Kept deliberately conservative on staleTime — this app moves money, and a
 // stale balance shown to an approver is worse than an extra network round
@@ -612,6 +622,106 @@ function AppRoutes() {
           element={
             <RoleGuard roles={ADMIN_ONLY_ROLES}>
               <Disciplinary />
+            </RoleGuard>
+          }
+        />
+
+        {/* HR Letters — Admin + Super Admin. */}
+        <Route
+          path="/hr-letters"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <HrLetters />
+            </RoleGuard>
+          }
+        />
+
+        {/* Surveys / Pulse Checks — Managers. */}
+        <Route
+          path="/surveys"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Surveys />
+            </RoleGuard>
+          }
+        />
+
+        {/* Grievance Portal — Admin + Super Admin (sensitive). */}
+        <Route
+          path="/grievances"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <Grievances />
+            </RoleGuard>
+          }
+        />
+
+        {/* Staff Loans — Finance + Admin + Super Admin. */}
+        <Route
+          path="/staff-loans"
+          element={
+            <RoleGuard roles={APPROVER_ROLES}>
+              <StaffLoans />
+            </RoleGuard>
+          }
+        />
+
+        {/* Shift / Roster Scheduling — Managers. */}
+        <Route
+          path="/shifts"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Shifts />
+            </RoleGuard>
+          }
+        />
+
+        {/* Succession Planning — Admin + Super Admin. */}
+        <Route
+          path="/succession"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <SuccessionPlanning />
+            </RoleGuard>
+          }
+        />
+
+        {/* Employee Handbook — all authenticated users can read & acknowledge. */}
+        <Route
+          path="/handbook"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <Handbook />
+            </RoleGuard>
+          }
+        />
+
+        {/* Timesheets — Managers. */}
+        <Route
+          path="/timesheets"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <TimesheetsPage />
+            </RoleGuard>
+          }
+        />
+
+        {/* Employee Self-Service Dashboard — all authenticated users. */}
+        <Route
+          path="/my-dashboard"
+          element={
+            <RoleGuard roles={ALL_AUTH_ROLES}>
+              <MyDashboard />
+            </RoleGuard>
+          }
+        />
+
+        {/* Approval Workflows — Admin + Super Admin. */}
+        <Route
+          path="/approval-workflows"
+          element={
+            <RoleGuard roles={ADMIN_ONLY_ROLES}>
+              <ApprovalWorkflows />
             </RoleGuard>
           }
         />
