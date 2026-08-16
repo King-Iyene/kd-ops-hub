@@ -168,14 +168,14 @@ export const ALL_NAV: NavItem[] = [
 // the nav between "calculating payroll" and "moving money" that mirrors
 // the hard line already enforced at the database layer.
 export const NAV_GROUPS = [
-  { key: 'moneyOut',   label: 'Money Out',          titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
-  { key: 'moneyIn',    label: 'Money In & Treasury', titles: ['Invoices', 'Assets', 'Cash Flow'] },
-  { key: 'risk',       label: 'Risk & Controls',    titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
-  { key: 'people',     label: 'People & Contractors', titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'HR Letters', 'Surveys', 'Grievances', 'Staff Loans', 'Shifts', 'Succession', 'Handbook', 'Timesheets'] },
-  { key: 'operations', label: 'Operations',         titles: ['Fleet', 'Vendors'] },
-  { key: 'workspace',  label: 'Workspace',          titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics', 'Company Guide'] },
-  { key: 'crm',        label: 'CRM',                titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',              titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'] },
+  { key: 'moneyOut',   label: 'Money Out',           titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
+  { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
+  { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
+  { key: 'people',     label: 'People & HR',         titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'HR Letters', 'Surveys', 'Grievances', 'Staff Loans', 'Shifts', 'Succession', 'Handbook', 'Timesheets'], hub: true, icon: 'Users' },
+  { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
+  { key: 'workspace',  label: 'Workspace',           titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics', 'Company Guide'] },
+  { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
+  { key: 'admin',      label: 'Admin',               titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'], hub: true, icon: 'Settings' },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];

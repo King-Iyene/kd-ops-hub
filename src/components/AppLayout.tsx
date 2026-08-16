@@ -75,6 +75,17 @@ const ROUTE_TITLES: Record<string, string> = {
   '/communications':       'Communications',
   '/assistant':            'Assistant',
   '/profile':              'My Profile',
+  '/messages':             'Messages',
+  '/hr-letters':           'HR Letters',
+  '/surveys':              'Surveys',
+  '/grievances':           'Grievances',
+  '/staff-loans':          'Staff Loans',
+  '/shifts':               'Shifts',
+  '/succession':           'Succession Planning',
+  '/handbook':             'Handbook',
+  '/timesheets':           'Timesheets',
+  '/my-dashboard':         'My Dashboard',
+  '/approval-workflows':   'Approval Workflows',
 };
 
 function getRouteTitle(pathname: string): string {

@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDown,
+  ChevronLeft,
   LogOut,
+  Users,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -49,6 +52,13 @@ function persistCollapsed(k: NavGroupKey, v: boolean) {
   } catch { /* localStorage unavailable */ }
 }
 
+// ─── Hub icon map ────────────────────────────────────────────────────────────
+
+const HUB_ICONS: Record<string, typeof Users> = {
+  Users,
+  Settings,
+};
+
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
@@ -71,27 +81,18 @@ export function AppSidebar() {
   const approvalTotal = useApprovalStore((s) => s.counts.total);
   const refreshApprovals = useApprovalStore((s) => s.refresh);
 
-  // Close the mobile sidebar automatically whenever the route changes.
-  // The shadcn <Sheet>-based mobile sidebar otherwise stays open after a
-  // user taps a nav link, requiring them to swipe it away — bad mobile UX.
   useEffect(() => {
     if (isMobile) setOpenMobile(false);
   }, [location.pathname, isMobile, setOpenMobile]);
 
-  // Logo + name come from useBrand inside <BrandLogo>; no per-component
-  // fetch needed any more (the hook caches and de-duplicates the request
-  // platform-wide).
   const [anomalyOpenCount, setAnomalyOpenCount] = useState<number>(0);
 
   useEffect(() => {
     refreshApprovals();
-    // Refresh every 90 seconds passively — no longer on every navigation.
-    // This cuts 5 DB round-trips per page change down to one every 90 s.
     const id = setInterval(refreshApprovals, 90_000);
     return () => clearInterval(id);
   }, [refreshApprovals]);
 
-  // Open critical/high anomaly count drives the "Anomalies" sidebar badge.
   useEffect(() => {
     const fetchCount = () => {
       supabase
@@ -127,10 +128,61 @@ export function AppSidebar() {
     });
   }
 
-  // Auto-expand the group containing the active route so the user never
-  // lands on a page whose nav item is hidden inside a collapsed group.
+  // ─── Hub state ──────────────────────────────────────────────────────────────
+  const [activeHub, setActiveHub] = useState<NavGroupKey | null>(null);
+
+  const hubGroups = NAV_GROUPS.filter((g) => 'hub' in g && g.hub);
+
+  // Auto-enter hub mode when the current route matches a hub item
+  useEffect(() => {
+    for (const group of hubGroups) {
+      const groupTitles = group.titles as readonly string[];
+      const groupUrls = ALL_NAV
+        .filter((n) => groupTitles.includes(n.title))
+        .map((n) => n.url);
+      const isInHub = groupUrls.some(
+        (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
+      );
+      if (isInHub) {
+        setActiveHub(group.key);
+        return;
+      }
+    }
+    // Don't auto-exit hub when navigating to an ungrouped page —
+    // only the back button exits. But if the user navigates to a
+    // route in a DIFFERENT group (non-hub), exit the hub.
+    if (activeHub) {
+      const nonHubGroups = NAV_GROUPS.filter((g) => !('hub' in g && g.hub));
+      for (const group of nonHubGroups) {
+        const groupTitles = group.titles as readonly string[];
+        const groupUrls = ALL_NAV
+          .filter((n) => groupTitles.includes(n.title))
+          .map((n) => n.url);
+        const isInGroup = groupUrls.some(
+          (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
+        );
+        if (isInGroup) {
+          setActiveHub(null);
+          return;
+        }
+      }
+      // Check ungrouped
+      const ungroupedUrls = ALL_NAV
+        .filter((n) => UNGROUPED_TITLES.includes(n.title))
+        .map((n) => n.url);
+      const isUngrouped = ungroupedUrls.some(
+        (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
+      );
+      if (isUngrouped) {
+        setActiveHub(null);
+      }
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-expand the group containing the active route (non-hub groups only)
   useEffect(() => {
     for (const group of NAV_GROUPS) {
+      if ('hub' in group && group.hub) continue;
       const groupUrls = ALL_NAV
         .filter((n) => (group.titles as readonly string[]).includes(n.title))
         .map((n) => n.url);
@@ -148,23 +200,6 @@ export function AppSidebar() {
   }, [location.pathname]);
 
   // ─── Role + permission filtering ─────────────────────────────────────────
-  // An item is shown when EITHER:
-  //   • the user's role is in the item's allowed roles, OR
-  //   • the item declares a permission key and the profile has that
-  //     permission explicitly granted (`permissions[key] === true`).
-  // Mirrors RoleGuard's logic so the sidebar matches the routes — when
-  // an admin grants e.g. payments.create to a field user, the link
-  // appears in their sidebar without them needing to know the URL.
-  // Explicit denial (`permissions[key] === false`) hides the link even
-  // when the role would normally allow.
-  //
-  // View-as mode (super_admin simulating another role) DELIBERATELY
-  // ignores the real user's permissions JSONB. Otherwise the sim leaks
-  // grants from the super_admin's own profile (every key set to true)
-  // back into the lower role being simulated. The simulation has to be
-  // role-pure to be useful — what would `operations` actually see if
-  // they had a clean profile? — so we pass an empty permissions map
-  // for the duration of the view-as.
 
   const role = effectiveRole as Role | undefined;
   const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
@@ -173,9 +208,9 @@ export function AppSidebar() {
     : ((profile as any)?.permissions as Record<string, boolean> | null | undefined);
   const navItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
 
-  // ─── Render a single nav item (unchanged styles) ──────────────────────────
+  // ─── Render a single nav item ─────────────────────────────────────────────
 
-  function renderNavItem(item: NavItem) {
+  const renderNavItem = useCallback((item: NavItem) => {
     const hasExactMatch = navItems.some((n) => n.url === location.pathname);
     const active = hasExactMatch
       ? location.pathname === item.url
@@ -207,7 +242,6 @@ export function AppSidebar() {
                 : 'text-sidebar-foreground/65 hover:bg-white/[0.06] hover:text-sidebar-foreground',
             )}
           >
-            {/* Active indicator — left rail accent */}
             {active && (
               <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[hsl(var(--sidebar-ring))] shadow-[0_0_6px_hsl(var(--sidebar-ring)/0.8)]" />
             )}
@@ -243,14 +277,94 @@ export function AppSidebar() {
         </SidebarMenuButton>
       </SidebarMenuItem>
     );
-  }
+  }, [navItems, location.pathname, approvalTotal, anomalyOpenCount, sidebarCollapsed]);
 
   const ungroupedItems = navItems.filter((n) => UNGROUPED_TITLES.includes(n.title));
 
+  // ─── Hub sidebar view ──────────────────────────────────────────────────────
+
+  const activeHubGroup = activeHub
+    ? NAV_GROUPS.find((g) => g.key === activeHub)
+    : null;
+
+  if (activeHub && activeHubGroup && !sidebarCollapsed) {
+    const hubItems = navItems.filter((n) =>
+      (activeHubGroup.titles as readonly string[]).includes(n.title),
+    );
+    const HubIcon = 'icon' in activeHubGroup
+      ? HUB_ICONS[activeHubGroup.icon as string] ?? Users
+      : Users;
+
+    return (
+      <Sidebar collapsible="icon">
+        {/* Hub header with back button */}
+        <div className="px-3 pt-3.5 pb-3 border-b border-sidebar-border/40">
+          <button
+            onClick={() => setActiveHub(null)}
+            className="flex items-center gap-2 px-1 py-1 rounded-md w-full text-left kd-transition hover:bg-white/[0.06] group/back"
+          >
+            <ChevronLeft className="h-4 w-4 text-sidebar-foreground/40 group-hover/back:text-sidebar-foreground/75 kd-transition" />
+            <HubIcon className="h-4 w-4 text-sidebar-foreground/50" />
+            <span className="text-[13px] font-semibold text-sidebar-primary tracking-tight">
+              {activeHubGroup.label}
+            </span>
+          </button>
+        </div>
+
+        <SidebarContent className="pt-2 pb-2">
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5 px-2">
+                {hubItems.map(renderNavItem)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        {/* Footer */}
+        <SidebarFooter className="border-t border-sidebar-border/40 pt-1.5 pb-2.5 px-2">
+          <SidebarMenu>
+            <SidebarMenuItem className="list-none">
+              <SidebarMenuButton
+                onClick={signOut}
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-sidebar-foreground/55 hover:bg-red-500/10 hover:text-red-300 kd-transition w-full"
+              >
+                <LogOut className="h-3.5 w-3.5 shrink-0" />
+                <span>Sign Out</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+
+          {profile && (
+            <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-xl bg-white/[0.06] border border-white/[0.06]">
+              <div className="relative shrink-0">
+                <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10">
+                  {getInitials(profile.full_name ?? profile.email ?? 'U')}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-[1.5px] ring-sidebar-background" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-sidebar-foreground/90 truncate leading-none">
+                  {profile.full_name ?? 'User'}
+                </p>
+                <p className="text-[10px] text-sidebar-foreground/40 truncate mt-0.5 leading-none">
+                  {profile.email}
+                </p>
+              </div>
+            </div>
+          )}
+        </SidebarFooter>
+      </Sidebar>
+    );
+  }
+
+  // ─── Main sidebar view ─────────────────────────────────────────────────────
+
+  const nonHubGroups = NAV_GROUPS.filter((g) => !('hub' in g && g.hub));
+
   return (
     <Sidebar collapsible="icon">
-      {/* ── Logo area — Mercury / Brex style: compact, hairline
-          divider, neutral typographic hierarchy. */}
+      {/* ── Logo area */}
       <div className="px-3 pt-3.5 pb-3 border-b border-sidebar-border/40">
         {!sidebarCollapsed ? (
           <div className="flex items-center gap-2.5 px-0.5">
@@ -270,28 +384,92 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* ── Nav ───────────────────────────────────────────────────── */}
+      {/* ── Nav */}
       <SidebarContent className="pt-2 pb-2">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
 
-            {/* Ungrouped: Dashboard + Approvals */}
+            {/* Ungrouped: Dashboard, My Dashboard, Approvals, Finance */}
             <SidebarMenu className="gap-0.5 px-2 mb-1">
               {ungroupedItems.map(renderNavItem)}
             </SidebarMenu>
 
-            {/* Collapsible groups */}
+            {/* Regular collapsible groups + hub entries */}
             {NAV_GROUPS.map((group) => {
-              const groupItems = navItems.filter((n) =>
-                (group.titles as readonly string[]).includes(n.title),
-              );
+              const isHub = 'hub' in group && group.hub;
+              const groupTitles = group.titles as readonly string[];
+              const groupItems = navItems.filter((n) => groupTitles.includes(n.title));
               if (groupItems.length === 0) return null;
 
+              // Hub groups render as a single clickable entry
+              if (isHub) {
+                const HubIcon = 'icon' in group
+                  ? HUB_ICONS[group.icon as string] ?? Users
+                  : Users;
+                const isActive = groupItems.some(
+                  (n) => location.pathname === n.url || (n.url !== '/' && location.pathname.startsWith(n.url)),
+                );
+
+                return (
+                  <div key={group.key}>
+                    {sidebarCollapsed ? (
+                      <div className="mx-3 my-2 h-px bg-sidebar-border/20" />
+                    ) : (
+                      <div className="px-3 pt-3.5 pb-1">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35">
+                          {group.label}
+                        </span>
+                      </div>
+                    )}
+                    <SidebarMenu className="gap-0.5 px-2">
+                      <SidebarMenuItem className="list-none">
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          tooltip={sidebarCollapsed ? group.label : undefined}
+                          className="relative"
+                          onClick={() => setActiveHub(group.key)}
+                        >
+                          <div
+                            className={cn(
+                              'flex items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] font-medium w-full',
+                              'kd-transition group relative cursor-pointer',
+                              isActive
+                                ? 'bg-white/[0.11] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.07)]'
+                                : 'text-sidebar-foreground/65 hover:bg-white/[0.06] hover:text-sidebar-foreground',
+                            )}
+                          >
+                            {isActive && (
+                              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[hsl(var(--sidebar-ring))] shadow-[0_0_6px_hsl(var(--sidebar-ring)/0.8)]" />
+                            )}
+                            <HubIcon
+                              className={cn(
+                                'h-[15px] w-[15px] shrink-0 kd-transition',
+                                isActive
+                                  ? 'text-[hsl(var(--sidebar-ring))]'
+                                  : 'text-sidebar-foreground/40 group-hover:text-sidebar-foreground/75',
+                              )}
+                            />
+                            {!sidebarCollapsed && (
+                              <>
+                                <span className="flex-1 truncate">{group.label}</span>
+                                <span className="text-[10px] tabular-nums text-sidebar-foreground/30 font-medium">
+                                  {groupItems.length}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </SidebarMenu>
+                  </div>
+                );
+              }
+
+              // Regular collapsible groups
               const isCollapsed = groupCollapsed[group.key];
 
               return (
                 <div key={group.key}>
-                  {/* Group header */}
                   {sidebarCollapsed ? (
                     <div className="mx-3 my-2 h-px bg-sidebar-border/20" />
                   ) : (
@@ -313,7 +491,6 @@ export function AppSidebar() {
                     </button>
                   )}
 
-                  {/* Group items — always visible in icon mode; toggled in expanded mode */}
                   {(!isCollapsed || sidebarCollapsed) && (
                     <SidebarMenu className="gap-0.5 px-2">
                       {groupItems.map(renderNavItem)}
@@ -327,8 +504,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* ── Footer — tighter Mercury-style: hairline divider, smaller
-          icon, restrained user card. */}
+      {/* ── Footer */}
       <SidebarFooter className="border-t border-sidebar-border/40 pt-1.5 pb-2.5 px-2">
         <SidebarMenu>
           <SidebarMenuItem className="list-none">
@@ -345,7 +521,6 @@ export function AppSidebar() {
 
         {!sidebarCollapsed && profile && (
           <div className="flex items-center gap-2.5 px-2.5 py-2 mt-1 rounded-xl bg-white/[0.06] border border-white/[0.06]">
-            {/* Avatar with online indicator */}
             <div className="relative shrink-0">
               <div className="h-7 w-7 rounded-lg kd-gradient-brand flex items-center justify-center text-[11px] font-bold text-white ring-1 ring-white/10">
                 {getInitials(profile.full_name ?? profile.email ?? 'U')}
