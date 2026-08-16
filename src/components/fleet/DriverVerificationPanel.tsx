@@ -77,7 +77,8 @@ export function DriverVerificationPanel() {
         supabase
           .from('profiles')
           .select('id, full_name, phone, nin, nin_last4')
-          .in('role', ['field_staff', 'driver', 'operations']),
+          .in('role', ['field_staff', 'driver'])
+          .eq('status', 'active'),
         supabase
           .from('vehicles')
           .select('assigned_driver_id, name, plate_number')
