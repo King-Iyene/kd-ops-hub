@@ -11,6 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Tooltip as UiTooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -210,7 +211,7 @@ export default function CashTimingTab() {
                   <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
                     <PhoneCall className="h-3.5 w-3.5" /> Top collection targets
                   </p>
-                  <div className="overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -237,6 +238,25 @@ export default function CashTimingTab() {
                         ))}
                       </TableBody>
                     </Table>
+                  </div>
+
+                  {/* Mobile card list — same data, thumb-friendly */}
+                  <div className="md:hidden space-y-2">
+                    {collectionTargets.map((r) => (
+                      <MobileCard key={r.id}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{r.invoice_number}</MobileCardTitle>
+                          <MobileCardMeta className="currency">{formatNaira(r.total_ngn)}</MobileCardMeta>
+                        </MobileCardHeader>
+                        <MobileCardRow label="Client">{r.client_name}</MobileCardRow>
+                        <MobileCardRow label="Due">{formatDate(r.due_date)}</MobileCardRow>
+                        <MobileCardRow label="Aging">
+                          <Badge variant="outline" style={{ color: BUCKET_COLOR[r.bucket], borderColor: BUCKET_COLOR[r.bucket] + '55' }}>
+                            {r.days_overdue}d overdue
+                          </Badge>
+                        </MobileCardRow>
+                      </MobileCard>
+                    ))}
                   </div>
                 </div>
               )}

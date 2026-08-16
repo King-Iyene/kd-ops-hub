@@ -54,6 +54,14 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { cn } from '@/lib/utils';
 
 interface VirtualCard {
@@ -270,7 +278,9 @@ const VirtualCards = () => {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -378,6 +388,97 @@ const VirtualCards = () => {
               </TableBody>
             </Table>
             </div>
+
+            {/* Mobile card list — same data, thumb-friendly */}
+            <div className="md:hidden p-3 space-y-2">
+              {cards.map((c) => {
+                const util =
+                  c.monthly_limit_ngn > 0
+                    ? Math.min(200, (c.current_spend_ngn / c.monthly_limit_ngn) * 100)
+                    : 0;
+                const barColor =
+                  util >= 100
+                    ? 'bg-destructive'
+                    : util >= 80
+                    ? 'bg-warning'
+                    : 'bg-success';
+                return (
+                  <MobileCard key={c.id}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{c.card_name}</MobileCardTitle>
+                      <MobileCardMeta>
+                        <Badge variant="secondary" className={STATUS_BADGE[c.status]}>
+                          {c.status}
+                        </Badge>
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Vendor">{c.vendor || '—'}</MobileCardRow>
+                    <MobileCardRow label="Last 4">
+                      {c.last_four ? `•••• ${c.last_four}` : '—'}
+                    </MobileCardRow>
+                    <MobileCardRow label="Spend / limit">
+                      <span className="currency">
+                        {formatNaira(c.current_spend_ngn)} / {formatNaira(c.monthly_limit_ngn)}
+                      </span>
+                    </MobileCardRow>
+                    <div className="space-y-1">
+                      <div className="h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className={cn('h-full kd-transition', barColor)}
+                          style={{ width: `${Math.min(100, util)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        {util >= 80 && <AlertTriangle className="h-3 w-3 text-warning" />}
+                        {util.toFixed(0)}% utilised
+                      </p>
+                    </div>
+                    <MobileCardFooter>
+                      {c.status === 'active' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleStatus(c, 'paused')}
+                          aria-label={`Pause card ${c.card_name}`}
+                          className="flex-1 h-9"
+                        >
+                          <Pause className="h-4 w-4 mr-1.5" /> Pause
+                        </Button>
+                      ) : c.status === 'paused' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleStatus(c, 'active')}
+                          aria-label={`Resume card ${c.card_name}`}
+                          className="flex-1 h-9"
+                        >
+                          <Play className="h-4 w-4 mr-1.5" /> Resume
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEdit(c)}
+                        aria-label={`Edit card ${c.card_name}`}
+                        className="flex-1 h-9"
+                      >
+                        <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => remove(c)}
+                        aria-label={`Delete card ${c.card_name}`}
+                        className="flex-1 h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1.5" /> Delete
+                      </Button>
+                    </MobileCardFooter>
+                  </MobileCard>
+                );
+              })}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

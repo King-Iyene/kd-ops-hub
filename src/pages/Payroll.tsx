@@ -68,13 +68,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import {
   Select,
   SelectContent,
@@ -2457,11 +2451,22 @@ const Payroll = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Draft payroll</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={dialog}
+        onOpenChange={setDialog}
+        title="Draft payroll"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={draftRun} disabled={working}>
+              {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Draft
+            </Button>
+          </>
+        }
+      >
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -2589,24 +2594,16 @@ const Payroll = () => {
               are added on top and included in the total burn.
             </p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={draftRun} disabled={working}>
-              {working && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Draft
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* Manage payroll segments — reusable run filters (by category, department, or Pay Group) */}
-      <Dialog open={segmentDialog} onOpenChange={setSegmentDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Manage payroll segments</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={segmentDialog}
+        onOpenChange={setSegmentDialog}
+        size="lg"
+        title="Manage payroll segments"
+        footer={<Button variant="outline" onClick={() => setSegmentDialog(false)}>Done</Button>}
+      >
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             {segments.length > 0 && (
               <div className="space-y-1.5">
@@ -2712,24 +2709,16 @@ const Payroll = () => {
               </Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSegmentDialog(false)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* Per-employee payslip adjustments for a run */}
-      <Dialog
+      <ResponsiveDialog
         open={!!adjustRun}
         onOpenChange={(open) => { if (!open) setAdjustRun(null); }}
+        size="2xl"
+        title={`Payslip adjustments${adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}`}
+        footer={<Button variant="outline" onClick={() => setAdjustRun(null)}>Done</Button>}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              Payslip adjustments{adjustRun ? ` · ${monthLabel(adjustRun.period)}` : ''}
-            </DialogTitle>
-          </DialogHeader>
-
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
               Add a one-off bonus, overtime, allowance or deduction for a specific employee.
@@ -2830,21 +2819,30 @@ const Payroll = () => {
               </div>
             )}
           </div>
+      </ResponsiveDialog>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjustRun(null)}>Done</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
+      <ResponsiveDialog
         open={!!disburseTarget}
         onOpenChange={(open) => { if (!open && !disbursing) { setDisburseTarget(null); setDisburseErrors([]); } }}
+        title="Confirm salary disbursement"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); }}
+              disabled={disbursing}
+            >
+              Cancel
+            </Button>
+            <Button onClick={doDisburse} disabled={disbursing}>
+              {disbursing
+                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                : <Send className="mr-2 h-4 w-4" />}
+              Disburse
+            </Button>
+          </>
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm salary disbursement</DialogTitle>
-          </DialogHeader>
           {disburseTarget && (
             <div className="space-y-4">
               <div className="rounded-lg border p-4 space-y-2">
@@ -2881,38 +2879,23 @@ const Payroll = () => {
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setDisburseTarget(null); setDisburseErrors([]); }}
-              disabled={disbursing}
-            >
-              Cancel
-            </Button>
-            <Button onClick={doDisburse} disabled={disbursing}>
-              {disbursing
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Send className="mr-2 h-4 w-4" />}
-              Disburse
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      <Dialog open={!!confirmPaidRun} onOpenChange={(open) => { if (!open) setConfirmPaidRun(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm manual payment record</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!confirmPaidRun}
+        onOpenChange={(open) => { if (!open) setConfirmPaidRun(null); }}
+        title="Confirm manual payment record"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirmPaidRun(null)}>Cancel</Button>
+            <Button onClick={markPaid}>Confirm — Record as Paid</Button>
+          </>
+        }
+      >
           <p className="text-sm text-muted-foreground leading-relaxed">
             ⚠️ This records that salaries for {confirmPaidRun ? monthLabel(confirmPaidRun.period) : ''} were paid via your bank or another method. No automatic transfer will be made by KDOps. Only confirm if you have already transferred salaries manually.
           </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmPaidRun(null)}>Cancel</Button>
-            <Button onClick={markPaid}>Confirm — Record as Paid</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       <p className="text-xs text-muted-foreground">
         Generated {formatDate(new Date())} · KDOps

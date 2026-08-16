@@ -22,6 +22,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { formatNaira, formatNairaCompact, formatDate } from '@/lib/format';
@@ -287,7 +294,8 @@ export default function FinanceDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="overflow-x-auto">
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -312,6 +320,27 @@ export default function FinanceDashboard() {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden space-y-2">
+                {departments.map((d) => (
+                  <MobileCard key={d.department_id ?? 'none'}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{d.department_name}</MobileCardTitle>
+                      <MobileCardMeta className="currency">
+                        {formatNaira(d.total_ctc_ngn)}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Headcount">{d.headcount}</MobileCardRow>
+                    <MobileCardRow label="Gross salary">
+                      {formatNaira(d.total_gross_ngn)}
+                    </MobileCardRow>
+                    <MobileCardRow label="% of total">
+                      {totalCtc > 0 ? `${((d.total_ctc_ngn / totalCtc) * 100).toFixed(0)}%` : '—'}
+                    </MobileCardRow>
+                  </MobileCard>
+                ))}
               </div>
             </>
           )}

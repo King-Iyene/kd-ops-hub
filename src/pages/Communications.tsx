@@ -98,13 +98,7 @@ import {
   wrapEmailHtml,
   type EmailTemplate,
 } from '@/lib/email-templates';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 
 type Channel = 'email' | 'sms' | 'whatsapp';
 type RecipientSource = 'manual' | 'contacts' | 'employees' | 'contractors';
@@ -1075,40 +1069,13 @@ export default function Communications() {
       </Card>
 
       {/* Template editor dialog */}
-      <Dialog open={!!editingTemplate} onOpenChange={(v) => { if (!v) setEditingTemplate(null); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-4 w-4" /> Edit template — {editingTemplate?.name}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-4 py-1">
-            <div className="space-y-1">
-              <Label className="kd-label">Subject line</Label>
-              <Input
-                value={editSubject}
-                onChange={(e) => setEditSubject(e.target.value)}
-                placeholder="Email subject…"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="kd-label">HTML body</Label>
-              <Textarea
-                value={editHtmlBody}
-                onChange={(e) => setEditHtmlBody(e.target.value)}
-                className="font-mono text-xs min-h-[320px]"
-              />
-              {editingTemplate?.variables && editingTemplate.variables.length > 0 && (
-                <p className="text-[10px] text-muted-foreground">
-                  Available variables:{' '}
-                  {editingTemplate.variables.map((v) => (
-                    <code key={v.name} className="mr-1">{`{{${v.name}}}`}</code>
-                  ))}
-                </p>
-              )}
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+      <ResponsiveDialog
+        open={!!editingTemplate}
+        onOpenChange={(v) => { if (!v) setEditingTemplate(null); }}
+        title={<span className="flex items-center gap-2"><Pencil className="h-4 w-4" /> Edit template — {editingTemplate?.name}</span>}
+        size="3xl"
+        footer={
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Button
               variant="outline"
               size="sm"
@@ -1128,9 +1095,36 @@ export default function Communications() {
                 Save template
               </Button>
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="space-y-1">
+            <Label className="kd-label">Subject line</Label>
+            <Input
+              value={editSubject}
+              onChange={(e) => setEditSubject(e.target.value)}
+              placeholder="Email subject…"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="kd-label">HTML body</Label>
+            <Textarea
+              value={editHtmlBody}
+              onChange={(e) => setEditHtmlBody(e.target.value)}
+              className="font-mono text-xs min-h-[320px]"
+            />
+            {editingTemplate?.variables && editingTemplate.variables.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                Available variables:{' '}
+                {editingTemplate.variables.map((v) => (
+                  <code key={v.name} className="mr-1">{`{{${v.name}}}`}</code>
+                ))}
+              </p>
+            )}
+          </div>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatNaira } from '@/lib/format';
 import { fetchVendorSpendBoard, type VendorSpendBoard } from '@/lib/vendor-spend';
 import { SERIES, GRID, AXIS_TICK, fmtCompact, ChartTooltip } from '@/lib/chart-theme';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow } from '@/components/ui-kit/MobileCard';
 
 export default function VendorSpendTab() {
   const { toast } = useToast();
@@ -187,7 +188,7 @@ export default function VendorSpendTab() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -216,6 +217,28 @@ export default function VendorSpendTab() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden space-y-2">
+                {data.topVendors.slice(0, 15).map((v, i) => (
+                  <MobileCard key={v.vendor}>
+                    <MobileCardHeader>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-muted-foreground mb-0.5">#{i + 1}</p>
+                        <MobileCardTitle>{v.vendor}</MobileCardTitle>
+                      </div>
+                      <MobileCardMeta className="currency">{formatNaira(v.total_ngn)}</MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Source">
+                      <Badge variant="outline" className="text-[10px]">
+                        {v.source === 'subscription' ? 'Sub' : 'Expense'}
+                      </Badge>
+                    </MobileCardRow>
+                    <MobileCardRow label="Avg / month">{formatNaira(v.avg_monthly_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Txns">{v.transaction_count}</MobileCardRow>
+                  </MobileCard>
+                ))}
               </div>
             </CardContent>
           </Card>

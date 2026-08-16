@@ -24,6 +24,14 @@ import {
   Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
 } from 'lucide-react';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
 import { heyreachDisplayStatus } from '@/lib/heyreach-status';
 
@@ -1150,67 +1158,123 @@ const NewPaymentBatch = () => {
                   No beneficiaries selected yet.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border/50">
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
-                        <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount (₦)</th>
-                        <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
-                        <th className="w-8" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {items.map((item, i) => (
-                        <tr key={item._key} className="hover:bg-muted/20 kd-transition">
-                          <td className="px-3 py-1.5 max-w-[280px]">
-                            <div className="text-[12.5px] font-medium truncate">{item.full_name || 'Unknown'}</div>
-                            {item.bank_name && (
-                              <div className="text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
-                                {item.bank_name} · {item.account_number || '—'}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-1.5 text-right">
-                            <Input
-                              type="number"
-                              className={cn(
-                                'w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60',
-                                !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
-                              )}
-                              value={item.amount_ngn}
-                              disabled={amountMode === 'same'}
-                              title={
-                                amountMode === 'same'
-                                  ? 'Switch to "Different amounts" to edit individually'
-                                  : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
-                              }
-                              onChange={(e) => updateItem(i, 'amount_ngn', round2(parseFloat(e.target.value) || 0))}
-                            />
-                          </td>
-                          <td className="px-3 py-1.5">
-                            <Input
-                              className="w-32 h-7 text-[11px] font-mono"
-                              value={item.reference}
-                              onChange={(e) => updateItem(i, 'reference', e.target.value)}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Remove item"
-                              onClick={() => removeItem(i)}
-                              className="h-7 w-7"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </Button>
-                          </td>
+                <>
+                  {/* Desktop table */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border/50">
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Beneficiary</th>
+                          <th className="text-right text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Amount (₦)</th>
+                          <th className="text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground px-3 py-2">Reference</th>
+                          <th className="w-8" />
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {items.map((item, i) => (
+                          <tr key={item._key} className="hover:bg-muted/20 kd-transition">
+                            <td className="px-3 py-1.5 max-w-[280px]">
+                              <div className="text-[12.5px] font-medium truncate">{item.full_name || 'Unknown'}</div>
+                              {item.bank_name && (
+                                <div className="text-[10.5px] text-muted-foreground/80 font-mono tracking-tight truncate">
+                                  {item.bank_name} · {item.account_number || '—'}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-3 py-1.5 text-right">
+                              <Input
+                                type="number"
+                                className={cn(
+                                  'w-28 h-7 text-right text-[12px] font-mono tabular-nums disabled:opacity-60',
+                                  !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
+                                )}
+                                value={item.amount_ngn}
+                                disabled={amountMode === 'same'}
+                                title={
+                                  amountMode === 'same'
+                                    ? 'Switch to "Different amounts" to edit individually'
+                                    : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
+                                }
+                                onChange={(e) => updateItem(i, 'amount_ngn', round2(parseFloat(e.target.value) || 0))}
+                              />
+                            </td>
+                            <td className="px-3 py-1.5">
+                              <Input
+                                className="w-32 h-7 text-[11px] font-mono"
+                                value={item.reference}
+                                onChange={(e) => updateItem(i, 'reference', e.target.value)}
+                              />
+                            </td>
+                            <td className="px-2 py-1.5">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Remove item"
+                                onClick={() => removeItem(i)}
+                                className="h-7 w-7"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile card list — same data, thumb-friendly */}
+                  <div className="md:hidden p-3 space-y-2">
+                    {items.map((item, i) => (
+                      <MobileCard key={item._key}>
+                        <MobileCardHeader>
+                          <MobileCardTitle>{item.full_name || 'Unknown'}</MobileCardTitle>
+                          <MobileCardMeta className="currency">
+                            {formatNaira(item.amount_ngn)}
+                          </MobileCardMeta>
+                        </MobileCardHeader>
+                        {item.bank_name && (
+                          <MobileCardRow label="Bank">
+                            {item.bank_name} · {item.account_number || '—'}
+                          </MobileCardRow>
+                        )}
+                        <MobileCardRow label="Amount (₦)">
+                          <Input
+                            type="number"
+                            className={cn(
+                              'w-28 h-8 ml-auto text-right text-xs font-mono tabular-nums disabled:opacity-60',
+                              !(Number(item.amount_ngn) > 0) && 'border-destructive focus-visible:ring-destructive',
+                            )}
+                            value={item.amount_ngn}
+                            disabled={amountMode === 'same'}
+                            title={
+                              amountMode === 'same'
+                                ? 'Switch to "Different amounts" to edit individually'
+                                : !(Number(item.amount_ngn) > 0) ? 'Enter an amount greater than ₦0' : undefined
+                            }
+                            onChange={(e) => updateItem(i, 'amount_ngn', round2(parseFloat(e.target.value) || 0))}
+                          />
+                        </MobileCardRow>
+                        <MobileCardRow label="Reference">
+                          <Input
+                            className="w-36 ml-auto h-8 text-xs font-mono"
+                            value={item.reference}
+                            onChange={(e) => updateItem(i, 'reference', e.target.value)}
+                          />
+                        </MobileCardRow>
+                        <MobileCardFooter>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeItem(i)}
+                            className="w-full h-9 border-destructive/40 text-destructive hover:bg-destructive/5"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Remove
+                          </Button>
+                        </MobileCardFooter>
+                      </MobileCard>
+                    ))}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -1249,7 +1313,8 @@ const NewPaymentBatch = () => {
               <div><p className="text-xs text-muted-foreground">Total Amount</p><p className="font-bold text-lg currency">{formatNaira(totalAmount)}</p></div>
             </div>
 
-            <div className="overflow-x-auto">
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1272,6 +1337,25 @@ const NewPaymentBatch = () => {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Mobile card list — same data, thumb-friendly */}
+            <div className="md:hidden space-y-2">
+              {items.map((item) => (
+                <MobileCard key={item._key}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{item.full_name || 'Unknown'}</MobileCardTitle>
+                    <MobileCardMeta className="currency">
+                      {formatNaira(item.amount_ngn)}
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Bank">{item.bank_name || '—'}</MobileCardRow>
+                  <MobileCardRow label="Account">{item.account_number || '—'}</MobileCardRow>
+                  {item.reference && (
+                    <MobileCardRow label="Reference">{item.reference}</MobileCardRow>
+                  )}
+                </MobileCard>
+              ))}
             </div>
 
             <StickyActionBar>

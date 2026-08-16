@@ -800,8 +800,8 @@ const ProfilePage = () => {
                   <p className="text-xs text-muted-foreground">A confirmation link will be sent to the new address.</p>
                 </div>
                 <div className="space-y-1">
-                  <Label>Role</Label>
-                  <Input value={roleLabel(profile.role)} disabled />
+                  <Label htmlFor="profileRole">Role</Label>
+                  <Input id="profileRole" value={roleLabel(profile.role)} disabled />
                 </div>
               </div>
               {/* StickyActionBar pins Save to the bottom of the
@@ -853,14 +853,14 @@ const ProfilePage = () => {
                 </>
               ) : (
                 <>
-                  <div className="space-y-1"><Label>Date of birth</Label><Input type="date" value={personalForm.date_of_birth} onChange={(e) => setPersonalForm((f) => ({ ...f, date_of_birth: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Gender</Label><Input value={personalForm.gender} onChange={(e) => setPersonalForm((f) => ({ ...f, gender: e.target.value }))} placeholder="e.g. Female" /></div>
-                  <div className="space-y-1"><Label>Marital status</Label><Input value={personalForm.marital_status} onChange={(e) => setPersonalForm((f) => ({ ...f, marital_status: e.target.value }))} placeholder="e.g. Single" /></div>
-                  <div className="space-y-1"><Label>Home address</Label><Input value={personalForm.address} onChange={(e) => setPersonalForm((f) => ({ ...f, address: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Next of kin name</Label><Input value={personalForm.next_of_kin_name} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_name: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Relationship</Label><Input value={personalForm.next_of_kin_relationship} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_relationship: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Next of kin phone</Label><Input value={personalForm.next_of_kin_phone} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_phone: e.target.value }))} /></div>
-                  <div className="space-y-1"><Label>Next of kin email</Label><Input type="email" value={personalForm.next_of_kin_email} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_email: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalDateOfBirth">Date of birth</Label><Input id="personalDateOfBirth" type="date" value={personalForm.date_of_birth} onChange={(e) => setPersonalForm((f) => ({ ...f, date_of_birth: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalGender">Gender</Label><Input id="personalGender" value={personalForm.gender} onChange={(e) => setPersonalForm((f) => ({ ...f, gender: e.target.value }))} placeholder="e.g. Female" /></div>
+                  <div className="space-y-1"><Label htmlFor="personalMaritalStatus">Marital status</Label><Input id="personalMaritalStatus" value={personalForm.marital_status} onChange={(e) => setPersonalForm((f) => ({ ...f, marital_status: e.target.value }))} placeholder="e.g. Single" /></div>
+                  <div className="space-y-1"><Label htmlFor="personalAddress">Home address</Label><Input id="personalAddress" value={personalForm.address} onChange={(e) => setPersonalForm((f) => ({ ...f, address: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalNextOfKinName">Next of kin name</Label><Input id="personalNextOfKinName" value={personalForm.next_of_kin_name} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_name: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalNextOfKinRelationship">Relationship</Label><Input id="personalNextOfKinRelationship" value={personalForm.next_of_kin_relationship} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_relationship: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalNextOfKinPhone">Next of kin phone</Label><Input id="personalNextOfKinPhone" value={personalForm.next_of_kin_phone} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_phone: e.target.value }))} /></div>
+                  <div className="space-y-1"><Label htmlFor="personalNextOfKinEmail">Next of kin email</Label><Input id="personalNextOfKinEmail" type="email" value={personalForm.next_of_kin_email} onChange={(e) => setPersonalForm((f) => ({ ...f, next_of_kin_email: e.target.value }))} /></div>
                 </>
               )}
             </CardContent>
@@ -996,10 +996,10 @@ const ProfilePage = () => {
                   </div>
                   {showBankForm && !bankPending && (
                     <div className="rounded-lg border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1"><Label>New bank</Label><Input value={bankForm.bank_name} onChange={(e) => setBankForm((f) => ({ ...f, bank_name: e.target.value }))} placeholder="e.g. GTBank" /></div>
-                      <div className="space-y-1"><Label>Account number</Label><Input inputMode="numeric" value={bankForm.account_number} onChange={(e) => setBankForm((f) => ({ ...f, account_number: e.target.value }))} /></div>
-                      <div className="space-y-1 sm:col-span-2"><Label>Account name</Label><Input value={bankForm.account_name} onChange={(e) => setBankForm((f) => ({ ...f, account_name: e.target.value }))} /></div>
-                      <div className="space-y-1 sm:col-span-2"><Label>Reason (optional)</Label><Input value={bankForm.reason} onChange={(e) => setBankForm((f) => ({ ...f, reason: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="bankChangeBankName">New bank</Label><Input id="bankChangeBankName" value={bankForm.bank_name} onChange={(e) => setBankForm((f) => ({ ...f, bank_name: e.target.value }))} placeholder="e.g. GTBank" /></div>
+                      <div className="space-y-1"><Label htmlFor="bankChangeAccountNumber">Account number</Label><Input id="bankChangeAccountNumber" inputMode="numeric" value={bankForm.account_number} onChange={(e) => setBankForm((f) => ({ ...f, account_number: e.target.value }))} /></div>
+                      <div className="space-y-1 sm:col-span-2"><Label htmlFor="bankChangeAccountName">Account name</Label><Input id="bankChangeAccountName" value={bankForm.account_name} onChange={(e) => setBankForm((f) => ({ ...f, account_name: e.target.value }))} /></div>
+                      <div className="space-y-1 sm:col-span-2"><Label htmlFor="bankChangeReason">Reason (optional)</Label><Input id="bankChangeReason" value={bankForm.reason} onChange={(e) => setBankForm((f) => ({ ...f, reason: e.target.value }))} /></div>
                       <div className="sm:col-span-2 flex justify-end gap-2">
                         <Button size="sm" variant="ghost" onClick={() => setShowBankForm(false)}>Cancel</Button>
                         <Button size="sm" onClick={submitBankRequest} disabled={submittingBank}>
@@ -1091,18 +1091,18 @@ const ProfilePage = () => {
               {showAdvanceForm && (
                 <div className="rounded-lg border p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <Label>Amount (₦)</Label>
-                    <Input type="number" min="0" inputMode="numeric" value={advanceForm.amount}
+                    <Label htmlFor="advanceAmount">Amount (₦)</Label>
+                    <Input id="advanceAmount" type="number" min="0" inputMode="numeric" value={advanceForm.amount}
                       onChange={(e) => setAdvanceForm((f) => ({ ...f, amount: e.target.value }))} placeholder="0" />
                   </div>
                   <div className="space-y-1">
-                    <Label>Repay over (months)</Label>
-                    <Input type="number" min="1" max="24" value={advanceForm.months}
+                    <Label htmlFor="advanceMonths">Repay over (months)</Label>
+                    <Input id="advanceMonths" type="number" min="1" max="24" value={advanceForm.months}
                       onChange={(e) => setAdvanceForm((f) => ({ ...f, months: e.target.value }))} />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
-                    <Label>Reason (optional)</Label>
-                    <Input value={advanceForm.reason}
+                    <Label htmlFor="advanceReason">Reason (optional)</Label>
+                    <Input id="advanceReason" value={advanceForm.reason}
                       onChange={(e) => setAdvanceForm((f) => ({ ...f, reason: e.target.value }))} placeholder="e.g. medical, rent" />
                   </div>
                   <div className="sm:col-span-2 flex justify-end gap-2">

@@ -11,6 +11,13 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+} from '@/components/ui-kit/MobileCard';
 import { useToast } from '@/hooks/use-toast';
 import { formatNaira, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -228,7 +235,7 @@ export default function CostIntelligenceTab() {
                   {scenario.delta_ctc_ngn >= 0 ? '+' : ''}{formatNaira(scenario.delta_ctc_ngn * 12)}/yr
                 </span>
               </p>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -255,6 +262,27 @@ export default function CostIntelligenceTab() {
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden space-y-2">
+                {scenario.by_department.filter((d) => d.baseline_ctc_ngn !== 0 || d.scenario_ctc_ngn !== 0).map((d) => (
+                  <MobileCard key={d.department_id ?? 'none'}>
+                    <MobileCardHeader>
+                      <MobileCardTitle>{d.department_name}</MobileCardTitle>
+                      <MobileCardMeta
+                        className={cn(
+                          'currency',
+                          d.delta_ctc_ngn > 0 ? 'text-destructive' : d.delta_ctc_ngn < 0 ? 'text-emerald-600' : '',
+                        )}
+                      >
+                        {d.delta_ctc_ngn === 0 ? '—' : `${d.delta_ctc_ngn > 0 ? '+' : ''}${formatNaira(d.delta_ctc_ngn)}`}
+                      </MobileCardMeta>
+                    </MobileCardHeader>
+                    <MobileCardRow label="Current">{formatNaira(d.baseline_ctc_ngn)}</MobileCardRow>
+                    <MobileCardRow label="Scenario">{formatNaira(d.scenario_ctc_ngn)}</MobileCardRow>
+                  </MobileCard>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -270,7 +298,8 @@ export default function CostIntelligenceTab() {
           {changes.length === 0 && !loading ? (
             <p className="text-sm text-muted-foreground text-center py-10">No salary changes recorded in the last 12 months.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -312,6 +341,35 @@ export default function CostIntelligenceTab() {
                 </TableBody>
               </Table>
             </div>
+
+            {/* Mobile card list — same data, thumb-friendly */}
+            <div className="md:hidden space-y-2">
+              {changes.map((c) => (
+                <MobileCard key={c.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{c.employee_name}</MobileCardTitle>
+                    <MobileCardMeta
+                      className={cn(
+                        'currency',
+                        c.direction === 'increase' ? 'text-destructive' : c.direction === 'decrease' ? 'text-emerald-600' : '',
+                      )}
+                    >
+                      {c.direction === 'unchanged' ? '—' : `${c.monthly_delta_ngn > 0 ? '+' : ''}${formatNaira(c.monthly_delta_ngn)}`}
+                    </MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Department">{c.department_name}</MobileCardRow>
+                  <MobileCardRow label="Date">{formatDate(c.effective_date)}</MobileCardRow>
+                  <MobileCardRow label="Old → New">
+                    {formatNaira(c.old_salary_ngn)} → {formatNaira(c.new_salary_ngn)}
+                  </MobileCardRow>
+                  <MobileCardRow label="Fully-loaded annual Δ">
+                    {c.direction === 'unchanged' ? '—' : `${c.fully_loaded_annual_delta_ngn > 0 ? '+' : ''}${formatNaira(c.fully_loaded_annual_delta_ngn)}`}
+                  </MobileCardRow>
+                  <MobileCardRow label="Reason">{c.reason ?? '—'}</MobileCardRow>
+                </MobileCard>
+              ))}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

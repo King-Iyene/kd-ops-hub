@@ -525,9 +525,9 @@ export default function Onboarding() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1">
-              <Label className="kd-label">Employee *</Label>
+              <Label htmlFor="onboardingEmployee" className="kd-label">Employee *</Label>
               <Select value={form.employee_id} onValueChange={v => setForm(f => ({ ...f, employee_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectTrigger id="onboardingEmployee"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— Select employee —</SelectItem>
                   {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}
@@ -536,9 +536,9 @@ export default function Onboarding() {
             </div>
 
             <div className="space-y-1">
-              <Label className="kd-label">Checklist Type</Label>
+              <Label htmlFor="onboardingChecklistType" className="kd-label">Checklist Type</Label>
               <Select value={form.checklist_type} onValueChange={v => setForm(f => ({ ...f, checklist_type: v as ChecklistType }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="onboardingChecklistType"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="onboarding">Onboarding (new hire)</SelectItem>
                   <SelectItem value="offboarding">Offboarding (exit)</SelectItem>
@@ -547,13 +547,13 @@ export default function Onboarding() {
             </div>
 
             <div className="space-y-1">
-              <Label className="kd-label">Target Completion Date</Label>
-              <Input type="date" value={form.target_completion_date} onChange={e => setForm(f => ({ ...f, target_completion_date: e.target.value }))} />
+              <Label htmlFor="onboardingTargetDate" className="kd-label">Target Completion Date</Label>
+              <Input id="onboardingTargetDate" type="date" value={form.target_completion_date} onChange={e => setForm(f => ({ ...f, target_completion_date: e.target.value }))} />
             </div>
 
             <div className="space-y-1">
-              <Label className="kd-label">Notes</Label>
-              <Textarea rows={3} placeholder="Additional notes…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              <Label htmlFor="onboardingNotes" className="kd-label">Notes</Label>
+              <Textarea id="onboardingNotes" rows={3} placeholder="Additional notes…" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
             </div>
 
             {!editingCl && (

@@ -68,6 +68,14 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import {
+  MobileCard,
+  MobileCardHeader,
+  MobileCardTitle,
+  MobileCardMeta,
+  MobileCardRow,
+  MobileCardFooter,
+} from '@/components/ui-kit/MobileCard';
 import { logAudit } from '@/lib/audit';
 import { notifyChannels } from '@/lib/notify';
 import { scanEwaAnomaliesSafe } from '@/lib/anomalies';
@@ -377,7 +385,8 @@ export default function EarnedWageAccess() {
                 description="All EWA requests are reviewed. New ones will appear here for approval."
               />
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -423,6 +432,48 @@ export default function EarnedWageAccess() {
                 </TableBody>
               </Table>
               </div>
+
+              {/* Mobile card list — same data, thumb-friendly */}
+              <div className="md:hidden p-3 space-y-2">
+                {pending.map((r) => {
+                  const busy = actionId === r.id;
+                  return (
+                    <MobileCard key={r.id}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{r.full_name || r.employee_id.slice(0, 8)}</MobileCardTitle>
+                        <MobileCardMeta className="currency">{formatNaira(r.amount_ngn)}</MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Reason">{r.reason || '—'}</MobileCardRow>
+                      <MobileCardRow label="Requested">{formatDate(r.created_at)}</MobileCardRow>
+                      <MobileCardFooter>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => { setRejecting(r); setRejectReason(''); }}
+                          className="flex-1 h-9 text-destructive hover:bg-destructive/10"
+                        >
+                          <XCircle className="h-4 w-4 mr-1.5" /> Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => handleApprove(r)}
+                          className="flex-1 h-9 bg-success hover:bg-success/90 text-success-foreground"
+                        >
+                          {busy ? (
+                            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                          )}
+                          Approve
+                        </Button>
+                      </MobileCardFooter>
+                    </MobileCard>
+                  );
+                })}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -443,7 +494,8 @@ export default function EarnedWageAccess() {
               description="Your accrued earnings can be drawn from above. Requests show up here once submitted."
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -481,6 +533,36 @@ export default function EarnedWageAccess() {
               </TableBody>
             </Table>
             </div>
+
+            {/* Mobile card list — same data, thumb-friendly */}
+            <div className="md:hidden p-3 space-y-2">
+              {history.map((r) => (
+                <MobileCard key={r.id}>
+                  <MobileCardHeader>
+                    <MobileCardTitle>{formatDate(r.created_at)}</MobileCardTitle>
+                    <MobileCardMeta className="currency">{formatNaira(r.amount_ngn)}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Status">
+                    <Badge variant="secondary" className={cn(STATUS_TONE[r.status])}>
+                      {EWA_STATUS_LABEL[r.status]}
+                    </Badge>
+                  </MobileCardRow>
+                  <MobileCardRow label="Reason / Notes">
+                    {r.status === 'rejected' && r.rejection_reason
+                      ? <span className="text-destructive">{r.rejection_reason}</span>
+                      : (r.reason || '—')}
+                  </MobileCardRow>
+                  {r.status === 'pending' && (
+                    <MobileCardFooter>
+                      <Button size="sm" variant="ghost" onClick={() => handleCancel(r)} className="flex-1 h-9">
+                        Cancel
+                      </Button>
+                    </MobileCardFooter>
+                  )}
+                </MobileCard>
+              ))}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

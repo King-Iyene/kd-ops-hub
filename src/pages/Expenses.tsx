@@ -81,14 +81,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
@@ -1774,11 +1767,25 @@ const Expenses = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setReceiptFile(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New Expense Claim</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={showForm}
+        onOpenChange={(v) => { setShowForm(v); if (!v) setReceiptFile(null); }}
+        title="New Expense Claim"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowForm(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitExpense}
+              disabled={submitting || !form.category || !!lockingBudget}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit
+            </Button>
+          </>
+        }
+      >
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Category</Label>
@@ -2012,29 +2019,27 @@ const Expenses = () => {
               )}
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowForm(false)}>
+      </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={!!confirmPayment}
+        onOpenChange={(v) => { if (!v) setConfirmPayment(null); }}
+        title="Confirm Payment"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setConfirmPayment(null)} disabled={processingPayment}>
               Cancel
             </Button>
             <Button
-              onClick={submitExpense}
-              disabled={submitting || !form.category || !!lockingBudget}
+              onClick={() => confirmPayment && processExpensePayment(confirmPayment)}
+              disabled={processingPayment}
             >
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit
+              {processingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Process Payment
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!confirmPayment}
-        onOpenChange={(v) => { if (!v) setConfirmPayment(null); }}
+          </>
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Payment</DialogTitle>
-          </DialogHeader>
           {confirmPayment && (
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground">
@@ -2055,22 +2060,9 @@ const Expenses = () => {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmPayment(null)} disabled={processingPayment}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => confirmPayment && processExpensePayment(confirmPayment)}
-              disabled={processingPayment}
-            >
-              {processingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Process Payment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      <Dialog
+      <ResponsiveDialog
         open={!!rejectingExpense}
         onOpenChange={(v) => {
           if (!v) {
@@ -2078,22 +2070,9 @@ const Expenses = () => {
             setRejectReason('');
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject expense</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            The submitter will be notified with this reason. They'll see a
-            "Re-edit & Resubmit" button on the row.
-          </p>
-          <Textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Reason for rejection (required)"
-            rows={3}
-          />
-          <DialogFooter>
+        title="Reject expense"
+        footer={
+          <>
             <Button variant="outline" onClick={() => setRejectingExpense(null)}>
               Cancel
             </Button>
@@ -2104,17 +2083,32 @@ const Expenses = () => {
             >
               Reject with reason
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+          <p className="text-sm text-muted-foreground">
+            The submitter will be notified with this reason. They'll see a
+            "Re-edit & Resubmit" button on the row.
+          </p>
+          <Textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Reason for rejection (required)"
+            rows={3}
+          />
+      </ResponsiveDialog>
 
-      <Dialog open={!!detailExpense} onOpenChange={(v) => { if (!v) setDetailExpense(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-4 w-4" /> Expense Detail
-            </DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!detailExpense}
+        onOpenChange={(v) => { if (!v) setDetailExpense(null); }}
+        size="lg"
+        title={
+          <span className="flex items-center gap-2">
+            <Receipt className="h-4 w-4" /> Expense Detail
+          </span>
+        }
+        footer={<Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>}
+      >
           {detailExpense && (
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-3">
@@ -2229,79 +2223,71 @@ const Expenses = () => {
               )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      <Dialog open={!!bulkApproveConfirm} onOpenChange={(open) => { if (!open) setBulkApproveConfirm(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve all pending expenses?</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!bulkApproveConfirm}
+        onOpenChange={(open) => { if (!open) setBulkApproveConfirm(null); }}
+        title="Approve all pending expenses?"
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
+            <Button onClick={doBulkApprove}>Confirm</Button>
+          </>
+        }
+      >
           {bulkApproveConfirm && (
             <p className="text-sm text-muted-foreground">
               Approve {bulkApproveConfirm.count} expense claim{bulkApproveConfirm.count === 1 ? '' : 's'} totalling {formatNaira(bulkApproveConfirm.total)}? This cannot be undone.
             </p>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkApproveConfirm(null)}>Cancel</Button>
-            <Button onClick={doBulkApprove}>Confirm</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      <Dialog open={!!bulkPayConfirm} onOpenChange={(open) => { if (!open) setBulkPayConfirm(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Pay all approved expenses?</DialogTitle>
-            <DialogDescription>
-              Each expense becomes its own payment batch and is auto-approved. You'll be redirected to Payments to fund and process.
-            </DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!bulkPayConfirm}
+        onOpenChange={(open) => { if (!open) setBulkPayConfirm(null); }}
+        title="Pay all approved expenses?"
+        description="Each expense becomes its own payment batch and is auto-approved. You'll be redirected to Payments to fund and process."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setBulkPayConfirm(null)}>Cancel</Button>
+            <Button onClick={doBulkPay}>
+              <CreditCard className="mr-2 h-4 w-4" /> Create batches
+            </Button>
+          </>
+        }
+      >
           {bulkPayConfirm && (
             <p className="text-sm text-muted-foreground">
               {bulkPayConfirm.count} approved expense{bulkPayConfirm.count === 1 ? '' : 's'} · total {formatNaira(bulkPayConfirm.total)}.
             </p>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkPayConfirm(null)}>Cancel</Button>
-            <Button onClick={doBulkPay}>
-              <CreditCard className="mr-2 h-4 w-4" /> Create batches
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
-      <Dialog open={!!confirmDeleteExpense} onOpenChange={(v) => { if (!v) setConfirmDeleteExpense(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete expense</DialogTitle>
-            <DialogDescription>
-              Delete this {confirmDeleteExpense?.category?.replace(/_/g, ' ')} expense ({formatNaira(confirmDeleteExpense?.amount_ngn || 0)})? This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <ResponsiveDialog
+        open={!!confirmDeleteExpense}
+        onOpenChange={(v) => { if (!v) setConfirmDeleteExpense(null); }}
+        title="Delete expense"
+        description={`Delete this ${confirmDeleteExpense?.category?.replace(/_/g, ' ')} expense (${formatNaira(confirmDeleteExpense?.amount_ngn || 0)})? This cannot be undone.`}
+        footer={
+          <>
             <Button variant="outline" onClick={() => setConfirmDeleteExpense(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => confirmDeleteExpense && deleteExpense(confirmDeleteExpense)}>
               Delete
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+      </ResponsiveDialog>
 
       {/* Tamper-analysis (ELA) preview — on-demand visual aid, not a verdict. */}
-      <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Tamper Analysis</DialogTitle>
-            <DialogDescription>
-              Highlights areas that carry a different compression history than the rest of the photo.
-              This is a visual aid, not proof of tampering — ordinary re-compression (e.g. a receipt
-              forwarded through WhatsApp) produces similar patterns. Use your judgment alongside other context.
-            </DialogDescription>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={!!elaTarget}
+        onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}
+        size="lg"
+        title="Tamper Analysis"
+        description="Highlights areas that carry a different compression history than the rest of the photo. This is a visual aid, not proof of tampering — ordinary re-compression (e.g. a receipt forwarded through WhatsApp) produces similar patterns. Use your judgment alongside other context."
+      >
           <div className="space-y-2">
             {elaLoading && (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
@@ -2322,8 +2308,7 @@ const Expenses = () => {
               />
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
     </div>
   );
 };

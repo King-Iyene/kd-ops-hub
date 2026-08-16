@@ -20,8 +20,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogTitle,
 } from '@/components/ui/dialog';
+import { ResponsiveDialog } from '@/components/ui-kit/ResponsiveDialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -1243,11 +1244,19 @@ const Tasks = () => {
       </Dialog>
 
       {/* ─── Create / Edit Task Dialog ──────────────────────────────── */}
-      <Dialog open={dialog} onOpenChange={(v) => { setDialog(v); if (!v) reset(); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Edit task' : 'New task'}</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={dialog}
+        onOpenChange={(v) => { setDialog(v); if (!v) reset(); }}
+        title={editing ? 'Edit task' : 'New task'}
+        size="2xl"
+        footer={<>
+          <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {editing ? 'Save changes' : 'Create task'}
+          </Button>
+        </>}
+      >
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Title</Label>
@@ -1365,22 +1374,22 @@ const Tasks = () => {
               <RecurrenceEditor value={formRecurrence} onChange={setFormRecurrence} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialog(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editing ? 'Save changes' : 'Create task'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* ─── Create / Edit Space Dialog ─────────────────────────────── */}
-      <Dialog open={spaceDialog} onOpenChange={(v) => { setSpaceDialog(v); if (!v) setEditingSpace(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingSpace ? 'Edit space' : 'New space'}</DialogTitle>
-          </DialogHeader>
+      <ResponsiveDialog
+        open={spaceDialog}
+        onOpenChange={(v) => { setSpaceDialog(v); if (!v) setEditingSpace(null); }}
+        title={editingSpace ? 'Edit space' : 'New space'}
+        size="md"
+        footer={<>
+          <Button variant="outline" onClick={() => setSpaceDialog(false)}>Cancel</Button>
+          <Button onClick={saveSpace} disabled={savingSpace}>
+            {savingSpace && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {editingSpace ? 'Save' : 'Create space'}
+          </Button>
+        </>}
+      >
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Name</Label>
@@ -1425,15 +1434,7 @@ const Tasks = () => {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSpaceDialog(false)}>Cancel</Button>
-            <Button onClick={saveSpace} disabled={savingSpace}>
-              {savingSpace && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {editingSpace ? 'Save' : 'Create space'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </ResponsiveDialog>
 
       {/* ─── Delete Task Confirmation ───────────────────────────────── */}
       <AlertDialog open={!!pendingDelete} onOpenChange={(v) => { if (!v) setPendingDelete(null); }}>
@@ -1517,14 +1518,14 @@ const Tasks = () => {
       />
 
       {/* Google Calendar Sync Dialog */}
-      <Dialog open={calendarDialog} onOpenChange={setCalendarDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Google Calendar Sync</DialogTitle>
-          </DialogHeader>
-          <GoogleCalendarSync tasks={tasks} />
-        </DialogContent>
-      </Dialog>
+      <ResponsiveDialog
+        open={calendarDialog}
+        onOpenChange={setCalendarDialog}
+        title="Google Calendar Sync"
+        size="lg"
+      >
+        <GoogleCalendarSync tasks={tasks} />
+      </ResponsiveDialog>
 
       {/* Form Builder Dialog */}
       <TaskFormBuilder
