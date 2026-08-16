@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Plus, Search, Pencil, Trash2, FileText,
-  FilePlus, FileCheck, FileX,
+  FilePlus, FileCheck, FileX, PenTool,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { SignaturePad } from '@/components/ui-kit/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +65,9 @@ interface HrLetter {
   status: LetterStatus;
   issued_by: string | null;
   issued_at: string | null;
+  recipient_signature_url: string | null;
+  signed_at: string | null;
+  signed_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +101,7 @@ export default function HrLetters() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HrLetter | null>(null);
+  const [signingLetter, setSigningLetter] = useState<HrLetter | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -174,6 +179,26 @@ export default function HrLetters() {
     if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); }
     else { toast({ title: 'Letter deleted' }); load(); }
     setDeleteTarget(null);
+  }
+
+  async function handleSign(dataUrl: string) {
+    if (!signingLetter || !user) return;
+    const { error } = await supabase
+      .from('hr_letters')
+      .update({
+        recipient_signature_url: dataUrl,
+        signed_at: new Date().toISOString(),
+        signed_by: user.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', signingLetter.id);
+    if (error) {
+      toast({ title: 'Signing failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Letter signed successfully' });
+      load();
+    }
+    setSigningLetter(null);
   }
 
   const filtered = letters.filter(l => {
@@ -291,6 +316,14 @@ export default function HrLetters() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
+                        {l.status === 'issued' && !l.recipient_signature_url && (
+                          <Button variant="ghost" size="icon" onClick={() => setSigningLetter(l)} aria-label="Sign letter" title="Sign & acknowledge receipt">
+                            <PenTool className="h-4 w-4 text-blue-500" />
+                          </Button>
+                        )}
+                        {l.recipient_signature_url && (
+                          <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 px-1">Signed</span>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(l)} aria-label="Edit letter">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -382,6 +415,23 @@ export default function HrLetters() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!signingLetter} onOpenChange={o => !o && setSigningLetter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sign Letter</DialogTitle>
+            <DialogDescription>
+              Sign to acknowledge receipt of "{signingLetter?.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <SignaturePad
+            signerName={empName(signingLetter?.employee_id ?? null)}
+            label="Sign to acknowledge receipt"
+            onSign={handleSign}
+            onCancel={() => setSigningLetter(null)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

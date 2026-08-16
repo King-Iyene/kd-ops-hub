@@ -90,7 +90,7 @@ export type NavItem = {
 export const ALL_NAV: NavItem[] = [
   { title: 'Dashboard',        url: '/',                  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   { title: 'Approvals',        url: '/approvals',         icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', permission: 'payments.approve_batches' },
-  { title: 'My Dashboard',     url: '/my-dashboard',      icon: LayoutGrid,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'My Portal',        url: '/my-dashboard',      icon: LayoutGrid,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
   // Finance
   { title: 'Payments',         url: '/payments',          icon: Layers,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
@@ -180,7 +180,7 @@ export const NAV_GROUPS = [
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 
-export const UNGROUPED_TITLES = ['Dashboard', 'My Dashboard', 'Approvals', 'Finance'];
+export const UNGROUPED_TITLES = ['Dashboard', 'My Portal', 'Approvals', 'Finance'];
 
 export type SidebarHub = {
   key: string;

@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { SignaturePad } from '@/components/ui-kit/SignaturePad';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -231,20 +232,25 @@ export default function Handbook() {
     load();
   };
 
-  const acknowledge = async (policy: Policy) => {
+  const [signingPolicy, setSigningPolicy] = useState<Policy | null>(null);
+
+  const acknowledge = async (policy: Policy, signatureDataUrl: string) => {
     if (!profile?.id) return;
     setAcknowledging(policy.id);
     const { error } = await supabase.from('policy_acknowledgments').insert({
       policy_id: policy.id,
       employee_id: profile.id,
       policy_version: policy.version,
+      signature_data_url: signatureDataUrl,
     });
     setAcknowledging(null);
+    setSigningPolicy(null);
+    setViewPolicy(null);
     if (error) {
       toast({ title: 'Acknowledgment failed', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: 'Policy acknowledged' });
+    toast({ title: 'Policy acknowledged & signed', description: `You signed "${policy.title}" v${policy.version}.` });
     load();
   };
 
@@ -391,16 +397,16 @@ export default function Handbook() {
                         </Button>
                         {acked ? (
                           <Badge variant="default" className="text-[10px]">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />Acknowledged
+                            <CheckCircle2 className="h-3 w-3 mr-1" />Signed
                           </Badge>
                         ) : (
                           <Button
                             size="sm"
-                            onClick={() => acknowledge(p)}
+                            onClick={() => setSigningPolicy(p)}
                             disabled={acknowledging === p.id}
                           >
                             {acknowledging === p.id && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                            Acknowledge
+                            Sign & Acknowledge
                           </Button>
                         )}
                       </div>
@@ -492,17 +498,40 @@ export default function Handbook() {
                 {viewPolicy.requires_acknowledgment && (
                   hasAcked(viewPolicy) ? (
                     <Badge variant="default" className="text-[10px]">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />Acknowledged
+                      <CheckCircle2 className="h-3 w-3 mr-1" />Signed
                     </Badge>
                   ) : (
-                    <Button onClick={() => { acknowledge(viewPolicy); setViewPolicy(null); }} disabled={acknowledging === viewPolicy.id}>
+                    <Button onClick={() => { setSigningPolicy(viewPolicy); }} disabled={acknowledging === viewPolicy.id}>
                       {acknowledging === viewPolicy.id && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                      Acknowledge Policy
+                      Sign & Acknowledge
                     </Button>
                   )
                 )}
                 <Button variant="outline" onClick={() => setViewPolicy(null)}>Close</Button>
               </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* E-Signature Dialog */}
+      <Dialog open={!!signingPolicy} onOpenChange={() => setSigningPolicy(null)}>
+        <DialogContent className="sm:max-w-md">
+          {signingPolicy && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Sign & Acknowledge</DialogTitle>
+                <DialogDescription>
+                  You are signing to acknowledge that you have read and understood
+                  <span className="font-semibold text-foreground"> "{signingPolicy.title}"</span> (v{signingPolicy.version}).
+                </DialogDescription>
+              </DialogHeader>
+              <SignaturePad
+                signerName={profile?.full_name ?? ''}
+                label="Your signature"
+                onSign={(dataUrl) => acknowledge(signingPolicy, dataUrl)}
+                onCancel={() => setSigningPolicy(null)}
+              />
             </>
           )}
         </DialogContent>

@@ -65,7 +65,7 @@ function formatLabel(s: string) {
 }
 
 export default function MyDashboard() {
-  usePageTitle('My Dashboard');
+  usePageTitle('My Portal');
 
   const { user, profile } = useAuthStore();
 
@@ -175,7 +175,7 @@ export default function MyDashboard() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="My Dashboard" description={`Welcome back, ${firstName}`} />
+        <PageHeader title="My Portal" description={`Welcome back, ${firstName}`} />
         <TableSkeleton rows={6} />
       </div>
     );
@@ -193,7 +193,7 @@ export default function MyDashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="My Dashboard" description={`Welcome back, ${firstName}`} />
+      <PageHeader title="My Portal" description={`Welcome back, ${firstName}`} />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Leave Balances */}

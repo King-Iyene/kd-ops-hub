@@ -84,7 +84,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/succession':           'Succession Planning',
   '/handbook':             'Handbook',
   '/timesheets':           'Timesheets',
-  '/my-dashboard':         'My Dashboard',
+  '/my-dashboard':         'My Portal',
   '/approval-workflows':   'Approval Workflows',
 };
 

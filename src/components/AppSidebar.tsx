@@ -49,6 +49,13 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Contact2,
 };
 
+const QUICK_LINK_STYLE: Record<string, { color: string; bg: string }> = {
+  Dashboard:  { color: 'text-indigo-400',  bg: 'bg-indigo-500/15' },
+  Approvals:  { color: 'text-amber-400',   bg: 'bg-amber-500/15' },
+  'My Portal': { color: 'text-cyan-400',    bg: 'bg-cyan-500/15' },
+  Finance:    { color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+};
+
 function getInitials(name: string): string {
   return name
     .split(' ')
@@ -368,9 +375,62 @@ export function AppSidebar() {
       <SidebarContent className="pt-2 pb-2">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
-            {/* Ungrouped: Dashboard, My Dashboard, Approvals, Finance */}
-            <SidebarMenu className="gap-0.5 px-2 mb-2">
-              {ungroupedItems.map(renderNavItem)}
+            {/* Quick links: Dashboard, My Portal, Approvals, Finance */}
+            <SidebarMenu className="gap-1 px-2 mb-2">
+              {ungroupedItems.map((item) => {
+                const ql = QUICK_LINK_STYLE[item.title];
+                if (!ql || sidebarCollapsed) return renderNavItem(item);
+
+                const hasExactMatch = navItems.some((n) => n.url === location.pathname);
+                const active = hasExactMatch
+                  ? location.pathname === item.url
+                  : location.pathname === item.url ||
+                    (item.url !== '/' && location.pathname.startsWith(item.url));
+                const badgeCount =
+                  item.badge === 'approvals' ? approvalTotal :
+                  item.badge === 'anomalies' ? anomalyOpenCount : 0;
+                const showBadge = badgeCount > 0;
+                const badgeTone = item.badge === 'anomalies'
+                  ? 'bg-red-500/90 text-white'
+                  : 'bg-amber-400/90 text-amber-900';
+
+                return (
+                  <SidebarMenuItem key={item.title} className="list-none">
+                    <SidebarMenuButton asChild isActive={active} className="relative">
+                      <NavLink
+                        to={item.url}
+                        className={cn(
+                          'flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-[13px] font-medium',
+                          'kd-transition group relative',
+                          active
+                            ? 'bg-white/[0.11] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.07)]'
+                            : 'text-sidebar-foreground/65 hover:bg-white/[0.06] hover:text-sidebar-foreground',
+                        )}
+                      >
+                        {active && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[hsl(var(--sidebar-ring))] shadow-[0_0_6px_hsl(var(--sidebar-ring)/0.8)]" />
+                        )}
+                        <div className={cn(
+                          'h-7 w-7 rounded-lg flex items-center justify-center shrink-0 kd-transition',
+                          active ? ql.bg + ' ring-1 ring-white/10' : ql.bg,
+                        )}>
+                          <item.icon className={cn('h-3.5 w-3.5 kd-transition', active ? ql.color : ql.color + '/70')} />
+                        </div>
+                        <span className="flex-1 truncate">{item.title}</span>
+                        {showBadge && (
+                          <span className={cn(
+                            'relative ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1',
+                            'text-[9px] font-bold tabular-nums kd-status-live-warning',
+                            badgeTone,
+                          )}>
+                            {badgeCount > 99 ? '99+' : badgeCount}
+                          </span>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
 
             {/* Separator */}
