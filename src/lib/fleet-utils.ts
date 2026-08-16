@@ -73,6 +73,7 @@ export interface FuelRequest {
   anomaly_reviewed_by: string | null;
   anomaly_reviewed_at: string | null;
   anomaly_review_note: string | null;
+  rejection_reason: string | null;
   batch_id?: string | null;
   paystack_fee_ngn?: number | null;
   paystack_raw?: any;

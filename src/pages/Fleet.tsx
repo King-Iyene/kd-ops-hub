@@ -2842,6 +2842,20 @@ const Fleet = () => {
     fetchData();
   };
 
+  const unrejectFuel = async (r: FuelRequest) => {
+    const { error } = await supabase
+      .from('fuel_requests')
+      .update({ status: 'pending', rejection_reason: null })
+      .eq('id', r.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit('fuel_request_unrejected', `Fuel request for ${r.employee_name} moved back to pending (${formatNaira(r.amount_ngn || 0)})`, profile);
+    toast({ title: 'Fuel request moved back to Pending' });
+    fetchData();
+  };
+
   const resubmitFuel = async (r: FuelRequest) => {
     const { error } = await supabase.from('fuel_requests').insert({
       driver_id: profile?.id,
@@ -2962,6 +2976,11 @@ const Fleet = () => {
 
   const myFuelRequests = useMemo(() => fuelRequests.filter((r) => r.employee_id === profile?.id), [fuelRequests, profile?.id]);
   const myTripLogs = useMemo(() => tripLogs.filter((r) => r.employee_id === profile?.id), [tripLogs, profile?.id]);
+  const visibleFuel = useMemo(() => {
+    const base = isAdmin ? fuelRequests : myFuelRequests;
+    if (fuelStatusFilter === 'all') return base;
+    return base.filter((r) => r.status === fuelStatusFilter);
+  }, [isAdmin, fuelRequests, myFuelRequests, fuelStatusFilter]);
 
   if (loading) return <TableSkeleton rows={5} />;
 
@@ -2977,11 +2996,6 @@ const Fleet = () => {
       )
     : [];
 
-  const visibleFuel = useMemo(() => {
-    const base = isAdmin ? fuelRequests : myFuelRequests;
-    if (fuelStatusFilter === 'all') return base;
-    return base.filter((r) => r.status === fuelStatusFilter);
-  }, [isAdmin, fuelRequests, myFuelRequests, fuelStatusFilter]);
   const visibleTrips = isAdmin ? tripLogs : myTripLogs;
 
   const anomalousTrips = tripLogs.filter((t) => t.is_anomaly || t.is_out_of_area);
@@ -3324,9 +3338,18 @@ const Fleet = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        {r.status === 'budget_blocked'
-                          ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
-                          : <StatusBadge status={r.status} />}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            {r.status === 'budget_blocked'
+                              ? <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20 dark:text-red-400">Over Budget</Badge>
+                              : <StatusBadge status={r.status} />}
+                          </div>
+                          {r.status === 'rejected' && r.rejection_reason && (
+                            <p className="text-[11px] text-muted-foreground max-w-[200px] truncate" title={r.rejection_reason}>
+                              Reason: {r.rejection_reason}
+                            </p>
+                          )}
+                        </div>
                         {r.is_anomaly && !r.anomaly_reviewed_at && (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -3449,14 +3472,28 @@ const Fleet = () => {
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                          ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => resubmitFuel(r)}
-                            >
-                              Re-edit & Resubmit
-                            </Button>
+                          ) : r.status === 'rejected' ? (
+                            <div className="flex justify-end gap-1">
+                              {isAdmin && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={() => unrejectFuel(r)}
+                                >
+                                  <RotateCcw className="h-3 w-3 mr-1" /> Unreject
+                                </Button>
+                              )}
+                              {r.employee_id === profile?.id && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => resubmitFuel(r)}
+                                >
+                                  Re-edit & Resubmit
+                                </Button>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
@@ -3503,6 +3540,10 @@ const Fleet = () => {
                         </span>
                         <span className="text-muted-foreground">{formatDate(r.created_at)}</span>
                       </div>
+
+                      {r.status === 'rejected' && r.rejection_reason && (
+                        <p className="text-xs text-red-600 dark:text-red-400">Rejected: {r.rejection_reason}</p>
+                      )}
 
                       {r.reason && (
                         <p className="text-xs text-muted-foreground line-clamp-2">{r.reason}</p>
@@ -3591,16 +3632,28 @@ const Fleet = () => {
                           />
                         </MobileCardFooter>
                       )}
-                      {r.status === 'rejected' && r.employee_id === profile?.id && (
+                      {r.status === 'rejected' && (isAdmin || r.employee_id === profile?.id) && (
                         <MobileCardFooter>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 h-9"
-                            onClick={() => resubmitFuel(r)}
-                          >
-                            Re-edit & Resubmit
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={() => unrejectFuel(r)}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> Unreject
+                            </Button>
+                          )}
+                          {r.employee_id === profile?.id && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9"
+                              onClick={() => resubmitFuel(r)}
+                            >
+                              Re-edit & Resubmit
+                            </Button>
+                          )}
                         </MobileCardFooter>
                       )}
                     </MobileCard>
