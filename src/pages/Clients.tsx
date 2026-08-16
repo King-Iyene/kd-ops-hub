@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Plus, Search, Download, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Building2, Plus, Search, Download, Pencil, Trash2, Loader2, Users, TrendingUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
@@ -64,7 +64,7 @@ interface Client {
   name: string;
   industry: string | null;
   status: ClientStatus;
-  contract_value_ngn: number;
+  contract_value_ngn: number | null;
   contact_person: string | null;
   email: string | null;
   phone: string | null;
@@ -115,6 +115,7 @@ const Clients = () => {
   const { toast } = useToast();
 
   const [clients, setClients] = useState<Client[]>([]);
+  const [placementStats, setPlacementStats] = useState<Record<string, { active: number; monthlyRevenue: number; commission: number }>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -133,18 +134,32 @@ const Clients = () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from('clients')
-        .select('*')
-        .is('deleted_at', null)
-        .order('name')
-        .limit(500);
-      if (err) throw err;
-      setClients((data as Client[]) || []);
+      const [clientRes, placementRes] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('*')
+          .is('deleted_at', null)
+          .order('name')
+          .limit(500),
+        supabase
+          .from('placements')
+          .select('id, client_id, client_rate_ngn, commission_ngn, status')
+          .in('status', ['active', 'pending'])
+          .limit(2000),
+      ]);
+      if (clientRes.error) throw clientRes.error;
+      setClients((clientRes.data as Client[]) || []);
+
+      const pStats: Record<string, { active: number; monthlyRevenue: number; commission: number }> = {};
+      for (const p of (placementRes.data || []) as any[]) {
+        if (!pStats[p.client_id]) pStats[p.client_id] = { active: 0, monthlyRevenue: 0, commission: 0 };
+        if (p.status === 'active') pStats[p.client_id].active += 1;
+        pStats[p.client_id].monthlyRevenue += Number(p.client_rate_ngn || 0);
+        pStats[p.client_id].commission += Number(p.commission_ngn || 0);
+      }
+      setPlacementStats(pStats);
     } catch (err: any) {
       const msg = err?.message || 'Failed to load clients';
-      // "schema cache" / "relation does not exist" means the migration has not
-      // been applied to the database yet. Show a clearer next-step message.
       if (/schema cache|does not exist|public\.clients/i.test(msg)) {
         setError(
           'The Clients module needs a database migration that has not been deployed yet. ' +
@@ -177,14 +192,22 @@ const Clients = () => {
 
   const pagination = usePagination(filtered, 25);
 
-  const stats = useMemo(() => ({
-    total: clients.length,
-    active: clients.filter((c) => c.status === 'active').length,
-    prospects: clients.filter((c) => c.status === 'prospect').length,
-    totalValue: clients
-      .filter((c) => c.status === 'active')
-      .reduce((s, c) => s + Number(c.contract_value_ngn || 0), 0),
-  }), [clients]);
+  const stats = useMemo(() => {
+    const totalPlacements = Object.values(placementStats).reduce((s, p) => s + p.active, 0);
+    const totalMonthlyRevenue = Object.values(placementStats).reduce((s, p) => s + p.monthlyRevenue, 0);
+    const totalCommission = Object.values(placementStats).reduce((s, p) => s + p.commission, 0);
+    return {
+      total: clients.length,
+      active: clients.filter((c) => c.status === 'active').length,
+      prospects: clients.filter((c) => c.status === 'prospect').length,
+      totalValue: clients
+        .filter((c) => c.status === 'active')
+        .reduce((s, c) => s + Number(c.contract_value_ngn || 0), 0),
+      totalPlacements,
+      totalMonthlyRevenue,
+      totalCommission,
+    };
+  }, [clients, placementStats]);
 
   const openAdd = () => {
     setEditing(null);
@@ -313,11 +336,13 @@ const Clients = () => {
       </AuroraHero>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <StatCard title="Total Clients" value={stats.total} icon={Building2} tone="primary" />
         <StatCard title="Active" value={stats.active} tone="success" />
         <StatCard title="Prospects" value={stats.prospects} tone="warning" />
-        <StatCard title="Active Contract Value" value={formatNaira(stats.totalValue)} tone="primary" />
+        <StatCard title="Active Placements" value={stats.totalPlacements} icon={Users} tone="primary" subtitle="Employees deployed" />
+        <StatCard title="Monthly Revenue" value={formatNaira(stats.totalMonthlyRevenue)} icon={TrendingUp} tone="gold" subtitle="All active placements" />
+        <StatCard title="KD Commission" value={formatNaira(stats.totalCommission)} tone="success" subtitle="Monthly earnings" />
       </div>
 
       {/* Filters */}
@@ -364,6 +389,8 @@ const Clients = () => {
                       <TableHead>Client</TableHead>
                       <TableHead>Industry</TableHead>
                       <TableHead className="text-right">Contract Value</TableHead>
+                      <TableHead className="text-center">Placements</TableHead>
+                      <TableHead className="text-right">Monthly Revenue</TableHead>
                       <TableHead>Contact</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Start Date</TableHead>
@@ -389,7 +416,21 @@ const Clients = () => {
                           {c.industry || '—'}
                         </TableCell>
                         <TableCell className="text-right font-medium currency">
-                          {c.contract_value_ngn > 0 ? formatNaira(c.contract_value_ngn) : '—'}
+                          {Number(c.contract_value_ngn || 0) > 0 ? formatNaira(c.contract_value_ngn) : '—'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {placementStats[c.id]?.active ? (
+                            <Badge variant="secondary" className="bg-primary/10 text-primary">
+                              {placementStats[c.id].active}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium currency">
+                          {placementStats[c.id]?.monthlyRevenue
+                            ? formatNaira(placementStats[c.id].monthlyRevenue)
+                            : '—'}
                         </TableCell>
                         <TableCell>
                           <div>
