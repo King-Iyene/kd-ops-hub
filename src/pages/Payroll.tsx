@@ -1266,9 +1266,13 @@ const Payroll = () => {
               pension_ngn: empPension,
               nhf_ngn: empNhf,
               net_ngn: empNet,
-              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
+              deductions_ngn: empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal + empUnpaidLeaveDeduction,
               deductions_json: (() => {
                 const lines = [
+                  ...(empUnpaidLeaveDeduction > 0 ? [{
+                    description: `Unpaid Leave (${empUnpaidLeaveDays} day${empUnpaidLeaveDays === 1 ? '' : 's'})`,
+                    amount_ngn: empUnpaidLeaveDeduction,
+                  }] : []),
                   ...empDeductions.map((d: any) => ({ id: d.id, description: d.description, amount_ngn: Number(d.amount_ngn) })),
                   ...empAdvances.map((a: any) => ({
                     advance_id: a.id,
@@ -1335,7 +1339,7 @@ const Payroll = () => {
               period: monthLabel(run.period),
               grossFormatted: formatNaira(empGrossTotal),
               deductionsFormatted: formatNaira(
-                empPaye + empPension + empNhf +
+                empPaye + empPension + empNhf + empUnpaidLeaveDeduction +
                 empDeductionsTotal + empAdvancesTotal + empEwaTotal + adjDeductTotal,
               ),
               netFormatted: formatNaira(empNet),

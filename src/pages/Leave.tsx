@@ -802,7 +802,11 @@ const Leave = () => {
         <StatCard
           title="Annual Leave Left"
           value={`${annualLeft} days`}
-          subtitle={`${balance?.annual_used || 0} used · ${annualAccrued} earned of ${balance?.annual_quota || 21}`}
+          subtitle={
+            carriedOver > 0
+              ? `${balance?.annual_used || 0} used · ${annualAccrued} earned + ${carriedOver} carried over`
+              : `${balance?.annual_used || 0} used · ${annualAccrued} earned of ${balance?.annual_quota || 21}`
+          }
           icon={Plane}
           tone="primary"
         />
@@ -827,6 +831,12 @@ const Leave = () => {
           icon={CalendarDays}
         />
       </div>
+
+      {carriedOver > 0 && balance && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          {carriedOver} day{carriedOver === 1 ? '' : 's'} carried over from {balance.year - 1}
+        </p>
+      )}
 
       {tab !== (isManager ? 'team' : 'mine') && (
         <SubPageHeader
@@ -933,6 +943,11 @@ const Leave = () => {
                               <Badge variant="secondary" className={TYPE_BADGE[r.leave_type]}>
                                 {r.leave_type}
                               </Badge>
+                              {r.is_half_day && (
+                                <Badge variant="outline" className="ml-1.5 text-[10px]">
+                                  Half day
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell>{formatDate(r.start_date)}</TableCell>
                             <TableCell>{formatDate(r.end_date)}</TableCell>
@@ -1042,7 +1057,13 @@ const Leave = () => {
                           {tab === 'team' && (
                             <MobileCardRow label="Type">
                               <Badge variant="secondary" className={TYPE_BADGE[r.leave_type]}>{r.leave_type}</Badge>
+                              {r.is_half_day && (
+                                <Badge variant="outline" className="ml-1.5 text-[10px]">Half day</Badge>
+                              )}
                             </MobileCardRow>
+                          )}
+                          {r.is_half_day && tab !== 'team' && (
+                            <MobileCardRow label="Duration"><Badge variant="outline" className="text-[10px]">Half day</Badge></MobileCardRow>
                           )}
                           <MobileCardRow label="Dates">{formatDate(r.start_date)} → {formatDate(r.end_date)}</MobileCardRow>
                           <MobileCardRow label="Status"><StatusBadge status={r.status} /></MobileCardRow>
@@ -1145,6 +1166,22 @@ const Leave = () => {
                 />
               </div>
             </div>
+            <div className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2">
+              <div>
+                <Label htmlFor="is_half_day" className="cursor-pointer">Half day</Label>
+                <p className="text-xs text-muted-foreground">
+                  {form.start_date === form.end_date
+                    ? 'Counts as 0.5 days instead of a full day.'
+                    : 'Only available when start and end date are the same.'}
+                </p>
+              </div>
+              <Switch
+                id="is_half_day"
+                checked={form.is_half_day}
+                disabled={form.start_date !== form.end_date}
+                onCheckedChange={(v) => setForm({ ...form, is_half_day: v })}
+              />
+            </div>
             <div className="space-y-1">
               <Label>Reason <span className="text-destructive">*</span></Label>
               <Textarea
@@ -1156,7 +1193,7 @@ const Leave = () => {
             <div className="text-sm text-muted-foreground">
               Working days requested:{' '}
               <span className="font-semibold text-foreground">
-                {countWorkingDays(form.start_date, form.end_date, holidays)}
+                {requestedDays(form.start_date, form.end_date, holidays, form.is_half_day && form.start_date === form.end_date)}
               </span>
               {form.leave_type === 'annual' && balance && (
                 <>

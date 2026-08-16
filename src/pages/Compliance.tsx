@@ -14,6 +14,12 @@ import {
   ChevronDown,
   FileDown,
   Package,
+  Landmark,
+  Receipt,
+  UploadCloud,
+  BadgeCheck,
+  Wallet,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -76,6 +82,7 @@ import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { ErrorState } from '@/components/ui-kit/ErrorState';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import {
   MobileCard,
   MobileCardHeader,
@@ -256,6 +263,76 @@ const STATUS_CLASS: Record<ComplianceFiling['status'], string> = {
   upcoming: 'bg-muted text-muted-foreground',
 };
 
+// ─── Payroll tax remittance tracking ────────────────────────────────────
+//
+// compliance_filings tracks the *filing* deadline (submitting the return).
+// tax_remittances tracks the separate step of actually *paying* the
+// withheld amounts to the authority — a step the app previously had no
+// record of at all.
+
+type RemittanceType = 'paye' | 'pension' | 'nhf' | 'nsitf' | 'itf' | 'nhis';
+type RemittanceStatus = 'pending' | 'remitted' | 'confirmed' | 'late';
+
+interface TaxRemittance {
+  id: string;
+  remittance_type: RemittanceType;
+  period_month: string; // yyyy-mm-01
+  amount_ngn: number;
+  due_date: string | null;
+  remitted_at: string | null;
+  status: RemittanceStatus;
+  receipt_url: string | null;
+  provider_reference: string | null;
+  payroll_run_id: string | null;
+  notes: string | null;
+  remitted_by: string | null;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+}
+
+interface PayrollRunTotals {
+  id: string;
+  period: string; // yyyy-mm
+  status: string;
+  paye_ngn: number;
+  pension_ngn: number;
+  nhf_ngn: number;
+}
+
+const REMIT_LABELS: Record<RemittanceType, string> = {
+  paye: 'PAYE',
+  pension: 'Pension',
+  nhf: 'NHF',
+  nsitf: 'NSITF',
+  itf: 'ITF',
+  nhis: 'NHIS',
+};
+
+// PAYE is due by the 10th of the following month; pension and NHF (and, by
+// the same statutory convention, NSITF/ITF/NHIS) are due by the last day of
+// the following month.
+const remittanceDueDate = (type: RemittanceType, periodMonth: string): string => {
+  const [y, m] = periodMonth.split('-').map((v) => parseInt(v, 10));
+  const next = new Date(y, m, 1); // periodMonth's month is 1-indexed, so this lands on the following month
+  if (type === 'paye') {
+    return toIsoDate(new Date(next.getFullYear(), next.getMonth(), 10));
+  }
+  return toIsoDate(new Date(next.getFullYear(), next.getMonth() + 1, 0)); // last day of following month
+};
+
+const remittanceStatus = (r: TaxRemittance): RemittanceStatus => {
+  if (r.confirmed_at) return 'confirmed';
+  if (r.remitted_at) return 'remitted';
+  const d = r.due_date ? daysUntil(r.due_date) : null;
+  if (d !== null && d < 0) return 'late';
+  return 'pending';
+};
+
+const monthLabel = (periodMonth: string): string => {
+  const [y, m] = periodMonth.split('-').map((v) => parseInt(v, 10));
+  return new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+};
+
 const Compliance = () => {
   usePageTitle('Compliance');
   const { profile } = useAuthStore();
@@ -287,6 +364,18 @@ const Compliance = () => {
   const [downloadingPack, setDownloadingPack] = useState<string | null>(null);
 
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
+  const canManageRemittances =
+    profile?.role === 'super_admin' || profile?.role === 'admin' || profile?.role === 'finance';
+
+  // ─── Remittances state ────────────────────────────────────────────────
+  const [remittances, setRemittances] = useState<TaxRemittance[]>([]);
+  const [remittancesLoading, setRemittancesLoading] = useState(true);
+  const [remittancesError, setRemittancesError] = useState<string | null>(null);
+  const [remitDialogTarget, setRemitDialogTarget] = useState<TaxRemittance | null>(null);
+  const [remitForm, setRemitForm] = useState({ provider_reference: '', notes: '' });
+  const [remitFile, setRemitFile] = useState<File | null>(null);
+  const [savingRemit, setSavingRemit] = useState(false);
+  const [confirmingRemitId, setConfirmingRemitId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -363,6 +452,217 @@ const Compliance = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // ─── Remittances: load + auto-generate ─────────────────────────────────
+  const loadRemittances = useCallback(async () => {
+    setRemittancesLoading(true);
+    setRemittancesError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tax_remittances')
+        .select('*')
+        .order('period_month', { ascending: false })
+        .limit(300);
+      if (error) throw error;
+      const existing = (data as TaxRemittance[]) || [];
+
+      // Auto-generate pending rows for completed payroll runs that don't
+      // have them yet — PAYE, pension (employee + employer), NHF.
+      const { data: runsData, error: runsError } = await supabase
+        .from('payroll_runs')
+        .select('id, period, status, paye_ngn, pension_ngn, nhf_ngn')
+        .in('status', ['approved', 'paid'])
+        .order('period', { ascending: false })
+        .limit(60);
+      if (runsError) throw runsError;
+      const runs = (runsData as PayrollRunTotals[]) || [];
+
+      const existingKey = new Set(existing.map((r) => `${r.remittance_type}:${r.period_month}`));
+      const toInsert: Array<Record<string, unknown>> = [];
+      for (const run of runs) {
+        const periodMonth = `${run.period}-01`;
+        const candidates: Array<{ type: RemittanceType; amount: number }> = [
+          { type: 'paye', amount: run.paye_ngn || 0 },
+          { type: 'pension', amount: (run.pension_ngn || 0) * 2.25 }, // employee 8% + employer 10%
+          { type: 'nhf', amount: run.nhf_ngn || 0 },
+        ];
+        for (const c of candidates) {
+          if (c.amount <= 0) continue;
+          const key = `${c.type}:${periodMonth}`;
+          if (existingKey.has(key)) continue;
+          existingKey.add(key); // guard against dupes within this same batch
+          toInsert.push({
+            remittance_type: c.type,
+            period_month: periodMonth,
+            amount_ngn: c.amount,
+            due_date: remittanceDueDate(c.type, periodMonth),
+            status: 'pending',
+            payroll_run_id: run.id,
+            created_by: profile?.id || null,
+          });
+        }
+      }
+
+      if (toInsert.length > 0) {
+        const { data: inserted, error: insertError } = await supabase
+          .from('tax_remittances')
+          .insert(toInsert)
+          .select('*');
+        if (insertError) {
+          // Best-effort — a race with another tab/session shouldn't break the page.
+          console.warn('[KDOps] remittance auto-generation failed:', insertError.message);
+        } else if (inserted && inserted.length > 0) {
+          await logAudit(
+            'remittance_auto_generated',
+            `${inserted.length} remittance row(s) auto-generated from payroll`,
+            profile,
+          );
+          setRemittances(
+            [...existing, ...(inserted as TaxRemittance[])].sort((a, b) =>
+              b.period_month.localeCompare(a.period_month),
+            ),
+          );
+          setRemittancesLoading(false);
+          return;
+        }
+      }
+
+      setRemittances(existing);
+    } catch (err: any) {
+      setRemittancesError(err?.message || 'Could not load remittances');
+    } finally {
+      setRemittancesLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadRemittances();
+  }, [loadRemittances]);
+
+  const openRemitDialog = (r: TaxRemittance) => {
+    setRemitForm({ provider_reference: r.provider_reference || '', notes: r.notes || '' });
+    setRemitFile(null);
+    setRemitDialogTarget(r);
+  };
+
+  const submitRemitted = async () => {
+    if (!remitDialogTarget) return;
+    setSavingRemit(true);
+    try {
+      let receiptUrl = remitDialogTarget.receipt_url;
+      if (remitFile) {
+        const safeName = remitFile.name.replace(/[^a-zA-Z0-9._-]+/g, '_');
+        const path = `remittances/${remitDialogTarget.id}/${Date.now()}-${safeName}`;
+        const up = await supabase.storage.from('documents').upload(path, remitFile, {
+          upsert: false,
+          contentType: remitFile.type || undefined,
+        });
+        if (up.error) throw up.error;
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        receiptUrl = urlData.publicUrl;
+      }
+
+      const { error } = await supabase
+        .from('tax_remittances')
+        .update({
+          remitted_at: new Date().toISOString(),
+          remitted_by: profile?.id || null,
+          provider_reference: remitForm.provider_reference || null,
+          notes: remitForm.notes || null,
+          receipt_url: receiptUrl,
+          status: 'remitted',
+        })
+        .eq('id', remitDialogTarget.id);
+      if (error) throw error;
+
+      await logAudit(
+        'remittance_marked_remitted',
+        `${REMIT_LABELS[remitDialogTarget.remittance_type]} remittance for ${monthLabel(remitDialogTarget.period_month)} marked remitted`,
+        profile,
+      );
+      toast({ title: 'Marked as remitted' });
+      setRemitDialogTarget(null);
+      loadRemittances();
+    } catch (err: any) {
+      toast({ title: 'Could not save', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingRemit(false);
+    }
+  };
+
+  const confirmRemittance = async (r: TaxRemittance) => {
+    setConfirmingRemitId(r.id);
+    try {
+      const { error } = await supabase
+        .from('tax_remittances')
+        .update({
+          confirmed_at: new Date().toISOString(),
+          confirmed_by: profile?.id || null,
+          status: 'confirmed',
+        })
+        .eq('id', r.id);
+      if (error) throw error;
+      await logAudit(
+        'remittance_confirmed',
+        `${REMIT_LABELS[r.remittance_type]} remittance for ${monthLabel(r.period_month)} confirmed`,
+        profile,
+      );
+      toast({ title: 'Remittance confirmed' });
+      loadRemittances();
+    } catch (err: any) {
+      toast({ title: 'Could not confirm', description: err?.message, variant: 'destructive' });
+    } finally {
+      setConfirmingRemitId(null);
+    }
+  };
+
+  const exportRemittances = () => {
+    const header = [
+      'period', 'type', 'amount_ngn', 'due_date', 'status',
+      'remitted_at', 'confirmed_at', 'provider_reference', 'notes',
+    ];
+    const data = remittances.map((r) => [
+      r.period_month.slice(0, 7),
+      REMIT_LABELS[r.remittance_type],
+      r.amount_ngn,
+      r.due_date || '',
+      remittanceStatus(r),
+      r.remitted_at || '',
+      r.confirmed_at || '',
+      r.provider_reference || '',
+      r.notes || '',
+    ]);
+    downloadCsv(`kdops-remittances-${toIsoDate(new Date())}.csv`, toCsv(header, data));
+    logAudit('remittance_csv_exported', `${remittances.length} remittance row(s) exported`, profile);
+  };
+
+  const remittanceStats = useMemo(() => {
+    const withStatus = remittances.map((r) => ({ r, status: remittanceStatus(r) }));
+    const totalPending = withStatus
+      .filter((x) => x.status === 'pending' || x.status === 'late')
+      .reduce((sum, x) => sum + (x.r.amount_ngn || 0), 0);
+    const overdueCount = withStatus.filter((x) => x.status === 'late').length;
+    const remittedDates = remittances.map((r) => r.remitted_at).filter(Boolean) as string[];
+    const lastRemittanceDate = remittedDates.length
+      ? remittedDates.reduce((a, b) => (a > b ? a : b))
+      : null;
+    const currentYear = new Date().getFullYear();
+    const ytdRemitted = remittances
+      .filter((r) => r.remitted_at && new Date(r.remitted_at).getFullYear() === currentYear)
+      .reduce((sum, r) => sum + (r.amount_ngn || 0), 0);
+    return { totalPending, overdueCount, lastRemittanceDate, ytdRemitted };
+  }, [remittances]);
+
+  const remittancesByMonth = useMemo(() => {
+    const groups = new Map<string, TaxRemittance[]>();
+    for (const r of remittances) {
+      const arr = groups.get(r.period_month) || [];
+      arr.push(r);
+      groups.set(r.period_month, arr);
+    }
+    return Array.from(groups.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [remittances]);
 
   const addFiling = async () => {
     if (!form.kind || !form.period) {
@@ -698,6 +998,218 @@ const Compliance = () => {
                 );
               })}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Payroll tax remittance tracking ──────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <StatCard
+          title="Pending remittance"
+          value={formatNaira(remittanceStats.totalPending)}
+          subtitle="Not yet paid out"
+          icon={Wallet}
+          tone="warning"
+        />
+        <StatCard
+          title="Overdue"
+          value={remittanceStats.overdueCount}
+          subtitle="Past due, unpaid"
+          icon={AlertTriangle}
+          tone="danger"
+        />
+        <StatCard
+          title="Last remitted"
+          value={remittanceStats.lastRemittanceDate ? formatDate(remittanceStats.lastRemittanceDate) : '—'}
+          subtitle="Most recent payment"
+          icon={CalendarDays}
+          tone="primary"
+        />
+        <StatCard
+          title="Remitted YTD"
+          value={formatNaira(remittanceStats.ytdRemitted)}
+          subtitle={`${new Date().getFullYear()} total`}
+          icon={BadgeCheck}
+          tone="success"
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Payroll tax remittances</CardTitle>
+              <InfoHint>
+                Whether PAYE, Pension and NHF withheld from payroll have actually been paid to
+                FIRS/LIRS, PenCom (via each PFA) and FMBN — auto-generated from every approved
+                payroll run.
+              </InfoHint>
+            </div>
+            <Button variant="outline" size="sm" onClick={exportRemittances} disabled={remittances.length === 0}>
+              <Download className="mr-2 h-4 w-4" /> Export history
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {remittancesLoading ? (
+            <TableSkeleton rows={6} cols={6} />
+          ) : remittancesError ? (
+            <ErrorState message={remittancesError} onRetry={loadRemittances} />
+          ) : remittances.length === 0 ? (
+            <EmptyState
+              icon={Landmark}
+              title="No remittances yet"
+              description="Remittance obligations are generated automatically once a payroll run is approved."
+            />
+          ) : (
+            <>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Due date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {remittancesByMonth.map(([period, group]) => (
+                    <Fragment key={period}>
+                      {group.map((r, idx) => {
+                        const status = remittanceStatus(r);
+                        const d = r.due_date ? daysUntil(r.due_date) : null;
+                        return (
+                          <TableRow key={r.id} className="kd-transition">
+                            {idx === 0 && (
+                              <TableCell rowSpan={group.length} className="align-top font-medium text-sm">
+                                {monthLabel(period)}
+                              </TableCell>
+                            )}
+                            <TableCell>{REMIT_LABELS[r.remittance_type]}</TableCell>
+                            <TableCell className="text-right currency">{formatNaira(r.amount_ngn)}</TableCell>
+                            <TableCell>
+                              {r.due_date ? formatDate(r.due_date) : '—'}
+                              {status !== 'confirmed' && status !== 'remitted' && d !== null && (
+                                <p className={cn('text-xs', d < 0 ? 'text-destructive' : d <= 3 ? 'text-warning' : 'text-muted-foreground')}>
+                                  {d < 0 ? `${-d}d overdue` : `in ${d}d`}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell><StatusBadge status={status} /></TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {r.provider_reference || '—'}
+                              {r.receipt_url && (
+                                <a href={r.receipt_url} target="_blank" rel="noreferrer" className="ml-1.5 text-primary inline-flex items-center gap-0.5 hover:underline">
+                                  <Receipt className="h-3 w-3" /><ExternalLink className="h-2.5 w-2.5" />
+                                </a>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                {(status === 'pending' || status === 'late') && canManageRemittances && (
+                                  <Button size="sm" variant="outline" onClick={() => openRemitDialog(r)}>
+                                    <UploadCloud className="mr-1.5 h-4 w-4" /> Mark as remitted
+                                  </Button>
+                                )}
+                                {status === 'remitted' && isAdmin && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-success/10 text-success border-success/40 hover:bg-success/20"
+                                    disabled={confirmingRemitId === r.id}
+                                    onClick={() => confirmRemittance(r)}
+                                  >
+                                    {confirmingRemitId === r.id ? (
+                                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <BadgeCheck className="mr-1.5 h-4 w-4" />
+                                    )}
+                                    Confirm
+                                  </Button>
+                                )}
+                                {status === 'confirmed' && (
+                                  <span className="text-xs text-muted-foreground self-center">
+                                    Confirmed {r.confirmed_at ? formatDate(r.confirmed_at) : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile remittances list */}
+            <div className="md:hidden p-3 space-y-2">
+              {remittancesByMonth.map(([period, group]) => (
+                <div key={period} className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+                    {monthLabel(period)}
+                  </p>
+                  {group.map((r) => {
+                    const status = remittanceStatus(r);
+                    const d = r.due_date ? daysUntil(r.due_date) : null;
+                    const accent =
+                      status === 'confirmed' ? 'bg-emerald-500'
+                      : status === 'remitted' ? 'bg-blue-500'
+                      : status === 'late' ? 'bg-red-500'
+                      : 'bg-amber-500';
+                    return (
+                      <MobileCard key={r.id} accentClassName={accent}>
+                        <MobileCardHeader>
+                          <div className="min-w-0 flex-1">
+                            <MobileCardTitle>{REMIT_LABELS[r.remittance_type]}</MobileCardTitle>
+                          </div>
+                          <MobileCardMeta className="currency text-base">
+                            {formatNaira(r.amount_ngn)}
+                          </MobileCardMeta>
+                        </MobileCardHeader>
+                        <div className="flex items-center justify-between gap-2 text-xs">
+                          <StatusBadge status={status} size="sm" />
+                          {r.due_date && (
+                            <span className={cn('text-muted-foreground', status === 'late' && 'text-destructive font-medium')}>
+                              {formatDate(r.due_date)}{d !== null && status !== 'confirmed' && status !== 'remitted' ? ` (${d < 0 ? `${-d}d overdue` : `in ${d}d`})` : ''}
+                            </span>
+                          )}
+                        </div>
+                        {r.provider_reference && (
+                          <MobileCardRow label="Reference">{r.provider_reference}</MobileCardRow>
+                        )}
+                        <MobileCardFooter>
+                          {(status === 'pending' || status === 'late') && canManageRemittances && (
+                            <Button size="sm" variant="outline" className="flex-1 h-9" onClick={() => openRemitDialog(r)}>
+                              <UploadCloud className="mr-1.5 h-4 w-4" /> Mark as remitted
+                            </Button>
+                          )}
+                          {status === 'remitted' && isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9 bg-success/10 text-success border-success/40 hover:bg-success/20"
+                              disabled={confirmingRemitId === r.id}
+                              onClick={() => confirmRemittance(r)}
+                            >
+                              {confirmingRemitId === r.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-1.5 h-4 w-4" />}
+                              Confirm
+                            </Button>
+                          )}
+                        </MobileCardFooter>
+                      </MobileCard>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -1062,6 +1574,57 @@ const Compliance = () => {
               Cancel
             </Button>
             <Button onClick={addFiling}>Save filing</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!remitDialogTarget} onOpenChange={(v) => { if (!v) setRemitDialogTarget(null); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Mark {remitDialogTarget ? REMIT_LABELS[remitDialogTarget.remittance_type] : ''} as remitted
+            </DialogTitle>
+          </DialogHeader>
+          {remitDialogTarget && (
+            <div className="space-y-3">
+              <div className="rounded-md border bg-muted/30 p-3 text-sm flex items-center justify-between">
+                <span className="text-muted-foreground">{monthLabel(remitDialogTarget.period_month)}</span>
+                <span className="font-semibold currency">{formatNaira(remitDialogTarget.amount_ngn)}</span>
+              </div>
+              <div className="space-y-1">
+                <Label>Provider / e-filing reference</Label>
+                <Input
+                  value={remitForm.provider_reference}
+                  onChange={(e) => setRemitForm({ ...remitForm, provider_reference: e.target.value })}
+                  placeholder="e.g. FIRS TRA-2026-04-118823"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Receipt / proof of payment (optional)</Label>
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setRemitFile(e.target.files?.[0] || null)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Notes (optional)</Label>
+                <Input
+                  value={remitForm.notes}
+                  onChange={(e) => setRemitForm({ ...remitForm, notes: e.target.value })}
+                  placeholder="Any context for Finance"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemitDialogTarget(null)} disabled={savingRemit}>
+              Cancel
+            </Button>
+            <Button onClick={submitRemitted} disabled={savingRemit}>
+              {savingRemit && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Mark as remitted
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

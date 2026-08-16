@@ -24,6 +24,9 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
   cancelled:                { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',             text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Cancelled' },
   reversed:                 { bg: 'bg-rose-50 border border-rose-200/80 dark:bg-rose-500/10 dark:border-rose-500/25',         text: 'text-rose-700 dark:text-rose-300',     dot: 'bg-rose-400',    label: 'Reversed' },
   inactive:                 { bg: 'bg-slate-100 dark:bg-slate-500/15',                                              text: 'text-slate-500 dark:text-slate-400',   dot: 'bg-slate-300',   label: 'Inactive' },
+  remitted:                 { bg: 'bg-blue-50 border border-blue-200/80 dark:bg-blue-500/10 dark:border-blue-500/25',           text: 'text-blue-700 dark:text-blue-300',     dot: 'bg-blue-400',    label: 'Remitted' },
+  confirmed:                { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Confirmed' },
+  late:                     { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',               text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Late' },
 };
 
 const FALLBACK = { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', label: '' };

@@ -187,7 +187,11 @@ export type AuditActionType =
   | 'task_attachment_deleted'
   | 'whatsapp_group_created'
   | 'whatsapp_group_updated'
-  | 'principal_wallet_desync';
+  | 'principal_wallet_desync'
+  | 'remittance_auto_generated'
+  | 'remittance_marked_remitted'
+  | 'remittance_confirmed'
+  | 'remittance_csv_exported';
 
 export interface AuditActor {
   id?: string | null;

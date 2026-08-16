@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
-  Plus, Star, ChevronDown, ChevronUp, CheckCircle2, Clock,
-  AlertCircle, Users, BarChart3, Send, ThumbsUp, Target,
-  TrendingUp, Pencil, Trash2, ListChecks,
+  Plus, Star, ChevronDown, ChevronUp, CheckCircle2,
+  AlertCircle, BarChart3, Send, ThumbsUp, Target,
+  TrendingUp, Pencil, Trash2,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -116,6 +116,16 @@ interface Review {
 
 interface Profile { id: string; full_name: string; }
 
+interface Goal {
+  id: string;
+  title: string;
+  scope: 'company' | 'team' | 'individual';
+  owner_id: string | null;
+  quarter: string;
+  status: 'open' | 'in_progress' | 'complete' | 'missed';
+  progress_pct: number;
+}
+
 function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
   return (
     <div className="flex gap-1">
@@ -148,6 +158,7 @@ export default function Performance() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [plans, setPlans] = useState<DevelopmentPlan[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
 
@@ -181,16 +192,18 @@ export default function Performance() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: cData }, { data: rData }, { data: pData }, { data: dpData }] = await Promise.all([
+    const [{ data: cData }, { data: rData }, { data: pData }, { data: dpData }, { data: gData }] = await Promise.all([
       supabase.from('review_cycles').select('*').order('due_date', { ascending: false }).limit(50),
       supabase.from('performance_reviews').select('*').order('created_at', { ascending: false }).limit(500),
       supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
       supabase.from('development_plans').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('goals').select('id, title, scope, owner_id, quarter, status, progress_pct').limit(500),
     ]);
     setCycles((cData as ReviewCycle[]) || []);
     setReviews((rData as Review[]) || []);
     setProfiles((pData as Profile[]) || []);
     setPlans((dpData as DevelopmentPlan[]) || []);
+    setGoals((gData as Goal[]) || []);
     setLoading(false);
   }, []);
 
@@ -563,6 +576,20 @@ export default function Performance() {
                                 )}
                               </div>
                             )}
+
+                            {/* Read-only reference: this employee's active goals, for context */}
+                            {goals.filter(g => g.owner_id === r.employee_id).length > 0 && (
+                              <div className="pt-1">
+                                <p className="text-[11px] font-semibold text-muted-foreground mb-1">Linked goals ({goals.filter(g => g.owner_id === r.employee_id).length})</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {goals.filter(g => g.owner_id === r.employee_id).map(g => (
+                                    <Badge key={g.id} variant="outline" className="text-[10px] font-normal">
+                                      {g.title} · {g.quarter} · {g.progress_pct}%
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -574,6 +601,132 @@ export default function Performance() {
           })}
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="plans" className="space-y-4 mt-0">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Select value={planStatusFilter} onValueChange={setPlanStatusFilter}>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {Object.entries(PLAN_STATUS_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={planCategoryFilter} onValueChange={setPlanCategoryFilter}>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {Object.entries(PLAN_CATEGORY_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button size="sm" onClick={() => openPlanDialog()}><Plus className="h-4 w-4 mr-2" />New plan</Button>
+          </div>
+
+          {loading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+          ) : filteredPlans.length === 0 ? (
+            <EmptyState
+              compact icon={Target}
+              title={plans.length === 0 ? 'No development plans yet' : 'No plans match these filters'}
+              description={plans.length === 0 ? 'Create a plan to track a growth goal, skill, or action item for an employee.' : 'Try a different status or category.'}
+              action={plans.length === 0 ? <Button size="sm" onClick={() => openPlanDialog()}><Plus className="h-4 w-4 mr-2" />New plan</Button> : undefined}
+            />
+          ) : (
+            <>
+              {/* Desktop grid */}
+              <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filteredPlans.map(p => {
+                  const overdue = p.target_date && p.status !== 'completed' && p.status !== 'cancelled' && isPast(parseISO(p.target_date));
+                  return (
+                    <Card key={p.id} className="flex flex-col">
+                      <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{p.title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{nameOf(p.employee_id)}</p>
+                          </div>
+                          <StatusBadge status={p.status} size="sm" />
+                        </div>
+                        {p.description && (
+                          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{p.description}</p>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                          <Badge variant="outline" className="text-[10px]">{PLAN_CATEGORY_LABEL[p.category]}</Badge>
+                          {p.target_date && (
+                            <Badge variant={overdue ? 'destructive' : 'outline'} className="text-[10px]">
+                              {overdue && <AlertCircle className="h-3 w-3 mr-1" />}
+                              Due {format(parseISO(p.target_date), 'd MMM yyyy')}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="space-y-1 mt-auto">
+                          <div className="flex justify-between text-[11px] text-muted-foreground">
+                            <span>Progress</span><span>{p.progress}%</span>
+                          </div>
+                          <Progress value={p.progress} className="h-1.5" />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          {(p.status === 'not_started' || p.status === 'in_progress') ? (
+                            <Button size="sm" variant="outline" onClick={() => advancePlanStatus(p)}>
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                              Mark {p.status === 'not_started' ? 'in progress' : 'complete'}
+                            </Button>
+                          ) : <span />}
+                          <div className="flex items-center gap-1">
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openPlanDialog(p)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deletePlan(p.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Mobile cards */}
+              <div className="md:hidden space-y-2">
+                {filteredPlans.map(p => {
+                  const overdue = p.target_date && p.status !== 'completed' && p.status !== 'cancelled' && isPast(parseISO(p.target_date));
+                  return (
+                    <MobileCard key={p.id} onClick={() => openPlanDialog(p)}>
+                      <MobileCardHeader>
+                        <MobileCardTitle>{p.title}</MobileCardTitle>
+                        <MobileCardMeta><StatusBadge status={p.status} size="sm" /></MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Employee">{nameOf(p.employee_id)}</MobileCardRow>
+                      <MobileCardRow label="Category">{PLAN_CATEGORY_LABEL[p.category]}</MobileCardRow>
+                      <MobileCardRow label="Progress">{p.progress}%</MobileCardRow>
+                      {p.target_date && (
+                        <MobileCardRow label="Target date">
+                          <span className={overdue ? 'text-destructive font-medium' : ''}>
+                            {format(parseISO(p.target_date), 'd MMM yyyy')}
+                          </span>
+                        </MobileCardRow>
+                      )}
+                      <MobileCardFooter>
+                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); deletePlan(p.id); }}>
+                          <Trash2 className="h-3.5 w-3.5 mr-1.5" />Delete
+                        </Button>
+                        {(p.status === 'not_started' || p.status === 'in_progress') && (
+                          <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); advancePlanStatus(p); }}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />Advance
+                          </Button>
+                        )}
+                      </MobileCardFooter>
+                    </MobileCard>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* New cycle dialog */}
       <Dialog open={cycleDialog} onOpenChange={setCycleDialog}>
@@ -679,6 +832,93 @@ export default function Performance() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setReviewDialog(false)}>Cancel</Button>
             <Button onClick={saveReview} disabled={savingReview}>{savingReview ? 'Saving…' : editingReview ? 'Update' : 'Save review'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New / edit development plan dialog */}
+      <Dialog open={planDialog} onOpenChange={setPlanDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Edit Development Plan' : 'New Development Plan'}</DialogTitle>
+            <DialogDescription>Track a growth goal, skill, or action item for an employee.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="kd-label">Employee *</Label>
+              <Select value={planForm.employee_id || undefined} onValueChange={v => setPlanForm(p => ({ ...p, employee_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectContent>{profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.full_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Title *</Label>
+              <Input value={planForm.title} onChange={e => setPlanForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Lead a client-facing project" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Description</Label>
+              <Textarea rows={2} value={planForm.description} onChange={e => setPlanForm(p => ({ ...p, description: e.target.value }))} placeholder="What does success look like?" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="kd-label">Category</Label>
+                <Select value={planForm.category} onValueChange={v => setPlanForm(p => ({ ...p, category: v as PlanCategory }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(PLAN_CATEGORY_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="kd-label">Target date</Label>
+                <Input type="date" value={planForm.target_date} onChange={e => setPlanForm(p => ({ ...p, target_date: e.target.value }))} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Link to review (optional)</Label>
+              <Select value={planForm.review_id} onValueChange={v => setPlanForm(p => ({ ...p, review_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="No linked review" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No linked review</SelectItem>
+                  {reviews.filter(r => r.employee_id === planForm.employee_id).map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {cycles.find(c => c.id === r.cycle_id)?.name ?? 'Review'} · {r.review_type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="kd-label">Status</Label>
+              <Select
+                value={planForm.status}
+                onValueChange={v => setPlanForm(p => ({
+                  ...p, status: v as PlanStatus,
+                  progress: v === 'completed' ? 100 : p.progress,
+                }))}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(PLAN_STATUS_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <Label className="kd-label">Progress</Label>
+                <span className="text-xs font-medium tabular-nums">{planForm.progress}%</span>
+              </div>
+              <Slider
+                value={[planForm.progress]}
+                max={100} step={5}
+                disabled={planForm.status === 'completed'}
+                onValueChange={([v]) => setPlanForm(p => ({ ...p, progress: v }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanDialog(false)}>Cancel</Button>
+            <Button onClick={savePlan} disabled={savingPlan}>{savingPlan ? 'Saving…' : editingPlan ? 'Update plan' : 'Save plan'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -136,6 +136,8 @@ interface CompanySettings {
   nhf_employer_code: string | null;
   nsitf_employer_code: string | null;
   itf_employer_code: string | null;
+  // Cap on unused annual leave days that roll over into the next year.
+  leave_carryover_max_days: number;
 }
 
 const EXPENSE_CATEGORIES = EXPENSE_CATEGORY_KEYS;
@@ -301,6 +303,7 @@ const SettingsPage = () => {
         nhf_employer_code: settings.nhf_employer_code?.trim() || null,
         nsitf_employer_code: settings.nsitf_employer_code?.trim() || null,
         itf_employer_code: settings.itf_employer_code?.trim() || null,
+        leave_carryover_max_days: settings.leave_carryover_max_days,
         updated_at: new Date().toISOString(),
       })
       .eq('id', SINGLETON_ID);
@@ -1393,6 +1396,28 @@ const SettingsPage = () => {
                 Audit log is append-only at the database layer regardless of this
                 retention. Retention controls automatic export + archive.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Leave</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1 max-w-xs">
+                <Label htmlFor="leave_carryover_max_days">Carry-over cap (days) <InfoTip text="Maximum unused annual leave days an employee can roll over into the next year. Applied automatically by the monthly leave accrual job each January." /></Label>
+                <Input
+                  id="leave_carryover_max_days"
+                  type="number"
+                  min="0"
+                  value={settings.leave_carryover_max_days}
+                  onChange={(e) =>
+                    patch({
+                      leave_carryover_max_days: Number(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
             </CardContent>
           </Card>
 
