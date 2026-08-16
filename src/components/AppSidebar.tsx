@@ -259,8 +259,8 @@ export function AppSidebar() {
             className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg w-full text-left kd-transition hover:bg-white/[0.06] group/back"
           >
             <ChevronLeft className="h-3.5 w-3.5 text-sidebar-foreground/40 group-hover/back:text-sidebar-foreground/70 kd-transition shrink-0" />
-            <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0', activeHubConfig.iconBg)}>
-              <HubIcon className={cn('h-3.5 w-3.5', activeHubConfig.color)} />
+            <div className="h-7 w-7 flex items-center justify-center shrink-0">
+              <HubIcon className={cn('h-4 w-4', activeHubConfig.color)} />
             </div>
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">
@@ -416,12 +416,8 @@ export function AppSidebar() {
                           : 'hover:bg-white/[0.05] hover:border-white/[0.04]',
                       )}
                     >
-                      <div className={cn(
-                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 kd-transition',
-                        hub.iconBg,
-                        active && 'ring-1 ring-white/10',
-                      )}>
-                        <Icon className={cn('h-4 w-4 kd-transition', hub.color)} />
+                      <div className="h-9 w-9 flex items-center justify-center shrink-0">
+                        <Icon className={cn('h-5 w-5 kd-transition', hub.color)} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-1">
