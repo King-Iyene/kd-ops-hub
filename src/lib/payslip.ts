@@ -48,6 +48,7 @@ export interface PayslipData {
   pension_ngn: number;
   nhf_ngn: number;
   nhis_ngn?: number;
+  avc_ngn?: number;
   net_ngn: number;
   generated_by?: string | null;
   payslip_ref?: string | null;
@@ -122,9 +123,10 @@ export const renderPayslipHtml = (
   const extraDeductions = data.extra_deductions ?? [];
   const extraDeductTotal = extraDeductions.reduce((s, d) => s + d.amount_ngn, 0);
   const nhis = data.nhis_ngn ?? 0;
+  const avc = data.avc_ngn ?? 0;
   const unpaidLeaveDeduction = data.unpaid_leave_deduction ?? 0;
   const totalDeductions =
-    data.paye_ngn + data.pension_ngn + data.nhf_ngn + nhis + extraDeductTotal + unpaidLeaveDeduction;
+    data.paye_ngn + data.pension_ngn + avc + data.nhf_ngn + nhis + extraDeductTotal + unpaidLeaveDeduction;
   const generated = formatDateTime(new Date());
   const autoPrint = opts.autoPrint !== false;
   const periodLabel = monthLabel(data.period);
@@ -584,6 +586,7 @@ export const renderPayslipHtml = (
           <tbody>
             ${data.paye_ngn > 0 ? `<tr class="deduction"><td>PAYE Income Tax</td><td class="right tabular">${esc(formatNaira(data.paye_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.paye_ngn))}</td>` : ''}</tr>` : ''}
             ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
+            ${avc > 0 ? `<tr class="deduction"><td>AVC — Voluntary Pension (PRA 2014)</td><td class="right tabular">${esc(formatNaira(avc))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
             ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
             ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
             ${unpaidLeaveDeduction > 0 ? `<tr class="deduction"><td>Unpaid Leave (${esc(data.unpaid_leave_days ?? '')} day${data.unpaid_leave_days === 1 ? '' : 's'})</td><td class="right tabular">${esc(formatNaira(unpaidLeaveDeduction))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}

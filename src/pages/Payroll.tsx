@@ -488,7 +488,7 @@ const Payroll = () => {
           .lte('date', end.toISOString()),
         supabase
           .from('profiles')
-          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, department_id, employee_category, employment_type, pay_group_id')
+          .select('id, salary_ngn, pension_enabled, nhf_enabled, paye_enabled, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, voluntary_pension_pct, department_id, employee_category, employment_type, pay_group_id')
           .eq('status', 'active')
           .neq('role', 'driver'),
         supabase
@@ -552,6 +552,7 @@ const Payroll = () => {
           grossMonthlyNgn: gross,
           pensionEnabled: r.pension_enabled !== false,
           nhfEnabled: r.nhf_enabled === true,
+          voluntaryPensionPct: Number(r.voluntary_pension_pct || 0),
           useComponents: useComps,
           basicMonthlyNgn: basic,
           housingMonthlyNgn: housing,
@@ -860,6 +861,7 @@ const Payroll = () => {
           tax_id, pension_pin, nhf_number, employee_number,
           bank_name, bank_account_number, bank_account_name,
           department_id, employee_category, employment_type, pay_group_id,
+          voluntary_pension_pct,
           department:departments!department_id(name)
         `)
         .eq('status', 'active')
@@ -1090,6 +1092,7 @@ const Payroll = () => {
             pensionEnabled: e.pension_enabled !== false,
             nhfEnabled: e.nhf_enabled === true,
             nhisEnabled: e.nhis_enabled === true,
+            voluntaryPensionPct: Number(e.voluntary_pension_pct || 0),
             useComponents: useComps,
             basicMonthlyNgn: compBasic,
             housingMonthlyNgn: compHousing,
@@ -1111,6 +1114,7 @@ const Payroll = () => {
           const empPensionEmployer = e.pension_enabled !== false ? pensionBaseM * EMPLOYER_PENSION_RATE : 0;
           const empNhisEmployer    = empBreak.nhisEmployerMonthlyNgn;
           const empNsitf           = nsitfEnabled ? empBreak.nsitfMonthlyNgn : 0;
+          const empAvc             = empBreak.voluntaryPensionMonthlyNgn;
           const empDeductions = deductionsByEmployee.get(e.id) || [];
           const empDeductionsTotal = empDeductions.reduce((s: number, d: any) => s + Number(d.amount_ngn), 0);
           const empAdvances = advancesByEmployee.get(e.id) || [];
@@ -1122,7 +1126,7 @@ const Payroll = () => {
           const empEwa = ewaByEmployee.get(e.id) || [];
           const empEwaTotal = empEwa.reduce((s: number, w: any) => s + Number(w.amount_ngn || 0), 0);
           const empGrossTotal = empGross + earningsAddTotal;
-          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empNhf - empNhis - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
+          const empNet = Math.max(0, empGrossTotal - empUnpaidLeaveDeduction - empPaye - empPension - empAvc - empNhf - empNhis - empDeductionsTotal - empAdvancesTotal - empEwaTotal - adjDeductTotal);
           const empName = displayName(e.first_name, e.last_name, e.full_name || e.email);
 
           // Build combined extra_deductions list for payslip (deductions + advance repayments + EWA settlements + one-off deductions)
@@ -1204,6 +1208,7 @@ const Payroll = () => {
             gross_ngn:   empGrossTotal,
             paye_ngn:    empPaye,
             pension_ngn: empPension,
+            avc_ngn:     empAvc,
             nhf_ngn:     empNhf,
             nhis_ngn:    empNhis,
             net_ngn:     empNet,

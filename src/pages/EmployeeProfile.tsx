@@ -1127,6 +1127,7 @@ const EmployeeProfile = () => {
         nhfEnabled: nhfOn,
         nhisEnabled: nhisOn,
         payeEnabled: payeOn,
+        voluntaryPensionPct: Number(employee.voluntary_pension_pct || 0),
         useComponents: !!(employee as any).use_salary_components,
         basicMonthlyNgn: Number((employee as any).basic_ngn || 0),
         housingMonthlyNgn: Number((employee as any).housing_ngn || 0),
@@ -1139,7 +1140,8 @@ const EmployeeProfile = () => {
   const pensionEmployerMonthly = payslipBreakdown?.pensionEmployerMonthlyNgn ?? 0;
   const nhfMonthly             = payslipBreakdown?.nhfMonthlyNgn ?? 0;
   const nhisMonthly            = payslipBreakdown?.nhisEmployeeMonthlyNgn ?? 0;
-  const statutoryDeductMonthly = pensionEmployeeMonthly + nhfMonthly + nhisMonthly;
+  const avcMonthly             = payslipBreakdown?.voluntaryPensionMonthlyNgn ?? 0;
+  const statutoryDeductMonthly = pensionEmployeeMonthly + avcMonthly + nhfMonthly + nhisMonthly;
   const totalDeductMonthly     = payeMonthly + statutoryDeductMonthly;
   const employerContribMonthly = pensionEmployerMonthly;
   const netMonthly             = payslipBreakdown?.netMonthlyNgn ?? 0;
@@ -1629,6 +1631,13 @@ const EmployeeProfile = () => {
                           <TableCell className="pl-4">Pension (employee) 8%</TableCell>
                           <TableCell className="text-right currency">{formatNaira(pensionEmployeeMonthly * 12)}</TableCell>
                           <TableCell className="text-right pr-4 currency">{formatNaira(pensionEmployeeMonthly)}</TableCell>
+                        </TableRow>
+                      )}
+                      {avcMonthly > 0 && (
+                        <TableRow className="text-muted-foreground">
+                          <TableCell className="pl-4">AVC (voluntary pension)</TableCell>
+                          <TableCell className="text-right currency">{formatNaira(avcMonthly * 12)}</TableCell>
+                          <TableCell className="text-right pr-4 currency">{formatNaira(avcMonthly)}</TableCell>
                         </TableRow>
                       )}
                       {nhfOn && (

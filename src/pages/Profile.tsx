@@ -311,7 +311,7 @@ const ProfilePage = () => {
         .select(`
           job_title, employee_number, employment_type, start_date, annual_leave_days,
           salary_ngn, tax_id, tin, nin, pension_pin, pension_enabled,
-          nhf_number, nhf_enabled, nhis_number, nhis_enabled, paye_enabled,
+          nhf_number, nhf_enabled, nhis_number, nhis_enabled, paye_enabled, voluntary_pension_pct,
           bank_name, bank_account_number, bank_account_name,
           date_of_birth, gender, marital_status, address,
           next_of_kin_name, next_of_kin_relationship, next_of_kin_phone, next_of_kin_email,
@@ -510,6 +510,7 @@ const ProfilePage = () => {
       pensionEnabled: employment?.pension_enabled !== false,
       nhfEnabled: employment?.nhf_enabled === true,
       nhisEnabled: employment?.nhis_enabled === true,
+      voluntaryPensionPct: Number(employment?.voluntary_pension_pct || 0),
     });
   }, [employment]);
 
@@ -1060,6 +1061,12 @@ const ProfilePage = () => {
                         <div className="flex justify-between py-1">
                           <span className="text-muted-foreground">Pension (8%)</span>
                           <span className="tabular-nums text-destructive">−{formatNaira(comp.pensionEmployeeMonthlyNgn)}</span>
+                        </div>
+                      )}
+                      {comp.voluntaryPensionMonthlyNgn > 0 && (
+                        <div className="flex justify-between py-1">
+                          <span className="text-muted-foreground">AVC (voluntary pension)</span>
+                          <span className="tabular-nums text-destructive">−{formatNaira(comp.voluntaryPensionMonthlyNgn)}</span>
                         </div>
                       )}
                       {comp.nhfMonthlyNgn > 0 && (
