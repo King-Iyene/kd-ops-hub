@@ -387,6 +387,7 @@ export default function Anomalies() {
                   <TableHead>Rule</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="w-[110px]">Date</TableHead>
                   <TableHead className="w-[120px]">Status</TableHead>
                   <TableHead className="w-[260px] text-right">Actions</TableHead>
                 </TableRow>
@@ -420,6 +421,9 @@ export default function Anomalies() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           {r.amount_ngn ? formatNaira(r.amount_ngn) : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                          {new Date(r.detected_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className={cn(STATUS_TONE[r.status])}>
@@ -457,7 +461,7 @@ export default function Anomalies() {
                       </TableRow>
                       {expanded && (
                         <TableRow className="border-b border-border/50 bg-background/60 backdrop-blur-xl supports-[backdrop-filter]:bg-background/40 hover:bg-background/60">
-                          <TableCell colSpan={7} className="py-4">
+                          <TableCell colSpan={8} className="py-4">
                             <div className="space-y-2 px-2">
                               <p className="text-sm">{r.description}</p>
                               <details className="text-xs">
@@ -489,14 +493,46 @@ export default function Anomalies() {
             </div>
             {/* Mobile card view */}
             <div className="md:hidden space-y-2 p-1">
+              {/* Mobile select-all */}
+              {(() => {
+                const openIds = rows.filter((r) => r.status === 'open').map((r) => r.id);
+                if (openIds.length === 0) return null;
+                const selectedOpen = openIds.filter((id) => selectedIds.has(id));
+                const allSelected = selectedOpen.length === openIds.length;
+                const someSelected = selectedOpen.length > 0 && !allSelected;
+                return (
+                  <div className="flex items-center gap-2 px-1 py-1.5">
+                    <Checkbox
+                      checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                      onCheckedChange={(v) => {
+                        if (v) setSelectedIds(new Set(openIds));
+                        else clearSelection();
+                      }}
+                      aria-label="Select all open anomalies"
+                    />
+                    <span className="text-xs text-muted-foreground">Select all open ({openIds.length})</span>
+                  </div>
+                );
+              })()}
               {rows.map((r) => (
                 <MobileCard key={r.id} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
                   <MobileCardHeader>
                     <MobileCardTitle>
-                      <Badge variant="outline" className={cn(SEVERITY_TONE[r.severity], 'mr-1.5')}>
-                        {r.severity}
-                      </Badge>
-                      {RULE_LABEL[r.rule_code]}
+                      <span className="flex items-center gap-1.5">
+                        {r.status === 'open' && (
+                          <span onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={selectedIds.has(r.id)}
+                              onCheckedChange={() => toggleSelected(r.id)}
+                              aria-label={`Select ${RULE_LABEL[r.rule_code]} anomaly`}
+                            />
+                          </span>
+                        )}
+                        <Badge variant="outline" className={cn(SEVERITY_TONE[r.severity], 'mr-1.5')}>
+                          {r.severity}
+                        </Badge>
+                        {RULE_LABEL[r.rule_code]}
+                      </span>
                     </MobileCardTitle>
                     <MobileCardMeta className="currency">
                       {r.amount_ngn ? formatNaira(r.amount_ngn) : '—'}
@@ -504,6 +540,9 @@ export default function Anomalies() {
                   </MobileCardHeader>
                   <MobileCardRow label="Description">
                     <span className="truncate max-w-[180px]">{r.title}</span>
+                  </MobileCardRow>
+                  <MobileCardRow label="Date">
+                    <span className="tabular-nums">{new Date(r.detected_at).toLocaleDateString()}</span>
                   </MobileCardRow>
                   <MobileCardRow label="Status">
                     <Badge variant="secondary" className={cn(STATUS_TONE[r.status])}>
