@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
-  Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus,
+  Loader2, Trash2, ArrowLeft, ArrowRight, Check, Search, Plus, Upload,
   Users, Banknote, CreditCard, Gift, AlertTriangle, Building2,
 } from 'lucide-react';
 import { StickyActionBar, StickyActionBarSpacer } from '@/components/ui-kit/StickyActionBar';
@@ -33,6 +33,7 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { BankAccountField, type BankAccountValue } from '@/components/BankAccountField';
+import { BeneficiaryCsvImport, type ImportedBeneficiary } from '@/components/BeneficiaryCsvImport';
 import { heyreachDisplayStatus } from '@/lib/heyreach-status';
 
 type BatchType = 'contractor' | 'employee_salary' | 'advance' | 'prize';
@@ -208,6 +209,7 @@ const NewPaymentBatch = () => {
 
   // Ad-hoc beneficiary dialog
   const [showAdHoc, setShowAdHoc] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
   const [adHoc, setAdHoc] = useState({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
   const [adHocBank, setAdHocBank] = useState<BankAccountValue>(emptyBank);
   // Default ON: a one-off beneficiary is saved to the contractors table so they
@@ -517,6 +519,36 @@ const NewPaymentBatch = () => {
     setAdHoc({ first_name: '', last_name: '', amount_ngn: '', reference: '' });
     setAdHocBank(emptyBank);
     setAdHocSaveContractor(true);
+  };
+
+  const handleCsvImport = (rows: ImportedBeneficiary[]) => {
+    const remaining = MAX_RECIPIENTS_PER_BATCH - items.length;
+    if (remaining <= 0) {
+      toast({
+        title: `Batch full — ${MAX_RECIPIENTS_PER_BATCH} recipients max`,
+        description: 'Submit this one and create a second batch for the rest.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const toAdd = rows.slice(0, remaining).map((r) => ({
+      _key: crypto.randomUUID(),
+      full_name: r.full_name,
+      bank_name: r.bank_name,
+      account_number: r.account_number,
+      amount_ngn: r.amount_ngn,
+      reference: r.reference,
+      item_type: 'adhoc' as const,
+    }));
+    setItems((prev) => [...prev, ...toAdd]);
+    if (toAdd.length < rows.length) {
+      toast({
+        title: `Imported ${toAdd.length} — batch is now full`,
+        description: `${rows.length - toAdd.length} additional beneficiar${rows.length - toAdd.length === 1 ? 'y' : 'ies'} skipped. Create a second batch to include them.`,
+      });
+    } else {
+      toast({ title: `Imported ${toAdd.length} beneficiaries from CSV` });
+    }
   };
 
   const totalAmount = items.reduce((sum, i) => sum + (i.amount_ngn || 0), 0);
@@ -886,9 +918,14 @@ const NewPaymentBatch = () => {
                     </p>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowAdHoc(true)}>
-                  <Plus className="mr-2 h-4 w-4" /> Add One-off Beneficiary
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowCsvImport(true)}>
+                    <Upload className="mr-2 h-4 w-4" /> Import from CSV
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowAdHoc(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Add One-off Beneficiary
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1438,6 +1475,12 @@ const NewPaymentBatch = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BeneficiaryCsvImport
+        open={showCsvImport}
+        onOpenChange={setShowCsvImport}
+        onImport={handleCsvImport}
+      />
     </div>
   );
 };
