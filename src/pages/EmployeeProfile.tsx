@@ -185,6 +185,24 @@ const EmployeeProfile = () => {
   const [earnings, setEarnings] = useState<any[]>([]);
   const [benefits, setBenefits] = useState<any[]>([]);
   const [assignedAssets, setAssignedAssets] = useState<any[]>([]);
+  const [dependents, setDependents] = useState<any[]>([]);
+  const [showDependentDialog, setShowDependentDialog] = useState(false);
+  const [editingDependent, setEditingDependent] = useState<any | null>(null);
+  const [savingDependent, setSavingDependent] = useState(false);
+  const [deleteDependentTarget, setDeleteDependentTarget] = useState<any | null>(null);
+  const [deletingDependent, setDeletingDependent] = useState(false);
+  const emptyDependentForm = {
+    full_name: '',
+    relationship: 'child' as 'spouse' | 'child' | 'parent' | 'sibling' | 'other',
+    date_of_birth: '',
+    gender: '' as '' | 'male' | 'female',
+    phone: '',
+    is_beneficiary: false,
+    is_hmo_enrolled: false,
+    hmo_plan_id: '',
+    notes: '',
+  };
+  const [dependentForm, setDependentForm] = useState(emptyDependentForm);
   const [empPlacements, setEmpPlacements] = useState<any[]>([]);
   const [empPlacementPayments, setEmpPlacementPayments] = useState<any[]>([]);
   const [nsitfEnabled, setNsitfEnabled] = useState(true);
@@ -402,7 +420,7 @@ const EmployeeProfile = () => {
       })
       .catch(() => { /* company name is cosmetic on the payslip */ });
 
-    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, earningsRes, benefitRes, assetRes] = await Promise.all([
+    const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, earningsRes, benefitRes, assetRes, dependentRes] = await Promise.all([
       supabase.from('expenses').select('*').eq('submitted_by', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
@@ -442,6 +460,8 @@ const EmployeeProfile = () => {
       // Equipment currently assigned — book value only, not a recurring cost.
       supabase.from('assets').select('id, name, category, cost_ngn')
         .eq('assigned_to', id).is('disposal_date', null).is('deleted_at', null),
+      supabase.from('employee_dependents').select('*')
+        .eq('employee_id', id).order('created_at', { ascending: false }),
     ]);
     setExpenses(expRes.data || []);
     setPayslips(payRes.data || []);
@@ -455,6 +475,7 @@ const EmployeeProfile = () => {
     setEarnings(earningsRes.data || []);
     setBenefits(benefitRes.data || []);
     setAssignedAssets(assetRes.data || []);
+    setDependents(dependentRes.data || []);
 
     const { data: plData } = await supabase
       .from('placements')
@@ -940,6 +961,106 @@ const EmployeeProfile = () => {
     toast({ title: 'Earning paused' });
     load();
   };
+
+  const openAddDependent = () => {
+    setEditingDependent(null);
+    setDependentForm(emptyDependentForm);
+    setShowDependentDialog(true);
+  };
+
+  const openEditDependent = (dep: any) => {
+    setEditingDependent(dep);
+    setDependentForm({
+      full_name: dep.full_name || '',
+      relationship: dep.relationship || 'child',
+      date_of_birth: dep.date_of_birth || '',
+      gender: dep.gender || '',
+      phone: dep.phone || '',
+      is_beneficiary: !!dep.is_beneficiary,
+      is_hmo_enrolled: !!dep.is_hmo_enrolled,
+      hmo_plan_id: dep.hmo_plan_id || '',
+      notes: dep.notes || '',
+    });
+    setShowDependentDialog(true);
+  };
+
+  const saveDependent = async () => {
+    if (!id || !dependentForm.full_name.trim()) {
+      toast({ title: 'Name is required', variant: 'destructive' });
+      return;
+    }
+    setSavingDependent(true);
+    try {
+      const payload: Record<string, unknown> = {
+        employee_id: id,
+        full_name: dependentForm.full_name.trim(),
+        relationship: dependentForm.relationship,
+        date_of_birth: dependentForm.date_of_birth || null,
+        gender: dependentForm.gender || null,
+        phone: dependentForm.phone.trim() || null,
+        is_beneficiary: dependentForm.is_beneficiary,
+        is_hmo_enrolled: dependentForm.is_hmo_enrolled,
+        hmo_plan_id: dependentForm.hmo_plan_id.trim() || null,
+        notes: dependentForm.notes.trim() || null,
+      };
+      if (editingDependent) {
+        const { error } = await supabase.from('employee_dependents').update(payload).eq('id', editingDependent.id);
+        if (error) throw error;
+        await logAudit('dependent_updated', `Dependent "${dependentForm.full_name}" updated for "${employee?.full_name}"`, currentUser);
+        toast({ title: 'Dependent updated' });
+      } else {
+        const { error } = await supabase.from('employee_dependents').insert(payload);
+        if (error) throw error;
+        await logAudit('dependent_added', `Dependent "${dependentForm.full_name}" added for "${employee?.full_name}"`, currentUser);
+        toast({ title: 'Dependent added' });
+      }
+      setShowDependentDialog(false);
+      setEditingDependent(null);
+      setDependentForm(emptyDependentForm);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to save dependent', description: err?.message, variant: 'destructive' });
+    } finally {
+      setSavingDependent(false);
+    }
+  };
+
+  const deleteDependent = async () => {
+    if (!deleteDependentTarget) return;
+    setDeletingDependent(true);
+    try {
+      const { error } = await supabase.from('employee_dependents').delete().eq('id', deleteDependentTarget.id);
+      if (error) throw error;
+      await logAudit('dependent_deleted', `Dependent "${deleteDependentTarget.full_name}" removed from "${employee?.full_name}"`, currentUser);
+      toast({ title: 'Dependent removed' });
+      setDeleteDependentTarget(null);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Delete failed', description: err?.message, variant: 'destructive' });
+    } finally {
+      setDeletingDependent(false);
+    }
+  };
+
+  const toggleDependentFlag = async (dep: any, field: 'is_beneficiary' | 'is_hmo_enrolled') => {
+    const { error } = await supabase.from('employee_dependents').update({ [field]: !dep[field] }).eq('id', dep.id);
+    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
+    load();
+  };
+
+  const dependentAge = (dob: string | null): string => {
+    if (!dob) return '—';
+    const birth = new Date(dob);
+    if (Number.isNaN(birth.getTime())) return '—';
+    const now = new Date();
+    let years = now.getFullYear() - birth.getFullYear();
+    const m = now.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) years--;
+    return `${years}`;
+  };
+
+  const relationshipLabel = (rel: string) =>
+    ({ spouse: 'Spouse', child: 'Child', parent: 'Parent', sibling: 'Sibling', other: 'Other' } as Record<string, string>)[rel] || rel;
 
   const yoyGrowth = useMemo(() => {
     if (increments.length === 0 || !employee?.salary_ngn) return null;
@@ -2326,6 +2447,89 @@ const EmployeeProfile = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Dependents & Beneficiaries */}
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base flex items-center gap-2">
+                <HeartPulse className="h-4 w-4 text-muted-foreground" />
+                Dependents &amp; Beneficiaries
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={openAddDependent}>
+                <Plus className="mr-1.5 h-3.5 w-3.5" /> Add dependent
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {dependents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No dependents recorded. Add a spouse, child, or other family member —
+                  mark them as an HMO enrollee or an insurance/pension beneficiary.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {dependents.map((dep) => (
+                    <div
+                      key={dep.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm">{dep.full_name}</p>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {relationshipLabel(dep.relationship)}
+                          </Badge>
+                          {dep.is_beneficiary && (
+                            <Badge className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-100">
+                              Beneficiary
+                            </Badge>
+                          )}
+                          {dep.is_hmo_enrolled && (
+                            <Badge className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                              HMO enrolled
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {dep.date_of_birth ? `Age ${dependentAge(dep.date_of_birth)}` : 'DOB not set'}
+                          {dep.gender ? ` · ${dep.gender === 'male' ? 'Male' : 'Female'}` : ''}
+                          {dep.phone ? ` · ${dep.phone}` : ''}
+                        </p>
+                      </div>
+                      {canManage && (
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <Label className="text-[11px] text-muted-foreground">Beneficiary</Label>
+                            <Switch
+                              checked={!!dep.is_beneficiary}
+                              onCheckedChange={() => toggleDependentFlag(dep, 'is_beneficiary')}
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Label className="text-[11px] text-muted-foreground">HMO</Label>
+                            <Switch
+                              checked={!!dep.is_hmo_enrolled}
+                              onCheckedChange={() => toggleDependentFlag(dep, 'is_hmo_enrolled')}
+                            />
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => openEditDependent(dep)}>
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteDependentTarget(dep)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -3684,6 +3888,169 @@ const EmployeeProfile = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add / Edit Dependent Dialog */}
+      <Dialog
+        open={showDependentDialog}
+        onOpenChange={(v) => {
+          if (!v) {
+            setShowDependentDialog(false);
+            setEditingDependent(null);
+            setDependentForm(emptyDependentForm);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingDependent ? 'Edit Dependent' : 'Add Dependent'}</DialogTitle>
+            <DialogDescription>
+              Family member details for {empName} — used for HMO enrollment and beneficiary records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-1.5">
+              <Label htmlFor="dependent-full-name">Full name</Label>
+              <Input
+                id="dependent-full-name"
+                value={dependentForm.full_name}
+                onChange={(e) => setDependentForm((p) => ({ ...p, full_name: e.target.value }))}
+                placeholder="e.g. Amaka Okafor"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="dependent-relationship">Relationship</Label>
+                <Select
+                  value={dependentForm.relationship}
+                  onValueChange={(v) => setDependentForm((p) => ({ ...p, relationship: v as typeof p.relationship }))}
+                >
+                  <SelectTrigger id="dependent-relationship"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="spouse">Spouse</SelectItem>
+                    <SelectItem value="child">Child</SelectItem>
+                    <SelectItem value="parent">Parent</SelectItem>
+                    <SelectItem value="sibling">Sibling</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dependent-gender">Gender</Label>
+                <Select
+                  value={dependentForm.gender || undefined}
+                  onValueChange={(v) => setDependentForm((p) => ({ ...p, gender: v as typeof p.gender }))}
+                >
+                  <SelectTrigger id="dependent-gender"><SelectValue placeholder="Select…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="dependent-dob">Date of birth</Label>
+                <Input
+                  id="dependent-dob"
+                  type="date"
+                  value={dependentForm.date_of_birth}
+                  onChange={(e) => setDependentForm((p) => ({ ...p, date_of_birth: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="dependent-phone">Phone</Label>
+                <Input
+                  id="dependent-phone"
+                  value={dependentForm.phone}
+                  onChange={(e) => setDependentForm((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label className="text-sm">Beneficiary</Label>
+                <p className="text-xs text-muted-foreground">Nominated for group life / pension payout</p>
+              </div>
+              <Switch
+                checked={dependentForm.is_beneficiary}
+                onCheckedChange={(v) => setDependentForm((p) => ({ ...p, is_beneficiary: v }))}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label className="text-sm">HMO enrolled</Label>
+                <p className="text-xs text-muted-foreground">Covered under the employee's HMO plan</p>
+              </div>
+              <Switch
+                checked={dependentForm.is_hmo_enrolled}
+                onCheckedChange={(v) => setDependentForm((p) => ({ ...p, is_hmo_enrolled: v }))}
+              />
+            </div>
+            {dependentForm.is_hmo_enrolled && (
+              <div className="space-y-1.5">
+                <Label htmlFor="dependent-hmo-plan">HMO plan / ID</Label>
+                <Input
+                  id="dependent-hmo-plan"
+                  value={dependentForm.hmo_plan_id}
+                  onChange={(e) => setDependentForm((p) => ({ ...p, hmo_plan_id: e.target.value }))}
+                  placeholder="Plan reference or member ID"
+                />
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="dependent-notes">Notes</Label>
+              <Textarea
+                id="dependent-notes"
+                rows={2}
+                value={dependentForm.notes}
+                onChange={(e) => setDependentForm((p) => ({ ...p, notes: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDependentDialog(false);
+                setEditingDependent(null);
+                setDependentForm(emptyDependentForm);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={saveDependent} disabled={savingDependent || !dependentForm.full_name.trim()}>
+              {savingDependent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editingDependent ? 'Save Changes' : 'Add Dependent'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dependent confirmation */}
+      <AlertDialog open={!!deleteDependentTarget} onOpenChange={(o) => { if (!o) setDeleteDependentTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {deleteDependentTarget?.full_name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes this dependent record, including any beneficiary or HMO enrollment status. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingDependent}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteDependent}
+              disabled={deletingDependent}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingDependent && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add Deduction Dialog */}
       <Dialog open={showDeductionDialog} onOpenChange={(o) => { if (!o) setShowDeductionDialog(false); }}>
