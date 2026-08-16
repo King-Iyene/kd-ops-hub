@@ -32,7 +32,7 @@ import {
 import { loadStatutoryRunData, StatutoryExportFile } from '@/lib/statutory';
 import { buildLirsPayeSchedule } from '@/lib/statutory/lirs';
 import { buildFirsPayeSchedule } from '@/lib/statutory/firs';
-import { buildPenComPsspSchedule } from '@/lib/statutory/pencom';
+import { buildPenComPsspSchedule, generatePenComSchedule } from '@/lib/statutory/pencom';
 import { buildNhfSchedule } from '@/lib/statutory/nhf';
 import { buildNsitfSchedule } from '@/lib/statutory/nsitf';
 import { buildItfAnnualSchedule } from '@/lib/statutory/itf';
@@ -363,6 +363,12 @@ const Compliance = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [downloadingPack, setDownloadingPack] = useState<string | null>(null);
 
+  // ─── PenCom pension schedule export ────────────────────────────────────
+  const [payrollRuns, setPayrollRuns] = useState<Array<{ id: string; period: string; status: string }>>([]);
+  const [penComRunId, setPenComRunId] = useState<string>('');
+  const [generatingPenCom, setGeneratingPenCom] = useState(false);
+  const [penComSummary, setPenComSummary] = useState<{ employees: number; pfas: number; total: number } | null>(null);
+
   const isAdmin = profile?.role === 'super_admin' || profile?.role === 'admin';
   const canManageRemittances =
     profile?.role === 'super_admin' || profile?.role === 'admin' || profile?.role === 'finance';
@@ -452,6 +458,21 @@ const Compliance = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Payroll runs for the PenCom schedule picker — most recent first.
+  useEffect(() => {
+    void (async () => {
+      const { data } = await supabase
+        .from('payroll_runs')
+        .select('id, period, status')
+        .in('status', ['approved', 'paid'])
+        .order('period', { ascending: false })
+        .limit(24);
+      const runs = (data as Array<{ id: string; period: string; status: string }>) || [];
+      setPayrollRuns(runs);
+      setPenComRunId((prev) => prev || runs[0]?.id || '');
+    })();
+  }, []);
 
   // ─── Remittances: load + auto-generate ─────────────────────────────────
   const loadRemittances = useCallback(async () => {
@@ -817,6 +838,47 @@ const Compliance = () => {
     }
   };
 
+  const generatePenComPfaFiles = async () => {
+    if (!penComRunId) {
+      toast({ title: 'Pick a payroll run first', variant: 'destructive' });
+      return;
+    }
+    setGeneratingPenCom(true);
+    setPenComSummary(null);
+    try {
+      const schedules = await generatePenComSchedule(penComRunId);
+      if (!schedules.length) {
+        toast({
+          title: 'No pension contributions found',
+          description: 'This payroll run has no employees with a pension deduction.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      for (const s of schedules) {
+        const safePfa = s.pfaName.replace(/[^a-zA-Z0-9]+/g, '-');
+        downloadCsv(`PenCom-${safePfa}-${penComRunId.slice(0, 8)}.csv`, s.csvContent);
+        await new Promise((r) => setTimeout(r, 120));
+      }
+      const employees = schedules.reduce((s, x) => s + x.employeeCount, 0);
+      const total = schedules.reduce((s, x) => s + x.totalAmount, 0);
+      setPenComSummary({ employees, pfas: schedules.length, total });
+      await logAudit(
+        'pencom_schedule_downloaded',
+        `PenCom schedule downloaded — ${employees} employees across ${schedules.length} PFA(s)`,
+        profile,
+      );
+      toast({
+        title: `${schedules.length} PFA schedule${schedules.length === 1 ? '' : 's'} downloaded`,
+        description: `${employees} employees · ₦${total.toLocaleString('en-NG')} total`,
+      });
+    } catch (err: any) {
+      toast({ title: 'Could not generate PenCom schedule', description: err?.message, variant: 'destructive' });
+    } finally {
+      setGeneratingPenCom(false);
+    }
+  };
+
   const exportCalendar = () => {
     const header = [
       'kind',
@@ -997,6 +1059,52 @@ const Compliance = () => {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── PenCom pension schedule export, grouped by PFA ─────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-muted-foreground" />
+            PenCom Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Generate one pension contribution CSV per PFA from an approved payroll
+            run — RSA PIN, surname, first name, other names, employee (8%) and
+            employer (10%) contribution, ready to upload to each PSSP portal.
+          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1 max-w-xs space-y-1.5">
+              <Label htmlFor="pencom-run" className="text-xs">Payroll run</Label>
+              <select
+                id="pencom-run"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                value={penComRunId}
+                onChange={(e) => { setPenComRunId(e.target.value); setPenComSummary(null); }}
+              >
+                {payrollRuns.length === 0 && <option value="">No approved payroll runs</option>}
+                {payrollRuns.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {monthLabel(r.period)} — {r.status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Button onClick={generatePenComPfaFiles} disabled={generatingPenCom || !penComRunId}>
+              {generatingPenCom ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+              Generate PenCom Schedule
+            </Button>
+          </div>
+          {penComSummary && (
+            <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+              <span className="font-medium">{penComSummary.employees}</span> employees across{' '}
+              <span className="font-medium">{penComSummary.pfas}</span> PFA{penComSummary.pfas === 1 ? '' : 's'} ·
+              total contribution <span className="font-medium">₦{penComSummary.total.toLocaleString('en-NG')}</span>
             </div>
           )}
         </CardContent>
