@@ -2737,7 +2737,7 @@ const Fleet = () => {
     }
     const { data: claimed, error } = await supabase
       .from('fuel_requests')
-      .update({ status: 'completed' })
+      .update({ status: 'completed', anomaly_reviewed_at: r.is_anomaly ? new Date().toISOString() : undefined })
       .eq('id', r.id)
       .in('status', ['receipt_uploaded', 'payment_sent'])
       .select('id');
@@ -3400,6 +3400,22 @@ const Fleet = () => {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
+                          ) : r.status === 'completed' && r.receipt_url ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => window.open(r.receipt_url!, '_blank')}>
+                                  <FileText className="h-4 w-4 mr-2" /> View Receipt
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => openElaAnalysis(r.id, r.receipt_url!)}>
+                                  <Search className="h-4 w-4 mr-2" /> Tamper Analysis
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           ) : r.status === 'rejected' && r.employee_id === profile?.id ? (
                             <Button
                               size="sm"
@@ -3530,6 +3546,16 @@ const Fleet = () => {
                           >
                             <Check className="h-4 w-4 mr-1.5" /> Complete
                           </Button>
+                        </MobileCardFooter>
+                      )}
+                      {r.status === 'completed' && r.receipt_url && (
+                        <MobileCardFooter>
+                          <FilePreviewTrigger
+                            url={r.receipt_url}
+                            label="View Receipt"
+                            fileName={`fuel-receipt-${r.id.slice(0, 8)}`}
+                            className="flex-1 h-9"
+                          />
                         </MobileCardFooter>
                       )}
                       {r.status === 'rejected' && r.employee_id === profile?.id && (
@@ -5696,16 +5722,14 @@ const Fleet = () => {
 
       {/* Tamper-analysis (ELA) preview — on-demand visual aid, not a verdict. */}
       <Dialog open={!!elaTarget} onOpenChange={(v) => { if (!v) { setElaTarget(null); setElaResult(null); setElaError(''); } }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Tamper Analysis</DialogTitle>
             <DialogDescription>
-              Highlights areas that carry a different compression history than the rest of the photo.
-              This is a visual aid, not proof of tampering — ordinary re-compression (e.g. a receipt
-              forwarded through WhatsApp) produces similar patterns. Use your judgment alongside other context.
+              Compares the receipt image against its own re-compressed version to detect edits. This is a visual aid, not proof of tampering.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {elaLoading && (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" /> Generating analysis…
@@ -5717,12 +5741,27 @@ const Fleet = () => {
                 <span>{elaError}</span>
               </div>
             )}
-            {elaResult && (
-              <img
-                src={elaResult.heatmapDataUrl}
-                alt="Error-level analysis heatmap"
-                className="w-full rounded-md border"
-              />
+            {elaResult && elaTarget && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Original Receipt</p>
+                    <img src={elaTarget.url} alt="Original receipt" className="w-full rounded-md border" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Error Level Analysis</p>
+                    <img src={elaResult.heatmapDataUrl} alt="Error-level analysis heatmap" className="w-full rounded-md border" />
+                  </div>
+                </div>
+                <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">How to read this:</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    <li><span className="text-foreground font-medium">Mostly dark/uniform</span> — normal, consistent compression. No signs of editing.</li>
+                    <li><span className="text-foreground font-medium">Bright colored patches</span> — areas with different compression history. Could indicate an edit, but also appears on WhatsApp-forwarded images or screenshots.</li>
+                    <li><span className="text-foreground font-medium">Bright text/edges</span> — normal for sharp edges like printed text. Not suspicious on its own.</li>
+                  </ul>
+                </div>
+              </>
             )}
           </div>
         </DialogContent>
