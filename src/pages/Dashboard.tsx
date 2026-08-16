@@ -303,10 +303,10 @@ const Dashboard = () => {
         supabase.from('leave_balances').select('annual_quota, annual_used').eq('employee_id', profile.id).maybeSingle(),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('assignee_id', profile.id).neq('status', 'complete'),
         supabase.from('fuel_requests').select('id', { count: 'exact', head: true }).eq('driver_id', profile.id).eq('status', 'pending'),
-      ]).then(([expRes, leaveRes, taskRes, fuelRes]) => {
-        // Nigerian Labour Act minimum: 6 working days for first year of service.
-        // Default to 12 days as a reasonable starting quota — finance can adjust.
-        const quota = (leaveRes.data as any)?.annual_quota ?? 12;
+        supabase.from('leave_policies').select('default_days').eq('code', 'annual').eq('active', true).maybeSingle(),
+      ]).then(([expRes, leaveRes, taskRes, fuelRes, policyRes]) => {
+        const policyQuota = (policyRes.data as any)?.default_days ?? 21;
+        const quota = (leaveRes.data as any)?.annual_quota ?? policyQuota;
         const used = (leaveRes.data as any)?.annual_used ?? 0;
         setPersonalKPIs({
           pendingExpenses: expRes.count ?? 0,

@@ -136,7 +136,8 @@ export const LeaveBalancesPanel = ({
 
   // Compute rich derived state
   const stats = useMemo(() => {
-    const quota = balance?.annual_quota ?? 20;
+    const policyDefault = policies.find((p) => p.code === 'annual')?.default_days ?? 20;
+    const quota = balance?.annual_quota ?? policyDefault;
     const used = balance?.annual_used ?? 0;
     const earned = accruedDays(quota, year, employeeStartDate ?? null);
     const pending = requests
@@ -145,7 +146,7 @@ export const LeaveBalancesPanel = ({
     const available = Math.max(0, earned - used - pending);
     const pctRemaining = quota > 0 ? Math.round((available / quota) * 100) : 0;
     return { quota, used, earned, pending, available, pctRemaining };
-  }, [balance, requests, year, employeeStartDate]);
+  }, [balance, requests, year, employeeStartDate, policies]);
 
   const tone = stats.pctRemaining >= 30
     ? { ring: 'text-emerald-600', bg: 'bg-emerald-500', bar: 'bg-emerald-500' }

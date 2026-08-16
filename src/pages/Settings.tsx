@@ -30,6 +30,7 @@ import {
   EyeOff,
   Fuel,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { confirm } from '@/hooks/use-confirm';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
@@ -1421,6 +1422,8 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
 
+          <LeaveQuotasPanel />
+
           <FailedLoginPanel />
 
           <Card>
@@ -1565,6 +1568,135 @@ interface FailedLogin {
   ip_hash: string | null;
   reason: string | null;
   attempted_at: string;
+}
+
+interface LeavePolicyRow {
+  id: string;
+  code: string;
+  name: string;
+  default_days: number;
+  accrual_type: string;
+  paid: boolean;
+  active: boolean;
+  is_system: boolean;
+}
+
+function LeaveQuotasPanel() {
+  const [policies, setPolicies] = useState<LeavePolicyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    supabase
+      .from('leave_policies')
+      .select('id, code, name, default_days, accrual_type, paid, active, is_system')
+      .order('name')
+      .then(({ data }) => {
+        setPolicies(data ?? []);
+        setLoading(false);
+      });
+  }, []);
+
+  async function updateDays(id: string, days: number) {
+    setSaving(id);
+    const { error } = await supabase
+      .from('leave_policies')
+      .update({ default_days: days })
+      .eq('id', id);
+    setSaving(null);
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, default_days: days } : p)));
+      toast({ title: 'Leave quota updated' });
+    }
+  }
+
+  async function toggleActive(id: string, active: boolean) {
+    const { error } = await supabase
+      .from('leave_policies')
+      .update({ active })
+      .eq('id', id);
+    if (error) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    } else {
+      setPolicies((prev) => prev.map((p) => (p.id === id ? { ...p, active } : p)));
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Leave Quotas</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Set the default annual entitlement for each leave type. Changes apply to all employees.
+        </p>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="flex justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="space-y-3">
+            {policies.map((p) => (
+              <div
+                key={p.id}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg border px-3 py-2.5',
+                  !p.active && 'opacity-50',
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{p.name}</span>
+                    {p.paid && (
+                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded">Paid</span>
+                    )}
+                    {!p.paid && p.accrual_type === 'unpaid' && (
+                      <span className="text-[10px] font-medium text-slate-500 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded">Unpaid</span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">{p.code}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    className="w-20 h-8 text-sm text-center"
+                    value={p.default_days}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 0;
+                      setPolicies((prev) => prev.map((x) => (x.id === p.id ? { ...x, default_days: val } : x)));
+                    }}
+                    onBlur={(e) => {
+                      const val = Number(e.target.value) || 0;
+                      if (val !== p.default_days) updateDays(p.id, val);
+                    }}
+                    disabled={saving === p.id}
+                  />
+                  <span className="text-xs text-muted-foreground w-8">days</span>
+                  <button
+                    type="button"
+                    onClick={() => toggleActive(p.id, !p.active)}
+                    className={cn(
+                      'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors',
+                      p.active ? 'bg-primary' : 'bg-muted',
+                    )}
+                    title={p.active ? 'Disable this leave type' : 'Enable this leave type'}
+                  >
+                    <span className={cn(
+                      'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition-transform',
+                      p.active ? 'translate-x-4' : 'translate-x-0',
+                    )} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function FailedLoginPanel() {

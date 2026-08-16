@@ -51,6 +51,12 @@ interface Policy {
   title: string;
 }
 
+interface LeavePolicy {
+  code: string;
+  name: string;
+  default_days: number;
+}
+
 interface StaffLoan {
   id: string;
   purpose: string | null;
@@ -76,6 +82,7 @@ export default function MyDashboard() {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [pendingPolicies, setPendingPolicies] = useState<Policy[]>([]);
   const [loans, setLoans] = useState<StaffLoan[]>([]);
+  const [leavePolicies, setLeavePolicies] = useState<LeavePolicy[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -95,7 +102,7 @@ export default function MyDashboard() {
 
     const currentYear = new Date().getFullYear();
 
-    const [balance, requests, goalRows, tsRows, policies, loanRows] =
+    const [balance, requests, goalRows, tsRows, policies, loanRows, lpRows] =
       await Promise.all([
         safe<LeaveBalance>(() =>
           supabase
@@ -155,6 +162,12 @@ export default function MyDashboard() {
             .eq('employee_id', user.id)
             .in('status', ['active', 'approved']),
         ),
+        safe<LeavePolicy[]>(() =>
+          supabase
+            .from('leave_policies')
+            .select('code, name, default_days')
+            .eq('active', true),
+        ),
       ]);
 
     setLeaveBalance(balance ?? null);
@@ -163,6 +176,7 @@ export default function MyDashboard() {
     setTimesheets(tsRows ?? []);
     setPendingPolicies(policies ?? []);
     setLoans(loanRows ?? []);
+    setLeavePolicies(lpRows ?? []);
     setLoading(false);
   }, [user?.id]);
 
@@ -181,13 +195,16 @@ export default function MyDashboard() {
     );
   }
 
+  const policyDays = (code: string, fallback: number) =>
+    leavePolicies.find((p) => p.code === code)?.default_days ?? fallback;
+
   const leaveRows = leaveBalance
     ? [
         { type: 'Annual', used: leaveBalance.annual_used, total: leaveBalance.annual_quota + (leaveBalance.carryover_days ?? 0) },
-        { type: 'Sick', used: leaveBalance.sick_used, total: 10 },
+        { type: 'Sick', used: leaveBalance.sick_used, total: policyDays('sick', 10) },
         { type: 'Unpaid', used: leaveBalance.unpaid_used, total: 0 },
-        ...(leaveBalance.maternity_used != null ? [{ type: 'Maternity', used: leaveBalance.maternity_used, total: 90 }] : []),
-        ...(leaveBalance.paternity_used != null ? [{ type: 'Paternity', used: leaveBalance.paternity_used, total: 14 }] : []),
+        ...(leaveBalance.maternity_used != null ? [{ type: 'Maternity', used: leaveBalance.maternity_used, total: policyDays('maternity', 90) }] : []),
+        ...(leaveBalance.paternity_used != null ? [{ type: 'Paternity', used: leaveBalance.paternity_used, total: policyDays('paternity', 14) }] : []),
       ].filter((r) => r.total > 0)
     : [];
 

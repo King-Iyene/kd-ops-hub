@@ -247,6 +247,7 @@ const Leave = () => {
   const [teamRequests, setTeamRequests] = useState<LeaveRequest[]>([]);
   const [profiles, setProfiles] = useState<Map<string, ProfileRow>>(new Map());
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  const [defaultAnnualQuota, setDefaultAnnualQuota] = useState(21);
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [actioning, setActioning] = useState<string | null>(null);
 
@@ -298,7 +299,7 @@ const Leave = () => {
             .limit(200)
         : Promise.resolve({ data: [] as LeaveRequest[], error: null });
 
-      const [myRes, teamRes, profilesRes, balanceRes, holidaysRes] = await Promise.all([
+      const [myRes, teamRes, profilesRes, balanceRes, holidaysRes, policyRes] = await Promise.all([
         myQuery,
         teamQuery,
         supabase.from('profiles_directory').select('id, full_name, email, phone, start_date').neq('is_anonymised', true).limit(500),
@@ -309,6 +310,7 @@ const Leave = () => {
           .eq('year', new Date().getFullYear())
           .maybeSingle(),
         supabase.from('public_holidays').select('holiday_date').eq('is_observed', true),
+        supabase.from('leave_policies').select('code, default_days').eq('code', 'annual').eq('active', true).maybeSingle(),
       ]);
       if (myRes.error) throw myRes.error;
       if (teamRes.error) throw teamRes.error;
@@ -328,6 +330,7 @@ const Leave = () => {
           ),
         ),
       );
+      if (policyRes.data) setDefaultAnnualQuota((policyRes.data as any).default_days);
     } catch (err: any) {
       setError(err?.message || 'Failed to load leave requests.');
     } finally {
@@ -488,7 +491,7 @@ const Leave = () => {
       year,
       // Matches the leave_balances DB default and the rest of the app. Finance
       // can raise/lower it per employee in the balance row.
-      annual_quota: 21,
+      annual_quota: defaultAnnualQuota,
       annual_used: 0,
       sick_used: 0,
       unpaid_used: 0,
@@ -592,7 +595,7 @@ const Leave = () => {
         .eq('employee_id', req.employee_id)
         .eq('year', year)
         .maybeSingle();
-      const quota = (bal as any)?.annual_quota ?? 21;
+      const quota = (bal as any)?.annual_quota ?? defaultAnnualQuota;
       const used = (bal as any)?.annual_used ?? 0;
       const empStart = profiles.get(req.employee_id)?.start_date ?? null;
       const accrued = accruedAnnualDays(quota, year, empStart);
@@ -829,7 +832,7 @@ const Leave = () => {
           subtitle={
             carriedOver > 0
               ? `${balance?.annual_used || 0} used · ${annualAccrued} earned + ${carriedOver} carried over`
-              : `${balance?.annual_used || 0} used · ${annualAccrued} earned of ${balance?.annual_quota || 21}`
+              : `${balance?.annual_used || 0} used · ${annualAccrued} earned of ${balance?.annual_quota || defaultAnnualQuota}`
           }
           icon={Plane}
           tone="primary"
