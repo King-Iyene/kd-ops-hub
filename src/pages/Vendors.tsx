@@ -31,6 +31,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { useToast } from '@/hooks/use-toast';
 
 const CATEGORIES = ['utilities','software','services','supplies','logistics','professional','other'] as const;
@@ -286,7 +287,7 @@ export default function Vendors() {
 
       {/* Table */}
       {loading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+        <Card className="rounded-lg border overflow-hidden"><CardContent className="p-0"><TableSkeleton rows={6} cols={7} /></CardContent></Card>
       ) : filtered.length === 0 ? (
         <EmptyState compact icon={Store} title="No vendors yet" description="Add your first vendor above so you can track invoices, renewals and contacts in one place." />
       ) : (

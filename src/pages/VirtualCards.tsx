@@ -62,6 +62,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { cn } from '@/lib/utils';
 
 interface VirtualCard {
@@ -263,9 +264,7 @@ const VirtualCards = () => {
       <Card className="rounded-xl">
         <CardContent className="p-0">
           {loading ? (
-            <div className="p-8 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton rows={6} cols={7} />
           ) : cards.length === 0 ? (
             <EmptyState
               icon={CreditCard}

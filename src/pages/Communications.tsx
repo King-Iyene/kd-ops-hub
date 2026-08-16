@@ -87,6 +87,7 @@ import { confirm } from '@/hooks/use-confirm';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { AuroraHero } from '@/components/AuroraHero';
 import { cn } from '@/lib/utils';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { parseNigerianPhone } from '@/lib/phone';
@@ -1006,9 +1007,7 @@ export default function Communications() {
         </CardHeader>
         <CardContent>
           {historyLoading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
+            <TableSkeleton rows={6} cols={7} />
           ) : history.length === 0 ? (
             <p className="text-xs text-muted-foreground italic">No campaigns yet.</p>
           ) : (
