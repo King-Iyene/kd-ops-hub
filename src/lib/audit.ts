@@ -191,7 +191,10 @@ export type AuditActionType =
   | 'remittance_auto_generated'
   | 'remittance_marked_remitted'
   | 'remittance_confirmed'
-  | 'remittance_csv_exported';
+  | 'remittance_csv_exported'
+  | 'attendance_recorded'
+  | 'attendance_updated'
+  | 'attendance_deleted';
 
 export interface AuditActor {
   id?: string | null;

@@ -5,12 +5,16 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { logAudit } from '@/lib/audit';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import ClockInWidget from '@/components/hr/ClockInWidget';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
+import { Pagination } from '@/components/ui-kit/Pagination';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -60,10 +64,13 @@ const EMPTY_FORM = {
 
 export default function Attendance() {
   usePageTitle('Attendance');
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { toast } = useToast();
 
+  const PAGE_SIZE = 50;
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [lateThreshold, setLateThreshold] = useState('09:15');
@@ -84,18 +91,22 @@ export default function Attendance() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: rData }, { data: pData }] = await Promise.all([
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    const [{ data: rData, count }, { data: pData }] = await Promise.all([
       supabase.from('attendance_records')
-        .select('*')
+        .select('*', { count: 'exact' })
         .gte('work_date', monthStart)
         .lte('work_date', monthEnd)
-        .order('work_date', { ascending: false }),
+        .order('work_date', { ascending: false })
+        .range(from, to),
       supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setRecords(rData ?? []);
+    setTotalCount(count ?? 0);
     setProfiles(pData ?? []);
     setLoading(false);
-  }, [monthStart, monthEnd]);
+  }, [monthStart, monthEnd, page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -156,6 +167,12 @@ export default function Attendance() {
 
     setSaving(false);
     if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    const name = empName(form.employee_id);
+    await logAudit(
+      editing ? 'attendance_updated' : 'attendance_recorded',
+      `${editing ? 'Attendance updated' : 'Attendance recorded'} for ${name} on ${form.work_date} (${STATUS_CONFIG[form.status].label})`,
+      profile,
+    );
     toast({ title: editing ? 'Record updated' : 'Attendance recorded' });
     setDialogOpen(false);
     load();
@@ -164,8 +181,18 @@ export default function Attendance() {
   async function handleDelete() {
     if (!deleteTarget) return;
     const { error } = await supabase.from('attendance_records').delete().eq('id', deleteTarget.id);
-    if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); }
-    else { toast({ title: 'Record deleted' }); load(); }
+    if (error) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    } else {
+      const name = empName(deleteTarget.employee_id);
+      await logAudit(
+        'attendance_deleted',
+        `Attendance record deleted for ${name} on ${deleteTarget.work_date}`,
+        profile,
+      );
+      toast({ title: 'Record deleted' });
+      load();
+    }
     setDeleteTarget(null);
   }
 
@@ -174,6 +201,7 @@ export default function Attendance() {
     const next = new Date(current.getFullYear(), current.getMonth() + delta, 1);
     setMonthStart(format(startOfMonth(next), 'yyyy-MM-dd'));
     setMonthEnd(format(endOfMonth(next), 'yyyy-MM-dd'));
+    setPage(0);
   }
 
   const filtered = records.filter(r => {
@@ -212,6 +240,7 @@ export default function Attendance() {
     counts[r.status] = (counts[r.status] ?? 0) + 1;
   }
   const totalOvertimeHours = records.reduce((sum, r) => sum + r.overtime_minutes, 0) / 60;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -293,7 +322,7 @@ export default function Attendance() {
 
       {/* Records table */}
       {loading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <TableSkeleton rows={6} cols={7} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Clock}
@@ -304,42 +333,84 @@ export default function Attendance() {
           }
         />
       ) : (
-        <div className="rounded-xl border border-border/60 bg-card overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead className="bg-muted/50">
-              <tr className="border-b border-border/50">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock In</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock Out</th>
-                <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT (min)</th>
-                <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {filtered.map(r => {
-                const cfg = STATUS_CONFIG[r.status];
-                return (
-                  <tr key={r.id} className="hover:bg-muted/40 transition-colors">
-                    <td className="py-3 px-3 font-medium text-foreground">{empName(r.employee_id)}</td>
-                    <td className="py-3 px-3 text-muted-foreground">{format(parseISO(r.work_date), 'EEE, dd MMM')}</td>
-                    <td className="py-3 px-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
-                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_in ?? '—'}</td>
-                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_out ?? '—'}</td>
-                    <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.overtime_minutes > 0 ? r.overtime_minutes : '—'}</td>
-                    <td className="py-3 px-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Desktop table */}
+          <div className="hidden md:block rounded-xl border border-border/60 bg-card overflow-x-auto">
+            <table className="w-full text-sm min-w-[640px]">
+              <thead className="bg-muted/50">
+                <tr className="border-b border-border/50">
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Employee</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock In</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Clock Out</th>
+                  <th className="text-left px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">OT (min)</th>
+                  <th className="text-right px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {filtered.map(r => {
+                  const cfg = STATUS_CONFIG[r.status];
+                  return (
+                    <tr key={r.id} className="hover:bg-muted/40 transition-colors">
+                      <td className="py-3 px-3 font-medium text-foreground">{empName(r.employee_id)}</td>
+                      <td className="py-3 px-3 text-muted-foreground">{format(parseISO(r.work_date), 'EEE, dd MMM')}</td>
+                      <td className="py-3 px-3"><Badge variant={cfg.variant}>{cfg.label}</Badge></td>
+                      <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_in ?? '—'}</td>
+                      <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.clock_out ?? '—'}</td>
+                      <td className="py-3 px-3 text-muted-foreground tabular-nums">{r.overtime_minutes > 0 ? r.overtime_minutes : '—'}</td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label="Edit record"><Pencil className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(r)} aria-label="Delete record"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="md:hidden divide-y divide-border/60">
+            {filtered.map(r => {
+              const cfg = STATUS_CONFIG[r.status];
+              return (
+                <MobileCard key={r.id} className="rounded-none border-0 shadow-none bg-transparent backdrop-blur-none">
+                  <MobileCardHeader>
+                    <MobileCardTitle>{empName(r.employee_id)}</MobileCardTitle>
+                    <MobileCardMeta>{format(parseISO(r.work_date), 'EEE, dd MMM')}</MobileCardMeta>
+                  </MobileCardHeader>
+                  <MobileCardRow label="Status"><Badge variant={cfg.variant}>{cfg.label}</Badge></MobileCardRow>
+                  <MobileCardRow label="Clock In">{r.clock_in ?? '—'}</MobileCardRow>
+                  <MobileCardRow label="Clock Out">{r.clock_out ?? '—'}</MobileCardRow>
+                  {r.overtime_minutes > 0 && (
+                    <MobileCardRow label="OT (min)">{r.overtime_minutes}</MobileCardRow>
+                  )}
+                  <MobileCardFooter>
+                    <Button size="sm" variant="outline" className="flex-1 h-9" onClick={() => openEdit(r)}>
+                      <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-9 px-3 text-destructive" onClick={() => setDeleteTarget(r)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </MobileCardFooter>
+                </MobileCard>
+              );
+            })}
+          </div>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalCount}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            hasPrev={page > 0}
+            hasNext={page < totalPages - 1}
+          />
+        </>
       )}
 
       {/* Dialog */}
