@@ -206,6 +206,9 @@ const Dashboard = () => {
   const [expiringDocs, setExpiringDocs] = useState<{ id: string; title: string; expires_at: string }[]>([]);
   const [dueFilings, setDueFilings] = useState<{ id: string; kind: string; period: string; due_date: string }[]>([]);
 
+  // ── Contract expiry alerts (employees whose contract ends within 30 days) ──
+  const [expiringContracts, setExpiringContracts] = useState<{ id: string; name: string; contract_end_date: string }[]>([]);
+
   // ── Birthdays & work anniversaries in the next 14 days ────────────────────
   const [celebrations, setCelebrations] = useState<{ id: string; name: string; type: 'birthday' | 'anniversary'; date: string; detail: string }[]>([]);
 
@@ -236,9 +239,21 @@ const Dashboard = () => {
           .eq('status', 'active')
           .neq('is_anonymised', true)
           .limit(500),
-      ]).then(([docsRes, filingsRes, profilesRes]) => {
+        supabase
+          .from('profiles')
+          .select('id, full_name, contract_end_date')
+          .eq('status', 'active')
+          .not('contract_end_date', 'is', null)
+          .gte('contract_end_date', today)
+          .lte('contract_end_date', in30)
+          .order('contract_end_date', { ascending: true })
+          .limit(10),
+      ]).then(([docsRes, filingsRes, profilesRes, contractRes]) => {
         setExpiringDocs((docsRes.data as any[]) || []);
         setDueFilings((filingsRes.data as any[]) || []);
+        setExpiringContracts(((contractRes.data as any[]) || []).map((c: any) => ({
+          id: c.id, name: c.full_name || 'Employee', contract_end_date: c.contract_end_date,
+        })));
 
         const now = new Date();
         const in14 = new Date(now.getTime() + 14 * 86400000);
@@ -534,14 +549,14 @@ const Dashboard = () => {
       <PushNotificationsBanner />
       <AnnouncementsBanner />
 
-      {/* ── Expiry alerts — documents and compliance filings due soon ─ */}
-      {(expiringDocs.length > 0 || dueFilings.length > 0) && (
+      {/* ── Expiry alerts — documents, compliance filings, contracts due soon ─ */}
+      {(expiringDocs.length > 0 || dueFilings.length > 0 || expiringContracts.length > 0) && (
         <div className="rounded-xl border border-warning/40 bg-warning/5 p-4 space-y-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-warning shrink-0" />
             <p className="text-sm font-semibold text-foreground">Needs attention in the next 30 days</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {expiringDocs.length > 0 && (
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
@@ -572,6 +587,23 @@ const Dashboard = () => {
                   >
                     <span className="font-medium uppercase">{f.kind} — {f.period}</span>
                     <span className="text-warning ml-2 shrink-0">{formatDate(f.due_date)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {expiringContracts.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-[0.06em]">
+                  Contracts Ending ({expiringContracts.length})
+                </p>
+                {expiringContracts.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => navigate(`/employees/${c.id}`)}
+                    className="flex items-center justify-between w-full text-left rounded-lg px-3 py-2 bg-background/60 hover:bg-background text-xs kd-transition border border-border/50"
+                  >
+                    <span className="font-medium truncate max-w-[160px]">{c.name}</span>
+                    <span className="text-warning ml-2 shrink-0">{formatDate(c.contract_end_date)}</span>
                   </button>
                 ))}
               </div>
