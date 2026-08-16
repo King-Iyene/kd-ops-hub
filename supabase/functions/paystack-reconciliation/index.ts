@@ -115,7 +115,7 @@ serve(async (req) => {
       const cutoff = new Date(Date.now() - STUCK_THRESHOLD_HOURS * 3600_000).toISOString();
       const { data: stuckItems, error: fetchErr } = await service
         .from("batch_items")
-        .select("id, paystack_reference, full_name, status, batch_id")
+        .select("id, paystack_reference, full_name, status, batch_id, amount_ngn")
         .in("status", ["pending", "retry"])
         .not("paystack_reference", "is", null)
         .lt("created_at", cutoff)
@@ -154,14 +154,27 @@ serve(async (req) => {
             const txnAmountNgn = Number(body.data?.amount || 0) / 100;
             const stampDuty = txnAmountNgn >= 10_000 ? 50 : 0;
             const pureFeeNgn = Math.max(0, totalFeeNgn - stampDuty);
-            await service.from("batch_items").update({
-              status: "succeeded",
-              failure_reason: null,
-              processed_at: new Date().toISOString(),
-              paystack_raw: body.data,
-              paystack_fee_ngn: pureFeeNgn,
-            }).eq("id", it.id);
-            succeeded++;
+
+            // Verify transferred amount matches what we expected
+            const expectedNgn = Number(it.amount_ngn || 0);
+            if (expectedNgn > 0 && Math.abs(txnAmountNgn - expectedNgn) > 1) {
+              await service.from("batch_items").update({
+                status: "failed",
+                failure_reason: `Amount mismatch: expected ₦${expectedNgn.toLocaleString()} but Paystack transferred ₦${txnAmountNgn.toLocaleString()}`,
+                processed_at: new Date().toISOString(),
+                paystack_raw: body.data,
+              }).eq("id", it.id);
+              failed++;
+            } else {
+              await service.from("batch_items").update({
+                status: "succeeded",
+                failure_reason: null,
+                processed_at: new Date().toISOString(),
+                paystack_raw: body.data,
+                paystack_fee_ngn: pureFeeNgn,
+              }).eq("id", it.id);
+              succeeded++;
+            }
           } else if (status === "reversed") {
             // reversed is its own terminal state — Paystack settled the
             // transfer then clawed the money back. Collapsing this into
@@ -198,18 +211,16 @@ serve(async (req) => {
             failed++;
           } else if (status === "otp") {
             // Paystack is waiting for merchant OTP confirmation on the
-            // dashboard. Keep the row pending but write a clear note so
-            // finance knows it's a human-action problem, not a system
-            // failure. We avoid re-notifying on every reconciliation run by
-            // only writing the message when it isn't already there.
+            // dashboard. Write a distinct 'otp_blocked' status so finance
+            // can filter these separately from genuinely-pending items.
             await service.from("batch_items").update({
+              status: "otp_blocked",
               failure_reason:
                 "Awaiting OTP authorization — approve on dashboard.paystack.co (Transfers → pending) to release this transfer.",
               paystack_raw: body.data,
             }).eq("id", it.id);
             otpRequired++;
             otpItems.push({ name: it.full_name, ref: it.paystack_reference });
-            unchanged++;
           } else {
             // pending / received / queued — no terminal change yet.
             unchanged++;

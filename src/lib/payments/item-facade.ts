@@ -222,6 +222,7 @@ function normaliseStatus(provider: Provider, raw: unknown): string | null {
     if (s === 'success') return 'succeeded';
     if (s === 'abandoned' || s === 'failed') return 'failed';
     if (s === 'reversed') return 'reversed';
+    if (s === 'otp_blocked') return 'otp_blocked';
     if (s === 'otp' || s === 'pending' || s === 'processing' || s === 'received' || s === 'queued') return 'pending';
     return s;
   }

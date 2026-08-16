@@ -27,6 +27,7 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; lab
   remitted:                 { bg: 'bg-blue-50 border border-blue-200/80 dark:bg-blue-500/10 dark:border-blue-500/25',           text: 'text-blue-700 dark:text-blue-300',     dot: 'bg-blue-400',    label: 'Remitted' },
   confirmed:                { bg: 'bg-emerald-50 border border-emerald-200/80 dark:bg-emerald-500/10 dark:border-emerald-500/25', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-400', label: 'Confirmed' },
   late:                     { bg: 'bg-red-50 border border-red-200/80 dark:bg-red-500/10 dark:border-red-500/25',               text: 'text-red-700 dark:text-red-300',       dot: 'bg-red-400',     label: 'Late' },
+  otp_blocked:              { bg: 'bg-purple-50 border border-purple-200/80 dark:bg-purple-500/10 dark:border-purple-500/25', text: 'text-purple-700 dark:text-purple-300', dot: 'bg-purple-400',  label: 'OTP Required' },
 };
 
 const FALLBACK = { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400', label: '' };
@@ -94,7 +95,7 @@ export function StatusBadge({
 
   // Living dots breathe for dynamic, attention-worthy statuses.
   const liveAnim =
-    status === 'pending' || status === 'pending_approval' || status === 'pending_second_approval'
+    status === 'pending' || status === 'pending_approval' || status === 'pending_second_approval' || status === 'otp_blocked'
       ? 'kd-status-live-warning'
       : status === 'processing' || status === 'retry'
         ? 'kd-status-live-cyan'
