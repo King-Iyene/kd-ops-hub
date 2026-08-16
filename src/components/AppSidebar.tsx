@@ -3,9 +3,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   LogOut,
   Users,
   Settings,
+  Landmark,
+  Truck,
+  Layers,
+  Contact2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -17,9 +22,11 @@ import {
   ALL_NAV,
   NAV_GROUPS,
   UNGROUPED_TITLES,
+  SIDEBAR_HUBS,
   filterNavByRoleAndPermissions,
   type NavItem,
   type NavGroupKey,
+  type SidebarHub,
 } from '@/lib/navConfig';
 import {
   Sidebar,
@@ -33,33 +40,14 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-const lsKey = (k: NavGroupKey) => `kdops_sidebar_${k}_collapsed`;
-
-function loadCollapsed(k: NavGroupKey): boolean {
-  try {
-    return localStorage.getItem(lsKey(k)) === 'true';
-  } catch {
-    return false;
-  }
-}
-
-function persistCollapsed(k: NavGroupKey, v: boolean) {
-  try {
-    localStorage.setItem(lsKey(k), String(v));
-  } catch { /* localStorage unavailable */ }
-}
-
-// ─── Hub icon map ────────────────────────────────────────────────────────────
-
 const HUB_ICONS: Record<string, typeof Users> = {
   Users,
   Settings,
+  Landmark,
+  Truck,
+  Layers,
+  Contact2,
 };
-
-// ─── Utility ──────────────────────────────────────────────────────────────────
 
 function getInitials(name: string): string {
   return name
@@ -69,8 +57,6 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase();
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function AppSidebar() {
   const { state, setOpenMobile, isMobile } = useSidebar();
@@ -107,100 +93,46 @@ export function AppSidebar() {
     return () => clearInterval(id);
   }, []);
 
-  // ─── Group collapse state (initialised from localStorage) ─────────────────
+  // ─── Active hub ────────────────────────────────────────────────────────────
+  const [activeHub, setActiveHub] = useState<string | null>(null);
 
-  const [groupCollapsed, setGroupCollapsed] = useState<Record<NavGroupKey, boolean>>(() => ({
-    moneyOut:   loadCollapsed('moneyOut'),
-    moneyIn:    loadCollapsed('moneyIn'),
-    risk:       loadCollapsed('risk'),
-    people:     loadCollapsed('people'),
-    operations: loadCollapsed('operations'),
-    workspace:  loadCollapsed('workspace'),
-    crm:        loadCollapsed('crm'),
-    admin:      loadCollapsed('admin'),
-  }));
+  // Sub-group collapse state within hub view
+  const [hubGroupCollapsed, setHubGroupCollapsed] = useState<Record<string, boolean>>({});
+  const toggleHubGroup = (key: string) => {
+    setHubGroupCollapsed((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
-  function toggleGroup(key: NavGroupKey) {
-    setGroupCollapsed((prev) => {
-      const next = !prev[key];
-      persistCollapsed(key, next);
-      return { ...prev, [key]: next };
-    });
-  }
-
-  // ─── Hub state ──────────────────────────────────────────────────────────────
-  const [activeHub, setActiveHub] = useState<NavGroupKey | null>(null);
-
-  const hubGroups = NAV_GROUPS.filter((g) => 'hub' in g && g.hub);
-
-  // Auto-enter hub mode when the current route matches a hub item
+  // Auto-enter hub when route matches a hub item
   useEffect(() => {
-    for (const group of hubGroups) {
-      const groupTitles = group.titles as readonly string[];
-      const groupUrls = ALL_NAV
+    for (const hub of SIDEBAR_HUBS) {
+      const groupTitles = hub.groups.flatMap((gk) => {
+        const g = NAV_GROUPS.find((ng) => ng.key === gk);
+        return g ? [...g.titles] : [];
+      });
+      const hubUrls = ALL_NAV
         .filter((n) => groupTitles.includes(n.title))
         .map((n) => n.url);
-      const isInHub = groupUrls.some(
+      const isInHub = hubUrls.some(
         (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
       );
       if (isInHub) {
-        setActiveHub(group.key);
+        setActiveHub(hub.key);
         return;
       }
     }
-    // Don't auto-exit hub when navigating to an ungrouped page —
-    // only the back button exits. But if the user navigates to a
-    // route in a DIFFERENT group (non-hub), exit the hub.
-    if (activeHub) {
-      const nonHubGroups = NAV_GROUPS.filter((g) => !('hub' in g && g.hub));
-      for (const group of nonHubGroups) {
-        const groupTitles = group.titles as readonly string[];
-        const groupUrls = ALL_NAV
-          .filter((n) => groupTitles.includes(n.title))
-          .map((n) => n.url);
-        const isInGroup = groupUrls.some(
-          (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
-        );
-        if (isInGroup) {
-          setActiveHub(null);
-          return;
-        }
-      }
-      // Check ungrouped
-      const ungroupedUrls = ALL_NAV
-        .filter((n) => UNGROUPED_TITLES.includes(n.title))
-        .map((n) => n.url);
-      const isUngrouped = ungroupedUrls.some(
-        (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
-      );
-      if (isUngrouped) {
-        setActiveHub(null);
-      }
-    }
-  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Auto-expand the group containing the active route (non-hub groups only)
-  useEffect(() => {
-    for (const group of NAV_GROUPS) {
-      if ('hub' in group && group.hub) continue;
-      const groupUrls = ALL_NAV
-        .filter((n) => (group.titles as readonly string[]).includes(n.title))
-        .map((n) => n.url);
-      const isGroupActive = groupUrls.some(
-        (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
-      );
-      if (isGroupActive) {
-        setGroupCollapsed((prev) => {
-          if (!prev[group.key]) return prev;
-          persistCollapsed(group.key, false);
-          return { ...prev, [group.key]: false };
-        });
-      }
+    // Check if on an ungrouped page
+    const ungroupedUrls = ALL_NAV
+      .filter((n) => UNGROUPED_TITLES.includes(n.title))
+      .map((n) => n.url);
+    const isUngrouped = ungroupedUrls.some(
+      (url) => location.pathname === url || (url !== '/' && location.pathname.startsWith(url)),
+    );
+    if (isUngrouped) {
+      setActiveHub(null);
     }
   }, [location.pathname]);
 
-  // ─── Role + permission filtering ─────────────────────────────────────────
-
+  // ─── Role + permission filtering ──────────────────────────────────────────
   const role = effectiveRole as Role | undefined;
   const isViewAs = (profile?.role === 'super_admin') && (effectiveRole !== 'super_admin');
   const permissions = isViewAs
@@ -209,7 +141,6 @@ export function AppSidebar() {
   const navItems = filterNavByRoleAndPermissions(ALL_NAV, role, permissions);
 
   // ─── Render a single nav item ─────────────────────────────────────────────
-
   const renderNavItem = useCallback((item: NavItem) => {
     const hasExactMatch = navItems.some((n) => n.url === location.pathname);
     const active = hasExactMatch
@@ -281,44 +212,96 @@ export function AppSidebar() {
 
   const ungroupedItems = navItems.filter((n) => UNGROUPED_TITLES.includes(n.title));
 
-  // ─── Hub sidebar view ──────────────────────────────────────────────────────
+  // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  const activeHubGroup = activeHub
-    ? NAV_GROUPS.find((g) => g.key === activeHub)
-    : null;
+  function getHubItems(hub: SidebarHub) {
+    const groupTitles = hub.groups.flatMap((gk) => {
+      const g = NAV_GROUPS.find((ng) => ng.key === gk);
+      return g ? [...g.titles] : [];
+    });
+    return navItems.filter((n) => groupTitles.includes(n.title));
+  }
 
-  if (activeHub && activeHubGroup && !sidebarCollapsed) {
-    const hubItems = navItems.filter((n) =>
-      (activeHubGroup.titles as readonly string[]).includes(n.title),
+  function isHubActive(hub: SidebarHub) {
+    const items = getHubItems(hub);
+    return items.some(
+      (n) => location.pathname === n.url || (n.url !== '/' && location.pathname.startsWith(n.url)),
     );
-    const HubIcon = 'icon' in activeHubGroup
-      ? HUB_ICONS[activeHubGroup.icon as string] ?? Users
-      : Users;
+  }
+
+  // ─── Hub sub-view ──────────────────────────────────────────────────────────
+
+  const activeHubConfig = activeHub ? SIDEBAR_HUBS.find((h) => h.key === activeHub) : null;
+
+  if (activeHubConfig && !sidebarCollapsed) {
+    const HubIcon = HUB_ICONS[activeHubConfig.icon] ?? Layers;
+    const hubNavGroups = activeHubConfig.groups
+      .map((gk) => NAV_GROUPS.find((ng) => ng.key === gk))
+      .filter(Boolean) as (typeof NAV_GROUPS)[number][];
 
     return (
       <Sidebar collapsible="icon">
-        {/* Hub header with back button */}
-        <div className="px-3 pt-3.5 pb-3 border-b border-sidebar-border/40">
+        {/* Hub header */}
+        <div className="px-3 pt-3.5 pb-2 border-b border-sidebar-border/40">
           <button
             onClick={() => setActiveHub(null)}
-            className="flex items-center gap-2 px-1 py-1 rounded-md w-full text-left kd-transition hover:bg-white/[0.06] group/back"
+            className="flex items-center gap-2.5 px-1.5 py-1.5 rounded-lg w-full text-left kd-transition hover:bg-white/[0.06] group/back"
           >
-            <ChevronLeft className="h-4 w-4 text-sidebar-foreground/40 group-hover/back:text-sidebar-foreground/75 kd-transition" />
-            <HubIcon className="h-4 w-4 text-sidebar-foreground/50" />
-            <span className="text-[13px] font-semibold text-sidebar-primary tracking-tight">
-              {activeHubGroup.label}
-            </span>
+            <ChevronLeft className="h-3.5 w-3.5 text-sidebar-foreground/40 group-hover/back:text-sidebar-foreground/70 kd-transition shrink-0" />
+            <div className={cn('h-7 w-7 rounded-lg flex items-center justify-center shrink-0', activeHubConfig.iconBg)}>
+              <HubIcon className={cn('h-3.5 w-3.5', activeHubConfig.color)} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-sidebar-primary leading-none tracking-tight">
+                {activeHubConfig.label}
+              </p>
+              <p className="text-[10px] text-sidebar-foreground/40 mt-0.5 leading-none truncate">
+                {activeHubConfig.description}
+              </p>
+            </div>
           </button>
         </div>
 
-        <SidebarContent className="pt-2 pb-2">
-          <SidebarGroup className="p-0">
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5 px-2">
-                {hubItems.map(renderNavItem)}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        <SidebarContent className="pt-1 pb-2">
+          {hubNavGroups.map((group) => {
+            const groupItems = navItems.filter((n) =>
+              (group.titles as readonly string[]).includes(n.title),
+            );
+            if (groupItems.length === 0) return null;
+
+            const hasManyGroups = hubNavGroups.length > 1;
+            const isCollapsed = hubGroupCollapsed[group.key] ?? false;
+
+            return (
+              <SidebarGroup key={group.key} className="p-0">
+                <SidebarGroupContent>
+                  {hasManyGroups && (
+                    <button
+                      onClick={() => toggleHubGroup(group.key)}
+                      className="flex w-full items-center gap-1.5 px-3 pt-3 pb-1 kd-transition hover:opacity-90 focus-visible:outline-none group/sub"
+                      aria-expanded={!isCollapsed}
+                    >
+                      <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35 flex-1 text-left group-hover/sub:text-sidebar-foreground/55 kd-transition">
+                        {group.label}
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 text-sidebar-foreground/25 transition-transform duration-200',
+                          'group-hover/sub:text-sidebar-foreground/45',
+                          isCollapsed ? '-rotate-90' : '',
+                        )}
+                      />
+                    </button>
+                  )}
+                  {(!isCollapsed || !hasManyGroups) && (
+                    <SidebarMenu className="gap-0.5 px-2 mt-0.5">
+                      {groupItems.map(renderNavItem)}
+                    </SidebarMenu>
+                  )}
+                </SidebarGroupContent>
+              </SidebarGroup>
+            );
+          })}
         </SidebarContent>
 
         {/* Footer */}
@@ -360,11 +343,9 @@ export function AppSidebar() {
 
   // ─── Main sidebar view ─────────────────────────────────────────────────────
 
-  const nonHubGroups = NAV_GROUPS.filter((g) => !('hub' in g && g.hub));
-
   return (
     <Sidebar collapsible="icon">
-      {/* ── Logo area */}
+      {/* Logo area */}
       <div className="px-3 pt-3.5 pb-3 border-b border-sidebar-border/40">
         {!sidebarCollapsed ? (
           <div className="flex items-center gap-2.5 px-0.5">
@@ -384,127 +365,112 @@ export function AppSidebar() {
         )}
       </div>
 
-      {/* ── Nav */}
       <SidebarContent className="pt-2 pb-2">
         <SidebarGroup className="p-0">
           <SidebarGroupContent>
-
             {/* Ungrouped: Dashboard, My Dashboard, Approvals, Finance */}
-            <SidebarMenu className="gap-0.5 px-2 mb-1">
+            <SidebarMenu className="gap-0.5 px-2 mb-2">
               {ungroupedItems.map(renderNavItem)}
             </SidebarMenu>
 
-            {/* Regular collapsible groups + hub entries */}
-            {NAV_GROUPS.map((group) => {
-              const isHub = 'hub' in group && group.hub;
-              const groupTitles = group.titles as readonly string[];
-              const groupItems = navItems.filter((n) => groupTitles.includes(n.title));
-              if (groupItems.length === 0) return null;
+            {/* Separator */}
+            {!sidebarCollapsed && (
+              <div className="mx-3 mb-2">
+                <div className="h-px bg-sidebar-border/25" />
+                <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/30 mt-2.5 mb-1 px-0.5">
+                  Modules
+                </p>
+              </div>
+            )}
+            {sidebarCollapsed && <div className="mx-3 my-2 h-px bg-sidebar-border/20" />}
 
-              // Hub groups render as a single clickable entry
-              if (isHub) {
-                const HubIcon = 'icon' in group
-                  ? HUB_ICONS[group.icon as string] ?? Users
-                  : Users;
-                const isActive = groupItems.some(
-                  (n) => location.pathname === n.url || (n.url !== '/' && location.pathname.startsWith(n.url)),
-                );
+            {/* Hub cards */}
+            {!sidebarCollapsed ? (
+              <div className="px-2 space-y-1">
+                {SIDEBAR_HUBS.map((hub) => {
+                  const items = getHubItems(hub);
+                  if (items.length === 0) return null;
+                  const active = isHubActive(hub);
+                  const Icon = HUB_ICONS[hub.icon] ?? Layers;
 
-                return (
-                  <div key={group.key}>
-                    {sidebarCollapsed ? (
-                      <div className="mx-3 my-2 h-px bg-sidebar-border/20" />
-                    ) : (
-                      <div className="px-3 pt-3.5 pb-1">
-                        <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35">
-                          {group.label}
-                        </span>
-                      </div>
-                    )}
-                    <SidebarMenu className="gap-0.5 px-2">
-                      <SidebarMenuItem className="list-none">
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          tooltip={sidebarCollapsed ? group.label : undefined}
-                          className="relative"
-                          onClick={() => setActiveHub(group.key)}
-                        >
-                          <div
-                            className={cn(
-                              'flex items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] font-medium w-full',
-                              'kd-transition group relative cursor-pointer',
-                              isActive
-                                ? 'bg-white/[0.11] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.07)]'
-                                : 'text-sidebar-foreground/65 hover:bg-white/[0.06] hover:text-sidebar-foreground',
-                            )}
-                          >
-                            {isActive && (
-                              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[hsl(var(--sidebar-ring))] shadow-[0_0_6px_hsl(var(--sidebar-ring)/0.8)]" />
-                            )}
-                            <HubIcon
-                              className={cn(
-                                'h-[15px] w-[15px] shrink-0 kd-transition',
-                                isActive
-                                  ? 'text-[hsl(var(--sidebar-ring))]'
-                                  : 'text-sidebar-foreground/40 group-hover:text-sidebar-foreground/75',
-                              )}
-                            />
-                            {!sidebarCollapsed && (
-                              <>
-                                <span className="flex-1 truncate">{group.label}</span>
-                                <span className="text-[10px] tabular-nums text-sidebar-foreground/30 font-medium">
-                                  {groupItems.length}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
-                  </div>
-                );
-              }
-
-              // Regular collapsible groups
-              const isCollapsed = groupCollapsed[group.key];
-
-              return (
-                <div key={group.key}>
-                  {sidebarCollapsed ? (
-                    <div className="mx-3 my-2 h-px bg-sidebar-border/20" />
-                  ) : (
+                  return (
                     <button
-                      onClick={() => toggleGroup(group.key)}
-                      className="flex w-full items-center gap-1.5 px-3 pt-3.5 pb-1 kd-transition hover:opacity-90 focus-visible:outline-none group/grp"
-                      aria-expanded={!isCollapsed}
+                      key={hub.key}
+                      onClick={() => setActiveHub(hub.key)}
+                      className={cn(
+                        'w-full flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-left kd-transition group/hub',
+                        'border border-transparent',
+                        active
+                          ? 'bg-white/[0.09] border-white/[0.08] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.06),_0_1px_3px_hsl(0_0%_0%/0.15)]'
+                          : 'hover:bg-white/[0.05] hover:border-white/[0.04]',
+                      )}
                     >
-                      <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/35 flex-1 text-left group-hover/grp:text-sidebar-foreground/55 kd-transition">
-                        {group.label}
-                      </span>
-                      <ChevronDown
-                        className={cn(
-                          'h-3 w-3 text-sidebar-foreground/25 transition-transform duration-200',
-                          'group-hover/grp:text-sidebar-foreground/45',
-                          isCollapsed ? '-rotate-90' : '',
-                        )}
-                      />
+                      <div className={cn(
+                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0 kd-transition',
+                        hub.iconBg,
+                        active && 'ring-1 ring-white/10',
+                      )}>
+                        <Icon className={cn('h-4 w-4 kd-transition', hub.color)} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className={cn(
+                            'text-[13px] font-semibold leading-none kd-transition truncate',
+                            active ? 'text-sidebar-primary' : 'text-sidebar-foreground/75 group-hover/hub:text-sidebar-foreground/90',
+                          )}>
+                            {hub.label}
+                          </p>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[10px] tabular-nums text-sidebar-foreground/25 font-medium">
+                              {items.length}
+                            </span>
+                            <ChevronRight className="h-3 w-3 text-sidebar-foreground/20 group-hover/hub:text-sidebar-foreground/40 kd-transition" />
+                          </div>
+                        </div>
+                        <p className="text-[10.5px] text-sidebar-foreground/35 mt-0.5 leading-none truncate group-hover/hub:text-sidebar-foreground/45 kd-transition">
+                          {hub.description}
+                        </p>
+                      </div>
                     </button>
-                  )}
+                  );
+                })}
+              </div>
+            ) : (
+              /* Collapsed mode: show hub icons as tooltip buttons */
+              <SidebarMenu className="gap-0.5 px-2">
+                {SIDEBAR_HUBS.map((hub) => {
+                  const items = getHubItems(hub);
+                  if (items.length === 0) return null;
+                  const active = isHubActive(hub);
+                  const Icon = HUB_ICONS[hub.icon] ?? Layers;
 
-                  {(!isCollapsed || sidebarCollapsed) && (
-                    <SidebarMenu className="gap-0.5 px-2">
-                      {groupItems.map(renderNavItem)}
-                    </SidebarMenu>
-                  )}
-                </div>
-              );
-            })}
-
+                  return (
+                    <SidebarMenuItem key={hub.key} className="list-none">
+                      <SidebarMenuButton
+                        tooltip={hub.label}
+                        isActive={active}
+                        className="relative"
+                        onClick={() => setActiveHub(hub.key)}
+                      >
+                        <div className={cn(
+                          'flex items-center justify-center w-full py-0.5',
+                        )}>
+                          <Icon className={cn(
+                            'h-[15px] w-[15px] kd-transition',
+                            active ? hub.color : 'text-sidebar-foreground/40',
+                          )} />
+                        </div>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      {/* ── Footer */}
+      {/* Footer */}
       <SidebarFooter className="border-t border-sidebar-border/40 pt-1.5 pb-2.5 px-2">
         <SidebarMenu>
           <SidebarMenuItem className="list-none">

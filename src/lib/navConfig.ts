@@ -171,19 +171,83 @@ export const NAV_GROUPS = [
   { key: 'moneyOut',   label: 'Money Out',           titles: ['Payments', 'Payment Schedule', 'Transactions', 'Payroll', 'Earned Wages', 'Subscriptions', 'Cards', 'Expenses'] },
   { key: 'moneyIn',    label: 'Money In & Treasury',  titles: ['Invoices', 'Assets', 'Cash Flow'] },
   { key: 'risk',       label: 'Risk & Controls',     titles: ['Budgets', 'Compliance', 'Anomalies', 'Audit Log'] },
-  { key: 'people',     label: 'People & HR',         titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'HR Letters', 'Surveys', 'Grievances', 'Staff Loans', 'Shifts', 'Succession', 'Handbook', 'Timesheets'], hub: true, icon: 'Users' },
+  { key: 'people',     label: 'People & HR',         titles: ['Contractors', 'Employees', 'Placements', 'Leave', 'Performance', 'Training', 'Benefits', 'Onboarding', 'Recruitment', 'Attendance', 'Disciplinary', 'HR Letters', 'Surveys', 'Grievances', 'Staff Loans', 'Shifts', 'Succession', 'Handbook', 'Timesheets'] },
   { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
   { key: 'workspace',  label: 'Workspace',           titles: ['Assistant', 'Messages', 'Tasks', 'Projects', 'Goals', 'Knowledge', 'Documents', 'Reports', 'HR Analytics', 'Company Guide'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Clients', 'Contacts', 'Referrals', 'Public Links', 'Communications'] },
-  { key: 'admin',      label: 'Admin',               titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'], hub: true, icon: 'Settings' },
+  { key: 'admin',      label: 'Admin',               titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 
-/** Items above all groups (always visible at the top). Finance sits here
- *  too — it's a CFO-level hub aggregating Payroll/Compliance/Budgets/
- *  Vendors/Cash data, not a peer of the line items inside any one group. */
 export const UNGROUPED_TITLES = ['Dashboard', 'My Dashboard', 'Approvals', 'Finance'];
+
+export type SidebarHub = {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+  color: string;
+  iconBg: string;
+  groups: NavGroupKey[];
+};
+
+export const SIDEBAR_HUBS: SidebarHub[] = [
+  {
+    key: 'finance',
+    label: 'Finance',
+    description: 'Payments, payroll & treasury',
+    icon: 'Landmark',
+    color: 'text-emerald-400',
+    iconBg: 'bg-emerald-500/15',
+    groups: ['moneyOut', 'moneyIn', 'risk'],
+  },
+  {
+    key: 'people',
+    label: 'People & HR',
+    description: 'Staff, leave & compliance',
+    icon: 'Users',
+    color: 'text-blue-400',
+    iconBg: 'bg-blue-500/15',
+    groups: ['people'],
+  },
+  {
+    key: 'operations',
+    label: 'Operations',
+    description: 'Fleet & vendor management',
+    icon: 'Truck',
+    color: 'text-amber-400',
+    iconBg: 'bg-amber-500/15',
+    groups: ['operations'],
+  },
+  {
+    key: 'workspace',
+    label: 'Workspace',
+    description: 'Tasks, docs & reports',
+    icon: 'Layers',
+    color: 'text-violet-400',
+    iconBg: 'bg-violet-500/15',
+    groups: ['workspace'],
+  },
+  {
+    key: 'crm',
+    label: 'CRM',
+    description: 'Clients, contacts & outreach',
+    icon: 'Contact2',
+    color: 'text-sky-400',
+    iconBg: 'bg-sky-500/15',
+    groups: ['crm'],
+  },
+  {
+    key: 'admin',
+    label: 'Admin',
+    description: 'Settings & audit controls',
+    icon: 'Settings',
+    color: 'text-slate-400',
+    iconBg: 'bg-slate-500/15',
+    groups: ['admin'],
+  },
+];
 
 /**
  * Filters ALL_NAV using the same role + permission logic the desktop
