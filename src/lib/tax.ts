@@ -74,6 +74,9 @@ export const NHIS_EMPLOYER_RATE = 0.05;
 export const RENT_RELIEF_RATE = 0.20;
 export const RENT_RELIEF_CAP_ANNUAL = 500_000;
 
+/** Assumed working days per calendar month, used to derive a daily rate for unpaid leave. */
+export const DEFAULT_WORKING_DAYS_PER_MONTH = 22;
+
 // ---------------------------------------------------------------------------
 // PAYE — bands-only path (the public, simple API)
 // ---------------------------------------------------------------------------
@@ -138,6 +141,11 @@ export interface PayslipInput {
   annualLifeAssuranceNgn?: number;
   /** Other extra deductions (loans, advances, etc.) — applied AFTER tax. */
   extraDeductionsMonthlyNgn?: number;
+  /** Approved unpaid-leave days this period. Deducted from gross BEFORE tax
+   *  at a daily rate of grossMonthlyNgn / workingDaysPerMonth (default 22). */
+  unpaidLeaveDays?: number;
+  /** Working days assumed per month for the unpaid-leave daily rate. Default 22. */
+  workingDaysPerMonth?: number;
 
   // ─── NEW (Sprint A): salary component breakdown ─────────────────────────
   // When `useComponents` is TRUE these override the statutory bases:
@@ -154,6 +162,14 @@ export interface PayslipInput {
 
 export interface PayslipBreakdown {
   grossMonthlyNgn: number;
+  /** Gross after subtracting the unpaid-leave deduction — the amount that
+   *  actually flows into statutory bases and tax. Equals grossMonthlyNgn
+   *  when unpaidLeaveDays is 0. */
+  payableGrossMonthlyNgn: number;
+  /** Daily rate used for the unpaid-leave deduction (payableGross basis: grossMonthlyNgn / workingDaysPerMonth). */
+  dailyRateMonthlyNgn: number;
+  /** unpaidLeaveDays × dailyRateMonthlyNgn. */
+  unpaidLeaveDeductionMonthlyNgn: number;
   pensionEmployeeMonthlyNgn: number;
   pensionEmployerMonthlyNgn: number;
   nhfMonthlyNgn: number;
@@ -201,10 +217,25 @@ export interface PayslipBreakdown {
 export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const grossMonthlyNgn = Math.max(0, input.grossMonthlyNgn || 0);
 
+  // Unpaid leave: deduct daily-rate × days from gross BEFORE tax so it
+  // reduces the taxable (and pensionable) base, not just take-home.
+  const workingDaysPerMonth = input.workingDaysPerMonth && input.workingDaysPerMonth > 0
+    ? input.workingDaysPerMonth
+    : DEFAULT_WORKING_DAYS_PER_MONTH;
+  const unpaidLeaveDays = Math.max(0, input.unpaidLeaveDays || 0);
+  const dailyRateMonthlyNgn = grossMonthlyNgn / workingDaysPerMonth;
+  const unpaidLeaveDeductionMonthlyNgn = Math.min(
+    grossMonthlyNgn,
+    unpaidLeaveDays * dailyRateMonthlyNgn,
+  );
+  const payableGrossMonthlyNgn = grossMonthlyNgn - unpaidLeaveDeductionMonthlyNgn;
+
   // Resolve the statutory deduction bases. With components enabled:
   //   pension base = basic + housing + transport
   //   NHF base     = basic only
   // Without components (legacy): both bases = gross.
+  // Both fall back to the post-unpaid-leave gross so leave days also
+  // reduce pension/NHF contributions proportionally.
   const usedComponents = !!input.useComponents;
   const basicComp     = Math.max(0, input.basicMonthlyNgn      || 0);
   const housingComp   = Math.max(0, input.housingMonthlyNgn    || 0);
@@ -212,10 +243,10 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
 
   const pensionBaseMonthlyNgn = usedComponents
     ? basicComp + housingComp + transportComp
-    : grossMonthlyNgn;
+    : payableGrossMonthlyNgn;
   const nhfBaseMonthlyNgn = usedComponents
     ? basicComp
-    : grossMonthlyNgn;
+    : payableGrossMonthlyNgn;
 
   const pensionEmployeeMonthlyNgn = input.pensionEnabled !== false
     ? pensionBaseMonthlyNgn * PENSION_EMPLOYEE_RATE
@@ -230,7 +261,7 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
 
   // NHIS employee/employer is calculated on basic salary when components
   // are active; otherwise gross (legacy behavior).
-  const nhisBase = usedComponents ? basicComp : grossMonthlyNgn;
+  const nhisBase = usedComponents ? basicComp : payableGrossMonthlyNgn;
   const nhisEmployeeMonthlyNgn = input.nhisEnabled
     ? nhisBase * NHIS_EMPLOYEE_RATE
     : 0;
@@ -238,9 +269,9 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
     ? nhisBase * NHIS_EMPLOYER_RATE
     : 0;
 
-  // NSITF — 1% of gross, employer-borne. Always shown for transparency;
-  // payroll consumer decides whether to add it to employer cost.
-  const nsitfMonthlyNgn = grossMonthlyNgn * NSITF_RATE;
+  // NSITF — 1% of payable gross, employer-borne. Always shown for
+  // transparency; payroll consumer decides whether to add it to employer cost.
+  const nsitfMonthlyNgn = payableGrossMonthlyNgn * NSITF_RATE;
 
   const annualRent = Math.max(0, input.annualRentNgn || 0);
   const rentReliefAnnual = Math.min(annualRent * RENT_RELIEF_RATE, RENT_RELIEF_CAP_ANNUAL);
@@ -250,7 +281,7 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
 
   const chargeableMonthlyNgn = Math.max(
     0,
-    grossMonthlyNgn
+    payableGrossMonthlyNgn
       - pensionEmployeeMonthlyNgn
       - nhfMonthlyNgn
       - nhisEmployeeMonthlyNgn
@@ -265,19 +296,23 @@ export function computePayslip(input: PayslipInput): PayslipBreakdown {
   const rNhf = round(nhfMonthlyNgn);
   const rNhis = round(nhisEmployeeMonthlyNgn);
   const rPaye = round(payeMonthlyNgn);
+  const rUnpaidLeave = round(unpaidLeaveDeductionMonthlyNgn);
   const statutoryDeductionsMonthlyNgn = rPension + rNhf + rNhis + rPaye;
 
   const extraDeductionsMonthlyNgn = Math.max(0, input.extraDeductionsMonthlyNgn || 0);
 
   const netMonthlyNgn = Math.max(
     0,
-    round(grossMonthlyNgn) - statutoryDeductionsMonthlyNgn - round(extraDeductionsMonthlyNgn),
+    round(grossMonthlyNgn) - rUnpaidLeave - statutoryDeductionsMonthlyNgn - round(extraDeductionsMonthlyNgn),
   );
 
-  const effectiveTaxRate = grossMonthlyNgn > 0 ? payeMonthlyNgn / grossMonthlyNgn : 0;
+  const effectiveTaxRate = payableGrossMonthlyNgn > 0 ? payeMonthlyNgn / payableGrossMonthlyNgn : 0;
 
   return {
     grossMonthlyNgn: round(grossMonthlyNgn),
+    payableGrossMonthlyNgn: round(payableGrossMonthlyNgn),
+    dailyRateMonthlyNgn: round(dailyRateMonthlyNgn),
+    unpaidLeaveDeductionMonthlyNgn: rUnpaidLeave,
     pensionEmployeeMonthlyNgn: round(pensionEmployeeMonthlyNgn),
     pensionEmployerMonthlyNgn: round(pensionEmployerMonthlyNgn),
     nhfMonthlyNgn: round(nhfMonthlyNgn),

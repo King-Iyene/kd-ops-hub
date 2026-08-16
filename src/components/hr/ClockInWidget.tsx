@@ -47,7 +47,12 @@ interface AttendanceRow {
   clock_in_selfie_path: string | null;
 }
 
-export const ClockInWidget = () => {
+interface ClockInWidgetProps {
+  /** HH:MM cutoff after which a clock-in is flagged 'late'. Defaults to 09:15. */
+  lateThreshold?: string;
+}
+
+export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) => {
   const { toast } = useToast();
   const { profile } = useAuthStore();
   const [today_, setToday_] = useState<AttendanceRow | null>(null);
@@ -190,9 +195,11 @@ export const ClockInWidget = () => {
         if (upErr) console.warn('[ClockIn] selfie upload failed:', upErr.message);
         else selfiePath = path;
       }
-      // Late detection — anything after 09:15 flags status='late'.
+      // Late detection — anything after lateThreshold flags status='late'.
+      const [thresholdHours, thresholdMinutes] = lateThreshold.split(':').map(Number);
       const t = new Date();
-      const status = t.getHours() > 9 || (t.getHours() === 9 && t.getMinutes() > 15)
+      const status = t.getHours() > thresholdHours ||
+        (t.getHours() === thresholdHours && t.getMinutes() > thresholdMinutes)
         ? 'late'
         : 'present';
       const payload = {

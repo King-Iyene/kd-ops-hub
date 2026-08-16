@@ -66,6 +66,7 @@ export default function Attendance() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lateThreshold, setLateThreshold] = useState('09:15');
 
   const today = new Date();
   const [monthStart, setMonthStart] = useState(format(startOfMonth(today), 'yyyy-MM-dd'));
@@ -97,6 +98,18 @@ export default function Attendance() {
   }, [monthStart, monthEnd]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('company_settings')
+        .select('late_threshold_time')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .maybeSingle();
+      const raw = (data as any)?.late_threshold_time as string | undefined;
+      if (raw) setLateThreshold(raw.slice(0, 5));
+    })();
+  }, []);
 
   function openCreate() {
     setEditing(null);
@@ -214,7 +227,7 @@ export default function Attendance() {
 
       {/* Employee-facing clock in / out with geo + selfie */}
       <div className="max-w-md">
-        <ClockInWidget />
+        <ClockInWidget lateThreshold={lateThreshold} />
       </div>
 
       {/* Month navigator */}

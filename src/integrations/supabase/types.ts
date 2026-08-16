@@ -1633,6 +1633,7 @@ export type Database = {
           itf_employer_code: string | null
           itf_enabled: boolean
           last_month_prorated: boolean
+          late_threshold_time: string | null
           leave_carryover_enabled: boolean
           leave_carryover_max_days: number
           linkedin_url: string | null
@@ -1736,6 +1737,7 @@ export type Database = {
           itf_employer_code?: string | null
           itf_enabled?: boolean
           last_month_prorated?: boolean
+          late_threshold_time?: string | null
           leave_carryover_enabled?: boolean
           leave_carryover_max_days?: number
           linkedin_url?: string | null
