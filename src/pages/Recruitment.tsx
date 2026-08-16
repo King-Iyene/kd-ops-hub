@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, UserPlus2,
   Briefcase, Users, ChevronDown, ChevronUp, Calendar,
@@ -20,6 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -365,6 +366,34 @@ export default function Recruitment() {
     return Math.round(totalDays / hired.length);
   })();
 
+  const pipelineFunnel = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of STAGE_ORDER) counts[s] = 0;
+    for (const a of applicants) counts[a.stage] = (counts[a.stage] || 0) + 1;
+    return STAGE_ORDER.filter(s => s !== 'rejected').map(s => ({
+      stage: STAGE_LABEL[s],
+      count: counts[s] || 0,
+    }));
+  }, [applicants]);
+
+  const sourceBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const a of applicants) {
+      const src = (a as any).source || 'other';
+      counts[src] = (counts[src] || 0) + 1;
+    }
+    return Object.entries(counts)
+      .map(([src, count]) => ({ source: SOURCE_LABEL[src as ApplicantSource] || src, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [applicants]);
+
+  const rejectionRate = totalApplicants > 0
+    ? Math.round((applicants.filter(a => a.stage === 'rejected').length / totalApplicants) * 100)
+    : 0;
+  const conversionRate = totalApplicants > 0
+    ? Math.round((totalHired / totalApplicants) * 100)
+    : 0;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -391,6 +420,56 @@ export default function Recruitment() {
           <StatCard title="Avg time to hire" value={`${avgTimeToHire}d`} icon={Calendar} tone="info" subtitle="ISO 30414" />
         )}
       </div>
+
+      {/* Recruitment Analytics */}
+      {totalApplicants > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />Pipeline Funnel
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-2">
+              {pipelineFunnel.map(s => {
+                const pct = totalApplicants > 0 ? Math.round((s.count / totalApplicants) * 100) : 0;
+                return (
+                  <div key={s.stage} className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">{s.stage}</span>
+                    <Progress value={pct} className="flex-1 h-2" />
+                    <span className="text-xs font-medium w-12 text-right">{s.count} ({pct}%)</span>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
+                <span>Conversion rate: <strong className="text-foreground">{conversionRate}%</strong></span>
+                <span>Rejection rate: <strong className="text-foreground">{rejectionRate}%</strong></span>
+              </div>
+            </CardContent>
+          </Card>
+          {sourceBreakdown.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Link2 className="h-4 w-4 text-primary" />Source Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                {sourceBreakdown.map(s => {
+                  const pct = totalApplicants > 0 ? Math.round((s.count / totalApplicants) * 100) : 0;
+                  return (
+                    <div key={s.source} className="flex items-center gap-3">
+                      <span className="text-xs text-muted-foreground w-24 shrink-0 truncate">{s.source}</span>
+                      <Progress value={pct} className="flex-1 h-2" />
+                      <span className="text-xs font-medium w-12 text-right">{s.count} ({pct}%)</span>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">

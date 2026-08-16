@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Plus, Search, Download, Pencil, Trash2, UserCheck,
   CheckCircle2, Circle, ChevronDown, ChevronUp, ClipboardList,
-  UserMinus,
+  UserMinus, AlertCircle, Clock,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -315,6 +315,25 @@ export default function Onboarding() {
     return items.length > 0 && items.every(i => i.is_completed);
   }).length;
 
+  const onboardingAnalytics = useMemo(() => {
+    const allItems = Object.values(itemsMap).flat();
+    const totalItems = allItems.length;
+    const doneItems = allItems.filter(i => i.is_completed).length;
+    const completionRate = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
+
+    const overdueChecklists = checklists.filter(cl => {
+      const items = itemsMap[cl.id] ?? [];
+      if (items.length > 0 && items.every(i => i.is_completed)) return false;
+      return cl.target_completion_date && new Date(cl.target_completion_date) < new Date();
+    }).length;
+
+    const overdueItems = allItems.filter(i =>
+      !i.is_completed && i.due_date && new Date(i.due_date) < new Date()
+    ).length;
+
+    return { completionRate, overdueChecklists, overdueItems };
+  }, [checklists, itemsMap]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -332,6 +351,9 @@ export default function Onboarding() {
         <StatCard title="Onboarding" value={onboardingCount} icon={UserCheck} tone="primary" />
         <StatCard title="Offboarding" value={offboardingCount} icon={UserMinus} tone="default" />
         <StatCard title="Completed" value={completedCount} icon={CheckCircle2} tone="success" />
+        <StatCard title="Task completion" value={`${onboardingAnalytics.completionRate}%`} icon={Clock} tone={onboardingAnalytics.completionRate >= 80 ? 'success' : 'warning'} />
+        <StatCard title="Overdue checklists" value={onboardingAnalytics.overdueChecklists} icon={AlertCircle} tone={onboardingAnalytics.overdueChecklists > 0 ? 'danger' : 'default'} />
+        <StatCard title="Overdue tasks" value={onboardingAnalytics.overdueItems} icon={AlertCircle} tone={onboardingAnalytics.overdueItems > 0 ? 'danger' : 'default'} />
       </div>
 
       {/* Filters */}

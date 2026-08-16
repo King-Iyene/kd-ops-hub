@@ -454,6 +454,21 @@ const Goals = () => {
     return { count: mine.length, complete, avg };
   }, [goals, profile?.id]);
 
+  const orgStats = useMemo(() => {
+    const cq = currentQuarter();
+    const thisQ = goals.filter((g) => g.quarter === cq);
+    const total = thisQ.length;
+    const complete = thisQ.filter((g) => g.status === 'complete').length;
+    const missed = thisQ.filter((g) => g.status === 'missed').length;
+    const avgProgress = total > 0 ? Math.round(thisQ.reduce((s, g) => s + g.progress_pct, 0) / total) : 0;
+    const byScope = {
+      company: thisQ.filter((g) => g.scope === 'company').length,
+      team: thisQ.filter((g) => g.scope === 'team').length,
+      individual: thisQ.filter((g) => g.scope === 'individual').length,
+    };
+    return { total, complete, missed, avgProgress, byScope };
+  }, [goals]);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -494,6 +509,16 @@ const Goals = () => {
           tone="warning"
         />
       </div>
+
+      {isAdmin && orgStats.total > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <StatCard title="Org goals" value={orgStats.total} subtitle={currentQuarter()} icon={Building2} tone="primary" />
+          <StatCard title="Completed" value={orgStats.complete} subtitle="This quarter" icon={CheckCircle2} tone="success" />
+          <StatCard title="Missed" value={orgStats.missed} icon={Target} tone={orgStats.missed > 0 ? 'danger' : 'default'} />
+          <StatCard title="Org avg progress" value={`${orgStats.avgProgress}%`} icon={Target} tone="warning" />
+          <StatCard title="Company / Team / Individual" value={`${orgStats.byScope.company} / ${orgStats.byScope.team} / ${orgStats.byScope.individual}`} icon={UsersIcon} tone="default" />
+        </div>
+      )}
 
       <Card>
         <div className="p-3 sm:p-4 border-b flex gap-2 items-center flex-wrap">

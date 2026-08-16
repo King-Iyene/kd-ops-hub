@@ -384,6 +384,18 @@ export default function Performance() {
     ? reviews.filter(r => r.overall_rating).reduce((s, r) => s + (r.overall_rating ?? 0), 0) / reviews.filter(r => r.overall_rating).length
     : 0;
 
+  const competencyAvgs = useMemo(() => {
+    const rated = reviews.filter(r => r.ratings && Object.values(r.ratings).some(v => v > 0));
+    if (!rated.length) return null;
+    return COMPETENCIES.map(c => {
+      const vals = rated.map(r => r.ratings[c.key]).filter(v => v > 0);
+      return { key: c.key, label: c.label, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0 };
+    });
+  }, [reviews]);
+
+  const reviewCompletionRate = totalReviews > 0 ? Math.round((submitted / totalReviews) * 100) : 0;
+  const pipsActive = plans.filter(p => p.category === 'other' && p.status === 'in_progress' && p.title.toLowerCase().includes('pip')).length;
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
       <PageHeader
@@ -395,11 +407,13 @@ export default function Performance() {
       {/* Stats */}
       <div className="kd-stat-grid">
         {([
+          { label: 'Active cycles', value: activeCycles, icon: BarChart3, tone: 'primary' },
           { label: 'Reviews completed', value: submitted, icon: Send, tone: 'success' },
+          { label: 'Completion rate', value: `${reviewCompletionRate}%`, icon: CheckCircle2, tone: reviewCompletionRate >= 80 ? 'success' : 'warning' },
           { label: 'Avg overall rating', value: avgOverall > 0 ? avgOverall.toFixed(1) + '/5' : '—', icon: Star, tone: 'gold' },
           { label: 'Plans in progress', value: plansInProgress, icon: Target, tone: 'primary' },
           { label: 'Overdue plans', value: overduePlans, icon: AlertCircle, tone: overduePlans > 0 ? 'danger' : 'default' },
-        ] as { label: string; value: string | number; icon: typeof BarChart3; tone: 'primary' | 'default' | 'success' | 'gold' | 'danger' }[]).map(s => (
+        ] as { label: string; value: string | number; icon: typeof BarChart3; tone: 'primary' | 'default' | 'success' | 'gold' | 'warning' | 'danger' }[]).map(s => (
           <StatCard
             key={s.label}
             title={s.label}
@@ -434,6 +448,25 @@ export default function Performance() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {competencyAvgs && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />Competency Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-2">
+            {competencyAvgs.map(c => (
+              <div key={c.key} className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground w-28 shrink-0 truncate">{c.label}</span>
+                <Progress value={c.avg * 20} className="flex-1 h-2" />
+                <span className="text-xs font-medium w-10 text-right">{c.avg > 0 ? c.avg.toFixed(1) : '—'}</span>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
