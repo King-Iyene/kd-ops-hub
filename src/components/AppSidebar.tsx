@@ -49,12 +49,7 @@ const HUB_ICONS: Record<string, typeof Users> = {
   Contact2,
 };
 
-const QUICK_LINK_ACCENT: Record<string, { active: string; hover: string }> = {
-  Dashboard:   { active: 'text-indigo-400',  hover: 'group-hover:text-indigo-400' },
-  Approvals:   { active: 'text-amber-400',   hover: 'group-hover:text-amber-400' },
-  'My Portal': { active: 'text-cyan-400',    hover: 'group-hover:text-cyan-400' },
-  Finance:     { active: 'text-emerald-400', hover: 'group-hover:text-emerald-400' },
-};
+const UNGROUPED_SET = new Set(['Dashboard', 'Approvals', 'My Portal', 'Finance']);
 
 function getInitials(name: string): string {
   return name
@@ -161,6 +156,7 @@ export function AppSidebar() {
     const badgeTone = item.badge === 'anomalies'
       ? 'bg-red-500/90 text-white'
       : 'bg-amber-400/90 text-amber-900';
+    const isQuickLink = UNGROUPED_SET.has(item.title);
 
     return (
       <SidebarMenuItem key={item.title} className="list-none">
@@ -174,7 +170,7 @@ export function AppSidebar() {
             to={item.url}
             className={cn(
               'flex items-center gap-2.5 rounded-lg px-2 py-[7px] text-[13px] font-medium',
-              'kd-transition group relative',
+              'transition-all duration-200 ease-out group/nav relative',
               active
                 ? 'bg-white/[0.11] text-white shadow-[inset_0_1px_0_hsl(0_0%_100%/0.07)]'
                 : 'text-sidebar-foreground/65 hover:bg-white/[0.06] hover:text-sidebar-foreground',
@@ -185,13 +181,10 @@ export function AppSidebar() {
             )}
             <item.icon
               className={cn(
-                'h-[15px] w-[15px] shrink-0 kd-transition',
+                'h-[15px] w-[15px] shrink-0 transition-all duration-200 ease-out',
                 active
-                  ? (QUICK_LINK_ACCENT[item.title]?.active ?? 'text-[hsl(var(--sidebar-ring))]')
-                  : cn(
-                      'text-sidebar-foreground/40',
-                      QUICK_LINK_ACCENT[item.title]?.hover ?? 'group-hover:text-sidebar-foreground/75',
-                    ),
+                  ? 'text-[hsl(var(--sidebar-ring))] scale-110'
+                  : 'text-sidebar-foreground/40 group-hover/nav:text-sidebar-foreground/90 group-hover/nav:scale-110',
               )}
             />
             {!sidebarCollapsed && (
@@ -205,6 +198,14 @@ export function AppSidebar() {
                   )}>
                     {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
+                )}
+                {isQuickLink && !showBadge && (
+                  <ChevronRight className={cn(
+                    'h-3 w-3 ml-auto shrink-0 transition-all duration-200 ease-out',
+                    active
+                      ? 'text-sidebar-foreground/30 opacity-100 translate-x-0'
+                      : 'text-sidebar-foreground/0 opacity-0 -translate-x-1 group-hover/nav:text-sidebar-foreground/30 group-hover/nav:opacity-100 group-hover/nav:translate-x-0',
+                  )} />
                 )}
               </>
             )}
@@ -434,7 +435,7 @@ export function AppSidebar() {
                             <span className="text-[10px] tabular-nums text-sidebar-foreground/25 font-medium">
                               {items.length}
                             </span>
-                            <ChevronRight className="h-3 w-3 text-sidebar-foreground/20 group-hover/hub:text-sidebar-foreground/40 kd-transition" />
+                            <ChevronRight className="h-3 w-3 text-sidebar-foreground/20 group-hover/hub:text-sidebar-foreground/40 transition-all duration-200 ease-out group-hover/hub:translate-x-0.5" />
                           </div>
                         </div>
                         <p className="text-[10.5px] text-sidebar-foreground/35 mt-0.5 leading-none truncate group-hover/hub:text-sidebar-foreground/45 kd-transition">
