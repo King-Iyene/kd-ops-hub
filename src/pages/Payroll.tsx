@@ -953,7 +953,7 @@ const Payroll = () => {
           .from('ewa_requests')
           .select('id, employee_id, amount_ngn, status')
           .eq('settlement_period', run.period)
-          .in('status', ['approved', 'disbursed']),
+          .eq('status', 'disbursed'),
         (supabase as any)
           .from('payslip_adjustments')
           .select('id, employee_id, kind, description, amount_ngn, taxable')
