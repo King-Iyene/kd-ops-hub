@@ -17,9 +17,30 @@ COMMENT ON COLUMN public.leave_requests.is_half_day IS
   'True when the request is for half a working day. Only meaningful when start_date = end_date; days_requested is 0.5 in that case.';
 
 -- days_requested was integer; widen to numeric so half-day (0.5) requests can
--- be stored without truncation. Safe no-op if already numeric.
+-- be stored without truncation. The leave_calendar_v view depends on this
+-- column, so we must drop and recreate it around the ALTER.
+DROP VIEW IF EXISTS public.leave_calendar_v;
+
 ALTER TABLE public.leave_requests
   ALTER COLUMN days_requested TYPE numeric USING days_requested::numeric;
+
+CREATE OR REPLACE VIEW public.leave_calendar_v AS
+SELECT lr.id AS leave_id,
+    lr.employee_id,
+    p.full_name AS employee_name,
+    p.email AS employee_email,
+    p.department_id,
+    d.name AS department_name,
+    lr.leave_type,
+    lr.start_date,
+    lr.end_date,
+    lr.days_requested,
+    lr.status,
+    lr.reason
+FROM public.leave_requests lr
+    JOIN public.profiles p ON p.id = lr.employee_id
+    LEFT JOIN public.departments d ON d.id = p.department_id
+WHERE lr.status = ANY (ARRAY['approved'::text, 'pending'::text]);
 
 -- leave_balances "used" counters were integer for the original three leave
 -- types (maternity_used/paternity_used/carryover_days are already numeric).
