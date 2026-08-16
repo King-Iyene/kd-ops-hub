@@ -45,6 +45,8 @@ interface FleetInsight {
   description: string;
   impact?: string;
   vehicle?: string;
+  navigateTo?: string;
+  navigateLabel?: string;
 }
 
 interface Props {
@@ -215,6 +217,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           title: `${criticalVehicles.length} vehicle${criticalVehicles.length > 1 ? 's' : ''} need${criticalVehicles.length === 1 ? 's' : ''} urgent attention`,
           description: criticalVehicles.map((v) => `${v.name} (${v.health_score}%)`).join(', '),
           vehicle: criticalVehicles[0].name,
+          navigateTo: 'vehicles',
+          navigateLabel: 'View Vehicles',
         });
       }
 
@@ -234,6 +238,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           title: `${overBudgetVehicles.length} vehicle${overBudgetVehicles.length > 1 ? 's' : ''} over budget this week`,
           description: `Excess spend: ${formatNaira(excess)}. Review fuel consumption patterns.`,
           impact: formatNaira(excess),
+          navigateTo: 'fuel',
+          navigateLabel: 'View Fuel Requests',
         });
       }
 
@@ -250,6 +256,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
             title: `${rate}% anomaly rate in fuel requests`,
             description: `${recentAnomalies.length} of ${recentFuels.length} requests flagged. Potential savings: ${formatNaira(anomalySpend)}.`,
             impact: formatNaira(anomalySpend),
+            navigateTo: 'anomalies',
+            navigateLabel: 'Review Anomalies',
           });
           setTotalSavingsOpportunity((prev) => prev + anomalySpend * 0.5);
         }
@@ -263,6 +271,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: 'action',
           title: `${unassigned.length} vehicle${unassigned.length > 1 ? 's' : ''} without assigned drivers`,
           description: 'Assign drivers to improve accountability and tracking.',
+          navigateTo: 'vehicles',
+          navigateLabel: 'Manage Vehicles',
         });
       }
 
@@ -274,6 +284,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           title: `Fuel spend up ${wow}% week-over-week`,
           description: `This week: ${formatNaira(thisWeekSpend)} vs last week: ${formatNaira(lastWeekSpend)}. Check for route inefficiencies or unauthorized fueling.`,
           impact: formatNaira(thisWeekSpend - lastWeekSpend),
+          navigateTo: 'fuel',
+          navigateLabel: 'View Fuel Requests',
         });
       } else if (wow !== null && wow < -10) {
         smartInsights.push({
@@ -293,6 +305,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: highPriority.length > 0 ? 'warning' : 'action',
           title: `${allOverdue.length} overdue maintenance item${allOverdue.length > 1 ? 's' : ''}`,
           description: highPriority.length > 0 ? `${highPriority.length} are high/critical priority. Delaying could lead to costly breakdowns.` : 'Schedule maintenance to prevent breakdowns and extend vehicle life.',
+          navigateTo: 'maintenance',
+          navigateLabel: 'View Maintenance',
         });
       }
 
@@ -304,6 +318,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: 'action',
           title: `${unresolvedTotal} unresolved inspection defect${unresolvedTotal > 1 ? 's' : ''}`,
           description: 'Resolve defects promptly to maintain fleet safety and compliance.',
+          navigateTo: 'inspections',
+          navigateLabel: 'View Inspections',
         });
       }
 
@@ -315,6 +331,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           type: 'action',
           title: `${lowFuel.length} vehicle${lowFuel.length > 1 ? 's' : ''} running low on fuel`,
           description: lowFuel.map((v) => `${v.name} (${Math.round((v.current_fuel_litres / v.tank_capacity_litres) * 100)}%)`).join(', '),
+          navigateTo: 'fuel',
+          navigateLabel: 'Fuel Requests',
         });
       }
 
@@ -334,6 +352,8 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
             title: `${v.name}: fuel efficiency dropped ${dropPct}%`,
             description: `Recent average ${recentAvg.toFixed(1)} km/L vs earlier ${olderAvg.toFixed(1)} km/L. Possible injector, air filter, or tyre issue.`,
             vehicle: v.name,
+            navigateTo: 'maintenance',
+            navigateLabel: 'Schedule Maintenance',
           });
         }
       }
@@ -476,9 +496,21 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
-                  {insight.impact && (
-                    <Badge variant="outline" className="mt-1 text-xs currency">{insight.impact}</Badge>
-                  )}
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {insight.impact && (
+                      <Badge variant="outline" className="text-xs currency">{insight.impact}</Badge>
+                    )}
+                    {insight.navigateTo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs px-2 gap-1 ml-auto"
+                        onClick={() => onNavigate(insight.navigateTo!)}
+                      >
+                        {insight.navigateLabel || 'View'} <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
