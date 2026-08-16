@@ -30,6 +30,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
+import { confirm } from '@/hooks/use-confirm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -187,7 +188,7 @@ export default function MfaSettings() {
 
   // ── Backup codes regen (already enrolled) ──────────────────────────────
   const regenerateCodes = async () => {
-    if (!confirm('Generate a fresh set of backup codes? Existing codes will be invalidated.')) return;
+    if (!(await confirm({ title: 'Regenerate codes?', description: 'Generate a fresh set of backup codes? Existing codes will be invalidated.' }))) return;
     setBusy(true);
     try {
       const fresh = await generateBackupCodes();

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus, GripVertical, Trash2, Pencil, X, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -95,7 +96,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
   };
 
   const deleteStatus = async (id: string) => {
-    if (!confirm('Delete this status? Tasks using it will not be affected.')) return;
+    if (!(await confirm({ title: 'Delete status?', description: 'Delete this status? Tasks using it will not be affected.', variant: 'destructive' }))) return;
     const { error } = await supabase.from('space_statuses').delete().eq('id', id);
     if (error) {
       toast({ title: 'Failed', description: error.message, variant: 'destructive' });

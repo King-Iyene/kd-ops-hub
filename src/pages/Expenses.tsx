@@ -30,6 +30,7 @@ import {
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
+import { confirm } from '@/hooks/use-confirm';
 import { compressImage } from '@/lib/image-compression';
 import { friendlyDbError } from '@/lib/db-errors';
 import { useAuthStore } from '@/store/authStore';
@@ -525,10 +526,12 @@ const Expenses = () => {
     // the dual_approval_threshold so there's no audit hole.
     const policyLimit = limits[form.category];
     if (policyLimit && amount > policyLimit) {
-      const ok = window.confirm(
-        `Heads up — this is over the ${form.category.replace(/_/g, ' ')} policy cap of ${formatNaira(policyLimit)}.\n\n` +
-        `It will be submitted but flagged for higher scrutiny. Continue?`
-      );
+      const ok = await confirm({
+        title: 'Over policy cap',
+        description:
+          `Heads up — this is over the ${form.category.replace(/_/g, ' ')} policy cap of ${formatNaira(policyLimit)}.\n\n` +
+          `It will be submitted but flagged for higher scrutiny. Continue?`,
+      });
       if (!ok) return;
     }
 

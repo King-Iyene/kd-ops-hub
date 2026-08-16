@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
+import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -84,7 +85,21 @@ const Assistant        = lazy(() => import('./pages/Assistant'));
 const AssistantAdmin   = lazy(() => import('./pages/AssistantAdmin'));
 const Messages          = lazy(() => import('./pages/Messages'));
 
-const queryClient = new QueryClient();
+// Kept deliberately conservative on staleTime — this app moves money, and a
+// stale balance shown to an approver is worse than an extra network round
+// trip. 15s still dedupes rapid remounts/navigation without letting cached
+// financial data linger. refetchOnWindowFocus (React Query default: on)
+// stays on so switching back to the tab always re-checks the server.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 15_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuthStore();
@@ -736,6 +751,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
+      <ConfirmDialogHost />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppRoutes />
       </BrowserRouter>

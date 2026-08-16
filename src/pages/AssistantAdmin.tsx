@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { logAudit } from '@/lib/audit';
 import { formatDateTime } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -226,7 +227,7 @@ export default function AssistantAdmin() {
   };
 
   const deleteKb = async (row: KnowledgeRow) => {
-    if (!confirm(`Delete "${row.title}"?`)) return;
+    if (!(await confirm({ title: 'Delete entry?', description: `Delete "${row.title}"?`, variant: 'destructive' }))) return;
     const { error } = await supabase.from('chatbot_knowledge').delete().eq('id', row.id);
     if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
     await logAudit('chatbot_kb_deleted', `Knowledge: ${row.title}`, profile);
@@ -235,7 +236,7 @@ export default function AssistantAdmin() {
   };
 
   const reembedAll = async () => {
-    if (!confirm('Re-embed all knowledge entries? This may take a minute.')) return;
+    if (!(await confirm({ title: 'Re-embed all?', description: 'Re-embed all knowledge entries? This may take a minute.' }))) return;
     setEmbedding('all');
     try {
       const { data: { session } } = await supabase.auth.getSession();

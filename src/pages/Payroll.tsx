@@ -84,6 +84,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { confirm } from '@/hooks/use-confirm';
 // Statutory rates and PAYE math live in @/lib/tax (Nigeria Tax Act 2025).
 // Aliased to the names already used throughout this file to keep the diff small.
 import {
@@ -675,7 +676,10 @@ const Payroll = () => {
   // for those statuses, but the RLS on payroll_runs is the actual gate.
   const recallToDraft = async (run: PayrollRun) => {
     if (run.status !== 'pending_approval') return;
-    if (!confirm(`Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`)) return;
+    if (!(await confirm({
+      title: 'Recall to draft?',
+      description: `Recall "${run.period}" back to draft? You'll need to resubmit for approval after editing.`,
+    }))) return;
     const { error } = await supabase
       .from('payroll_runs')
       .update({ status: 'draft' })
@@ -702,7 +706,11 @@ const Payroll = () => {
       });
       return;
     }
-    if (!confirm(`Delete the draft for "${run.period}"? This cannot be undone.`)) return;
+    if (!(await confirm({
+      title: 'Delete draft?',
+      description: `Delete the draft for "${run.period}"? This cannot be undone.`,
+      variant: 'destructive',
+    }))) return;
     const { error } = await supabase
       .from('payroll_runs')
       .delete()

@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 interface Application {
@@ -240,11 +241,14 @@ export function ContractorApplications() {
   };
 
   const deleteApplication = async (app: Application) => {
-    if (!confirm(
-      `Permanently delete application from ${applicantName(app)}?\n\n` +
-      `This cannot be undone. If a contractor was already created from this ` +
-      `application, the contractor record will remain.`
-    )) return;
+    if (!(await confirm({
+      title: 'Delete application?',
+      description:
+        `Permanently delete application from ${applicantName(app)}?\n\n` +
+        `This cannot be undone. If a contractor was already created from this ` +
+        `application, the contractor record will remain.`,
+      variant: 'destructive',
+    }))) return;
     try {
       const { error } = await supabase
         .from('contractor_applications')

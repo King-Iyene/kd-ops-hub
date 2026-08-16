@@ -56,6 +56,7 @@ import {
   FolderOpen,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { confirm } from '@/hooks/use-confirm';
 import { compressImage, isImageCompressionEnabled, setImageCompressionEnabled } from '@/lib/image-compression';
 import JSZip from 'jszip';
 import { useAuthStore } from '@/store/authStore';
@@ -765,7 +766,7 @@ const SettingsPage = () => {
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs text-destructive"
-                      onClick={() => { if (window.confirm('Remove the stored Paystack key? The env-var key will still be used if set.')) patch({ paystack_secret_key_enc: null } as any); }}
+                      onClick={async () => { if (await confirm({ title: 'Remove Paystack key?', description: 'Remove the stored Paystack key? The env-var key will still be used if set.' })) patch({ paystack_secret_key_enc: null } as any); }}
                     >
                       Remove
                     </Button>
@@ -1743,11 +1744,14 @@ function DataRetentionPanel() {
   };
 
   const runNow = async (p: RetentionPolicy) => {
-    if (!confirm(
-      `Run cleanup for "${RETENTION_META[p.data_type].title}" right now?\n\n` +
-      `This will archive (and ${p.mode === 'archive_delete' ? 'DELETE' : 'KEEP'}) rows older than ` +
-      `${p.retention_days} days. Cannot be undone after the archive expires (90 days).`
-    )) return;
+    if (!(await confirm({
+      title: 'Run cleanup now?',
+      description:
+        `Run cleanup for "${RETENTION_META[p.data_type].title}" right now?\n\n` +
+        `This will archive (and ${p.mode === 'archive_delete' ? 'DELETE' : 'KEEP'}) rows older than ` +
+        `${p.retention_days} days. Cannot be undone after the archive expires (90 days).`,
+      variant: 'destructive',
+    }))) return;
 
     setRunningPolicyId(p.id);
     try {
@@ -2394,7 +2398,7 @@ function ConfigureRetentionDialog({
   };
 
   const disable = async () => {
-    if (!confirm('Disable this retention policy? Future scheduled runs will not execute.')) return;
+    if (!(await confirm({ title: 'Disable policy?', description: 'Disable this retention policy? Future scheduled runs will not execute.', variant: 'destructive' }))) return;
     setSaving(true);
     await supabase
       .from('retention_policies')

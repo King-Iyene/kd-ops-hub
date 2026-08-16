@@ -29,6 +29,7 @@ import {
   Filter,
   Clock,
 } from 'lucide-react';
+import { confirm } from '@/hooks/use-confirm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -447,7 +448,7 @@ export default function TransferAuthSettings() {
   };
 
   const handleDeleteOverride = async (id: string) => {
-    if (!confirm('Remove this user override? They will revert to their role default.')) return;
+    if (!(await confirm({ title: 'Remove override?', description: 'Remove this user override? They will revert to their role default.' }))) return;
     try {
       await deleteTransferLimit(id);
       toast({ title: 'Override removed' });

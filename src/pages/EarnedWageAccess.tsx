@@ -29,6 +29,7 @@ import { useAuthStore } from '@/store/authStore';
 import { formatNaira, formatDate } from '@/lib/format';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { confirm } from '@/hooks/use-confirm';
 import {
   fetchEligibility,
   requestEwa,
@@ -185,7 +186,7 @@ export default function EarnedWageAccess() {
 
   const handleCancel = async (req: EwaRequest) => {
     if (req.status !== 'pending') return;
-    if (!confirm('Cancel this pending request?')) return;
+    if (!(await confirm({ title: 'Cancel request?', description: 'Cancel this pending request?' }))) return;
     try {
       await cancelEwa(req.id);
       toast({ title: 'Request cancelled' });

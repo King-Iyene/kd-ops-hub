@@ -63,6 +63,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { cn } from '@/lib/utils';
 import { getBankCode } from '@/lib/paystack';
 import { PermissionsEditor, ROLE_DEFAULT_PERMISSIONS, type PermissionsMap } from '@/components/PermissionsEditor';
@@ -3301,8 +3302,8 @@ const EmployeeProfile = () => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    if (!confirm('Clear all explicit overrides and fall back to the role defaults?')) return;
+                  onClick={async () => {
+                    if (!(await confirm({ title: 'Reset permissions?', description: 'Clear all explicit overrides and fall back to the role defaults?' }))) return;
                     // Empty object means: no explicit grants/denies. Every
                     // toggle goes back to whatever the role default says,
                     // which is the source of truth in PermissionsEditor's

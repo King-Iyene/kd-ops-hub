@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import {
   Save, Loader2, Eye, EyeOff, FileSignature, Plus, Trash2,
 } from 'lucide-react';
@@ -167,7 +168,7 @@ export const OfferLetterTemplatesAdmin = () => {
 
   const handleDelete = async () => {
     if (!selected || selected.is_system) return;
-    if (!confirm(`Delete template "${selected.name}"? This cannot be undone.`)) return;
+    if (!(await confirm({ title: 'Delete template?', description: `Delete template "${selected.name}"? This cannot be undone.`, variant: 'destructive' }))) return;
     const { error } = await supabase
       .from('offer_letter_templates' as any)
       .delete()

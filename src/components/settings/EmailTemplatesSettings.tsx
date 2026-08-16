@@ -36,6 +36,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import { useAuthStore } from '@/store/authStore';
 import {
   listEmailTemplates,
@@ -210,7 +211,7 @@ export default function EmailTemplatesSettings() {
 
   const handleReset = async () => {
     if (!selected) return;
-    if (!confirm(`Reset "${selected.name}" to factory default? Your changes will be lost.`)) return;
+    if (!(await confirm({ title: 'Reset template?', description: `Reset "${selected.name}" to factory default? Your changes will be lost.` }))) return;
     setResetting(true);
     try {
       await resetEmailTemplate(selected.id);
@@ -297,7 +298,7 @@ export default function EmailTemplatesSettings() {
 
   const handleDeleteTemplate = async () => {
     if (!selected || selected.is_system) return;
-    if (!confirm(`Delete custom template "${selected.name}"? This cannot be undone.`)) return;
+    if (!(await confirm({ title: 'Delete template?', description: `Delete custom template "${selected.name}"? This cannot be undone.`, variant: 'destructive' }))) return;
     setDeleting(true);
     try {
       await deleteEmailTemplate(selected.id);

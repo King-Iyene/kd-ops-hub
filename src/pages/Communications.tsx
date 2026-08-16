@@ -83,6 +83,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { confirm } from '@/hooks/use-confirm';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { AuroraHero } from '@/components/AuroraHero';
 import { cn } from '@/lib/utils';
@@ -332,7 +333,7 @@ export default function Communications() {
 
   const resetTemplateToDefault = async () => {
     if (!editingTemplate) return;
-    if (!confirm('Reset this template to its factory default? Your edits will be lost.')) return;
+    if (!(await confirm({ title: 'Reset template?', description: 'Reset this template to its factory default? Your edits will be lost.' }))) return;
     setEditResetting(true);
     try {
       await resetEmailTemplate(editingTemplate.id);
@@ -624,7 +625,7 @@ export default function Communications() {
     const confirmMsg = scheduling
       ? `Schedule for ${allRecipients.length} recipient${allRecipients.length === 1 ? '' : 's'} at ${new Date(scheduledFor).toLocaleString()}?`
       : `Send to ${allRecipients.length} recipient${allRecipients.length === 1 ? '' : 's'}?`;
-    if (!confirm(confirmMsg)) return;
+    if (!(await confirm({ title: scheduling ? 'Schedule send?' : 'Send now?', description: confirmMsg }))) return;
 
     setSending(true);
     try {

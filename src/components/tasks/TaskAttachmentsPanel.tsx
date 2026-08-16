@@ -8,6 +8,7 @@ import { logAudit } from '@/lib/audit';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 
 const BUCKET = 'task-attachments';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -162,7 +163,7 @@ export function TaskAttachmentsPanel({ taskId, onUpdate }: TaskAttachmentsPanelP
 
   // ── Delete ─────────────────────────────────────────────────────────
   const handleDelete = async (fileName: string) => {
-    if (!confirm(`Delete "${fileName}"?`)) return;
+    if (!(await confirm({ title: 'Delete attachment?', description: `Delete "${fileName}"?`, variant: 'destructive' }))) return;
 
     setDeletingId(fileName);
     const { error } = await supabase.storage.from(BUCKET).remove([`${taskId}/${fileName}`]);

@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import type { CustomFieldDefinition, CustomFieldValue } from '@/lib/task-types';
 
 interface CustomFieldsPanelProps {
@@ -86,7 +87,7 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
   };
 
   const deleteField = async (id: string) => {
-    if (!confirm('Delete this custom field from all tasks?')) return;
+    if (!(await confirm({ title: 'Delete field?', description: 'Delete this custom field from all tasks?', variant: 'destructive' }))) return;
     await supabase.from('custom_field_definitions').delete().eq('id', id);
     loadFields();
   };

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { confirm } from '@/hooks/use-confirm';
 import { logAudit } from '@/lib/audit';
 import { notifyUser } from '@/lib/notify';
 import { formatDate, daysUntil } from '@/lib/format';
@@ -746,7 +747,7 @@ const Tasks = () => {
   };
 
   const handleDeleteFolder = async (folder: SpaceFolder) => {
-    if (!confirm(`Delete folder "${folder.name}"? Lists inside will be moved out of the folder.`)) return;
+    if (!(await confirm({ title: 'Delete folder?', description: `Delete folder "${folder.name}"? Lists inside will be moved out of the folder.`, variant: 'destructive' }))) return;
     const { error } = await supabase.from('space_folders').delete().eq('id', folder.id);
     if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Folder deleted' });
@@ -763,7 +764,7 @@ const Tasks = () => {
   };
 
   const handleDeleteList = async (list: TaskList) => {
-    if (!confirm(`Delete list "${list.name}"? Tasks in this list will become unassigned.`)) return;
+    if (!(await confirm({ title: 'Delete list?', description: `Delete list "${list.name}"? Tasks in this list will become unassigned.`, variant: 'destructive' }))) return;
     await supabase.from('tasks').update({ list_id: null }).eq('list_id', list.id);
     const { error } = await supabase.from('task_lists').delete().eq('id', list.id);
     if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }

@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase';
 import { logAudit } from '@/lib/audit';
 import { useAuthStore } from '@/store/authStore';
 import { useToast } from '@/hooks/use-toast';
+import { confirm } from '@/hooks/use-confirm';
 import type { Task, TaskList, SpaceFolder, ProfileRow, TaskType } from '@/lib/task-types';
 import type { Space } from '@/components/tasks/TaskSidebar';
 import {
@@ -187,7 +188,7 @@ export function TaskContextMenu({
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
+    if (!(await confirm({ title: 'Delete task?', description: `Delete "${task.title}"? This cannot be undone.`, variant: 'destructive' }))) return;
 
     const { error } = await supabase.from('tasks').delete().eq('id', task.id);
     if (error) {

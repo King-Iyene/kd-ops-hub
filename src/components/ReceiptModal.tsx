@@ -20,8 +20,6 @@
  * overlooked.
  */
 import { useEffect, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -178,6 +176,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
   const renderToCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const node = cardRef.current;
     if (!node) return null;
+    const { default: html2canvas } = await import('html2canvas');
     return html2canvas(node, {
       backgroundColor: '#ffffff',
       scale: 2,
@@ -203,6 +202,7 @@ export function ReceiptModal({ open, onClose, item, batch, companyName, logoUrl,
     const canvas = await renderToCanvas();
     if (!canvas) return null;
     const dataUrl = canvas.toDataURL('image/png', 0.96);
+    const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({
       unit: 'mm',
       format: 'a4',
