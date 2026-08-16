@@ -425,37 +425,42 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Company name</Label>
+                  <Label htmlFor="company_name">Company name</Label>
                   <Input
+                    id="company_name"
                     value={settings.company_name || ''}
                     onChange={(e) => patch({ company_name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>RC number</Label>
+                  <Label htmlFor="rc_number">RC number</Label>
                   <Input
+                    id="rc_number"
                     value={settings.rc_number || ''}
                     onChange={(e) => patch({ rc_number: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>TIN</Label>
+                  <Label htmlFor="company_tin">TIN</Label>
                   <Input
+                    id="company_tin"
                     value={settings.tin || ''}
                     onChange={(e) => patch({ tin: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Website</Label>
+                  <Label htmlFor="company_website">Website</Label>
                   <Input
+                    id="company_website"
                     value={settings.website || ''}
                     onChange={(e) => patch({ website: e.target.value })}
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label>Registered address</Label>
+                <Label htmlFor="registered_address">Registered address</Label>
                 <Textarea
+                  id="registered_address"
                   value={settings.address || ''}
                   onChange={(e) => patch({ address: e.target.value })}
                   rows={2}
@@ -463,12 +468,12 @@ const SettingsPage = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Fiscal year</Label>
+                  <Label htmlFor="fiscal_year_preset">Fiscal year</Label>
                   <Select
                     value={settings.fiscal_year_preset}
                     onValueChange={(v) => patch({ fiscal_year_preset: v as any })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="fiscal_year_preset">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -478,12 +483,12 @@ const SettingsPage = () => {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Platform timezone <InfoTip text="All dates and times across the platform — audit logs, transactions, approvals — display in this timezone. Default: Africa/Lagos (WAT, UTC+1)." /></Label>
+                  <Label htmlFor="platform_timezone">Platform timezone <InfoTip text="All dates and times across the platform — audit logs, transactions, approvals — display in this timezone. Default: Africa/Lagos (WAT, UTC+1)." /></Label>
                   <Select
                     value={settings.timezone || 'Africa/Lagos'}
                     onValueChange={(v) => patch({ timezone: v })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="platform_timezone">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -501,8 +506,9 @@ const SettingsPage = () => {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Cash on hand (₦)</Label>
+                  <Label htmlFor="cash_on_hand_ngn">Cash on hand (₦)</Label>
                   <Input
+                    id="cash_on_hand_ngn"
                     type="number"
                     min="0"
                     value={settings.cash_on_hand_ngn || 0}
@@ -545,8 +551,9 @@ const SettingsPage = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label>External monthly burn (₦)</Label>
+                    <Label htmlFor="external_monthly_burn_ngn">External monthly burn (₦)</Label>
                     <Input
+                      id="external_monthly_burn_ngn"
                       type="number"
                       min="0"
                       value={settings.external_monthly_burn_ngn || 0}
@@ -560,8 +567,9 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <Label>Monthly revenue estimate (₦)</Label>
+                    <Label htmlFor="monthly_revenue_estimate_ngn">Monthly revenue estimate (₦)</Label>
                     <Input
+                      id="monthly_revenue_estimate_ngn"
                       type="number"
                       min="0"
                       value={settings.monthly_revenue_estimate_ngn || 0}
@@ -625,14 +633,14 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Default state of business</Label>
+                  <Label htmlFor="state_of_business">Default state of business</Label>
                   <Select
                     value={settings.state_of_business || '__none__'}
                     onValueChange={(v) =>
                       patch({ state_of_business: v === '__none__' ? null : v })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="state_of_business">
                       <SelectValue placeholder="Select state…" />
                     </SelectTrigger>
                     <SelectContent>
@@ -653,32 +661,36 @@ const SettingsPage = () => {
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <Label>PenCom employer code</Label>
+                  <Label htmlFor="pencom_employer_code">PenCom employer code</Label>
                   <Input
+                    id="pencom_employer_code"
                     value={settings.pencom_employer_code || ''}
                     onChange={(e) => patch({ pencom_employer_code: e.target.value })}
                     placeholder="Prints on PSSP schedule"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>NHF employer code</Label>
+                  <Label htmlFor="nhf_employer_code">NHF employer code</Label>
                   <Input
+                    id="nhf_employer_code"
                     value={settings.nhf_employer_code || ''}
                     onChange={(e) => patch({ nhf_employer_code: e.target.value })}
                     placeholder="FMBN-issued"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>NSITF employer code</Label>
+                  <Label htmlFor="nsitf_employer_code">NSITF employer code</Label>
                   <Input
+                    id="nsitf_employer_code"
                     value={settings.nsitf_employer_code || ''}
                     onChange={(e) => patch({ nsitf_employer_code: e.target.value })}
                     placeholder="NSITF ECS registration"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>ITF employer code</Label>
+                  <Label htmlFor="itf_employer_code">ITF employer code</Label>
                   <Input
+                    id="itf_employer_code"
                     value={settings.itf_employer_code || ''}
                     onChange={(e) => patch({ itf_employer_code: e.target.value })}
                     placeholder="ITF annual return"
@@ -697,40 +709,45 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Website URL</Label>
+                  <Label htmlFor="website_url">Website URL</Label>
                   <Input
+                    id="website_url"
                     value={settings.website_url || ''}
                     onChange={(e) => patch({ website_url: e.target.value })}
                     placeholder="https://kdsquares.com"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>LinkedIn URL</Label>
+                  <Label htmlFor="linkedin_url">LinkedIn URL</Label>
                   <Input
+                    id="linkedin_url"
                     value={settings.linkedin_url || ''}
                     onChange={(e) => patch({ linkedin_url: e.target.value })}
                     placeholder="https://linkedin.com/company/..."
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Instagram URL</Label>
+                  <Label htmlFor="instagram_url">Instagram URL</Label>
                   <Input
+                    id="instagram_url"
                     value={settings.instagram_url || ''}
                     onChange={(e) => patch({ instagram_url: e.target.value })}
                     placeholder="https://instagram.com/..."
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Facebook URL</Label>
+                  <Label htmlFor="facebook_url">Facebook URL</Label>
                   <Input
+                    id="facebook_url"
                     value={settings.facebook_url || ''}
                     onChange={(e) => patch({ facebook_url: e.target.value })}
                     placeholder="https://facebook.com/..."
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Twitter / X URL</Label>
+                  <Label htmlFor="twitter_url">Twitter / X URL</Label>
                   <Input
+                    id="twitter_url"
                     value={settings.twitter_url || ''}
                     onChange={(e) => patch({ twitter_url: e.target.value })}
                     placeholder="https://x.com/..."
@@ -783,24 +800,27 @@ const SettingsPage = () => {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
-                  <Label>Bank name</Label>
+                  <Label htmlFor="paystack_funding_bank">Bank name</Label>
                   <Input
+                    id="paystack_funding_bank"
                     value={settings.paystack_funding_bank || ''}
                     onChange={(e) => patch({ paystack_funding_bank: e.target.value })}
                     placeholder="e.g. GTBank"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Account name</Label>
+                  <Label htmlFor="paystack_funding_account_name">Account name</Label>
                   <Input
+                    id="paystack_funding_account_name"
                     value={settings.paystack_funding_account_name || ''}
                     onChange={(e) => patch({ paystack_funding_account_name: e.target.value })}
                     placeholder="e.g. Paystack Payments"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Account number</Label>
+                  <Label htmlFor="paystack_funding_account_number">Account number</Label>
                   <Input
+                    id="paystack_funding_account_number"
                     value={settings.paystack_funding_account_number || ''}
                     onChange={(e) => patch({ paystack_funding_account_number: e.target.value })}
                     placeholder="e.g. 0123456789"
@@ -830,15 +850,17 @@ const SettingsPage = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Base ID</Label>
+                  <Label htmlFor="airtable_base_id">Base ID</Label>
                   <Input
+                    id="airtable_base_id"
                     value={settings.airtable_base_id || ''}
                     onChange={(e) => patch({ airtable_base_id: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Income table ID</Label>
+                  <Label htmlFor="airtable_income_table_id">Income table ID</Label>
                   <Input
+                    id="airtable_income_table_id"
                     value={settings.airtable_income_table_id || ''}
                     onChange={(e) =>
                       patch({ airtable_income_table_id: e.target.value })
@@ -846,8 +868,9 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Expenses table ID</Label>
+                  <Label htmlFor="airtable_expenses_table_id">Expenses table ID</Label>
                   <Input
+                    id="airtable_expenses_table_id"
                     value={settings.airtable_expenses_table_id || ''}
                     onChange={(e) =>
                       patch({ airtable_expenses_table_id: e.target.value })
@@ -880,16 +903,18 @@ const SettingsPage = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Host</Label>
+                  <Label htmlFor="smtp_host">Host</Label>
                   <Input
+                    id="smtp_host"
                     value={settings.smtp_host || ''}
                     onChange={(e) => patch({ smtp_host: e.target.value })}
                     placeholder="smtp.sendgrid.net"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Port</Label>
+                  <Label htmlFor="smtp_port">Port</Label>
                   <Input
+                    id="smtp_port"
                     type="number"
                     value={settings.smtp_port || ''}
                     onChange={(e) =>
@@ -899,15 +924,17 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Username</Label>
+                  <Label htmlFor="smtp_username">Username</Label>
                   <Input
+                    id="smtp_username"
                     value={settings.smtp_username || ''}
                     onChange={(e) => patch({ smtp_username: e.target.value })}
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>From address</Label>
+                  <Label htmlFor="smtp_from_address">From address</Label>
                   <Input
+                    id="smtp_from_address"
                     value={settings.smtp_from_address || ''}
                     onChange={(e) =>
                       patch({ smtp_from_address: e.target.value })
@@ -928,8 +955,9 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>From address</Label>
+                  <Label htmlFor="resend_from_address">From address</Label>
                   <Input
+                    id="resend_from_address"
                     value={(settings as any).resend_from_address || ''}
                     onChange={(e) => patch({ resend_from_address: e.target.value } as any)}
                     placeholder="ops@kdsquares.com"
@@ -964,8 +992,9 @@ const SettingsPage = () => {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Sender ID</Label>
+                  <Label htmlFor="termii_sender_id">Sender ID</Label>
                   <Input
+                    id="termii_sender_id"
                     value={(settings as any).termii_sender_id || ''}
                     onChange={(e) => patch({ termii_sender_id: e.target.value } as any)}
                     placeholder="KDOps"
@@ -1107,9 +1136,9 @@ const SettingsPage = () => {
                 return (
                   <div className="flex items-end gap-2 pt-3 border-t">
                     <div className="flex-1 min-w-0 space-y-1">
-                      <Label className="text-xs text-muted-foreground">Add a category limit</Label>
+                      <Label htmlFor="new_limit_category" className="text-xs text-muted-foreground">Add a category limit</Label>
                       <Select value={newLimitCategory} onValueChange={setNewLimitCategory}>
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger id="new_limit_category" className="h-9">
                           <SelectValue placeholder="Choose category…" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1122,8 +1151,9 @@ const SettingsPage = () => {
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Amount (₦)</Label>
+                      <Label htmlFor="new_limit_amount" className="text-xs text-muted-foreground">Amount (₦)</Label>
                       <Input
+                        id="new_limit_amount"
                         type="number"
                         min="0"
                         className="w-36 h-9"
@@ -1200,12 +1230,12 @@ const SettingsPage = () => {
                 </label>
               ))}
               <div className="space-y-1 pt-3">
-                <Label>Digest frequency</Label>
+                <Label htmlFor="digest_frequency">Digest frequency</Label>
                 <Select
                   value={digest}
                   onValueChange={(v) => setDigest(v as any)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="digest_frequency">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1294,8 +1324,9 @@ const SettingsPage = () => {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label>Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 120 minutes." /></Label>
+                  <Label htmlFor="session_timeout_minutes">Session timeout (minutes) <InfoTip text="Users are automatically signed out after this period of inactivity. Default: 120 minutes." /></Label>
                   <Input
+                    id="session_timeout_minutes"
                     type="number"
                     min="1"
                     value={settings.session_timeout_minutes}
@@ -1307,8 +1338,9 @@ const SettingsPage = () => {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Audit log retention (days)</Label>
+                  <Label htmlFor="audit_log_retention_days">Audit log retention (days)</Label>
                   <Input
+                    id="audit_log_retention_days"
                     type="number"
                     min="1"
                     value={settings.audit_log_retention_days}
@@ -2464,9 +2496,9 @@ function ConfigureRetentionDialog({
           <div className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Mode</Label>
+                <Label htmlFor="archive_mode" className="text-xs">Mode</Label>
                 <Select value={mode} onValueChange={(v) => setMode(v as any)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="archive_mode"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="archive">Archive only (recommended)</SelectItem>
                     <SelectItem value="archive_delete">Archive + delete (advanced)</SelectItem>
@@ -2474,9 +2506,9 @@ function ConfigureRetentionDialog({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Retention period</Label>
+                <Label htmlFor="archive_retention_days" className="text-xs">Retention period</Label>
                 <Select value={String(retentionDays)} onValueChange={(v) => setRetentionDays(Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="archive_retention_days"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {RETENTION_OPTIONS_DAYS.map((o) => (
                       <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
@@ -3740,17 +3772,17 @@ function DepartmentsManager() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Operations" />
+              <Label htmlFor="department_name">Name</Label>
+              <Input id="department_name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Operations" />
             </div>
             <div className="space-y-1">
-              <Label>Description</Label>
-              <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description" />
+              <Label htmlFor="department_description">Description</Label>
+              <Input id="department_description" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Optional description" />
             </div>
             <div className="space-y-1">
-              <Label>Head of department</Label>
+              <Label htmlFor="department_head">Head of department</Label>
               <Select value={headId || '__none__'} onValueChange={(v) => setHeadId(v === '__none__' ? '' : v)}>
-                <SelectTrigger>
+                <SelectTrigger id="department_head">
                   <SelectValue placeholder="Select a head (optional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -3959,8 +3991,8 @@ function TagsManager() {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. VIP, Priority, Lagos" />
+              <Label htmlFor="tag_name">Name</Label>
+              <Input id="tag_name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. VIP, Priority, Lagos" />
             </div>
             <div className="space-y-1">
               <Label>Color</Label>
@@ -3977,9 +4009,9 @@ function TagsManager() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Module</Label>
+              <Label htmlFor="tag_module">Module</Label>
               <Select value={module} onValueChange={setModule}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="tag_module"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {TAG_MODULES.map((m) => (
                     <SelectItem key={m} value={m} className="capitalize">

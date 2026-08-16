@@ -1374,8 +1374,9 @@ const EmployeeProfile = () => {
 
                   {!form.use_salary_components ? (
                     <div className="space-y-1.5 max-w-xs">
-                      <Label className="text-xs">Monthly gross salary (₦)</Label>
+                      <Label htmlFor="salary_ngn" className="text-xs">Monthly gross salary (₦)</Label>
                       <Input
+                        id="salary_ngn"
                         type="number"
                         min={0}
                         value={form.salary_ngn ?? ''}
@@ -1388,32 +1389,36 @@ const EmployeeProfile = () => {
                   ) : (
                     <div className="grid grid-cols-2 gap-3 max-w-md">
                       <div className="space-y-1">
-                        <Label className="text-xs">Basic (₦)</Label>
+                        <Label htmlFor="basic_ngn" className="text-xs">Basic (₦)</Label>
                         <Input
+                          id="basic_ngn"
                           type="number" min={0}
                           value={form.basic_ngn ?? ''}
                           onChange={(e) => patch({ basic_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Housing (₦)</Label>
+                        <Label htmlFor="housing_ngn" className="text-xs">Housing (₦)</Label>
                         <Input
+                          id="housing_ngn"
                           type="number" min={0}
                           value={form.housing_ngn ?? ''}
                           onChange={(e) => patch({ housing_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Transport (₦)</Label>
+                        <Label htmlFor="transport_ngn" className="text-xs">Transport (₦)</Label>
                         <Input
+                          id="transport_ngn"
                           type="number" min={0}
                           value={form.transport_ngn ?? ''}
                           onChange={(e) => patch({ transport_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs">Other Allowances (₦)</Label>
+                        <Label htmlFor="other_allowances_ngn" className="text-xs">Other Allowances (₦)</Label>
                         <Input
+                          id="other_allowances_ngn"
                           type="number" min={0}
                           value={form.other_allowances_ngn ?? ''}
                           onChange={(e) => patch({ other_allowances_ngn: e.target.value === '' ? 0 : Number(e.target.value) })}
@@ -1560,12 +1565,12 @@ const EmployeeProfile = () => {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Department</Label>
+                        <Label htmlFor="department_id" className="text-xs">Department</Label>
                         <Select
                           value={form.department_id || ''}
                           onValueChange={(v) => patch({ department_id: v || null })}
                         >
-                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectTrigger id="department_id"><SelectValue placeholder="Select…" /></SelectTrigger>
                           <SelectContent>
                             {departments.map((d) => (
                               <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
@@ -1574,7 +1579,7 @@ const EmployeeProfile = () => {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">
+                        <Label htmlFor="role" className="text-xs">
                           Role
                           {!canEditRole && (
                             <span className="ml-1 text-muted-foreground font-normal">
@@ -1587,7 +1592,7 @@ const EmployeeProfile = () => {
                           onValueChange={(v) => patch({ role: v })}
                           disabled={!canEditRole}
                         >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectTrigger id="role"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {assignableRoles.map((r) => (
                               <SelectItem key={r} value={r}>
@@ -1599,18 +1604,18 @@ const EmployeeProfile = () => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Job title</Label>
-                      <Input value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} />
+                      <Label htmlFor="job_title" className="text-xs">Job title</Label>
+                      <Input id="job_title" value={form.job_title || ''} onChange={(e) => patch({ job_title: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Employee number</Label>
-                        <Input value={form.employee_number || ''} onChange={(e) => patch({ employee_number: e.target.value || null })} />
+                        <Label htmlFor="employee_number" className="text-xs">Employee number</Label>
+                        <Input id="employee_number" value={form.employee_number || ''} onChange={(e) => patch({ employee_number: e.target.value || null })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Employment type</Label>
+                        <Label htmlFor="employment_type" className="text-xs">Employment type</Label>
                         <Select value={form.employment_type || undefined} onValueChange={(v) => patch({ employment_type: v || null })}>
-                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectTrigger id="employment_type"><SelectValue placeholder="Select…" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Full-time">Full-time</SelectItem>
                             <SelectItem value="Part-time">Part-time</SelectItem>
@@ -1622,9 +1627,9 @@ const EmployeeProfile = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Payroll category</Label>
+                        <Label htmlFor="employee_category" className="text-xs">Payroll category</Label>
                         <Select value={form.employee_category || undefined} onValueChange={(v) => patch({ employee_category: v || null })}>
-                          <SelectTrigger><SelectValue placeholder="Uncategorized" /></SelectTrigger>
+                          <SelectTrigger id="employee_category"><SelectValue placeholder="Uncategorized" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="administrative">Administrative</SelectItem>
                             <SelectItem value="executive">Executive / Director</SelectItem>
@@ -1636,12 +1641,12 @@ const EmployeeProfile = () => {
                         <p className="text-[11px] text-muted-foreground">Used by payroll segments.</p>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Pay group</Label>
+                        <Label htmlFor="pay_group_id" className="text-xs">Pay group</Label>
                         <Select
                           value={form.pay_group_id || '__none__'}
                           onValueChange={(v) => patch({ pay_group_id: v === '__none__' ? null : v })}
                         >
-                          <SelectTrigger><SelectValue placeholder="No group" /></SelectTrigger>
+                          <SelectTrigger id="pay_group_id"><SelectValue placeholder="No group" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">— No group —</SelectItem>
                             {payGroups.map((g) => (
@@ -1654,12 +1659,13 @@ const EmployeeProfile = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Start date</Label>
-                        <Input type="date" value={form.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} />
+                        <Label htmlFor="start_date" className="text-xs">Start date</Label>
+                        <Input id="start_date" type="date" value={form.start_date || ''} onChange={(e) => patch({ start_date: e.target.value || null })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Annual leave days</Label>
+                        <Label htmlFor="annual_leave_days" className="text-xs">Annual leave days</Label>
                         <Input
+                          id="annual_leave_days"
                           type="number"
                           min={0}
                           value={form.annual_leave_days ?? ''}
@@ -1668,9 +1674,9 @@ const EmployeeProfile = () => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Status</Label>
+                      <Label htmlFor="status" className="text-xs">Status</Label>
                       <Select value={form.status || undefined} onValueChange={(v) => patch({ status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger id="status"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Active</SelectItem>
                           <SelectItem value="inactive">Inactive</SelectItem>
@@ -1683,12 +1689,12 @@ const EmployeeProfile = () => {
                         independently optional so legacy profiles keep working. */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Reports to (manager)</Label>
+                        <Label htmlFor="reporting_manager_id" className="text-xs">Reports to (manager)</Label>
                         <Select
                           value={form.reporting_manager_id || '__none__'}
                           onValueChange={(v) => patch({ reporting_manager_id: v === '__none__' ? null : v })}
                         >
-                          <SelectTrigger><SelectValue placeholder="No manager assigned" /></SelectTrigger>
+                          <SelectTrigger id="reporting_manager_id"><SelectValue placeholder="No manager assigned" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">— No manager —</SelectItem>
                             {managers.map((m) => (
@@ -1700,8 +1706,9 @@ const EmployeeProfile = () => {
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Contract end date</Label>
+                        <Label htmlFor="contract_end_date" className="text-xs">Contract end date</Label>
                         <Input
+                          id="contract_end_date"
                           type="date"
                           value={form.contract_end_date || ''}
                           onChange={(e) => patch({ contract_end_date: e.target.value || null })}
@@ -1715,16 +1722,18 @@ const EmployeeProfile = () => {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Pension Fund Administrator (PFA)</Label>
+                        <Label htmlFor="pfa_name" className="text-xs">Pension Fund Administrator (PFA)</Label>
                         <Input
+                          id="pfa_name"
                           value={form.pfa_name || ''}
                           onChange={(e) => patch({ pfa_name: e.target.value || null })}
                           placeholder="e.g. ARM Pension, Stanbic IBTC"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">PFA code</Label>
+                        <Label htmlFor="pfa_code" className="text-xs">PFA code</Label>
                         <Input
+                          id="pfa_code"
                           value={form.pfa_code || ''}
                           onChange={(e) => patch({ pfa_code: e.target.value || null })}
                           placeholder="e.g. PENCOM-issued PSSP code"
@@ -1736,12 +1745,12 @@ const EmployeeProfile = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">State of residence</Label>
+                        <Label htmlFor="state_of_residence" className="text-xs">State of residence</Label>
                         <Select
                           value={form.state_of_residence || '__none__'}
                           onValueChange={(v) => patch({ state_of_residence: v === '__none__' ? null : v })}
                         >
-                          <SelectTrigger><SelectValue placeholder="Select state…" /></SelectTrigger>
+                          <SelectTrigger id="state_of_residence"><SelectValue placeholder="Select state…" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none__">— Not set —</SelectItem>
                             {[
@@ -2031,12 +2040,12 @@ const EmployeeProfile = () => {
                 ) : (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Select payslip</Label>
+                      <Label htmlFor="select_payslip" className="text-xs">Select payslip</Label>
                       <Select
                         value={selectedPayslipId || payslips[0]?.id}
                         onValueChange={setSelectedPayslipId}
                       >
-                        <SelectTrigger><SelectValue placeholder="Choose period" /></SelectTrigger>
+                        <SelectTrigger id="select_payslip"><SelectValue placeholder="Choose period" /></SelectTrigger>
                         <SelectContent>
                           {payslips.map((p: any) => (
                             <SelectItem key={p.id} value={p.id}>{humanPeriod(p.period) || formatDate(p.created_at)}</SelectItem>
@@ -2112,31 +2121,32 @@ const EmployeeProfile = () => {
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">First name</Label>
-                        <Input value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
+                        <Label htmlFor="first_name" className="text-xs">First name</Label>
+                        <Input id="first_name" value={form.first_name || ''} onChange={(e) => patch({ first_name: e.target.value })} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Last name</Label>
-                        <Input value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
+                        <Label htmlFor="last_name" className="text-xs">Last name</Label>
+                        <Input id="last_name" value={form.last_name || ''} onChange={(e) => patch({ last_name: e.target.value })} />
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Phone</Label>
-                      <Input value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
+                      <Label htmlFor="phone" className="text-xs">Phone</Label>
+                      <Input id="phone" value={form.phone || ''} onChange={(e) => patch({ phone: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Date of birth</Label>
+                        <Label htmlFor="date_of_birth" className="text-xs">Date of birth</Label>
                         <Input
+                          id="date_of_birth"
                           type="date"
                           value={form.date_of_birth || ''}
                           onChange={(e) => patch({ date_of_birth: e.target.value || null })}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Gender</Label>
+                        <Label htmlFor="gender" className="text-xs">Gender</Label>
                         <Select value={form.gender || undefined} onValueChange={(v) => patch({ gender: v || null })}>
-                          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                          <SelectTrigger id="gender"><SelectValue placeholder="Select…" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="male">Male</SelectItem>
                             <SelectItem value="female">Female</SelectItem>
@@ -2147,9 +2157,9 @@ const EmployeeProfile = () => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Marital status</Label>
+                      <Label htmlFor="marital_status" className="text-xs">Marital status</Label>
                       <Select value={form.marital_status || undefined} onValueChange={(v) => patch({ marital_status: v || null })}>
-                        <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                        <SelectTrigger id="marital_status"><SelectValue placeholder="Select…" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="single">Single</SelectItem>
                           <SelectItem value="married">Married</SelectItem>
@@ -2214,20 +2224,20 @@ const EmployeeProfile = () => {
                 {editingSection === 'kin' ? (
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Full name</Label>
-                      <Input value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
+                      <Label htmlFor="next_of_kin_name" className="text-xs">Full name</Label>
+                      <Input id="next_of_kin_name" value={form.next_of_kin_name || ''} onChange={(e) => patch({ next_of_kin_name: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Relationship</Label>
-                      <Input value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} />
+                      <Label htmlFor="next_of_kin_relationship" className="text-xs">Relationship</Label>
+                      <Input id="next_of_kin_relationship" value={form.next_of_kin_relationship || ''} onChange={(e) => patch({ next_of_kin_relationship: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Phone</Label>
-                      <Input value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
+                      <Label htmlFor="next_of_kin_phone" className="text-xs">Phone</Label>
+                      <Input id="next_of_kin_phone" value={form.next_of_kin_phone || ''} onChange={(e) => patch({ next_of_kin_phone: e.target.value })} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-xs">Email</Label>
-                      <Input type="email" value={form.next_of_kin_email || ''} onChange={(e) => patch({ next_of_kin_email: e.target.value })} />
+                      <Label htmlFor="next_of_kin_email" className="text-xs">Email</Label>
+                      <Input id="next_of_kin_email" type="email" value={form.next_of_kin_email || ''} onChange={(e) => patch({ next_of_kin_email: e.target.value })} />
                     </div>
                   </div>
                 ) : employee.next_of_kin_name ? (
@@ -2333,8 +2343,9 @@ const EmployeeProfile = () => {
               {editingSection === 'identity' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs">NIN (National ID) — 11 digits</Label>
+                    <Label htmlFor="nin" className="text-xs">NIN (National ID) — 11 digits</Label>
                     <Input
+                      id="nin"
                       value={form.nin || ''}
                       onChange={(e) => patch({ nin: e.target.value.replace(/\D/g, '').slice(0, 11) })}
                       placeholder="e.g. 12345678901"
@@ -2342,8 +2353,9 @@ const EmployeeProfile = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">TIN (Tax ID)</Label>
+                    <Label htmlFor="tin" className="text-xs">TIN (Tax ID)</Label>
                     <Input
+                      id="tin"
                       value={form.tin || ''}
                       onChange={(e) => patch({ tin: e.target.value })}
                       placeholder="FIRS Tax Identification Number"
@@ -2459,8 +2471,9 @@ const EmployeeProfile = () => {
                     {editingSection === 'statutory' ? (
                       <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
                         <div className="space-y-1">
-                          <Label className="text-xs">Reference number</Label>
+                          <Label htmlFor={`statutory-ref-${row.key}`} className="text-xs">Reference number</Label>
                           <Input
+                            id={`statutory-ref-${row.key}`}
                             value={num}
                             onChange={(e) => patch({ [row.numberField]: e.target.value } as any)}
                             placeholder={row.placeholder}
@@ -2603,8 +2616,9 @@ const EmployeeProfile = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label>File</Label>
+              <Label htmlFor="doc-file">File</Label>
               <Input
+                id="doc-file"
                 type="file"
                 accept=".pdf,image/*,.doc,.docx,.xls,.xlsx"
                 onChange={(e) => {
@@ -2622,8 +2636,9 @@ const EmployeeProfile = () => {
               )}
             </div>
             <div className="space-y-1">
-              <Label>Title</Label>
+              <Label htmlFor="doc-title">Title</Label>
               <Input
+                id="doc-title"
                 value={docForm.title}
                 onChange={(e) => setDocForm((s) => ({ ...s, title: e.target.value }))}
                 placeholder="e.g. Employment Contract 2026"
@@ -2631,12 +2646,12 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Category</Label>
+                <Label htmlFor="doc-category">Category</Label>
                 <Select
                   value={docForm.category}
                   onValueChange={(v) => setDocForm((s) => ({ ...s, category: v }))}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="doc-category"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="contract">Contract</SelectItem>
                     <SelectItem value="nda">NDA</SelectItem>
@@ -2650,8 +2665,9 @@ const EmployeeProfile = () => {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Expiry (optional)</Label>
+                <Label htmlFor="doc-expiry">Expiry (optional)</Label>
                 <Input
+                  id="doc-expiry"
                   type="date"
                   value={docForm.expires_at}
                   onChange={(e) => setDocForm((s) => ({ ...s, expires_at: e.target.value }))}
@@ -2659,8 +2675,9 @@ const EmployeeProfile = () => {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>Description (optional)</Label>
+              <Label htmlFor="doc-description">Description (optional)</Label>
               <Input
+                id="doc-description"
                 value={docForm.description}
                 onChange={(e) => setDocForm((s) => ({ ...s, description: e.target.value }))}
                 placeholder="Brief note about this document"
@@ -3448,16 +3465,18 @@ const EmployeeProfile = () => {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
-              <Label>Effective date</Label>
+              <Label htmlFor="increment-effective-date">Effective date</Label>
               <Input
+                id="increment-effective-date"
                 type="date"
                 value={incrementForm.effective_date}
                 onChange={(e) => setIncrementForm((p) => ({ ...p, effective_date: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>New monthly salary (₦)</Label>
+              <Label htmlFor="increment-new-salary">New monthly salary (₦)</Label>
               <Input
+                id="increment-new-salary"
                 type="number"
                 min={0}
                 value={incrementForm.new_salary || ''}
@@ -3466,8 +3485,9 @@ const EmployeeProfile = () => {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Reason</Label>
+              <Label htmlFor="increment-reason">Reason</Label>
               <Textarea
+                id="increment-reason"
                 rows={3}
                 value={incrementForm.reason}
                 onChange={(e) => setIncrementForm((p) => ({ ...p, reason: e.target.value }))}
@@ -3502,8 +3522,9 @@ const EmployeeProfile = () => {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>Description <span className="text-destructive">*</span></Label>
+              <Label htmlFor="deduction-description">Description <span className="text-destructive">*</span></Label>
               <Input
+                id="deduction-description"
                 className="mt-1"
                 placeholder="e.g. Staff loan repayment"
                 value={deductionForm.description}
@@ -3512,8 +3533,9 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Amount per period (₦) <span className="text-destructive">*</span></Label>
+                <Label htmlFor="deduction-amount">Amount per period (₦) <span className="text-destructive">*</span></Label>
                 <Input
+                  id="deduction-amount"
                   className="mt-1"
                   type="number"
                   min={1}
@@ -3523,9 +3545,9 @@ const EmployeeProfile = () => {
                 />
               </div>
               <div>
-                <Label>Frequency</Label>
+                <Label htmlFor="deduction-frequency">Frequency</Label>
                 <Select value={deductionForm.frequency} onValueChange={(v) => setDeductionForm((f) => ({ ...f, frequency: v as typeof f.frequency }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="deduction-frequency" className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="per_payroll_run">Per Payroll Run</SelectItem>
@@ -3536,19 +3558,19 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Start Date <span className="text-destructive">*</span></Label>
-                <Input className="mt-1" type="date" value={deductionForm.start_date}
+                <Label htmlFor="deduction-start-date">Start Date <span className="text-destructive">*</span></Label>
+                <Input id="deduction-start-date" className="mt-1" type="date" value={deductionForm.start_date}
                   onChange={(e) => setDeductionForm((f) => ({ ...f, start_date: e.target.value }))} />
               </div>
               <div>
-                <Label>End Date (optional)</Label>
-                <Input className="mt-1" type="date" value={deductionForm.end_date}
+                <Label htmlFor="deduction-end-date">End Date (optional)</Label>
+                <Input id="deduction-end-date" className="mt-1" type="date" value={deductionForm.end_date}
                   onChange={(e) => setDeductionForm((f) => ({ ...f, end_date: e.target.value }))} />
               </div>
             </div>
             <div>
-              <Label>Total deductible amount (₦, optional)</Label>
-              <Input className="mt-1" type="number" min={0} placeholder="Leave blank for no cap"
+              <Label htmlFor="deduction-total-cap">Total deductible amount (₦, optional)</Label>
+              <Input id="deduction-total-cap" className="mt-1" type="number" min={0} placeholder="Leave blank for no cap"
                 value={deductionForm.total_deductible_amount}
                 onChange={(e) => setDeductionForm((f) => ({ ...f, total_deductible_amount: e.target.value }))} />
               <p className="text-xs text-muted-foreground mt-1">Deductions stop automatically when this total is reached.</p>
@@ -3575,8 +3597,9 @@ const EmployeeProfile = () => {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>Description <span className="text-destructive">*</span></Label>
+              <Label htmlFor="earning-description">Description <span className="text-destructive">*</span></Label>
               <Input
+                id="earning-description"
                 className="mt-1"
                 placeholder="e.g. Meal allowance"
                 value={earningForm.description}
@@ -3585,8 +3608,9 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Amount per period (₦) <span className="text-destructive">*</span></Label>
+                <Label htmlFor="earning-amount">Amount per period (₦) <span className="text-destructive">*</span></Label>
                 <Input
+                  id="earning-amount"
                   className="mt-1"
                   type="number"
                   min={1}
@@ -3596,9 +3620,9 @@ const EmployeeProfile = () => {
                 />
               </div>
               <div>
-                <Label>Frequency</Label>
+                <Label htmlFor="earning-frequency">Frequency</Label>
                 <Select value={earningForm.frequency} onValueChange={(v) => setEarningForm((f) => ({ ...f, frequency: v as typeof f.frequency }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="earning-frequency" className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="monthly">Monthly</SelectItem>
                     <SelectItem value="per_payroll_run">Per Payroll Run</SelectItem>
@@ -3609,9 +3633,9 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Earning type</Label>
+                <Label htmlFor="earning-type">Earning type</Label>
                 <Select value={earningForm.earning_type} onValueChange={(v) => setEarningForm((f) => ({ ...f, earning_type: v as typeof f.earning_type }))}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="earning-type" className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="allowance">Allowance</SelectItem>
                     <SelectItem value="bonus">Bonus</SelectItem>
@@ -3633,13 +3657,13 @@ const EmployeeProfile = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Start Date <span className="text-destructive">*</span></Label>
-                <Input className="mt-1" type="date" value={earningForm.start_date}
+                <Label htmlFor="earning-start-date">Start Date <span className="text-destructive">*</span></Label>
+                <Input id="earning-start-date" className="mt-1" type="date" value={earningForm.start_date}
                   onChange={(e) => setEarningForm((f) => ({ ...f, start_date: e.target.value }))} />
               </div>
               <div>
-                <Label>End Date (optional)</Label>
-                <Input className="mt-1" type="date" value={earningForm.end_date}
+                <Label htmlFor="earning-end-date">End Date (optional)</Label>
+                <Input id="earning-end-date" className="mt-1" type="date" value={earningForm.end_date}
                   onChange={(e) => setEarningForm((f) => ({ ...f, end_date: e.target.value }))} />
               </div>
             </div>
@@ -3748,8 +3772,9 @@ const EmployeeProfile = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label className="text-xs">Reason for rejection</Label>
+            <Label htmlFor="bank-reject-reason" className="text-xs">Reason for rejection</Label>
             <textarea
+              id="bank-reject-reason"
               className="w-full text-sm rounded-md border bg-background px-3 py-2 min-h-[80px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="e.g. Account name does not match payroll records…"
               value={bankRejectReason}
