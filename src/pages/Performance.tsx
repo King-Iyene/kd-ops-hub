@@ -11,6 +11,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { confirm } from '@/hooks/use-confirm';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { StatusBadge } from '@/components/ui-kit/StatusBadge';
 import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
@@ -445,7 +446,7 @@ export default function Performance() {
 
         <TabsContent value="cycles" className="space-y-4 mt-0">
       {loading ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+        <TableSkeleton rows={6} cols={5} />
       ) : cycles.length === 0 ? (
         <EmptyState compact icon={Star} title="No review cycles yet" description="Create your first cycle above to start tracking employee performance." />
       ) : (
@@ -628,7 +629,7 @@ export default function Performance() {
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+            <TableSkeleton rows={6} cols={5} />
           ) : filteredPlans.length === 0 ? (
             <EmptyState
               compact icon={Target}

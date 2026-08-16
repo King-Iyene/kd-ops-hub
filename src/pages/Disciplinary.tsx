@@ -11,6 +11,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -314,7 +315,7 @@ export default function Disciplinary() {
 
       {/* Records */}
       {loading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <TableSkeleton rows={6} cols={5} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ShieldAlert}

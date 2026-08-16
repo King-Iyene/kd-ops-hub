@@ -7,6 +7,7 @@ import {
   ClipboardList, Activity, Receipt, Wallet, Package, HeartPulse,
 } from 'lucide-react';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { StatCard } from '@/components/ui-kit/StatCard';
 import OffboardingTab from '@/components/employee/OffboardingTab';
 import { supabase } from '@/lib/supabase';
@@ -4323,9 +4324,7 @@ const EmployeeProfile = () => {
             </DialogDescription>
           </DialogHeader>
           {bankHistoryLoading ? (
-            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-            </div>
+            <TableSkeleton rows={6} cols={4} />
           ) : bankHistory.length === 0 ? (
             <p className="py-6 text-sm text-muted-foreground text-center">
               No bank account changes recorded for this employee.
