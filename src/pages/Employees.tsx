@@ -166,7 +166,13 @@ const Employees = () => {
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const isAdmin = profile?.role === 'admin' || isSuperAdmin;
-  const canEditRole = isAdmin;
+  const isSelf = (e: Employee) => e.id === profile?.id;
+  const canEditEmployee = (e: Employee) => isAdmin || isSelf(e);
+  const canChangeRole = (target: Employee | null) => {
+    if (!isAdmin) return false;
+    if (target?.role === 'super_admin' && !isSuperAdmin) return false;
+    return true;
+  };
 
   const assignableRoles = ROLE_OPTIONS.filter((r) => {
     if (r.value === 'super_admin') return isSuperAdmin;
@@ -415,20 +421,27 @@ const Employees = () => {
       toast({ title: 'Only a Super Admin can assign the Super Admin role', variant: 'destructive' });
       return;
     }
+    const allowRoleChange = canChangeRole(editing);
+    if (!allowRoleChange && form.role !== editing.role) {
+      form.role = editing.role as Role;
+    }
     setSubmitting(true);
     try {
-      const roleChanged = form.role !== editing.role;
+      const roleChanged = allowRoleChange && form.role !== editing.role;
+      const payload: Record<string, unknown> = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        full_name: editFullName,
+        phone: form.phone || null,
+        department_id: form.department_id || null,
+      };
+      if (isAdmin) {
+        payload.role = form.role;
+        payload.tags = selectedTagIds;
+      }
       const { data: updated, error } = await supabase
         .from('profiles')
-        .update({
-          first_name: form.first_name,
-          last_name: form.last_name,
-          full_name: editFullName,
-          phone: form.phone || null,
-          role: form.role,
-          tags: selectedTagIds,
-          department_id: form.department_id || null,
-        })
+        .update(payload)
         .eq('id', editing.id)
         .select('id, role');
       if (error) throw error;
@@ -752,7 +765,7 @@ const Employees = () => {
                               <Mail className="h-4 w-4" />
                             </Button>
                           )}
-                          {isAdmin && (
+                          {canEditEmployee(e) && (
                             <Button
                               size="sm"
                               variant="ghost"
@@ -861,9 +874,9 @@ const Employees = () => {
                       {e.phone && <MobileCardRow label="Phone">{e.phone}</MobileCardRow>}
                       {e.created_at && <MobileCardRow label="Joined">{formatDate(e.created_at)}</MobileCardRow>}
 
-                      {isAdmin && (
+                      {canEditEmployee(e) && (
                         <MobileCardFooter>
-                          {e.status === 'invited' && (
+                          {isAdmin && e.status === 'invited' && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -881,7 +894,7 @@ const Employees = () => {
                           >
                             <Pencil className="h-4 w-4 mr-1.5" /> Edit
                           </Button>
-                          {e.status === 'active' && (
+                          {isAdmin && e.status === 'active' && (
                             <Button
                               size="sm"
                               variant="ghost"
@@ -891,7 +904,7 @@ const Employees = () => {
                               <UserX className="h-4 w-4" />
                             </Button>
                           )}
-                          {e.status === 'inactive' && (
+                          {isAdmin && e.status === 'inactive' && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -985,7 +998,7 @@ const Employees = () => {
                 <Select
                   value={form.role}
                   onValueChange={(v) => setForm({ ...form, role: v as Role })}
-                  disabled={!canEditRole}
+                  disabled={!canChangeRole(editing)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -998,8 +1011,10 @@ const Employees = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {!canEditRole && (
-                  <p className="text-xs text-muted-foreground">Only admins can change roles.</p>
+                {!canChangeRole(editing) && (
+                  <p className="text-xs text-muted-foreground">
+                    {!isAdmin ? 'Only admins can change roles.' : 'Admin accounts cannot change a Super Admin\'s role.'}
+                  </p>
                 )}
               </div>
               {/* Department + Employment type were create-only — now also
@@ -1011,6 +1026,7 @@ const Employees = () => {
                 <Select
                   value={form.department_id || 'none'}
                   onValueChange={(v) => setForm({ ...form, department_id: v === 'none' ? '' : v })}
+                  disabled={!isAdmin}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select department…" />
