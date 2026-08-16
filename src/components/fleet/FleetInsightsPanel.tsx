@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { formatNaira } from '@/lib/format';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
   AlertTriangle,
   TrendingDown,
@@ -20,6 +21,8 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
+  Info,
+  HelpCircle,
 } from 'lucide-react';
 
 interface VehicleHealth {
@@ -445,18 +448,33 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
       {insights.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500" />
-              Smart Insights
-              <Badge variant="secondary" className="ml-auto text-xs">{insights.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Smart Insights
+                <Badge variant="secondary" className="ml-auto text-xs">{insights.length}</Badge>
+              </CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-xs max-w-[260px]">
+                  Auto-detected issues and opportunities based on your fleet's fuel usage, maintenance schedule, inspections, and compliance status over the last 30 days.
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {insights.map((insight) => (
               <div key={insight.id} className={`flex gap-3 p-3 rounded-lg border ${bgByType[insight.type]}`}>
                 {iconByType[insight.type]}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{insight.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium">{insight.title}</p>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
+                      {insight.type === 'warning' ? 'Needs Action' : insight.type === 'opportunity' ? 'Opportunity' : insight.type === 'action' ? 'To Do' : 'Good News'}
+                    </Badge>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{insight.description}</p>
                   {insight.impact && (
                     <Badge variant="outline" className="mt-1 text-xs currency">{insight.impact}</Badge>
@@ -494,6 +512,40 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
                     <Progress value={vh.health_score} className="flex-1 h-2" />
                     <span className={`text-sm font-semibold w-10 text-right ${healthColor(vh.health_score)}`}>{vh.health_score}%</span>
                   </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.fuel_efficiency_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.fuel_efficiency_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                          Fuel {vh.fuel_efficiency_score}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">Fuel anomaly score</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.maintenance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.maintenance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                          Maint {vh.maintenance_score}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">Maintenance schedule score</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.compliance_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.compliance_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                          Compl {vh.compliance_score}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">Insurance &amp; compliance score</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${vh.inspection_score >= 85 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : vh.inspection_score >= 65 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'} cursor-help`}>
+                          Insp {vh.inspection_score}%
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="text-xs">Inspection defects score</TooltipContent>
+                    </Tooltip>
+                  </div>
                   {vh.issues.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {vh.issues.slice(0, 3).map((issue, i) => (
@@ -512,11 +564,44 @@ export function FleetInsightsPanel({ vehicles, onNavigate }: Props) {
           </div>
 
           {/* Score Legend */}
-          <div className="flex items-center gap-4 mt-4 pt-3 border-t text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Fuel className="h-3 w-3" /> Fuel 20%</span>
-            <span className="flex items-center gap-1"><Wrench className="h-3 w-3" /> Maintenance 30%</span>
-            <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Compliance 30%</span>
-            <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Inspections 20%</span>
+          <div className="mt-4 pt-3 border-t">
+            <div className="flex items-center gap-1 mb-2 text-xs text-muted-foreground">
+              <span className="font-medium">Health score = weighted average of:</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3 w-3 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs max-w-[280px]">
+                  Each vehicle's health score (0–100%) is a weighted average of four factors. A score below 65% means the vehicle needs attention; below 40% is critical.
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-help"><Fuel className="h-3 w-3" /> Fuel 20%</span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs max-w-[200px]">Fuel anomaly rate — flagged fuel requests lower this score</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-help"><Wrench className="h-3 w-3" /> Maintenance 30%</span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs max-w-[200px]">Overdue or upcoming maintenance tasks lower this score</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-help"><Shield className="h-3 w-3" /> Compliance 30%</span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs max-w-[200px]">Expired insurance, road worthiness, or no assigned driver lower this score</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="flex items-center gap-1 cursor-help"><CheckCircle2 className="h-3 w-3" /> Inspections 20%</span>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs max-w-[200px]">Unresolved inspection defects lower this score</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         </CardContent>
       </Card>

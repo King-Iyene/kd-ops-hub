@@ -65,13 +65,13 @@ export function FleetBudgetForecaster() {
           .in('status', ['approved', 'payment_sent', 'receipt_uploaded', 'completed'])
           .gte('created_at', since),
         supabase
-          .from('maintenance_records')
-          .select('cost, date')
-          .gte('date', since.slice(0, 10)),
+          .from('vehicle_maintenance')
+          .select('cost_ngn, service_date')
+          .gte('service_date', since.slice(0, 10)),
       ]);
 
       type FuelRow = { receipt_amount_ngn: number | null; amount_ngn: number; created_at: string };
-      type MaintRow = { cost: number | null; date: string };
+      type MaintRow = { cost_ngn: number | null; service_date: string };
 
       const fuelRows = (fuelRes.data || []) as FuelRow[];
       const maintRows = (maintRes.data || []) as MaintRow[];
@@ -89,10 +89,10 @@ export function FleetBudgetForecaster() {
       }
 
       for (const r of maintRows) {
-        if (!r.cost || !r.date) continue;
-        const d = new Date(r.date);
+        if (!r.cost_ngn || !r.service_date) continue;
+        const d = new Date(r.service_date);
         const mk = monthKey(d);
-        monthMaint.set(mk, (monthMaint.get(mk) || 0) + r.cost);
+        monthMaint.set(mk, (monthMaint.get(mk) || 0) + r.cost_ngn);
         if (!monthLabels.has(mk)) monthLabels.set(mk, monthLabel(d));
       }
 
