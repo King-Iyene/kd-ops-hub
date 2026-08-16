@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 type EmpType = 'full_time' | 'part_time' | 'contract' | 'intern';
 type OpeningStatus = 'draft' | 'published' | 'closed' | 'filled';
@@ -414,7 +415,7 @@ export default function Recruitment() {
 
       {/* Openings list */}
       {loading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <TableSkeleton rows={6} cols={6} />
       ) : filteredOpenings.length === 0 ? (
         <EmptyState
           icon={UserPlus2}

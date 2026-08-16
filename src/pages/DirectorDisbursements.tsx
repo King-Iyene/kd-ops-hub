@@ -118,6 +118,7 @@ import { PersonalTransferReceiptModal } from '@/components/PersonalTransferRecei
 import { useToast } from '@/hooks/use-toast';
 import { friendlyDbError } from '@/lib/db-errors';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 
 const emptyBank: BankAccountValue = { bank_name: '', account_number: '', account_name: '', verified: false };
 
@@ -293,7 +294,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
             {historyOpen && (
               <div className="rounded-lg border border-border/60 divide-y">
                 {historyLoading ? (
-                  <div className="py-6 text-center text-sm text-muted-foreground">Loading…</div>
+                  <TableSkeleton rows={6} cols={6} />
                 ) : history.length === 0 ? (
                   <div className="py-6 text-center text-sm text-muted-foreground">No wallet activity yet.</div>
                 ) : (
@@ -534,7 +535,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+            <TableSkeleton rows={6} cols={6} />
           ) : rows.length === 0 ? (
             <EmptyState icon={Landmark} title="No company disbursements yet" description="Send your first one above." />
           ) : filteredRows.length === 0 ? (
@@ -1482,7 +1483,7 @@ function PersonalTransferSection({ profile, toast }: { profile: any; toast: Retu
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
+            <TableSkeleton rows={6} cols={6} />
           ) : rows.length === 0 ? (
             <EmptyState icon={Send} title="No transfers yet" description="Send your first one above." />
           ) : filteredRows.length === 0 ? (
