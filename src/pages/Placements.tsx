@@ -435,20 +435,21 @@ function Placements() {
       <AuroraHero className="p-5 sm:p-6" pattern="constellation">
         <PageHeader
           title="Placements"
-          subtitle="Manage employee deployments at client sites"
+          description="Manage employee deployments at client sites"
           icon={Briefcase}
-        >
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
-              <Download className="h-4 w-4 mr-1.5" /> Export
-            </Button>
-            {isAdmin && (
-              <Button size="sm" onClick={openCreate}>
-                <Plus className="h-4 w-4 mr-1.5" /> New Placement
+          actions={
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={exportCsv} disabled={filtered.length === 0}>
+                <Download className="h-4 w-4 mr-1.5" /> Export
               </Button>
-            )}
-          </div>
-        </PageHeader>
+              {isAdmin && (
+                <Button size="sm" onClick={openCreate}>
+                  <Plus className="h-4 w-4 mr-1.5" /> New Placement
+                </Button>
+              )}
+            </div>
+          }
+        />
       </AuroraHero>
 
       {/* Stats */}
