@@ -64,6 +64,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/benefits':             'Benefits',
   '/onboarding':           'Onboarding',
   '/recruitment':          'Recruitment',
+  '/placements':           'Placements',
   '/attendance':           'Attendance',
   '/disciplinary':         'Disciplinary',
   '/vendors':              'Vendors',

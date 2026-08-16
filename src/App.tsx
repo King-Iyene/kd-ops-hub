@@ -77,6 +77,7 @@ const Benefits         = lazy(() => import('./pages/Benefits'));
 const Onboarding       = lazy(() => import('./pages/Onboarding'));
 const Recruitment      = lazy(() => import('./pages/Recruitment'));
 const Attendance       = lazy(() => import('./pages/Attendance'));
+const Placements       = lazy(() => import('./pages/Placements'));
 const Disciplinary     = lazy(() => import('./pages/Disciplinary'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const SettingsPage     = lazy(() => import('./pages/Settings'));
@@ -581,6 +582,16 @@ function AppRoutes() {
           element={
             <RoleGuard roles={MANAGER_ROLES}>
               <PublicLinks />
+            </RoleGuard>
+          }
+        />
+
+        {/* Placements — Admin + Managers can view, Admin can write. */}
+        <Route
+          path="/placements"
+          element={
+            <RoleGuard roles={MANAGER_ROLES}>
+              <Placements />
             </RoleGuard>
           }
         />
