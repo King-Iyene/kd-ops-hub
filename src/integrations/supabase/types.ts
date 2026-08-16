@@ -8531,7 +8531,9 @@ export type Database = {
           auto_verified: boolean
           commission_ngn: number
           created_at: string
+          fx_rate_used: number | null
           gross_amount_ngn: number
+          gross_amount_usd: number | null
           id: string
           month: string
           net_employee_ngn: number
@@ -8546,7 +8548,9 @@ export type Database = {
           auto_verified?: boolean
           commission_ngn: number
           created_at?: string
+          fx_rate_used?: number | null
           gross_amount_ngn: number
+          gross_amount_usd?: number | null
           id?: string
           month: string
           net_employee_ngn: number
@@ -8561,7 +8565,9 @@ export type Database = {
           auto_verified?: boolean
           commission_ngn?: number
           created_at?: string
+          fx_rate_used?: number | null
           gross_amount_ngn?: number
+          gross_amount_usd?: number | null
           id?: string
           month?: string
           net_employee_ngn?: number
@@ -8614,6 +8620,7 @@ export type Database = {
         Row: {
           client_id: string
           client_rate_ngn: number
+          client_rate_usd: number | null
           commission_ngn: number | null
           commission_pct: number
           created_at: string
@@ -8621,6 +8628,7 @@ export type Database = {
           employee_id: string
           employee_rate_ngn: number | null
           end_date: string | null
+          fx_rate_used: number | null
           id: string
           notes: string | null
           placement_category: string
@@ -8632,6 +8640,7 @@ export type Database = {
         Insert: {
           client_id: string
           client_rate_ngn: number
+          client_rate_usd?: number | null
           commission_ngn?: number | null
           commission_pct?: number
           created_at?: string
@@ -8639,6 +8648,7 @@ export type Database = {
           employee_id: string
           employee_rate_ngn?: number | null
           end_date?: string | null
+          fx_rate_used?: number | null
           id?: string
           notes?: string | null
           placement_category?: string
@@ -8650,6 +8660,7 @@ export type Database = {
         Update: {
           client_id?: string
           client_rate_ngn?: number
+          client_rate_usd?: number | null
           commission_ngn?: number | null
           commission_pct?: number
           created_at?: string
@@ -8657,6 +8668,7 @@ export type Database = {
           employee_id?: string
           employee_rate_ngn?: number | null
           end_date?: string | null
+          fx_rate_used?: number | null
           id?: string
           notes?: string | null
           placement_category?: string
