@@ -1,7 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Plus, Star, ChevronDown, ChevronUp, CheckCircle2, Clock,
-  AlertCircle, Users, BarChart3, Send, ThumbsUp,
+  AlertCircle, Users, BarChart3, Send, ThumbsUp, Target,
+  TrendingUp, Pencil, Trash2, ListChecks,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -10,6 +11,8 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { StatCard } from '@/components/ui-kit/StatCard';
+import { StatusBadge } from '@/components/ui-kit/StatusBadge';
+import { MobileCard, MobileCardHeader, MobileCardTitle, MobileCardMeta, MobileCardRow, MobileCardFooter } from '@/components/ui-kit/MobileCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Slider } from '@/components/ui/slider';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -26,6 +30,10 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import { chartTheme, axisTick, chartAnim, ChartGradients, GlassTooltip } from '@/components/ChartKit';
 
 const COMPETENCIES = [
   { key: 'delivery',       label: 'Delivery & Results' },
@@ -51,6 +59,33 @@ const CYCLE_STATUS: Record<string, { label: string; variant: 'default'|'secondar
   active: { label: 'Active', variant: 'default' },
   closed: { label: 'Closed', variant: 'secondary' },
 };
+
+const PLAN_CATEGORY_LABEL: Record<string, string> = {
+  technical: 'Technical', leadership: 'Leadership', communication: 'Communication',
+  domain: 'Domain', other: 'Other',
+};
+
+const PLAN_STATUS_LABEL: Record<string, string> = {
+  not_started: 'Not started', in_progress: 'In progress', completed: 'Completed', cancelled: 'Cancelled',
+};
+
+type PlanCategory = keyof typeof PLAN_CATEGORY_LABEL;
+type PlanStatus = keyof typeof PLAN_STATUS_LABEL;
+
+interface DevelopmentPlan {
+  id: string;
+  employee_id: string;
+  review_id: string | null;
+  title: string;
+  description: string | null;
+  category: PlanCategory;
+  target_date: string | null;
+  status: PlanStatus;
+  progress: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface ReviewCycle {
   id: string;
@@ -112,8 +147,22 @@ export default function Performance() {
   const [cycles, setCycles] = useState<ReviewCycle[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [plans, setPlans] = useState<DevelopmentPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCycle, setExpandedCycle] = useState<string | null>(null);
+
+  // Development plan filters
+  const [planStatusFilter, setPlanStatusFilter] = useState<string>('all');
+  const [planCategoryFilter, setPlanCategoryFilter] = useState<string>('all');
+
+  // Development plan dialog
+  const [planDialog, setPlanDialog] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<DevelopmentPlan | null>(null);
+  const [planForm, setPlanForm] = useState({
+    employee_id: '', title: '', description: '', category: 'other' as PlanCategory,
+    target_date: '', status: 'not_started' as PlanStatus, progress: 0, review_id: 'none',
+  });
+  const [savingPlan, setSavingPlan] = useState(false);
 
   // Cycle dialog
   const [cycleDialog, setCycleDialog] = useState(false);
@@ -132,14 +181,16 @@ export default function Performance() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: cData }, { data: rData }, { data: pData }] = await Promise.all([
+    const [{ data: cData }, { data: rData }, { data: pData }, { data: dpData }] = await Promise.all([
       supabase.from('review_cycles').select('*').order('due_date', { ascending: false }).limit(50),
       supabase.from('performance_reviews').select('*').order('created_at', { ascending: false }).limit(500),
       supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).limit(200),
+      supabase.from('development_plans').select('*').order('created_at', { ascending: false }).limit(500),
     ]);
     setCycles((cData as ReviewCycle[]) || []);
     setReviews((rData as Review[]) || []);
     setProfiles((pData as Profile[]) || []);
+    setPlans((dpData as DevelopmentPlan[]) || []);
     setLoading(false);
   }, []);
 
@@ -222,7 +273,92 @@ export default function Performance() {
     load();
   };
 
+  const openPlanDialog = (existing?: DevelopmentPlan) => {
+    setEditingPlan(existing ?? null);
+    if (existing) {
+      setPlanForm({
+        employee_id: existing.employee_id, title: existing.title, description: existing.description ?? '',
+        category: existing.category, target_date: existing.target_date ?? '', status: existing.status,
+        progress: existing.progress, review_id: existing.review_id ?? 'none',
+      });
+    } else {
+      setPlanForm({
+        employee_id: profile?.id ?? '', title: '', description: '', category: 'other',
+        target_date: '', status: 'not_started', progress: 0, review_id: 'none',
+      });
+    }
+    setPlanDialog(true);
+  };
+
+  const savePlan = async () => {
+    if (!planForm.employee_id || !planForm.title.trim()) {
+      toast({ title: 'Employee and title are required', variant: 'destructive' }); return;
+    }
+    setSavingPlan(true);
+    const payload = {
+      employee_id: planForm.employee_id,
+      review_id: planForm.review_id === 'none' ? null : planForm.review_id,
+      title: planForm.title.trim(),
+      description: planForm.description.trim() || null,
+      category: planForm.category,
+      target_date: planForm.target_date || null,
+      status: planForm.status,
+      progress: planForm.status === 'completed' ? 100 : planForm.progress,
+      created_by: editingPlan ? undefined : profile?.id,
+    };
+    const { error } = editingPlan
+      ? await supabase.from('development_plans').update(payload).eq('id', editingPlan.id)
+      : await supabase.from('development_plans').insert(payload);
+    setSavingPlan(false);
+    if (error) { toast({ title: 'Save failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: editingPlan ? 'Plan updated' : 'Plan created' });
+    setPlanDialog(false);
+    load();
+  };
+
+  const deletePlan = async (id: string) => {
+    const { error } = await supabase.from('development_plans').delete().eq('id', id);
+    if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Plan deleted' });
+    load();
+  };
+
+  const advancePlanStatus = async (planItem: DevelopmentPlan) => {
+    const next: Record<PlanStatus, PlanStatus | null> = {
+      not_started: 'in_progress', in_progress: 'completed', completed: null, cancelled: null,
+    };
+    const nextStatus = next[planItem.status];
+    if (!nextStatus) return;
+    const nextProgress = nextStatus === 'completed' ? 100 : Math.max(planItem.progress, 10);
+    await supabase.from('development_plans')
+      .update({ status: nextStatus, progress: nextProgress })
+      .eq('id', planItem.id);
+    toast({ title: `Marked as ${PLAN_STATUS_LABEL[nextStatus].toLowerCase()}` });
+    load();
+  };
+
   const nameOf = (id: string) => profiles.find(p => p.id === id)?.full_name ?? 'Unknown';
+
+  const filteredPlans = plans.filter(p =>
+    (planStatusFilter === 'all' || p.status === planStatusFilter) &&
+    (planCategoryFilter === 'all' || p.category === planCategoryFilter),
+  );
+
+  const plansInProgress = plans.filter(p => p.status === 'in_progress').length;
+  const overduePlans = plans.filter(p =>
+    p.target_date && p.status !== 'completed' && p.status !== 'cancelled' && isPast(parseISO(p.target_date)),
+  ).length;
+
+  const trendData = useMemo(() => {
+    return reviews
+      .filter(r => r.overall_rating != null && r.submitted_at)
+      .sort((a, b) => (a.submitted_at! < b.submitted_at! ? -1 : 1))
+      .slice(-12)
+      .map(r => ({
+        date: format(parseISO(r.submitted_at!), 'd MMM'),
+        rating: r.overall_rating,
+      }));
+  }, [reviews]);
 
   const activeCycles = cycles.filter(c => c.status === 'active').length;
   const totalReviews = reviews.length;

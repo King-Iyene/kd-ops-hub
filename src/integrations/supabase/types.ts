@@ -5958,6 +5958,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id: string
+          is_half_day: boolean
           leave_type: string
           reason: string | null
           rejection_reason: string | null
@@ -5974,6 +5975,7 @@ export type Database = {
           employee_id: string
           end_date: string
           id?: string
+          is_half_day?: boolean
           leave_type: string
           reason?: string | null
           rejection_reason?: string | null
@@ -5990,6 +5992,7 @@ export type Database = {
           employee_id?: string
           end_date?: string
           id?: string
+          is_half_day?: boolean
           leave_type?: string
           reason?: string | null
           rejection_reason?: string | null

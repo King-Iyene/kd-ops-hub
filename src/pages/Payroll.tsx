@@ -912,6 +912,30 @@ const Payroll = () => {
       // requests that need to be settled this period in one batch.
       const [y2, m2] = run.period.split('-');
       const periodStartDate = `${y2}-${m2}-01`;
+      const periodEndDate = new Date(Number(y2), Number(m2), 0).toISOString().slice(0, 10);
+
+      // Approved unpaid leave overlapping this payroll period, per employee.
+      // Best-effort: a query failure here must never block payroll generation,
+      // so it's isolated from the Promise.all batch below and swallows errors.
+      const unpaidLeaveDaysByEmployee = new Map<string, number>();
+      try {
+        const { data: unpaidLeaveRows, error: unpaidLeaveErr } = await supabase
+          .from('leave_requests')
+          .select('employee_id, days_requested, start_date, end_date')
+          .eq('leave_type', 'unpaid')
+          .eq('status', 'approved')
+          .lte('start_date', periodEndDate)
+          .gte('end_date', periodStartDate);
+        if (unpaidLeaveErr) throw unpaidLeaveErr;
+        for (const r of (unpaidLeaveRows || []) as any[]) {
+          if (!r.employee_id) continue;
+          const prev = unpaidLeaveDaysByEmployee.get(r.employee_id) || 0;
+          unpaidLeaveDaysByEmployee.set(r.employee_id, prev + Number(r.days_requested || 0));
+        }
+      } catch (leaveErr: any) {
+        console.warn('[KDOps] unpaid leave lookup failed, proceeding with 0 unpaid days:', leaveErr?.message || leaveErr);
+      }
+
       const [{ data: allDeductions }, { data: allAdvances }, { data: allEwa }, { data: allAdjustments }, { data: allEarnings }] = await Promise.all([
         supabase
           .from('employee_deductions')

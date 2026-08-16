@@ -52,6 +52,10 @@ export interface PayslipData {
   generated_by?: string | null;
   payslip_ref?: string | null;
   extra_deductions?: { description: string; amount_ngn: number }[] | null;
+  /** Deduction for approved unpaid leave this period, in NGN. */
+  unpaid_leave_deduction?: number;
+  /** Number of unpaid leave days the deduction above covers. */
+  unpaid_leave_days?: number;
 
   components?: {
     basic_ngn?: number;
@@ -118,8 +122,9 @@ export const renderPayslipHtml = (
   const extraDeductions = data.extra_deductions ?? [];
   const extraDeductTotal = extraDeductions.reduce((s, d) => s + d.amount_ngn, 0);
   const nhis = data.nhis_ngn ?? 0;
+  const unpaidLeaveDeduction = data.unpaid_leave_deduction ?? 0;
   const totalDeductions =
-    data.paye_ngn + data.pension_ngn + data.nhf_ngn + nhis + extraDeductTotal;
+    data.paye_ngn + data.pension_ngn + data.nhf_ngn + nhis + extraDeductTotal + unpaidLeaveDeduction;
   const generated = formatDateTime(new Date());
   const autoPrint = opts.autoPrint !== false;
   const periodLabel = monthLabel(data.period);
@@ -581,6 +586,7 @@ export const renderPayslipHtml = (
             ${data.pension_ngn > 0 ? `<tr class="deduction"><td>Pension (8% of pensionable earnings)</td><td class="right tabular">${esc(formatNaira(data.pension_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.pension_ngn))}</td>` : ''}</tr>` : ''}
             ${data.nhf_ngn > 0 ? `<tr class="deduction"><td>NHF (2.5%)</td><td class="right tabular">${esc(formatNaira(data.nhf_ngn))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhf_ngn))}</td>` : ''}</tr>` : ''}
             ${nhis > 0 ? `<tr class="deduction"><td>NHIS (Employee)</td><td class="right tabular">${esc(formatNaira(nhis))}</td>${data.ytd ? `<td class="right ytd tabular">${esc(formatNaira(data.ytd.nhis_ngn ?? 0))}</td>` : ''}</tr>` : ''}
+            ${unpaidLeaveDeduction > 0 ? `<tr class="deduction"><td>Unpaid Leave (${esc(data.unpaid_leave_days ?? '')} day${data.unpaid_leave_days === 1 ? '' : 's'})</td><td class="right tabular">${esc(formatNaira(unpaidLeaveDeduction))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>` : ''}
             ${extraDeductions.map((d) => `<tr class="deduction"><td>${esc(d.description)}</td><td class="right tabular">${esc(formatNaira(d.amount_ngn))}</td>${data.ytd ? '<td class="right ytd tabular">—</td>' : ''}</tr>`).join('')}
             ${totalDeductions === 0 ? `<tr class="deduction"><td colspan="${data.ytd ? 3 : 2}" style="color:#a3a3a3;font-style:italic">No deductions applied</td></tr>` : ''}
             <tr class="subtotal">

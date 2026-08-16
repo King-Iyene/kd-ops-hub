@@ -122,18 +122,19 @@ BEGIN
         SELECT * INTO v_prior
         FROM public.leave_balances
         WHERE employee_id = v_emp.id AND year = v_year - 1;
+
         -- company_settings.leave_carryover_max_days is the company-wide cap;
         -- the per-policy carry_over_days can only tighten it further.
         SELECT LEAST(COALESCE(v_annual_policy.carry_over_days, 0), COALESCE(cs.leave_carryover_max_days, 5))
           INTO v_cap
         FROM public.company_settings cs
         WHERE cs.id = '00000000-0000-0000-0000-000000000001';
-        IF FOUND THEN
-          v_carry := LEAST(GREATEST(v_prior.annual_quota - v_prior.annual_used, 0), COALESCE(v_cap, 0));
+        v_cap := COALESCE(v_cap, COALESCE(v_annual_policy.carry_over_days, 0));
+
+        IF v_prior IS NOT NULL THEN
+          v_carry := LEAST(GREATEST(v_prior.annual_quota - v_prior.annual_used, 0), v_cap);
         END IF;
-        IF v_prior IS NULL THEN
-          v_carry := 0;
-        END IF;
+
         UPDATE public.leave_balances
         SET annual_quota   = v_carry + v_monthly_credit,
             annual_used    = 0,

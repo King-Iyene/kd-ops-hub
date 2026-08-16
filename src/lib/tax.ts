@@ -205,12 +205,14 @@ export interface PayslipBreakdown {
  *
  * Order of operations (NTA 2025 s.30 + Pension Reform Act 2014):
  *   1. Compute gross.
- *   2. Subtract employee pension (8%) and NHF (2.5%) if applicable.
- *   3. Subtract employee NHIS (5%) if applicable.
- *   4. Subtract rent relief: min(20% × annual rent, ₦500,000) / 12.
- *   5. Subtract life-assurance / annuity premiums (annual / 12).
- *   6. Apply NTA 2025 bands to the resulting chargeable income.
- *   7. Net pay = gross − statutory deductions − PAYE − extra deductions.
+ *   2. Subtract approved unpaid leave (days × gross/workingDaysPerMonth) to
+ *      get the payable gross — everything below is based on this figure.
+ *   3. Subtract employee pension (8%) and NHF (2.5%) if applicable.
+ *   4. Subtract employee NHIS (5%) if applicable.
+ *   5. Subtract rent relief: min(20% × annual rent, ₦500,000) / 12.
+ *   6. Subtract life-assurance / annuity premiums (annual / 12).
+ *   7. Apply NTA 2025 bands to the resulting chargeable income.
+ *   8. Net pay = gross − unpaid leave − statutory deductions − PAYE − extra deductions.
  *
  * All results are returned as monthly NGN values, rounded to whole Naira.
  */

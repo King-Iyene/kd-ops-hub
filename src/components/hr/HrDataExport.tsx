@@ -6,11 +6,43 @@ import { downloadCsv, toCsv } from '@/lib/csv';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Loader2, Database, Archive } from 'lucide-react';
+import { Download, Loader2, Database, Archive, Info } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+
+// NDPR-sensitive fields, keyed by csvColumns name — masked whenever the
+// "Mask sensitive data" toggle is on.
+const MASKED_ACCOUNT_FIELDS = new Set(['bank_account_number']);
+const MASKED_BLANKET_FIELDS = new Set(['nin', 'tin', 'bvn']);
+const MASKED_PHONE_FIELDS = new Set(['phone']);
+
+const maskAccountNumber = (v: string): string => {
+  const digits = String(v).replace(/\D/g, '');
+  if (digits.length < 4) return '****';
+  return `****${digits.slice(-4)}`;
+};
+
+const maskPhone = (v: string): string => {
+  const digits = String(v).replace(/\D/g, '');
+  if (digits.length < 7) return '****';
+  return `${digits.slice(0, 3)}****${digits.slice(-4)}`;
+};
+
+const maskRow = (
+  columns: string[],
+  row: (string | number | null)[],
+): (string | number | null)[] =>
+  row.map((value, i) => {
+    const col = columns[i];
+    if (value === null || value === undefined || value === '') return value;
+    if (MASKED_ACCOUNT_FIELDS.has(col)) return maskAccountNumber(String(value));
+    if (MASKED_BLANKET_FIELDS.has(col)) return '***masked***';
+    if (MASKED_PHONE_FIELDS.has(col)) return maskPhone(String(value));
+    return value;
+  });
 
 /**
  * Full HR data snapshot export.
@@ -274,6 +306,7 @@ export const HrDataExport = () => {
   );
   const [busy, setBusy] = useState(false);
   const [lastExportedAt, setLastExportedAt] = useState<string | null>(null);
+  const [maskSensitive, setMaskSensitive] = useState(true);
 
   const toggle = (key: string, on: boolean) => {
     const next = new Set(selected);
@@ -291,7 +324,9 @@ export const HrDataExport = () => {
       for (const spec of DATASETS) {
         if (!selected.has(spec.key)) continue;
         const data = await spec.fetch();
-        const rows = data.map(spec.toRow);
+        const rows = data
+          .map(spec.toRow)
+          .map((row) => (maskSensitive ? maskRow(spec.csvColumns, row) : row));
         const csv = toCsv(spec.csvColumns, rows);
         downloadCsv(`kdops-hr-${spec.key}-${today()}.csv`, csv);
         filesExported++;
@@ -301,7 +336,7 @@ export const HrDataExport = () => {
       }
       await logAudit(
         'hr_data_exported' as any,
-        `HR snapshot: ${filesExported} file(s), ${totalRows} row(s) exported`,
+        `HR snapshot: ${filesExported} file(s), ${totalRows} row(s) exported (sensitive data ${maskSensitive ? 'masked' : 'unmasked'})`,
         profile,
       );
       setLastExportedAt(new Date().toISOString());
@@ -359,6 +394,25 @@ export const HrDataExport = () => {
               </div>
             </label>
           ))}
+        </div>
+
+        <div className="flex items-center justify-between rounded-md border p-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Label htmlFor="mask-sensitive" className="text-sm font-medium cursor-pointer">
+              Mask sensitive data
+            </Label>
+            <span
+              title="Masks bank accounts, NIN, TIN, and BVN in exports for NDPR compliance"
+              className="text-muted-foreground"
+            >
+              <Info className="h-3.5 w-3.5" />
+            </span>
+          </div>
+          <Switch
+            id="mask-sensitive"
+            checked={maskSensitive}
+            onCheckedChange={setMaskSensitive}
+          />
         </div>
 
         <div className="flex items-center justify-between pt-3 border-t">
