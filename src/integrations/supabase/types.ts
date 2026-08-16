@@ -8526,6 +8526,211 @@ export type Database = {
         }
         Relationships: []
       }
+      placement_payments: {
+        Row: {
+          auto_verified: boolean
+          commission_ngn: number
+          created_at: string
+          gross_amount_ngn: number
+          id: string
+          month: string
+          net_employee_ngn: number
+          notes: string | null
+          paid_at: string | null
+          placement_id: string
+          status: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          auto_verified?: boolean
+          commission_ngn: number
+          created_at?: string
+          gross_amount_ngn: number
+          id?: string
+          month: string
+          net_employee_ngn: number
+          notes?: string | null
+          paid_at?: string | null
+          placement_id: string
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          auto_verified?: boolean
+          commission_ngn?: number
+          created_at?: string
+          gross_amount_ngn?: number
+          id?: string
+          month?: string
+          net_employee_ngn?: number
+          notes?: string | null
+          paid_at?: string | null
+          placement_id?: string
+          status?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_payments_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_payments_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placement_payments_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placement_payments_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_payments_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      placements: {
+        Row: {
+          client_id: string
+          client_rate_ngn: number
+          commission_ngn: number | null
+          commission_pct: number
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          employee_rate_ngn: number | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          placement_category: string
+          placement_type: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_rate_ngn: number
+          commission_ngn?: number | null
+          commission_pct?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          employee_rate_ngn?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          placement_category?: string
+          placement_type?: string
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_rate_ngn?: number
+          commission_ngn?: number | null
+          commission_pct?: number
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          employee_rate_ngn?: number | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          placement_category?: string
+          placement_type?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placements_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "placements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       principal_wallet_dva: {
         Row: {
           account_name: string | null
@@ -14057,6 +14262,10 @@ export type Database = {
         }[]
       }
       generate_mfa_backup_codes: { Args: never; Returns: string[] }
+      generate_placement_payments: {
+        Args: { p_placement_id: string }
+        Returns: number
+      }
       get_batch_velocity_flags: {
         Args: { p_batch_id: string }
         Returns: {
