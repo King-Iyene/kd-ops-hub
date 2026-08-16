@@ -13,6 +13,7 @@ import {
   Info,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
+import { VendorCombobox } from '@/components/VendorCombobox';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -81,6 +82,7 @@ interface Subscription {
   id: string;
   name: string;
   vendor: string | null;
+  vendor_id: string | null;
   category: string;
   amount_ngn: number;
   currency: 'NGN' | 'USD';
@@ -126,6 +128,7 @@ const monthlyEquivalent = (sub: Subscription): number => {
 interface FormState {
   name: string;
   vendor: string;
+  vendor_id: string;
   category: string;
   currency: 'NGN' | 'USD';
   amount_ngn: string;
@@ -138,6 +141,7 @@ interface FormState {
 const emptyForm: FormState = {
   name: '',
   vendor: '',
+  vendor_id: '',
   category: 'software',
   currency: 'NGN',
   amount_ngn: '',
@@ -268,6 +272,7 @@ const Subscriptions = () => {
     setForm({
       name: s.name,
       vendor: s.vendor || '',
+      vendor_id: s.vendor_id || '',
       category: s.category,
       currency: s.currency || 'NGN',
       amount_ngn: String(s.amount_ngn),
@@ -314,6 +319,7 @@ const Subscriptions = () => {
       const payload = {
         name: form.name.trim(),
         vendor: form.vendor || null,
+        vendor_id: form.vendor_id || null,
         category: form.category,
         currency: form.currency,
         amount_ngn: amountNgn,
@@ -803,10 +809,9 @@ const Subscriptions = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label>Vendor</Label>
-                <Input
+                <VendorCombobox
                   value={form.vendor}
-                  onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                  placeholder="e.g. Figma Inc."
+                  onChange={(name, id) => setForm({ ...form, vendor: name, vendor_id: id })}
                 />
               </div>
               <div className="space-y-1">
