@@ -122,6 +122,8 @@ export default function Attendance() {
     })();
   }, []);
 
+  const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
+
   function openCreate() {
     setEditing(null);
     setForm({ ...EMPTY_FORM });
@@ -231,8 +233,6 @@ export default function Attendance() {
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     a.download = `attendance-${monthStart.slice(0, 7)}.csv`; a.click();
   }
-
-  const empName = (id: string) => profiles.find(p => p.id === id)?.full_name ?? '—';
 
   // Summary counts for the current filtered month
   const counts: Record<string, number> = {};
