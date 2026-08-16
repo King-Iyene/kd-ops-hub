@@ -378,11 +378,11 @@ export default function Performance() {
       {/* Stats */}
       <div className="kd-stat-grid">
         {([
-          { label: 'Active cycles', value: activeCycles, icon: BarChart3, tone: 'primary' },
-          { label: 'Total reviews', value: totalReviews, icon: Users, tone: 'default' },
-          { label: 'Submitted', value: submitted, icon: Send, tone: 'success' },
+          { label: 'Reviews completed', value: submitted, icon: Send, tone: 'success' },
           { label: 'Avg overall rating', value: avgOverall > 0 ? avgOverall.toFixed(1) + '/5' : '—', icon: Star, tone: 'gold' },
-        ] as { label: string; value: string | number; icon: typeof BarChart3; tone: 'primary' | 'default' | 'success' | 'gold' }[]).map(s => (
+          { label: 'Plans in progress', value: plansInProgress, icon: Target, tone: 'primary' },
+          { label: 'Overdue plans', value: overduePlans, icon: AlertCircle, tone: overduePlans > 0 ? 'danger' : 'default' },
+        ] as { label: string; value: string | number; icon: typeof BarChart3; tone: 'primary' | 'default' | 'success' | 'gold' | 'danger' }[]).map(s => (
           <StatCard
             key={s.label}
             title={s.label}
@@ -393,6 +393,41 @@ export default function Performance() {
         ))}
       </div>
 
+      {trendData.length >= 2 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />Rating trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="h-[160px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+                  <ChartGradients />
+                  <CartesianGrid vertical={false} stroke={chartTheme.gridLine} />
+                  <XAxis dataKey="date" tick={axisTick} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 5]} tick={axisTick} axisLine={false} tickLine={false} width={28} />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Area
+                    type="monotone" dataKey="rating" name="Rating"
+                    stroke={chartTheme.primary} fill="url(#kd-grad-primary)" strokeWidth={2}
+                    {...chartAnim}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="cycles" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="cycles">Review cycles</TabsTrigger>
+          <TabsTrigger value="plans">Development plans</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cycles" className="space-y-4 mt-0">
       {loading ? (
         <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
       ) : cycles.length === 0 ? (

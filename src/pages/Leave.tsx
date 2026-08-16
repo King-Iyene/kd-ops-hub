@@ -104,6 +104,7 @@ interface LeaveRequest {
   status: LeaveStatus;
   created_at: string;
   rejection_reason: string | null;
+  is_half_day?: boolean;
 }
 
 interface LeaveBalance {
@@ -173,6 +174,22 @@ const countWorkingDays = (
 };
 
 /**
+ * Days to deduct/display for a leave request. Half-day only makes sense for
+ * a single calendar day (start === end) — a multi-day request always counts
+ * whole working days regardless of the half-day toggle.
+ */
+const requestedDays = (
+  start: string,
+  end: string,
+  holidays: Set<string>,
+  isHalfDay: boolean,
+): number => {
+  const days = countWorkingDays(start, end, holidays);
+  if (isHalfDay && start === end && days > 0) return 0.5;
+  return days;
+};
+
+/**
  * Annual-leave days EARNED so far under monthly accrual (quota / 12 per month).
  * Prior years are fully vested; the current year accrues from the employee's
  * start month (January if they started in an earlier year); future years and
@@ -236,6 +253,7 @@ const Leave = () => {
     start_date: toIsoDate(new Date()),
     end_date: toIsoDate(new Date()),
     reason: '',
+    is_half_day: false,
   });
 
   const [showReject, setShowReject] = useState<LeaveRequest | null>(null);
@@ -337,7 +355,8 @@ const Leave = () => {
   // -- Submit ---------------------------------------------------------------
 
   const submitRequest = async () => {
-    const days = countWorkingDays(form.start_date, form.end_date, holidays);
+    const isHalfDay = form.is_half_day && form.start_date === form.end_date;
+    const days = requestedDays(form.start_date, form.end_date, holidays, isHalfDay);
     if (days <= 0) {
       toast({
         title:
@@ -376,6 +395,7 @@ const Leave = () => {
         start_date: form.start_date,
         end_date: form.end_date,
         days_requested: days,
+        is_half_day: isHalfDay,
         reason: form.reason || null,
       });
       if (error) throw error;
@@ -418,6 +438,7 @@ const Leave = () => {
         start_date: toIsoDate(new Date()),
         end_date: toIsoDate(new Date()),
         reason: '',
+        is_half_day: false,
       });
       fetchAll();
       refreshApprovals();
@@ -749,7 +770,8 @@ const Leave = () => {
   const annualAccrued = balance
     ? accruedAnnualDays(balance.annual_quota, balance.year, myStartDate)
     : 0;
-  const annualLeft = balance ? Math.max(0, annualAccrued - balance.annual_used) : 0;
+  const carriedOver = balance?.carryover_days || 0;
+  const annualLeft = balance ? Math.max(0, annualAccrued + carriedOver - balance.annual_used) : 0;
 
   return (
     <div className="space-y-6">
