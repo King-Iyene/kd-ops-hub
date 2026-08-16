@@ -105,7 +105,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Compliance',       url: '/compliance',        icon: ShieldCheck,     roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Anomalies',        url: '/anomalies',         icon: Siren,           roles: ['super_admin', 'admin', 'finance'], badge: 'anomalies' },
   { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
-  { title: 'Finance',          url: '/finance',           icon: Gauge,           roles: ['super_admin', 'admin', 'finance'] },
+  { title: 'Finance',          url: '/finance',           icon: Gauge,           roles: ['super_admin'] },
   // Operations
   { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'], permission: 'expenses.submit' },
   { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'], permission: 'fleet.view' },
@@ -123,7 +123,7 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Benefits',         url: '/benefits',          icon: HeartPulse,      roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'benefits.view' },
   { title: 'Onboarding',       url: '/onboarding',        icon: UserCheck,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'onboarding.view' },
   { title: 'Recruitment',      url: '/recruitment',       icon: UserPlus2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'recruitment.view' },
-  { title: 'Placements',       url: '/placements',        icon: Briefcase,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'placements.view' },
+  { title: 'Placements',       url: '/placements',        icon: Briefcase,       roles: ['super_admin'] },
   { title: 'Attendance',       url: '/attendance',        icon: CalendarCheck2,  roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'attendance.view' },
   { title: 'Disciplinary',     url: '/disciplinary',      icon: ShieldAlert,     roles: ['super_admin', 'admin'] },
   { title: 'HR Letters',       url: '/hr-letters',        icon: FileSignature,   roles: ['super_admin', 'admin'] },

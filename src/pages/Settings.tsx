@@ -29,6 +29,7 @@ import {
   Eye,
   EyeOff,
   Fuel,
+  CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
@@ -75,6 +76,7 @@ import { NotificationsCard } from '@/components/settings/NotificationsCard';
 import { PaymentEmailAudienceCard } from '@/components/settings/PaymentEmailAudienceCard';
 import { PaymentRailsCard } from '@/components/settings/PaymentRailsCard';
 import FxRateSettings from '@/components/settings/FxRateSettings';
+import LeaveSettings from '@/components/settings/LeaveSettings';
 import OfferLetterTemplatesAdmin from '@/components/hr/OfferLetterTemplatesAdmin';
 
 const SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
@@ -394,6 +396,7 @@ const SettingsPage = () => {
           <TabsTrigger value="company" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Building2 className="mr-2 h-4 w-4" /> Company</TabsTrigger>
           <TabsTrigger value="integrations" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><LinkIcon className="mr-2 h-4 w-4" /> Integrations</TabsTrigger>
           <TabsTrigger value="policy" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CreditCard className="mr-2 h-4 w-4" /> Expense policy</TabsTrigger>
+          <TabsTrigger value="leave" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><CalendarDays className="mr-2 h-4 w-4" /> Leave</TabsTrigger>
           <TabsTrigger value="exchange_rate" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ArrowRightLeft className="mr-2 h-4 w-4" /> Exchange rate</TabsTrigger>
           <TabsTrigger value="notifications" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><Bell className="mr-2 h-4 w-4" /> Notifications</TabsTrigger>
           <TabsTrigger value="security" className="md:w-full md:justify-start md:rounded-md md:px-3 md:py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:border-l-2 data-[state=active]:border-primary"><ShieldCheck className="mr-2 h-4 w-4" /> Security</TabsTrigger>
@@ -1201,11 +1204,17 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
 
-        {/* NOTIFICATIONS ------------------------------------------------- */}
+        {/* EXCHANGE RATE -------------------------------------------------- */}
         <TabsContent value="exchange_rate" className="mt-4 space-y-4">
           <FxRateSettings />
         </TabsContent>
 
+        {/* LEAVE --------------------------------------------------------- */}
+        <TabsContent value="leave" className="mt-4 space-y-4">
+          <LeaveSettings />
+        </TabsContent>
+
+        {/* NOTIFICATIONS ------------------------------------------------- */}
         <TabsContent value="notifications" className="mt-4 space-y-4">
           <Card>
             <CardHeader>

@@ -469,7 +469,7 @@ function AppRoutes() {
         <Route
           path="/finance"
           element={
-            <RoleGuard roles={APPROVER_ROLES}>
+            <RoleGuard roles={['super_admin']}>
               <FinanceDashboard />
             </RoleGuard>
           }
@@ -596,11 +596,11 @@ function AppRoutes() {
           }
         />
 
-        {/* Placements — Admin + Managers can view, Admin can write. */}
+        {/* Placements — Super Admin only. */}
         <Route
           path="/placements"
           element={
-            <RoleGuard roles={MANAGER_ROLES}>
+            <RoleGuard roles={['super_admin']}>
               <Placements />
             </RoleGuard>
           }
