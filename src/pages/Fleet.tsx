@@ -437,7 +437,7 @@ const Fleet = () => {
   // receiptForensics.ts for why an automated pass/fail threshold here
   // would be unreliable.
   const [elaTarget, setElaTarget] = useState<{ id: string; url: string } | null>(null);
-  const [elaResult, setElaResult] = useState<{ heatmapDataUrl: string } | null>(null);
+  const [elaResult, setElaResult] = useState<{ heatmapDataUrl: string; avgBrightness: number } | null>(null);
   const [elaLoading, setElaLoading] = useState(false);
   const [elaError, setElaError] = useState('');
 
@@ -2421,7 +2421,7 @@ const Fleet = () => {
     setElaLoading(true);
     try {
       const result = await generateElaHeatmap(url);
-      setElaResult({ heatmapDataUrl: result.heatmapDataUrl });
+      setElaResult({ heatmapDataUrl: result.heatmapDataUrl, avgBrightness: result.avgBrightness });
     } catch (err: any) {
       setElaError(err?.message || "Couldn't generate analysis for this image.");
     } finally {
@@ -5741,28 +5741,70 @@ const Fleet = () => {
                 <span>{elaError}</span>
               </div>
             )}
-            {elaResult && elaTarget && (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Original Receipt</p>
-                    <img src={elaTarget.url} alt="Original receipt" className="w-full rounded-md border" />
+            {elaResult && elaTarget && (() => {
+              const avg = elaResult.avgBrightness;
+              const verdict = avg < 15
+                ? { label: 'No signs of tampering', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', icon: '✓' }
+                : avg < 40
+                ? { label: 'Low concern — likely normal compression artifacts', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', icon: '~' }
+                : { label: 'Review recommended — possible editing detected', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-500/10 border-red-500/30', icon: '!' };
+              return (
+                <>
+                  {/* Verdict banner */}
+                  <div className={`flex items-center gap-2 rounded-md border px-3 py-2.5 ${verdict.bg}`}>
+                    <span className={`text-lg font-bold ${verdict.color}`}>{verdict.icon}</span>
+                    <div>
+                      <p className={`text-sm font-semibold ${verdict.color}`}>{verdict.label}</p>
+                      <p className="text-[11px] text-muted-foreground">Confidence score: {Math.round(avg)}/255 (higher = more variation detected)</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Error Level Analysis</p>
-                    <img src={elaResult.heatmapDataUrl} alt="Error-level analysis heatmap" className="w-full rounded-md border" />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Original Receipt</p>
+                      <img src={elaTarget.url} alt="Original receipt" className="w-full rounded-md border" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Error Level Analysis</p>
+                      <img src={elaResult.heatmapDataUrl} alt="Error-level analysis heatmap" className="w-full rounded-md border" />
+                    </div>
                   </div>
-                </div>
-                <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">How to read this:</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    <li><span className="text-foreground font-medium">Mostly dark/uniform</span> — normal, consistent compression. No signs of editing.</li>
-                    <li><span className="text-foreground font-medium">Bright colored patches</span> — areas with different compression history. Could indicate an edit, but also appears on WhatsApp-forwarded images or screenshots.</li>
-                    <li><span className="text-foreground font-medium">Bright text/edges</span> — normal for sharp edges like printed text. Not suspicious on its own.</li>
-                  </ul>
-                </div>
-              </>
-            )}
+
+                  {/* Color legend */}
+                  <div className="rounded-md border bg-muted/50 px-3 py-2 text-xs text-muted-foreground space-y-2">
+                    <p className="font-medium text-foreground">What the colors mean:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: '#111' }} />
+                        <div>
+                          <p className="font-medium text-foreground">Dark / black</p>
+                          <p>Consistent compression — this area hasn't been altered.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: 'rgb(220, 120, 50)' }} />
+                        <div>
+                          <p className="font-medium text-foreground">Bright / colored</p>
+                          <p>Different compression history — could be an edit, or WhatsApp forwarding.</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-sm" style={{ background: 'rgb(180, 180, 200)' }} />
+                        <div>
+                          <p className="font-medium text-foreground">Bright edges</p>
+                          <p>Normal on sharp text or lines — not suspicious by itself.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Disclaimer */}
+                  <p className="text-[11px] text-muted-foreground italic">
+                    This is an automated visual aid, not definitive proof. WhatsApp-forwarded images, screenshots, and re-saved photos can produce bright areas without any tampering. Always verify with the original source before taking action.
+                  </p>
+                </>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>

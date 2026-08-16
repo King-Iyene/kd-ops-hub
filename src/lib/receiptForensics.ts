@@ -59,6 +59,7 @@ export interface ElaResult {
   heatmapDataUrl: string;
   width: number;
   height: number;
+  avgBrightness: number;
 }
 
 /**
@@ -113,19 +114,24 @@ export async function generateElaHeatmap(imageUrl: string, quality = 0.9): Promi
   if (!heatCtx) throw new Error('Canvas not supported.');
   const heatData = heatCtx.createImageData(width, height);
 
-  // Amplify the (usually tiny) per-channel difference so it's visible —
-  // a fixed multiplier, same idea as any standard ELA tool.
   const AMPLIFY = 12;
+  let brightnessSum = 0;
+  const pixelCount = sourceData.data.length / 4;
   for (let i = 0; i < sourceData.data.length; i += 4) {
+    let pxSum = 0;
     for (let c = 0; c < 3; c++) {
       const diff = Math.abs(sourceData.data[i + c] - compData.data[i + c]) * AMPLIFY;
-      heatData.data[i + c] = Math.min(255, diff);
+      const clamped = Math.min(255, diff);
+      heatData.data[i + c] = clamped;
+      pxSum += clamped;
     }
     heatData.data[i + 3] = 255;
+    brightnessSum += pxSum / 3;
   }
   heatCtx.putImageData(heatData, 0, 0);
 
-  return { heatmapDataUrl: heatCanvas.toDataURL('image/png'), width, height };
+  const avgBrightness = brightnessSum / pixelCount;
+  return { heatmapDataUrl: heatCanvas.toDataURL('image/png'), width, height, avgBrightness };
 }
 
 function loadImageElement(src: string): Promise<HTMLImageElement> {
