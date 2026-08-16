@@ -149,17 +149,24 @@ export default function OffboardingTab({
       }
     }
 
-    // Gratuity: completed years of service × months_per_year × monthly salary
+    // Gratuity: completed years of service × months_per_year × monthly salary.
+    // Nigerian Labour Act s.33(4) and common practice: gratuity eligibility
+    // requires a minimum of 5 years of continuous service.
     let gratuity = 0;
     let yearsOfService = 0;
+    let gratuityIneligible = false;
     if (policy.gratuity_months_per_year > 0 && salary > 0 && employee.start_date && lwd) {
       const start = new Date(`${employee.start_date}T00:00:00Z`);
       const end = new Date(`${lwd}T00:00:00Z`);
       if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end.getTime() >= start.getTime()) {
         const ms = end.getTime() - start.getTime();
         const years = ms / (365.25 * 24 * 3600 * 1000);
-        yearsOfService = Math.floor(years); // only completed years
-        gratuity = Math.round(yearsOfService * policy.gratuity_months_per_year * salary);
+        yearsOfService = Math.floor(years);
+        if (yearsOfService < 5) {
+          gratuityIneligible = true;
+        } else {
+          gratuity = Math.round(yearsOfService * policy.gratuity_months_per_year * salary);
+        }
       }
     }
 
@@ -167,7 +174,7 @@ export default function OffboardingTab({
     const gross = proratedSalary + gratuity + leavePayout;
     const net = gross - advancesOutstanding;
     return {
-      dailyRate, proratedSalary, gratuity, yearsOfService,
+      dailyRate, proratedSalary, gratuity, yearsOfService, gratuityIneligible,
       leavePayout, advancesOutstanding, gross, net,
     };
   }, [
@@ -326,6 +333,12 @@ export default function OffboardingTab({
                   Gratuity ({estimate.yearsOfService} year{estimate.yearsOfService === 1 ? '' : 's'} × {policy.gratuity_months_per_year} month{policy.gratuity_months_per_year === 1 ? '' : 's'}/yr)
                 </span>
                 <span className="tabular-nums">{formatNaira(estimate.gratuity)}</span>
+              </div>
+            )}
+            {estimate.gratuityIneligible && policy.gratuity_months_per_year > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Gratuity ({estimate.yearsOfService} yr{estimate.yearsOfService === 1 ? '' : 's'} — min 5 yrs required)</span>
+                <span className="tabular-nums">₦0</span>
               </div>
             )}
             <div className="flex justify-between">

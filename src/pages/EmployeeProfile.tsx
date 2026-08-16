@@ -135,6 +135,8 @@ interface EmployeeData {
   pfa_code: string | null;
   state_of_residence: string | null;
   pay_group_id: string | null;
+  notice_period_days: number | null;
+  voluntary_pension_pct: number | null;
 }
 
 const EmployeeProfile = () => {
@@ -1692,7 +1694,8 @@ const EmployeeProfile = () => {
                         employee_category: form.employee_category || null,
                         pay_group_id: form.pay_group_id || null,
                         start_date: form.start_date || null,
-                        annual_leave_days: form.annual_leave_days ?? 20,
+                        annual_leave_days: Math.max(6, form.annual_leave_days ?? 20),
+                        notice_period_days: form.notice_period_days ?? 30,
                         status: form.status,
                         reporting_manager_id: form.reporting_manager_id || null,
                         contract_end_date: form.contract_end_date || null,
@@ -1815,9 +1818,25 @@ const EmployeeProfile = () => {
                         <Input
                           id="annual_leave_days"
                           type="number"
-                          min={0}
+                          min={6}
                           value={form.annual_leave_days ?? ''}
-                          onChange={(e) => patch({ annual_leave_days: Number(e.target.value) })}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            patch({ annual_leave_days: v });
+                          }}
+                        />
+                        {form.annual_leave_days != null && form.annual_leave_days < 6 && (
+                          <p className="text-[11px] text-destructive">Labour Act s.18 minimum is 6 working days</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="notice_period_days" className="text-xs">Notice period (days)</Label>
+                        <Input
+                          id="notice_period_days"
+                          type="number"
+                          min={1}
+                          value={form.notice_period_days ?? 30}
+                          onChange={(e) => patch({ notice_period_days: Number(e.target.value) || 30 })}
                         />
                       </div>
                     </div>
@@ -2629,6 +2648,7 @@ const EmployeeProfile = () => {
                       nhis_enabled: form.nhis_enabled ?? false,
                       paye_enabled: form.paye_enabled ?? true,
                       tax_id: form.tax_id || null,
+                      voluntary_pension_pct: Math.max(0, form.voluntary_pension_pct ?? 0),
                     })}
                     disabled={sectionSaving}
                   >
@@ -2727,6 +2747,39 @@ const EmployeeProfile = () => {
                   </div>
                 );
               })}
+
+              {/* AVC — Additional Voluntary Contribution (PRA 2014 s.4.3) */}
+              <div className="flex flex-col gap-2 pt-4 border-t">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-medium text-sm">AVC (Voluntary Pension)</p>
+                    <p className="text-xs text-muted-foreground">PRA 2014 s.4.3 — deducted pre-tax on pension base</p>
+                  </div>
+                </div>
+                {editingSection === 'statutory' ? (
+                  <div className="flex items-end gap-3">
+                    <div className="space-y-1 w-32">
+                      <Label htmlFor="voluntary_pension_pct" className="text-xs">Rate (%)</Label>
+                      <Input
+                        id="voluntary_pension_pct"
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={0.5}
+                        value={form.voluntary_pension_pct ?? 0}
+                        onChange={(e) => patch({ voluntary_pension_pct: Number(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground pb-2">% of pension base, in addition to mandatory 8%</p>
+                  </div>
+                ) : (
+                  <p className="text-sm font-mono text-muted-foreground">
+                    {(employee.voluntary_pension_pct ?? 0) > 0
+                      ? `${employee.voluntary_pension_pct}%`
+                      : <span className="italic">Not set (0%)</span>}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -3606,7 +3659,7 @@ const EmployeeProfile = () => {
             salary_ngn: employee.salary_ngn,
             status: employee.status,
             start_date: employee.start_date,
-            notice_period_days: (employee as any).notice_period_days,
+            notice_period_days: employee.notice_period_days,
           }}
           onChanged={load}
         />
