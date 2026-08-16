@@ -55,6 +55,8 @@ type PlacementStatus = 'active' | 'completed' | 'suspended' | 'pending';
 type PlacementType = 'kd_receives' | 'employee_receives';
 type PlacementCategory = 'security' | 'cleaning' | 'logistics' | 'technical' | 'administrative' | 'hospitality' | 'maintenance' | 'general';
 type PaymentStatus = 'pending' | 'paid' | 'overdue' | 'partial' | 'waived';
+type RateType = 'hourly' | 'daily' | 'weekly' | 'monthly';
+type BillingCycle = 'weekly' | 'bi_weekly' | 'monthly';
 
 interface Placement {
   id: string;
@@ -68,6 +70,8 @@ interface Placement {
   fx_rate_used: number | null;
   employee_rate_ngn: number;
   commission_ngn: number;
+  rate_type: RateType;
+  billing_cycle: BillingCycle;
   start_date: string;
   end_date: string | null;
   status: PlacementStatus;
@@ -95,6 +99,16 @@ interface PlacementPayment {
   verified_at: string | null;
   notes: string | null;
   created_at: string;
+  period_start: string | null;
+  period_end: string | null;
+  hours_worked: number | null;
+  days_worked: number | null;
+  client_paid: boolean;
+  client_paid_at: string | null;
+  client_paid_ref: string | null;
+  operator_paid: boolean;
+  operator_paid_at: string | null;
+  operator_paid_ref: string | null;
 }
 
 interface EmployeeOption { id: string; full_name: string; }
@@ -133,6 +147,18 @@ const STATUS_LABELS: Record<PlacementStatus, string> = {
   active: 'Active', completed: 'Completed', suspended: 'Suspended', pending: 'Pending',
 };
 
+const RATE_TYPE_LABELS: Record<RateType, string> = {
+  hourly: 'Hourly', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
+};
+
+const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
+  weekly: 'Weekly', bi_weekly: 'Bi-weekly', monthly: 'Monthly',
+};
+
+const RATE_SUFFIX: Record<RateType, string> = {
+  hourly: '/hr', daily: '/day', weekly: '/wk', monthly: '/mo',
+};
+
 const PAYMENT_STATUS_TONE: Record<PaymentStatus, string> = {
   pending: 'bg-amber-500/10 text-amber-600',
   paid: 'bg-emerald-500/10 text-emerald-600',
@@ -147,6 +173,8 @@ const emptyForm = {
   placement_type: 'kd_receives' as PlacementType,
   commission_pct: '40',
   placement_category: 'general' as PlacementCategory,
+  rate_type: 'monthly' as RateType,
+  billing_cycle: 'monthly' as BillingCycle,
   client_rate_usd: '',
   client_rate_ngn: '',
   start_date: '',
@@ -543,6 +571,8 @@ function Placements() {
       placement_type: p.placement_type,
       commission_pct: String(p.commission_pct),
       placement_category: p.placement_category,
+      rate_type: p.rate_type || 'monthly',
+      billing_cycle: p.billing_cycle || 'monthly',
       client_rate_usd: p.client_rate_usd != null ? String(p.client_rate_usd) : '',
       client_rate_ngn: String(p.client_rate_ngn),
       start_date: p.start_date,
@@ -599,6 +629,8 @@ function Placements() {
       placement_type: form.placement_type,
       commission_pct: pct,
       placement_category: form.placement_category,
+      rate_type: form.rate_type,
+      billing_cycle: form.billing_cycle,
       client_rate_ngn: ngnRate,
       client_rate_usd: usdRate,
       fx_rate_used: fxRate,
@@ -707,6 +739,50 @@ function Placements() {
     }
   }
 
+  async function toggleClientPaid(paymentId: string, paid: boolean) {
+    const update: Record<string, unknown> = {
+      client_paid: paid,
+      client_paid_at: paid ? new Date().toISOString() : null,
+    };
+    const rec = payments.find((pp) => pp.id === paymentId) ?? allPayments.find((pp) => pp.id === paymentId);
+    if (paid && !rec?.operator_paid) {
+      update.status = 'partial';
+    } else if (paid) {
+      update.status = 'paid';
+    } else {
+      update.status = rec?.operator_paid ? 'partial' : 'pending';
+    }
+    const { error } = await supabase.from('placement_payments').update(update).eq('id', paymentId);
+    if (error) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    } else {
+      setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as PlacementPayment : pp)));
+      setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as any : pp)));
+    }
+  }
+
+  async function toggleOperatorPaid(paymentId: string, paid: boolean) {
+    const update: Record<string, unknown> = {
+      operator_paid: paid,
+      operator_paid_at: paid ? new Date().toISOString() : null,
+    };
+    const rec = payments.find((pp) => pp.id === paymentId) ?? allPayments.find((pp) => pp.id === paymentId);
+    if (paid && !rec?.client_paid) {
+      update.status = 'partial';
+    } else if (paid) {
+      update.status = 'paid';
+    } else {
+      update.status = rec?.client_paid ? 'partial' : 'pending';
+    }
+    const { error } = await supabase.from('placement_payments').update(update).eq('id', paymentId);
+    if (error) {
+      toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    } else {
+      setPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as PlacementPayment : pp)));
+      setAllPayments((prev) => prev.map((pp) => (pp.id === paymentId ? { ...pp, ...update } as any : pp)));
+    }
+  }
+
   // ── Export ──
   function exportCsv() {
     const rows = filtered.map((p) => ({
@@ -737,10 +813,14 @@ function Placements() {
       'FX Rate': pp.fx_rate_used ?? '',
       'Gross (NGN)': pp.gross_amount_ngn,
       'Commission (NGN)': pp.commission_ngn,
-      'Employee Net (NGN)': pp.net_employee_ngn,
+      'Operator Net (NGN)': pp.net_employee_ngn,
+      'Client Paid': pp.client_paid ? 'Yes' : 'No',
+      'Client Paid At': pp.client_paid_at ? formatDate(pp.client_paid_at) : '',
+      'Client Paid Ref': pp.client_paid_ref ?? '',
+      'Operator Paid': pp.operator_paid ? 'Yes' : 'No',
+      'Operator Paid At': pp.operator_paid_at ? formatDate(pp.operator_paid_at) : '',
+      'Operator Paid Ref': pp.operator_paid_ref ?? '',
       Status: pp.status,
-      'Auto Verified': pp.auto_verified ? 'Yes' : 'No',
-      'Paid At': pp.paid_at ? formatDate(pp.paid_at) : '',
     }));
     downloadCsv(toCsv(rows), 'placement-payments-export.csv');
     toast({ title: 'Exported', description: `${rows.length} payment records exported.` });
@@ -1296,10 +1376,9 @@ function Placements() {
                         <TableHead>Direction</TableHead>
                         <TableHead className="text-right">Gross</TableHead>
                         <TableHead className="text-right">Commission</TableHead>
-                        <TableHead className="text-right">Employee Net</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Verified</TableHead>
-                        {isAdmin && <TableHead className="text-right">Action</TableHead>}
+                        <TableHead className="text-right">Operator Net</TableHead>
+                        <TableHead className="text-center">Client Paid</TableHead>
+                        <TableHead className="text-center">Operator Paid</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1321,34 +1400,40 @@ function Placements() {
                           </TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(pp.commission_ngn)}</TableCell>
                           <TableCell className="text-right tabular-nums">{formatNaira(pp.net_employee_ngn)}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className={PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}>
-                              {pp.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {pp.auto_verified ? (
-                              <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Auto</span>
-                            ) : pp.verified_at ? (
-                              <span className="text-emerald-600">{formatDate(pp.verified_at)}</span>
+                          <TableCell className="text-center">
+                            {pp.client_paid ? (
+                              <button
+                                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                onClick={() => isAdmin && toggleClientPaid(pp.id, false)}
+                                title={pp.client_paid_ref ? `Ref: ${pp.client_paid_ref}` : pp.client_paid_at ? `Paid ${formatDate(pp.client_paid_at)}` : 'Paid'}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                              </button>
+                            ) : isAdmin ? (
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleClientPaid(pp.id, true)}>
+                                Mark Paid
+                              </Button>
                             ) : (
-                              <span className="text-amber-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Unverified</span>
+                              <span className="text-xs text-amber-600">Unpaid</span>
                             )}
                           </TableCell>
-                          {isAdmin && (
-                            <TableCell className="text-right">
-                              {pp.status !== 'paid' && (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs text-emerald-600" onClick={() => markPaymentStatus(pp.id, 'paid')}>
-                                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Paid
-                                </Button>
-                              )}
-                              {pp.status === 'paid' && (
-                                <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600" onClick={() => markPaymentStatus(pp.id, 'pending')}>
-                                  Revert
-                                </Button>
-                              )}
-                            </TableCell>
-                          )}
+                          <TableCell className="text-center">
+                            {pp.operator_paid ? (
+                              <button
+                                className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                onClick={() => isAdmin && toggleOperatorPaid(pp.id, false)}
+                                title={pp.operator_paid_ref ? `Ref: ${pp.operator_paid_ref}` : pp.operator_paid_at ? `Paid ${formatDate(pp.operator_paid_at)}` : 'Paid'}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                              </button>
+                            ) : isAdmin ? (
+                              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                                Mark Paid
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-amber-600">Unpaid</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1375,22 +1460,29 @@ function Placements() {
                           : formatNaira(pp.gross_amount_ngn)}
                       </MobileCardRow>
                       <MobileCardRow label="Commission">{formatNaira(pp.commission_ngn)}</MobileCardRow>
-                      <MobileCardRow label="Employee Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
-                      <MobileCardRow label="Verified">
-                        {pp.auto_verified ? 'Auto-verified' : pp.verified_at ? formatDate(pp.verified_at) : 'Unverified'}
+                      <MobileCardRow label="Operator Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
+                      <MobileCardRow label="Client Paid">
+                        {pp.client_paid
+                          ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.client_paid_at ? ` · ${formatDate(pp.client_paid_at)}` : ''}</span>
+                          : <span className="text-amber-600">No</span>}
                       </MobileCardRow>
-                      {isAdmin && pp.status !== 'paid' && (
+                      <MobileCardRow label="Operator Paid">
+                        {pp.operator_paid
+                          ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Yes{pp.operator_paid_at ? ` · ${formatDate(pp.operator_paid_at)}` : ''}</span>
+                          : <span className="text-amber-600">No</span>}
+                      </MobileCardRow>
+                      {isAdmin && (!pp.client_paid || !pp.operator_paid) && (
                         <MobileCardFooter>
-                          <Button size="sm" className="h-8 text-xs" onClick={() => markPaymentStatus(pp.id, 'paid')}>
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Paid
-                          </Button>
-                        </MobileCardFooter>
-                      )}
-                      {isAdmin && pp.status === 'paid' && (
-                        <MobileCardFooter>
-                          <Button variant="ghost" size="sm" className="h-8 text-xs text-amber-600" onClick={() => markPaymentStatus(pp.id, 'pending')}>
-                            Revert to Pending
-                          </Button>
+                          {!pp.client_paid && (
+                            <Button size="sm" className="h-8 text-xs flex-1" onClick={() => toggleClientPaid(pp.id, true)}>
+                              Client Paid
+                            </Button>
+                          )}
+                          {!pp.operator_paid && (
+                            <Button size="sm" variant="outline" className="h-8 text-xs flex-1" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                              Operator Paid
+                            </Button>
+                          )}
                         </MobileCardFooter>
                       )}
                     </MobileCard>
@@ -1813,6 +1905,31 @@ function Placements() {
               </p>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pf-rate-type">Rate Type</Label>
+                <Select value={form.rate_type} onValueChange={(v) => setForm((f) => ({ ...f, rate_type: v as RateType }))}>
+                  <SelectTrigger id="pf-rate-type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(RATE_TYPE_LABELS) as [RateType, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pf-billing-cycle">Billing Cycle</Label>
+                <Select value={form.billing_cycle} onValueChange={(v) => setForm((f) => ({ ...f, billing_cycle: v as BillingCycle }))}>
+                  <SelectTrigger id="pf-billing-cycle"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(BILLING_CYCLE_LABELS) as [BillingCycle, string][]).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="pf-pct">Commission %</Label>
               <div className="relative">
@@ -1836,7 +1953,7 @@ function Placements() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="pf-rate-usd" className="text-xs">USD (monthly)</Label>
+                  <Label htmlFor="pf-rate-usd" className="text-xs">USD ({RATE_TYPE_LABELS[form.rate_type].toLowerCase()})</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                     <Input
@@ -1859,7 +1976,7 @@ function Placements() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="pf-rate-ngn" className="text-xs">NGN (monthly)</Label>
+                  <Label htmlFor="pf-rate-ngn" className="text-xs">NGN ({RATE_TYPE_LABELS[form.rate_type].toLowerCase()})</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₦</span>
                     <Input
@@ -1893,7 +2010,7 @@ function Placements() {
 
             {computedRate && (
               <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-1">
-                <p className="text-xs font-medium text-primary">Monthly Breakdown</p>
+                <p className="text-xs font-medium text-primary">{RATE_TYPE_LABELS[form.rate_type]} Breakdown</p>
                 {computedRate.hasUsd && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Client pays (USD)</span>
@@ -1956,7 +2073,7 @@ function Placements() {
 
       {/* ── Payment Detail Dialog ─────────────────────────────────────────── */}
       <Dialog open={!!detailPlacement} onOpenChange={(open) => { if (!open) setDetailPlacement(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
@@ -1980,11 +2097,14 @@ function Placements() {
                   <p className="font-medium">{detailPlacement.commission_pct}% — {formatNaira(detailPlacement.commission_ngn)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground text-xs">Monthly Rate</p>
+                  <p className="text-muted-foreground text-xs">{RATE_TYPE_LABELS[detailPlacement.rate_type || 'monthly']} Rate</p>
                   <p className="font-medium">
                     {detailPlacement.client_rate_usd != null && detailPlacement.client_rate_usd > 0
                       ? `${formatUsd(detailPlacement.client_rate_usd)} (${formatNaira(detailPlacement.client_rate_ngn)})`
                       : formatNaira(detailPlacement.client_rate_ngn)}
+                    {detailPlacement.rate_type && detailPlacement.rate_type !== 'monthly' && (
+                      <span className="text-muted-foreground text-xs">{RATE_SUFFIX[detailPlacement.rate_type]}</span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -2003,13 +2123,20 @@ function Placements() {
 
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  {payments.length} payment record{payments.length !== 1 ? 's' : ''}
-                  {payments.filter((pp) => pp.status === 'paid').length > 0 && (
-                    <> · <span className="text-emerald-600">{payments.filter((pp) => pp.status === 'paid').length} paid</span></>
-                  )}
-                  {payments.filter((pp) => pp.status === 'pending').length > 0 && (
-                    <> · <span className="text-amber-600">{payments.filter((pp) => pp.status === 'pending').length} pending</span></>
-                  )}
+                  {payments.length} period{payments.length !== 1 ? 's' : ''}
+                  {(() => {
+                    const settled = payments.filter((pp) => pp.client_paid && pp.operator_paid).length;
+                    const clientOnly = payments.filter((pp) => pp.client_paid && !pp.operator_paid).length;
+                    const operatorOnly = payments.filter((pp) => !pp.client_paid && pp.operator_paid).length;
+                    const unpaid = payments.filter((pp) => !pp.client_paid && !pp.operator_paid).length;
+                    return (
+                      <>
+                        {settled > 0 && <> · <span className="text-emerald-600">{settled} settled</span></>}
+                        {(clientOnly > 0 || operatorOnly > 0) && <> · <span className="text-amber-600">{clientOnly + operatorOnly} partial</span></>}
+                        {unpaid > 0 && <> · <span className="text-red-600">{unpaid} unpaid</span></>}
+                      </>
+                    );
+                  })()}
                 </div>
                 {isAdmin && (
                   <Button variant="outline" size="sm" onClick={generatePayments} disabled={generatingPayments}>
@@ -2033,19 +2160,27 @@ function Placements() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Month</TableHead>
+                          <TableHead>Period</TableHead>
                           <TableHead className="text-right">Gross</TableHead>
                           <TableHead className="text-right">Commission</TableHead>
-                          <TableHead className="text-right">Employee Net</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Verified</TableHead>
-                          {isAdmin && <TableHead className="text-right">Action</TableHead>}
+                          <TableHead className="text-right">Operator Net</TableHead>
+                          {detailPlacement?.rate_type === 'hourly' && <TableHead className="text-right">Hours</TableHead>}
+                          {detailPlacement?.rate_type === 'daily' && <TableHead className="text-right">Days</TableHead>}
+                          <TableHead className="text-center">Client Paid</TableHead>
+                          <TableHead className="text-center">Operator Paid</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {payments.map((pp) => (
                           <TableRow key={pp.id}>
-                            <TableCell className="font-medium">{monthLabel(pp.month)}</TableCell>
+                            <TableCell className="font-medium">
+                              {monthLabel(pp.month)}
+                              {pp.period_start && pp.period_end && pp.period_start !== pp.month && (
+                                <span className="block text-[10px] text-muted-foreground">
+                                  {formatDate(pp.period_start)} – {formatDate(pp.period_end)}
+                                </span>
+                              )}
+                            </TableCell>
                             <TableCell className="text-right">
                               {pp.gross_amount_usd != null && pp.gross_amount_usd > 0 ? (
                                 <div>
@@ -2058,32 +2193,50 @@ function Placements() {
                             </TableCell>
                             <TableCell className="text-right">{formatNaira(pp.commission_ngn)}</TableCell>
                             <TableCell className="text-right">{formatNaira(pp.net_employee_ngn)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}>{pp.status}</Badge>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {pp.auto_verified ? (
-                                <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Auto</span>
-                              ) : pp.verified_at ? (
-                                <span className="text-emerald-600">{formatDate(pp.verified_at)}</span>
-                              ) : (
-                                <span className="text-amber-600 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Unverified</span>
-                              )}
-                            </TableCell>
-                            {isAdmin && (
+                            {detailPlacement?.rate_type === 'hourly' && (
                               <TableCell className="text-right">
-                                {pp.status !== 'paid' && (
-                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-emerald-600" onClick={() => markPaymentStatus(pp.id, 'paid')}>
-                                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Paid
-                                  </Button>
-                                )}
-                                {pp.status === 'paid' && (
-                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-amber-600" onClick={() => markPaymentStatus(pp.id, 'pending')}>
-                                    Revert
-                                  </Button>
-                                )}
+                                {pp.hours_worked != null ? pp.hours_worked : <span className="text-muted-foreground text-xs">—</span>}
                               </TableCell>
                             )}
+                            {detailPlacement?.rate_type === 'daily' && (
+                              <TableCell className="text-right">
+                                {pp.days_worked != null ? pp.days_worked : <span className="text-muted-foreground text-xs">—</span>}
+                              </TableCell>
+                            )}
+                            <TableCell className="text-center">
+                              {pp.client_paid ? (
+                                <button
+                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                  onClick={() => isAdmin && toggleClientPaid(pp.id, false)}
+                                  title={pp.client_paid_ref ? `Ref: ${pp.client_paid_ref}` : pp.client_paid_at ? `Paid ${formatDate(pp.client_paid_at)}` : 'Paid'}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                                </button>
+                              ) : isAdmin ? (
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleClientPaid(pp.id, true)}>
+                                  Mark Paid
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-amber-600">Unpaid</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {pp.operator_paid ? (
+                                <button
+                                  className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
+                                  onClick={() => isAdmin && toggleOperatorPaid(pp.id, false)}
+                                  title={pp.operator_paid_ref ? `Ref: ${pp.operator_paid_ref}` : pp.operator_paid_at ? `Paid ${formatDate(pp.operator_paid_at)}` : 'Paid'}
+                                >
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                                </button>
+                              ) : isAdmin ? (
+                                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                                  Mark Paid
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-amber-600">Unpaid</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -2096,7 +2249,13 @@ function Placements() {
                         <MobileCardHeader>
                           <MobileCardTitle>{monthLabel(pp.month)}</MobileCardTitle>
                           <MobileCardMeta>
-                            <Badge variant="outline" className={`text-[10px] ${PAYMENT_STATUS_TONE[pp.status as PaymentStatus]}`}>{pp.status}</Badge>
+                            {pp.client_paid && pp.operator_paid ? (
+                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600">Settled</Badge>
+                            ) : pp.client_paid || pp.operator_paid ? (
+                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600">Partial</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600">Unpaid</Badge>
+                            )}
                           </MobileCardMeta>
                         </MobileCardHeader>
                         <MobileCardRow label="Gross">
@@ -2105,22 +2264,31 @@ function Placements() {
                             : formatNaira(pp.gross_amount_ngn)}
                         </MobileCardRow>
                         <MobileCardRow label="Commission">{formatNaira(pp.commission_ngn)}</MobileCardRow>
-                        <MobileCardRow label="Employee Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
-                        <MobileCardRow label="Verified">
-                          {pp.auto_verified ? 'Auto-verified' : pp.verified_at ? formatDate(pp.verified_at) : 'Unverified'}
+                        <MobileCardRow label="Operator Net">{formatNaira(pp.net_employee_ngn)}</MobileCardRow>
+                        {pp.hours_worked != null && <MobileCardRow label="Hours">{pp.hours_worked}</MobileCardRow>}
+                        {pp.days_worked != null && <MobileCardRow label="Days">{pp.days_worked}</MobileCardRow>}
+                        <MobileCardRow label="Client Paid">
+                          {pp.client_paid
+                            ? <span className="text-emerald-600">Yes{pp.client_paid_at ? ` — ${formatDate(pp.client_paid_at)}` : ''}</span>
+                            : <span className="text-amber-600">No</span>}
                         </MobileCardRow>
-                        {isAdmin && pp.status !== 'paid' && (
+                        <MobileCardRow label="Operator Paid">
+                          {pp.operator_paid
+                            ? <span className="text-emerald-600">Yes{pp.operator_paid_at ? ` — ${formatDate(pp.operator_paid_at)}` : ''}</span>
+                            : <span className="text-amber-600">No</span>}
+                        </MobileCardRow>
+                        {isAdmin && (
                           <MobileCardFooter>
-                            <Button size="sm" className="h-8 text-xs" onClick={() => markPaymentStatus(pp.id, 'paid')}>
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Paid
-                            </Button>
-                          </MobileCardFooter>
-                        )}
-                        {isAdmin && pp.status === 'paid' && (
-                          <MobileCardFooter>
-                            <Button variant="ghost" size="sm" className="h-8 text-xs text-amber-600" onClick={() => markPaymentStatus(pp.id, 'pending')}>
-                              Revert to Pending
-                            </Button>
+                            {!pp.client_paid && (
+                              <Button size="sm" className="h-8 text-xs flex-1" onClick={() => toggleClientPaid(pp.id, true)}>
+                                Client Paid
+                              </Button>
+                            )}
+                            {!pp.operator_paid && (
+                              <Button size="sm" variant="outline" className="h-8 text-xs flex-1" onClick={() => toggleOperatorPaid(pp.id, true)}>
+                                Operator Paid
+                              </Button>
+                            )}
                           </MobileCardFooter>
                         )}
                       </MobileCard>
