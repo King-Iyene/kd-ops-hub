@@ -115,10 +115,11 @@ import {
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CalendarClock, CalendarDays } from 'lucide-react';
+import { CalendarClock, CalendarDays, Columns3 } from 'lucide-react';
 import { PayrollCalendar } from '@/components/payroll/PayrollCalendar';
 import { PayrollRosterPreview } from '@/components/payroll/PayrollRosterPreview';
 import { PayrollSchedules, NextPayrollBanner } from '@/components/PayrollSchedules';
+import { PayrollBoard } from '@/components/payroll/PayrollBoard';
 
 interface BonusLine {
   type: string;
@@ -2066,6 +2067,13 @@ const Payroll = () => {
             Pay schedules
           </TabsTrigger>
           <TabsTrigger
+            value="board"
+            className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+          >
+            <Columns3 className="mr-1.5 h-3.5 w-3.5" />
+            Board
+          </TabsTrigger>
+          <TabsTrigger
             value="annual"
             className="text-[12.5px] px-3 h-9 rounded-none border-b-2 border-transparent text-muted-foreground data-[state=active]:border-foreground data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
@@ -2537,6 +2545,18 @@ const Payroll = () => {
 
         <TabsContent value="schedules" className="mt-6">
           <PayrollSchedules />
+        </TabsContent>
+
+        <TabsContent value="board" className="mt-6">
+          <PayrollBoard runs={runs} onSelect={(id) => {
+            setHighlightedRunId(id);
+            const el = runRefs.current.get(id);
+            if (el) {
+              const tabsEl = document.querySelector('[data-value="runs"]') as HTMLButtonElement | null;
+              tabsEl?.click();
+              setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+            }
+          }} />
         </TabsContent>
 
         <TabsContent value="annual" className="mt-6 space-y-6">
