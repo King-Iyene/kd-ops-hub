@@ -287,7 +287,7 @@ export default function Handbook() {
           </div>
 
           {loading ? (
-            <TableSkeleton columns={7} rows={5} />
+            <TableSkeleton cols={7} rows={5} />
           ) : filtered.length === 0 ? (
             <EmptyState icon={FileText} title="No policies found" description={search || catFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first policy to get started.'} />
           ) : (
@@ -363,7 +363,7 @@ export default function Handbook() {
           )}
 
           {loading ? (
-            <TableSkeleton columns={4} rows={5} />
+            <TableSkeleton cols={4} rows={5} />
           ) : myPolicies.length === 0 ? (
             <EmptyState icon={ShieldCheck} title="No policies require acknowledgment" description="All clear — there are no active policies requiring your acknowledgment." />
           ) : (

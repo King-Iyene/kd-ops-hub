@@ -303,7 +303,7 @@ export default function ApprovalWorkflows() {
     return (
       <div className="space-y-6">
         <PageHeader title="Approval Workflows" description="Configure approval chains for HR processes" icon={GitBranch} />
-        <TableSkeleton rows={4} columns={3} />
+        <TableSkeleton rows={4} cols={3} />
       </div>
     );
   }

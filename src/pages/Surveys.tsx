@@ -364,7 +364,7 @@ export default function Surveys() {
           </div>
 
           {loading ? (
-            <TableSkeleton rows={5} columns={6} />
+            <TableSkeleton rows={5} cols={6} />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
@@ -436,7 +436,7 @@ export default function Surveys() {
 
         <TabsContent value="respond" className="space-y-4 mt-4">
           {loading ? (
-            <TableSkeleton rows={3} columns={2} />
+            <TableSkeleton rows={3} cols={2} />
           ) : activeSurveys.length === 0 ? (
             <EmptyState
               icon={MessageSquare}

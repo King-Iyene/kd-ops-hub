@@ -317,7 +317,7 @@ export default function Shifts() {
           </div>
 
           {loading ? (
-            <TableSkeleton columns={8} rows={5} />
+            <TableSkeleton cols={8} rows={5} />
           ) : profiles.length === 0 ? (
             <EmptyState title="No employees found" description="Add employees to start scheduling shifts." icon={Users} />
           ) : (
@@ -381,7 +381,7 @@ export default function Shifts() {
           </div>
 
           {loading ? (
-            <TableSkeleton columns={6} rows={4} />
+            <TableSkeleton cols={6} rows={4} />
           ) : shiftDefs.length === 0 ? (
             <EmptyState
               title="No shift types defined"

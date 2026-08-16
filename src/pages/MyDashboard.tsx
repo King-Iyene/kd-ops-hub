@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addDays } from 'date-fns';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
-import { StatCard } from '@/components/ui-kit/StatCard';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 import { TableSkeleton } from '@/components/ui-kit/TableSkeleton';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +14,14 @@ import { formatNaira } from '@/lib/format';
 
 interface LeaveBalance {
   id: string;
-  leave_type: string;
-  used: number;
-  total: number;
+  year: number;
+  annual_quota: number;
+  annual_used: number;
+  sick_used: number;
+  unpaid_used: number;
+  maternity_used: number | null;
+  paternity_used: number | null;
+  carryover_days: number | null;
 }
 
 interface LeaveRequest {
@@ -31,14 +35,13 @@ interface LeaveRequest {
 interface Goal {
   id: string;
   title: string;
-  progress: number;
+  progress_pct: number;
   status: string;
 }
 
 interface Timesheet {
   id: string;
   week_start: string;
-  week_end: string;
   total_hours: number;
   status: string;
 }
@@ -50,10 +53,10 @@ interface Policy {
 
 interface StaffLoan {
   id: string;
-  purpose: string;
-  principal_amount: number;
-  amount_repaid: number;
-  outstanding_balance: number;
+  purpose: string | null;
+  loan_type: string;
+  principal_ngn: number;
+  outstanding_ngn: number;
   status: string;
 }
 
@@ -67,7 +70,7 @@ export default function MyDashboard() {
   const { user, profile } = useAuthStore();
 
   const [loading, setLoading] = useState(true);
-  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([]);
+  const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
@@ -90,13 +93,17 @@ export default function MyDashboard() {
       }
     };
 
-    const [balances, requests, goalRows, tsRows, policies, loanRows] =
+    const currentYear = new Date().getFullYear();
+
+    const [balance, requests, goalRows, tsRows, policies, loanRows] =
       await Promise.all([
-        safe<LeaveBalance[]>(() =>
+        safe<LeaveBalance>(() =>
           supabase
             .from('leave_balances')
-            .select('id, leave_type, used, total')
-            .eq('employee_id', user.id),
+            .select('id, year, annual_quota, annual_used, sick_used, unpaid_used, maternity_used, paternity_used, carryover_days')
+            .eq('employee_id', user.id)
+            .eq('year', currentYear)
+            .maybeSingle(),
         ),
         safe<LeaveRequest[]>(() =>
           supabase
@@ -109,14 +116,14 @@ export default function MyDashboard() {
         safe<Goal[]>(() =>
           supabase
             .from('goals')
-            .select('id, title, progress, status')
-            .eq('employee_id', user.id)
+            .select('id, title, progress_pct, status')
+            .eq('owner_id', user.id)
             .order('created_at', { ascending: false }),
         ),
         safe<Timesheet[]>(() =>
           supabase
             .from('timesheets')
-            .select('id, week_start, week_end, total_hours, status')
+            .select('id, week_start, total_hours, status')
             .eq('employee_id', user.id)
             .order('week_start', { ascending: false })
             .limit(4),
@@ -125,14 +132,15 @@ export default function MyDashboard() {
           const { data: acked } = await supabase
             .from('policy_acknowledgments')
             .select('policy_id')
-            .eq('user_id', user.id);
+            .eq('employee_id', user.id);
 
           const ackedIds = (acked ?? []).map((a: { policy_id: string }) => a.policy_id);
 
           let query = supabase
             .from('handbook_policies')
             .select('id, title')
-            .eq('require_acknowledgment', true);
+            .eq('requires_acknowledgment', true)
+            .eq('is_active', true);
 
           if (ackedIds.length > 0) {
             query = query.not('id', 'in', `(${ackedIds.join(',')})`);
@@ -143,13 +151,13 @@ export default function MyDashboard() {
         safe<StaffLoan[]>(() =>
           supabase
             .from('staff_loans')
-            .select('id, purpose, principal_amount, amount_repaid, outstanding_balance, status')
+            .select('id, purpose, loan_type, principal_ngn, outstanding_ngn, status')
             .eq('employee_id', user.id)
-            .in('status', ['active', 'disbursed']),
+            .in('status', ['active', 'approved']),
         ),
       ]);
 
-    setLeaveBalances(balances ?? []);
+    setLeaveBalance(balance ?? null);
     setLeaveRequests(requests ?? []);
     setGoals(goalRows ?? []);
     setTimesheets(tsRows ?? []);
@@ -173,6 +181,16 @@ export default function MyDashboard() {
     );
   }
 
+  const leaveRows = leaveBalance
+    ? [
+        { type: 'Annual', used: leaveBalance.annual_used, total: leaveBalance.annual_quota + (leaveBalance.carryover_days ?? 0) },
+        { type: 'Sick', used: leaveBalance.sick_used, total: 10 },
+        { type: 'Unpaid', used: leaveBalance.unpaid_used, total: 0 },
+        ...(leaveBalance.maternity_used != null ? [{ type: 'Maternity', used: leaveBalance.maternity_used, total: 90 }] : []),
+        ...(leaveBalance.paternity_used != null ? [{ type: 'Paternity', used: leaveBalance.paternity_used, total: 14 }] : []),
+      ].filter((r) => r.total > 0)
+    : [];
+
   return (
     <div className="space-y-6">
       <PageHeader title="My Dashboard" description={`Welcome back, ${firstName}`} />
@@ -184,15 +202,15 @@ export default function MyDashboard() {
             <CardTitle className="text-base">Leave Balance</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {leaveBalances.length === 0 ? (
+            {leaveRows.length === 0 ? (
               <EmptyState title="No leave balances" description="Leave balances will appear here once configured" compact />
             ) : (
-              leaveBalances.map((b) => {
+              leaveRows.map((b) => {
                 const pct = b.total > 0 ? Math.round((b.used / b.total) * 100) : 0;
                 return (
-                  <div key={b.id} className="space-y-1">
+                  <div key={b.type} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{formatLabel(b.leave_type)}</span>
+                      <span className="font-medium">{b.type}</span>
                       <span className="text-muted-foreground">
                         {b.used} / {b.total} days
                       </span>
@@ -248,8 +266,8 @@ export default function MyDashboard() {
                       <StatusBadge status={g.status} size="sm" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress value={g.progress ?? 0} className="h-2 flex-1" />
-                      <span className="text-xs text-muted-foreground w-8 text-right">{g.progress ?? 0}%</span>
+                      <Progress value={g.progress_pct ?? 0} className="h-2 flex-1" />
+                      <span className="text-xs text-muted-foreground w-8 text-right">{g.progress_pct ?? 0}%</span>
                     </div>
                   </div>
                 ))}
@@ -272,7 +290,7 @@ export default function MyDashboard() {
                   <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
                     <div className="min-w-0">
                       <p className="font-medium">
-                        {format(parseISO(t.week_start), 'dd MMM')} – {format(parseISO(t.week_end), 'dd MMM')}
+                        {format(parseISO(t.week_start), 'dd MMM')} – {format(addDays(parseISO(t.week_start), 6), 'dd MMM')}
                       </p>
                       <p className="text-xs text-muted-foreground">{t.total_hours} hours</p>
                     </div>
@@ -320,21 +338,22 @@ export default function MyDashboard() {
             ) : (
               <div className="space-y-4">
                 {loans.map((l) => {
+                  const repaid = l.principal_ngn - l.outstanding_ngn;
                   const pct =
-                    l.principal_amount > 0
-                      ? Math.round((l.amount_repaid / l.principal_amount) * 100)
+                    l.principal_ngn > 0
+                      ? Math.round((repaid / l.principal_ngn) * 100)
                       : 0;
                   return (
                     <div key={l.id} className="space-y-1">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium truncate">{l.purpose}</span>
+                        <span className="font-medium truncate">{l.purpose ?? formatLabel(l.loan_type)}</span>
                         <span className="text-muted-foreground">
-                          {formatNaira(l.outstanding_balance)} left
+                          {formatNaira(l.outstanding_ngn)} left
                         </span>
                       </div>
                       <Progress value={pct} className="h-2" />
                       <p className="text-xs text-muted-foreground">
-                        {formatNaira(l.amount_repaid)} of {formatNaira(l.principal_amount)} repaid
+                        {formatNaira(repaid)} of {formatNaira(l.principal_ngn)} repaid
                       </p>
                     </div>
                   );
