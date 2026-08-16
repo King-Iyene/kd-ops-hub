@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { ConfirmDialogHost } from '@/components/ui/confirm-dialog';
+import { StepUpDialog } from '@/components/ui/step-up-dialog';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -752,6 +753,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <ConfirmDialogHost />
+      <StepUpDialog />
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <AppRoutes />
       </BrowserRouter>

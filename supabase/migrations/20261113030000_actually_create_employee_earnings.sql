@@ -52,6 +52,17 @@ ALTER TABLE public.employee_earnings ENABLE ROW LEVEL SECURITY;
 
 -- Tightened policy from the start (see 20261113020000) — never shipped the
 -- broad USING (true) version since the table itself never existed until now.
+--
+-- Defensive DROP: on a fresh DB rebuild (not this already-migrated prod),
+-- migrations replay in order, so 20261029000000 runs BEFORE this one and
+-- creates the table with its original "Authenticated can read earnings"
+-- USING (true) policy. CREATE TABLE IF NOT EXISTS above is then a no-op —
+-- the broad policy would otherwise survive untouched, and RLS OR-combines
+-- policies, so the broad one would still grant full access even with the
+-- tight policy also present. Drop it by name here so any rebuild ends up
+-- in the same state as this already-migrated database.
+DROP POLICY IF EXISTS "Authenticated can read earnings" ON public.employee_earnings;
+
 CREATE POLICY "employee_earnings_read_own_or_finance"
   ON public.employee_earnings
   FOR SELECT

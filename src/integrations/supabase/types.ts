@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       advance_requests: {
@@ -1604,6 +1579,7 @@ export type Database = {
           airtable_income_table_id: string | null
           airtable_sync_enabled: boolean | null
           allow_self_signup: boolean
+          approval_step_up_required: boolean
           audit_log_retention_days: number
           awol_auto_flag_enabled: boolean
           cash_on_hand_ngn: number | null
@@ -1706,6 +1682,7 @@ export type Database = {
           airtable_income_table_id?: string | null
           airtable_sync_enabled?: boolean | null
           allow_self_signup?: boolean
+          approval_step_up_required?: boolean
           audit_log_retention_days?: number
           awol_auto_flag_enabled?: boolean
           cash_on_hand_ngn?: number | null
@@ -1808,6 +1785,7 @@ export type Database = {
           airtable_income_table_id?: string | null
           airtable_sync_enabled?: boolean | null
           allow_self_signup?: boolean
+          approval_step_up_required?: boolean
           audit_log_retention_days?: number
           awol_auto_flag_enabled?: boolean
           cash_on_hand_ngn?: number | null
@@ -10601,6 +10579,95 @@ export type Database = {
           },
         ]
       }
+      step_up_failures: {
+        Row: {
+          attempted_at: string
+          failure_reason: string | null
+          id: string
+          ip_hash: string | null
+          user_id: string
+        }
+        Insert: {
+          attempted_at?: string
+          failure_reason?: string | null
+          id?: string
+          ip_hash?: string | null
+          user_id: string
+        }
+        Update: {
+          attempted_at?: string
+          failure_reason?: string | null
+          id?: string
+          ip_hash?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      step_up_sessions: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          purpose: string
+          resource_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_hash?: string | null
+          purpose: string
+          resource_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          purpose?: string
+          resource_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "step_up_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "org_chart_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "step_up_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "probation_employees_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "step_up_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "step_up_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           amount_ngn: number
@@ -13331,7 +13398,11 @@ export type Database = {
       }
       approve_ewa: { Args: { p_request_id: string }; Returns: Json }
       approve_expense: {
-        Args: { p_expense_id: string; p_idempotency_key?: string }
+        Args: {
+          p_expense_id: string
+          p_idempotency_key?: string
+          p_step_up_token?: string
+        }
         Returns: {
           account_name: string | null
           account_number: string | null
@@ -13386,7 +13457,11 @@ export type Database = {
         }
       }
       approve_payment_batch: {
-        Args: { p_batch_id: string; p_idempotency_key?: string }
+        Args: {
+          p_batch_id: string
+          p_idempotency_key?: string
+          p_step_up_token?: string
+        }
         Returns: {
           advance_reason: string | null
           approved_at: string | null
@@ -13473,6 +13548,13 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      approver_totp_enrollment_status: {
+        Args: never
+        Returns: {
+          enrolled_approvers: number
+          total_approvers: number
+        }[]
       }
       auto_populate_filings_from_payroll: {
         Args: { p_payroll_run_id: string }
@@ -13599,7 +13681,11 @@ export type Database = {
         Returns: undefined
       }
       confirm_second_approval: {
-        Args: { p_batch_id: string; p_idempotency_key?: string }
+        Args: {
+          p_batch_id: string
+          p_idempotency_key?: string
+          p_step_up_token?: string
+        }
         Returns: {
           advance_reason: string | null
           approved_at: string | null
@@ -13650,7 +13736,11 @@ export type Database = {
         }
       }
       confirm_second_expense_approval: {
-        Args: { p_expense_id: string; p_idempotency_key?: string }
+        Args: {
+          p_expense_id: string
+          p_idempotency_key?: string
+          p_step_up_token?: string
+        }
         Returns: {
           account_name: string | null
           account_number: string | null
@@ -13705,6 +13795,10 @@ export type Database = {
         }
       }
       consume_mfa_backup_code: { Args: { p_code: string }; Returns: boolean }
+      consume_step_up_token: {
+        Args: { p_purpose: string; p_resource_id?: string; p_token: string }
+        Returns: boolean
+      }
       create_expense_payment_batch: {
         Args: { p_expense_id: string }
         Returns: {
@@ -13755,6 +13849,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_step_up_session: {
+        Args: {
+          p_ip_hash?: string
+          p_password: string
+          p_purpose: string
+          p_resource_id?: string
+          p_totp_code: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       credit_back_principal_wallet: {
         Args: { p_amount_ngn: number; p_reference: string }
@@ -14324,7 +14429,11 @@ export type Database = {
         Returns: Json
       }
       reject_expense: {
-        Args: { p_expense_id: string; p_reason: string }
+        Args: {
+          p_expense_id: string
+          p_reason: string
+          p_step_up_token?: string
+        }
         Returns: {
           account_name: string | null
           account_number: string | null
@@ -14379,7 +14488,7 @@ export type Database = {
         }
       }
       reject_payment_batch: {
-        Args: { p_batch_id: string; p_reason: string }
+        Args: { p_batch_id: string; p_reason: string; p_step_up_token?: string }
         Returns: {
           advance_reason: string | null
           approved_at: string | null
@@ -14926,9 +15035,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

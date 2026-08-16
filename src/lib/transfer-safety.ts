@@ -8,6 +8,7 @@
 // any place that ignored this would surface as a runtime error anyway.
 
 import { supabase } from '@/lib/supabase';
+import { requestStepUp } from '@/hooks/use-step-up';
 
 export const SETTINGS_SINGLETON_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -306,8 +307,10 @@ export async function approvePaymentBatch(
   batchId: string,
   idempotencyKey?: string
 ): Promise<PaymentBatchRow> {
+  const stepUpToken = await requestStepUp('approve_batch', batchId);
   const { data, error } = await supabase.rpc('approve_payment_batch', {
     p_batch_id: batchId,
+    p_step_up_token: stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -318,8 +321,10 @@ export async function confirmSecondApproval(
   batchId: string,
   idempotencyKey?: string
 ): Promise<PaymentBatchRow> {
+  const stepUpToken = await requestStepUp('approve_batch', batchId);
   const { data, error } = await supabase.rpc('confirm_second_approval', {
     p_batch_id: batchId,
+    p_step_up_token: stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -330,9 +335,11 @@ export async function rejectPaymentBatch(
   batchId: string,
   reason: string
 ): Promise<PaymentBatchRow> {
+  const stepUpToken = await requestStepUp('reject_batch', batchId);
   const { data, error } = await supabase.rpc('reject_payment_batch', {
     p_batch_id: batchId,
     p_reason: reason,
+    p_step_up_token: stepUpToken,
   });
   if (error) throw error;
   return (Array.isArray(data) ? data[0] : data) as PaymentBatchRow;
@@ -370,8 +377,10 @@ export async function approveExpense(
   expenseId: string,
   idempotencyKey?: string
 ): Promise<ExpenseRow> {
+  const stepUpToken = await requestStepUp('approve_expense', expenseId);
   const { data, error } = await supabase.rpc('approve_expense', {
     p_expense_id: expenseId,
+    p_step_up_token: stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -382,8 +391,10 @@ export async function confirmSecondExpenseApproval(
   expenseId: string,
   idempotencyKey?: string
 ): Promise<ExpenseRow> {
+  const stepUpToken = await requestStepUp('approve_expense', expenseId);
   const { data, error } = await supabase.rpc('confirm_second_expense_approval', {
     p_expense_id: expenseId,
+    p_step_up_token: stepUpToken,
     p_idempotency_key: idempotencyKey ?? null,
   });
   if (error) throw error;
@@ -394,9 +405,11 @@ export async function rejectExpense(
   expenseId: string,
   reason: string
 ): Promise<ExpenseRow> {
+  const stepUpToken = await requestStepUp('reject_expense', expenseId);
   const { data, error } = await supabase.rpc('reject_expense', {
     p_expense_id: expenseId,
     p_reason: reason,
+    p_step_up_token: stepUpToken,
   });
   if (error) throw error;
   return (Array.isArray(data) ? data[0] : data) as ExpenseRow;

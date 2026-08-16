@@ -140,6 +140,12 @@ interface CompanySettings {
   /** Platform-wide policy: when TRUE every user must enrol TOTP MFA.
    *  Toggle visible to super_admin only in Settings → Security. */
   mfa_required_for_all_users: boolean;
+  /** When TRUE, approve/reject on payment batches and expenses requires a
+   *  fresh password + TOTP re-verification (step-up) immediately before the
+   *  action. Off by default — a super_admin opts in once approvers have
+   *  enrolled TOTP, since enabling it for someone without TOTP blocks them
+   *  from approving anything until they enrol. */
+  approval_step_up_required: boolean;
   fuel_weekly_budgets: Record<string, number>;
   website_url: string | null;
   linkedin_url: string | null;
@@ -187,13 +193,18 @@ const SettingsPage = () => {
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
   const [digest, setDigest] = useState<'immediate' | 'hourly' | 'daily' | 'never'>('immediate');
 
+  // How many approvers (super_admin/admin/operations) have TOTP enrolled —
+  // shown next to the step-up toggle so a super_admin doesn't flip it on
+  // blind and lock out anyone who hasn't set up 2FA yet.
+  const [approverMfaStatus, setApproverMfaStatus] = useState<{ total: number; enrolled: number } | null>(null);
+
   // Expense category limits — controls for the "add a new limit" row
   const [newLimitCategory, setNewLimitCategory] = useState<string>('');
   const [newLimitAmount, setNewLimitAmount] = useState<string>('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [settingsRes, notifRes] = await Promise.all([
+    const [settingsRes, notifRes, mfaStatusRes] = await Promise.all([
       supabase
         .from('company_settings')
         .select('*')
@@ -206,7 +217,16 @@ const SettingsPage = () => {
             .eq('user_id', profile.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      profile?.role === 'super_admin'
+        ? supabase.rpc('approver_totp_enrollment_status')
+        : Promise.resolve({ data: null }),
     ]);
+    const mfaRow = Array.isArray((mfaStatusRes as any)?.data)
+      ? (mfaStatusRes as any).data[0]
+      : (mfaStatusRes as any)?.data;
+    if (mfaRow) {
+      setApproverMfaStatus({ total: mfaRow.total_approvers, enrolled: mfaRow.enrolled_approvers });
+    }
     const s = (settingsRes.data as CompanySettings) || null;
     setSettings(s);
     loadedPaystackRef.current = s
@@ -292,6 +312,7 @@ const SettingsPage = () => {
         session_timeout_minutes: settings.session_timeout_minutes,
         audit_log_retention_days: settings.audit_log_retention_days,
         mfa_required_for_all_users: settings.mfa_required_for_all_users,
+        approval_step_up_required: settings.approval_step_up_required,
         fuel_weekly_budgets: settings.fuel_weekly_budgets,
         website_url: settings.website_url || null,
         linkedin_url: settings.linkedin_url || null,
@@ -1313,6 +1334,50 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 </label>
+              </CardContent>
+            </Card>
+          )}
+
+          {profile?.role === 'super_admin' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  Re-verification for approvals
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer select-none">
+                  <Switch
+                    checked={!!settings.approval_step_up_required}
+                    onCheckedChange={(v) => patch({ approval_step_up_required: v })}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-0.5 min-w-0">
+                    <p className="text-sm font-medium">Require password + 2FA re-verification to approve or reject</p>
+                    <p className="text-[12px] text-muted-foreground leading-snug">
+                      When ON, approving/rejecting a payment batch or expense prompts for a fresh
+                      password and authenticator code immediately before the action — on top of
+                      normal sign-in. Off by default; a stolen session alone isn't enough to move
+                      money once this is on.
+                    </p>
+                  </div>
+                </label>
+                {approverMfaStatus && (
+                  approverMfaStatus.enrolled < approverMfaStatus.total ? (
+                    <p className="text-[12px] flex items-start gap-1.5 text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-md px-2.5 py-1.5">
+                      <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Only {approverMfaStatus.enrolled} of {approverMfaStatus.total} approvers
+                      (admin/operations/super_admin) have 2FA enrolled. Turning this on blocks the
+                      rest from approving anything until they set it up in Profile → Security.
+                    </p>
+                  ) : (
+                    <p className="text-[12px] flex items-start gap-1.5 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded-md px-2.5 py-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      All {approverMfaStatus.total} approvers have 2FA enrolled — safe to turn on.
+                    </p>
+                  )
+                )}
               </CardContent>
             </Card>
           )}
