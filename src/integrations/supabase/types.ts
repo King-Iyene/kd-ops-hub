@@ -1347,6 +1347,48 @@ export type Database = {
           },
         ]
       }
+      cfo_notes: {
+        Row: {
+          body: string
+          category: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          period_label: string | null
+          pinned: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          period_label?: string | null
+          pinned?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          period_label?: string | null
+          pinned?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
