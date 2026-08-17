@@ -13,7 +13,7 @@ import {
 } from 'recharts';
 import { SERIES, SEQ_BLUE, GRID, AXIS_TICK, fmtMillions, ChartTooltip } from '@/lib/chart-theme';
 import { formatNaira as chartFmtNaira } from '@/lib/format';
-import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale, ClipboardCheck } from 'lucide-react';
+import { Gauge, Wallet, TrendingDown, Users, AlertTriangle, ShieldAlert, CalendarClock, PiggyBank, LayoutGrid, Calculator, CalendarRange, Users2, Bot, Coins, FileText, RefreshCw, PieChart as PieChartIcon, Activity, Store, Scale, ClipboardCheck, Beaker, StickyNote } from 'lucide-react';
 
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +45,8 @@ import HealthScoreTab from '@/components/finance/HealthScoreTab';
 import VendorSpendTab from '@/components/finance/VendorSpendTab';
 import WorkingCapitalTab from '@/components/finance/WorkingCapitalTab';
 import ActionCenterTab from '@/components/finance/ActionCenterTab';
+import ScenarioPlannerTab from '@/components/finance/ScenarioPlannerTab';
+import CfoNotesTab from '@/components/finance/CfoNotesTab';
 import {
   fetchFinancialPulse,
   fetchDepartmentCostBreakdown,
@@ -169,6 +171,8 @@ export default function FinanceDashboard() {
           <TabsTrigger value="health-score" className="gap-1.5"><Activity className="h-3.5 w-3.5" /> Health Score</TabsTrigger>
           <TabsTrigger value="vendor-spend" className="gap-1.5"><Store className="h-3.5 w-3.5" /> Vendor Spend</TabsTrigger>
           <TabsTrigger value="working-capital" className="gap-1.5"><Scale className="h-3.5 w-3.5" /> Working Capital</TabsTrigger>
+          <TabsTrigger value="scenario-planner" className="gap-1.5"><Beaker className="h-3.5 w-3.5" /> Scenarios</TabsTrigger>
+          <TabsTrigger value="cfo-notes" className="gap-1.5"><StickyNote className="h-3.5 w-3.5" /> CFO Notes</TabsTrigger>
           <TabsTrigger value="board-report" className="gap-1.5"><FileText className="h-3.5 w-3.5" /> Board Report</TabsTrigger>
         </TabsList>
 
@@ -516,6 +520,14 @@ export default function FinanceDashboard() {
 
         <TabsContent value="working-capital" className="mt-0">
           <WorkingCapitalTab />
+        </TabsContent>
+
+        <TabsContent value="scenario-planner" className="mt-0">
+          <ScenarioPlannerTab />
+        </TabsContent>
+
+        <TabsContent value="cfo-notes" className="mt-0">
+          <CfoNotesTab />
         </TabsContent>
 
         <TabsContent value="board-report" className="mt-0">
