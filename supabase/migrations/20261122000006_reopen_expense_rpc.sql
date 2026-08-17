@@ -54,7 +54,7 @@ BEGIN
          second_approver_id = NULL,
          second_approved_at = NULL,
          payload_hash_at_approval = NULL,
-         co_approval_required = NULL,
+         co_approval_required = false,
          payment_status = NULL
    WHERE id = p_expense_id
    RETURNING * INTO v_expense;
