@@ -1440,14 +1440,14 @@ const Subscriptions = () => {
               <div className="space-y-1">
                 <Label>Payment method</Label>
                 <Select
-                  value={form.payment_method}
-                  onValueChange={(v) => setForm({ ...form, payment_method: v })}
+                  value={form.payment_method || '__none__'}
+                  onValueChange={(v) => setForm({ ...form, payment_method: v === '__none__' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {cards.map((c) => (
                       <SelectItem key={c.id} value={c.card_name}>{cardLabel(c)}</SelectItem>
                     ))}
@@ -1457,14 +1457,14 @@ const Subscriptions = () => {
               <div className="space-y-1">
                 <Label>Priority</Label>
                 <Select
-                  value={form.priority}
-                  onValueChange={(v) => setForm({ ...form, priority: v })}
+                  value={form.priority || '__none__'}
+                  onValueChange={(v) => setForm({ ...form, priority: v === '__none__' ? '' : v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     <SelectItem value="high">High</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="low">Low</SelectItem>
