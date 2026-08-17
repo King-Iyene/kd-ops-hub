@@ -28,6 +28,7 @@ import {
   RefreshCw,
   RotateCcw,
   BanknoteIcon,
+  Pencil,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -197,6 +198,7 @@ const Expenses = () => {
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
 
   const [showForm, setShowForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -471,7 +473,34 @@ const Expenses = () => {
     return null;
   };
 
-  // -- Submit ---------------------------------------------------------------
+  // -- Edit / Submit --------------------------------------------------------
+
+  const openEditForm = (e: Expense) => {
+    setEditingExpense(e);
+    setForm({
+      category: e.category,
+      amount_ngn: e.mileage_km ? '' : String(e.amount_ngn || ''),
+      date: e.date || toIsoDate(new Date()),
+      description: e.description || '',
+      mileage_km: e.mileage_km ? String(e.mileage_km) : '',
+      rate_per_km_ngn: e.rate_per_km_ngn ? String(e.rate_per_km_ngn) : String(DEFAULT_MILEAGE_RATE),
+    });
+    if (e.bank_name || e.account_number || e.account_name) {
+      setShowBankSection(true);
+      setBankDetails({
+        bank_name: e.bank_name || '',
+        account_number: e.account_number || '',
+        account_name: e.account_name || '',
+        verified: !!(e.bank_name && e.account_number && e.account_name),
+      });
+    } else {
+      setShowBankSection(false);
+      setBankDetails(EMPTY_BANK);
+    }
+    setIsReimbursement(e.is_reimbursement ?? true);
+    setReceiptFile(null);
+    setShowForm(true);
+  };
 
   const submitExpense = async () => {
     if (submitting) return;
@@ -561,8 +590,7 @@ const Expenses = () => {
       receiptUrl = urlData.publicUrl;
     }
 
-    const { data: inserted, error } = await supabase.from('expenses').insert({
-      submitted_by: profile?.id || '',
+    const payload = {
       category: form.category,
       budget_category: form.category,
       amount_ngn: amount,
@@ -571,8 +599,7 @@ const Expenses = () => {
       date: form.date,
       description: form.description.trim(),
       is_reimbursement: isReimbursement,
-      status: 'pending',
-      receipt_url: receiptUrl,
+      ...(receiptUrl ? { receipt_url: receiptUrl } : {}),
       ...(bankDetails.verified
         ? {
             bank_name: bankDetails.bank_name,
@@ -580,24 +607,51 @@ const Expenses = () => {
             account_name: bankDetails.account_name,
           }
         : {}),
-    }).select();
+    };
+
+    let error: { message: string } | null = null;
+    if (editingExpense) {
+      const res = await supabase
+        .from('expenses')
+        .update(payload)
+        .eq('id', editingExpense.id);
+      error = res.error;
+    } else {
+      const res = await supabase.from('expenses').insert({
+        ...payload,
+        submitted_by: profile?.id || '',
+        status: 'pending',
+      }).select();
+      error = res.error;
+    }
+
     if (error) {
       toast({ title: 'Could not save expense', description: friendlyDbError(error), variant: 'destructive' });
     } else {
-      await logAudit(
-        'expense_submitted',
-        `Expense submitted: ${form.category} — ${formatNaira(amount)}${mileageKm ? ` (${mileageKm} km × ${formatNaira(ratePerKm || 0)}/km)` : ''}`,
-        profile,
-      );
-      await notifyRoles({
-        roles: ['super_admin', 'admin', 'finance'],
-        type: 'expense_submitted',
-        module: 'expenses',
-        title: 'Expense submitted for approval',
-        body: `${form.category.replace(/_/g, ' ')} — ${formatNaira(amount)}`,
-      });
-      toast({ title: 'Expense submitted' });
+      if (editingExpense) {
+        await logAudit(
+          'expense_submitted',
+          `Expense updated: ${form.category} — ${formatNaira(amount)}`,
+          profile,
+        );
+        toast({ title: 'Expense updated' });
+      } else {
+        await logAudit(
+          'expense_submitted',
+          `Expense submitted: ${form.category} — ${formatNaira(amount)}${mileageKm ? ` (${mileageKm} km × ${formatNaira(ratePerKm || 0)}/km)` : ''}`,
+          profile,
+        );
+        await notifyRoles({
+          roles: ['super_admin', 'admin', 'finance'],
+          type: 'expense_submitted',
+          module: 'expenses',
+          title: 'Expense submitted for approval',
+          body: `${form.category.replace(/_/g, ' ')} — ${formatNaira(amount)}`,
+        });
+        toast({ title: 'Expense submitted' });
+      }
       setShowForm(false);
+      setEditingExpense(null);
       setForm({
         category: 'other',
         amount_ngn: '',
@@ -1514,6 +1568,16 @@ const Expenses = () => {
                       {isApprover && (
                         <TableCell className="text-right" onClick={(evt) => evt.stopPropagation()}>
                           <div className="flex justify-end gap-1 items-center">
+                            {(e.status === 'pending' || e.status === 'pending_second_approval') && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Edit expense"
+                                onClick={() => openEditForm(e)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
                             {e.status === 'pending' && (
                               <>
                                 <Button
@@ -1741,9 +1805,19 @@ const Expenses = () => {
                         </MobileCardRow>
                       )}
 
-                      {isApprover && (isPending || isPendingSecond || (isRejected && isApprover) || isApproved || canProcessPayment(e) || canRetryPayment(e)) && (
+                      {(isApprover && (isPending || isPendingSecond || (isRejected && isApprover) || isApproved || canProcessPayment(e) || canRetryPayment(e))) || ((isPending || isPendingSecond) && e.submitted_by === profile?.id) ? (
                         <MobileCardFooter>
-                          {isPending && (
+                          {(isPending || isPendingSecond) && (e.submitted_by === profile?.id || isApprover) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-9"
+                              onClick={(evt) => { evt.stopPropagation(); openEditForm(e); }}
+                            >
+                              <Pencil className="h-4 w-4 mr-1.5" /> Edit
+                            </Button>
+                          )}
+                          {isPending && isApprover && (
                             <>
                               <Button
                                 size="sm"
@@ -1842,7 +1916,7 @@ const Expenses = () => {
                             </Button>
                           )}
                         </MobileCardFooter>
-                      )}
+                      ) : null}
                     </MobileCard>
                   );
                 })}
@@ -1865,11 +1939,11 @@ const Expenses = () => {
 
       <ResponsiveDialog
         open={showForm}
-        onOpenChange={(v) => { setShowForm(v); if (!v) setReceiptFile(null); }}
-        title="New Expense Claim"
+        onOpenChange={(v) => { setShowForm(v); if (!v) { setReceiptFile(null); setEditingExpense(null); } }}
+        title={editingExpense ? 'Edit Expense' : 'New Expense Claim'}
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowForm(false)}>
+            <Button variant="outline" onClick={() => { setShowForm(false); setEditingExpense(null); }}>
               Cancel
             </Button>
             <Button
@@ -1877,7 +1951,7 @@ const Expenses = () => {
               disabled={submitting || !form.category || !!lockingBudget}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Submit
+              {editingExpense ? 'Save changes' : 'Submit'}
             </Button>
           </>
         }
@@ -2212,6 +2286,16 @@ const Expenses = () => {
         }
         footer={
           <div className="flex items-center gap-2 w-full">
+            {detailExpense && (detailExpense.status === 'pending' || detailExpense.status === 'pending_second_approval') && (
+              detailExpense.submitted_by === profile?.id || isApprover
+            ) && (
+              <Button
+                variant="outline"
+                onClick={() => { setDetailExpense(null); if (detailExpense) openEditForm(detailExpense); }}
+              >
+                <Pencil className="h-4 w-4 mr-1.5" /> Edit
+              </Button>
+            )}
             {detailExpense && isApprover && detailExpense.status === 'approved' && !detailExpense.payment_reference && (detailExpense.payment_status === 'pending' || detailExpense.payment_status == null) && (
               <Button
                 variant="outline"
