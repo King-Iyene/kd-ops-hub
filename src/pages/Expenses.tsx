@@ -214,6 +214,7 @@ const Expenses = () => {
   const [bankDetails, setBankDetails] = useState<BankAccountValue>(EMPTY_BANK);
   const [isReimbursement, setIsReimbursement] = useState(true);
   const [showBankSection, setShowBankSection] = useState(false);
+  const [bankBannerDismissed, setBankBannerDismissed] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [confirmPayment, setConfirmPayment] = useState<Expense | null>(null);
   const [processingPayment, setProcessingPayment] = useState(false);
@@ -766,10 +767,7 @@ const Expenses = () => {
       'Reopen this expense? It will go back to pending for re-review.',
     );
     if (!ok) return;
-    const { error } = await supabase
-      .from('expenses')
-      .update({ status: 'pending', approved_by: null, approved_at: null, approved_by_secondary: null, payment_status: null })
-      .eq('id', e.id);
+    const { error } = await supabase.rpc('reopen_expense', { p_expense_id: e.id });
     if (error) {
       toast({ title: 'Reopen failed', description: error.message, variant: 'destructive' });
       return;
@@ -1273,10 +1271,10 @@ const Expenses = () => {
         </Card>
       )}
 
-      {isApprover && unpayableApproved.length > 0 && (
+      {isApprover && unpayableApproved.length > 0 && !bankBannerDismissed && (
         <div className="flex items-start gap-3 rounded-lg border border-orange-300 dark:border-orange-500/40 bg-orange-50 dark:bg-orange-950/20 px-4 py-3">
           <BanknoteIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
-          <div className="text-sm">
+          <div className="flex-1 text-sm">
             <p className="font-semibold text-orange-800 dark:text-orange-300">
               {unpayableApproved.length} approved expense{unpayableApproved.length > 1 ? 's' : ''} can't be paid
             </p>
@@ -1284,6 +1282,14 @@ const Expenses = () => {
               Bank details are missing. Reopen them so employees can add their bank information, or contact them directly.
             </p>
           </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-md p-1 text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+            onClick={() => setBankBannerDismissed(true)}
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -2079,26 +2085,28 @@ const Expenses = () => {
               </div>
             )}
 
-            <div className="pt-2 border-t">
+            <div className="pt-3 border-t-2 border-amber-300 dark:border-amber-500/50">
               {!showBankSection ? (
                 <div
-                  className="flex items-start gap-2 rounded-md border-2 border-dashed border-orange-300 dark:border-orange-500/40 bg-orange-50/50 dark:bg-orange-950/10 p-3 cursor-pointer hover:border-orange-400 transition-colors"
+                  className="flex items-start gap-3 rounded-lg border-2 border-amber-400 dark:border-amber-500/60 bg-amber-50 dark:bg-amber-950/30 p-4 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/50 hover:border-amber-500 transition-colors shadow-sm"
                   onClick={() => setShowBankSection(true)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setShowBankSection(true); }}
                 >
-                  <BanknoteIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <div className="shrink-0 rounded-full bg-amber-200 dark:bg-amber-800/50 p-2">
+                    <BanknoteIcon className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+                  </div>
                   <div>
-                    <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Add bank details for payment</p>
-                    <p className="text-xs text-orange-600/80 dark:text-orange-400/70 mt-0.5">Without bank details, approved expenses can't be paid out. Add your bank name, account number, and account name.</p>
+                    <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Add your bank details for payment</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">Without bank details, approved expenses can't be paid out. Tap here to add your bank name, account number, and account name.</p>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3 rounded-lg border-2 border-amber-400 dark:border-amber-500/60 bg-amber-50/50 dark:bg-amber-950/20 p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium inline-flex items-center gap-1.5">
-                      <BanknoteIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    <span className="text-sm font-semibold inline-flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                      <BanknoteIcon className="h-4 w-4 text-amber-700 dark:text-amber-300" />
                       Bank account for payment
                     </span>
                     <button
