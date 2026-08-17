@@ -10,13 +10,9 @@ import {
   DollarSign,
   AlertTriangle,
   Loader2,
-  Info,
   CreditCard,
-  Target,
-  Zap,
-  Calendar,
+  Eye,
 } from 'lucide-react';
-import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { VendorCombobox } from '@/components/VendorCombobox';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { supabase } from '@/lib/supabase';
@@ -64,7 +60,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { MobileFilterBar } from '@/components/ui-kit/MobileFilterBar';
@@ -104,7 +99,6 @@ interface Subscription {
   billing_day: number | null;
   payment_method: string | null;
   priority: 'high' | 'medium' | 'low' | null;
-  decision: 'keep' | 'kill' | 'undecided' | null;
   cost_original: number | null;
   updated_at: string | null;
 }
@@ -126,16 +120,7 @@ interface SubPayment {
 
 const CATEGORIES = ['software', 'hosting', 'office', 'telecom', 'finance', 'other'];
 const CYCLES: Subscription['billing_cycle'][] = ['monthly', 'quarterly', 'yearly'];
-const PAYMENT_METHODS = [
-  'GeegPay Card',
-  'Opay Card',
-  'Moniepoint Card',
-  'Transfer',
-  'Kuda Card',
-  "Tonye's Card",
-];
 const PRIORITIES: Subscription['priority'][] = ['high', 'medium', 'low'];
-const DECISIONS: Subscription['decision'][] = ['keep', 'kill', 'undecided'];
 
 /* ─────────────────────── Helpers ─────────────────────── */
 
@@ -189,13 +174,6 @@ const monthLabel = (iso: string) => {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
-const PAYMENT_STATUS_NEXT: Record<string, SubPayment['status']> = {
-  pending: 'paid',
-  paid: 'skipped',
-  skipped: 'pending',
-  overdue: 'paid',
-};
-
 /* ─────────────────────── Form ─────────────────────── */
 
 interface FormState {
@@ -212,7 +190,6 @@ interface FormState {
   billing_day: string;
   payment_method: string;
   priority: string;
-  decision: string;
 }
 
 const emptyForm: FormState = {
@@ -229,7 +206,6 @@ const emptyForm: FormState = {
   billing_day: '',
   payment_method: '',
   priority: '',
-  decision: '',
 };
 
 /* ═══════════════════════ Component ═══════════════════════ */
@@ -247,7 +223,6 @@ const Subscriptions = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cancelled' | 'paused'>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | string>('all');
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
-  const [decisionFilter, setDecisionFilter] = useState<'all' | 'keep' | 'kill' | 'undecided'>('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | string>('all');
 
   const [dialog, setDialog] = useState(false);
@@ -257,16 +232,16 @@ const Subscriptions = () => {
   const [renewingId, setRenewingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Subscription | null>(null);
 
-  /* ── Tab state ── */
-  const [activeTab, setActiveTab] = useState('overview');
-
   /* ── FX rate ── */
   const [fxRate, setFxRate] = useState<number | null>(null);
 
-  /* ── Payment tracker state ── */
-  const [payments, setPayments] = useState<SubPayment[]>([]);
-  const [loadingPayments, setLoadingPayments] = useState(false);
-  const [togglingPayment, setTogglingPayment] = useState<string | null>(null);
+  /* ── Virtual cards for payment method ── */
+  const [cards, setCards] = useState<{id: string; card_name: string; last_four: string | null}[]>([]);
+
+  /* ── Detail dialog state ── */
+  const [detailSub, setDetailSub] = useState<Subscription | null>(null);
+  const [detailPayments, setDetailPayments] = useState<SubPayment[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   /* ── Fetch subscriptions ── */
   const fetchSubs = useCallback(async () => {
@@ -306,20 +281,17 @@ const Subscriptions = () => {
     })();
   }, []);
 
-  /* ── Fetch payment tracker data (only when tab active) ── */
-  const fetchPayments = useCallback(async () => {
-    setLoadingPayments(true);
-    const { data } = await supabase
-      .from('subscription_payments')
-      .select('*')
-      .order('month', { ascending: true });
-    setPayments((data as SubPayment[]) || []);
-    setLoadingPayments(false);
-  }, []);
-
+  /* ── Fetch virtual cards ── */
   useEffect(() => {
-    if (activeTab === 'payments') fetchPayments();
-  }, [activeTab, fetchPayments]);
+    (async () => {
+      const { data } = await supabase
+        .from('virtual_cards')
+        .select('id, card_name, last_four')
+        .eq('status', 'active')
+        .order('card_name');
+      if (data) setCards(data);
+    })();
+  }, []);
 
   /* ── Renewal notifications ── */
   useEffect(() => {
@@ -352,7 +324,7 @@ const Subscriptions = () => {
           body,
         });
       } catch {
-        // ignore — notifications are best effort.
+        // ignore -- notifications are best effort.
       }
     };
     write(unique[7], 7);
@@ -370,8 +342,7 @@ const Subscriptions = () => {
       const d = daysUntil(s.next_renewal_date);
       return d !== null && d >= 0 && d <= 30;
     });
-    const killSubs = subs.filter((s) => s.decision === 'kill' && s.status === 'active');
-    const killSavings = killSubs.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
+    const cardsUsed = new Set(active.map((s) => s.payment_method).filter(Boolean)).size;
     return {
       monthlyNgn,
       monthlyUsd,
@@ -379,9 +350,17 @@ const Subscriptions = () => {
       paused: paused.length,
       total: subs.length,
       dueSoon: nextIn30.length,
-      killCount: killSubs.length,
-      killSavings,
+      cardsUsed,
     };
+  }, [subs]);
+
+  /* ── Derive unique payment methods from subs for filter dropdown ── */
+  const uniquePaymentMethods = useMemo(() => {
+    const methods = new Set<string>();
+    for (const s of subs) {
+      if (s.payment_method) methods.add(s.payment_method);
+    }
+    return Array.from(methods).sort();
   }, [subs]);
 
   /* ── Filtered + paginated ── */
@@ -391,7 +370,6 @@ const Subscriptions = () => {
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
       if (categoryFilter !== 'all' && s.category !== categoryFilter) return false;
       if (priorityFilter !== 'all' && s.priority !== priorityFilter) return false;
-      if (decisionFilter !== 'all' && s.decision !== decisionFilter) return false;
       if (paymentMethodFilter !== 'all' && s.payment_method !== paymentMethodFilter) return false;
       if (!q) return true;
       return (
@@ -400,44 +378,57 @@ const Subscriptions = () => {
         s.category.toLowerCase().includes(q)
       );
     });
-  }, [subs, search, statusFilter, categoryFilter, priorityFilter, decisionFilter, paymentMethodFilter]);
+  }, [subs, search, statusFilter, categoryFilter, priorityFilter, paymentMethodFilter]);
 
   const pagination = usePagination(filtered, 20);
   const activeSubFilterCount = [
     statusFilter !== 'all',
     categoryFilter !== 'all',
     priorityFilter !== 'all',
-    decisionFilter !== 'all',
     paymentMethodFilter !== 'all',
   ].filter(Boolean).length;
 
-  /* ── Kill banner stats ── */
-  const showKillBanner = decisionFilter === 'kill' && filtered.length > 0;
-  const killBannerSavingsMonthly = useMemo(() => {
-    if (!showKillBanner) return 0;
-    return filtered.reduce((sum, s) => sum + monthlyEquivalent(s), 0);
-  }, [showKillBanner, filtered]);
+  /* ── Detail dialog ── */
+  const openDetail = async (s: Subscription) => {
+    setDetailSub(s);
+    setLoadingDetail(true);
+    const { data } = await supabase
+      .from('subscription_payments')
+      .select('*')
+      .eq('subscription_id', s.id)
+      .order('month', { ascending: false });
+    setDetailPayments((data as SubPayment[]) || []);
+    setLoadingDetail(false);
+  };
 
-  /* ── Payment tracker grid data ── */
-  const paymentGrid = useMemo(() => {
-    const activeMonthlySubs = subs.filter(
-      (s) => s.status === 'active' && s.billing_cycle === 'monthly',
-    );
-    // Build column months: 6 months from 3 months ago to 2 months ahead
-    const now = new Date();
-    const months: string[] = [];
-    for (let i = -3; i <= 2; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      months.push(monthKey(d));
+  const toggleDetailPaymentStatus = async (payment: SubPayment, newStatus: 'paid' | 'pending') => {
+    try {
+      const { error } = await supabase
+        .from('subscription_payments')
+        .update({
+          status: newStatus,
+          paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
+        })
+        .eq('id', payment.id);
+      if (error) throw error;
+      // Re-fetch detail payments
+      if (detailSub) {
+        const { data } = await supabase
+          .from('subscription_payments')
+          .select('*')
+          .eq('subscription_id', detailSub.id)
+          .order('month', { ascending: false });
+        setDetailPayments((data as SubPayment[]) || []);
+      }
+      toast({ title: `Payment marked ${newStatus}` });
+    } catch (err: any) {
+      toast({
+        title: 'Could not update payment',
+        description: err?.message,
+        variant: 'destructive',
+      });
     }
-    // Index payments by sub+month
-    const payMap = new Map<string, SubPayment>();
-    for (const p of payments) {
-      const key = `${p.subscription_id}|${p.month.slice(0, 7)}`;
-      payMap.set(key, p);
-    }
-    return { subs: activeMonthlySubs, months, payMap };
-  }, [subs, payments]);
+  };
 
   /* ── CRUD handlers ── */
   const openCreate = () => {
@@ -462,7 +453,6 @@ const Subscriptions = () => {
       billing_day: s.billing_day != null ? String(s.billing_day) : '',
       payment_method: s.payment_method || '',
       priority: s.priority || '',
-      decision: s.decision || '',
     });
     setDialog(true);
   };
@@ -519,7 +509,6 @@ const Subscriptions = () => {
         billing_day: billingDay,
         payment_method: form.payment_method || null,
         priority: form.priority || null,
-        decision: form.decision || null,
       };
       if (editing) {
         const { error } = await supabase
@@ -577,7 +566,7 @@ const Subscriptions = () => {
       if (error) throw error;
       await logAudit(
         'subscription_renewed',
-        `Subscription "${s.name}" marked renewed — next: ${formatDate(next)}`,
+        `Subscription "${s.name}" marked renewed -- next: ${formatDate(next)}`,
         profile,
       );
       toast({ title: 'Renewed', description: `Next renewal: ${formatDate(next)}` });
@@ -678,43 +667,6 @@ const Subscriptions = () => {
     }
   };
 
-  /* ── Payment tracker toggle ── */
-  const togglePaymentStatus = async (subId: string, month: string, current: SubPayment | undefined) => {
-    const key = `${subId}|${month}`;
-    setTogglingPayment(key);
-    try {
-      if (current) {
-        const nextStatus = PAYMENT_STATUS_NEXT[current.status] || 'pending';
-        const { error } = await supabase
-          .from('subscription_payments')
-          .update({
-            status: nextStatus,
-            paid_at: nextStatus === 'paid' ? new Date().toISOString() : null,
-          })
-          .eq('id', current.id);
-        if (error) throw error;
-      } else {
-        // Create new payment record as paid
-        const { error } = await supabase.from('subscription_payments').insert({
-          subscription_id: subId,
-          month: `${month}-01`,
-          status: 'paid',
-          paid_at: new Date().toISOString(),
-        });
-        if (error) throw error;
-      }
-      await fetchPayments();
-    } catch (err: any) {
-      toast({
-        title: 'Could not update payment',
-        description: err?.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setTogglingPayment(null);
-    }
-  };
-
   /* ── CSV export ── */
   const exportCsv = () => {
     const header = [
@@ -729,7 +681,6 @@ const Subscriptions = () => {
       'last_renewed_at',
       'status',
       'priority',
-      'decision',
       'payment_method',
       'billing_day',
     ];
@@ -745,7 +696,6 @@ const Subscriptions = () => {
       s.last_renewed_at || '',
       s.status,
       s.priority || '',
-      s.decision || '',
       s.payment_method || '',
       s.billing_day ?? '',
     ]);
@@ -780,24 +730,11 @@ const Subscriptions = () => {
     return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5">Low</Badge>;
   };
 
-  const decisionBadge = (d: string | null) => {
-    if (!d) return <span className="text-xs text-muted-foreground">--</span>;
-    if (d === 'keep') return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5">Keep</Badge>;
-    if (d === 'kill') return <Badge className="bg-destructive/10 text-destructive text-[10px] px-1.5">Kill</Badge>;
-    return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] px-1.5">Undecided</Badge>;
-  };
-
-  const paymentStatusDot = (status: string | undefined) => {
-    if (!status) return 'bg-border';
-    if (status === 'paid') return 'bg-emerald-500';
-    if (status === 'pending') return 'bg-amber-400';
-    if (status === 'overdue') return 'bg-destructive';
-    return 'bg-slate-400'; // skipped
-  };
-
-  const paymentStatusLabel = (status: string | undefined) => {
-    if (!status) return 'No record';
-    return status.charAt(0).toUpperCase() + status.slice(1);
+  const paymentStatusBadge = (status: string) => {
+    if (status === 'paid') return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5">Paid</Badge>;
+    if (status === 'pending') return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] px-1.5">Pending</Badge>;
+    if (status === 'overdue') return <Badge className="bg-destructive/10 text-destructive text-[10px] px-1.5">Overdue</Badge>;
+    return <Badge className="bg-slate-200/60 text-slate-600 dark:bg-slate-700/50 dark:text-slate-300 text-[10px] px-1.5">Skipped</Badge>;
   };
 
   /* ── Amount display with FX ── */
@@ -822,15 +759,22 @@ const Subscriptions = () => {
     setStatusFilter('all');
     setCategoryFilter('all');
     setPriorityFilter('all');
-    setDecisionFilter('all');
     setPaymentMethodFilter('all');
   };
 
-  const reviewKillList = () => {
-    setDecisionFilter('kill');
-    setStatusFilter('active');
-    pagination.reset();
-  };
+  /* ── Card display label helper ── */
+  const cardLabel = (c: {card_name: string; last_four: string | null}) =>
+    c.last_four ? `${c.card_name} ****${c.last_four}` : c.card_name;
+
+  /* ── Detail dialog: summary helpers ── */
+  const detailPaymentSummary = useMemo(() => {
+    if (detailPayments.length === 0) return null;
+    const paid = detailPayments.filter((p) => p.status === 'paid').length;
+    const pending = detailPayments.filter((p) => p.status === 'pending').length;
+    const overdue = detailPayments.filter((p) => p.status === 'overdue').length;
+    const skipped = detailPayments.filter((p) => p.status === 'skipped').length;
+    return { total: detailPayments.length, paid, pending, overdue, skipped };
+  }, [detailPayments]);
 
   /* ═══════════════════════ Render ═══════════════════════ */
 
@@ -879,11 +823,11 @@ const Subscriptions = () => {
           tone="warning"
         />
         <StatCard
-          title="Kill Savings"
-          value={formatNaira(stats.killSavings)}
-          subtitle={stats.killCount > 0 ? `${stats.killCount} sub${stats.killCount !== 1 ? 's' : ''} marked kill` : 'No subs marked kill'}
-          icon={Zap}
-          tone={stats.killCount > 0 ? 'danger' : 'default'}
+          title="Cards Used"
+          value={stats.cardsUsed}
+          subtitle={`${stats.cardsUsed} distinct payment method${stats.cardsUsed !== 1 ? 's' : ''} across active subs`}
+          icon={CreditCard}
+          tone="default"
         />
       </div>
 
@@ -895,462 +839,483 @@ const Subscriptions = () => {
         </div>
       )}
 
-      {/* ── Kill banner ── */}
-      {showKillBanner && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-destructive" />
-            <span className="text-sm font-medium">
-              You have {filtered.length} subscription{filtered.length !== 1 ? 's' : ''} marked for killing.
-              Cancelling them would save{' '}
-              <span className="font-semibold">{formatNaira(killBannerSavingsMonthly)}/month</span>
-              {' '}({formatNaira(killBannerSavingsMonthly * 12)}/year).
-            </span>
+      {/* ── Overview content (no tabs) ── */}
+      <div className="space-y-4">
+        <Card className="rounded-xl">
+          <div className="p-3 sm:p-4 border-b border-border/50">
+            <MobileFilterBar
+              activeCount={activeSubFilterCount}
+              onClear={clearAllFilters}
+              search={
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search subscriptions..."
+                    className="pl-9 h-10 sm:h-9"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      pagination.reset();
+                    }}
+                  />
+                </div>
+              }
+              filters={
+                <>
+                  <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
+                    <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="paused">Paused</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
+                    <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All categories</SelectItem>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c} value={c} className="capitalize">
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v as any); pagination.reset(); }}>
+                    <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All priorities</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={paymentMethodFilter} onValueChange={(v) => { setPaymentMethodFilter(v); pagination.reset(); }}>
+                    <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9" data-mobile-filter-row>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All methods</SelectItem>
+                      {uniquePaymentMethods.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              }
+            />
           </div>
-        </div>
-      )}
 
-      {/* ── Tabs ── */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">
-            <Repeat className="h-3.5 w-3.5 mr-1.5" /> Overview
-          </TabsTrigger>
-          <TabsTrigger value="payments">
-            <Calendar className="h-3.5 w-3.5 mr-1.5" /> Payment Tracker
-          </TabsTrigger>
-        </TabsList>
-
-        {/* ════════════ Overview tab ════════════ */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          <Card className="rounded-xl">
-            <div className="p-3 sm:p-4 border-b border-border/50">
-              <MobileFilterBar
-                activeCount={activeSubFilterCount}
-                onClear={clearAllFilters}
-                search={
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search subscriptions..."
-                      className="pl-9 h-10 sm:h-9"
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value);
-                        pagination.reset();
-                      }}
-                    />
-                  </div>
-                }
-                filters={
-                  <>
-                    <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as any); pagination.reset(); }}>
-                      <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="paused">Paused</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={categoryFilter} onValueChange={(v) => { setCategoryFilter(v); pagination.reset(); }}>
-                      <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All categories</SelectItem>
-                        {CATEGORIES.map((c) => (
-                          <SelectItem key={c} value={c} className="capitalize">
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v as any); pagination.reset(); }}>
-                      <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All priorities</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={decisionFilter} onValueChange={(v) => { setDecisionFilter(v as any); pagination.reset(); }}>
-                      <SelectTrigger className="flex-1 sm:flex-initial sm:w-[140px] h-10 sm:h-9" data-mobile-filter-row>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All decisions</SelectItem>
-                        <SelectItem value="keep">Keep</SelectItem>
-                        <SelectItem value="kill">Kill</SelectItem>
-                        <SelectItem value="undecided">Undecided</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={paymentMethodFilter} onValueChange={(v) => { setPaymentMethodFilter(v); pagination.reset(); }}>
-                      <SelectTrigger className="flex-1 sm:flex-initial sm:w-[160px] h-10 sm:h-9" data-mobile-filter-row>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All methods</SelectItem>
-                        {PAYMENT_METHODS.map((m) => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </>
+          <CardContent className="p-0">
+            {loading ? (
+              <TableSkeleton rows={6} cols={7} />
+            ) : error ? (
+              <ErrorState message={error} onRetry={fetchSubs} />
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                illustration="coin"
+                title="No subscriptions yet"
+                description="Add your first recurring software or service to start tracking renewals."
+                action={
+                  canManage ? (
+                    <Button onClick={openCreate}>
+                      <Plus className="mr-2 h-4 w-4" /> New Subscription
+                    </Button>
+                  ) : undefined
                 }
               />
-            </div>
-
-            <CardContent className="p-0">
-              {loading ? (
-                <TableSkeleton rows={6} cols={7} />
-              ) : error ? (
-                <ErrorState message={error} onRetry={fetchSubs} />
-              ) : filtered.length === 0 ? (
-                <EmptyState
-                  illustration="coin"
-                  title="No subscriptions yet"
-                  description="Add your first recurring software or service to start tracking renewals."
-                  action={
-                    canManage ? (
-                      <Button onClick={openCreate}>
-                        <Plus className="mr-2 h-4 w-4" /> New Subscription
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              ) : (
-                <>
-                  {/* Desktop table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Cycle</TableHead>
-                          <TableHead>Priority</TableHead>
-                          <TableHead>Decision</TableHead>
-                          <TableHead>Payment Method</TableHead>
-                          <TableHead>Next Renewal</TableHead>
-                          <TableHead>Days</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pagination.slice.map((s) => (
-                          <TableRow key={s.id} className="kd-transition">
-                            <TableCell>
-                              <p className="font-medium">{s.name}</p>
-                              {s.vendor && (
-                                <p className="text-xs text-muted-foreground">{s.vendor}</p>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right currency font-medium tabular-nums">
-                              {amountDisplay(s)}
-                            </TableCell>
-                            <TableCell className="capitalize text-sm">{s.billing_cycle}</TableCell>
-                            <TableCell>{priorityBadge(s.priority)}</TableCell>
-                            <TableCell>{decisionBadge(s.decision)}</TableCell>
-                            <TableCell>
-                              <span className="text-xs text-muted-foreground">{s.payment_method || '--'}</span>
-                            </TableCell>
-                            <TableCell className="text-sm">{formatDate(s.next_renewal_date)}</TableCell>
-                            <TableCell>{renewalBadge(s)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                {s.status === 'active' ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={!canManage || renewingId === s.id}
-                                      onClick={() => markRenewed(s)}
-                                    >
-                                      {renewingId === s.id ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                      ) : (
-                                        'Mark renewed'
-                                      )}
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={!canManage}
-                                      onClick={() => openEdit(s)}
-                                      title="Edit"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          disabled={!canManage}
-                                          onClick={() => pauseSub(s)}
-                                          title="Pause"
-                                        >
-                                          <span className="text-xs">||</span>
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>Pause subscription</TooltipContent>
-                                    </Tooltip>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={!canManage}
-                                      onClick={() => cancelSub(s)}
-                                      title="Cancel"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </>
-                                ) : s.status === 'paused' ? (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={!canManage}
-                                      onClick={() => reactivate(s)}
-                                    >
-                                      Reactivate
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={!canManage}
-                                      onClick={() => openEdit(s)}
-                                      title="Edit"
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={!canManage}
-                                      onClick={() => cancelSub(s)}
-                                      title="Cancel"
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={!canManage}
-                                      onClick={() => reactivate(s)}
-                                    >
-                                      Reactivate
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      disabled={!canManage}
-                                      onClick={() => setPendingDelete(s)}
-                                      title="Delete permanently"
-                                      aria-label={`Delete subscription ${s.name}`}
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  {/* Mobile card view */}
-                  <div className="md:hidden space-y-2 p-1">
-                    {pagination.slice.map((s) => (
-                      <MobileCard key={s.id}>
-                        <MobileCardHeader>
-                          <MobileCardTitle>
-                            {s.name}
-                            {s.vendor && (
-                              <span className="block text-xs font-normal text-muted-foreground truncate">{s.vendor}</span>
-                            )}
-                          </MobileCardTitle>
-                          <MobileCardMeta className="currency">
-                            {s.currency === 'USD' && s.amount_usd != null
-                              ? formatUsd(s.amount_usd)
-                              : formatNaira(s.amount_ngn)}
-                            {s.currency === 'USD' && s.amount_usd != null && fxRate && (
-                              <span className="block text-[10px] text-muted-foreground">{formatNaira(s.amount_usd * fxRate)}</span>
-                            )}
-                          </MobileCardMeta>
-                        </MobileCardHeader>
-                        <MobileCardRow label="Cycle">
-                          <span className="capitalize">{s.billing_cycle}</span>
-                        </MobileCardRow>
-                        <MobileCardRow label="Priority">{priorityBadge(s.priority)}</MobileCardRow>
-                        <MobileCardRow label="Decision">{decisionBadge(s.decision)}</MobileCardRow>
-                        <MobileCardRow label="Payment">{s.payment_method || '--'}</MobileCardRow>
-                        <MobileCardRow label="Next renewal">{formatDate(s.next_renewal_date)}</MobileCardRow>
-                        <MobileCardRow label="Status">{renewalBadge(s)}</MobileCardRow>
-                        <MobileCardFooter>
-                          <div className="flex gap-1 flex-wrap">
-                            {s.status === 'active' ? (
-                              <>
-                                <Button size="sm" variant="outline" disabled={!canManage || renewingId === s.id} onClick={() => markRenewed(s)}>
-                                  {renewingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Renewed'}
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => openEdit(s)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => pauseSub(s)}>
-                                  <span className="text-xs">||</span>
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => cancelSub(s)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
-                            ) : s.status === 'paused' ? (
-                              <>
-                                <Button size="sm" variant="outline" disabled={!canManage} onClick={() => reactivate(s)}>
-                                  Reactivate
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => openEdit(s)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => cancelSub(s)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button size="sm" variant="outline" disabled={!canManage} onClick={() => reactivate(s)}>
-                                  Reactivate
-                                </Button>
-                                <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => setPendingDelete(s)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </MobileCardFooter>
-                      </MobileCard>
-                    ))}
-                  </div>
-
-                  <Pagination
-                    page={pagination.page}
-                    totalPages={pagination.totalPages}
-                    totalItems={pagination.totalItems}
-                    pageSize={pagination.pageSize}
-                    onPrev={pagination.prev}
-                    onNext={pagination.next}
-                    hasPrev={pagination.hasPrev}
-                    hasNext={pagination.hasNext}
-                  />
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ════════════ Payment Tracker tab ════════════ */}
-        <TabsContent value="payments" className="space-y-4 mt-4">
-          <Card className="rounded-xl">
-            <div className="p-3 sm:p-4 border-b border-border/50 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Monthly Payment Tracker</h3>
-                <p className="text-xs text-muted-foreground">Click a cell to cycle status: paid &rarr; skipped &rarr; pending</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={fetchPayments} disabled={loadingPayments}>
-                {loadingPayments ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
-              </Button>
-            </div>
-            <CardContent className="p-0">
-              {loadingPayments ? (
-                <TableSkeleton rows={6} cols={7} />
-              ) : paymentGrid.subs.length === 0 ? (
-                <EmptyState
-                  illustration="coin"
-                  title="No active monthly subscriptions"
-                  description="Payment tracking is available for active monthly subscriptions."
-                />
-              ) : (
-                <div className="overflow-x-auto">
+            ) : (
+              <>
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="sticky left-0 bg-card z-10 min-w-[180px]">Subscription</TableHead>
-                        {paymentGrid.months.map((m) => (
-                          <TableHead key={m} className="text-center min-w-[90px] text-xs">
-                            {monthLabel(m + '-01')}
-                          </TableHead>
-                        ))}
+                        <TableHead>Name</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Cycle</TableHead>
+                        <TableHead>Priority</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Next Renewal</TableHead>
+                        <TableHead>Days</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paymentGrid.subs.map((sub) => (
-                        <TableRow key={sub.id}>
-                          <TableCell className="sticky left-0 bg-card z-10">
-                            <p className="font-medium text-sm">{sub.name}</p>
-                            {sub.vendor && (
-                              <p className="text-[10px] text-muted-foreground">{sub.vendor}</p>
+                      {pagination.slice.map((s) => (
+                        <TableRow key={s.id} className="kd-transition">
+                          <TableCell>
+                            <p className="font-medium">{s.name}</p>
+                            {s.vendor && (
+                              <p className="text-xs text-muted-foreground">{s.vendor}</p>
                             )}
                           </TableCell>
-                          {paymentGrid.months.map((m) => {
-                            const key = `${sub.id}|${m}`;
-                            const payment = paymentGrid.payMap.get(key);
-                            const isToggling = togglingPayment === key;
-                            return (
-                              <TableCell key={m} className="text-center">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="inline-flex items-center justify-center"
-                                      disabled={!canManage || isToggling}
-                                      onClick={() => togglePaymentStatus(sub.id, m, payment)}
-                                    >
-                                      {isToggling ? (
-                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                      ) : (
-                                        <span
-                                          className={`inline-block h-3 w-3 rounded-full ${paymentStatusDot(payment?.status)} transition-colors`}
-                                        />
-                                      )}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    {paymentStatusLabel(payment?.status)}
-                                    {payment?.paid_at && ` - ${formatDate(payment.paid_at)}`}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TableCell>
-                            );
-                          })}
+                          <TableCell className="text-right currency font-medium tabular-nums">
+                            {amountDisplay(s)}
+                          </TableCell>
+                          <TableCell className="capitalize text-sm">{s.billing_cycle}</TableCell>
+                          <TableCell>{priorityBadge(s.priority)}</TableCell>
+                          <TableCell>
+                            <span className="text-xs text-muted-foreground">{s.payment_method || '--'}</span>
+                          </TableCell>
+                          <TableCell className="text-sm">{formatDate(s.next_renewal_date)}</TableCell>
+                          <TableCell>{renewalBadge(s)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openDetail(s)}
+                                    title="View details"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>View details</TooltipContent>
+                              </Tooltip>
+                              {s.status === 'active' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!canManage || renewingId === s.id}
+                                    onClick={() => markRenewed(s)}
+                                  >
+                                    {renewingId === s.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      'Mark renewed'
+                                    )}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canManage}
+                                    onClick={() => openEdit(s)}
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        disabled={!canManage}
+                                        onClick={() => pauseSub(s)}
+                                        title="Pause"
+                                      >
+                                        <span className="text-xs">||</span>
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Pause subscription</TooltipContent>
+                                  </Tooltip>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canManage}
+                                    onClick={() => cancelSub(s)}
+                                    title="Cancel"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              ) : s.status === 'paused' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!canManage}
+                                    onClick={() => reactivate(s)}
+                                  >
+                                    Reactivate
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canManage}
+                                    onClick={() => openEdit(s)}
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canManage}
+                                    onClick={() => cancelSub(s)}
+                                    title="Cancel"
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!canManage}
+                                    onClick={() => reactivate(s)}
+                                  >
+                                    Reactivate
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={!canManage}
+                                    onClick={() => setPendingDelete(s)}
+                                    title="Delete permanently"
+                                    aria-label={`Delete subscription ${s.name}`}
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
+                </div>
 
-                  {/* Legend */}
-                  <div className="flex items-center gap-4 px-4 py-2 border-t border-border/50 text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> Paid</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-amber-400" /> Pending</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-destructive" /> Overdue</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-slate-400" /> Skipped</span>
-                    <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-border" /> No record</span>
-                  </div>
+                {/* Mobile card view */}
+                <div className="md:hidden space-y-2 p-1">
+                  {pagination.slice.map((s) => (
+                    <MobileCard key={s.id} onClick={() => openDetail(s)} className="cursor-pointer">
+                      <MobileCardHeader>
+                        <MobileCardTitle>
+                          {s.name}
+                          {s.vendor && (
+                            <span className="block text-xs font-normal text-muted-foreground truncate">{s.vendor}</span>
+                          )}
+                        </MobileCardTitle>
+                        <MobileCardMeta className="currency">
+                          {s.currency === 'USD' && s.amount_usd != null
+                            ? formatUsd(s.amount_usd)
+                            : formatNaira(s.amount_ngn)}
+                          {s.currency === 'USD' && s.amount_usd != null && fxRate && (
+                            <span className="block text-[10px] text-muted-foreground">{formatNaira(s.amount_usd * fxRate)}</span>
+                          )}
+                        </MobileCardMeta>
+                      </MobileCardHeader>
+                      <MobileCardRow label="Cycle">
+                        <span className="capitalize">{s.billing_cycle}</span>
+                      </MobileCardRow>
+                      <MobileCardRow label="Priority">{priorityBadge(s.priority)}</MobileCardRow>
+                      <MobileCardRow label="Payment">{s.payment_method || '--'}</MobileCardRow>
+                      <MobileCardRow label="Next renewal">{formatDate(s.next_renewal_date)}</MobileCardRow>
+                      <MobileCardRow label="Status">{renewalBadge(s)}</MobileCardRow>
+                      <MobileCardFooter>
+                        <div className="flex gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                          {s.status === 'active' ? (
+                            <>
+                              <Button size="sm" variant="outline" disabled={!canManage || renewingId === s.id} onClick={() => markRenewed(s)}>
+                                {renewingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Renewed'}
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => openEdit(s)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => pauseSub(s)}>
+                                <span className="text-xs">||</span>
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => cancelSub(s)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : s.status === 'paused' ? (
+                            <>
+                              <Button size="sm" variant="outline" disabled={!canManage} onClick={() => reactivate(s)}>
+                                Reactivate
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => openEdit(s)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => cancelSub(s)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" disabled={!canManage} onClick={() => reactivate(s)}>
+                                Reactivate
+                              </Button>
+                              <Button size="sm" variant="ghost" disabled={!canManage} onClick={() => setPendingDelete(s)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </MobileCardFooter>
+                    </MobileCard>
+                  ))}
+                </div>
+
+                <Pagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.totalItems}
+                  pageSize={pagination.pageSize}
+                  onPrev={pagination.prev}
+                  onNext={pagination.next}
+                  hasPrev={pagination.hasPrev}
+                  hasNext={pagination.hasNext}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ════════════ Detail dialog ════════════ */}
+      <Dialog open={!!detailSub} onOpenChange={(v) => { if (!v) { setDetailSub(null); setDetailPayments([]); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{detailSub?.name}</DialogTitle>
+            <DialogDescription>
+              Subscription detail and payment history
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailSub && (
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              {/* Summary bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span className="text-xs text-muted-foreground">Vendor</span>
+                  <p className="font-medium">{detailSub.vendor || '--'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Category</span>
+                  <p className="font-medium capitalize">{detailSub.category}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Billing Cycle</span>
+                  <p className="font-medium capitalize">{detailSub.billing_cycle}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Amount</span>
+                  <div className="font-medium">{amountDisplay(detailSub)}</div>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Payment Method</span>
+                  <p className="font-medium">{detailSub.payment_method || '--'}</p>
+                </div>
+                <div>
+                  <span className="text-xs text-muted-foreground">Priority</span>
+                  <div>{priorityBadge(detailSub.priority)}</div>
+                </div>
+              </div>
+
+              {/* FX rate indicator for USD subs */}
+              {detailSub.currency === 'USD' && fxRate && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-3 py-1.5">
+                  <DollarSign className="h-3 w-3" />
+                  <span>FX Rate: $1 = {formatNaira(fxRate)}</span>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+              {/* Payment history */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2">Payment History</h4>
+                {loadingDetail ? (
+                  <TableSkeleton rows={4} cols={6} />
+                ) : detailPayments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No payment records yet.</p>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Period</TableHead>
+                            <TableHead className="text-right">Amount NGN</TableHead>
+                            <TableHead className="text-right">Amount USD</TableHead>
+                            <TableHead className="text-right">FX Rate</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Payment Method</TableHead>
+                            <TableHead>Paid At</TableHead>
+                            {canManage && <TableHead className="text-right">Actions</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {detailPayments.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="text-sm">{monthLabel(p.month)}</TableCell>
+                              <TableCell className="text-right text-sm tabular-nums">
+                                {p.amount_ngn != null ? formatNaira(p.amount_ngn) : '--'}
+                              </TableCell>
+                              <TableCell className="text-right text-sm tabular-nums">
+                                {p.amount_usd != null ? formatUsd(p.amount_usd) : '--'}
+                              </TableCell>
+                              <TableCell className="text-right text-sm tabular-nums">
+                                {p.fx_rate_used != null ? p.fx_rate_used.toLocaleString() : '--'}
+                              </TableCell>
+                              <TableCell>{paymentStatusBadge(p.status)}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {p.payment_method || '--'}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {p.paid_at ? formatDate(p.paid_at) : '--'}
+                              </TableCell>
+                              {canManage && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    {p.status !== 'paid' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-xs h-7 px-2"
+                                        onClick={() => toggleDetailPaymentStatus(p, 'paid')}
+                                      >
+                                        Mark Paid
+                                      </Button>
+                                    )}
+                                    {p.status !== 'pending' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-xs h-7 px-2"
+                                        onClick={() => toggleDetailPaymentStatus(p, 'pending')}
+                                      >
+                                        Mark Pending
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Summary line */}
+                    {detailPaymentSummary && (
+                      <div className="flex flex-wrap items-center gap-3 px-2 py-2 border-t border-border/50 text-xs text-muted-foreground">
+                        <span>{detailPaymentSummary.total} period{detailPaymentSummary.total !== 1 ? 's' : ''}</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-emerald-500" /> {detailPaymentSummary.paid} paid</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-amber-400" /> {detailPaymentSummary.pending} pending</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-destructive" /> {detailPaymentSummary.overdue} overdue</span>
+                        <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-slate-400" /> {detailPaymentSummary.skipped} skipped</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ════════════ Create / Edit dialog ════════════ */}
       <Dialog open={dialog} onOpenChange={setDialog}>
@@ -1360,7 +1325,7 @@ const Subscriptions = () => {
               {editing ? 'Edit Subscription' : 'New Subscription'}
             </DialogTitle>
             <DialogDescription>
-              Recurring software or service — KDOps will remind you 7, 3, and 1 day before
+              Recurring software or service -- KDOps will remind you 7, 3, and 1 day before
               the renewal date.
             </DialogDescription>
           </DialogHeader>
@@ -1460,7 +1425,7 @@ const Subscriptions = () => {
             </div>
 
             {/* New fields row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <Label>Billing day</Label>
                 <Input
@@ -1483,8 +1448,8 @@ const Subscriptions = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">None</SelectItem>
-                    {PAYMENT_METHODS.map((m) => (
-                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    {cards.map((c) => (
+                      <SelectItem key={c.id} value={c.card_name}>{cardLabel(c)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1503,23 +1468,6 @@ const Subscriptions = () => {
                     <SelectItem value="high">High</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Decision</Label>
-                <Select
-                  value={form.decision}
-                  onValueChange={(v) => setForm({ ...form, decision: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    <SelectItem value="keep">Keep</SelectItem>
-                    <SelectItem value="kill">Kill</SelectItem>
-                    <SelectItem value="undecided">Undecided</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
