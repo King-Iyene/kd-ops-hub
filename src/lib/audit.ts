@@ -152,6 +152,7 @@ export type AuditActionType =
   | 'ewa_approved'
   | 'ewa_rejected'
   | 'expense_payment_batched'
+  | 'expense_reopened'
   | 'fleet_vehicle_added'
   | 'fleet_vehicle_updated'
   | 'fleet_vehicle_deactivated'

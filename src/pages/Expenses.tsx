@@ -26,6 +26,8 @@ import {
   Info,
   Trash2,
   RefreshCw,
+  RotateCcw,
+  BanknoteIcon,
 } from 'lucide-react';
 import { InfoHint } from '@/components/ui-kit/InfoHint';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -758,6 +760,40 @@ const Expenses = () => {
     fetchData();
   };
 
+  const doReopen = async (e: Expense) => {
+    if (!isApprover) return;
+    const ok = await confirm(
+      'Reopen this expense? It will go back to pending for re-review.',
+    );
+    if (!ok) return;
+    const { error } = await supabase
+      .from('expenses')
+      .update({ status: 'pending', approved_by: null, approved_at: null, approved_by_secondary: null, payment_status: null })
+      .eq('id', e.id);
+    if (error) {
+      toast({ title: 'Reopen failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await logAudit(
+      'expense_reopened',
+      `Expense reopened: ${e.category.replace(/_/g, ' ')} — ${formatNaira(e.amount_ngn || 0)}`,
+      profile,
+    );
+    if (e.submitted_by) {
+      await notifyUser(e.submitted_by, {
+        type: 'expense_reopened',
+        module: 'expenses',
+        title: 'Expense reopened',
+        body: `Your ${e.category.replace(/_/g, ' ')} expense (${formatNaira(e.amount_ngn || 0)}) has been reopened for re-review.`,
+      });
+    }
+    toast({ title: 'Expense reopened' });
+    fetchData();
+  };
+
+  const missingBankDetails = (e: Expense) =>
+    e.status === 'approved' && (!e.account_number || !e.bank_name || !e.account_name);
+
   /**
    * Clone a rejected expense as a new pending row so the submitter can tweak
    * and resubmit. The old row is preserved for audit.
@@ -847,6 +883,11 @@ const Expenses = () => {
           (e.payment_status === 'pending' || e.payment_status == null) &&
           !!e.account_number && !!e.bank_name && !!e.account_name,
       ),
+    [expenses],
+  );
+
+  const unpayableApproved = useMemo(
+    () => expenses.filter((e) => e.status === 'approved' && (!e.account_number || !e.bank_name || !e.account_name)),
     [expenses],
   );
 
@@ -1232,6 +1273,20 @@ const Expenses = () => {
         </Card>
       )}
 
+      {isApprover && unpayableApproved.length > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-orange-300 dark:border-orange-500/40 bg-orange-50 dark:bg-orange-950/20 px-4 py-3">
+          <BanknoteIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-orange-800 dark:text-orange-300">
+              {unpayableApproved.length} approved expense{unpayableApproved.length > 1 ? 's' : ''} can't be paid
+            </p>
+            <p className="text-orange-700/80 dark:text-orange-400/70 mt-0.5">
+              Bank details are missing. Reopen them so employees can add their bank information, or contact them directly.
+            </p>
+          </div>
+        </div>
+      )}
+
       <Card>
         <div className="p-3 sm:p-4 border-b flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
@@ -1441,7 +1496,14 @@ const Expenses = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {e.status === 'approved' && paymentBadge(e.payment_status)}
+                        <div className="flex flex-col gap-0.5">
+                          {e.status === 'approved' && paymentBadge(e.payment_status)}
+                          {missingBankDetails(e) && (
+                            <Badge variant="outline" className="gap-1 border-orange-400 text-orange-700 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-500/30 text-[10px]">
+                              <BanknoteIcon className="h-3 w-3" /> No bank details
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       {isApprover && (
                         <TableCell className="text-right" onClick={(evt) => evt.stopPropagation()}>
@@ -1536,6 +1598,16 @@ const Expenses = () => {
                                 <Loader2 className="h-3 w-3 animate-spin" /> Processing
                               </span>
                             )}
+                            {e.status === 'approved' && !e.payment_reference && (e.payment_status === 'pending' || e.payment_status == null) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Reopen — send back to pending"
+                                onClick={() => doReopen(e)}
+                              >
+                                <RotateCcw className="h-4 w-4 text-amber-600" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       )}
@@ -1612,8 +1684,14 @@ const Expenses = () => {
                           {submitterName(e)}
                         </MobileCardRow>
                       )}
+                      {missingBankDetails(e) && (
+                        <div className="flex items-start gap-1.5 rounded-md border border-orange-300 bg-orange-50 dark:bg-orange-950/20 px-2.5 py-1.5 text-xs text-orange-800 dark:text-orange-400">
+                          <BanknoteIcon className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span>Bank details missing — this expense can't be paid until added.</span>
+                        </div>
+                      )}
                       <MobileCardRow label="Status">
-                        <span className="inline-flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 flex-wrap">
                           <StatusBadge status={e.status} />
                           {isApproved && paymentBadge(e.payment_status)}
                           {e.is_anomaly && (
@@ -1657,7 +1735,7 @@ const Expenses = () => {
                         </MobileCardRow>
                       )}
 
-                      {isApprover && (isPending || isPendingSecond || (isRejected && isApprover) || canProcessPayment(e) || canRetryPayment(e)) && (
+                      {isApprover && (isPending || isPendingSecond || (isRejected && isApprover) || isApproved || canProcessPayment(e) || canRetryPayment(e)) && (
                         <MobileCardFooter>
                           {isPending && (
                             <>
@@ -1726,6 +1804,16 @@ const Expenses = () => {
                             <span className="text-xs text-muted-foreground inline-flex items-center gap-1 w-full justify-center py-2">
                               <Loader2 className="h-3 w-3 animate-spin" /> Processing
                             </span>
+                          )}
+                          {isApproved && !e.payment_reference && (e.payment_status === 'pending' || e.payment_status == null) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 h-9 border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                              onClick={(evt) => { evt.stopPropagation(); doReopen(e); }}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1.5" /> Reopen
+                            </Button>
                           )}
                           {isRejected && e.submitted_by === profile?.id && (
                             <Button
@@ -1993,20 +2081,25 @@ const Expenses = () => {
 
             <div className="pt-2 border-t">
               {!showBankSection ? (
-                <button
-                  type="button"
-                  className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+                <div
+                  className="flex items-start gap-2 rounded-md border-2 border-dashed border-orange-300 dark:border-orange-500/40 bg-orange-50/50 dark:bg-orange-950/10 p-3 cursor-pointer hover:border-orange-400 transition-colors"
                   onClick={() => setShowBankSection(true)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') setShowBankSection(true); }}
                 >
-                  <CreditCard className="h-3.5 w-3.5" />
-                  Add bank account for reimbursement (optional)
-                </button>
+                  <BanknoteIcon className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-orange-800 dark:text-orange-300">Add bank details for payment</p>
+                    <p className="text-xs text-orange-600/80 dark:text-orange-400/70 mt-0.5">Without bank details, approved expenses can't be paid out. Add your bank name, account number, and account name.</p>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      Bank account for reimbursement{' '}
-                      <span className="text-muted-foreground font-normal">(optional)</span>
+                    <span className="text-sm font-medium inline-flex items-center gap-1.5">
+                      <BanknoteIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      Bank account for payment
                     </span>
                     <button
                       type="button"
@@ -2109,7 +2202,21 @@ const Expenses = () => {
             <Receipt className="h-4 w-4" /> Expense Detail
           </span>
         }
-        footer={<Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>}
+        footer={
+          <div className="flex items-center gap-2 w-full">
+            {detailExpense && isApprover && detailExpense.status === 'approved' && !detailExpense.payment_reference && (detailExpense.payment_status === 'pending' || detailExpense.payment_status == null) && (
+              <Button
+                variant="outline"
+                className="border-amber-400 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                onClick={() => { setDetailExpense(null); if (detailExpense) doReopen(detailExpense); }}
+              >
+                <RotateCcw className="h-4 w-4 mr-1.5" /> Reopen
+              </Button>
+            )}
+            <div className="flex-1" />
+            <Button variant="outline" onClick={() => setDetailExpense(null)}>Close</Button>
+          </div>
+        }
       >
           {detailExpense && (
             <div className="space-y-4 text-sm">
@@ -2221,6 +2328,15 @@ const Expenses = () => {
                   {detailExpense.account_name && (
                     <p><span className="text-muted-foreground">Name: </span>{detailExpense.account_name}</p>
                   )}
+                </div>
+              )}
+              {missingBankDetails(detailExpense) && (
+                <div className="flex items-start gap-2 rounded-md border border-orange-400 bg-orange-50 dark:bg-orange-950/20 px-3 py-2.5 text-xs text-orange-800 dark:text-orange-400">
+                  <BanknoteIcon className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">Bank details missing</p>
+                    <p className="mt-0.5">This expense is approved but can't be paid until the employee adds their bank account, name, and number. Reopen the expense so they can update it, or contact them directly.</p>
+                  </div>
                 </div>
               )}
             </div>
