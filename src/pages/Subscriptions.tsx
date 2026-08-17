@@ -1178,7 +1178,7 @@ const Subscriptions = () => {
 
       {/* ════════════ Detail dialog ════════════ */}
       <Dialog open={!!detailSub} onOpenChange={(v) => { if (!v) { setDetailSub(null); setDetailPayments([]); } }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{detailSub?.name}</DialogTitle>
             <DialogDescription>
@@ -1250,7 +1250,7 @@ const Subscriptions = () => {
                         <TableBody>
                           {detailPayments.map((p) => (
                             <TableRow key={p.id}>
-                              <TableCell className="text-sm">{monthLabel(p.month)}</TableCell>
+                              <TableCell className="text-sm whitespace-nowrap">{monthLabel(p.month)}</TableCell>
                               <TableCell className="text-right text-sm tabular-nums">
                                 {p.amount_ngn != null ? formatNaira(p.amount_ngn) : '--'}
                               </TableCell>
@@ -1264,8 +1264,8 @@ const Subscriptions = () => {
                               <TableCell className="text-xs text-muted-foreground">
                                 {p.payment_method || '--'}
                               </TableCell>
-                              <TableCell className="text-xs text-muted-foreground">
-                                {p.paid_at ? formatDate(p.paid_at) : '--'}
+                              <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                {p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '--'}
                               </TableCell>
                               {canManage && (
                                 <TableCell className="text-right">
