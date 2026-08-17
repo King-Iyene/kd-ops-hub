@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS public.employee_dependents (
 CREATE INDEX IF NOT EXISTS employee_dependents_employee_idx
   ON public.employee_dependents (employee_id);
 
+DROP TRIGGER IF EXISTS set_updated_at ON public.employee_dependents;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.employee_dependents
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 

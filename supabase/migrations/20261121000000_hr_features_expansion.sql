@@ -21,7 +21,10 @@ create table if not exists hr_letters (
   updated_at timestamptz default now()
 );
 alter table hr_letters enable row level security;
-create policy "hr_letters_auth" on hr_letters for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "hr_letters_auth" on hr_letters for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 2. Employee Surveys / Pulse Checks
 create table if not exists surveys (
@@ -37,7 +40,10 @@ create table if not exists surveys (
   created_at timestamptz default now()
 );
 alter table surveys enable row level security;
-create policy "surveys_auth" on surveys for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "surveys_auth" on surveys for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists survey_questions (
   id uuid primary key default gen_random_uuid(),
@@ -49,7 +55,10 @@ create table if not exists survey_questions (
   is_required boolean default true
 );
 alter table survey_questions enable row level security;
-create policy "survey_questions_auth" on survey_questions for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "survey_questions_auth" on survey_questions for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists survey_responses (
   id uuid primary key default gen_random_uuid(),
@@ -61,7 +70,10 @@ create table if not exists survey_responses (
   submitted_at timestamptz default now()
 );
 alter table survey_responses enable row level security;
-create policy "survey_responses_auth" on survey_responses for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "survey_responses_auth" on survey_responses for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 3. Grievance / Whistleblowing
 create table if not exists grievances (
@@ -83,7 +95,10 @@ create table if not exists grievances (
   updated_at timestamptz default now()
 );
 alter table grievances enable row level security;
-create policy "grievances_auth" on grievances for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "grievances_auth" on grievances for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 4. Staff Loans
 create table if not exists staff_loans (
@@ -109,7 +124,10 @@ create table if not exists staff_loans (
   updated_at timestamptz default now()
 );
 alter table staff_loans enable row level security;
-create policy "staff_loans_auth" on staff_loans for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "staff_loans_auth" on staff_loans for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists staff_loan_repayments (
   id uuid primary key default gen_random_uuid(),
@@ -122,7 +140,10 @@ create table if not exists staff_loan_repayments (
   created_at timestamptz default now()
 );
 alter table staff_loan_repayments enable row level security;
-create policy "staff_loan_repayments_auth" on staff_loan_repayments for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "staff_loan_repayments_auth" on staff_loan_repayments for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 5. Shifts / Roster Scheduling
 create table if not exists shift_definitions (
@@ -136,7 +157,10 @@ create table if not exists shift_definitions (
   created_at timestamptz default now()
 );
 alter table shift_definitions enable row level security;
-create policy "shift_definitions_auth" on shift_definitions for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "shift_definitions_auth" on shift_definitions for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists shift_assignments (
   id uuid primary key default gen_random_uuid(),
@@ -150,7 +174,10 @@ create table if not exists shift_assignments (
   unique(employee_id, work_date)
 );
 alter table shift_assignments enable row level security;
-create policy "shift_assignments_auth" on shift_assignments for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "shift_assignments_auth" on shift_assignments for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 6. Succession Planning
 create table if not exists succession_plans (
@@ -167,7 +194,10 @@ create table if not exists succession_plans (
   updated_at timestamptz default now()
 );
 alter table succession_plans enable row level security;
-create policy "succession_plans_auth" on succession_plans for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "succession_plans_auth" on succession_plans for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists succession_candidates (
   id uuid primary key default gen_random_uuid(),
@@ -179,7 +209,10 @@ create table if not exists succession_candidates (
   created_at timestamptz default now()
 );
 alter table succession_candidates enable row level security;
-create policy "succession_candidates_auth" on succession_candidates for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "succession_candidates_auth" on succession_candidates for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 7. Employee Handbook / Policy Acknowledgment
 create table if not exists handbook_policies (
@@ -199,7 +232,10 @@ create table if not exists handbook_policies (
   updated_at timestamptz default now()
 );
 alter table handbook_policies enable row level security;
-create policy "handbook_policies_auth" on handbook_policies for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "handbook_policies_auth" on handbook_policies for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists policy_acknowledgments (
   id uuid primary key default gen_random_uuid(),
@@ -210,7 +246,10 @@ create table if not exists policy_acknowledgments (
   unique(policy_id, employee_id, policy_version)
 );
 alter table policy_acknowledgments enable row level security;
-create policy "policy_acknowledgments_auth" on policy_acknowledgments for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "policy_acknowledgments_auth" on policy_acknowledgments for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- 8. Timesheets
 create table if not exists timesheets (
@@ -228,7 +267,10 @@ create table if not exists timesheets (
   unique(employee_id, week_start)
 );
 alter table timesheets enable row level security;
-create policy "timesheets_auth" on timesheets for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "timesheets_auth" on timesheets for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 create table if not exists timesheet_entries (
   id uuid primary key default gen_random_uuid(),
@@ -241,4 +283,7 @@ create table if not exists timesheet_entries (
   created_at timestamptz default now()
 );
 alter table timesheet_entries enable row level security;
-create policy "timesheet_entries_auth" on timesheet_entries for all using (auth.role() = 'authenticated');
+DO $$ BEGIN
+  create policy "timesheet_entries_auth" on timesheet_entries for all using (auth.role() = 'authenticated');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
