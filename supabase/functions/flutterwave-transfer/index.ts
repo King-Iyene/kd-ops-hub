@@ -34,7 +34,6 @@
 //   matching secret set (FLUTTERWAVE_SECRET_KEY_{TEST,LIVE}). Cached per
 //   invocation so we don't hit the DB more than once per request.
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
@@ -239,7 +238,7 @@ async function flutterwaveFetch(
   throw err;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

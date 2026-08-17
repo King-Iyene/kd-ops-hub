@@ -20,7 +20,6 @@
 // ALERT 2 — Budget 100% exhausted (dedup: once per vehicle per week)
 // ALERT 3 — Fuel level at or below 25% (dedup: once per vehicle per 24 h)
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
@@ -373,7 +372,7 @@ async function handleMaintenanceCheck(db: SupabaseClient): Promise<number> {
 
 // ── entry point ──────────────────────────────────────────────────────────────
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

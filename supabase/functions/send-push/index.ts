@@ -22,7 +22,6 @@
 //     tag?:         string,         // de-dupe key for the OS notification stack
 //   }
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Use the `npm:` specifier instead of esm.sh: web-push depends on Node's
 // native crypto/http modules and the esm.sh polyfill build has historically
@@ -55,7 +54,7 @@ interface PushBody {
   tag?: string;
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const headers = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers });
 

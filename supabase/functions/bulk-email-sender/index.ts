@@ -21,7 +21,6 @@
 // Deploy:
 //   supabase functions deploy bulk-email-sender --no-verify-jwt
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
@@ -70,7 +69,7 @@ ${preheader ? `<div style="display:none;font-size:1px;line-height:1px;color:#f6f
 const THROTTLE_MS = 110;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

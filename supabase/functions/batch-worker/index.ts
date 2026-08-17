@@ -32,9 +32,8 @@
 //   - paystack_reference is set ONLY after Paystack accepts the transfer,
 //     so partial failures still have the row visible to the next pass.
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
+import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config
@@ -986,7 +985,7 @@ async function workOrphans(svc: SupabaseClient) {
 // ──────────────────────────────────────────────────────────────────────────
 // HTTP entry point
 // ──────────────────────────────────────────────────────────────────────────
-serve(async (req) => {
+Deno.serve(async (req) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });

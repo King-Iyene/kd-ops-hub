@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { formatNaira, formatDate } from '@/lib/format';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { renderTemplate } from '@/lib/mustache-lite';
 import { signAndStore, tryGetGeo } from '@/lib/e-sign';
 import { Button } from '@/components/ui/button';
@@ -275,7 +276,7 @@ ${renderedHtml}
         <div className="border rounded-md overflow-auto max-h-[420px] p-6 bg-white text-slate-900">
           <div
             className="prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderedHtml) }}
           />
         </div>
 

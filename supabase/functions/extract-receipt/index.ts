@@ -16,7 +16,6 @@
 // Response: { ok, amount_ngn, date, vendor, litres, receipt_type,
 //             currency, line_items, confidence, raw_text }
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 let corsHeaders: Record<string, string> = {};
@@ -213,7 +212,7 @@ function extractLineItems(entities: DocAiEntity[]): LineItem[] {
 // Main handler
 // ---------------------------------------------------------------------------
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

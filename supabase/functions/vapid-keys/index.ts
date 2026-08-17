@@ -12,9 +12,8 @@
 //   action: "status"   — any authenticated user. Returns whether the
 //                        platform has VAPID keys configured (boolean).
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { encode as b64encode } from "https://deno.land/std@0.177.0/encoding/base64url.ts";
+import { encode as b64encode } from "https://deno.land/std@0.224.0/encoding/base64url.ts";
 
 const ALLOWED_ORIGINS = [
   "https://ops.kdsquares.com",
@@ -49,7 +48,7 @@ async function generateVapidKeys(): Promise<{ publicKey: string; privateKey: str
   };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const headers = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers });
 

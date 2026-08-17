@@ -18,7 +18,6 @@
 //                     confirmation: string        -- must equal to_provider.toUpperCase()
 //                                                    OR (for mode switch) to_mode.toUpperCase() }
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
@@ -114,7 +113,7 @@ async function probePaystackWith(secret: string): Promise<{ ok: boolean; balance
   }
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const cors = corsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });

@@ -16,7 +16,6 @@
 //   supabase secrets set GEMINI_API_KEY=AIza...
 //   supabase secrets set TAVILY_API_KEY=tvly-...
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -198,7 +197,7 @@ async function callGroq(
 }
 
 // ─── Main handler ───────────────────────────────────────────────────────────────────────────
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 

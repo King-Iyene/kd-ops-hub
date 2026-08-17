@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
 import { renderTemplate } from '@/lib/mustache-lite';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -309,7 +310,7 @@ export const OfferLetterTemplatesAdmin = () => {
                   <Label className="text-xs text-muted-foreground">Live preview (sample vars)</Label>
                   <div
                     className="mt-1 border rounded-md p-4 bg-white text-slate-900 max-h-[300px] overflow-auto"
-                    dangerouslySetInnerHTML={{ __html: previewHtml }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(previewHtml) }}
                   />
                 </div>
               )}

@@ -40,6 +40,7 @@ import { supabase } from '@/lib/supabase';
 import { compressImage } from '@/lib/image-compression';
 import { useAuthStore } from '@/store/authStore';
 import { logAudit } from '@/lib/audit';
+import { useConfirm } from '@/hooks/use-confirm';
 import { daysUntil, formatBytes, formatDate, toIsoDate } from '@/lib/format';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -184,6 +185,7 @@ const FOLDER_COLORS = [
 const Documents = () => {
   const { profile } = useAuthStore();
   const { toast } = useToast();
+  const confirm = useConfirm();
   const canManage =
     profile?.role === 'super_admin' || profile?.role === 'admin';
   const canUpload =
@@ -649,7 +651,7 @@ const Documents = () => {
     if (docCount) parts.push(`${docCount} document${docCount !== 1 ? 's' : ''}`);
     if (subCount) parts.push(`${subCount} sub-folder${subCount !== 1 ? 's' : ''}`);
     const warn = parts.length ? ` It contains ${parts.join(' and ')}.` : '';
-    if (!window.confirm(`Delete folder "${folder.name}"?${warn} Documents inside will be moved to the root.`)) return;
+    if (!(await confirm(`Delete folder "${folder.name}"?${warn} Documents inside will be moved to the root.`))) return;
     try {
       if (docCount) {
         await supabase.from('documents').update({ folder: null }).eq('folder', folder.id);

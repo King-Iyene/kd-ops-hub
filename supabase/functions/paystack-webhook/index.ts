@@ -27,10 +27,9 @@
 // transactional RPC returns, so a notification failure doesn't roll back the
 // payment-state update or trigger a Paystack retry.
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { createHmac } from "https://deno.land/std@0.177.0/node/crypto.ts";
-import { timingSafeEqual } from "https://deno.land/std@0.177.0/crypto/timing_safe_equal.ts";
+import { createHmac } from "https://deno.land/std@0.224.0/node/crypto.ts";
+import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -262,7 +261,7 @@ async function sendRecipientPaymentEmail(
 // Main handler
 // ---------------------------------------------------------------------------
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

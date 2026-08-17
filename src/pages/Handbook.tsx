@@ -6,6 +6,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { format, parseISO } from 'date-fns';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { StatCard } from '@/components/ui-kit/StatCard';
@@ -492,7 +493,7 @@ export default function Handbook() {
               </DialogHeader>
               <div
                 className="prose prose-sm dark:prose-invert max-w-none py-4"
-                dangerouslySetInnerHTML={{ __html: viewPolicy.content_html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewPolicy.content_html) }}
               />
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 {viewPolicy.requires_acknowledgment && (
