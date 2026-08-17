@@ -16663,6 +16663,63 @@ export type Database = {
         }
       }
       release_abandoned_intents: { Args: never; Returns: number }
+      reopen_expense: {
+        Args: { p_expense_id: string }
+        Returns: {
+          account_name: string | null
+          account_number: string | null
+          admin_note: string | null
+          amount_ngn: number
+          anomaly_type: string | null
+          approved_at: string | null
+          approved_by: string | null
+          approved_by_secondary: string | null
+          approved_by_secondary_at: string | null
+          bank_name: string | null
+          budget_category: string | null
+          category: string
+          co_approval_required: boolean
+          created_at: string
+          date: string
+          deleted_at: string | null
+          description: string | null
+          fuel_request_id: string | null
+          id: string
+          is_anomaly: boolean
+          is_reimbursement: boolean
+          labour_hours: number | null
+          maintenance_item_id: string | null
+          mileage_km: number | null
+          parts_replaced: string | null
+          payload_hash_at_approval: string | null
+          payment_reference: string | null
+          payment_status: string | null
+          priority: string | null
+          processed_at: string | null
+          processed_by: string | null
+          rate_per_km_ngn: number | null
+          receipt_has_exif: boolean | null
+          receipt_original_sha256: string | null
+          receipt_sha256: string | null
+          receipt_url: string | null
+          rejection_reason: string | null
+          repair_odometer_km: number | null
+          resubmitted_from_id: string | null
+          second_approved_at: string | null
+          second_approver_id: string | null
+          service_type: string | null
+          status: string
+          submitted_by: string
+          vehicle_id: string | null
+          vendor_name: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "expenses"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       request_ewa: {
         Args: { p_amount_ngn: number; p_reason?: string }
         Returns: string
