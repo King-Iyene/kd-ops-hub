@@ -50,6 +50,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS set_subscriptions_updated_at ON public.subscriptions;
 CREATE TRIGGER set_subscriptions_updated_at
   BEFORE UPDATE ON public.subscriptions
   FOR EACH ROW EXECUTE FUNCTION public.set_subscriptions_updated_at();
@@ -82,17 +83,26 @@ CREATE TABLE IF NOT EXISTS public.subscription_payments (
 
 ALTER TABLE public.subscription_payments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Authenticated users can read subscription payments"
-  ON public.subscription_payments FOR SELECT TO authenticated
-  USING (true);
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can read subscription payments"
+    ON public.subscription_payments FOR SELECT TO authenticated
+    USING (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Authenticated users can insert subscription payments"
-  ON public.subscription_payments FOR INSERT TO authenticated
-  WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can insert subscription payments"
+    ON public.subscription_payments FOR INSERT TO authenticated
+    WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Authenticated users can update subscription payments"
-  ON public.subscription_payments FOR UPDATE TO authenticated
-  USING (true) WITH CHECK (true);
+DO $$ BEGIN
+  CREATE POLICY "Authenticated users can update subscription payments"
+    ON public.subscription_payments FOR UPDATE TO authenticated
+    USING (true) WITH CHECK (true);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_sub_payments_sub_id ON public.subscription_payments(subscription_id);
 CREATE INDEX IF NOT EXISTS idx_sub_payments_month ON public.subscription_payments(month);
@@ -103,6 +113,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS set_subscription_payments_updated_at ON public.subscription_payments;
 CREATE TRIGGER set_subscription_payments_updated_at
   BEFORE UPDATE ON public.subscription_payments
   FOR EACH ROW EXECUTE FUNCTION public.set_subscription_payments_updated_at();
