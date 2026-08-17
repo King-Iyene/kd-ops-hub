@@ -17,6 +17,7 @@
 //             currency, line_items, confidence, raw_text }
 
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 let corsHeaders: Record<string, string> = {};
 
@@ -219,6 +220,22 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Auth guard — require a valid JWT
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const bearer = authHeader.replace("Bearer ", "");
+    if (!bearer) {
+      return json({ ok: false, error: "Missing Authorization header" }, 401);
+    }
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${bearer}` } },
+    });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(bearer);
+    if (authError || !user) {
+      return json({ ok: false, error: authError?.message || "Not authenticated" }, 401);
+    }
+
     const apiKey = Deno.env.get("GOOGLE_DOC_AI_API_KEY");
     const projectId = Deno.env.get("GOOGLE_DOC_AI_PROJECT_ID");
     const processorId = Deno.env.get("GOOGLE_DOC_AI_PROCESSOR_ID");
