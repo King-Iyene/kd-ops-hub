@@ -37,7 +37,7 @@ export interface PrincipalWalletLedgerRow {
 export async function fetchDvaAccount(): Promise<PrincipalWalletDva | null> {
   const { data, error } = await supabase
     .from('principal_wallet_dva')
-    .select('*')
+    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, created_at')
     .maybeSingle();
   if (error) throw error;
   return (data as unknown as PrincipalWalletDva) ?? null;
@@ -59,7 +59,7 @@ export async function createDvaAccount(input: {
       account_name: input.accountName,
       created_by: input.createdBy,
     })
-    .select('*')
+    .select('id, paystack_customer_code, account_number, bank_name, account_name, currency, created_at')
     .single();
   if (error) throw error;
   return data as unknown as PrincipalWalletDva;

@@ -108,7 +108,7 @@ export interface TransferAuditFilters {
 export async function listTransferLimits(): Promise<TransferLimit[]> {
   const { data, error } = await supabase
     .from('transfer_limits')
-    .select('*')
+    .select('id, role, user_id, single_txn_limit_ngn, daily_limit_ngn, monthly_limit_ngn, co_approval_threshold_ngn, single_batch_limit_ngn, expires_at, granted_by, granted_reason, notes, created_at, updated_at')
     .order('user_id', { nullsFirst: true })
     .order('role');
   if (error) throw error;
@@ -144,7 +144,7 @@ export async function fetchRecentTransferAudit(
 ): Promise<TransferAuditRow[]> {
   const { data, error } = await supabase
     .from('transfer_audit')
-    .select('*')
+    .select('id, actor_id, actor_role, action, outcome, amount_ngn, recipient_code, reference, ip_hash, user_agent, metadata, reason, created_at')
     .not('outcome', 'in', '(intent,abandoned)')
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -157,7 +157,7 @@ export async function fetchTransferAuditPaginated(
 ): Promise<{ rows: TransferAuditRow[]; total: number }> {
   let q = supabase
     .from('transfer_audit')
-    .select('*', { count: 'exact' })
+    .select('id, actor_id, actor_role, action, outcome, amount_ngn, recipient_code, reference, ip_hash, user_agent, metadata, reason, created_at', { count: 'exact' })
     .not('outcome', 'in', '(intent,abandoned)')
     .order('created_at', { ascending: false });
 
@@ -232,7 +232,7 @@ export const APPROVAL_ROLE_OPTIONS: ApprovalRole[] = [...ALL_APPROVAL_ROLES];
 export async function listApproverPools(): Promise<ApproverPool[]> {
   const { data, error } = await supabase
     .from('approver_pools')
-    .select('*')
+    .select('id, action_type, tier, eligible_roles, created_at, updated_at')
     .order('action_type')
     .order('tier');
   if (error) throw error;

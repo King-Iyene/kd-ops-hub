@@ -81,7 +81,7 @@ export interface AnomalyFilters {
 export async function fetchAnomalies(filters: AnomalyFilters = {}): Promise<PaymentAnomaly[]> {
   let q = supabase
     .from('payment_anomalies')
-    .select('*')
+    .select('id, status, severity, rule_code, title, amount_ngn, detected_at, description, evidence_json, reviewer_note, fingerprint')
     .order('detected_at', { ascending: false })
     .limit(filters.limit ?? 200);
   if (filters.status && filters.status !== 'all') q = q.eq('status', filters.status);

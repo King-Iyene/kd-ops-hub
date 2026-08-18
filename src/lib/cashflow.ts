@@ -44,7 +44,7 @@ export async function fetchSnapshotHistory(days = 90): Promise<CashSnapshot[]> {
   const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from('cash_balance_snapshots')
-    .select('*')
+    .select('taken_on, cash_on_hand_ngn')
     .gte('taken_on', since)
     .order('taken_on', { ascending: true });
   if (error) throw error;

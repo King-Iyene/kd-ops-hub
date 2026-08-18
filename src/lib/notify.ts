@@ -104,7 +104,7 @@ async function resolveChannelPrefs(
   try {
     const { data } = await supabase
       .from('notification_preferences')
-      .select('*')
+      .select(`whatsapp_${category}, sms_${category}`)
       .eq('user_id', userId)
       .maybeSingle();
     const wsKey = `whatsapp_${category}`;

@@ -55,7 +55,7 @@ export interface PersonalTransferBeneficiaryRow {
 export async function fetchPersonalTransferBeneficiaries(): Promise<PersonalTransferBeneficiaryRow[]> {
   const { data, error } = await supabase
     .from('personal_transfer_beneficiaries')
-    .select('*')
+    .select('id, label, account_number, bank_code, bank_name, account_name, paystack_recipient_code, created_at')
     .order('label', { ascending: true });
   if (error) throw error;
   return (data ?? []) as unknown as PersonalTransferBeneficiaryRow[];
@@ -81,7 +81,7 @@ export async function createPersonalTransferBeneficiary(input: {
       account_name: input.accountName,
       paystack_recipient_code: input.paystackRecipientCode,
     })
-    .select('*')
+    .select('id')
     .single();
   if (error) throw error;
   return data as unknown as PersonalTransferBeneficiaryRow;
@@ -110,7 +110,7 @@ export async function deletePersonalTransferBeneficiary(id: string): Promise<voi
 export async function fetchPersonalTransfers(actor: AuditActor | null): Promise<PersonalTransferRow[]> {
   const { data, error } = await supabase
     .from('personal_transfers')
-    .select('*')
+    .select('id, recipient_name, recipient_account_number, recipient_bank_code, recipient_bank_name, recipient_account_name, amount_ngn, memo, status, paystack_reference, failure_reason, created_at, processed_at, beneficiary_id, batch_label')
     .order('created_at', { ascending: false });
   if (error) throw error;
   await logAudit(
