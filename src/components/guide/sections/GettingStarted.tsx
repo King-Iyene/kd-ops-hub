@@ -3,7 +3,7 @@
 // phone or desktop, understanding the two dashboard variants, and setting
 // up a profile (including notification preferences and 2FA).
 import { LogIn } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
 
 export function GettingStartedSection() {
   return (
@@ -12,6 +12,12 @@ export function GettingStartedSection() {
         icon={LogIn}
         title="Getting Started"
         blurb="Whatever your role — Finance, Operations, Field Team, or Admin — this is where you start. Everyone logs in the same way, everyone should install KDOps on their phone, and everyone lands on a dashboard shaped for their job. Read this section first; the rest of the guide assumes you've done it."
+      />
+
+      <Screenshot
+        src="/guide/guide-desktop.jpg"
+        alt="The KDOps Company Guide, showing the collapsible sidebar and this Getting Started page"
+        caption="This guide, right where you're reading it now — every section is its own page, searchable from the sidebar."
       />
 
       <ModuleCard title="Logging In" route="/login" roles={['everyone']}>
@@ -29,6 +35,7 @@ export function GettingStartedSection() {
             <>Click <strong>Sign In</strong>. A correct email/password (and 2FA code, if enabled) takes you straight to your dashboard.</>,
           ]}
         />
+        <Screenshot src="/guide/login-desktop.jpg" alt="The KDOps login screen" caption="The login screen — the same for every role." />
         <p className="text-sm text-muted-foreground leading-relaxed">
           Forgot your password? Click <strong>"Forgot password?"</strong> on the login screen, enter your work email, and a reset
           link is emailed to you — follow it to set a new password. The old password stops working the moment the new one is saved.
@@ -75,6 +82,10 @@ export function GettingStartedSection() {
             <>Both dashboards show an <strong>announcement banner</strong> at the top when there's something company-wide to know — a policy change, a system maintenance window, a public holiday notice. You can dismiss it and it stays dismissed for you specifically; it doesn't reappear until a new announcement is pushed. Admins can post a new announcement that goes out to everyone at once.</>,
           ]}
         />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Screenshot src="/guide/dashboard-desktop.jpg" alt="The KDOps company-wide Dashboard on desktop" caption="Dashboard (desktop) — Super Admin, Admin, Finance, Operations." />
+          <Screenshot src="/guide/dashboard-mobile.jpg" alt="The KDOps dashboard on a mobile phone" caption="The same dashboard on a phone, installed as a PWA." />
+        </div>
       </ModuleCard>
 
       <ModuleCard title="Your Profile" route="/profile" roles={['everyone']}>

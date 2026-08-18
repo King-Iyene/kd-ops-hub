@@ -2,7 +2,7 @@
 // normal day, regardless of role: clocking in, tasks, leave, timesheets,
 // documents, messaging, the AI assistant, and the knowledge base behind it.
 import { CalendarCheck2 } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
 
 export function EverydayWorkSection() {
   return (
@@ -39,6 +39,7 @@ export function EverydayWorkSection() {
           Admins and managers see a month-view of the whole team with running counts of Present, Late, Absent, and On Leave days
           per person, and can export any month's attendance to CSV for payroll or reporting.
         </p>
+        <Screenshot src="/guide/attendance-mobile.jpg" alt="The Attendance clock-in screen on a mobile phone" caption="Clock-in on mobile — the view most of the Field Team uses day to day." />
       </ModuleCard>
 
       <ModuleCard title="Tasks" route="/tasks" roles={['everyone']}>
@@ -69,6 +70,7 @@ export function EverydayWorkSection() {
           Typing <strong>@</strong> followed by someone's name in a task comment sends them a notification and links straight to
           that comment — it's the fastest way to pull a colleague into a task without leaving KDOps to message them separately.
         </Callout>
+        <Screenshot src="/guide/tasks-desktop.jpg" alt="The KDOps Tasks workspace" caption="Tasks — Spaces, Folders, Lists, and a board view of the work inside them." />
       </ModuleCard>
 
       <ModuleCard title="Leave Requests" route="/leave" roles={['everyone']}>

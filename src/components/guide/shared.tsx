@@ -83,6 +83,20 @@ export function Callout({ tone, children }: { tone: 'tip' | 'warn' | 'caution'; 
   );
 }
 
+/** A real in-app screenshot, captured by the guide-screenshots CI workflow. */
+export function Screenshot({ src, alt, caption }: { src: string; alt: string; caption?: string }) {
+  return (
+    <figure className="rounded-lg border overflow-hidden bg-muted/20 not-prose">
+      <img src={src} alt={alt} loading="lazy" className="w-full h-auto block" />
+      {caption && (
+        <figcaption className="text-xs text-muted-foreground px-3 py-2 border-t bg-muted/30">
+          {caption}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 export function SectionIntro({ icon: Icon, title, blurb }: { icon: ElementType; title: string; blurb?: string }) {
   return (
     <div className="pb-1">
