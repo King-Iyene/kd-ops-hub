@@ -5,7 +5,7 @@
 // described here (second approver, transfer caps, locks) is a real
 // system behavior, not a suggestion.
 import { Wallet } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
 
 export function FinanceOpsSection() {
   return (
@@ -23,12 +23,25 @@ export function FinanceOpsSection() {
           run (say, a week's worth of contractor payouts) is reviewed and approved once as a set, rather than one transfer at a time.
         </p>
         <StepList
-          steps={[
-            'Create a new batch and give it a name/period so it is identifiable later.',
-            'Add recipients — either manually or by pulling from a saved list (e.g. your active contractors).',
-            'Enter the amount for each recipient and attach any reference note the recipient or your books will need.',
-            'Submit the batch for approval.',
-          ]}
+          steps={['Click New Batch from the Payments page.']}
+        />
+        <Screenshot src="/guide/batch-1-start.jpg" alt="The Payments page with the New Batch button highlighted" caption="1. Payments → New Batch." />
+
+        <StepList
+          startIndex={1}
+          steps={['Pick a payment type — Contractor Payment, Employee Salary Run, Salary Advance, or Bonus / Prize — give the batch a name and payment date, then click Next.']}
+        />
+        <Screenshot src="/guide/batch-2-details.jpg" alt="Step 1 of the New Payment Batch wizard, with the Next button highlighted" caption="2. Choose a type, name the batch, set the date, then Next." />
+
+        <StepList
+          startIndex={2}
+          steps={['Add recipients from a saved list, or click Add One-off Beneficiary to add someone by hand — a 10-digit account number is verified live against the receiving bank before you can add them.']}
+        />
+        <Screenshot variant="contain" src="/guide/batch-3-beneficiary.jpg" alt="The Add One-off Beneficiary dialog with the Bank field highlighted" caption="3. Add One-off Beneficiary — the account resolves and verifies live once you pick a bank and enter the number." />
+
+        <StepList
+          startIndex={3}
+          steps={['Enter or confirm each recipient\'s amount and reference note, review the batch total on the final step, and submit for approval.']}
         />
         <p className="text-sm text-muted-foreground leading-relaxed">
           Batches above a configurable amount require a <strong>second, independent approver</strong> before anything is sent —
@@ -79,6 +92,26 @@ export function FinanceOpsSection() {
           before they're cleared. Finance and Admin are the roles that actually approve claims. Approved expenses are tied
           into Budgets automatically, so department and project spend stays current without a separate reconciliation step.
         </p>
+
+        <StepList steps={['Open Expenses and click New Expense.']} />
+        <Screenshot src="/guide/expense-1-start.jpg" alt="The Expenses page with the New Expense button highlighted" caption="1. Expenses → New Expense." />
+
+        <StepList
+          startIndex={1}
+          steps={['Pick a category, choose Reimbursement (you paid) or Company charge (paid directly by the company), enter the amount (or distance, for mileage) and date, and describe what the expense was for.']}
+        />
+        <Screenshot variant="contain" src="/guide/expense-2-details.jpg" alt="The New Expense Claim dialog with the Description field highlighted" caption="2. Category, payment type, amount, date, description." />
+
+        <StepList
+          startIndex={2}
+          steps={['Attach a receipt: tap Scan receipt to photograph a paper receipt and auto-fill the amount, date, and description from it, or use "or attach manually" underneath to upload an existing photo or PDF instead.']}
+        />
+        <Screenshot variant="contain" src="/guide/expense-3-receipt.jpg" alt="The New Expense Claim dialog with the Scan receipt button highlighted" caption="3. Scan a receipt, or attach one manually — either works." />
+
+        <StepList
+          startIndex={3}
+          steps={['Submit the claim — it routes automatically to the right approver based on its amount, and you can track its status from the Expenses list.']}
+        />
       </ModuleCard>
 
       <ModuleCard title="Invoices" route="/invoices" roles={['super_admin', 'admin', 'finance']}>

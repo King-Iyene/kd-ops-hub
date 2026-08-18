@@ -34,13 +34,19 @@ export function RoleBadges({ roles }: { roles: Role[] }) {
   );
 }
 
-export function StepList({ steps }: { steps: ReactNode[] }) {
+/**
+ * `startIndex` lets a walkthrough continue its numbering across multiple
+ * StepList calls with a Screenshot interleaved between them — e.g.
+ * StepList (steps 1-2) -> Screenshot -> StepList startIndex={2} (steps 3-4)
+ * -> Screenshot — instead of every call restarting at "1".
+ */
+export function StepList({ steps, startIndex = 0 }: { steps: ReactNode[]; startIndex?: number }) {
   return (
     <ol className="space-y-1.5">
       {steps.map((s, i) => (
         <li key={i} className="flex gap-2.5 text-sm">
           <span className="flex-shrink-0 w-5 h-5 rounded-md bg-primary/10 text-primary text-[10.5px] font-mono font-semibold flex items-center justify-center mt-0.5">
-            {i + 1}
+            {startIndex + i + 1}
           </span>
           <span className="text-muted-foreground leading-relaxed">{s}</span>
         </li>
@@ -85,22 +91,24 @@ export function Callout({ tone, children }: { tone: 'tip' | 'warn' | 'caution'; 
 
 /**
  * A real in-app screenshot, captured by the guide-screenshots CI workflow.
- * Desktop captures (landscape) stretch to the column width like a normal
- * figure. Mobile captures (portrait, 390x844) are capped by height instead —
- * stretching a portrait image to a wide desktop column would blow its height
- * up to well over 1000px, so it's centered and bounded instead.
+ * 'wide' captures (full-page, landscape) stretch to the column width like a
+ * normal figure. 'contain' captures — phone screenshots (390x844) and
+ * cropped dialog shots, both narrower and often taller than they are wide —
+ * are capped by height and centered instead of stretched: blowing a narrow
+ * crop up to a wide desktop column's full width would inflate its height
+ * well past 1000px.
  */
 export function Screenshot({
-  src, alt, caption, variant = 'desktop',
-}: { src: string; alt: string; caption?: string; variant?: 'desktop' | 'mobile' }) {
+  src, alt, caption, variant = 'wide',
+}: { src: string; alt: string; caption?: string; variant?: 'wide' | 'contain' }) {
   return (
     <figure className="rounded-lg border overflow-hidden bg-muted/20 not-prose">
-      <div className={cn('bg-muted/10', variant === 'mobile' && 'flex justify-center py-4')}>
+      <div className={cn('bg-muted/10', variant === 'contain' && 'flex justify-center py-4')}>
         <img
           src={src}
           alt={alt}
           loading="lazy"
-          className={variant === 'mobile' ? 'w-auto max-h-[520px] block' : 'w-full h-auto block'}
+          className={variant === 'contain' ? 'w-auto max-h-[520px] block' : 'w-full h-auto block'}
         />
       </div>
       {caption && (

@@ -3,7 +3,7 @@
 // finance-facing fixed-asset register and the operations-facing project
 // tracker that both lean on the same underlying data.
 import { Car } from 'lucide-react';
-import { SectionIntro, ModuleCard, StepList, Callout } from '@/components/guide/shared';
+import { SectionIntro, ModuleCard, StepList, Callout, Screenshot } from '@/components/guide/shared';
 
 export function FleetOpsSection() {
   return (
@@ -46,6 +46,27 @@ export function FleetOpsSection() {
           detection compares each entry against a vehicle's normal pattern, and delayed, rounded, or reconstructed entries
           make that pattern noisier — which means real anomalies get harder to catch, not easier.
         </Callout>
+
+        <p className="text-sm font-medium pt-1">Submitting a fuel or repair request</p>
+        <StepList
+          steps={['From the Fleet Dashboard\'s My Requests tab, click New Fuel Request or Repair Request — both buttons sit side by side.']}
+        />
+        <Screenshot src="/guide/fleet-requests-start.jpg" alt="The Fleet My Requests tab with the Repair Request and New Fuel Request buttons highlighted" caption="1. My Requests — Repair Request (A) and New Fuel Request (B) sit side by side." />
+
+        <StepList
+          startIndex={1}
+          steps={[
+            'For a fuel request: pick the vehicle and fuel station, enter the amount (and litres, if known), then attach a receipt or supporting document by clicking the dashed dropzone.',
+          ]}
+        />
+        <Screenshot variant="contain" src="/guide/fuel-2-receipt.jpg" alt="The New Fuel Request dialog with the receipt dropzone highlighted" caption="2. Fuel request — click the dropzone to attach a receipt or quote." />
+
+        <StepList
+          startIndex={2}
+          steps={[
+            'For a repair request: pick the vehicle, describe the work, and enter the amount — the same photo-scan-or-manual-attach receipt pattern from Expenses applies here too, and amounts over ₦10,000 require a receipt before the request can be submitted.',
+          ]}
+        />
       </ModuleCard>
 
       <ModuleCard title="Assets" route="/assets" roles={['super_admin', 'admin', 'finance']}>

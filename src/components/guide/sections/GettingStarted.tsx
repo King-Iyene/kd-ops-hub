@@ -84,7 +84,7 @@ export function GettingStartedSection() {
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Screenshot src="/guide/dashboard-desktop.jpg" alt="The KDOps company-wide Dashboard on desktop" caption="Dashboard (desktop) — Super Admin, Admin, Finance, Operations." />
-          <Screenshot variant="mobile" src="/guide/dashboard-mobile.jpg" alt="The KDOps dashboard on a mobile phone" caption="The same dashboard on a phone, installed as a PWA." />
+          <Screenshot variant="contain" src="/guide/dashboard-mobile.jpg" alt="The KDOps dashboard on a mobile phone" caption="The same dashboard on a phone, installed as a PWA." />
         </div>
       </ModuleCard>
 
