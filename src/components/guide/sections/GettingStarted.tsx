@@ -47,6 +47,29 @@ export function GettingStartedSection() {
           <code className="text-xs bg-background/60 px-1 py-0.5 rounded">/reset-password</code> means your password has expired or
           your original invite was never completed — just set a new password there and you're back in.
         </Callout>
+
+        <p className="text-sm font-medium pt-1">Your invite link doesn't work, or says it's expired</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Invite and password links are <strong>single-use and time-limited</strong> — once clicked (or once it's been a while), the
+          same link stops working, and clicking it again lands on a page that says the link is invalid or expired. This is normal
+          and not a sign anything is broken; it just means you need a fresh one.
+        </p>
+        <StepList
+          steps={[
+            <>On the <strong>"Link no longer works"</strong> screen you land on, enter your work email under <strong>"Send me a new link"</strong> — this
+            requests a brand-new reset link on the spot, without needing to involve an admin.</>,
+            'Check your inbox (and spam/junk folder — invite emails from a new sender occasionally land there on first contact) for the new link, and click it within the next hour or so before it expires too.',
+            <>Still nothing after a few minutes, or the new link fails the same way? Ask your admin to click <strong>Resend invite</strong> next
+            to your name in Employees — that sends a completely fresh invite from scratch.</>,
+          ]}
+        />
+        <Callout tone="tip">
+          A corporate email provider's built-in link-safety scanner (Microsoft Defender Safe Links, Google's link scanning, and
+          similar) sometimes "clicks" a link automatically to check it for malware before you ever open the email yourself —
+          which can burn a single-use invite link before you get to it. If invites consistently fail on the very first click for
+          everyone at your company, this is the most likely cause, and it's worth flagging to whoever manages your email security
+          settings rather than assuming KDOps itself is broken.
+        </Callout>
       </ModuleCard>
 
       <ModuleCard title="Installing on Your Phone (PWA)" roles={['everyone']}>

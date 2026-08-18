@@ -19,6 +19,10 @@ const FAQS: QA[] = [
     a: "Use \"Forgot password\" on the login screen — it sends a reset link to your account email. Check spam if it doesn't arrive within a few minutes. If nothing shows up at all, ask an admin to confirm the email address on your account is actually correct; a reset link can't reach an email that's misspelled or out of date.",
   },
   {
+    q: 'My invite link says it\'s expired, or doesn\'t work',
+    a: 'Invite and reset links are single-use and time-limited by design, so this happens more often than it should feel like it does. Clicking an already-used or expired link takes you to a "Link no longer works" screen with a form to email yourself a fresh one on the spot — no admin needed. If the new one fails too, ask an admin to hit "Resend invite" next to your name in Employees. One common cause worth knowing about: some companies\' email security automatically "pre-clicks" links to scan them for malware, which can burn the single-use link before you ever open the email.',
+  },
+  {
     q: "Why can't I sign up myself?",
     a: 'KDOps is invite-only. Self-service signup is intentionally disabled — there is no public "create account" flow. An admin has to send you an invite before you can create a login.',
   },
