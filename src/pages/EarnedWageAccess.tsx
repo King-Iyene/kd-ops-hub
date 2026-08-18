@@ -134,7 +134,7 @@ export default function EarnedWageAccess() {
     }
     const { data: hist } = await supabase
       .from('ewa_requests')
-      .select('*')
+      .select('id, created_at, amount_ngn, status, reason, rejection_reason')
       .eq('employee_id', profile.id)
       .order('created_at', { ascending: false })
       .limit(20);
@@ -143,7 +143,7 @@ export default function EarnedWageAccess() {
     if (isFinance) {
       const { data: pendings } = await supabase
         .from('ewa_requests')
-        .select('*, profile:profiles!ewa_requests_employee_id_fkey(full_name, phone)')
+        .select('id, employee_id, amount_ngn, reason, created_at, settlement_period, profile:profiles!ewa_requests_employee_id_fkey(full_name, phone)')
         .eq('status', 'pending')
         .order('created_at', { ascending: true });
       const enriched = ((pendings as any[]) || []).map((r) => ({

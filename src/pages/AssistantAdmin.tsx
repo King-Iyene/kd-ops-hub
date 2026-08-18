@@ -100,8 +100,8 @@ export default function AssistantAdmin() {
   const fetchAll = async () => {
     setLoading(true);
     const [{ data: cfg }, { data: kb }, { data: usageRows }] = await Promise.all([
-      supabase.from('chatbot_config').select('*').limit(1).single(),
-      supabase.from('chatbot_knowledge').select('*').order('updated_at', { ascending: false }),
+      supabase.from('chatbot_config').select('id, system_prompt, text_model, vision_model, daily_message_limit, enable_web_search, enable_fx_rates, enable_platform_query, is_enabled, updated_at').limit(1).single(),
+      supabase.from('chatbot_knowledge').select('id, title, content, source, tags, visible_to_roles, tsv_content').order('updated_at', { ascending: false }),
       supabase.from('chatbot_usage')
         .select('user_id, message_count, tokens_total')
         .order('usage_date', { ascending: false })

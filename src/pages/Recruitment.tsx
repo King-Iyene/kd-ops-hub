@@ -172,8 +172,8 @@ export default function Recruitment() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: oData }, { data: aData }, { data: dData }, { data: pData }] = await Promise.all([
-      supabase.from('job_openings').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
-      supabase.from('job_applicants').select('*').order('created_at', { ascending: false }),
+      supabase.from('job_openings').select('id, title, department_id, description, requirements, employment_type, location, salary_min_ngn, salary_max_ngn, opening_count, closing_date, status, notes').is('deleted_at', null).order('created_at', { ascending: false }),
+      supabase.from('job_applicants').select('id, opening_id, full_name, email, phone, cv_url, cover_letter, source, stage, stage_notes, assigned_to, interview_date, offer_amount_ngn, offered_at, rejection_reason, created_at, updated_at').order('created_at', { ascending: false }),
       supabase.from('departments').select('id, name').order('name'),
       supabase.from('profiles_directory').select('id, full_name').order('full_name'),
     ]);

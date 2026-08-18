@@ -251,12 +251,12 @@ const Documents = () => {
     const [docRes, folderRes] = await Promise.all([
       supabase
         .from('documents')
-        .select('*')
+        .select('id, title, category, storage_path, mime_type, file_size_bytes, expires_at, description, tags, uploaded_by, created_at, entity_type, entity_id, folder, is_template, version, access_count')
         .is('deleted_at', null)
         .order('created_at', { ascending: false }),
       supabase
         .from('document_folders')
-        .select('*')
+        .select('id, name, parent_id, color, description, entity_type, entity_id, created_by')
         .order('name', { ascending: true }),
     ]);
     if (docRes.error) {
