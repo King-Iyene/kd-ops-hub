@@ -218,7 +218,7 @@ const Tasks = () => {
         load();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, () => {
-        supabase.from('task_comments').select('task_id').then(({ data }) => {
+        supabase.from('task_comments').select('task_id').limit(20000).then(({ data }) => {
           if (!data) return;
           const counts = new Map<string, number>();
           for (const row of data) counts.set(row.task_id, (counts.get(row.task_id) ?? 0) + 1);
@@ -235,6 +235,7 @@ const Tasks = () => {
     supabase
       .from('task_comments')
       .select('task_id')
+      .limit(20000)
       .then(({ data }) => {
         if (!data) return;
         const counts = new Map<string, number>();
