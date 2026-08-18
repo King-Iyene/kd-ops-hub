@@ -137,7 +137,7 @@ const Clients = () => {
       const [clientRes, placementRes] = await Promise.all([
         supabase
           .from('clients')
-          .select('*')
+          .select('id, name, industry, status, contract_value_ngn, contact_person, email, phone, website, address, start_date, notes, created_at')
           .is('deleted_at', null)
           .order('name')
           .limit(500),
