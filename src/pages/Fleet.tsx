@@ -534,9 +534,10 @@ const Fleet = () => {
   const [logExternalType, setLogExternalType] = useState<'fuel' | 'repair'>('fuel');
   const EMPTY_LOG_EXTERNAL_FORM = {
     employee_id: '', vehicle_id: '', amount_ngn: '', station_or_vendor: '',
-    purchase_date: new Date().toISOString().slice(0, 10), notes: '',
+    purchase_date: new Date().toISOString().slice(0, 10), notes: '', litres_filled: '',
   };
   const [logExternalForm, setLogExternalForm] = useState(EMPTY_LOG_EXTERNAL_FORM);
+  const [logExternalReceiptFile, setLogExternalReceiptFile] = useState<File | null>(null);
   const [submittingLogExternal, setSubmittingLogExternal] = useState(false);
 
   // Trip log form
@@ -1962,13 +1963,14 @@ const Fleet = () => {
     }
   };
 
-  // Logs a fuel or repair purchase already paid for outside the platform.
-  // Creates the row (never payable — see log_external_repair_purchase's
-  // comment) then hands off into the SAME receipt-upload dialogs the normal
-  // fuel/repair flows use, so OCR, anomaly checks, and the vehicle fuel-level
-  // sync all run through their one already-vetted path. Cancelling that
-  // follow-up dialog is a valid outcome, not an error: it leaves the row
-  // receipt-less, which the existing getReceiptDebt() block already covers.
+  // Logs a fuel or repair purchase already paid for outside the platform,
+  // receipt required, in one step. The receipt is uploaded first and its URL
+  // passed straight into the insert/RPC — never a separate patch-after-the-
+  // fact write — so there's no window where the row exists without its
+  // receipt. Fuel additionally bumps the vehicle's own current_fuel_litres /
+  // last_refuel_at when litres are given, same math the normal fuel receipt
+  // upload uses. Never payable either way — see log_external_repair_purchase's
+  // comment for why.
   const submitLogExternalPurchase = async () => {
     if (!logExternalForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
@@ -1979,6 +1981,10 @@ const Fleet = () => {
       toast({ title: 'Enter a valid amount', variant: 'destructive' });
       return;
     }
+    if (!logExternalReceiptFile) {
+      toast({ title: 'Attach a receipt', description: 'A receipt is required to log an external purchase.', variant: 'destructive' });
+      return;
+    }
     setSubmittingLogExternal(true);
     try {
       const employeeName = staff.find((s) => s.id === logExternalForm.employee_id)?.full_name
@@ -1986,52 +1992,67 @@ const Fleet = () => {
         || 'employee';
       const paidAt = new Date(`${logExternalForm.purchase_date}T12:00:00`).toISOString();
 
+      const compressed = await compressImage(logExternalReceiptFile);
+      const safeName = compressed.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${logExternalType === 'fuel' ? 'fuel-receipts' : `repairs/${profile?.id}`}/external-${crypto.randomUUID()}-${safeName}`;
+      const { data: upData, error: upErr } = await supabase.storage.from('receipts').upload(path, compressed, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('receipts').getPublicUrl(upData.path);
+      const receiptUrl = urlData.publicUrl;
+
       if (logExternalType === 'fuel') {
-        const { data: inserted, error } = await supabase.from('fuel_requests').insert({
+        const litresFilled = parseFloat(logExternalForm.litres_filled) || 0;
+        const { error } = await supabase.from('fuel_requests').insert({
           driver_id: logExternalForm.employee_id,
           vehicle_id: logExternalForm.vehicle_id || null,
           station_name: logExternalForm.station_or_vendor || 'Unknown station',
           amount_ngn: amount,
+          litres_filled: litresFilled || null,
           reason: `Logged externally — paid outside the platform.${logExternalForm.notes ? ` ${logExternalForm.notes}` : ''}`,
           status: 'payment_sent',
           payment_sent_at: paidAt,
           logged_externally: true,
-        }).select('*').single();
+          receipt_url: receiptUrl,
+        });
         if (error) throw error;
-        await logAudit('fuel_logged_externally', `Fuel purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)})`, profile);
-        setShowLogExternalForm(false);
-        setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
-        if (inserted) setUploadingReceiptFor(enrich([inserted], staff)[0] as FuelRequest);
+
+        if (logExternalForm.vehicle_id && litresFilled > 0) {
+          const veh = vehicles.find((v) => v.id === logExternalForm.vehicle_id);
+          if (veh) {
+            const cap = veh.tank_capacity_litres || 60;
+            const newLevel = Math.min(cap, (veh.current_fuel_litres || 0) + litresFilled);
+            await supabase.from('vehicles').update({
+              current_fuel_litres: newLevel,
+              last_refuel_at: paidAt,
+            }).eq('id', logExternalForm.vehicle_id);
+            await supabase.from('fuel_level_logs').insert({
+              vehicle_id: logExternalForm.vehicle_id,
+              event_type: 'fuel_added',
+              amount_litres: litresFilled,
+              resulting_level_litres: newLevel,
+            });
+          }
+        }
+        await logAudit('fuel_logged_externally', `Fuel purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)}), receipt attached`, profile);
       } else {
         const description = logExternalForm.notes || 'Repair — paid outside the platform';
-        const { data: newId, error } = await supabase.rpc('log_external_repair_purchase', {
+        const { error } = await supabase.rpc('log_external_repair_purchase', {
           p_employee_id: logExternalForm.employee_id,
           p_amount_ngn: amount,
           p_purchase_date: logExternalForm.purchase_date,
           p_description: description,
           p_vendor_name: logExternalForm.station_or_vendor || null,
           p_vehicle_id: logExternalForm.vehicle_id || null,
+          p_receipt_url: receiptUrl,
         });
         if (error) throw error;
-        await logAudit('repair_logged_externally', `Repair purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)})`, profile);
-        setShowLogExternalForm(false);
-        setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
-        if (newId) {
-          setUploadingRepairReceiptFor({
-            id: newId as string,
-            description,
-            amount_ngn: amount,
-            vehicle_id: logExternalForm.vehicle_id || null,
-            service_type: null,
-            maintenance_item_id: null,
-            repair_odometer_km: null,
-            vendor_name: logExternalForm.station_or_vendor || null,
-            date: logExternalForm.purchase_date,
-          });
-          setRepairReceiptUploadVendor(logExternalForm.station_or_vendor || '');
-          setRepairReceiptUploadDate(logExternalForm.purchase_date);
-        }
+        await logAudit('repair_logged_externally', `Repair purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)}), receipt attached`, profile);
       }
+
+      toast({ title: 'Purchase logged', description: 'Receipt attached — this entry is fully recorded.' });
+      setShowLogExternalForm(false);
+      setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
+      setLogExternalReceiptFile(null);
       await fetchData();
     } catch (err: any) {
       toast({ title: 'Could not log purchase', description: friendlyDbError(err) || err?.message, variant: 'destructive' });
@@ -5721,15 +5742,15 @@ const Fleet = () => {
         </DialogContent>
       </Dialog>
 
-      {/* LOG EXTERNAL PURCHASE DIALOG — admin-only. Records a fuel/repair
-          purchase already paid for outside the platform. Submitting hands
-          off into the fuel/repair receipt-upload dialogs below so a receipt
-          can be attached immediately if the admin already has it; cancelling
-          that follow-up is fine and leaves the entry to the normal
-          receipt-debt block until a receipt is added. */}
+      {/* LOG EXTERNAL PURCHASE DIALOG — admin-only. Records, in one step, a
+          fuel/repair purchase already paid for outside the platform, with
+          its receipt required up front (there's no "attach it later" path
+          here — this is a closed-out purchase, not an open request). Fuel
+          purchases also bump the vehicle's own current_fuel_litres /
+          last_refuel_at, same as the normal receipt-upload flow does. */}
       <Dialog
         open={showLogExternalForm}
-        onOpenChange={(v) => { setShowLogExternalForm(v); if (!v) setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); }}
+        onOpenChange={(v) => { setShowLogExternalForm(v); if (!v) { setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); setLogExternalReceiptFile(null); } }}
       >
         <DialogContent>
           <DialogHeader>
@@ -5802,6 +5823,13 @@ const Fleet = () => {
               />
             </div>
 
+            {logExternalType === 'fuel' && (
+              <div className="space-y-1">
+                <Label>Litres filled <span className="text-muted-foreground font-normal text-xs">(optional — updates the vehicle's fuel level)</span></Label>
+                <Input type="number" min="0" step="0.1" value={logExternalForm.litres_filled} onChange={(e) => setLogExternalForm((f) => ({ ...f, litres_filled: e.target.value }))} placeholder="e.g. 40" />
+              </div>
+            )}
+
             <div className="space-y-1">
               <Label>{logExternalType === 'repair' ? 'What was done' : 'Notes'} <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
               <Textarea
@@ -5812,20 +5840,65 @@ const Fleet = () => {
               />
             </div>
 
+            <div className="space-y-1">
+              <Label>Receipt <span className="text-destructive">*</span></Label>
+              <OcrReceiptScanner
+                extractLitres={logExternalType === 'fuel'}
+                onExtracted={(result: OcrResult, file: File) => {
+                  setLogExternalReceiptFile(file);
+                  setLogExternalForm((f) => ({
+                    ...f,
+                    amount_ngn: f.amount_ngn || result.amount_ngn || f.amount_ngn,
+                    station_or_vendor: f.station_or_vendor || result.description || f.station_or_vendor,
+                    purchase_date: result.date || f.purchase_date,
+                    litres_filled: logExternalType === 'fuel' ? (f.litres_filled || result.litres || f.litres_filled) : f.litres_filled,
+                  }));
+                }}
+              />
+              {logExternalReceiptFile && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground truncate">{logExternalReceiptFile.name}</span>
+                  <span className="shrink-0">— {(logExternalReceiptFile.size / 1024).toFixed(1)} KB</span>
+                  <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-destructive" onClick={() => setLogExternalReceiptFile(null)}>
+                    Change
+                  </button>
+                </div>
+              )}
+              {!logExternalReceiptFile && (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                    <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                  </div>
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] ?? null;
+                      if (!validateFile(f, toast)) {
+                        (e.target as HTMLInputElement).value = '';
+                        return;
+                      }
+                      setLogExternalReceiptFile(f);
+                    }}
+                  />
+                </>
+              )}
+            </div>
+
             <p className="text-xs text-muted-foreground">
-              After saving, you'll be able to attach the receipt right away if you have it. If you don't yet,
-              you can close that step — {staff.find((s) => s.id === logExternalForm.employee_id)?.full_name || 'this employee'} won't
-              be able to submit another {logExternalType} request until a receipt is uploaded for this one.
+              {staff.find((s) => s.id === logExternalForm.employee_id)?.full_name || 'This employee'} won't be able to
+              submit another {logExternalType} request while an outstanding receipt is open — logging this with the
+              receipt attached now keeps that clear.
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowLogExternalForm(false)}>Cancel</Button>
             <Button
               onClick={submitLogExternalPurchase}
-              disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.amount_ngn}
+              disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.amount_ngn || !logExternalReceiptFile}
             >
               {submittingLogExternal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save & Continue
+              <Upload className="mr-2 h-4 w-4" /> Log Purchase
             </Button>
           </DialogFooter>
         </DialogContent>
