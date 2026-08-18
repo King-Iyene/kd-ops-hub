@@ -277,7 +277,9 @@ function Placements() {
     const { data, error } = await supabase
       .from('placements')
       .select(`
-        *,
+        id, employee_id, client_id, placement_type, commission_pct, placement_category,
+        client_rate_ngn, client_rate_usd, fx_rate_used, employee_rate_ngn, commission_ngn,
+        rate_type, billing_cycle, start_date, end_date, status, notes,
         profiles!placements_employee_id_fkey ( full_name ),
         clients!placements_client_id_fkey ( name )
       `)
@@ -312,7 +314,9 @@ function Placements() {
     const { data, error } = await supabase
       .from('placement_payments')
       .select(`
-        *,
+        id, month, gross_amount_ngn, gross_amount_usd, fx_rate_used, commission_ngn,
+        net_employee_ngn, status, client_paid, client_paid_at, client_paid_ref,
+        operator_paid, operator_paid_at, operator_paid_ref,
         placements!inner (
           employee_id, client_id, placement_type,
           profiles!placements_employee_id_fkey ( full_name ),
@@ -706,7 +710,7 @@ function Placements() {
     setLoadingPayments(true);
     const { data, error } = await supabase
       .from('placement_payments')
-      .select('*')
+      .select('id, month, gross_amount_ngn, gross_amount_usd, fx_rate_used, commission_ngn, net_employee_ngn, period_start, period_end, hours_worked, days_worked, client_paid, client_paid_at, client_paid_ref, operator_paid, operator_paid_at, operator_paid_ref, fx_rate_edit_reason')
       .eq('placement_id', p.id)
       .order('month', { ascending: false });
     if (error) toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -725,7 +729,7 @@ function Placements() {
     }
     const { data: fresh } = await supabase
       .from('placement_payments')
-      .select('*')
+      .select('id, month, gross_amount_ngn, gross_amount_usd, fx_rate_used, commission_ngn, net_employee_ngn, period_start, period_end, hours_worked, days_worked, client_paid, client_paid_at, client_paid_ref, operator_paid, operator_paid_at, operator_paid_ref, fx_rate_edit_reason')
       .eq('placement_id', detailPlacement.id)
       .order('month', { ascending: false });
     setPayments((fresh as PlacementPayment[]) || []);

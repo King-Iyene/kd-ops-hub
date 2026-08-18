@@ -173,14 +173,14 @@ const Approvals = () => {
           // attention" and belongs in Mission Control, not behind a hidden tab.
           supabase
             .from('payment_batches')
-            .select('*')
+            .select('id, name, beneficiary_count, period, total_amount, created_by, created_at, status')
             .in('status', ['pending_approval', 'pending_second_approval'])
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
             .from('expenses')
-            .select('*')
+            .select('id, category, description, amount_ngn, submitted_by, created_at, status')
             .in('status', ['pending', 'pending_second_approval'])
             .is('deleted_at', null)
             .is('fuel_request_id', null)
@@ -188,14 +188,14 @@ const Approvals = () => {
             .limit(200),
           supabase
             .from('fuel_requests')
-            .select('*')
+            .select('id, station_name, reason, amount_ngn, driver_id, created_at, bank_name, account_number, account_name, status')
             .eq('status', 'pending')
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200),
           supabase
             .from('budgets')
-            .select('*')
+            .select('id, name, period_start, period_end, total_amount_ngn, created_by, created_at, status')
             .eq('status', 'pending_approval')
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
