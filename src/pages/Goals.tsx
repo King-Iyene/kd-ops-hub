@@ -193,7 +193,7 @@ const Goals = () => {
   const load = useCallback(async () => {
     setLoading(true);
     const [goalsRes, profilesRes, depsRes] = await Promise.all([
-      supabase.from('goals').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('goals').select('id, title, description, scope, owner_id, department_id, quarter, status, progress_pct, completed_at, created_at').order('created_at', { ascending: false }).limit(200),
       supabase.from('profiles_directory').select('id, full_name, email').neq('is_anonymised', true).order('full_name').limit(500),
       supabase.from('departments').select('id, name').order('name'),
     ]);
@@ -1029,7 +1029,7 @@ export function MyGoalsWidget() {
     if (!profile?.id) return;
     supabase
       .from('goals')
-      .select('*')
+      .select('id, title, status, progress_pct')
       .eq('owner_id', profile.id)
       .eq('quarter', currentQuarter())
       .order('created_at', { ascending: false })

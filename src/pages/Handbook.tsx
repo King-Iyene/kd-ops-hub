@@ -114,8 +114,8 @@ export default function Handbook() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: pData }, { data: aData }] = await Promise.all([
-      supabase.from('handbook_policies').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('policy_acknowledgments').select('*').limit(5000),
+      supabase.from('handbook_policies').select('id, title, category, content_html, version, is_active, requires_acknowledgment, published_at').order('created_at', { ascending: false }).limit(500),
+      supabase.from('policy_acknowledgments').select('policy_id, employee_id, policy_version').limit(5000),
     ]);
     setPolicies((pData as Policy[]) || []);
     setAcknowledgments((aData as Acknowledgment[]) || []);

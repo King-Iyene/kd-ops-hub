@@ -133,7 +133,7 @@ export default function Assets() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: aData }, { data: pData }, { data: dData }] = await Promise.all([
-      supabase.from('assets').select('*').order('purchase_date', { ascending: false }).limit(500),
+      supabase.from('assets').select('id, asset_number, name, category, description, purchase_date, cost_ngn, useful_life_years, salvage_value_ngn, depreciation_method, initial_allowance_rate, annual_allowance_rate, location, assigned_to, department_id, insurer, insurance_policy_number, insurance_expiry, insurance_value_ngn, status, notes').order('purchase_date', { ascending: false }).limit(500),
       supabase.from('profiles_directory').select('id, full_name').limit(200),
       supabase.from('departments').select('id, name').order('name').limit(100),
     ]);
@@ -147,7 +147,7 @@ export default function Assets() {
 
   const nextAssetNumber = async () => {
     const year = new Date().getFullYear();
-    const { count } = await supabase.from('assets').select('*', { count: 'exact', head: true });
+    const { count } = await supabase.from('assets').select('id', { count: 'exact', head: true });
     return `AST-${year}-${String((count ?? 0) + 1).padStart(4, '0')}`;
   };
 

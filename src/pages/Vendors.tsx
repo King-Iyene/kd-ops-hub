@@ -107,7 +107,7 @@ export default function Vendors() {
     setLoading(true);
     const { data, error } = await supabase
       .from('vendors')
-      .select('*')
+      .select('id, name, category, contact_name, contact_email, contact_phone, address, rc_number, tin, bank_name, bank_account_number, bank_account_name, payment_terms, contract_value_ngn, contract_start, contract_end, status, notes')
       .order('name', { ascending: true })
       .limit(500);
     if (error) { toast({ title: 'Failed to load vendors', variant: 'destructive' }); }
