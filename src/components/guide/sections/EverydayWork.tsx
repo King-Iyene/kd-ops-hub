@@ -39,7 +39,7 @@ export function EverydayWorkSection() {
           Admins and managers see a month-view of the whole team with running counts of Present, Late, Absent, and On Leave days
           per person, and can export any month's attendance to CSV for payroll or reporting.
         </p>
-        <Screenshot src="/guide/attendance-mobile.jpg" alt="The Attendance clock-in screen on a mobile phone" caption="Clock-in on mobile — the view most of the Field Team uses day to day." />
+        <Screenshot variant="mobile" src="/guide/attendance-mobile.jpg" alt="The Attendance clock-in screen on a mobile phone" caption="Clock-in on mobile — the view most of the Field Team uses day to day." />
       </ModuleCard>
 
       <ModuleCard title="Tasks" route="/tasks" roles={['everyone']}>

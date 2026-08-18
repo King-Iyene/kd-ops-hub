@@ -1,4 +1,4 @@
-// Company Guide — the single in-app destination for "how do I use KDOps"
+// Platform Guide — the single in-app destination for "how do I use KDOps"
 // and "what does KDOps enforce." Each topic is its own real, bookmarkable
 // page under /guide/*, grouped in a collapsible sidebar (Start Here, How
 // To, Technical Reference, Help) rather than one long scrolling document.
@@ -192,7 +192,7 @@ export default function Guide() {
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto">
       <PageHeader
-        title="Company Guide"
+        title="Platform Guide"
         description="Everything you need to run your day inside KDOps — how-to walkthroughs, roles & permissions, and the full technical reference."
       />
       <GuideBody />

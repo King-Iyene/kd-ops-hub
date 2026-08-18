@@ -1,4 +1,4 @@
-// Shared building blocks for the Company Guide (src/pages/Guide.tsx and
+// Shared building blocks for the Platform Guide (src/pages/Guide.tsx and
 // src/components/guide/sections/*). One place for the role-badge system,
 // step lists, and the reference-table components the technical sections
 // use, so every section renders consistently.
@@ -83,11 +83,26 @@ export function Callout({ tone, children }: { tone: 'tip' | 'warn' | 'caution'; 
   );
 }
 
-/** A real in-app screenshot, captured by the guide-screenshots CI workflow. */
-export function Screenshot({ src, alt, caption }: { src: string; alt: string; caption?: string }) {
+/**
+ * A real in-app screenshot, captured by the guide-screenshots CI workflow.
+ * Desktop captures (landscape) stretch to the column width like a normal
+ * figure. Mobile captures (portrait, 390x844) are capped by height instead —
+ * stretching a portrait image to a wide desktop column would blow its height
+ * up to well over 1000px, so it's centered and bounded instead.
+ */
+export function Screenshot({
+  src, alt, caption, variant = 'desktop',
+}: { src: string; alt: string; caption?: string; variant?: 'desktop' | 'mobile' }) {
   return (
     <figure className="rounded-lg border overflow-hidden bg-muted/20 not-prose">
-      <img src={src} alt={alt} loading="lazy" className="w-full h-auto block" />
+      <div className={cn('bg-muted/10', variant === 'mobile' && 'flex justify-center py-4')}>
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className={variant === 'mobile' ? 'w-auto max-h-[520px] block' : 'w-full h-auto block'}
+        />
+      </div>
       {caption && (
         <figcaption className="text-xs text-muted-foreground px-3 py-2 border-t bg-muted/30">
           {caption}

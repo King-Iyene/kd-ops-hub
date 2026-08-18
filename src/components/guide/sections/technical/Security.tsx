@@ -65,7 +65,7 @@ export function TechSecuritySection() {
             { a: 'Documents (upload)',   b: '✓', c: '✓', d: '✓', e: '✓', f: '—' },
             { a: 'Audit Log',           b: '✓', c: '✓', d: '—', e: '—', f: '—' },
             { a: 'Settings',            b: '✓', c: '—', d: '—', e: '—', f: '—' },
-            { a: 'Company Guide (this page)', b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
+            { a: 'Platform Guide (this page)', b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
           ]}
         />
         <p className="text-[11px] text-muted-foreground mt-2">✓ = can access · — = blocked at route and database level. Role changes take effect on the employee's next page load.</p>

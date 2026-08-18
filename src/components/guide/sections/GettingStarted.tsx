@@ -16,7 +16,7 @@ export function GettingStartedSection() {
 
       <Screenshot
         src="/guide/guide-desktop.jpg"
-        alt="The KDOps Company Guide, showing the collapsible sidebar and this Getting Started page"
+        alt="The KDOps Platform Guide, showing the collapsible sidebar and this Getting Started page"
         caption="This guide, right where you're reading it now — every section is its own page, searchable from the sidebar."
       />
 
@@ -84,7 +84,7 @@ export function GettingStartedSection() {
         />
         <div className="grid gap-3 sm:grid-cols-2">
           <Screenshot src="/guide/dashboard-desktop.jpg" alt="The KDOps company-wide Dashboard on desktop" caption="Dashboard (desktop) — Super Admin, Admin, Finance, Operations." />
-          <Screenshot src="/guide/dashboard-mobile.jpg" alt="The KDOps dashboard on a mobile phone" caption="The same dashboard on a phone, installed as a PWA." />
+          <Screenshot variant="mobile" src="/guide/dashboard-mobile.jpg" alt="The KDOps dashboard on a mobile phone" caption="The same dashboard on a phone, installed as a PWA." />
         </div>
       </ModuleCard>
 

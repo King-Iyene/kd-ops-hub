@@ -157,7 +157,7 @@ export const ALL_NAV: NavItem[] = [
   // Workspace addition (Assistant)
   { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
-  { title: 'Company Guide',    url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Platform Guide',   url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
 // Grouped by money-flow direction and function rather than department —
@@ -186,7 +186,7 @@ export const NAV_GROUPS = [
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 
-export const UNGROUPED_TITLES = ['Dashboard', 'My Portal', 'Approvals', 'Finance', 'Company Guide'];
+export const UNGROUPED_TITLES = ['Dashboard', 'My Portal', 'Approvals', 'Finance', 'Platform Guide'];
 
 export type SidebarHub = {
   key: string;
