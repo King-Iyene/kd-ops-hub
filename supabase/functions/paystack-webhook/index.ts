@@ -28,8 +28,6 @@
 // payment-state update or trigger a Paystack retry.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { createHmac } from "https://deno.land/std@0.224.0/node/crypto.ts";
-import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 type Supabase = ReturnType<typeof createClient>;
@@ -67,17 +65,42 @@ async function getPaystackSecret(): Promise<string | null> {
   }
 }
 
+// HMAC-SHA512 via Deno's native Web Crypto API — no deno.land/std Node
+// compat shim, which stopped resolving at the pinned version (H-9). Web
+// Crypto is a web standard built into Deno, so this has no external
+// import to go stale again.
+async function hmacSha512Hex(secret: string, body: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-512" },
+    false,
+    ["sign"],
+  );
+  const signatureBytes = await crypto.subtle.sign("HMAC", key, enc.encode(body));
+  return Array.from(new Uint8Array(signatureBytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function timingSafeEqualStr(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 async function verifySignature(body: string, signature: string): Promise<boolean> {
   const secret = await getPaystackSecret();
   if (!secret) {
     console.error("[webhook] No PAYSTACK_SECRET_KEY in env or company_settings");
     return false;
   }
-  const hash = createHmac("sha512", secret).update(body).digest("hex");
-  const enc = new TextEncoder();
-  const isValid = timingSafeEqual(enc.encode(hash), enc.encode(signature));
-  if (!isValid) return false;
-  return true;
+  const hash = await hmacSha512Hex(secret, body);
+  return timingSafeEqualStr(hash, signature);
 }
 
 async function notifyFinance(

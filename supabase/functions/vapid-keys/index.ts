@@ -13,11 +13,18 @@
 //                        platform has VAPID keys configured (boolean).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { encode as b64encode } from "https://deno.land/std@0.224.0/encoding/base64url.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 const PRIVILEGED = new Set(["super_admin", "admin"]);
+
+// Native base64url encode (no deno.land/std import — see paystack-webhook
+// for why that dependency stopped resolving).
+function b64encode(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 async function generateVapidKeys(): Promise<{ publicKey: string; privateKey: string }> {
   const keyPair = await crypto.subtle.generateKey(

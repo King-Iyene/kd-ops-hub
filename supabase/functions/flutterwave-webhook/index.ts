@@ -32,8 +32,8 @@
 //   any DB error      → 500 so Flutterwave retries
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 
@@ -48,16 +48,11 @@ type Supabase = ReturnType<typeof createClient>;
 function verifyHash(headerHash: string): { valid: boolean; mode: "test" | "live" | null } {
   const testHash = Deno.env.get("FLUTTERWAVE_WEBHOOK_HASH_TEST") || "";
   const liveHash = Deno.env.get("FLUTTERWAVE_WEBHOOK_HASH_LIVE") || "";
-  const enc = new TextEncoder();
-  if (testHash && headerHash.length === testHash.length) {
-    if (timingSafeEqual(enc.encode(headerHash), enc.encode(testHash))) {
-      return { valid: true, mode: "test" };
-    }
+  if (testHash && constantTimeEquals(headerHash, testHash)) {
+    return { valid: true, mode: "test" };
   }
-  if (liveHash && headerHash.length === liveHash.length) {
-    if (timingSafeEqual(enc.encode(headerHash), enc.encode(liveHash))) {
-      return { valid: true, mode: "live" };
-    }
+  if (liveHash && constantTimeEquals(headerHash, liveHash)) {
+    return { valid: true, mode: "live" };
   }
   return { valid: false, mode: null };
 }

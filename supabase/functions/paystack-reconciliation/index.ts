@@ -21,8 +21,8 @@
 //   PAYSTACK_SECRET_KEY  (or company_settings.paystack_secret_key_enc)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const PAYSTACK_BASE = "https://api.paystack.co";
 
@@ -73,9 +73,8 @@ Deno.serve(async (req) => {
     if (scheduled) {
       // Service-role bearer required — can't be triggered by a regular user.
       const auth = req.headers.get("Authorization") ?? "";
-      const enc = new TextEncoder();
       const token = auth.replace("Bearer ", "");
-      if (token.length !== SERVICE_ROLE.length || !timingSafeEqual(enc.encode(token), enc.encode(SERVICE_ROLE))) {
+      if (!constantTimeEquals(token, SERVICE_ROLE)) {
         return json({ error: "Scheduled runs require service-role auth" }, 401, corsHeaders);
       }
     } else {

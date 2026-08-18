@@ -14,8 +14,8 @@
 //      FLUTTERWAVE_SECRET_KEY_TEST / _LIVE (mode-picked per invocation)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 const STUCK_THRESHOLD_HOURS = 1;
@@ -62,9 +62,8 @@ Deno.serve(async (req) => {
       // already used timingSafeEqual here; this one used a plain !== that
       // leaks comparison timing on a security-sensitive service-role check.
       const auth = req.headers.get("Authorization") ?? "";
-      const enc = new TextEncoder();
       const token = auth.replace("Bearer ", "");
-      if (token.length !== SERVICE_ROLE.length || !timingSafeEqual(enc.encode(token), enc.encode(SERVICE_ROLE))) {
+      if (!constantTimeEquals(token, SERVICE_ROLE)) {
         return json({ error: "Scheduled runs require service-role auth" }, 401, corsHeaders);
       }
     } else {

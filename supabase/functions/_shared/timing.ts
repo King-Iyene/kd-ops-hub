@@ -1,8 +1,9 @@
 // Constant-time secret comparison for cron/webhook shared secrets.
-// Wraps std's timingSafeEqual so callers don't repeat the length + encode
-// boilerplate on every check.
-
-import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
+//
+// Implemented natively (no deno.land/std import) after the pinned
+// deno.land/std@0.224.0 Node compat path broke a sibling import in
+// paystack-webhook (H-9) — this removes the same class of external
+// dependency risk for every caller of constantTimeEquals in one place.
 
 /**
  * Returns true iff `provided` matches `expected` in constant time.
@@ -16,5 +17,11 @@ export function constantTimeEquals(
   if (!provided || !expected) return false;
   if (provided.length !== expected.length) return false;
   const enc = new TextEncoder();
-  return timingSafeEqual(enc.encode(provided), enc.encode(expected));
+  const a = enc.encode(provided);
+  const b = enc.encode(expected);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a[i] ^ b[i];
+  }
+  return diff === 0;
 }
