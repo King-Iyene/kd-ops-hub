@@ -357,13 +357,13 @@ const EmployeeProfile = () => {
     // department display, not the entire profile.
     let { data, error } = await supabase
       .from('profiles')
-      .select('*, departments(name)')
+      .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions, departments(name)')
       .eq('id', id)
       .single();
     if (error) {
       const fallback = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, first_name, last_name, email, phone, role, status, job_title, salary_ngn, next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, bank_name, bank_account_number, bank_account_name, pension_pin, annual_leave_days, department_id, photo_url, date_of_birth, gender, marital_status, address, next_of_kin_email, employee_number, employment_type, employee_category, start_date, nin, nhf_number, nhis_number, tin, pension_enabled, nhf_enabled, nhis_enabled, paye_enabled, tax_id, use_salary_components, basic_ngn, housing_ngn, transport_ngn, other_allowances_ngn, reporting_manager_id, contract_end_date, pfa_name, pfa_code, state_of_residence, pay_group_id, notice_period_days, voluntary_pension_pct, permissions')
         .eq('id', id)
         .single();
       data = fallback.data;
@@ -424,20 +424,20 @@ const EmployeeProfile = () => {
       .catch(() => { /* company name is cosmetic on the payslip */ });
 
     const [expRes, payRes, leaveRes, taskRes, docRes, auditRes, incrRes, advRes, deductRes, earningsRes, benefitRes, assetRes, dependentRes] = await Promise.all([
-      supabase.from('expenses').select('*').eq('submitted_by', id).is('deleted_at', null)
+      supabase.from('expenses').select('id, created_at, description, category, amount, amount_ngn, status, date').eq('submitted_by', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
       // Payslips: cap at most-recent 24 (= 2 years monthly) to keep this
       // page responsive even for long-tenured employees.
-      supabase.from('payslips').select('*').eq('employee_id', id)
+      supabase.from('payslips').select('id, period, created_at, storage_path, file_url, employee_name, employee_email, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, employer_pension_ngn').eq('employee_id', id)
         .order('period', { ascending: false }).limit(24),
-      supabase.from('leave_requests').select('*').eq('employee_id', id).is('deleted_at', null)
+      supabase.from('leave_requests').select('id, status, days_requested, days, leave_type, type, start_date, end_date').eq('employee_id', id).is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('tasks').select('*').eq('assignee_id', id)
+      supabase.from('tasks').select('id, title, due_date, status').eq('assignee_id', id)
         .order('created_at', { ascending: false }).limit(20),
       // Documents tied to this employee. Prefer the employee_id link (set when an
       // admin uploads on behalf of the employee); fall back to uploaded_by for
       // legacy self-uploaded docs from before the employee_id column existed.
-      supabase.from('documents').select('*')
+      supabase.from('documents').select('id, title, file_name, name, description, category, expires_at, created_at, storage_path')
         .or(`employee_id.eq.${id},uploaded_by.eq.${id}`)
         .is('deleted_at', null)
         .order('created_at', { ascending: false }).limit(30),
@@ -445,14 +445,14 @@ const EmployeeProfile = () => {
         .select('id, action_type, description, created_at, performed_by, performed_by_name')
         .or(`entity_id.eq.${id},performed_by.eq.${id}`)
         .order('created_at', { ascending: false }).limit(50),
-      supabase.from('salary_increments').select('*').eq('employee_id', id)
+      supabase.from('salary_increments').select('id, effective_date, new_salary_ngn, old_salary_ngn, reason').eq('employee_id', id)
         .order('effective_date', { ascending: false }).limit(20),
-      supabase.from('employee_advances').select('*').eq('employee_id', id)
+      supabase.from('employee_advances').select('id, status, outstanding_ngn, deduction_per_month, created_at, start_period, amount_ngn, repayment_months').eq('employee_id', id)
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('employee_deductions').select('*')
+      supabase.from('employee_deductions').select('id, description, amount_ngn, frequency, start_date, end_date, amount_deducted_to_date, total_deductible_amount, status')
         .eq('entity_id', id).eq('entity_type', 'employee')
         .order('created_at', { ascending: false }).limit(20),
-      supabase.from('employee_earnings').select('*')
+      supabase.from('employee_earnings').select('id, status, description, amount_ngn, earning_type, frequency, is_taxable, start_date, end_date')
         .eq('entity_id', id).eq('entity_type', 'employee')
         .order('created_at', { ascending: false }).limit(20),
       // Benefits the company pays a real premium for (HMO, group life, etc).
@@ -463,7 +463,7 @@ const EmployeeProfile = () => {
       // Equipment currently assigned — book value only, not a recurring cost.
       supabase.from('assets').select('id, name, category, cost_ngn')
         .eq('assigned_to', id).is('disposal_date', null).is('deleted_at', null),
-      supabase.from('employee_dependents').select('*')
+      supabase.from('employee_dependents').select('id, full_name, relationship, date_of_birth, gender, phone, is_beneficiary, is_hmo_enrolled, hmo_plan_id, notes')
         .eq('employee_id', id).order('created_at', { ascending: false }),
     ]);
     setExpenses(expRes.data || []);
@@ -482,7 +482,7 @@ const EmployeeProfile = () => {
 
     const { data: plData } = await supabase
       .from('placements')
-      .select('*, clients(name)')
+      .select('id, client_id, status, employee_rate_ngn, commission_ngn, placement_category, placement_type, client_rate_ngn, commission_pct, start_date, end_date, clients(name)')
       .eq('employee_id', id)
       .order('start_date', { ascending: false })
       .limit(50);
@@ -493,7 +493,7 @@ const EmployeeProfile = () => {
       const ids = placements.map((p: any) => p.id);
       const { data: ppData } = await supabase
         .from('placement_payments')
-        .select('*')
+        .select('id, placement_id, status, net_employee_ngn, month, gross_amount_ngn, commission_ngn')
         .in('placement_id', ids)
         .order('month', { ascending: false })
         .limit(200);
@@ -541,7 +541,7 @@ const EmployeeProfile = () => {
     if (!id) return;
     const { data } = await supabase
       .from('bank_account_change_requests')
-      .select('*')
+      .select('id, status, new_bank_name, new_account_number, new_account_name, reason')
       .eq('employee_id', id)
       .order('created_at', { ascending: false });
     setBankRequests(data || []);
