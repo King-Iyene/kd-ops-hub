@@ -65,7 +65,7 @@ import {
   MobileCardRow,
   MobileCardFooter,
 } from '@/components/ui-kit/MobileCard';
-import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck, UserCheck, MoreHorizontal } from 'lucide-react';
+import { Loader2, Check, X, Fuel, MapPin, Plus, Car, Pencil, Trash2, Info, CreditCard, Banknote, History, User, AlertTriangle, Wrench, FileText, Upload, RotateCcw, Timer, Navigation, LocateFixed, LocateOff, CheckCircle2, Radio, Map as MapIcon, Gauge, Zap, ParkingCircle, TrendingUp, BarChart2, Download, Ban, CalendarOff, CheckSquare, RefreshCw, Play, Pause, Shield, Circle, LayoutDashboard, Search, ClipboardCheck, UserCheck, MoreHorizontal, Receipt } from 'lucide-react';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { LiveTrackingTab } from '@/components/fleet/LiveTrackingTab';
 import { useJsApiLoader, GoogleMap, Polyline as GPolyline, OverlayView, Marker } from '@react-google-maps/api';
@@ -523,6 +523,21 @@ const Fleet = () => {
   // Pump-price benchmark for the anomaly cross-check (Phase 5).
   const [fuelPriceBenchmark, setFuelPriceBenchmark] = useState<number | null>(null);
   const [fuelIsReimbursement, setFuelIsReimbursement] = useState(true);
+
+  // Log External Purchase — admin-only. Records a fuel/repair purchase that
+  // was already paid for outside the platform (e.g. a receipt forwarded over
+  // WhatsApp), instead of an admin impersonating the employee's own request.
+  // Distinct from the New Fuel Request / Repair Request flows: nothing here
+  // is ever forward-looking or payable — see the migration comment on
+  // log_external_repair_purchase for why.
+  const [showLogExternalForm, setShowLogExternalForm] = useState(false);
+  const [logExternalType, setLogExternalType] = useState<'fuel' | 'repair'>('fuel');
+  const EMPTY_LOG_EXTERNAL_FORM = {
+    employee_id: '', vehicle_id: '', amount_ngn: '', station_or_vendor: '',
+    purchase_date: new Date().toISOString().slice(0, 10), notes: '',
+  };
+  const [logExternalForm, setLogExternalForm] = useState(EMPTY_LOG_EXTERNAL_FORM);
+  const [submittingLogExternal, setSubmittingLogExternal] = useState(false);
 
   // Trip log form
   const [showTripForm, setShowTripForm] = useState(false);
@@ -1947,6 +1962,84 @@ const Fleet = () => {
     }
   };
 
+  // Logs a fuel or repair purchase already paid for outside the platform.
+  // Creates the row (never payable — see log_external_repair_purchase's
+  // comment) then hands off into the SAME receipt-upload dialogs the normal
+  // fuel/repair flows use, so OCR, anomaly checks, and the vehicle fuel-level
+  // sync all run through their one already-vetted path. Cancelling that
+  // follow-up dialog is a valid outcome, not an error: it leaves the row
+  // receipt-less, which the existing getReceiptDebt() block already covers.
+  const submitLogExternalPurchase = async () => {
+    if (!logExternalForm.employee_id) {
+      toast({ title: 'Select an employee', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(logExternalForm.amount_ngn) || 0;
+    if (amount <= 0) {
+      toast({ title: 'Enter a valid amount', variant: 'destructive' });
+      return;
+    }
+    setSubmittingLogExternal(true);
+    try {
+      const employeeName = staff.find((s) => s.id === logExternalForm.employee_id)?.full_name
+        || (logExternalForm.employee_id === profile?.id ? profile?.full_name : null)
+        || 'employee';
+      const paidAt = new Date(`${logExternalForm.purchase_date}T12:00:00`).toISOString();
+
+      if (logExternalType === 'fuel') {
+        const { data: inserted, error } = await supabase.from('fuel_requests').insert({
+          driver_id: logExternalForm.employee_id,
+          vehicle_id: logExternalForm.vehicle_id || null,
+          station_name: logExternalForm.station_or_vendor || 'Unknown station',
+          amount_ngn: amount,
+          reason: `Logged externally — paid outside the platform.${logExternalForm.notes ? ` ${logExternalForm.notes}` : ''}`,
+          status: 'payment_sent',
+          payment_sent_at: paidAt,
+          logged_externally: true,
+        }).select('*').single();
+        if (error) throw error;
+        await logAudit('fuel_logged_externally', `Fuel purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)})`, profile);
+        setShowLogExternalForm(false);
+        setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
+        if (inserted) setUploadingReceiptFor(enrich([inserted], staff)[0] as FuelRequest);
+      } else {
+        const description = logExternalForm.notes || 'Repair — paid outside the platform';
+        const { data: newId, error } = await supabase.rpc('log_external_repair_purchase', {
+          p_employee_id: logExternalForm.employee_id,
+          p_amount_ngn: amount,
+          p_purchase_date: logExternalForm.purchase_date,
+          p_description: description,
+          p_vendor_name: logExternalForm.station_or_vendor || null,
+          p_vehicle_id: logExternalForm.vehicle_id || null,
+        });
+        if (error) throw error;
+        await logAudit('repair_logged_externally', `Repair purchase logged as paid outside the platform for ${employeeName} (${formatNaira(amount)})`, profile);
+        setShowLogExternalForm(false);
+        setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM);
+        if (newId) {
+          setUploadingRepairReceiptFor({
+            id: newId as string,
+            description,
+            amount_ngn: amount,
+            vehicle_id: logExternalForm.vehicle_id || null,
+            service_type: null,
+            maintenance_item_id: null,
+            repair_odometer_km: null,
+            vendor_name: logExternalForm.station_or_vendor || null,
+            date: logExternalForm.purchase_date,
+          });
+          setRepairReceiptUploadVendor(logExternalForm.station_or_vendor || '');
+          setRepairReceiptUploadDate(logExternalForm.purchase_date);
+        }
+      }
+      await fetchData();
+    } catch (err: any) {
+      toast({ title: 'Could not log purchase', description: friendlyDbError(err) || err?.message, variant: 'destructive' });
+    } finally {
+      setSubmittingLogExternal(false);
+    }
+  };
+
   const submitTripLog = async () => {
     if (!tripForm.employee_id) {
       toast({ title: 'Select an employee', variant: 'destructive' });
@@ -3222,6 +3315,9 @@ const Fleet = () => {
                 <Download className="mr-2 h-4 w-4" /> Export CSV
               </Button>
             )}
+            <Button variant="outline" onClick={() => { setLogExternalType('fuel'); setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); setShowLogExternalForm(true); }}>
+              <Receipt className="mr-2 h-4 w-4" /> Log External Purchase
+            </Button>
             <Button variant="outline" onClick={() => setShowRepairForm(true)}>
               <Wrench className="mr-2 h-4 w-4" /> Repair Request
             </Button>
@@ -4061,6 +4157,11 @@ const Fleet = () => {
             const repairBlocked = (myReceiptDebt?.repairOldestDays ?? -1) >= RECEIPT_DEBT_HARD_BLOCK_DAYS;
             return (
               <div className="flex justify-end gap-2">
+                {isAdmin && (
+                  <Button variant="outline" onClick={() => { setLogExternalType('fuel'); setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); setShowLogExternalForm(true); }}>
+                    <Receipt className="mr-2 h-4 w-4" /> Log External Purchase
+                  </Button>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className={repairBlocked ? 'cursor-not-allowed' : undefined}>
@@ -5616,6 +5717,116 @@ const Fleet = () => {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* LOG EXTERNAL PURCHASE DIALOG — admin-only. Records a fuel/repair
+          purchase already paid for outside the platform. Submitting hands
+          off into the fuel/repair receipt-upload dialogs below so a receipt
+          can be attached immediately if the admin already has it; cancelling
+          that follow-up is fine and leaves the entry to the normal
+          receipt-debt block until a receipt is added. */}
+      <Dialog
+        open={showLogExternalForm}
+        onOpenChange={(v) => { setShowLogExternalForm(v); if (!v) setLogExternalForm(EMPTY_LOG_EXTERNAL_FORM); }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Log External Purchase</DialogTitle>
+            <DialogDescription>
+              For a fuel or repair purchase that was already paid for outside KDOps — e.g. a receipt sent over
+              WhatsApp — instead of a live request going through approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Type</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['fuel', 'repair'] as const).map((t) => (
+                  <button key={t} type="button"
+                    className={cn('flex items-center justify-center gap-2 rounded-xl border p-2.5 text-sm kd-transition', logExternalType === t ? 'border-primary bg-primary/5 text-primary' : 'border-input text-muted-foreground hover:border-primary/30 hover:text-foreground')}
+                    onClick={() => setLogExternalType(t)}
+                  >
+                    {t === 'fuel' ? <Fuel className="h-4 w-4" /> : <Wrench className="h-4 w-4" />}
+                    {t === 'fuel' ? 'Fuel' : 'Repair'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Employee <span className="text-destructive">*</span></Label>
+              <Select
+                value={logExternalForm.employee_id || undefined}
+                onValueChange={(v) => {
+                  const suggestedVehicle = vehicles.find((vh) => vh.assigned_driver_id === v)?.id || '';
+                  setLogExternalForm((f) => ({ ...f, employee_id: v, vehicle_id: f.vehicle_id || suggestedVehicle }));
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                <SelectContent>
+                  {staff.map((s) => (<SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Vehicle <span className="text-muted-foreground font-normal text-xs">(optional, auto-suggested from assignment)</span></Label>
+              <Select value={logExternalForm.vehicle_id || '__none__'} onValueChange={(v) => setLogExternalForm((f) => ({ ...f, vehicle_id: v === '__none__' ? '' : v }))}>
+                <SelectTrigger><SelectValue placeholder="Select vehicle" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {vehicles.map((v) => (<SelectItem key={v.id} value={v.id}>{v.name} ({v.plate_number})</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Amount (₦) <span className="text-destructive">*</span></Label>
+                <Input type="number" min="0" value={logExternalForm.amount_ngn} onChange={(e) => setLogExternalForm((f) => ({ ...f, amount_ngn: e.target.value }))} placeholder="0.00" />
+              </div>
+              <div className="space-y-1">
+                <Label>Date paid</Label>
+                <Input type="date" max={new Date().toISOString().slice(0, 10)} value={logExternalForm.purchase_date} onChange={(e) => setLogExternalForm((f) => ({ ...f, purchase_date: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label>{logExternalType === 'fuel' ? 'Fuel station' : 'Vendor / Garage'} <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Input
+                value={logExternalForm.station_or_vendor}
+                onChange={(e) => setLogExternalForm((f) => ({ ...f, station_or_vendor: e.target.value }))}
+                placeholder={logExternalType === 'fuel' ? 'e.g. NNPC Station' : 'e.g. Mekunwen Auto Parts'}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label>{logExternalType === 'repair' ? 'What was done' : 'Notes'} <span className="text-muted-foreground font-normal text-xs">(optional)</span></Label>
+              <Textarea
+                value={logExternalForm.notes}
+                onChange={(e) => setLogExternalForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder={logExternalType === 'repair' ? 'e.g. Brake pad replacement' : 'Any additional context…'}
+                rows={2}
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              After saving, you'll be able to attach the receipt right away if you have it. If you don't yet,
+              you can close that step — {staff.find((s) => s.id === logExternalForm.employee_id)?.full_name || 'this employee'} won't
+              be able to submit another {logExternalType} request until a receipt is uploaded for this one.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLogExternalForm(false)}>Cancel</Button>
+            <Button
+              onClick={submitLogExternalPurchase}
+              disabled={submittingLogExternal || !logExternalForm.employee_id || !logExternalForm.amount_ngn}
+            >
+              {submittingLogExternal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save & Continue
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
