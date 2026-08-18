@@ -652,9 +652,12 @@ export default function Communications() {
     let cancelled = false;
     const table = activeCampaign.channel === 'email' ? 'email_campaigns' : 'message_campaigns';
     const tick = async () => {
+      const cols = activeCampaign.channel === 'email'
+        ? 'id, name, subject, status, total_recipients, total_sent, total_failed, created_at, completed_at'
+        : 'id, name, message, status, total_recipients, total_sent, total_failed, created_at, completed_at';
       const { data } = await supabase
         .from(table)
-        .select('*')
+        .select(cols)
         .eq('id', activeCampaign.id)
         .maybeSingle();
       if (!cancelled && data) {

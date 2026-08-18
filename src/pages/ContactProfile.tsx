@@ -75,7 +75,7 @@ const ContactProfile = () => {
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const { data, error } = await supabase.from('contacts').select('*').eq('id', id).single();
+    const { data, error } = await supabase.from('contacts').select('full_name, first_name, last_name, email, phone, contact_type, source, tags, notes, status, created_at').eq('id', id).single();
     if (error || !data) {
       toast({ title: 'Contact not found', variant: 'destructive' });
       navigate('/contacts');
@@ -87,7 +87,7 @@ const ContactProfile = () => {
 
     const { data: acts } = await supabase
       .from('contact_activities')
-      .select('*')
+      .select('id, action, detail, performed_by_name, created_at')
       .eq('contact_id', id)
       .order('created_at', { ascending: false })
       .limit(50);

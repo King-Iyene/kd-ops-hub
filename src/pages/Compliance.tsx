@@ -388,7 +388,7 @@ const Compliance = () => {
     setError(null);
     const { data, error } = await supabase
       .from('compliance_filings')
-      .select('*')
+      .select('id, kind, period, due_date, filed_at, amount_ngn, notes, payroll_run_id, auto_calculated_at, breakdown_json')
       .order('due_date', { ascending: true })
       .limit(200);
     if (error) {
@@ -481,7 +481,7 @@ const Compliance = () => {
     try {
       const { data, error } = await supabase
         .from('tax_remittances')
-        .select('*')
+        .select('id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at')
         .order('period_month', { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -528,7 +528,7 @@ const Compliance = () => {
         const { data: inserted, error: insertError } = await supabase
           .from('tax_remittances')
           .insert(toInsert)
-          .select('*');
+          .select('id, remittance_type, period_month, amount_ngn, due_date, remitted_at, receipt_url, provider_reference, notes, confirmed_at');
         if (insertError) {
           // Best-effort — a race with another tab/session shouldn't break the page.
           console.warn('[KDOps] remittance auto-generation failed:', insertError.message);
