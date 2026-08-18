@@ -30,20 +30,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Node compat correctly for this package.
 import webPush from "npm:web-push@3.6.7";
 import { constantTimeEquals } from "../_shared/timing.ts";
-
-const ALLOWED_ORIGINS = [
-  "https://ops.kdsquares.com",
-  "http://localhost:5173",
-  "http://localhost:8080",
-];
-
-function corsHeaders(req: Request) {
-  const origin = req.headers.get("origin") ?? "";
-  return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 interface PushBody {
   user_ids: string[];
@@ -56,7 +43,7 @@ interface PushBody {
 }
 
 Deno.serve(async (req) => {
-  const headers = corsHeaders(req);
+  const headers = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers });
 
   try {
