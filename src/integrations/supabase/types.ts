@@ -16195,6 +16195,10 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: boolean
       }
+      is_dm_participant: {
+        Args: { p_conversation_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_quick_pay_enabled: { Args: never; Returns: boolean }
       lock_payroll_run_for_disbursement: {
         Args: { p_run_id: string }
