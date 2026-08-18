@@ -253,11 +253,13 @@ const Documents = () => {
         .from('documents')
         .select('id, title, category, storage_path, mime_type, file_size_bytes, expires_at, description, tags, uploaded_by, created_at, entity_type, entity_id, folder, is_template, version, access_count')
         .is('deleted_at', null)
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false })
+        .limit(5000),
       supabase
         .from('document_folders')
         .select('id, name, parent_id, color, description, entity_type, entity_id, created_by')
-        .order('name', { ascending: true }),
+        .order('name', { ascending: true })
+        .limit(2000),
     ]);
     if (docRes.error) {
       setError(docRes.error.message);

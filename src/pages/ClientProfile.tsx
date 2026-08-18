@@ -172,7 +172,7 @@ const ClientProfile = () => {
         .from('placement_payments')
         .select('id, placement_id, month, gross_amount_ngn, commission_ngn, net_employee_ngn, status, paid_at')
         .in('placement_id', (await supabase.from('placements').select('id').eq('client_id', id)).data?.map((p: any) => p.id) || [])
-        .order('month', { ascending: false }),
+        .order('month', { ascending: false }).limit(2000),
     ]);
 
     setPlacements((placementsRes.data as any[]) || []);

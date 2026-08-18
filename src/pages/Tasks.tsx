@@ -171,10 +171,10 @@ const Tasks = () => {
           .limit(5000),
         supabase.from('profiles_directory').select('id, full_name, email, status').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
         supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.task').order('name'),
-        supabase.from('project_spaces').select('id, name, description, color, owner_id, is_private').is('deleted_at', null).order('sort_order'),
-        supabase.from('space_folders').select('id, space_id, name, color, sort_order').order('sort_order'),
-        supabase.from('task_lists').select('id, space_id, folder_id, name, color, sort_order').order('sort_order'),
-        supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type'),
+        supabase.from('project_spaces').select('id, name, description, color, owner_id, is_private').is('deleted_at', null).order('sort_order').limit(2000),
+        supabase.from('space_folders').select('id, space_id, name, color, sort_order').order('sort_order').limit(5000),
+        supabase.from('task_lists').select('id, space_id, folder_id, name, color, sort_order').order('sort_order').limit(5000),
+        supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type').limit(20000),
       ]);
       if (topRes.error) throw topRes.error;
       const newTasks = (topRes.data as Task[]) || [];
@@ -261,7 +261,7 @@ const Tasks = () => {
 
   // Load project-space mapping
   useEffect(() => {
-    supabase.from('projects').select('id, space_id').then(({ data }) => {
+    supabase.from('projects').select('id, space_id').limit(5000).then(({ data }) => {
       if (!data) return;
       const m = new Map<string, string | null>();
       for (const p of data) m.set(p.id, p.space_id);

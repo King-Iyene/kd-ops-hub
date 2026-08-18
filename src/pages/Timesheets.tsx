@@ -97,7 +97,7 @@ export default function Timesheets() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: tsData }, { data: pData }, { data: projData }] = await Promise.all([
-      supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, approved_at').order('week_start', { ascending: false }),
+      supabase.from('timesheets').select('id, employee_id, week_start, status, total_hours, billable_hours, approved_at').order('week_start', { ascending: false }).limit(5000),
       supabase.from('profiles').select('id, full_name').neq('is_anonymised', true).order('full_name'),
       supabase.from('projects').select('id, name').order('name'),
     ]);

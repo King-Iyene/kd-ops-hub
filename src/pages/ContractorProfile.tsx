@@ -175,7 +175,7 @@ const ContractorProfile = () => {
         .order('created_at', { ascending: false }).limit(50),
       supabase.from('employee_deductions').select('id, description, frequency, start_date, end_date, amount_ngn, amount_deducted_to_date, total_deductible_amount, status')
         .eq('entity_id', id).eq('entity_type', 'contractor')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(2000),
     ]);
     // Belt-and-braces: even if the PostgREST embedded filter somehow lets a
     // row through (older postgrest builds), strip rows whose parent batch is

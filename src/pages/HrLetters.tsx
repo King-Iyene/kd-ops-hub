@@ -106,7 +106,7 @@ export default function HrLetters() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: lData }, { data: pData }] = await Promise.all([
-      supabase.from('hr_letters').select('id, employee_id, letter_type, title, body_html, effective_date, status, recipient_signature_url, created_at').order('created_at', { ascending: false }),
+      supabase.from('hr_letters').select('id, employee_id, letter_type, title, body_html, effective_date, status, recipient_signature_url, created_at').order('created_at', { ascending: false }).limit(5000),
       supabase.from('profiles').select('id, full_name').order('full_name'),
     ]);
     setLetters(lData ?? []);

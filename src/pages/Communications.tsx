@@ -383,10 +383,10 @@ export default function Communications() {
       const field = ch === 'email' ? 'email' : 'phone';
       let rows: { val: string | null; name?: string | null }[] = [];
       if (src === 'contacts') {
-        const { data } = await supabase.from('contacts').select(`${field}, full_name`).not(field, 'is', null);
+        const { data } = await supabase.from('contacts').select(`${field}, full_name`).not(field, 'is', null).limit(5000);
         rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));
       } else if (src === 'employees') {
-        let q = supabase.from('profiles_directory').select(`${field}, full_name`).eq('status', 'active').not(field, 'is', null);
+        let q = supabase.from('profiles_directory').select(`${field}, full_name`).eq('status', 'active').not(field, 'is', null).limit(5000);
         if (deptFilter !== 'all') q = q.eq('department_id', deptFilter);
         const { data } = await q;
         rows = (data ?? []).map((r: any) => ({ val: r[field], name: r.full_name }));

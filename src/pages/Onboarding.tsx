@@ -146,8 +146,8 @@ export default function Onboarding() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: clData }, { data: itData }, { data: pData }] = await Promise.all([
-      supabase.from('onboarding_checklists').select('id, employee_id, checklist_type, target_completion_date, notes').order('created_at', { ascending: false }),
-      supabase.from('onboarding_items').select('id, checklist_id, category, title, is_completed, assigned_to, due_date').order('sort_order'),
+      supabase.from('onboarding_checklists').select('id, employee_id, checklist_type, target_completion_date, notes').order('created_at', { ascending: false }).limit(5000),
+      supabase.from('onboarding_items').select('id, checklist_id, category, title, is_completed, assigned_to, due_date').order('sort_order').limit(20000),
       supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setChecklists(clData ?? []);

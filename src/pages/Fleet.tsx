@@ -803,7 +803,7 @@ const Fleet = () => {
           .eq('role', 'field_staff')
           .eq('status', 'active')
           .order('full_name'),
-        supabase.from('profiles_directory').select('id, full_name, email'),
+        supabase.from('profiles_directory').select('id, full_name, email').limit(2000),
         canSeeAll ? fuelBase : fuelBase.eq('driver_id', uid),
         canSeeAll ? tripBase : tripBase.eq('driver_id', uid),
         supabase

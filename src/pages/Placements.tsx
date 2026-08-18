@@ -283,7 +283,8 @@ function Placements() {
         profiles!placements_employee_id_fkey ( full_name ),
         clients!placements_client_id_fkey ( name )
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(5000);
 
     if (error) {
       toast({ title: 'Error loading placements', description: error.message, variant: 'destructive' });
@@ -323,7 +324,8 @@ function Placements() {
           clients!placements_client_id_fkey ( name )
         )
       `)
-      .order('month', { ascending: false });
+      .order('month', { ascending: false })
+      .limit(5000);
 
     if (error) {
       toast({ title: 'Error loading payments', description: error.message, variant: 'destructive' });

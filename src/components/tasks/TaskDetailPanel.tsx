@@ -111,7 +111,7 @@ export function TaskDetailPanel({
   const loadComments = useCallback(async () => {
     const { data } = await supabase
       .from('task_comments').select('id, author_id, body, created_at').eq('task_id', task.id)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }).limit(2000);
     setComments((data as TaskComment[]) || []);
   }, [task.id]);
 

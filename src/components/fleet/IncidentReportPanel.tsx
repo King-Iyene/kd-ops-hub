@@ -248,7 +248,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
         query = query.eq('driver_id', profile.id);
       }
 
-      const { data, error } = await query.order('incident_date', { ascending: false });
+      const { data, error } = await query.order('incident_date', { ascending: false }).limit(5000);
       if (error) throw error;
       setHasTable(true);
       setIncidents(data ?? []);
