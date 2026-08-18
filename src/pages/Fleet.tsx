@@ -4509,20 +4509,35 @@ const Fleet = () => {
                 {/* Driver & Vehicle */}
                 <div className="space-y-3">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">Driver & Vehicle</p>
-                  <div className="space-y-1">
-                    <Label>Employee</Label>
-                    <Select value={fuelForm.employee_id} onValueChange={(v) => setFuelForm({ ...fuelForm, employee_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
-                      <SelectContent>
-                        {staff.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>
-                        ))}
-                        {profile && !staff.find((s) => s.id === profile.id) && (
-                          <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {isAdmin && (
+                    <div className="space-y-1">
+                      <Label>Employee</Label>
+                      <Select
+                        value={fuelForm.employee_id}
+                        onValueChange={(v) => {
+                          setFuelForm({ ...fuelForm, employee_id: v });
+                          // Logging a purchase for someone else — auto-select their
+                          // assigned vehicle so the admin isn't hunting through the
+                          // full fleet list to find it.
+                          const assigned = vehicles.find((vh) => (vh as any).assigned_driver_id === v);
+                          if (assigned) { setFuelVehicleId(assigned.id); fetchWeekBudget(assigned.id); }
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
+                        <SelectContent>
+                          {staff.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>
+                          ))}
+                          {profile && !staff.find((s) => s.id === profile.id) && (
+                            <SelectItem value={profile.id}>{profile.full_name || profile.email} (me)</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Logging a purchase someone else already made? Pick them here, then scan their receipt below.
+                      </p>
+                    </div>
+                  )}
                   {vehicles.length > 0 && (
                     <div className="space-y-1.5">
                       <Label>Vehicle <span className="text-destructive">*</span></Label>
@@ -5953,7 +5968,16 @@ const Fleet = () => {
             {isAdmin && (
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Who</Label>
-                <Select value={repairForm.employee_id} onValueChange={(v) => setRepairForm({ ...repairForm, employee_id: v })}>
+                <Select
+                  value={repairForm.employee_id}
+                  onValueChange={(v) => {
+                    setRepairForm({ ...repairForm, employee_id: v });
+                    // Logging a repair for someone else — auto-select their
+                    // assigned vehicle instead of making the admin hunt for it.
+                    const assigned = vehicles.find((vh) => (vh as any).assigned_driver_id === v);
+                    if (assigned) setRepairForm((f) => ({ ...f, employee_id: v, vehicle_id: assigned.id }));
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                   <SelectContent>
                     {staff.map((s) => (<SelectItem key={s.id} value={s.id}>{s.full_name || s.email}</SelectItem>))}
@@ -5962,6 +5986,9 @@ const Fleet = () => {
                     )}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Logging a repair someone else already paid for? Pick them here, then scan their receipt below.
+                </p>
               </div>
             )}
 
