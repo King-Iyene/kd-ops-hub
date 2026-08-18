@@ -283,7 +283,7 @@ const Leave = () => {
       // My Leave — always scoped to this user.
       const myQuery = supabase
         .from('leave_requests')
-        .select('*')
+        .select('id, employee_id, leave_type, start_date, end_date, days_requested, reason, status, created_at, rejection_reason, is_half_day')
         .eq('employee_id', currentId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -293,7 +293,7 @@ const Leave = () => {
       const teamQuery = privileged
         ? supabase
             .from('leave_requests')
-            .select('*')
+            .select('id, employee_id, leave_type, start_date, end_date, days_requested, reason, status, created_at, rejection_reason, is_half_day')
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(200)
@@ -305,7 +305,7 @@ const Leave = () => {
         supabase.from('profiles_directory').select('id, full_name, email, phone, start_date').neq('is_anonymised', true).limit(500),
         supabase
           .from('leave_balances')
-          .select('*')
+          .select('year, annual_quota, annual_used, sick_used, unpaid_used, carryover_days')
           .eq('employee_id', currentId)
           .eq('year', new Date().getFullYear())
           .maybeSingle(),

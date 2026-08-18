@@ -187,13 +187,13 @@ const SettingsPage = () => {
     const [settingsRes, notifRes, mfaStatusRes] = await Promise.all([
       supabase
         .from('company_settings')
-        .select('*')
+        .select('company_name, rc_number, tin, address, website, logo_url, fiscal_year_preset, currency_code, usd_rate, cash_on_hand_ngn, external_monthly_burn_ngn, monthly_revenue_estimate_ngn, cash_updated_at, expense_limits, dual_approval_threshold_ngn, paystack_secret_key_enc, airtable_base_id, airtable_income_table_id, airtable_expenses_table_id, airtable_sync_enabled, paystack_funding_bank, paystack_funding_account_name, paystack_funding_account_number, resend_from_address, resend_api_key_configured, termii_sender_id, termii_api_key_configured, whatsapp_enabled, sms_enabled, smtp_host, smtp_port, smtp_username, smtp_from_address, session_timeout_minutes, audit_log_retention_days, mfa_required_for_all_users, approval_step_up_required, fuel_weekly_budgets, website_url, linkedin_url, instagram_url, facebook_url, twitter_url, timezone, state_of_business, pencom_employer_code, nhf_employer_code, nsitf_employer_code, itf_employer_code, leave_carryover_max_days')
         .eq('id', SINGLETON_ID)
         .maybeSingle(),
       profile?.id
         ? supabase
             .from('notification_preferences')
-            .select('*')
+            .select('email_approvals, email_payments, email_compliance, email_expenses, email_fleet, email_leave, digest_frequency')
             .eq('user_id', profile.id)
             .maybeSingle()
         : Promise.resolve({ data: null }),
@@ -1938,7 +1938,7 @@ function DataRetentionPanel() {
     }
     const { data, error } = await supabase
       .from('retention_policies')
-      .select('*')
+      .select('id, data_type, mode, retention_days, scheduled_first_run_at, last_run_at, last_run_count, all_paused')
       .in('data_type', types);
     if (error) {
       toast({ title: 'Could not load retention policies', description: error.message, variant: 'destructive' });
@@ -2898,7 +2898,7 @@ function DepartmentsManager() {
     }
     const { count } = await supabase
       .from('budgets')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('department_id', d.id)
       .is('deleted_at', null);
     if (count && count > 0) {
@@ -3086,7 +3086,7 @@ function TagsManager() {
     setLoading(true);
     const { data } = await supabase
       .from('tags')
-      .select('*')
+      .select('id, name, color, module')
       .order('name');
     setTags((data as Tag[]) || []);
     setLoading(false);

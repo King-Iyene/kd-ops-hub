@@ -95,7 +95,7 @@ export default function Attendance() {
     const to = from + PAGE_SIZE - 1;
     const [{ data: rData, count }, { data: pData }] = await Promise.all([
       supabase.from('attendance_records')
-        .select('*', { count: 'exact' })
+        .select('id, employee_id, work_date, clock_in, clock_out, status, overtime_minutes, notes', { count: 'exact' })
         .gte('work_date', monthStart)
         .lte('work_date', monthEnd)
         .order('work_date', { ascending: false })

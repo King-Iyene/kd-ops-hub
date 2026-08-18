@@ -242,13 +242,13 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase.from('fleet_incidents').select('*');
+      let query = supabase.from('fleet_incidents').select('id, vehicle_id, driver_id, incident_date, incident_time, incident_type, severity, location_description, description, police_report_number, police_station, insurance_claim_number, insurance_claim_status, estimated_repair_cost_ngn, actual_repair_cost_ngn, photo_urls, witness_names, third_party_involved, third_party_details, vehicle_driveable, injuries_reported, injury_details, resolution_status, resolution_notes, resolved_by, resolved_at, created_at');
 
       if (isFieldStaff && profile) {
         query = query.eq('driver_id', profile.id);
       }
 
-      const { data, error } = await query.order('incident_date', { ascending: false });
+      const { data, error } = await query.order('incident_date', { ascending: false }).limit(5000);
       if (error) throw error;
       setHasTable(true);
       setIncidents(data ?? []);

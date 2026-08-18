@@ -238,7 +238,7 @@ const Employees = () => {
 
     const [employeesRes, tagsRes, deptsRes] = await Promise.all([
       query,
-      supabase.from('tags').select('*').or('module.eq.all,module.eq.employee').order('name'),
+      supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.employee').order('name'),
       supabase.from('departments').select('id, name').order('name'),
     ]);
     if (employeesRes.error) {

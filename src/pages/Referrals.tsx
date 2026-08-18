@@ -95,7 +95,7 @@ const Referrals = () => {
       const [refRes, profRes, contractorRes] = await Promise.all([
         supabase
           .from('referrals')
-          .select('*')
+          .select('id, referrer_id, referrer_contractor_id, referred_email, status, is_affiliate, commission_pct, created_at')
           .order('created_at', { ascending: false })
           .limit(200),
         supabase.from('profiles_directory').select('id, full_name, email').limit(500),

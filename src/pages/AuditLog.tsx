@@ -233,7 +233,7 @@ const AuditLog = () => {
     setLoading(true);
     const { data } = await supabase
       .from('audit_logs')
-      .select('*')
+      .select('id, action_type, description, performed_by_name, created_at')
       .order('created_at', { ascending: false })
       .limit(2000);
     setRows((data as AuditRow[]) || []);

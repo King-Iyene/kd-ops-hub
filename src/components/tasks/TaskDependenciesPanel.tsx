@@ -35,8 +35,8 @@ export function TaskDependenciesPanel({ taskId, allTasks, onUpdate }: TaskDepend
 
   const loadDeps = useCallback(async () => {
     const [{ data: asSource }, { data: asTarget }] = await Promise.all([
-      supabase.from('task_dependencies').select('*').eq('task_id', taskId),
-      supabase.from('task_dependencies').select('*').eq('depends_on_id', taskId),
+      supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type').eq('task_id', taskId),
+      supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type').eq('depends_on_id', taskId),
     ]);
     setDeps([...(asSource as TaskDependency[]) || [], ...(asTarget as TaskDependency[]) || []]);
   }, [taskId]);

@@ -50,14 +50,14 @@ export function CustomFieldsPanel({ taskId, spaceId }: CustomFieldsPanelProps) {
       : 'space_id.is.null';
     const { data: defs } = await supabase
       .from('custom_field_definitions')
-      .select('*')
+      .select('id, name, field_type, options')
       .or(filters)
       .order('sort_order');
     setDefinitions((defs as CustomFieldDefinition[]) || []);
 
     const { data: vals } = await supabase
       .from('custom_field_values')
-      .select('*')
+      .select('id, field_id, value_text, value_number, value_json')
       .eq('task_id', taskId);
     const map = new Map<string, CustomFieldValue>();
     for (const v of (vals as CustomFieldValue[]) || []) map.set(v.field_id, v);

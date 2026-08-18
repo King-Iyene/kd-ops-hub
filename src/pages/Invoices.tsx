@@ -186,7 +186,7 @@ const Invoices = () => {
     const [invRes, clientRes] = await Promise.all([
       supabase
         .from('invoices')
-        .select('*')
+        .select('id, invoice_number, client_id, client_name, client_email, issue_date, due_date, status, line_items, subtotal_ngn, vat_rate, vat_amount_ngn, total_ngn, notes, payment_terms, paid_date')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(500),
@@ -299,7 +299,7 @@ const Invoices = () => {
     const year = new Date().getFullYear();
     const { count } = await supabase
       .from('invoices')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .gte('created_at', `${year}-01-01`);
     const num = String((count || 0) + 1).padStart(4, '0');
     return `INV-${year}-${num}`;

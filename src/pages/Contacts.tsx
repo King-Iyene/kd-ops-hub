@@ -142,7 +142,7 @@ const Contacts = () => {
     setLoading(true);
     const { data } = await supabase
       .from('contacts')
-      .select('*')
+      .select('id, full_name, first_name, last_name, email, phone, contact_type, source, tags, notes, status, created_at')
       .order('created_at', { ascending: false })
       .limit(200);
     setContacts((data as Contact[]) || []);
@@ -779,7 +779,7 @@ export function WhatsAppGroupsTab() {
     setLoading(true);
     const { data } = await supabase
       .from('whatsapp_groups')
-      .select('*')
+      .select('id, name, description, invite_link, member_count, group_type, status')
       .order('name');
     setGroups((data as WaGroup[]) || []);
     setLoading(false);

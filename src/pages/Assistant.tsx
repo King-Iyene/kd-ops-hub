@@ -121,7 +121,7 @@ export default function Assistant() {
     if (!profile?.id) return;
     const { data } = await supabase
       .from('chatbot_conversations')
-      .select('*')
+      .select('id, title, pinned, updated_at')
       .eq('user_id', profile.id)
       .order('pinned', { ascending: false })
       .order('updated_at', { ascending: false })
@@ -133,7 +133,7 @@ export default function Assistant() {
     setLoadingHistory(true);
     const { data, error } = await supabase
       .from('chatbot_messages')
-      .select('*')
+      .select('id, role, content, attachments, tools_used')
       .eq('conversation_id', convId)
       .order('created_at', { ascending: true });
     if (error) {
@@ -171,7 +171,7 @@ export default function Assistant() {
     const init = async () => {
       const { data } = await supabase
         .from('chatbot_conversations')
-        .select('*')
+        .select('id, title, pinned, updated_at')
         .order('pinned', { ascending: false })
         .order('updated_at', { ascending: false })
         .limit(50);

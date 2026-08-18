@@ -120,7 +120,7 @@ const Knowledge = () => {
     setLoading(true);
     const { data } = await supabase
       .from('knowledge_articles')
-      .select('*')
+      .select('id, title, category, body, version, updated_at')
       .order('updated_at', { ascending: false })
       .limit(200);
     setArticles((data as Article[]) || []);
@@ -222,7 +222,7 @@ const Knowledge = () => {
     setHistoryFor(a);
     const { data } = await supabase
       .from('knowledge_article_versions')
-      .select('*')
+      .select('id, version, saved_at, title, body')
       .eq('article_id', a.id)
       .order('version', { ascending: false })
       .limit(100);

@@ -214,7 +214,7 @@ function PrincipalWalletPanel({ profile, toast }: { profile: any; toast: ReturnT
     }
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { void load();   }, []);
 
   const toggleHistory = async () => {
     const next = !historyOpen;
@@ -468,7 +468,7 @@ function CompanyDisbursementSection({ profile, toast }: { profile: any; toast: R
     setLoading(false);
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { void load();   }, []);
 
   const viewDetail = async (row: DisbursementRow) => {
     await logAudit(
@@ -708,7 +708,7 @@ function CompanyDisbursementSendDialog({
           payment_description: customNarration?.trim() || form.description?.trim() || null,
           provider: 'paystack',
         })
-        .select()
+        .select('id')
         .single();
       if (batchErr) throw batchErr;
 
@@ -1003,7 +1003,7 @@ function RecurringSchedulesCard({ profile, toast }: { profile: any; toast: Retur
     setLoading(false);
   };
 
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { void load();   }, []);
 
   const togglePause = async (s: any) => {
     const next = s.status === 'paused' ? 'active' : 'paused';

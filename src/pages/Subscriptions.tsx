@@ -249,7 +249,7 @@ const Subscriptions = () => {
     setError(null);
     const { data, error } = await supabase
       .from('subscriptions')
-      .select('*')
+      .select('id, name, vendor, vendor_id, category, amount_ngn, currency, amount_usd, billing_cycle, next_renewal_date, last_renewed_at, status, notes, billing_day, payment_method, priority')
       .order('next_renewal_date', { ascending: true })
       .limit(200);
     if (error) {
@@ -394,7 +394,7 @@ const Subscriptions = () => {
     setLoadingDetail(true);
     const { data } = await supabase
       .from('subscription_payments')
-      .select('*')
+      .select('id, month, status, amount_ngn, amount_usd, fx_rate_used, payment_method, paid_at')
       .eq('subscription_id', s.id)
       .order('month', { ascending: false });
     setDetailPayments((data as SubPayment[]) || []);
@@ -415,7 +415,7 @@ const Subscriptions = () => {
       if (detailSub) {
         const { data } = await supabase
           .from('subscription_payments')
-          .select('*')
+          .select('id, month, status, amount_ngn, amount_usd, fx_rate_used, payment_method, paid_at')
           .eq('subscription_id', detailSub.id)
           .order('month', { ascending: false });
         setDetailPayments((data as SubPayment[]) || []);

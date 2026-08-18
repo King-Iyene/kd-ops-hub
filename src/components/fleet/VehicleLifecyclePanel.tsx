@@ -105,7 +105,7 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
   async function fetchVehicles() {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('vehicles').select(LIFECYCLE_COLS).order('name');
+      const { data, error } = await supabase.from('vehicles').select(LIFECYCLE_COLS).order('name').limit(2000);
       if (error) throw error;
       setVehicles((data || []) as VehicleLifecycle[]);
       setHasLifecycleCols(true);
@@ -113,7 +113,8 @@ export function VehicleLifecyclePanel({ onRefresh }: Props) {
       try {
         const { data } = await supabase.from('vehicles')
           .select('id,name,plate_number,make_model,year,insurance_expiry,total_mileage_km,status')
-          .order('name');
+          .order('name')
+          .limit(2000);
         setVehicles((data || []).map((v: any) => ({ ...v, purchase_price_ngn: null, purchase_date: null, depreciation_method: null, salvage_value_ngn: null, useful_life_years: null, financing_type: null, lease_monthly_ngn: null, lease_end_date: null, fuel_type: null, insurance_policy_number: null, insurance_provider: null, insurance_premium_ngn: null, insurance_type: null })));
         setHasLifecycleCols(false);
       } catch {

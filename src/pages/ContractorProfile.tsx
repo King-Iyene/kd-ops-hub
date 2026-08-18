@@ -144,7 +144,7 @@ const ContractorProfile = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('contractors')
-      .select('*')
+      .select('id, full_name, first_name, last_name, bank_name, bank_code, account_number, account_name, default_amount_ngn, default_amount, whatsapp_phone, heyreach_email, heyreach_password_enc, heyreach_status, heyreach_synced_at, linkedin_id, linkedin_url, notes, status, agreement_signed, kyc_document_uploaded, created_at')
       .eq('id', id)
       .single();
     if (error || !data) {
@@ -159,7 +159,7 @@ const ContractorProfile = () => {
     const [payRes, auditRes, deductRes] = await Promise.all([
       supabase
         .from('batch_items')
-        .select('*, payment_batches!inner(name, payment_description, status, created_at, deleted_at)')
+        .select('id, status, batch_id, contractor_id, recipient_name, created_at, amount_ngn, payment_batches!inner(name, payment_description, deleted_at)')
         .eq('contractor_id', id)
         .is('payment_batches.deleted_at', null)
         .order('created_at', { ascending: false })
@@ -170,12 +170,12 @@ const ContractorProfile = () => {
       // contractor." The description-text match is the only usable signal
       // until audit_logs gains a real entity_id/entity_type link for
       // contractor-related actions.
-      supabase.from('audit_logs').select('*')
+      supabase.from('audit_logs').select('id, description, created_at, action_type')
         .ilike('description', `%${id.slice(0, 8)}%`)
         .order('created_at', { ascending: false }).limit(50),
-      supabase.from('employee_deductions').select('*')
+      supabase.from('employee_deductions').select('id, description, frequency, start_date, end_date, amount_ngn, amount_deducted_to_date, total_deductible_amount, status')
         .eq('entity_id', id).eq('entity_type', 'contractor')
-        .order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }).limit(2000),
     ]);
     // Belt-and-braces: even if the PostgREST embedded filter somehow lets a
     // row through (older postgrest builds), strip rows whose parent batch is

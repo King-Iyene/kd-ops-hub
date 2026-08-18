@@ -51,7 +51,7 @@ export function SpaceStatusManager({ spaceId, spaceName, open, onClose }: SpaceS
     setLoading(true);
     const { data } = await supabase
       .from('space_statuses')
-      .select('*')
+      .select('id, name, color, status_group')
       .eq('space_id', spaceId)
       .order('sort_order');
     setStatuses((data as SpaceStatus[]) || []);

@@ -113,7 +113,7 @@ export function TaskContextMenu({
 
     const { data: subtasks } = await supabase
       .from('tasks')
-      .select('*')
+      .select('title, description, assignee_id, due_date, priority, status, project_id, list_id, tags, task_type')
       .eq('parent_id', task.id);
 
     if (subtasks?.length) {

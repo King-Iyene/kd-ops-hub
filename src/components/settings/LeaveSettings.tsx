@@ -51,7 +51,7 @@ export default function LeaveSettings() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [polRes, csRes] = await Promise.all([
-      supabase.from('leave_policies').select('*').order('code'),
+      supabase.from('leave_policies').select('id, name, description, default_days, accrual_type, gender, paid, carry_over_days, color, active').order('code'),
       supabase.from('company_settings').select('leave_carryover_enabled, leave_carryover_max_days').eq('id', SINGLETON_ID).single(),
     ]);
     if (polRes.data) setPolicies(polRes.data as LeavePolicy[]);

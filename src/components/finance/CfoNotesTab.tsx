@@ -66,7 +66,7 @@ export default function CfoNotesTab() {
     try {
       const { data, error } = await supabase
         .from('cfo_notes' as any)
-        .select('*')
+        .select('id, title, body, category, pinned, period_label, created_at, created_by_name')
         .order('pinned', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) throw error;

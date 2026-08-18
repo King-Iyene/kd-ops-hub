@@ -19,24 +19,10 @@
 //                                                    OR (for mode switch) to_mode.toUpperCase() }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FLUTTERWAVE_BASE = "https://api.flutterwave.com/v3";
 const PAYSTACK_BASE = "https://api.paystack.co";
-
-const ALLOWED_ORIGINS = [
-  "https://ops.kdsquares.com",
-  "http://localhost:5173",
-  "http://localhost:8080",
-  "http://localhost:3000",
-];
-
-function corsHeaders(req: Request) {
-  const origin = req.headers.get("origin") ?? "";
-  return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-}
 
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
@@ -115,7 +101,7 @@ async function probePaystackWith(secret: string): Promise<{ ok: boolean; balance
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req);
+  const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
   }
@@ -264,7 +250,7 @@ Deno.serve(async (req) => {
     return json(cors, { error: `Unknown action: ${action}` }, 400);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return json(corsHeaders(req), { ok: false, error: message }, 500);
+    return json(getCorsHeaders(req), { ok: false, error: message }, 500);
   }
 });
 

@@ -45,7 +45,7 @@ export function SpaceMembersDialog({ space, open, onClose, profiles }: SpaceMemb
     setLoading(true);
     const { data } = await supabase
       .from('space_members')
-      .select('*')
+      .select('user_id, role')
       .eq('space_id', space.id)
       .order('created_at');
     setMembers((data as SpaceMember[]) || []);

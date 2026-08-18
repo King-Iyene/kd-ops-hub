@@ -115,7 +115,7 @@ const VirtualCards = () => {
     const [cardsRes, subsRes] = await Promise.all([
       supabase
         .from('virtual_cards')
-        .select('*')
+        .select('id, card_name, last_four, vendor, subscription_id, monthly_limit_ngn, current_spend_ngn, status, notes')
         .order('created_at', { ascending: false })
         .limit(200),
       supabase

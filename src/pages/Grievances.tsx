@@ -107,7 +107,7 @@ export default function Grievances() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: gData }, { data: pData }] = await Promise.all([
-      supabase.from('grievances').select('*').order('created_at', { ascending: false }),
+      supabase.from('grievances').select('id, subject, description, category, severity, is_anonymous, reporter_id, assigned_to, status, resolution_notes, resolved_at, created_at').order('created_at', { ascending: false }).limit(5000),
       supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setGrievances(gData ?? []);

@@ -553,7 +553,7 @@ const Contractors = () => {
 
     let q = supabase
       .from('contractors')
-      .select('*', { count: 'exact' })
+      .select('id, full_name, first_name, last_name, bank_name, account_number, default_amount_ngn, linkedin_id, linkedin_url, whatsapp_phone, heyreach_email, heyreach_status, status, agreement_signed, kyc_document_uploaded, tags', { count: 'exact' })
       .neq('status', 'deleted')
       .neq('is_anonymised', true);
     q = applySearch(q);
@@ -563,7 +563,7 @@ const Contractors = () => {
 
     const [contractorsRes, tagsRes] = await Promise.all([
       q,
-      supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
+      supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
     setTotalCount(contractorsRes.count ?? 0);
@@ -1472,7 +1472,7 @@ const Contractors = () => {
   const fetchSavedViews = useCallback(async () => {
     const { data } = await supabase
       .from('saved_filters')
-      .select('*')
+      .select('id, user_id, name, filters, shared')
       .eq('module', 'contractor')
       .order('name');
     setSavedViews((data as unknown as SavedFilter[]) || []);

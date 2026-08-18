@@ -34,6 +34,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Config
@@ -66,24 +67,6 @@ const RECIPIENT_CONCURRENCY = 4;        // pre-warm missing recipients before bu
 function dispatchMode(): "per_item" | "bulk" {
   const v = (Deno.env.get("KDOPS_DISPATCH_MODE") || "per_item").toLowerCase();
   return v === "bulk" ? "bulk" : "per_item";
-}
-
-const ALLOWED_ORIGINS = [
-  "https://ops.kdsquares.com",
-  "http://localhost:5173",
-  "http://localhost:8080",
-  "http://localhost:3000",
-];
-
-function corsHeaders(req: Request) {
-  const origin = req.headers.get("origin") ?? "";
-  return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS.includes(origin)
-      ? origin
-      : ALLOWED_ORIGINS[0],
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-cron-secret",
-  };
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -987,7 +970,7 @@ async function workOrphans(svc: SupabaseClient) {
 // HTTP entry point
 // ──────────────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
-  const cors = corsHeaders(req);
+  const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors });
   }

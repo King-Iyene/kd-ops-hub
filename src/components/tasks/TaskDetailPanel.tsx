@@ -110,28 +110,28 @@ export function TaskDetailPanel({
 
   const loadComments = useCallback(async () => {
     const { data } = await supabase
-      .from('task_comments').select('*').eq('task_id', task.id)
-      .order('created_at', { ascending: true });
+      .from('task_comments').select('id, author_id, body, created_at').eq('task_id', task.id)
+      .order('created_at', { ascending: true }).limit(2000);
     setComments((data as TaskComment[]) || []);
   }, [task.id]);
 
   const loadDependencies = useCallback(async () => {
     const { data } = await supabase
-      .from('task_dependencies').select('*')
+      .from('task_dependencies').select('id, task_id, depends_on_id, dependency_type')
       .or(`task_id.eq.${task.id},depends_on_id.eq.${task.id}`);
     setDependencies((data as TaskDependency[]) || []);
   }, [task.id]);
 
   const loadChecklists = useCallback(async () => {
     const { data } = await supabase
-      .from('task_checklists').select('*').eq('task_id', task.id)
+      .from('task_checklists').select('id, is_checked, group_name, title').eq('task_id', task.id)
       .order('sort_order').order('created_at');
     setChecklists((data as TaskChecklist[]) || []);
   }, [task.id]);
 
   const loadTimeEntries = useCallback(async () => {
     const { data } = await supabase
-      .from('task_time_entries').select('*').eq('task_id', task.id)
+      .from('task_time_entries').select('id, ended_at, user_id, started_at, duration_minutes').eq('task_id', task.id)
       .order('started_at', { ascending: false }).limit(20);
     setTimeEntries((data as TaskTimeEntry[]) || []);
     const running = (data as TaskTimeEntry[])?.find((e) => !e.ended_at && e.user_id === profile?.id);
@@ -141,7 +141,7 @@ export function TaskDetailPanel({
 
   const loadActivities = useCallback(async () => {
     const { data } = await supabase
-      .from('task_activity').select('*').eq('task_id', task.id)
+      .from('task_activity').select('id, user_id, action, old_value, new_value, field, created_at').eq('task_id', task.id)
       .order('created_at', { ascending: false }).limit(50);
     setActivities((data as TaskActivity[]) || []);
   }, [task.id]);

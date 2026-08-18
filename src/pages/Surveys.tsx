@@ -114,9 +114,9 @@ export default function Surveys() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: sData }, { data: qData }, { data: rData }] = await Promise.all([
-      supabase.from('surveys').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('survey_questions').select('*').order('sort_order', { ascending: true }).limit(2000),
-      supabase.from('survey_responses').select('*').limit(5000),
+      supabase.from('surveys').select('id, title, description, survey_type, status, is_anonymous, starts_at, ends_at').order('created_at', { ascending: false }).limit(500),
+      supabase.from('survey_questions').select('id, survey_id, question_text, question_type, options, sort_order, is_required').order('sort_order', { ascending: true }).limit(2000),
+      supabase.from('survey_responses').select('id, survey_id, respondent_id').limit(5000),
     ]);
     setSurveys((sData as Survey[]) || []);
     setQuestions((qData as SurveyQuestion[]) || []);

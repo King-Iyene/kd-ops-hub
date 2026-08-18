@@ -31,7 +31,7 @@ export function TaskTemplatesDialog({ open, onClose, currentTask, onApplyTemplat
     setLoading(true);
     const { data } = await supabase
       .from('task_templates')
-      .select('*')
+      .select('id, name, description, template_data')
       .order('created_at', { ascending: false })
       .limit(50);
     setTemplates((data as TaskTemplate[]) || []);

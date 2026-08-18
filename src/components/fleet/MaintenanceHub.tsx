@@ -180,7 +180,7 @@ export function MaintenanceHub({ vehicles, onRefresh }: Props) {
     try {
       const { data, error: fetchErr } = await supabase
         .from('vehicle_maintenance')
-        .select('*')
+        .select('id, vehicle_id, service_type, due_date, due_mileage_km, status, last_done_date, cost_ngn, vendor')
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (fetchErr) throw fetchErr;

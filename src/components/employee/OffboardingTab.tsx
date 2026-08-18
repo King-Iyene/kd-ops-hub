@@ -86,7 +86,7 @@ export default function OffboardingTab({
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: t }, { data: ass }, { data: adv }, { data: bal }, { data: settings }] = await Promise.all([
-      (supabase as any).from('terminations').select('*').eq('employee_id', employee.id)
+      (supabase as any).from('terminations').select('id, status, termination_type, notice_date, last_working_day, rehire_eligible, completed_at, reason, exit_interview_notes, final_settlement_ngn').eq('employee_id', employee.id)
         .order('created_at', { ascending: false }).limit(1),
       supabase.from('assets').select('id, asset_number, name, status').eq('assigned_to', employee.id).is('deleted_at', null),
       supabase.from('employee_advances').select('outstanding_ngn').eq('employee_id', employee.id).eq('status', 'active'),

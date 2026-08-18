@@ -294,7 +294,7 @@ const ProfilePage = () => {
     //     user-raised request, so it isn't pulled here.
     const [psRes, exRes, lvRes, flRes, empRes, advRes, docsRes, balRes, bankPendRes] = await Promise.all([
       supabase.from('payslips')
-        .select('*').eq('employee_id', profile.id).order('period', { ascending: false }),
+        .select('id, period, gross_ngn, paye_ngn, pension_ngn, nhf_ngn, net_ngn, storage_path').eq('employee_id', profile.id).order('period', { ascending: false }),
       supabase.from('expenses')
         .select('id, category, amount_ngn, status, date, created_at, description')
         .eq('submitted_by', profile.id).is('deleted_at', null).order('created_at', { ascending: false }).limit(50),

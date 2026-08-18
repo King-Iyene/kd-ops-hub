@@ -27,7 +27,7 @@ export interface EmailTemplate {
 export async function listEmailTemplates(): Promise<EmailTemplate[]> {
   const { data, error } = await supabase
     .from('email_templates')
-    .select('*')
+    .select('id, key, name, category, description, subject, html_body, text_body, variables, is_system, default_subject, default_html_body, default_text_body')
     .order('category')
     .order('name');
   if (error) throw error;
@@ -105,7 +105,7 @@ export async function createEmailTemplate(input: {
       is_system: false,
       variables: [],
     })
-    .select('*')
+    .select('key, name')
     .single();
   if (error) throw error;
   return data as EmailTemplate;

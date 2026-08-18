@@ -275,7 +275,7 @@ function PaymentReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
     const { data, error } = await supabase
       .from('payment_batches')
-      .select('*')
+      .select('id, status, total_amount, payment_date, beneficiary_count, name')
       .is('deleted_at', null)
       .gte('payment_date', range.start)
       .lte('payment_date', range.end)
@@ -417,7 +417,7 @@ function ExpenseReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
     const { data, error } = await supabase
       .from('expenses')
-      .select('*')
+      .select('status, category, amount_ngn, date, description')
       .is('deleted_at', null)
       .gte('date', range.start)
       .lte('date', range.end)
@@ -499,13 +499,13 @@ function FleetReport({ range }: { range: DateRange }) {
     const [fuel, trips] = await Promise.all([
       supabase
         .from('fuel_requests')
-        .select('*')
+        .select('status, amount_ngn, litres_est, created_at, station_name')
         .is('deleted_at', null)
         .gte('created_at', range.start)
         .lte('created_at', `${range.end}T23:59:59`),
       supabase
         .from('trip_logs')
-        .select('*')
+        .select('km_driven, date, start_location, end_location')
         .gte('date', range.start)
         .lte('date', range.end),
     ]);
@@ -618,11 +618,8 @@ function FleetReport({ range }: { range: DateRange }) {
 
 function ContractorReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
-    const [contractorsRes, itemsRes, batchesRes] = await Promise.all([
+    const [contractorsRes, batchesRes] = await Promise.all([
       supabase.from('contractors').select('id, full_name, status').neq('status', 'deleted').neq('is_anonymised', true),
-      supabase
-        .from('batch_items')
-        .select('contractor_id, full_name, amount_ngn, batch_id, status'),
       supabase
         .from('payment_batches')
         .select('id, payment_date')
@@ -631,8 +628,15 @@ function ContractorReport({ range }: { range: DateRange }) {
         .lte('payment_date', range.end),
     ]);
     if (contractorsRes.error) throw contractorsRes.error;
-    if (itemsRes.error) throw itemsRes.error;
     if (batchesRes.error) throw batchesRes.error;
+    const batchIds = (batchesRes.data || []).map((b) => b.id);
+    const itemsRes = batchIds.length
+      ? await supabase
+          .from('batch_items')
+          .select('contractor_id, full_name, amount_ngn, batch_id, status')
+          .in('batch_id', batchIds)
+      : { data: [] as any[], error: null };
+    if (itemsRes.error) throw itemsRes.error;
     return {
       contractors: contractorsRes.data || [],
       items: itemsRes.data || [],
@@ -714,7 +718,7 @@ function ContractorReport({ range }: { range: DateRange }) {
 function BudgetReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
     const [budgetsRes, expensesRes, batchesRes] = await Promise.all([
-      supabase.from('budgets').select('*').is('deleted_at', null).limit(200),
+      supabase.from('budgets').select('period_start, period_end, name, total_amount_ngn').is('deleted_at', null).limit(200),
       supabase.from('expenses').select('amount_ngn, date').eq('status', 'approved').is('deleted_at', null).limit(2000),
       supabase
         .from('payment_batches')
@@ -854,7 +858,7 @@ function PnLReport({ range }: { range: DateRange }) {
         .lte('date', range.end),
       supabase
         .from('revenue_entries')
-        .select('*')
+        .select('id, month, amount_ngn, category')
         .gte('month', range.start.slice(0, 7))
         .lte('month', range.end.slice(0, 7))
         .order('month', { ascending: true }),
@@ -1226,17 +1230,18 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
 
 function ConcentrationRiskReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
-    const [batchesRes, itemsRes] = await Promise.all([
-      supabase
-        .from('payment_batches')
-        .select('id, payment_date, status')
-        .in('status', [...ACTUAL_DISBURSED_STATUSES])
-        .is('deleted_at', null)
-        .gte('payment_date', range.start)
-        .lte('payment_date', range.end),
-      supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status'),
-    ]);
+    const batchesRes = await supabase
+      .from('payment_batches')
+      .select('id, payment_date, status')
+      .in('status', [...ACTUAL_DISBURSED_STATUSES])
+      .is('deleted_at', null)
+      .gte('payment_date', range.start)
+      .lte('payment_date', range.end);
     if (batchesRes.error) throw batchesRes.error;
+    const batchIds = (batchesRes.data || []).map((b) => b.id);
+    const itemsRes = batchIds.length
+      ? await supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status').in('batch_id', batchIds)
+      : { data: [] as any[], error: null };
     if (itemsRes.error) throw itemsRes.error;
     return { batches: batchesRes.data || [], items: itemsRes.data || [] };
   }, [range.start, range.end]);
@@ -1341,7 +1346,7 @@ function ReconciliationReport() {
     setLoading(true);
     const { data } = await supabase
       .from('statement_entries')
-      .select('*')
+      .select('id, entry_date, description, amount_ngn, direction, matched_type, matched_id, reference')
       .eq('statement_id', statementId)
       .order('entry_date', { ascending: false });
     setEntries(data || []);
@@ -1386,7 +1391,7 @@ function ReconciliationReport() {
           bank_name: bankName,
           storage_path: path,
         })
-        .select()
+        .select('id')
         .single();
       if (stmtErr) throw stmtErr;
       setStatementId((stmt as any).id);
@@ -1396,7 +1401,8 @@ function ReconciliationReport() {
       const [{ data: batchItems }, { data: expenses }] = await Promise.all([
         supabase
           .from('batch_items')
-          .select('id, full_name, amount_ngn, paystack_reference'),
+          .select('id, full_name, amount_ngn, paystack_reference')
+          .limit(20000),
         supabase
           .from('expenses')
           .select('id, description, amount_ngn, date, status')

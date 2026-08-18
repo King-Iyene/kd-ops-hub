@@ -619,7 +619,7 @@ const Fleet = () => {
     if (!profile?.id) return;
     (async () => {
       const { data } = await supabase
-        .from('trip_logs').select('*')
+        .from('trip_logs').select('id, driver_id, trip_start_time, vehicle_id, odometer_start, start_location, start_lat, start_lng, status')
         .eq('driver_id', profile.id)
         .eq('status', 'in_progress')
         .limit(1).maybeSingle();
@@ -758,7 +758,7 @@ const Fleet = () => {
         watchIdRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [activeTrip?.id]);
 
   const enrich = (rows: any[], staffList: FieldStaff[]) => {
@@ -792,7 +792,7 @@ const Fleet = () => {
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(100);
-      const tripBase = supabase.from('trip_logs').select('*').order('created_at', { ascending: false }).limit(100);
+      const tripBase = supabase.from('trip_logs').select('id, driver_id, date, trip_start_time, trip_end_time, duration_minutes, start_location, end_location, start_lat, start_lng, end_lat, end_lng, odometer_start, odometer_end, km_driven, fuel_amount_ngn, litres, vehicle_id, status, is_anomaly, is_out_of_area, anomaly_reason, anomaly_reviewed_at, anomaly_review_note, issues, created_at').order('created_at', { ascending: false }).limit(100);
 
       const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
 
@@ -803,18 +803,18 @@ const Fleet = () => {
           .eq('role', 'field_staff')
           .eq('status', 'active')
           .order('full_name'),
-        supabase.from('profiles_directory').select('id, full_name, email'),
+        supabase.from('profiles_directory').select('id, full_name, email').limit(2000),
         canSeeAll ? fuelBase : fuelBase.eq('driver_id', uid),
         canSeeAll ? tripBase : tripBase.eq('driver_id', uid),
         supabase
           .from('audit_logs')
-          .select('*')
+          .select('id, action_type, description, performed_by_name, performed_by, created_at')
           .or('action_type.ilike.%fuel%,action_type.ilike.%trip%,action_type.ilike.%fleet%,action_type.ilike.%vehicle%')
           .order('created_at', { ascending: false })
           .limit(50),
         supabase
           .from('vehicles')
-          .select('*')
+          .select('id, name, plate_number, weekly_budget_ngn, carry_forward_ngn, assigned_driver_id, insurance_expiry, road_worthiness_expiry, next_service_date, tank_capacity_litres, current_fuel_litres, last_refuel_at, avg_km_per_litre, fuel_consumption_rate_lkm, home_base_lat, home_base_lng, out_of_service_until, status, total_mileage_km')
           .eq('status', 'active')
           .order('name'),
         supabase
@@ -1177,7 +1177,7 @@ const Fleet = () => {
     if (!vehicleId) { setRepairMatchingItems([]); return; }
     const { data } = await supabase
       .from('vehicle_maintenance')
-      .select('*')
+      .select('id, service_type, due_date, status')
       .eq('vehicle_id', vehicleId)
       .neq('status', 'done')
       .order('due_date', { ascending: true, nullsFirst: false });
@@ -1401,7 +1401,7 @@ const Fleet = () => {
         status: 'in_progress',
         end_location: '',
       })
-      .select('*').single();
+      .select('id, driver_id, trip_start_time, vehicle_id, odometer_start, start_location, start_lat, start_lng, status').single();
     setStartingTrip(false);
     if (error) {
       toast({ title: 'Failed to start trip', description: error.message, variant: 'destructive' });
@@ -1618,7 +1618,7 @@ const Fleet = () => {
     if (activeTrip.vehicle_id) {
       const { data: mainItems } = await supabase
         .from('vehicle_maintenance')
-        .select('*')
+        .select('due_date, service_type, due_mileage_km')
         .eq('vehicle_id', activeTrip.vehicle_id)
         .neq('status', 'done');
       const maintVeh = vehicles.find((v) => v.id === activeTrip.vehicle_id);
@@ -1673,8 +1673,8 @@ const Fleet = () => {
     setMapBreadcrumbs([]);
     setMapEvents([]);
     const [bcRes, evRes] = await Promise.all([
-      supabase.from('trip_breadcrumbs').select('*').eq('trip_id', t.id).order('recorded_at'),
-      supabase.from('trip_events').select('*').eq('trip_id', t.id).order('recorded_at'),
+      supabase.from('trip_breadcrumbs').select('lat, lng, speed_kmh, recorded_at').eq('trip_id', t.id).order('recorded_at'),
+      supabase.from('trip_events').select('id, lat, lng, event_type, details, recorded_at').eq('trip_id', t.id).order('recorded_at'),
     ]);
     setMapBreadcrumbs((bcRes.data as BreadcrumbRow[]) || []);
     setMapEvents((evRes.data as TripEvent[]) || []);
@@ -2254,7 +2254,7 @@ const Fleet = () => {
           payment_category: 'fuel_reimbursement',
           batch_type: 'contractor',
           created_by: (request as any).driver_id || request.employee_id || profile?.id,
-        }).select().single();
+        }).select('id').single();
         if (batch) {
           await supabase.from('batch_items').insert({
             batch_id: batch.id,

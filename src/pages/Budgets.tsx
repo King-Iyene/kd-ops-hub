@@ -167,7 +167,7 @@ const Budgets = () => {
       const [budgetsRes, depsRes, expensesRes, batchesRes] = await Promise.all([
         supabase
           .from('budgets')
-          .select('*')
+          .select('id, name, period_start, period_end, department_id, total_amount_ngn, status, notes, locked, created_by, approved_by, rejection_reason, created_at')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(200),
@@ -259,7 +259,7 @@ const Budgets = () => {
     });
     const { data, error } = await supabase
       .from('budget_items')
-      .select('*')
+      .select('id, budget_id, category, description, allocated_ngn')
       .eq('budget_id', r.id)
       .order('created_at')
       .limit(1000);

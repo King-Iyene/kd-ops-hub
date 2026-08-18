@@ -261,7 +261,8 @@ const Expenses = () => {
         .from('expenses')
         .select('*, profiles:submitted_by(full_name, first_name, last_name)')
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5000);
       if (!privileged) query = query.eq('submitted_by', currentProfile?.id || '');
       const [expensesRes, budgetsRes, itemsRes, settingsRes] = await Promise.all([
         query,
@@ -270,7 +271,7 @@ const Expenses = () => {
           .select('id, name, period_start, period_end, status, locked, total_amount_ngn')
           .eq('status', 'approved')
           .is('deleted_at', null),
-        supabase.from('budget_items').select('budget_id, category'),
+        supabase.from('budget_items').select('budget_id, category').limit(20000),
         supabase
           .from('company_settings')
           .select('expense_limits, dual_approval_threshold_ngn')
@@ -621,7 +622,7 @@ const Expenses = () => {
         ...payload,
         submitted_by: profile?.id || '',
         status: 'pending',
-      }).select();
+      }).select('id');
       error = res.error;
     }
 
