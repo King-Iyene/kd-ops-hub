@@ -621,7 +621,7 @@ const Expenses = () => {
         ...payload,
         submitted_by: profile?.id || '',
         status: 'pending',
-      }).select();
+      }).select('id');
       error = res.error;
     }
 

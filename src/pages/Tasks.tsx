@@ -675,7 +675,7 @@ const Tasks = () => {
           owner_id: profile?.id || null,
           created_by: profile?.id || null,
           sort_order: spaces.length,
-        }).select().single();
+        }).select('id').single();
         if (error) throw error;
         if (spaceForm.is_private && newSpace && profile?.id) {
           await supabase.from('space_members').insert({
