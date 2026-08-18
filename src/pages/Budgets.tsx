@@ -77,7 +77,6 @@ interface BudgetRow {
   locked: boolean;
   created_by: string | null;
   approved_by: string | null;
-  rejection_reason: string | null;
   created_at: string;
 }
 
@@ -167,7 +166,7 @@ const Budgets = () => {
       const [budgetsRes, depsRes, expensesRes, batchesRes] = await Promise.all([
         supabase
           .from('budgets')
-          .select('id, name, period_start, period_end, department_id, total_amount_ngn, status, notes, locked, created_by, approved_by, rejection_reason, created_at')
+          .select('id, name, period_start, period_end, department_id, total_amount_ngn, status, notes, locked, created_by, approved_by, created_at')
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(200),
