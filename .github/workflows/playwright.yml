@@ -50,10 +50,13 @@ jobs:
           done
 
       - name: Run Playwright tests
-        # ops-diagnose.spec.ts is a workflow_dispatch-only diagnostic (see
-        # ops-diagnose.yml) that requires OPS_FUNCTION/OPS_RPC to be set —
-        # it always fails on a routine push, so exclude it by test title.
-        run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC"
+        # ops-diagnose.spec.ts and guide-screenshots.spec.ts are both
+        # workflow_dispatch-only (see ops-diagnose.yml and
+        # guide-screenshots.yml) — the former needs OPS_FUNCTION/OPS_RPC set
+        # and always fails on a routine push, the latter is a slow full
+        # screenshot tour that doesn't belong in every CI run. Exclude both
+        # by test title.
+        run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC|screenshots for team guide"
 
       - name: Upload HTML test report
         # Only on failure — a green run doesn't need its report kept, and

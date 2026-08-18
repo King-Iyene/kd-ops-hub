@@ -1,0 +1,76 @@
+name: Guide Screenshots
+
+# ─── PURPOSE ──────────────────────────────────────────────────────────────────
+#
+# On-demand, read-only screenshot tour of the app for the team onboarding
+# guide. Logs in through the REAL login flow using the same test account as
+# the E2E suite (same secrets, same pattern as ops-diagnose.yml), navigates
+# to a curated list of pages, and uploads full-page PNGs as a build
+# artifact. Never clicks a submit/approve/delete/send button — screenshots
+# only, no data mutations.
+#
+# Usage: Actions tab -> "Guide Screenshots" -> "Run workflow".
+# Download the "guide-screenshots" artifact from the completed run.
+#
+# Required GitHub Secrets (same ones the Playwright E2E workflow already
+# uses — no new secrets needed):
+#   VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY,
+#   TEST_USER_EMAIL, TEST_USER_PASSWORD
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+      TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+      CI: true
+      BASE_URL: http://localhost:4173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers (Chromium only)
+        run: npx playwright install --with-deps chromium
+
+      - name: Build app
+        run: npm run build
+
+      - name: Start preview server
+        run: npx vite preview --port 4173 &
+
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for http://localhost:4173..."
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:4173 | grep -q "^[23]"; then
+              echo "Server is ready."
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run guide-screenshots test only
+        run: npx playwright test guide-screenshots
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: guide-screenshots
+          path: guide-screenshots/
+          retention-days: 7
