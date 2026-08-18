@@ -61,6 +61,10 @@ const MOBILE_PAGES: { path: string; name: string }[] = [
 ];
 
 test('capture desktop screenshots for team guide', async ({ page }) => {
+  // 35 pages at ~2-3s each comfortably exceeds the project's default 30s
+  // per-test timeout — this is a deliberate slow screenshot tour, not a
+  // real E2E assertion, so give it real headroom instead.
+  test.setTimeout(180_000);
   fs.mkdirSync(`${OUT_DIR}/desktop`, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 900 });
 
