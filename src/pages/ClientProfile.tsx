@@ -141,7 +141,7 @@ const ClientProfile = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('clients')
-      .select('*')
+      .select('name, industry, status, contract_value_ngn, contact_person, email, phone, website, address, start_date, notes, created_at')
       .eq('id', id)
       .is('deleted_at', null)
       .single();

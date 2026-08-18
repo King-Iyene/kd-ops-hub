@@ -563,7 +563,7 @@ const Contractors = () => {
 
     const [contractorsRes, tagsRes] = await Promise.all([
       q,
-      supabase.from('tags').select('*').or('module.eq.all,module.eq.contractor').order('name').limit(200),
+      supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.contractor').order('name').limit(200),
     ]);
     setContractors((contractorsRes.data as Contractor[]) || []);
     setTotalCount(contractorsRes.count ?? 0);
