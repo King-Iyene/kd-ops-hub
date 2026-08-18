@@ -160,7 +160,7 @@ const Tasks = () => {
       const [topRes, allRes, profilesRes, tagsRes, spacesRes, foldersRes, listsRes, depsRes] = await Promise.all([
         supabase
           .from('tasks')
-          .select('*')
+          .select('id, title, description, assignee_id, due_date, priority, status, created_by, completed_at, created_at, tags, parent_id, project_id, list_id, sort_order, start_date, time_estimate_minutes, time_spent_minutes, task_type, blocked_reason, goal_id, recurrence_rule')
           .is('parent_id', null)
           .order('sort_order', { ascending: true })
           .order('due_date', { ascending: true, nullsFirst: false })
@@ -170,11 +170,11 @@ const Tasks = () => {
           .select('id, parent_id, status, assignee_id, completed_at, created_at, due_date, priority, title, sort_order, project_id, list_id, task_type, blocked_reason, start_date, time_estimate_minutes, time_spent_minutes, description, tags, created_by')
           .limit(5000),
         supabase.from('profiles_directory').select('id, full_name, email, status').eq('is_anonymised', false).in('status', ['active', 'invited']).order('full_name').limit(500),
-        supabase.from('tags').select('*').or('module.eq.all,module.eq.task').order('name'),
-        supabase.from('project_spaces').select('*').is('deleted_at', null).order('sort_order'),
-        supabase.from('space_folders').select('*').order('sort_order'),
-        supabase.from('task_lists').select('*').order('sort_order'),
-        supabase.from('task_dependencies').select('*'),
+        supabase.from('tags').select('id, name, color').or('module.eq.all,module.eq.task').order('name'),
+        supabase.from('project_spaces').select('id, name, description, color, owner_id, is_private').is('deleted_at', null).order('sort_order'),
+        supabase.from('space_folders').select('id, space_id, name, color, sort_order').order('sort_order'),
+        supabase.from('task_lists').select('id, space_id, folder_id, name, color, sort_order').order('sort_order'),
+        supabase.from('task_dependencies').select('id, task_id, depends_on_id, dependency_type'),
       ]);
       if (topRes.error) throw topRes.error;
       const newTasks = (topRes.data as Task[]) || [];
@@ -1553,7 +1553,7 @@ export function MyTasksWidget() {
     if (!profile?.id) return;
     supabase
       .from('tasks')
-      .select('*')
+      .select('id, title, due_date, priority')
       .eq('assignee_id', profile.id)
       .neq('status', 'complete')
       .is('parent_id', null)
