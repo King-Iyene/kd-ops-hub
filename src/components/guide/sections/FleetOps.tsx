@@ -56,9 +56,7 @@ export function FleetOpsSection() {
         <StepList
           startIndex={1}
           steps={[
-            <>For a fuel request: pick the vehicle, then scan a receipt — it reads the station, amount, and litres straight off the
-            photo and fills the form in for you. Prefer typing it in by hand? Use the "or attach manually" option that appears
-            underneath instead.</>,
+            'For a fuel request: pick the vehicle and fuel station, enter the amount (and litres, if known), then attach a receipt or supporting document by clicking the dashed dropzone.',
           ]}
         />
         <Screenshot variant="contain" src="/guide/fuel-2-receipt.jpg" alt="The New Fuel Request dialog with the receipt dropzone highlighted" caption="2. Fuel request — click the dropzone to attach a receipt or quote." />
