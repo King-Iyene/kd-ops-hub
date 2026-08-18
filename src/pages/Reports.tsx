@@ -618,11 +618,8 @@ function FleetReport({ range }: { range: DateRange }) {
 
 function ContractorReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
-    const [contractorsRes, itemsRes, batchesRes] = await Promise.all([
+    const [contractorsRes, batchesRes] = await Promise.all([
       supabase.from('contractors').select('id, full_name, status').neq('status', 'deleted').neq('is_anonymised', true),
-      supabase
-        .from('batch_items')
-        .select('contractor_id, full_name, amount_ngn, batch_id, status'),
       supabase
         .from('payment_batches')
         .select('id, payment_date')
@@ -631,8 +628,15 @@ function ContractorReport({ range }: { range: DateRange }) {
         .lte('payment_date', range.end),
     ]);
     if (contractorsRes.error) throw contractorsRes.error;
-    if (itemsRes.error) throw itemsRes.error;
     if (batchesRes.error) throw batchesRes.error;
+    const batchIds = (batchesRes.data || []).map((b) => b.id);
+    const itemsRes = batchIds.length
+      ? await supabase
+          .from('batch_items')
+          .select('contractor_id, full_name, amount_ngn, batch_id, status')
+          .in('batch_id', batchIds)
+      : { data: [] as any[], error: null };
+    if (itemsRes.error) throw itemsRes.error;
     return {
       contractors: contractorsRes.data || [],
       items: itemsRes.data || [],
@@ -1226,17 +1230,18 @@ function CashFlowReport({ range: _range }: { range: DateRange }) {
 
 function ConcentrationRiskReport({ range }: { range: DateRange }) {
   const { data, loading, error, reload } = useLoader(async () => {
-    const [batchesRes, itemsRes] = await Promise.all([
-      supabase
-        .from('payment_batches')
-        .select('id, payment_date, status')
-        .in('status', [...ACTUAL_DISBURSED_STATUSES])
-        .is('deleted_at', null)
-        .gte('payment_date', range.start)
-        .lte('payment_date', range.end),
-      supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status'),
-    ]);
+    const batchesRes = await supabase
+      .from('payment_batches')
+      .select('id, payment_date, status')
+      .in('status', [...ACTUAL_DISBURSED_STATUSES])
+      .is('deleted_at', null)
+      .gte('payment_date', range.start)
+      .lte('payment_date', range.end);
     if (batchesRes.error) throw batchesRes.error;
+    const batchIds = (batchesRes.data || []).map((b) => b.id);
+    const itemsRes = batchIds.length
+      ? await supabase.from('batch_items').select('contractor_id, full_name, amount_ngn, batch_id, status').in('batch_id', batchIds)
+      : { data: [] as any[], error: null };
     if (itemsRes.error) throw itemsRes.error;
     return { batches: batchesRes.data || [], items: itemsRes.data || [] };
   }, [range.start, range.end]);
@@ -1396,7 +1401,8 @@ function ReconciliationReport() {
       const [{ data: batchItems }, { data: expenses }] = await Promise.all([
         supabase
           .from('batch_items')
-          .select('id, full_name, amount_ngn, paystack_reference'),
+          .select('id, full_name, amount_ngn, paystack_reference')
+          .limit(20000),
         supabase
           .from('expenses')
           .select('id, description, amount_ngn, date, status')
