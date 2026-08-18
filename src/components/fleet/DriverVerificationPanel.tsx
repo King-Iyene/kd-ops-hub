@@ -73,22 +73,19 @@ export function DriverVerificationPanel() {
 
   async function fetchDrivers() {
     try {
-      const [profilesRes, vehiclesRes] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('id, full_name, phone, nin, nin_last4')
-          .in('role', ['field_staff'])
-          .eq('status', 'active'),
-        supabase
-          .from('vehicles')
-          .select('assigned_driver_id, name, plate_number')
-          .not('assigned_driver_id', 'is', null),
-      ]);
+      // A "driver" here means an employee actually assigned to a vehicle —
+      // not every active field_staff account. Start from vehicle assignments,
+      // not from the employee roster, so someone who has never been handed a
+      // car doesn't show up as an unverified driver.
+      const { data: vehicleRows } = await supabase
+        .from('vehicles')
+        .select('assigned_driver_id, name, plate_number')
+        .not('assigned_driver_id', 'is', null);
 
       const vehiclesByDriver: Record<string, string> = {};
       const assignedDriverIds = new Set<string>();
-      if (vehiclesRes.data) {
-        for (const v of vehiclesRes.data) {
+      if (vehicleRows) {
+        for (const v of vehicleRows) {
           if (v.assigned_driver_id) {
             assignedDriverIds.add(v.assigned_driver_id);
             vehiclesByDriver[v.assigned_driver_id] = `${v.name} (${v.plate_number})`;
@@ -96,21 +93,18 @@ export function DriverVerificationPanel() {
         }
       }
 
-      const roleDriverIds = new Set((profilesRes.data || []).map((d) => d.id));
-      const missingIds = [...assignedDriverIds].filter((id) => !roleDriverIds.has(id));
-
-      let assignedProfiles: typeof profilesRes.data = [];
-      if (missingIds.length > 0) {
+      const driverIds = [...assignedDriverIds];
+      let assignedProfiles: Array<{ id: string; full_name: string; phone: string | null; nin: string | null; nin_last4: string | null }> = [];
+      if (driverIds.length > 0) {
         const { data } = await supabase
           .from('profiles')
           .select('id, full_name, phone, nin, nin_last4')
-          .in('id', missingIds);
+          .in('id', driverIds);
         assignedProfiles = data || [];
       }
 
-      const allProfiles = [...(profilesRes.data || []), ...assignedProfiles];
-      const uniqueMap = new Map<string, (typeof allProfiles)[0]>();
-      for (const p of allProfiles) uniqueMap.set(p.id, p);
+      const uniqueMap = new Map<string, (typeof assignedProfiles)[0]>();
+      for (const p of assignedProfiles) uniqueMap.set(p.id, p);
 
       const extendedMap: Record<string, { driver_license_number?: string; driver_license_expiry?: string; verification_status?: string }> = {};
       const allIds = [...uniqueMap.keys()];
