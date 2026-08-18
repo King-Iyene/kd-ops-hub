@@ -13,7 +13,7 @@ import {
   LayoutDashboard, CreditCard, Receipt, Truck, Users, UserCog, Banknote,
   ShieldCheck, Inbox, ListTodo, BookOpen, FileText, Target, BarChart3,
   CalendarDays, ScrollText, PiggyBank, Layers, Contact2, Gift, ArrowUpDown,
-  Settings, Plus, Zap, CalendarClock,
+  Settings, Plus, Zap, CalendarClock, HelpCircle,
 } from 'lucide-react';
 import { useEffectiveRole } from '@/store/authStore';
 import { hasRole, APPROVER_ROLES, MANAGER_ROLES, ALL_AUTH_ROLES, type Role } from '@/lib/roles';
@@ -34,6 +34,7 @@ const ITEMS: Item[] = [
   { title: 'Approvals',       path: '/approvals',     icon: Inbox,           shortcut: 'G A', roles: APPROVER_ROLES, group: 'navigate' },
   { title: 'Tasks',           path: '/tasks',         icon: ListTodo,        roles: ALL_AUTH_ROLES, group: 'navigate' },
   { title: 'Goals',           path: '/goals',         icon: Target,          roles: ALL_AUTH_ROLES, group: 'navigate' },
+  { title: 'Guide',           path: '/guide',         icon: HelpCircle,      roles: ALL_AUTH_ROLES, group: 'navigate', keywords: 'help how to manual documentation onboarding roles permissions' },
 
   // Finance
   { title: 'Payments',          path: '/payments',          icon: CreditCard,    roles: APPROVER_ROLES, group: 'finance' },

@@ -1,19 +1,17 @@
 // Company Guide — the single in-app destination for "how do I use KDOps"
-// and "what does KDOps enforce." Combines a role-based how-to walkthrough
-// of every module, the real roles/permissions matrix (generated from the
-// actual route guards in App.tsx), and the full technical/system
-// reference (caps, thresholds, security settings, infra limits) that used
-// to be the whole of this page. Visible to every authenticated role — not
-// just admins — since everyone benefits from knowing how the system
-// behaves, not just the people who configure it.
-import { useEffect, useRef, useState } from 'react';
+// and "what does KDOps enforce." Each topic is its own real, bookmarkable
+// page under /guide/*, grouped in a collapsible sidebar (Start Here, How
+// To, Technical Reference, Help) rather than one long scrolling document.
+import { useState } from 'react';
+import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { PageHeader } from '@/components/ui-kit/PageHeader';
 import { cn } from '@/lib/utils';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import {
-  Rocket, Shield, CalendarCheck2, Sparkles, Wallet, Users, Car,
-  BookOpen, HelpCircle, ChevronRight, Search,
+  Rocket, Shield, BookOpen, HelpCircle, Search,
 } from 'lucide-react';
+
 import { GettingStartedSection } from '@/components/guide/sections/GettingStarted';
 import { RolesPermissionsSection } from '@/components/guide/sections/RolesPermissions';
 import { EverydayWorkSection } from '@/components/guide/sections/EverydayWork';
@@ -21,74 +19,64 @@ import { GrowthWellbeingSection } from '@/components/guide/sections/GrowthWellbe
 import { FinanceOpsSection } from '@/components/guide/sections/FinanceOps';
 import { PeopleOpsSection } from '@/components/guide/sections/PeopleOps';
 import { FleetOpsSection } from '@/components/guide/sections/FleetOps';
-import { TechnicalReferenceSection } from '@/components/guide/sections/TechnicalReference';
 import { FaqSection } from '@/components/guide/sections/Faq';
 
+import { TechOverviewSection } from '@/components/guide/sections/technical/Overview';
+import { TechPaymentsSection } from '@/components/guide/sections/technical/Payments';
+import { TechFinanceSection } from '@/components/guide/sections/technical/FinanceModules';
+import { TechExpensesSection } from '@/components/guide/sections/technical/ExpensesBudgets';
+import { TechFleetSection } from '@/components/guide/sections/technical/Fleet';
+import { TechHrSection } from '@/components/guide/sections/technical/HrLeave';
+import { TechWorkspaceSection } from '@/components/guide/sections/technical/Workspace';
+import { TechSecuritySection } from '@/components/guide/sections/technical/Security';
+import { TechFilesSection } from '@/components/guide/sections/technical/FilesRetention';
+import { TechInfraSection } from '@/components/guide/sections/technical/Infrastructure';
+
 interface NavLeaf { id: string; label: string; }
-interface NavGroup { group: string; icon: React.ElementType; items: NavLeaf[]; }
+interface NavGroup { id: string; group: string; icon: React.ElementType; items: NavLeaf[]; }
 
 const NAV: NavGroup[] = [
-  { group: 'Start Here', icon: Rocket, items: [
+  { id: 'start', group: 'Start Here', icon: Rocket, items: [
     { id: 'getting-started', label: 'Getting Started' },
     { id: 'roles-permissions', label: 'Roles & Permissions' },
   ] },
-  { group: 'How To', icon: BookOpen, items: [
-    { id: 'everyday-work', label: 'Everyday Work' },
-    { id: 'growth-wellbeing', label: 'Growth & Wellbeing' },
-    { id: 'finance-ops', label: 'Finance' },
-    { id: 'people-ops', label: 'People Operations' },
-    { id: 'fleet-ops', label: 'Fleet & Assets' },
+  { id: 'howto', group: 'How To', icon: BookOpen, items: [
+    { id: 'how-to/everyday-work', label: 'Everyday Work' },
+    { id: 'how-to/growth-wellbeing', label: 'Growth & Wellbeing' },
+    { id: 'how-to/finance', label: 'Finance' },
+    { id: 'how-to/people-operations', label: 'People Operations' },
+    { id: 'how-to/fleet-assets', label: 'Fleet & Assets' },
   ] },
-  { group: 'Technical Reference', icon: Shield, items: [
-    { id: 'tech-overview', label: 'Change History & Overview' },
-    { id: 'tech-payments', label: 'Payments & Paystack' },
-    { id: 'tech-finance', label: 'Finance Modules' },
-    { id: 'tech-expenses', label: 'Expenses & Budgets' },
-    { id: 'tech-fleet', label: 'Fleet Technical Reference' },
-    { id: 'tech-hr', label: 'HR & Leave Technical Reference' },
-    { id: 'tech-workspace', label: 'Workspace / Tasks Technical Reference' },
-    { id: 'tech-security', label: 'Security Settings' },
-    { id: 'tech-files', label: 'Files & Data Retention' },
-    { id: 'tech-infra', label: 'Infrastructure & Capacity' },
+  { id: 'technical', group: 'Technical Reference', icon: Shield, items: [
+    { id: 'technical/overview', label: 'Change History & Overview' },
+    { id: 'technical/payments', label: 'Payments & Paystack' },
+    { id: 'technical/finance', label: 'Finance Modules' },
+    { id: 'technical/expenses', label: 'Expenses & Budgets' },
+    { id: 'technical/fleet', label: 'Fleet Technical Reference' },
+    { id: 'technical/hr', label: 'HR & Leave Technical Reference' },
+    { id: 'technical/workspace', label: 'Workspace / Tasks Technical Reference' },
+    { id: 'technical/security', label: 'Security Settings' },
+    { id: 'technical/files', label: 'Files & Data Retention' },
+    { id: 'technical/infra', label: 'Infrastructure & Capacity' },
   ] },
-  { group: 'Help', icon: HelpCircle, items: [
+  { id: 'help', group: 'Help', icon: HelpCircle, items: [
     { id: 'faq', label: 'FAQ & Troubleshooting' },
   ] },
 ];
 
-const ALL_IDS = NAV.flatMap((g) => g.items.map((i) => i.id));
-
-function useActiveSection(ids: string[]) {
-  const [active, setActive] = useState(ids[0]);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActive(visible[0].target.id);
-      },
-      { rootMargin: '-15% 0px -70% 0px', threshold: 0 },
-    );
-    for (const id of ids) {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    }
-    return () => observer.disconnect();
-  }, [ids]);
-  return active;
-}
-
-function GuideSidebar({ active }: { active: string }) {
+function GuideSidebar() {
+  const location = useLocation();
   const [query, setQuery] = useState('');
   const q = query.trim().toLowerCase();
   const filtered = q
     ? NAV.map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(q)) })).filter((g) => g.items.length)
     : NAV;
 
+  const activeGroup = NAV.find((g) => g.items.some((i) => location.pathname.endsWith(i.id)))?.id ?? 'start';
+
   return (
     <nav className="hidden lg:block sticky top-6 self-start h-[calc(100vh-3rem)] overflow-y-auto pr-2 w-64 shrink-0">
-      <div className="relative mb-4">
+      <div className="relative mb-3">
         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
         <input
           value={query}
@@ -97,51 +85,64 @@ function GuideSidebar({ active }: { active: string }) {
           className="w-full h-9 pl-8 pr-3 rounded-md border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
-      {filtered.map((g) => (
-        <div key={g.group} className="mb-5">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground px-2 mb-1.5">
-            <g.icon className="h-3 w-3" />
-            {g.group}
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {g.items.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className={cn(
-                  'text-sm px-2.5 py-1.5 rounded-md transition-colors leading-snug',
-                  active === item.id
-                    ? 'bg-primary/10 text-primary font-medium'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      ))}
+      <Accordion type="multiple" defaultValue={NAV.map((g) => g.id)} className="border-none">
+        {filtered.map((g) => (
+          <AccordionItem key={g.id} value={g.id} className="border-none mb-1">
+            <AccordionTrigger
+              className={cn(
+                'py-2 px-2.5 rounded-md text-[11px] font-semibold uppercase tracking-wide hover:no-underline hover:bg-muted/60',
+                activeGroup === g.id ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <span className="flex items-center gap-1.5">
+                <g.icon className="h-3.5 w-3.5" />
+                {g.group}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-1 pt-0">
+              <div className="flex flex-col gap-0.5 pl-1.5">
+                {g.items.map((item) => (
+                  <NavLink
+                    key={item.id}
+                    to={item.id}
+                    className={({ isActive }) => cn(
+                      'text-sm px-2.5 py-1.5 rounded-md transition-colors leading-snug',
+                      isActive
+                        ? 'bg-primary/10 text-primary font-medium'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
     </nav>
   );
 }
 
-function MobileNav({ active }: { active: string }) {
+function MobileNav() {
+  const location = useLocation();
+  const allItems = NAV.flatMap((g) => g.items);
   return (
     <div className="lg:hidden -mx-4 px-4 mb-4 overflow-x-auto">
       <div className="flex gap-1.5 pb-1 w-max">
-        {ALL_IDS.map((id) => {
-          const label = NAV.flatMap((g) => g.items).find((i) => i.id === id)?.label ?? id;
+        {allItems.map((item) => {
+          const active = location.pathname.endsWith(item.id);
           return (
-            <a
-              key={id}
-              href={`#${id}`}
+            <NavLink
+              key={item.id}
+              to={item.id}
               className={cn(
                 'text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors',
-                active === id ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground',
+                active ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground',
               )}
             >
-              {label}
-            </a>
+              {item.label}
+            </NavLink>
           );
         })}
       </div>
@@ -149,66 +150,38 @@ function MobileNav({ active }: { active: string }) {
   );
 }
 
+function TechnicalPageWrapper({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-4">{children}</div>;
+}
+
 function GuideBody() {
-  const active = useActiveSection(ALL_IDS);
   return (
     <div className="flex gap-8 items-start">
-      <GuideSidebar active={active} />
-      <div className="min-w-0 flex-1 space-y-16">
-        <MobileNav active={active} />
-
-        <section id="getting-started" className="scroll-mt-6">
-          <GettingStartedSection />
-        </section>
-
-        <section id="roles-permissions" className="scroll-mt-6">
-          <RolesPermissionsSection />
-        </section>
-
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold">How To</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
-            Every module, organised by who uses it day to day. Role badges on each card show exactly who can open that page —
-            if a module below doesn't apply to your role, skip it.
-          </p>
-
-          <div className="space-y-16">
-            <section id="everyday-work" className="scroll-mt-6">
-              <EverydayWorkSection />
-            </section>
-            <section id="growth-wellbeing" className="scroll-mt-6">
-              <GrowthWellbeingSection />
-            </section>
-            <section id="finance-ops" className="scroll-mt-6">
-              <FinanceOpsSection />
-            </section>
-            <section id="people-ops" className="scroll-mt-6">
-              <PeopleOpsSection />
-            </section>
-            <section id="fleet-ops" className="scroll-mt-6">
-              <FleetOpsSection />
-            </section>
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <Shield className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold">Technical Reference</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mb-6 max-w-2xl">
-            Read-only reference of every cap, approval rule, retention policy, security setting, and operational threshold the
-            platform enforces. This is the single source of truth — when a rule changes in code, this page is updated too.
-          </p>
-          <TechnicalReferenceSection />
-        </div>
-
-        <section id="faq" className="scroll-mt-6 pb-8">
-          <FaqSection />
-        </section>
+      <GuideSidebar />
+      <div className="min-w-0 flex-1">
+        <MobileNav />
+        <Routes>
+          <Route index element={<Navigate to="getting-started" replace />} />
+          <Route path="getting-started" element={<GettingStartedSection />} />
+          <Route path="roles-permissions" element={<RolesPermissionsSection />} />
+          <Route path="how-to/everyday-work" element={<EverydayWorkSection />} />
+          <Route path="how-to/growth-wellbeing" element={<GrowthWellbeingSection />} />
+          <Route path="how-to/finance" element={<FinanceOpsSection />} />
+          <Route path="how-to/people-operations" element={<PeopleOpsSection />} />
+          <Route path="how-to/fleet-assets" element={<FleetOpsSection />} />
+          <Route path="technical/overview" element={<TechnicalPageWrapper><TechOverviewSection /></TechnicalPageWrapper>} />
+          <Route path="technical/payments" element={<TechnicalPageWrapper><TechPaymentsSection /></TechnicalPageWrapper>} />
+          <Route path="technical/finance" element={<TechnicalPageWrapper><TechFinanceSection /></TechnicalPageWrapper>} />
+          <Route path="technical/expenses" element={<TechnicalPageWrapper><TechExpensesSection /></TechnicalPageWrapper>} />
+          <Route path="technical/fleet" element={<TechnicalPageWrapper><TechFleetSection /></TechnicalPageWrapper>} />
+          <Route path="technical/hr" element={<TechnicalPageWrapper><TechHrSection /></TechnicalPageWrapper>} />
+          <Route path="technical/workspace" element={<TechnicalPageWrapper><TechWorkspaceSection /></TechnicalPageWrapper>} />
+          <Route path="technical/security" element={<TechnicalPageWrapper><TechSecuritySection /></TechnicalPageWrapper>} />
+          <Route path="technical/files" element={<TechnicalPageWrapper><TechFilesSection /></TechnicalPageWrapper>} />
+          <Route path="technical/infra" element={<TechnicalPageWrapper><TechInfraSection /></TechnicalPageWrapper>} />
+          <Route path="faq" element={<FaqSection />} />
+          <Route path="*" element={<Navigate to="getting-started" replace />} />
+        </Routes>
       </div>
     </div>
   );

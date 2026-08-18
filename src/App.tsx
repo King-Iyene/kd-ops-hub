@@ -812,9 +812,12 @@ function AppRoutes() {
           }
         />
 
-        {/* Company Guide — read-only reference, every role can see it. */}
+        {/* Company Guide — read-only reference, every role can see it.
+            Wildcard path: Guide.tsx owns its own nested <Routes> so each
+            section (Getting Started, Roles & Permissions, ...) is its own
+            real, bookmarkable page instead of one long scrolling document. */}
         <Route
-          path="/guide"
+          path="/guide/*"
           element={
             <RoleGuard roles={ALL_AUTH_ROLES}>
               <GuidePage />

@@ -65,7 +65,7 @@ jobs:
           done
 
       - name: Run guide-screenshots test only
-        run: npx playwright test guide-screenshots
+        run: npx playwright test guide-screenshots.spec.ts
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
@@ -74,3 +74,12 @@ jobs:
           name: guide-screenshots
           path: guide-screenshots/
           retention-days: 7
+
+      # Some environments driving this workflow (e.g. a Claude session) can
+      # read job logs through the GitHub API but cannot reach GitHub's
+      # artifact blob storage host directly. This step re-runs a small,
+      # curated subset of pages and prints each as base64 straight into the
+      # log, so those environments can pull real screenshots back without
+      # ever touching artifact storage.
+      - name: Print curated screenshots as base64 (log-readable fallback)
+        run: npx playwright test guide-screenshots-inline.spec.ts

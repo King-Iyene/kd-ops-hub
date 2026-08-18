@@ -179,14 +179,14 @@ export const NAV_GROUPS = [
   { key: 'operations', label: 'Operations',          titles: ['Fleet', 'Vendors'] },
   { key: 'productivity', label: 'Productivity',       titles: ['Tasks', 'Projects', 'Goals'] },
   { key: 'comms',      label: 'Communication',        titles: ['Assistant', 'Messages'] },
-  { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents', 'Company Guide'] },
+  { key: 'intel',      label: 'Intelligence',         titles: ['Reports', 'HR Analytics', 'Knowledge', 'Documents'] },
   { key: 'crm',        label: 'CRM',                 titles: ['Contacts', 'Referrals', 'Public Links', 'Communications'] },
   { key: 'admin',      label: 'Admin',               titles: ['Approval Workflows', 'Settings', 'Principal Disbursements'] },
 ] as const;
 
 export type NavGroupKey = (typeof NAV_GROUPS)[number]['key'];
 
-export const UNGROUPED_TITLES = ['Dashboard', 'My Portal', 'Approvals', 'Finance'];
+export const UNGROUPED_TITLES = ['Dashboard', 'My Portal', 'Approvals', 'Finance', 'Company Guide'];
 
 export type SidebarHub = {
   key: string;
