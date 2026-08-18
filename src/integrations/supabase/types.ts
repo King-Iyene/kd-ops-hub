@@ -1443,7 +1443,6 @@ export type Database = {
       chatbot_config: {
         Row: {
           daily_message_limit: number
-          embedding_model: string
           enable_fx_rates: boolean
           enable_platform_query: boolean
           enable_web_search: boolean
@@ -1457,7 +1456,6 @@ export type Database = {
         }
         Insert: {
           daily_message_limit?: number
-          embedding_model?: string
           enable_fx_rates?: boolean
           enable_platform_query?: boolean
           enable_web_search?: boolean
@@ -1471,7 +1469,6 @@ export type Database = {
         }
         Update: {
           daily_message_limit?: number
-          embedding_model?: string
           enable_fx_rates?: boolean
           enable_platform_query?: boolean
           enable_web_search?: boolean
@@ -1517,7 +1514,6 @@ export type Database = {
           content: string
           created_at: string
           created_by: string | null
-          embedding: string | null
           id: string
           source: string | null
           tags: string[]
@@ -1530,7 +1526,6 @@ export type Database = {
           content: string
           created_at?: string
           created_by?: string | null
-          embedding?: string | null
           id?: string
           source?: string | null
           tags?: string[]
@@ -1543,7 +1538,6 @@ export type Database = {
           content?: string
           created_at?: string
           created_by?: string | null
-          embedding?: string | null
           id?: string
           source?: string | null
           tags?: string[]
@@ -4659,6 +4653,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
@@ -4707,6 +4702,7 @@ export type Database = {
           is_anomaly?: boolean
           is_reimbursement?: boolean
           labour_hours?: number | null
+          logged_externally?: boolean
           maintenance_item_id?: string | null
           mileage_km?: number | null
           parts_replaced?: string | null
@@ -4755,6 +4751,7 @@ export type Database = {
           is_anomaly?: boolean
           is_reimbursement?: boolean
           labour_hours?: number | null
+          logged_externally?: boolean
           maintenance_item_id?: string | null
           mileage_km?: number | null
           parts_replaced?: string | null
@@ -5231,6 +5228,7 @@ export type Database = {
           is_anomaly: boolean
           litres_est: number | null
           litres_filled: number | null
+          logged_externally: boolean
           odometer: number | null
           payment_sent_at: string | null
           reason: string | null
@@ -5270,6 +5268,7 @@ export type Database = {
           is_anomaly?: boolean
           litres_est?: number | null
           litres_filled?: number | null
+          logged_externally?: boolean
           odometer?: number | null
           payment_sent_at?: string | null
           reason?: string | null
@@ -5309,6 +5308,7 @@ export type Database = {
           is_anomaly?: boolean
           litres_est?: number | null
           litres_filled?: number | null
+          logged_externally?: boolean
           odometer?: number | null
           payment_sent_at?: string | null
           reason?: string | null
@@ -15534,6 +15534,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
@@ -15874,6 +15875,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
@@ -16242,6 +16244,19 @@ export type Database = {
         }
         Returns: string
       }
+      log_external_repair_purchase: {
+        Args: {
+          p_admin_note?: string
+          p_amount_ngn: number
+          p_description: string
+          p_employee_id: string
+          p_purchase_date: string
+          p_receipt_url?: string
+          p_vehicle_id?: string
+          p_vendor_name?: string
+        }
+        Returns: string
+      }
       mark_advance_request_paid: {
         Args: { p_request_id: string; p_start_period?: string }
         Returns: {
@@ -16344,6 +16359,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
@@ -16579,6 +16595,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
@@ -16688,6 +16705,7 @@ export type Database = {
           is_anomaly: boolean
           is_reimbursement: boolean
           labour_hours: number | null
+          logged_externally: boolean
           maintenance_item_id: string | null
           mileage_km: number | null
           parts_replaced: string | null
