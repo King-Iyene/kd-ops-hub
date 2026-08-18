@@ -110,7 +110,12 @@ export function FinanceOpsSection() {
 
         <StepList
           startIndex={3}
-          steps={['Submit the claim — it routes automatically to the right approver based on its amount, and you can track its status from the Expenses list.']}
+          steps={[
+            <>If this is a reimbursement and you haven't added your bank details yet, tap the <strong>"Add your bank details for payment"</strong> banner
+            (visible in the screenshot above) and enter your bank, account number, and account name — an approved reimbursement cannot be paid out
+            without them on file.</>,
+            'Submit the claim — it routes automatically to the right approver based on its amount, and you can track its status from the Expenses list.',
+          ]}
         />
       </ModuleCard>
 

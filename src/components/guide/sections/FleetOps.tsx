@@ -64,7 +64,16 @@ export function FleetOpsSection() {
         <StepList
           startIndex={2}
           steps={[
+            <>If Payment type is set to <strong>Reimbursement</strong>, expand <strong>"Add bank account (optional)"</strong> below it and enter your
+            bank details so the reimbursement has somewhere to be paid to — for a Company charge, no bank details are needed.</>,
+          ]}
+        />
+
+        <StepList
+          startIndex={3}
+          steps={[
             'For a repair request: pick the vehicle, describe the work, and enter the amount — the same photo-scan-or-manual-attach receipt pattern from Expenses applies here too, and amounts over ₦10,000 require a receipt before the request can be submitted.',
+            <>Repair requests default to Reimbursement too — if you're claiming the cost back, add your bank details under <strong>"Bank account for reimbursement (optional)"</strong> the same way as for a fuel request.</>,
           ]}
         />
       </ModuleCard>
