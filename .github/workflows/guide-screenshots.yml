@@ -83,3 +83,9 @@ jobs:
       # ever touching artifact storage.
       - name: Print curated screenshots as base64 (log-readable fallback)
         run: npx playwright test guide-screenshots-inline.spec.ts
+
+      # Annotated, click-by-click walkthrough shots (batch creation, expense
+      # + receipt, fuel/repair requests) — same base64-to-log channel as
+      # above, its own step so a failure here doesn't block the plain shots.
+      - name: Print walkthrough screenshots as base64 (log-readable fallback)
+        run: npx playwright test guide-walkthroughs.spec.ts

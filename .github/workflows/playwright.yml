@@ -56,7 +56,7 @@ jobs:
         # and always fails on a routine push, the latter is a slow full
         # screenshot tour that doesn't belong in every CI run. Exclude both
         # by test title.
-        run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC|screenshots for team guide"
+        run: npx playwright test --project=chromium --grep-invert "invoke an edge function or RPC|screenshots for team guide|^walkthrough:"
 
       - name: Upload HTML test report
         # Only on failure — a green run doesn't need its report kept, and
