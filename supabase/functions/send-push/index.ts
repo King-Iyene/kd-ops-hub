@@ -29,6 +29,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 // Deno's native npm support (enabled by Supabase Edge Functions) handles
 // Node compat correctly for this package.
 import webPush from "npm:web-push@3.6.7";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const ALLOWED_ORIGINS = [
   "https://ops.kdsquares.com",
@@ -89,8 +90,8 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey        = Deno.env.get("SUPABASE_ANON_KEY");
 
-    const isCronCall    = !!(cronSecret && expectedCron && cronSecret === expectedCron);
-    const isServiceRole = !!(bearer && serviceRoleKey && bearer === serviceRoleKey);
+    const isCronCall    = constantTimeEquals(cronSecret, expectedCron);
+    const isServiceRole = constantTimeEquals(bearer, serviceRoleKey);
 
     let authorized = isCronCall || isServiceRole;
 

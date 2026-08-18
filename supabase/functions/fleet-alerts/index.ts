@@ -21,12 +21,8 @@
 // ALERT 3 — Fuel level at or below 25% (dedup: once per vehicle per 24 h)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -373,8 +369,62 @@ async function handleMaintenanceCheck(db: SupabaseClient): Promise<number> {
 // ── entry point ──────────────────────────────────────────────────────────────
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  // ── Auth gate ──────────────────────────────────────────────────────────
+  // Accept EITHER a matching X-Cron-Secret (pg_cron periodic check), the
+  // service-role bearer (internal callers such as fuel-approval /
+  // trip-end triggers), OR a valid Supabase JWT for an active staff
+  // profile. Anonymous callers were previously able to flood the
+  // notifications table with false alerts.
+  const cronSecret     = req.headers.get("x-cron-secret");
+  const expectedCron   = Deno.env.get("CRON_SHARED_SECRET");
+  const bearer         = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const anonKey        = Deno.env.get("SUPABASE_ANON_KEY");
+
+  const isCron        = constantTimeEquals(cronSecret, expectedCron);
+  const isServiceRole = constantTimeEquals(bearer, serviceRoleKey);
+  let authorized = isCron || isServiceRole;
+
+  if (!authorized) {
+    if (!bearer || (anonKey && bearer === anonKey)) {
+      return new Response(JSON.stringify({ error: "Not authenticated" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      anonKey!,
+      { global: { headers: { Authorization: `Bearer ${bearer}` } } },
+    );
+    const { data: userRes, error: userErr } = await userClient.auth.getUser(bearer);
+    if (userErr || !userRes?.user) {
+      return new Response(JSON.stringify({ error: "Invalid session" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const svcCheck = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      serviceRoleKey!,
+    );
+    const { data: profile } = await svcCheck
+      .from("profiles")
+      .select("status")
+      .eq("id", userRes.user.id)
+      .maybeSingle();
+    if (!profile || ((profile as any).status && (profile as any).status !== "active")) {
+      return new Response(JSON.stringify({ error: "Inactive account" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    authorized = true;
   }
 
   try {

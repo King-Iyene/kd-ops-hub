@@ -19,19 +19,17 @@
 //   supabase functions deploy campaign-scheduler --no-verify-jwt
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const CRON_SHARED_SECRET = Deno.env.get("CRON_SHARED_SECRET");
     const providedSecret = req.headers.get("X-Cron-Secret");
-    if (!CRON_SHARED_SECRET || providedSecret !== CRON_SHARED_SECRET) {
+    if (!constantTimeEquals(providedSecret, CRON_SHARED_SECRET)) {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

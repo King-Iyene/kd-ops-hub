@@ -18,11 +18,7 @@
 //   supabase secrets set TERMII_WHATSAPP_SENDER=... (shared with send-email)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // Termii's own rate guidance is generous, but we throttle gently to stay
 // well clear of any account-level burst limit — matches bulk-email-sender's
@@ -31,6 +27,7 @@ const THROTTLE_MS = 150;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

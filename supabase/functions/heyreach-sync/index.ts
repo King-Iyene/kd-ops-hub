@@ -37,6 +37,8 @@
 //          Optional: HEYREACH_API_BASE (default https://api.heyreach.io/api/public)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { constantTimeEquals } from "../_shared/timing.ts";
 
 const SUPABASE_URL          = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,17 +46,6 @@ const SUPABASE_ANON_KEY     = Deno.env.get("SUPABASE_ANON_KEY")!;
 const HEYREACH_API_KEY      = Deno.env.get("HEYREACH_API_KEY");
 const HEYREACH_API_BASE     = (Deno.env.get("HEYREACH_API_BASE") ?? "https://api.heyreach.io/api/public").replace(/\/$/, "");
 const CRON_SHARED_SECRET    = Deno.env.get("CRON_SHARED_SECRET");
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
-};
-
-const json = (status: number, body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 
 interface HeyReachAccount {
   id: number;
@@ -156,11 +147,17 @@ function normalizeProfileUrl(url: string | null | undefined): string | null {
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+  const json = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   // ── Auth gate ──────────────────────────────────────────────────────────────
   const cronSecret = req.headers.get("X-Cron-Secret");
-  const isCron = !!CRON_SHARED_SECRET && cronSecret === CRON_SHARED_SECRET;
+  const isCron = constantTimeEquals(cronSecret, CRON_SHARED_SECRET);
 
   let triggeredBy = "cron";
   try {

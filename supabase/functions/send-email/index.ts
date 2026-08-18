@@ -20,6 +20,7 @@
 // without any changes.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 // ─── Mustache-lite renderer (mirrors src/lib/email-templates.ts) ────────────
 const HTML_ESCAPE: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
@@ -68,12 +69,8 @@ ${preheader ? `<div style="display:none;font-size:1px;line-height:1px;color:#f6f
 </body></html>`;
 }
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
