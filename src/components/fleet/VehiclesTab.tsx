@@ -218,7 +218,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
         supabase
           .from('profiles_directory')
           .select('id, full_name, email')
-          .in('role', ['field_staff', 'driver', 'operations'])
+          .in('role', ['field_staff', 'operations'])
           .eq('status', 'active')
           .order('full_name'),
       ]);

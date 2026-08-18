@@ -46,7 +46,7 @@ import {
 } from '@/components/ui/tabs';
 import { EmptyState } from '@/components/ui-kit/EmptyState';
 
-const ALL_ROLES = ['super_admin', 'admin', 'finance', 'operations', 'driver', 'field_staff'] as const;
+const ALL_ROLES = ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] as const;
 
 interface Config {
   id: string;

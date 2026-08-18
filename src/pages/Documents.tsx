@@ -473,7 +473,7 @@ const Documents = () => {
           description: form.description || null,
           tags,
           uploaded_by: profile?.id || null,
-          visible_to_roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'],
+          visible_to_roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'],
           is_template: form.is_template,
           status: 'active',
         };

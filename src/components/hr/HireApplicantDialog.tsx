@@ -90,7 +90,7 @@ const DEFAULT_ONBOARDING_ITEMS: {
   { category: 'training',      title: 'Health & safety induction',                    offsetDays: 7 },
 ];
 
-const ROLE_OPTIONS = (['field_staff', 'operations', 'finance', 'admin', 'driver'] as const).map(
+const ROLE_OPTIONS = (['field_staff', 'operations', 'finance', 'admin'] as const).map(
   (value) => ({ value, label: roleLabel(value) }),
 );
 
@@ -105,7 +105,7 @@ export const HireApplicantDialog = ({
   const [startDate,    setStartDate]    = useState(today);
   const [monthlySalary,setMonthlySalary]= useState('');
   const [jobTitle,     setJobTitle]     = useState('');
-  const [role,         setRole]         = useState<'field_staff'|'operations'|'finance'|'admin'|'driver'>('field_staff');
+  const [role,         setRole]         = useState<'field_staff'|'operations'|'finance'|'admin'>('field_staff');
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [seedChecklist,setSeedChecklist]= useState(true);
   const [sendInvite,   setSendInvite]   = useState(true);

@@ -522,9 +522,6 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<string, PermissionKey[]> = {
     'expenses.submit',
     'fleet.submit',
   ],
-  driver: [
-    'fleet.submit',
-  ],
 };
 
 export { PERMISSION_GROUPS };

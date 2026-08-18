@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       .select("id, full_name, role")
       .eq("id", user.id)
       .single();
-    const userRole = profile?.role ?? "driver";
+    const userRole = profile?.role ?? "field_staff";
 
     // Load bot config
     const { data: cfg } = await adminClient

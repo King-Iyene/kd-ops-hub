@@ -157,7 +157,7 @@ export function DriverLeaderboard() {
         supabase
           .from('profiles_directory')
           .select('id, full_name')
-          .in('role', ['field_staff', 'driver', 'operations'])
+          .in('role', ['field_staff', 'operations'])
           .eq('status', 'active'),
       ]);
 

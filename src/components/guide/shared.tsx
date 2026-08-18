@@ -7,11 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
-// The 6 real roles in src/lib/roles.ts, spelled out literally (not
+// The 5 real roles in src/lib/roles.ts, spelled out literally (not
 // imported from that module's role-set constants) so this file's badges
 // always show the actual role list regardless of what a constant like
 // MANAGER_ROLES happens to resolve to today.
-export type Role = 'everyone' | 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff' | 'driver';
+export type Role = 'everyone' | 'super_admin' | 'admin' | 'finance' | 'operations' | 'field_staff';
 
 export const ROLE_CONFIG: Record<Role, { label: string; className: string }> = {
   everyone: { label: 'Everyone', className: 'bg-primary/10 text-primary border-primary/20' },
@@ -19,8 +19,7 @@ export const ROLE_CONFIG: Record<Role, { label: string; className: string }> = {
   admin: { label: 'Admin', className: 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20' },
   finance: { label: 'Finance', className: 'bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20' },
   operations: { label: 'Operations', className: 'bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20' },
-  field_staff: { label: 'Field Staff', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' },
-  driver: { label: 'Fleet Staff', className: 'bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-500/20' },
+  field_staff: { label: 'Field Team', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' },
 };
 
 export function RoleBadges({ roles }: { roles: Role[] }) {

@@ -51,10 +51,10 @@ interface Department {
 
 type RoleOption =
   | 'super_admin' | 'admin' | 'finance' | 'operations'
-  | 'field_staff' | 'driver' | 'candidate';
+  | 'field_staff' | 'candidate';
 
 const KNOWN_ROLES: RoleOption[] = [
-  'super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver', 'candidate',
+  'super_admin', 'admin', 'finance', 'operations', 'field_staff', 'candidate',
 ];
 
 // Canonical target field library — the destinations users can map into.

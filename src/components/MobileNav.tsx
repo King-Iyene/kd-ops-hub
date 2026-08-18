@@ -66,12 +66,6 @@ const ROLE_TABS: Record<string, TabDef[]> = {
     { title: 'Expenses',  url: '/expenses',  icon: Receipt },
     { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
   ],
-  driver: [
-    { title: 'Home',      url: '/',          icon: LayoutDashboard },
-    { title: 'Fleet',     url: '/fleet',     icon: Truck },
-    { title: 'Expenses',  url: '/expenses',  icon: Receipt },
-    { title: 'Tasks',     url: '/tasks',     icon: ListTodo },
-  ],
 };
 
 const DEFAULT_TABS: TabDef[] = [

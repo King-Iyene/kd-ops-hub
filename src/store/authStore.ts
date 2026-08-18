@@ -8,8 +8,7 @@ export type UserRole =
   | 'admin'
   | 'finance'
   | 'operations'
-  | 'field_staff'
-  | 'driver';
+  | 'field_staff';
 
 export interface Profile {
   id: string;

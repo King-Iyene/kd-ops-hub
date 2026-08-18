@@ -222,7 +222,6 @@ const ALL_APPROVAL_ROLES = [
   'business_owner',
   'hr',
   'operations',
-  'driver',
 ] as const;
 
 export type ApprovalRole = (typeof ALL_APPROVAL_ROLES)[number];

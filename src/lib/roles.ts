@@ -10,7 +10,6 @@ export const ROLES = {
   FINANCE: 'finance',
   OPERATIONS: 'operations',
   FIELD_STAFF: 'field_staff',
-  DRIVER: 'driver',
 } as const;
 
 export type Role = UserRole;
@@ -42,7 +41,6 @@ export const ALL_AUTH_ROLES: Role[] = [
   'finance',
   'operations',
   'field_staff',
-  'driver',
 ];
 
 /** Roles that can be chosen from the "View As" simulator (Super Admin only). */
@@ -52,7 +50,6 @@ export const SIMULATABLE_ROLES: Role[] = [
   'finance',
   'operations',
   'field_staff',
-  'driver',
 ];
 
 /** A compact role label for UI display. */
@@ -67,9 +64,7 @@ export const roleLabel = (role: string): string => {
     case 'operations':
       return 'Operations';
     case 'field_staff':
-      return 'Field Staff';
-    case 'driver':
-      return 'Fleet Staff';
+      return 'Field Team';
     default:
       return role || 'Unknown';
   }

@@ -88,15 +88,15 @@ export type NavItem = {
 };
 
 export const ALL_NAV: NavItem[] = [
-  { title: 'Dashboard',        url: '/',                  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Dashboard',        url: '/',                  icon: LayoutDashboard, roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Approvals',        url: '/approvals',         icon: Inbox,           roles: ['super_admin', 'admin', 'finance'], badge: 'approvals', permission: 'payments.approve_batches' },
-  { title: 'My Portal',        url: '/my-dashboard',      icon: LayoutGrid,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'My Portal',        url: '/my-dashboard',      icon: LayoutGrid,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   // Finance
   { title: 'Payments',         url: '/payments',          icon: Layers,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Payment Schedule', url: '/payments/schedule', icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Transactions',     url: '/transactions',      icon: ArrowUpDown,     roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'payments.view' },
   { title: 'Payroll',          url: '/payroll',           icon: Banknote,        roles: ['super_admin', 'admin', 'finance'], permission: 'payroll.view' },
-  { title: 'Earned Wages',     url: '/ewa',               icon: Wallet,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Earned Wages',     url: '/ewa',               icon: Wallet,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Subscriptions',    url: '/subscriptions',     icon: CalendarClock,   roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Budgets',          url: '/budgets',           icon: PiggyBank,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Cards',            url: '/cards',             icon: CreditCard,      roles: ['super_admin', 'admin', 'finance'] },
@@ -107,8 +107,8 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Cash Flow',        url: '/cashflow',          icon: Activity,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Finance',          url: '/finance',           icon: Gauge,           roles: ['super_admin'] },
   // Operations
-  { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'], permission: 'expenses.submit' },
-  { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff', 'driver'], permission: 'fleet.view' },
+  { title: 'Expenses',         url: '/expenses',          icon: Receipt,         roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'], permission: 'expenses.submit' },
+  { title: 'Fleet',            url: '/fleet',             icon: Truck,           roles: ['super_admin', 'admin', 'operations', 'field_staff'], permission: 'fleet.view' },
   { title: 'Contractors',      url: '/contractors',       icon: Users,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'contractors.view' },
   // Employees, Disciplinary, Audit Log, Settings — STRICT role only.
   // These touch HR records, financial audit, and platform configuration;
@@ -117,7 +117,7 @@ export const ALL_NAV: NavItem[] = [
   // stale `*.access: true` left in a profile from an earlier admin edit
   // would re-expose the entire admin surface to a downgraded user.
   { title: 'Employees',        url: '/employees',         icon: UserCog,         roles: ['super_admin', 'admin'] },
-  { title: 'Leave',            url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Leave',            url: '/leave',             icon: CalendarDays,    roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Performance',      url: '/performance',       icon: Star,            roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'performance.view' },
   { title: 'Training',         url: '/training',          icon: GraduationCap,   roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'training.view' },
   { title: 'Benefits',         url: '/benefits',          icon: HeartPulse,      roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'benefits.view' },
@@ -132,21 +132,21 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Staff Loans',      url: '/staff-loans',       icon: HandCoins,       roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Shifts',           url: '/shifts',            icon: Clock4,          roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'shifts.view' },
   { title: 'Succession',       url: '/succession',        icon: Replace,         roles: ['super_admin', 'admin'] },
-  { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Handbook',         url: '/handbook',          icon: BookMarked,      roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Timesheets',       url: '/timesheets',        icon: Timer,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'timesheets.view' },
   { title: 'Vendors',          url: '/vendors',           icon: Store,           roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'vendors.view' },
   // Workspace
-  { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Tasks',            url: '/tasks',             icon: ListTodo,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Projects',         url: '/projects',          icon: FolderKanban,    roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'projects.view' },
-  { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Goals',            url: '/goals',             icon: Target,          roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Knowledge',        url: '/knowledge',         icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Documents',        url: '/documents',         icon: FileText,        roles: ['super_admin', 'admin', 'finance'] },
   { title: 'Reports',          url: '/reports',           icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
   { title: 'HR Analytics',     url: '/hr-analytics',      icon: BarChart3,       roles: ['super_admin', 'admin', 'finance'], permission: 'reports.view' },
   // CRM
   { title: 'Clients',          url: '/clients',           icon: Building2,       roles: ['super_admin', 'admin', 'finance', 'operations'], permission: 'clients.view' },
   { title: 'Contacts',         url: '/contacts',          icon: Contact2,        roles: ['super_admin', 'admin', 'finance', 'operations'] },
-  { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Referrals',        url: '/referrals',         icon: Gift,            roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
   { title: 'Public Links',     url: '/public-links',      icon: Link2,           roles: ['super_admin', 'admin', 'finance', 'operations'] },
   { title: 'Communications',   url: '/communications',    icon: Mail,            roles: ['super_admin', 'admin', 'finance'] },
   // Admin — strict role only (see comment block above).
@@ -155,9 +155,9 @@ export const ALL_NAV: NavItem[] = [
   { title: 'Settings',         url: '/settings',          icon: Settings,        roles: ['super_admin'] },
   { title: 'Principal Disbursements', url: '/principal-disbursements', icon: Landmark, roles: ['super_admin'] },
   // Workspace addition (Assistant)
-  { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
-  { title: 'Company Guide',    url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] },
+  { title: 'Assistant',        url: '/assistant',         icon: Bot,             roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Messages',         url: '/messages',          icon: MessageSquare,   roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
+  { title: 'Company Guide',    url: '/guide',             icon: BookOpen,        roles: ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] },
 ];
 
 // Grouped by money-flow direction and function rather than department —

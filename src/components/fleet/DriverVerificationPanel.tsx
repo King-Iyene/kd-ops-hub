@@ -61,7 +61,7 @@ export function DriverVerificationPanel() {
   const { profile } = useAuthStore();
   const { toast } = useToast();
   const isAdmin = profile?.role === 'admin' || profile?.role === 'super_admin' || profile?.role === 'finance' || profile?.role === 'operations';
-  const isSelfService = profile?.role === 'field_staff' || profile?.role === 'driver';
+  const isSelfService = profile?.role === 'field_staff';
 
   const [drivers, setDrivers] = useState<DriverProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +77,7 @@ export function DriverVerificationPanel() {
         supabase
           .from('profiles')
           .select('id, full_name, phone, nin, nin_last4')
-          .in('role', ['field_staff', 'driver'])
+          .in('role', ['field_staff'])
           .eq('status', 'active'),
         supabase
           .from('vehicles')

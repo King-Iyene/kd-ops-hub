@@ -37,7 +37,7 @@ export function TechSecuritySection() {
 
       <RefSection icon={Shield} title="Access control (role matrix)">
         <RefTable
-          cols={['Module / Resource', 'super_admin', 'admin', 'finance', 'operations', 'field_staff / driver']}
+          cols={['Module / Resource', 'super_admin', 'admin', 'finance', 'operations', 'field_staff']}
           rows={[
             { a: 'Dashboard',           b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },
             { a: 'Expenses',            b: '✓', c: '✓', d: '✓', e: '✓', f: '✓' },

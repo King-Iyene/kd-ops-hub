@@ -37,7 +37,7 @@ export function GrowthWellbeingSection() {
           same five competencies — Delivery, Communication, Teamwork, Initiative, and Leadership — on a 1–5 scale, and the
           overall rating is simply the average of those five. A review moves through <strong>draft → submitted → acknowledged</strong>,
           and the cycle's progress bar tracks how many of its reviews are submitted so a manager or admin can see at a glance
-          who's falling behind; a cycle that misses its deadline is flagged red as overdue. Field Staff and Drivers don't have
+          who's falling behind; a cycle that misses its deadline is flagged red as overdue. The Field Team doesn't have
           their own page in this module, but they are still reviewed by their manager through it — the review just doesn't
           require them to browse Performance directly.
         </p>

@@ -1,5 +1,5 @@
 // Fleet & Assets — everything vehicle- and equipment-related: the daily
-// driver/field-staff workflow (fuel, inspections, incidents) alongside the
+// Field Team workflow (fuel, inspections, incidents) alongside the
 // finance-facing fixed-asset register and the operations-facing project
 // tracker that both lean on the same underlying data.
 import { Car } from 'lucide-react';
@@ -11,7 +11,7 @@ export function FleetOpsSection() {
       <SectionIntro
         icon={Car}
         title="Fleet & Assets"
-        blurb="Everything vehicle- and equipment-related lives here: the vehicle roster and daily fuel/maintenance/inspection workflow drivers and field staff touch every day, the fixed-asset register Finance depreciates and insures, and the projects operations plans work against. Unlike most of KDOps, Fleet Dashboard itself is open to every role — drivers and field staff use it to do their job, Finance and Admin use it to see cost, and Operations manages it end to end."
+        blurb="Everything vehicle- and equipment-related lives here: the vehicle roster and daily fuel/maintenance/inspection workflow the Field Team touches every day, the fixed-asset register Finance depreciates and insures, and the projects operations plans work against. Unlike most of KDOps, Fleet Dashboard itself is open to every role — the Field Team uses it to do their job, Finance and Admin use it to see cost, and Operations manages it end to end."
       />
 
       <ModuleCard title="Fleet Dashboard" route="/fleet" roles={['everyone']}>

@@ -19,7 +19,7 @@ export function EverydayWorkSection() {
           captures your location as a single map pin at that moment — it is <strong>not</strong> continuous location tracking, it
           only records where you were at the two instants you tapped the button. That pin exists so that if a clock-in looks late
           or a clock-out looks early, there's an objective record to check rather than a manager's word against yours. Some roles
-          (typically field staff and drivers) are also required to take a quick selfie at clock-in, which is matched against your
+          (typically the Field Team) are also required to take a quick selfie at clock-in, which is matched against your
           profile photo so shifts can't be clocked in on someone else's behalf.
         </p>
         <StepList

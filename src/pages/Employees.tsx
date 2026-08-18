@@ -95,7 +95,7 @@ interface Employee {
 }
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = (
-  ['super_admin', 'admin', 'finance', 'operations', 'field_staff', 'driver'] as Role[]
+  ['super_admin', 'admin', 'finance', 'operations', 'field_staff'] as Role[]
 ).map((value) => ({ value, label: roleLabel(value) }));
 
 const EMPLOYMENT_TYPES: { value: EmploymentType; label: string }[] = [

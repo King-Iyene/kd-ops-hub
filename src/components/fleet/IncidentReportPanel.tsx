@@ -210,7 +210,7 @@ export function IncidentReportPanel({ vehicles, staff }: Props) {
     profile?.role === 'super_admin' ||
     profile?.role === 'finance' ||
     profile?.role === 'operations';
-  const isFieldStaff = profile?.role === 'field_staff' || profile?.role === 'driver';
+  const isFieldStaff = profile?.role === 'field_staff';
 
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);

@@ -13,8 +13,7 @@ const ROLE_SUMMARY: { role: Role; blurb: string }[] = [
   { role: 'admin', blurb: 'Same day-to-day access as Super Admin across HR, finance, and operations pages, minus the 8 super-admin-exclusive pages above. Can manage employees, disciplinary records, HR letters, grievances, and succession planning.' },
   { role: 'finance', blurb: 'Full access to every money-related module — Payments, Payroll, Invoices, Budgets, Expenses, Reports, Cash Flow, Anomalies, Compliance — plus the general HR/ops pages everyone gets. Cannot see Employees, Disciplinary, HR Letters, Grievances, or the super-admin-only pages.' },
   { role: 'operations', blurb: 'Broad day-to-day operational access: Payments (can prepare and view, not the finance-only reporting pages), Fleet, Contractors, Recruitment, Onboarding, Training, Performance, Vendors, Projects, Benefits, Attendance, Timesheets, Surveys, Shifts, Public Links, Contacts, Clients. Cannot see Employees, Invoices, Budgets, Compliance, Reports, HR Analytics, Anomalies, or Cash Flow.' },
-  { role: 'field_staff', blurb: 'Front-line access: Dashboard, Fleet, Expenses (submit only), Leave, Tasks, Knowledge Base, Handbook, Goals, Referrals, Earned Wage Access, Assistant, Messages, My Dashboard. No visibility into any finance, HR-admin, or operations-management page.' },
-  { role: 'driver', blurb: 'Same access surface as Field Staff — this role exists specifically for fleet drivers and shares the front-line permission set rather than having its own.' },
+  { role: 'field_staff', blurb: 'Front-line access: Dashboard, Fleet, Expenses (submit only), Leave, Tasks, Knowledge Base, Handbook, Goals, Referrals, Earned Wage Access, Assistant, Messages, My Dashboard. No visibility into any finance, HR-admin, or operations-management page. Covers both office-based field teams and fleet drivers — one role, one permission set.' },
 ];
 
 const FULL_MATRIX: { a: string; b: string; c: string }[] = [
@@ -85,7 +84,7 @@ export function RolesPermissionsSection() {
       <SectionIntro
         icon={Shield}
         title="Roles & Permissions"
-        blurb="KDOps has 6 real roles, assigned per employee in Settings → Employees. Every route in the app is gated to one of these role sets — there is no page that silently shows different content per role; if you can't see something, your role's guard doesn't include it, full stop."
+        blurb="KDOps has 5 real roles, assigned per employee in Settings → Employees. Every route in the app is gated to one of these role sets — there is no page that silently shows different content per role; if you can't see something, your role's guard doesn't include it, full stop."
       />
 
       <Card className="border-primary/20 bg-primary/5">
@@ -98,7 +97,7 @@ export function RolesPermissionsSection() {
         </CardContent>
       </Card>
 
-      <RefSection icon={Users} title="The 6 roles, in plain English">
+      <RefSection icon={Users} title="The 5 roles, in plain English">
         <div className="grid gap-3">
           {ROLE_SUMMARY.map(({ role, blurb }) => (
             <div key={role} className="rounded-lg border p-3.5">

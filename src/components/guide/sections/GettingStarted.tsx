@@ -11,7 +11,7 @@ export function GettingStartedSection() {
       <SectionIntro
         icon={LogIn}
         title="Getting Started"
-        blurb="Whatever your role — Finance, Operations, a driver, or an admin — this is where you start. Everyone logs in the same way, everyone should install KDOps on their phone, and everyone lands on a dashboard shaped for their job. Read this section first; the rest of the guide assumes you've done it."
+        blurb="Whatever your role — Finance, Operations, Field Team, or Admin — this is where you start. Everyone logs in the same way, everyone should install KDOps on their phone, and everyone lands on a dashboard shaped for their job. Read this section first; the rest of the guide assumes you've done it."
       />
 
       <ModuleCard title="Logging In" route="/login" roles={['everyone']}>
@@ -48,7 +48,7 @@ export function GettingStartedSection() {
           install it straight from your browser, and it then behaves like any other app on your phone: its own icon on your home
           screen, opens full-screen with no browser address bar, and the app shell still loads even with a weak or dropped
           connection (though anything that needs live data, like submitting an expense, still needs a signal). This is the
-          recommended way to use KDOps day-to-day, especially for field staff and drivers who are rarely at a desk.
+          recommended way to use KDOps day-to-day, especially for the Field Team, who are rarely at a desk.
         </p>
         <StepList
           steps={[
@@ -66,12 +66,12 @@ export function GettingStartedSection() {
       <ModuleCard title="Your Dashboard" route="/dashboard · /my-dashboard" roles={['everyone']}>
         <p className="text-sm text-muted-foreground leading-relaxed">
           KDOps doesn't show everyone the same home screen — what you land on after login depends on your role, because a
-          Finance controller and a driver need to see completely different things first thing in the morning.
+          Finance controller and a Field Team member need to see completely different things first thing in the morning.
         </p>
         <StepList
           steps={[
             <><strong>Super Admin, Admin, Finance, and Operations</strong> land on the company-wide <strong>Dashboard</strong>: overall cash position, payments and approvals waiting on someone, budget health versus plan, and an amber <strong>30-day expiry alert panel</strong> that flags documents and compliance filings (licenses, insurance, certifications, registrations) approaching their expiry date so nothing lapses unnoticed. A <strong>Quick Actions</strong> panel sits alongside it for the handful of things this group does most often — raising a payment, approving a request, adding an employee.</>,
-            <><strong>Field Staff and Drivers</strong> land on <strong>My Dashboard</strong> instead — a personal view of your own tasks, your remaining leave balance, whether your timesheet for the period is submitted or still pending, and progress against your current goals. Nothing here is company-wide; it's just your own work.</>,
+            <><strong>Field Team</strong> lands on <strong>My Dashboard</strong> instead — a personal view of your own tasks, your remaining leave balance, whether your timesheet for the period is submitted or still pending, and progress against your current goals. Nothing here is company-wide; it's just your own work.</>,
             <>Both dashboards show an <strong>announcement banner</strong> at the top when there's something company-wide to know — a policy change, a system maintenance window, a public holiday notice. You can dismiss it and it stays dismissed for you specifically; it doesn't reappear until a new announcement is pushed. Admins can post a new announcement that goes out to everyone at once.</>,
           ]}
         />
