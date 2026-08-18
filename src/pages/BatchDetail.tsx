@@ -1496,7 +1496,7 @@ const BatchDetail = () => {
         i.account_name ?? '',
         i.full_name ?? '',
         i.bank_name ?? '',
-        i.account_number ?? '',
+        maskAccountNumber(i.account_number ?? ''),
         i.amount_ngn ?? 0,
         paystackFeeColumn,
         stampDuty,

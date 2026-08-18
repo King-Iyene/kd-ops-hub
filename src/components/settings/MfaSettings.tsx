@@ -314,7 +314,7 @@ export default function MfaSettings() {
               ) : (
                 <>
                   <div className="flex justify-center bg-white rounded-md p-4">
-                    <div dangerouslySetInnerHTML={{ __html: qrSvg }} />
+                    <img src={`data:image/svg+xml;base64,${btoa(qrSvg)}`} alt="MFA QR code" className="w-48 h-48" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs flex items-center justify-between">

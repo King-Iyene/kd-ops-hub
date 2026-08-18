@@ -87,6 +87,7 @@ async function probePaystack(mode: "test" | "live"): Promise<{ ok: boolean; bala
       const { data } = await svc.from("company_settings")
         .select("paystack_secret_key_enc").eq("id", "00000000-0000-0000-0000-000000000001").maybeSingle();
       secret = (data as any)?.paystack_secret_key_enc;
+      if (secret) console.warn("[provider-switch] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
     } catch { /* fall through */ }
   }
   if (!secret) {

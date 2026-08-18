@@ -139,9 +139,10 @@ async function getPaystackSecret(serviceClient?: any): Promise<string> {
     secret = Deno.env.get("PAYSTACK_SECRET_KEY");
   }
 
-  // Last resort: DB-stored key.
+  // Last resort: DB-stored key (deprecated).
   if (!secret) {
     secret = (data as any)?.paystack_secret_key_enc || null;
+    if (secret) console.warn("[paystack-transfer] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
   }
 
   if (!secret) {
@@ -251,12 +252,7 @@ Deno.serve(async (req) => {
   let serviceClientRef: any = null;
 
   try {
-    const hasEnvSecret = !!Deno.env.get("PAYSTACK_SECRET_KEY");
-    const hasAuth = !!req.headers.get("Authorization");
-    console.log("[paystack-transfer] env_secret_present:", hasEnvSecret, "| auth_header_present:", hasAuth);
-
     const { action, ...params } = await req.json();
-    console.log("[paystack-transfer] action:", action);
 
     // ---------------------------------------------------------------
     // list_banks: open to unauthenticated callers.

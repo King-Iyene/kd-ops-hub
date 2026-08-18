@@ -99,6 +99,7 @@ async function getPaystackSecret(svc: SupabaseClient): Promise<string> {
     .maybeSingle();
   const v = (data as any)?.paystack_secret_key_enc;
   if (!v) throw new Error("PAYSTACK_SECRET_KEY not configured");
+  console.warn("[batch-worker] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY env var instead.");
   return v;
 }
 

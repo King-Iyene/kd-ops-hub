@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
     if (action === "check") {
       const count = await countAttempts();
       const blocked = count >= MAX_ATTEMPTS;
-      return json({ blocked, remainingMinutes: blocked ? WINDOW_MIN : 0, attempts: count });
+      return json({ blocked, remainingMinutes: blocked ? WINDOW_MIN : 0 });
     }
 
     if (action === "record") {
@@ -83,12 +83,13 @@ Deno.serve(async (req) => {
       });
       const count = await countAttempts();
       const blocked = count >= MAX_ATTEMPTS;
-      return json({ ok: true, attempts: count, blocked });
+      return json({ ok: true, blocked });
     }
 
     return json({ error: "Unknown action" }, 400);
   } catch (err) {
-    return json({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
+    console.error("record-failed-login error:", err);
+    return json({ ok: false, error: "Internal error" }, 500);
   }
 });
 

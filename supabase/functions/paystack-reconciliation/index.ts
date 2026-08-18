@@ -43,9 +43,11 @@ async function getPaystackSecret(service: any): Promise<string> {
   const envName = mode === "live"
     ? "PAYSTACK_SECRET_KEY_LIVE"
     : "PAYSTACK_SECRET_KEY_TEST";
-  const secret = Deno.env.get(envName)
-    ?? Deno.env.get("PAYSTACK_SECRET_KEY")
-    ?? (data as any)?.paystack_secret_key_enc;
+  const fromEnv = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
+  const secret = fromEnv ?? (data as any)?.paystack_secret_key_enc;
+  if (!fromEnv && secret) {
+    console.warn("[reconciliation] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
+  }
   if (!secret) throw new Error(`No Paystack secret key found. Set ${envName} or PAYSTACK_SECRET_KEY.`);
   return secret;
 }

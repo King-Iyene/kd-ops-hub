@@ -129,10 +129,10 @@ async function callGemini(
   ];
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
 
     if (!cfg?.is_enabled) {
       return new Response(JSON.stringify({ error: "Assistant disabled by admin" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Rate limit check
@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
     if (currentCount >= cfg.daily_message_limit) {
       return new Response(
         JSON.stringify({ error: `Daily limit reached (${cfg.daily_message_limit} messages). Try again tomorrow.` }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -489,11 +489,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     const msg = (err as Error).message ?? "Unknown error";
     console.error("chatbot-chat error:", msg);
-    // Return 200 so the client receives the error body instead of the generic
-    // "Edge Function returned a non-2xx status code" wrapper message.
     return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ error: "Something went wrong. Please try again." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

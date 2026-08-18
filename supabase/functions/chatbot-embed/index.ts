@@ -9,17 +9,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-let corsHeaders: Record<string, string> = {};
-
-const ok = (body: unknown) =>
-  new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-
 Deno.serve(async (req) => {
-  corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -27,7 +25,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
-      return ok({ error: "Missing Authorization header." });
+      return json({ error: "Missing Authorization header." }, 401);
     }
 
     const adminClient = createClient(supabaseUrl, serviceKey);
@@ -35,7 +33,7 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authError } = await adminClient.auth.getUser(token);
     if (!userData?.user || authError) {
-      return ok({ error: "Invalid or expired session. Please log out and back in." });
+      return json({ error: "Invalid or expired session. Please log out and back in." }, 401);
     }
 
     const { data: profile } = await adminClient
@@ -44,7 +42,7 @@ Deno.serve(async (req) => {
       .eq("id", userData.user.id)
       .single();
     if (profile?.role !== "super_admin") {
-      return ok({ error: "Super admin access required." });
+      return json({ error: "Super admin access required." }, 403);
     }
 
     const body = await req.json();
@@ -58,14 +56,14 @@ Deno.serve(async (req) => {
         .from("chatbot_knowledge")
         .select("id", { count: "exact", head: true });
 
-      if (countErr) return ok({ error: `Failed to count rows: ${countErr.message}` });
+      if (countErr) return json({ error: "Failed to count rows." }, 500);
 
-      return ok({ embedded: count ?? 0, failed: 0 });
+      return json({ embedded: count ?? 0, failed: 0 });
     }
 
     // ── Single row: touch the row so Postgres refreshes the generated column
     if (!knowledge_id) {
-      return ok({ error: "Provide knowledge_id or all: true." });
+      return json({ error: "Provide knowledge_id or all: true." }, 400);
     }
 
     const { data: row, error: rowErr } = await adminClient
@@ -75,7 +73,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (rowErr || !row) {
-      return ok({ error: `Knowledge entry not found: ${rowErr?.message ?? knowledge_id}` });
+      return json({ error: "Knowledge entry not found." }, 404);
     }
 
     // Touch the row to ensure the generated tsvector is current
@@ -84,11 +82,11 @@ Deno.serve(async (req) => {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", knowledge_id);
 
-    return ok({ ok: true });
+    return json({ ok: true });
 
   } catch (err) {
     const msg = (err as Error).message ?? "Unknown error";
     console.error("chatbot-embed error:", msg);
-    return ok({ error: msg });
+    return json({ error: "Something went wrong." }, 500);
   }
 });

@@ -55,11 +55,13 @@ async function getPaystackSecret(): Promise<string | null> {
     const envName = mode === "live"
       ? "PAYSTACK_SECRET_KEY_LIVE"
       : "PAYSTACK_SECRET_KEY_TEST";
-    const secret = Deno.env.get(envName)
-      ?? Deno.env.get("PAYSTACK_SECRET_KEY")
-      ?? (data as any)?.paystack_secret_key_enc
-      ?? null;
-    return secret;
+    const fromEnv = Deno.env.get(envName) ?? Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (fromEnv) return fromEnv;
+    const fromDb = (data as any)?.paystack_secret_key_enc ?? null;
+    if (fromDb) {
+      console.warn("[webhook] DEPRECATED: reading Paystack secret from company_settings. Set PAYSTACK_SECRET_KEY_LIVE / _TEST env vars instead.");
+    }
+    return fromDb;
   } catch {
     return Deno.env.get("PAYSTACK_SECRET_KEY") ?? null;
   }

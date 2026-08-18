@@ -262,11 +262,11 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "Image exceeds 10 MB limit" }, 400);
     }
 
-    const url = `https://${location}-documentai.googleapis.com/v1/projects/${projectId}/locations/${location}/processors/${processorId}:process?key=${apiKey}`;
+    const url = `https://${location}-documentai.googleapis.com/v1/projects/${projectId}/locations/${location}/processors/${processorId}:process`;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
         rawDocument: { content: image_base64, mimeType: mime_type },
       }),
