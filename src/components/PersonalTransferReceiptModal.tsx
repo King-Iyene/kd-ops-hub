@@ -13,8 +13,7 @@
  * flourish — instead of a generic colored-header-on-a-card look.
  */
 import { useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+// html2canvas and jspdf loaded dynamically at point of use (see renderToCanvas / renderToPdfBlob)
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -85,6 +84,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
   const renderToCanvas = async (): Promise<HTMLCanvasElement | null> => {
     const node = cardRef.current;
     if (!node) return null;
+    const { default: html2canvas } = await import('html2canvas');
     return html2canvas(node, { backgroundColor: '#ffffff', scale: 2, useCORS: true, logging: false });
   };
 
@@ -98,6 +98,7 @@ export function PersonalTransferReceiptModal({ open, onClose, row, companyName, 
     const canvas = await renderToCanvas();
     if (!canvas) return null;
     const dataUrl = canvas.toDataURL('image/png', 0.96);
+    const { default: jsPDF } = await import('jspdf');
     const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
     const pageW = 210; const pageH = 297; const margin = 16;
     const maxW = pageW - margin * 2;

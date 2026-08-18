@@ -21,7 +21,7 @@
  */
 
 import { useRef, useState, useCallback } from 'react';
-import { createWorker } from 'tesseract.js';
+// tesseract.js loaded dynamically at point of use (see runTesseractOnImage)
 import { ScanLine, Loader2, CheckCircle2, AlertTriangle, RotateCcw, FileWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -564,6 +564,7 @@ async function runTesseractOnImage(
   image: File,
   shouldExtractLitres: boolean,
 ): Promise<{ result: OcrResult; rawText: string }> {
+  const { createWorker } = await import('tesseract.js');
   const worker = await withTimeout(
     createWorker('eng', 1),
     45_000,
