@@ -119,7 +119,7 @@ export default function Benefits() {
   const load = useCallback(async () => {
     setLoading(true);
     const [{ data: bData }, { data: pData }] = await Promise.all([
-      supabase.from('employee_benefits').select('*').order('created_at', { ascending: false }),
+      supabase.from('employee_benefits').select('id, employee_id, benefit_type, provider, plan_name, policy_number, pfa_rsa_pin, premium_ngn, premium_frequency, enrollment_date, expiry_date, status, notes').order('created_at', { ascending: false }),
       supabase.from('profiles_directory').select('id, full_name').neq('is_anonymised', true).order('full_name'),
     ]);
     setBenefits(bData ?? []);
