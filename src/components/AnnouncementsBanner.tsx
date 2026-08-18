@@ -35,7 +35,7 @@ export function AnnouncementsBanner() {
     const now = new Date().toISOString();
     supabase
       .from('announcements')
-      .select('*')
+      .select('id, title, body, tone, dismissed_by_ids')
       .or(`expires_at.is.null,expires_at.gt.${now}`)
       .order('created_at', { ascending: false })
       .limit(5)

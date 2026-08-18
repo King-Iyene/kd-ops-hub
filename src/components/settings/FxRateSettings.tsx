@@ -75,7 +75,7 @@ export default function FxRateSettings() {
     const [ratesRes, settingsRes] = await Promise.all([
       supabase
         .from('fx_rates')
-        .select('*')
+        .select('id, rate, source, status, prev_rate, deviation_pct, valid_from')
         .eq('base', BASE).eq('quote', QUOTE)
         .order('valid_from', { ascending: false })
         .limit(100),
@@ -102,7 +102,7 @@ export default function FxRateSettings() {
     const interval = setInterval(async () => {
       const { data } = await supabase
         .from('fx_rates')
-        .select('*')
+        .select('id, rate, source, status, prev_rate, deviation_pct, valid_from')
         .eq('base', BASE).eq('quote', QUOTE).eq('status', 'active')
         .order('valid_from', { ascending: false })
         .limit(1);

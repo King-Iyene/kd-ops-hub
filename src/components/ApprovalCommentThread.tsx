@@ -43,7 +43,7 @@ export function ApprovalCommentThread({ entityType, entityId, title }: Props) {
     setLoading(true);
     const { data } = await supabase
       .from('approval_comments')
-      .select('*')
+      .select('id, author_name, action, created_at, body')
       .eq('entity_type', entityType)
       .eq('entity_id', entityId)
       .order('created_at', { ascending: true });

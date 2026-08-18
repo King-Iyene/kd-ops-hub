@@ -113,7 +113,7 @@ export function GoogleCalendarSync({ tasks }: GoogleCalendarSyncProps) {
     try {
       const { data, error } = await supabase
         .from('calendar_integrations')
-        .select('*')
+        .select('id, access_token, calendar_id, sync_enabled, last_synced_at, token_expires_at')
         .eq('user_id', profile.id)
         .eq('provider', 'google')
         .maybeSingle();

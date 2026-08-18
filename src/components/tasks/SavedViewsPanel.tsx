@@ -40,7 +40,7 @@ export function SavedViewsPanel({
   const [saveShared, setSaveShared] = useState(false);
 
   const load = useCallback(async () => {
-    let q = supabase.from('saved_views').select('*').order('created_at', { ascending: false });
+    let q = supabase.from('saved_views').select('id, name, view_type, is_shared, filters').order('created_at', { ascending: false });
     if (spaceId) {
       q = q.or(`space_id.eq.${spaceId},space_id.is.null`);
     }

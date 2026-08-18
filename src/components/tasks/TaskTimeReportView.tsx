@@ -153,7 +153,7 @@ export function TaskTimeReportView({ tasks, profiles, onTaskClick }: TaskTimeRep
     setLoading(true);
     let query = supabase
       .from('task_time_entries')
-      .select('*')
+      .select('id, task_id, user_id, started_at, ended_at, duration_minutes, description')
       .gte('started_at', toIsoString(range.start))
       .lte('started_at', toIsoString(range.end))
       .order('started_at', { ascending: false });

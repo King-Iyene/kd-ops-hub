@@ -330,7 +330,7 @@ function YearCalendar({ schedules }: { schedules: PaySchedule[] }) {
       // Holidays for the year
       const { data: hol } = await supabase
         .from('public_holidays')
-        .select('*')
+        .select('holiday_date, name')
         .eq('country_code', 'NG')
         .gte('holiday_date', `${year}-01-01`)
         .lte('holiday_date', `${year}-12-31`)
@@ -519,7 +519,7 @@ function PayGroupsManager({ schedules }: { schedules: PaySchedule[] }) {
   const load = useCallback(async () => {
     setLoading(true);
     const [groupsRes, countsRes] = await Promise.all([
-      supabase.from('pay_groups').select('*').order('created_at', { ascending: true }),
+      supabase.from('pay_groups').select('id, name, description, pay_schedule_id, role_filter').order('created_at', { ascending: true }),
       supabase
         .from('profiles')
         .select('pay_group_id, salary_ngn, status')
@@ -957,7 +957,7 @@ function HolidaysManager() {
     setLoading(true);
     const { data } = await supabase
       .from('public_holidays')
-      .select('*')
+      .select('id, holiday_date, name')
       .eq('country_code', 'NG')
       .gte('holiday_date', `${year}-01-01`)
       .lte('holiday_date', `${year}-12-31`)
@@ -1405,7 +1405,7 @@ export function PayrollSchedules() {
     setLoading(true);
     const { data } = await supabase
       .from('pay_schedules')
-      .select('*')
+      .select('id, name, frequency, anchor_day, second_anchor_day, day_adjustment, processing_lead_days, cutoff_lead_days, auto_approve, notify_roles, is_active, schedule_kind, linked_schedule_id, allowance_context')
       .order('created_at', { ascending: true });
     const list = (data as PaySchedule[]) ?? [];
     setSchedules(list);
@@ -1791,7 +1791,7 @@ export function NextPayrollBanner() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase
-        .from('pay_schedules').select('*').eq('is_active', true)
+        .from('pay_schedules').select('id, name').eq('is_active', true)
         .order('created_at', { ascending: true });
       if (!data?.length) return;
 

@@ -217,7 +217,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
       const { data, error } = await supabase
         .from('attendance_records')
         .upsert(payload, { onConflict: 'employee_id,work_date' })
-        .select('*')
+        .select('id, work_date, clock_in, clock_out, status, clock_in_lat, clock_in_lng, clock_in_selfie_path')
         .single();
       if (error) throw error;
       setToday_(data as AttendanceRow);
@@ -265,7 +265,7 @@ export const ClockInWidget = ({ lateThreshold = '09:15' }: ClockInWidgetProps) =
           clock_out_via: 'web',
         })
         .eq('id', today_.id)
-        .select('*')
+        .select('id, work_date, clock_in, clock_out, status, clock_in_lat, clock_in_lng, clock_in_selfie_path')
         .single();
       if (error) throw error;
       setToday_(data as AttendanceRow);

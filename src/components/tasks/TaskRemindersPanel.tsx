@@ -120,7 +120,7 @@ export function TaskRemindersPanel({ taskId }: TaskRemindersPanelProps) {
     if (!profile?.id) return;
     const { data, error } = await supabase
       .from('task_reminders')
-      .select('*')
+      .select('id, remind_at, note, is_dismissed')
       .eq('task_id', taskId)
       .eq('user_id', profile.id)
       .order('remind_at', { ascending: true });

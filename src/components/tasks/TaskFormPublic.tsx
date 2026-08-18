@@ -44,7 +44,7 @@ export function TaskFormPublic({ formId }: TaskFormPublicProps) {
       setError(null);
       const { data, error: fetchErr } = await supabase
         .from('task_forms')
-        .select('*')
+        .select('id, name, description, fields, default_priority, default_status, default_assignee_id, list_id, submission_count, submit_message')
         .eq('id', formId)
         .eq('is_active', true)
         .single();

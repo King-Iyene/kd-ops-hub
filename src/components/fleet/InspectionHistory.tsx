@@ -148,7 +148,7 @@ export function InspectionHistory({ vehicles }: Props) {
         const { data: rich, error: richErr } = await supabase
           .from('vehicle_inspections')
           .select(
-            '*, inspector:profiles!inspector_id(full_name), reviewer:profiles!reviewed_by(full_name)',
+            'id, vehicle_id, inspector_id, inspection_type, checklist, has_defects, defect_notes, photo_urls, odometer_km, overall_status, reviewed_by, reviewed_at, review_note, created_at, inspector:profiles!inspector_id(full_name), reviewer:profiles!reviewed_by(full_name)',
           )
           .order('created_at', { ascending: false });
         if (richErr) throw richErr;
@@ -162,7 +162,7 @@ export function InspectionHistory({ vehicles }: Props) {
       } catch {
         const { data: plain, error: plainErr } = await supabase
           .from('vehicle_inspections')
-          .select('*')
+          .select('id, vehicle_id, inspector_id, inspection_type, checklist, has_defects, defect_notes, photo_urls, odometer_km, overall_status, reviewed_by, reviewed_at, review_note, created_at')
           .order('created_at', { ascending: false });
         if (plainErr) throw plainErr;
         data = (plain ?? []).map((r: any) => ({

@@ -82,7 +82,7 @@ function FuelHistoryDialog({ vehicle, onClose }: { vehicle: Vehicle; onClose: ()
     const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
     supabase
       .from('fuel_level_logs')
-      .select('*')
+      .select('id, event_type, amount_litres, resulting_level_litres, created_at')
       .eq('vehicle_id', vehicle.id)
       .gte('created_at', since)
       .order('created_at')
@@ -214,7 +214,7 @@ function VehiclesTab({ staff }: { staff: FieldStaff[] }) {
     setLoading(true);
     try {
       const [vRes, dRes] = await Promise.all([
-        supabase.from('vehicles').select('*').order('name'),
+        supabase.from('vehicles').select('id, name, plate_number, make_model, year, color, vin, assigned_driver_id, weekly_budget_ngn, tank_capacity_litres, avg_km_per_litre, current_fuel_litres, last_refuel_at, insurance_expiry, road_worthiness_expiry, last_service_date, next_service_date, notes, status, out_of_service_until').order('name'),
         supabase
           .from('profiles_directory')
           .select('id, full_name, email')
@@ -867,7 +867,7 @@ function VehicleMaintenanceDialog({ vehicle, onClose }: { vehicle: Vehicle; onCl
     setLoadingRec(true);
     const { data } = await supabase
       .from('vehicle_maintenance')
-      .select('*')
+      .select('id, service_type, status, due_date, due_mileage_km, recurrence, last_done_date, last_done_mileage_km, notes, receipt_url')
       .eq('vehicle_id', vehicle.id)
       .order('due_date', { ascending: true, nullsFirst: false });
     setRecords((data as MaintenanceRecord[]) || []);

@@ -32,7 +32,7 @@ function GeofencesTab() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from('geofences').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('geofences').select('id, name, center_lat, center_lng, radius_meters, color, description').order('created_at', { ascending: false });
     setGeofences((data as Geofence[]) || []);
     setLoading(false);
   }, []);

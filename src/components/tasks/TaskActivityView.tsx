@@ -110,12 +110,12 @@ export function TaskActivityView({ tasks, profiles, onTaskClick }: TaskActivityV
     const [auditRes, commentRes] = await Promise.all([
       supabase
         .from('audit_log')
-        .select('*')
+        .select('id, action, description, user_id, timestamp, metadata')
         .order('timestamp', { ascending: false })
         .limit(100),
       supabase
         .from('task_comments')
-        .select('*')
+        .select('id, task_id, author_id, body, created_at')
         .order('created_at', { ascending: false })
         .limit(50),
     ]);
