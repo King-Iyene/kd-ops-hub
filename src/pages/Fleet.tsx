@@ -4608,29 +4608,55 @@ const Fleet = () => {
                     <Textarea value={fuelForm.reason} onChange={(e) => setFuelForm({ ...fuelForm, reason: e.target.value })} placeholder="Brief description of trip purpose…" className="resize-none" rows={2} />
                   </div>
                   <div className="space-y-1">
-                    <Label>Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span></Label>
-                    <label className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-4 cursor-pointer transition-colors ${fuelDoc ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-muted/40'}`}>
-                      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => {
-                        const f = e.target.files?.[0] ?? null;
-                        if (!validateFile(f, toast)) {
-                          e.target.value = '';
-                          return;
+                    <Label>
+                      Receipt / Supporting Document <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground -mt-0.5 mb-1">
+                      Scanning a receipt fills in the station, amount, and litres above automatically — useful for logging a
+                      purchase that already happened (e.g. someone couldn't submit the request beforehand).
+                    </p>
+                    <OcrReceiptScanner
+                      extractLitres
+                      onExtracted={(result: OcrResult, file: File) => {
+                        setFuelDoc(file);
+                        if (result.receiptType && result.receiptType !== 'fuel' && result.receiptType !== 'general') {
+                          toast({ title: 'Receipt type mismatch', description: `This looks like a ${result.receiptType} receipt — make sure you're attaching the right one.`, variant: 'default' });
                         }
-                        setFuelDoc(f);
-                      }} />
-                      {fuelDoc ? (
-                        <>
-                          <FileText className="h-5 w-5 text-primary" />
-                          <p className="text-xs font-medium text-foreground">{fuelDoc.name}</p>
-                          <p className="text-xs text-muted-foreground">{(fuelDoc.size / 1024).toFixed(1)} KB — click to change</p>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-5 w-5 text-muted-foreground" />
-                          <p className="text-xs text-muted-foreground text-center">Click to attach receipt, quote, or supporting evidence</p>
-                        </>
-                      )}
-                    </label>
+                        setFuelForm((f) => ({
+                          ...f,
+                          station_name: result.description || f.station_name,
+                          amount_ngn: result.amount_ngn || f.amount_ngn,
+                          litres_est: result.litres || f.litres_est,
+                        }));
+                      }}
+                    />
+                    {fuelDoc ? (
+                      <div className="flex items-center gap-3 rounded-xl border-2 border-green-400 bg-green-50 dark:bg-green-950/20 px-4 py-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+                        <span className="text-sm text-green-700 dark:text-green-400 truncate flex-1">{fuelDoc.name}</span>
+                        <button type="button" className="text-xs text-muted-foreground hover:text-destructive shrink-0" onClick={() => setFuelDoc(null)}>
+                          Change
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground my-1">
+                          <span className="flex-1 border-t" /><span>or attach manually</span><span className="flex-1 border-t" />
+                        </div>
+                        <label className="flex items-center gap-3 rounded-xl border-2 border-dashed border-border hover:border-primary/40 hover:bg-muted/30 px-4 py-3 cursor-pointer kd-transition">
+                          <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="hidden" onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            if (!validateFile(f, toast)) {
+                              e.target.value = '';
+                              return;
+                            }
+                            setFuelDoc(f);
+                          }} />
+                          <Upload className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-sm text-muted-foreground">Click to attach receipt, quote, or supporting evidence</span>
+                        </label>
+                      </>
+                    )}
                   </div>
                 </div>
 

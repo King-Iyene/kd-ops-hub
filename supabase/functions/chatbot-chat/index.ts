@@ -2,10 +2,11 @@
 //
 // AI assistant brain for KD-Ops platform.
 //   - Groq (Llama 3.3 70B Versatile) for text-only conversations — fast, free.
-//   - Gemini 1.5 Flash for vision (images) and document (PDF) inputs — free tier.
+//   - Gemini (model configured in chatbot_config.vision_model) for vision (images) and
+//     document (PDF) inputs, and as the fallback if Groq fails — free tier.
 //   - Tavily Search for web lookups (Naira rates, news, etc.) — 1k/month free.
 //   - Open ER API for FX rates — no key required.
-//   - pgvector RAG retrieval from chatbot_knowledge for platform-specific answers.
+//   - Full-text search retrieval from chatbot_knowledge for platform-specific answers.
 //   - Per-user daily rate limiting via chatbot_usage.
 //   - All responses cite their tool sources.
 //
@@ -23,6 +24,13 @@ const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
 const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY") ?? "";
 
+// Every outbound call to a third-party API gets a hard timeout — without
+// one, a slow/hung upstream (Gemini, Groq, Tavily, or the FX API) hangs
+// this function for its full platform timeout instead of failing fast
+// into the tool's own error handling / fallback path.
+const TOOL_FETCH_TIMEOUT_MS = 8_000;
+const LLM_FETCH_TIMEOUT_MS = 25_000;
+
 interface Attachment {
   name: string;
   mime_type: string;
@@ -39,7 +47,9 @@ interface IncomingMessage {
 // ─── Tool: FX rate lookup (no key required) ─────────────────────────────────────────────────
 async function getFxRate(base = "USD", target = "NGN"): Promise<string> {
   try {
-    const res = await fetch(`https://open.er-api.com/v6/latest/${base}`);
+    const res = await fetch(`https://open.er-api.com/v6/latest/${base}`, {
+      signal: AbortSignal.timeout(TOOL_FETCH_TIMEOUT_MS),
+    });
     const data = await res.json();
     const rate = data?.rates?.[target];
     if (!rate) return `Unable to fetch ${base}/${target} rate.`;
@@ -63,6 +73,7 @@ async function tavilySearch(query: string, count = 5): Promise<string> {
         search_depth: "basic",
         include_answer: true,
       }),
+      signal: AbortSignal.timeout(TOOL_FETCH_TIMEOUT_MS),
     });
     if (!res.ok) return `Web search error: ${res.status}`;
     const data = await res.json();
@@ -138,6 +149,7 @@ async function callGemini(
         contents,
         generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
       }),
+      signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS),
     },
   );
   if (!res.ok) {
@@ -183,6 +195,7 @@ async function callGroq(
       temperature: 0.3,
       max_tokens: 2048,
     }),
+    signal: AbortSignal.timeout(LLM_FETCH_TIMEOUT_MS),
   });
   if (!res.ok) {
     const errTxt = await res.text();
