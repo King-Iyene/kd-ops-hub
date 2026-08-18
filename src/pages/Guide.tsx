@@ -104,7 +104,7 @@ function GuideSidebar() {
                 {g.items.map((item) => (
                   <NavLink
                     key={item.id}
-                    to={item.id}
+                    to={`/guide/${item.id}`}
                     className={({ isActive }) => cn(
                       'text-sm px-2.5 py-1.5 rounded-md transition-colors leading-snug',
                       isActive
@@ -135,7 +135,7 @@ function MobileNav() {
           return (
             <NavLink
               key={item.id}
-              to={item.id}
+              to={`/guide/${item.id}`}
               className={cn(
                 'text-xs whitespace-nowrap px-3 py-1.5 rounded-full border transition-colors',
                 active ? 'bg-primary text-primary-foreground border-primary' : 'text-muted-foreground',
@@ -161,7 +161,7 @@ function GuideBody() {
       <div className="min-w-0 flex-1">
         <MobileNav />
         <Routes>
-          <Route index element={<Navigate to="getting-started" replace />} />
+          <Route index element={<Navigate to="/guide/getting-started" replace />} />
           <Route path="getting-started" element={<GettingStartedSection />} />
           <Route path="roles-permissions" element={<RolesPermissionsSection />} />
           <Route path="how-to/everyday-work" element={<EverydayWorkSection />} />
@@ -180,7 +180,7 @@ function GuideBody() {
           <Route path="technical/files" element={<TechnicalPageWrapper><TechFilesSection /></TechnicalPageWrapper>} />
           <Route path="technical/infra" element={<TechnicalPageWrapper><TechInfraSection /></TechnicalPageWrapper>} />
           <Route path="faq" element={<FaqSection />} />
-          <Route path="*" element={<Navigate to="getting-started" replace />} />
+          <Route path="*" element={<Navigate to="/guide/getting-started" replace />} />
         </Routes>
       </div>
     </div>
